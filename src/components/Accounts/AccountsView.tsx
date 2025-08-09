@@ -555,47 +555,12 @@ export const AccountsView: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Set default currency for tableFilters when component loads
-  useEffect(() => {
-    if (!tableFilters.currency && profile?.selected_currencies && profile.selected_currencies.length > 0) {
-      setTableFilters(prev => ({
-        ...prev,
-        currency: profile.selected_currencies![0]
-      }));
-    } else if (!tableFilters.currency && profile?.local_currency) {
-      setTableFilters(prev => ({
-        ...prev,
-        currency: profile.local_currency!
-      }));
-    } else if (!tableFilters.currency && currencyOptions.length > 0) {
-      setTableFilters(prev => ({
-        ...prev,
-        currency: currencyOptions[0]
-      }));
-    }
-  }, [profile?.selected_currencies, profile?.local_currency, currencyOptions, tableFilters.currency]);
-
   // Sync tempFilters with tableFilters when modal opens
   useEffect(() => {
     if (showMobileFilterMenu) {
-      // Set default currency based on user's selected currencies
-      let defaultCurrency = tableFilters.currency;
-      
-      // If no currency is currently selected, set the user's default currency
-      if (!defaultCurrency && profile?.selected_currencies && profile.selected_currencies.length > 0) {
-        defaultCurrency = profile.selected_currencies[0];
-      } else if (!defaultCurrency && profile?.local_currency) {
-        defaultCurrency = profile.local_currency;
-      } else if (!defaultCurrency && currencyOptions.length > 0) {
-        defaultCurrency = currencyOptions[0];
-      }
-      
-      setTempFilters({
-        ...tableFilters,
-        currency: defaultCurrency || ''
-      });
+      setTempFilters(tableFilters);
     }
-  }, [showMobileFilterMenu, tableFilters, profile?.selected_currencies, profile?.local_currency, currencyOptions]);
+  }, [showMobileFilterMenu, tableFilters]);
 
   // Handle closing modal without applying filters
   const handleCloseModal = () => {

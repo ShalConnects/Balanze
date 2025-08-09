@@ -31,6 +31,16 @@ export const TransactionList: React.FC<{
   const { wrapAsync, setLoadingMessage } = useLoadingContext();
   const navigate = useNavigate();
 
+  // Mobile filter modal state
+  const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
+  const [tempFilters, setTempFilters] = useState({
+    search: '',
+    type: 'all' as 'all' | 'income' | 'expense',
+    account: 'all',
+    currency: '',
+    dateRange: { start: '', end: '' }
+  });
+
   // Get this month date range for default
   const getThisMonthDateRange = () => {
     const today = new Date();
@@ -266,6 +276,30 @@ export const TransactionList: React.FC<{
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showAccountMenu]);
+
+  // Mobile filter modal handlers
+  useEffect(() => {
+    if (showMobileFilterMenu) {
+      setTempFilters(filters);
+    }
+  }, [showMobileFilterMenu, filters]);
+
+  const handleCloseModal = () => {
+    setShowMobileFilterMenu(false);
+    setTempFilters(filters); // Reset tempFilters to current filters when closing without applying
+  };
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && showMobileFilterMenu) {
+        handleCloseModal();
+      }
+    };
+    if (showMobileFilterMenu) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [showMobileFilterMenu]);
 
   // Export handlers
   const handleExportCSV = () => {
@@ -557,8 +591,37 @@ export const TransactionList: React.FC<{
                 />
               </div>
             </div>
+
+            {/* Mobile Filter Button */}
+            <div className="md:hidden">
+              <button
+                onClick={() => setShowMobileFilterMenu(v => !v)}
+                className={`px-2 py-1.5 text-[13px] h-8 w-8 rounded-md transition-colors flex items-center justify-center ${
+                  (filters.type !== 'all' || filters.account !== 'all' || filters.currency || filters.dateRange.start || filters.dateRange.end)
+                    ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+                title="Filters"
+              >
+                <Filter className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Mobile Add Transaction Button */}
+            <div className="md:hidden">
+              <button
+                onClick={() => {
+                  setSelectedTransaction(undefined);
+                  setIsFormOpen(true);
+                }}
+                className="bg-gradient-primary text-white px-2 py-1.5 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center justify-center text-[13px] h-8 w-8"
+                title="Add Transaction"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
             {/* Currency Filter */}
-            <div>
+            <div className="hidden md:block">
               <div className="relative" ref={currencyMenuRef}>
                 <button
                   onClick={() => {
@@ -594,7 +657,7 @@ export const TransactionList: React.FC<{
                 )}
               </div>
             </div>
-            <div>
+            <div className="hidden md:block">
             <div className="relative">
               <button
                   onClick={() => {
@@ -629,7 +692,7 @@ export const TransactionList: React.FC<{
             </div>
             </div>
 
-            <div>
+            <div className="hidden md:block">
             <div className="relative">
               <button
                 type="button"
@@ -671,7 +734,7 @@ export const TransactionList: React.FC<{
             </div>
             </div>
             {/* Date Preset Dropdown styled as filter button */}
-            <div className="relative">
+            <div className="hidden md:block relative">
               <button
                 className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
                   filters.dateRange.start && filters.dateRange.end 
@@ -1232,6 +1295,254 @@ export const TransactionList: React.FC<{
         confirmLabel="Delete Transaction"
         cancelLabel="Cancel"
       />
+
+      {/* Mobile Filter Modal */}
+      {showMobileFilterMenu && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black bg-opacity-50" onClick={() => setShowMobileFilterMenu(false)}>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-full max-w-xs overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Header with Check and Cross */}
+            <div className="bg-white dark:bg-gray-900 px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">Filters</span>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Select filters and click ✓ to apply</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setFilters(tempFilters);
+                      setShowMobileFilterMenu(false);
+                    }}
+                    className={`p-1 transition-colors ${
+                      (tempFilters.type !== 'all' || tempFilters.account !== 'all' || tempFilters.currency || tempFilters.dateRange.start || tempFilters.dateRange.end)
+                        ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
+                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    }`}
+                    title="Apply Filters"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFilters({
+                        search: '',
+                        type: 'all',
+                        account: 'all',
+                        currency: '',
+                        dateRange: { start: '', end: '' }
+                      });
+                      setShowMobileFilterMenu(false);
+                    }}
+                    className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1"
+                    title="Clear All Filters"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Type Filter */}
+            <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Type</div>
+              <div className="flex flex-wrap gap-1">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, type: 'all' }); }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.type === 'all'
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, type: 'income' }); }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.type === 'income'
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  Income
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, type: 'expense' }); }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.type === 'expense'
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  Expense
+                </button>
+              </div>
+            </div>
+
+            {/* Account Filter */}
+            <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Account</div>
+              <div className="flex flex-wrap gap-1">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, account: 'all' }); }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.account === 'all'
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  All
+                </button>
+                {accounts.map(account => (
+                  <button
+                    key={account.id}
+                    onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, account: account.id }); }}
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                      tempFilters.account === account.id
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {account.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Currency Filter */}
+            <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Currency</div>
+              <div className="flex flex-wrap gap-1">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, currency: '' }); }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.currency === ''
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  All
+                </button>
+                {currencyOptions.map(currency => (
+                  <button
+                    key={currency}
+                    onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, currency }); }}
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                      tempFilters.currency === currency
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {currency}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Date Range Filter */}
+            <div className="px-3 py-2">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Date Range</div>
+              <div className="flex flex-wrap gap-1">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, dateRange: { start: '', end: '' } }); }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    !tempFilters.dateRange.start && !tempFilters.dateRange.end
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    const today = new Date();
+                    const todayStr = today.toISOString().slice(0, 10);
+                    setTempFilters({ ...tempFilters, dateRange: { start: todayStr, end: todayStr } }); 
+                  }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.dateRange.start && tempFilters.dateRange.end && tempFilters.dateRange.start === tempFilters.dateRange.end
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    const today = new Date();
+                    const day = today.getDay();
+                    const diffToMonday = (day === 0 ? -6 : 1) - day;
+                    const monday = new Date(today);
+                    monday.setDate(today.getDate() + diffToMonday);
+                    const sunday = new Date(monday);
+                    sunday.setDate(monday.getDate() + 6);
+                    setTempFilters({ 
+                      ...tempFilters, 
+                      dateRange: { 
+                        start: monday.toISOString().slice(0, 10), 
+                        end: sunday.toISOString().slice(0, 10) 
+                      } 
+                    }); 
+                  }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.dateRange.start && tempFilters.dateRange.end && 
+                    (() => {
+                      const today = new Date();
+                      const day = today.getDay();
+                      const diffToMonday = (day === 0 ? -6 : 1) - day;
+                      const monday = new Date(today);
+                      monday.setDate(today.getDate() + diffToMonday);
+                      const sunday = new Date(monday);
+                      sunday.setDate(monday.getDate() + 6);
+                      return tempFilters.dateRange.start === monday.toISOString().slice(0, 10) && 
+                             tempFilters.dateRange.end === sunday.toISOString().slice(0, 10);
+                    })()
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  This Week
+                </button>
+                <button
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    const today = new Date();
+                    const first = new Date(today.getFullYear(), today.getMonth(), 1);
+                    const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                    setTempFilters({ 
+                      ...tempFilters, 
+                      dateRange: { 
+                        start: first.toISOString().slice(0, 10), 
+                        end: last.toISOString().slice(0, 10) 
+                      } 
+                    }); 
+                  }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.dateRange.start && tempFilters.dateRange.end && 
+                    (() => {
+                      const today = new Date();
+                      const first = new Date(today.getFullYear(), today.getMonth(), 1);
+                      const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                      return tempFilters.dateRange.start === first.toISOString().slice(0, 10) && 
+                             tempFilters.dateRange.end === last.toISOString().slice(0, 10);
+                    })()
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  This Month
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
