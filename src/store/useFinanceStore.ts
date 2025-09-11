@@ -30,6 +30,20 @@ interface FinanceStore {
   donationSavingRecords: DonationSavingRecord[];
   setDonationSavingRecords: (records: DonationSavingRecord[] | ((prev: DonationSavingRecord[]) => DonationSavingRecord[])) => void;
 
+  // Upgrade Modal State
+  upgradeModal: {
+    isOpen: boolean;
+    type: 'limit' | 'feature';
+    feature?: string;
+    currentUsage?: {
+      current: number;
+      limit: number;
+      type: string;
+    };
+  };
+  openUpgradeModal: (type: 'limit' | 'feature', feature?: string, currentUsage?: { current: number; limit: number; type: string }) => void;
+  closeUpgradeModal: () => void;
+
   fetchAccounts: () => Promise<void>;
   addAccount: (account: Omit<AccountInput, 'id' | 'user_id' | 'created_at'> & { dps_initial_balance?: number, transaction_id?: string }) => Promise<void>;
   updateAccount: (id: string, updates: Partial<AccountInput> & { dps_initial_balance?: number }) => Promise<void>;
@@ -175,6 +189,22 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       donationSavingRecords: typeof records === 'function' ? records(state.donationSavingRecords) : records
     }));
   },
+
+  // Upgrade Modal State
+  upgradeModal: {
+    isOpen: false,
+    type: 'limit',
+    feature: '',
+    currentUsage: {
+      current: 0,
+      limit: 0,
+      type: '',
+    },
+  },
+  openUpgradeModal: (type, feature, currentUsage) => {
+    set({ upgradeModal: { isOpen: true, type, feature, currentUsage } });
+  },
+  closeUpgradeModal: () => set({ upgradeModal: { isOpen: false, type: 'limit', feature: '', currentUsage: { current: 0, limit: 0, type: '' } } }),
 
   fetchAccounts: async () => {
     set({ loading: true, error: null });
@@ -379,9 +409,21 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         }
       }
 
+      // Only fetch accounts on success
       await get().fetchAccounts();
       set({ loading: false });
     } catch (err: any) {
+      // Re-throw plan-related errors so they can be handled by the UI
+      if (err.message && (
+        err.message.includes('ACCOUNT_LIMIT_EXCEEDED') ||
+        err.message.includes('CURRENCY_LIMIT_EXCEEDED') ||
+        err.message.includes('TRANSACTION_LIMIT_EXCEEDED') ||
+        err.message.includes('FEATURE_NOT_AVAILABLE')
+      )) {
+        set({ loading: false }); // Reset loading state before re-throwing
+        throw err; // Re-throw plan-related errors
+      }
+      
       set({ error: err.message || 'Failed to add account', loading: false });
     }
   },

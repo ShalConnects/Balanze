@@ -5,6 +5,7 @@ import { CurrencySettings } from './CurrencySettings';
 import { AccountManagement } from './AccountManagement';
 import { Plans } from './Plans';
 import { LastWish } from './LastWish';
+import { UsageTracker } from './UsageTracker';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronDown, Settings as SettingsIcon, Filter } from 'lucide-react';
 
@@ -22,7 +23,7 @@ export const Settings: React.FC = () => {
   // Initialize activeTab from URL parameter or default to general-settings
   const getInitialTab = () => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['general-settings', 'income-category', 'expense-category', 'account-management', 'plans', 'last-wish'].includes(tabParam)) {
+    if (tabParam && ['general-settings', 'income-category', 'expense-category', 'account-management', 'usage', 'plans', 'last-wish'].includes(tabParam)) {
       return tabParam;
     }
     return 'general-settings';
@@ -33,7 +34,7 @@ export const Settings: React.FC = () => {
   // Handle URL parameters for tab selection
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['general-settings', 'income-category', 'expense-category', 'account-management', 'plans', 'last-wish'].includes(tabParam)) {
+    if (tabParam && ['general-settings', 'income-category', 'expense-category', 'account-management', 'usage', 'plans', 'last-wish'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -50,6 +51,7 @@ export const Settings: React.FC = () => {
     { id: 'income-category', label: 'Income Category', icon: null },
     { id: 'expense-category', label: 'Expense Category', icon: null },
     { id: 'account-management', label: 'Account Management', icon: null },
+    { id: 'usage', label: 'Usage & Limits', icon: null },
     { id: 'plans', label: 'Plans', icon: null },
     { id: 'last-wish', label: 'Last Wish', icon: null }
   ];
@@ -86,27 +88,16 @@ export const Settings: React.FC = () => {
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
-                  className={`w-full flex items-center justify-between text-left px-3 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors ${
+                  className={`w-full flex items-center justify-between text-left px-3 py-2 transition-colors ${
                     activeTab === tab.id 
-                      ? 'bg-gradient-primary text-white font-semibold' 
-                      : 'text-gray-700 dark:text-gray-100'
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold' 
+                      : 'text-gray-700 dark:text-gray-100 hover:text-gray-900 dark:hover:text-gray-200'
                   } ${tab.id === 'last-wish' ? 'border-t border-gray-200 dark:border-gray-700' : ''}`}
                   onClick={() => handleTabChange(tab.id)}
                 >
                   <div className="flex items-center gap-2">
-                    {tab.icon && <tab.icon className="w-4 h-4" />}
-                    <span className="font-medium">{tab.label}</span>
+                    <span className="text-sm">{tab.label}</span>
                   </div>
-                  {tab.premium && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300">
-                      Premium
-                    </span>
-                  )}
-                  {activeTab === tab.id && (
-                    <svg className="w-4 h-4 text-white ml-2" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
                 </button>
               ))}
             </div>
@@ -115,28 +106,19 @@ export const Settings: React.FC = () => {
       </div>
 
       {/* Desktop Tab Navigation */}
-      <div className="hidden sm:block border-b border-gray-200 dark:border-gray-700 mb-6">
-        <nav className="-mb-px flex flex-wrap gap-4 lg:gap-8" aria-label="Tabs">
+      <div className="hidden sm:block">
+        <nav className="flex space-x-1 mb-6 border-b border-gray-200 dark:border-gray-700">
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              className={`whitespace-nowrap py-2 px-0 font-medium text-sm focus:outline-none relative transition-colors ${
-                activeTab === tab.id 
-                  ? 'text-gradient-primary after:content-[""] after:absolute after:left-2 after:right-2 after:-bottom-[2px] after:h-[3px] after:rounded-full after:bg-gradient-to-r after:from-blue-500 after:to-purple-500' 
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent border-b-2 border-blue-600 font-semibold'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
               onClick={() => handleTabChange(tab.id)}
-              type="button"
             >
-              <div className="flex items-center gap-2">
-                {tab.icon && <tab.icon className="w-4 h-4" />}
-                <span>{tab.label}</span>
-                {tab.premium && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300">
-                    Premium
-                  </span>
-                )}
-              </div>
+              {tab.label}
             </button>
           ))}
         </nav>
@@ -166,6 +148,9 @@ export const Settings: React.FC = () => {
         {activeTab === 'account-management' && (
           <AccountManagement hideTitle />
         )}
+        {activeTab === 'usage' && (
+          <UsageTracker />
+        )}
         {activeTab === 'plans' && (
           <Plans />
         )}
@@ -175,4 +160,4 @@ export const Settings: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};

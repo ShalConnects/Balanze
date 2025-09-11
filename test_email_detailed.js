@@ -35,7 +35,7 @@ async function testEmailDetailed() {
       email: testEmail,
       password: testPassword,
       options: {
-        emailRedirectTo: 'https://fin-tech-6o7q3i452-shalauddin-kaders-projects.vercel.app'
+        emailRedirectTo: 'https://balanze.cash'
       }
     });
     

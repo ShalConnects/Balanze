@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
+import { userPreferencesManager } from '../lib/userPreferences';
+import { favoriteQuotesService } from '../lib/favoriteQuotesService';
 
 // This is our custom user profile stored in our own "profiles" table.
 export type AppUser = {
@@ -34,6 +36,7 @@ interface AuthStore {
   clearMessages: () => void;
   handleEmailConfirmation: () => Promise<void>;
   resendEmailConfirmation: (email: string) => Promise<{ success: boolean; message?: string }>;
+  resetPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
   checkAuthState: () => Promise<void>;
 }
 
@@ -245,14 +248,24 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       return { data: null, error };
     }
   },
-  logout: async () => {
-    await supabase.auth.signOut();
-    set({ user: null, profile: null });
-  },
-  signOut: async () => {
-    await supabase.auth.signOut();
-    set({ user: null, profile: null });
-  },
+      logout: async () => {
+      const { user } = get();
+      if (user?.id) {
+        userPreferencesManager.clearCache(user.id);
+        favoriteQuotesService.clearCache(user.id);
+      }
+      await supabase.auth.signOut();
+      set({ user: null, profile: null });
+    },
+    signOut: async () => {
+      const { user } = get();
+      if (user?.id) {
+        userPreferencesManager.clearCache(user.id);
+        favoriteQuotesService.clearCache(user.id);
+      }
+      await supabase.auth.signOut();
+      set({ user: null, profile: null });
+    },
   deleteAccount: async () => {
     const { user } = get();
     if (!user) {
@@ -337,14 +350,30 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
     try {
       console.log('Starting registration for:', email);
       
+      // First, check if email already exists using our database function
+      try {
+        const { data: emailCheck, error: emailCheckError } = await supabase.rpc('check_email_exists', {
+          email_to_check: email
+        });
+        
+        if (!emailCheckError && emailCheck === true) {
+          const userFriendlyError = 'This email is already registered. Please use a different email or try logging in.';
+          set({ error: userFriendlyError, isLoading: false });
+          return { success: false, message: userFriendlyError };
+        }
+      } catch (emailCheckException) {
+        console.log('Email check failed, proceeding with registration:', emailCheckException);
+        // If email check fails, proceed with registration and let Supabase handle it
+      }
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: fullName
-          },
-          emailRedirectTo: `${window.location.origin}/auth?confirmed=true`
+          }
+          // Removed emailRedirectTo for auto-confirmation
         }
       });
 
@@ -374,11 +403,12 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
 
       console.log('User created:', data.user.id);
       
+      // Auto-confirm user for better UX - no email confirmation required
       set({ 
         user: data.user,
         profile: null,
         isLoading: false, 
-        success: 'Registration successful! You can now log in.',
+        success: 'Account created successfully! Welcome to Balanze!',
         error: null 
       });
 
@@ -386,7 +416,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         set(state => ({ ...state, success: null }));
       }, 5000);
 
-      return { success: true, message: 'Registration successful! You can now log in.' };
+      return { success: true, message: 'Account created successfully! Welcome to Balanze!' };
       
     } catch (error) {
       console.error('Registration exception:', error);
@@ -407,15 +437,22 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       });
 
       if (error) {
-        set({ error: error.message, isLoading: false });
-        return { success: false, message: error.message };
+        // Provide user-friendly error messages
+        let userMessage = 'Social login failed. Please try again.';
+        if (error.message.includes('provider is not enabled')) {
+          userMessage = 'Social login is not configured yet. Please use email/password login.';
+        } else if (error.message.includes('redirect_uri_mismatch')) {
+          userMessage = 'Social login configuration error. Please contact support.';
+        }
+        set({ error: userMessage, isLoading: false });
+        return { success: false, message: userMessage };
       }
 
       return { success: true };
     } catch (error) {
       const errorMessage = (error as Error).message;
-      set({ error: errorMessage, isLoading: false });
-      return { success: false, message: errorMessage };
+      set({ error: 'An unexpected error occurred during social login', isLoading: false });
+      return { success: false, message: 'An unexpected error occurred during social login' };
     }
   },
 
@@ -431,22 +468,48 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
   },
 
   resendEmailConfirmation: async (email: string) => {
+    // Email confirmation is no longer required - auto-confirmation enabled
+    return { success: true, message: 'Email confirmation is not required for this account.' };
+  },
+
+  resetPassword: async (email: string) => {
+    set({ isLoading: true, error: null, success: null });
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth?confirmed=true`
-        }
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
       });
 
       if (error) {
-        return { success: false, message: error.message };
+        let userMessage = error.message;
+        
+        // Handle rate limit errors with user-friendly messages
+        if (error.message.includes('rate limit') || error.message.includes('429')) {
+          userMessage = 'Too many reset attempts. Please wait a few minutes before trying again.';
+        } else if (error.message.includes('email not found')) {
+          userMessage = 'If an account with this email exists, you will receive a reset link.';
+        } else if (error.message.includes('invalid email')) {
+          userMessage = 'Please enter a valid email address.';
+        }
+        
+        set({ error: userMessage, isLoading: false });
+        return { success: false, message: userMessage };
       }
 
-      return { success: true, message: 'Confirmation email sent!' };
+      set({ 
+        isLoading: false, 
+        success: 'Password reset email sent! Check your inbox.',
+        error: null 
+      });
+
+      setTimeout(() => {
+        set(state => ({ ...state, success: null }));
+      }, 5000);
+
+      return { success: true, message: 'Password reset email sent! Check your inbox.' };
     } catch (error) {
-      return { success: false, message: (error as Error).message };
+      const errorMessage = (error as Error).message;
+      set({ error: errorMessage, isLoading: false });
+      return { success: false, message: errorMessage };
     }
   },
 

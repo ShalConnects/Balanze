@@ -81,7 +81,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
 
   const getDateRangeLabel = () => {
     if (!filters.dateRange.start || !filters.dateRange.end) {
-      return 'Date Range';
+      return 'All Time';
     }
 
     const today = new Date();
@@ -169,6 +169,10 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
         const lastYear = new Date(today.getFullYear(), 11, 31);
         start = firstYear.toISOString().slice(0, 10);
         end = lastYear.toISOString().slice(0, 10);
+        break;
+      case 'allTime':
+        start = '';
+        end = '';
         break;
     }
 
@@ -347,6 +351,12 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
                         className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
                       >
                         Last Month
+                      </button>
+                      <button
+                        onClick={() => handlePresetRange('allTime')}
+                        className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                      >
+                        All Time
                       </button>
                     </div>
                     <div className="border-t border-gray-200 dark:border-gray-700 pt-3">

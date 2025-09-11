@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Quote, RefreshCw, Heart, Bookmark, ExternalLink, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNotificationStore } from '../../store/notificationStore';
+import { useAuthStore } from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { MotivationalQuoteSkeleton } from './MotivationalQuoteSkeleton';
 
@@ -13,10 +14,18 @@ interface QuoteData {
 export const MotivationalQuote: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [quote, setQuote] = useState<QuoteData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
-  const { addFavoriteQuote, removeFavoriteQuote, isQuoteFavorited, favoriteQuotes } = useNotificationStore();
+  const { 
+    addFavoriteQuote, 
+    removeFavoriteQuoteByContent, 
+    isQuoteFavorited, 
+    favoriteQuotes,
+    loadFavoriteQuotes,
+    setCurrentUserId 
+  } = useNotificationStore();
   
   // Check if quote widget is hidden
   const [showQuoteWidget, setShowQuoteWidget] = useState(() => {
@@ -123,6 +132,16 @@ export const MotivationalQuote: React.FC = () => {
     }
   };
 
+  // Load favorite quotes and set current user ID when user changes
+  useEffect(() => {
+    if (user?.id) {
+      setCurrentUserId(user.id);
+      loadFavoriteQuotes(user.id);
+    } else {
+      setCurrentUserId(null);
+    }
+  }, [user?.id, setCurrentUserId, loadFavoriteQuotes]);
+
   // Fetch quote on component mount
   useEffect(() => {
     fetchQuote();
@@ -199,15 +218,11 @@ export const MotivationalQuote: React.FC = () => {
                 </button>
                 
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (quote) {
                       if (isQuoteFavorited(quote.q, quote.a)) {
-                        // Find and remove the favorite quote
-                        const favorites = useNotificationStore.getState().favoriteQuotes;
-                        const favorite = favorites.find(f => f.quote === quote.q && f.author === quote.a);
-                        if (favorite) {
-                          removeFavoriteQuote(favorite.id);
-                        }
+                        // Remove the favorite quote by content
+                        await removeFavoriteQuoteByContent(quote.q, quote.a);
                       } else {
                         // Determine category based on quote content
                         const quoteText = quote.q.toLowerCase();
@@ -229,7 +244,7 @@ export const MotivationalQuote: React.FC = () => {
                           category = 'success';
                         }
                         
-                        addFavoriteQuote({
+                        await addFavoriteQuote({
                           quote: quote.q,
                           author: quote.a,
                           category: category

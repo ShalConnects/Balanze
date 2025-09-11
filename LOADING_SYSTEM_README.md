@@ -1,6 +1,6 @@
 # Loading Animation System
 
-This document describes the comprehensive loading animation system implemented across the FinTech application.
+This document describes the comprehensive loading animation system implemented across the Balanze application.
 
 ## Overview
 
@@ -252,4 +252,4 @@ setLoadingMessage('Generating report...');     // Report generation
 setLoadingMessage('Updating settings...');     // Settings changes
 ```
 
-This loading system provides a consistent, professional user experience across the entire FinTech application while maintaining clean, maintainable code. 
+This loading system provides a consistent, professional user experience across the entire Balanze application while maintaining clean, maintainable code. 

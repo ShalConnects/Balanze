@@ -1,4 +1,4 @@
--- Dummy Data for FinTech Dashboard
+-- Dummy Data for Balanze Dashboard
 -- User ID: 930e2f8d-1baa-42ce-b1a7-4ace3ac7285d
 
 -- First, let's insert some accounts (if they don't exist)

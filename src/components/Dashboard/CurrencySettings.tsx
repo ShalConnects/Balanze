@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
+import { notificationPreferencesService, NotificationPreferences } from '../../lib/notificationPreferences';
 import { toast } from 'sonner';
-import { Check, Globe, Star, Save } from 'lucide-react';
+import { Check, Globe, Star, Save, RotateCcw } from 'lucide-react';
+import { NotificationSettings } from './NotificationSettings';
 
 const currencyOptions = [
   { value: 'USD', label: 'USD - US Dollar', symbol: '$' },
@@ -19,6 +21,10 @@ export const CurrencySettings: React.FC = () => {
   const [primaryCurrency, setPrimaryCurrency] = useState<string>(profile?.local_currency || 'USD');
   const [loading, setLoading] = useState(false);
   const [dirty, setDirty] = useState(false);
+
+  // Notification preferences state
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences | null>(null);
+  const [notificationDirty, setNotificationDirty] = useState(false);
 
   // --- Fix: Sync state with profile after refresh/profile update ---
   useEffect(() => {
@@ -39,59 +45,156 @@ export const CurrencySettings: React.FC = () => {
     }
   }, [profile?.selected_currencies, profile?.local_currency]);
 
-  const toggleCurrency = (currency: string) => {
-    setDirty(true);
-    setSelectedCurrencies(prev => {
-      if (prev.includes(currency)) {
-        // If removing the primary, pick another as primary
-        if (primaryCurrency === currency) {
-          const filtered = prev.filter(c => c !== currency);
-          setPrimaryCurrency(filtered[0] || 'USD');
-          return filtered;
-        }
-        return prev.filter(c => c !== currency);
-      } else {
-        // Add to selection
-        return [...prev, currency];
-      }
-    });
-  };
+  // Load notification preferences
+  useEffect(() => {
+    if (profile?.id) {
+      loadNotificationPreferences();
+    }
+  }, [profile?.id]);
 
-  const handlePrimaryChange = (currency: string) => {
-    if (selectedCurrencies.includes(currency)) {
-      setPrimaryCurrency(currency);
-      setDirty(true);
+  const loadNotificationPreferences = async () => {
+    if (!profile?.id) return;
+    
+    try {
+      const prefs = await notificationPreferencesService.getPreferences(profile.id);
+      setNotificationPreferences(prefs);
+    } catch (error) {
+      console.error('Error loading notification preferences:', error);
     }
   };
 
+  const toggleCurrency = (currency: string) => {
+    if (selectedCurrencies.includes(currency)) {
+      const newSelected = selectedCurrencies.filter(c => c !== currency);
+      setSelectedCurrencies(newSelected);
+      
+      // If we removed the primary currency, set a new primary
+      if (primaryCurrency === currency && newSelected.length > 0) {
+        setPrimaryCurrency(newSelected[0]);
+      }
+    } else {
+      setSelectedCurrencies([...selectedCurrencies, currency]);
+    }
+    setDirty(true);
+  };
+
+  const setAsPrimary = (currency: string) => {
+    setPrimaryCurrency(currency);
+    setDirty(true);
+  };
+
+  const handleNotificationPreferenceChange = (
+    category: keyof NotificationPreferences,
+    key: string,
+    value: boolean | string
+  ) => {
+    if (!notificationPreferences) return;
+
+    setNotificationPreferences({
+      ...notificationPreferences,
+      [category]: {
+        ...notificationPreferences[category],
+        [key]: value,
+      },
+    });
+    setNotificationDirty(true);
+  };
+
   const handleSave = async () => {
+    if (!profile) return;
+    
     setLoading(true);
     try {
-      await updateProfile({
-        local_currency: primaryCurrency,
-        selected_currencies: selectedCurrencies
-      });
-      toast.success('Currency preferences updated!');
-      setDirty(false);
+      // Save currency settings
+      if (dirty) {
+        await updateProfile({
+          selected_currencies: selectedCurrencies,
+          local_currency: primaryCurrency
+        });
+        setDirty(false);
+      }
+
+      // Save notification settings
+      if (notificationDirty && notificationPreferences) {
+        console.log('Attempting to save notification preferences for user:', profile.id);
+        const success = await notificationPreferencesService.savePreferences(profile.id, notificationPreferences);
+        if (success) {
+          setNotificationDirty(false);
+          console.log('Notification preferences saved successfully');
+        } else {
+          console.error('Failed to save notification preferences');
+          toast.error('Failed to save notification settings. Please check your login status and try again.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      toast.success('Settings saved successfully');
     } catch (error) {
-      toast.error('Failed to update currency preferences');
+      console.error('Error saving settings:', error);
+      toast.error('Failed to save settings');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleReset = () => {
+    // Reset currency settings
+    if (profile?.selected_currencies && profile.selected_currencies.length > 0) {
+      setSelectedCurrencies(profile.selected_currencies);
+      if (profile.local_currency && profile.selected_currencies.includes(profile.local_currency)) {
+        setPrimaryCurrency(profile.local_currency);
+      } else {
+        setPrimaryCurrency(profile.selected_currencies[0]);
+      }
+    } else if (profile?.local_currency) {
+      setSelectedCurrencies([profile.local_currency]);
+      setPrimaryCurrency(profile.local_currency);
+    } else {
+      setSelectedCurrencies(['USD']);
+      setPrimaryCurrency('USD');
+    }
+    setDirty(false);
+
+    // Reset notification settings
+    if (profile?.id) {
+      loadNotificationPreferences();
+      setNotificationDirty(false);
+    }
+  };
+
+  const hasChanges = dirty || notificationDirty;
+
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex items-center space-x-3">
-        <Globe className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Currency Settings
-        </h3>
-      </div>
+      {/* Header with only save/reset buttons when changes exist */}
+      {hasChanges && (
+        <div className="flex justify-end">
+          <div className="flex space-x-2">
+            <button
+              onClick={handleReset}
+              className="flex items-center space-x-1 px-2 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset</span>
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={loading}
+              className="flex items-center space-x-1 px-2 py-1.5 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Save className="w-3 h-3" />
+              <span>{loading ? 'Saving...' : 'Save'}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Currency Selection */}
       <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 sm:p-4">
+        <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">
+          💱 Currency Settings
+        </h4>
         <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-3 sm:mb-4">
           Select one or more currencies. Pick a primary currency for forms and default display.
         </p>
@@ -101,81 +204,68 @@ export const CurrencySettings: React.FC = () => {
           {currencyOptions.map((currency) => {
             const selected = selectedCurrencies.includes(currency.value);
             const isPrimary = primaryCurrency === currency.value;
+            
             return (
               <div
                 key={currency.value}
-                className={`relative flex flex-col items-start p-2 sm:p-3 rounded-md border transition-all duration-200 cursor-pointer select-none min-h-0 min-w-0 text-[12px] sm:text-[13px] ${
-                  selected
-                    ? 'border-gradient-primary bg-gradient-primary text-white'
-                    : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-500 text-gray-900 dark:text-gray-100'
-                } ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow'} h-[60px] sm:h-[64px]`}
+                className={`
+                  relative p-2 sm:p-3 rounded-lg border-2 cursor-pointer transition-all duration-200
+                  ${selected 
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                  }
+                  ${isPrimary ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''}
+                `}
                 onClick={() => toggleCurrency(currency.value)}
               >
-                <div className="flex items-center space-x-1 sm:space-x-2 w-full">
-                  <span className="text-sm sm:text-base font-semibold">{currency.symbol}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-[11px] sm:text-[13px] leading-tight truncate">{currency.label}</div>
-                    <div className="text-[10px] sm:text-xs text-gray-300 dark:text-gray-400 leading-tight">{currency.value}</div>
+                <div className="text-center">
+                  <div className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-1">
+                    {currency.symbol}
                   </div>
+                  <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                    {currency.value}
+                  </div>
+                  {selected && (
+                    <div className="absolute top-1 right-1">
+                      <Check className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                    </div>
+                  )}
+                  {isPrimary && (
+                    <div className="absolute bottom-1 right-1">
+                      <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                    </div>
+                  )}
                 </div>
                 
-                {/* Check Icon */}
-                {selected && (
-                  <Check className="absolute top-1 right-1 w-3 h-3 sm:w-4 sm:h-4 text-white" />
-                )}
-                
-                {/* Primary Button */}
-                {selected && (
+                {/* Set as Primary Button */}
+                {selected && !isPrimary && (
                   <button
-                    type="button"
-                    className={`absolute bottom-1 right-1 flex items-center px-1 sm:px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-colors ${
-                      isPrimary 
-                        ? 'bg-white text-gray-900' 
-                        : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-white hover:text-gray-900'
-                    }`}
-                    onClick={e => { e.stopPropagation(); handlePrimaryChange(currency.value); }}
-                    disabled={isPrimary || loading}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAsPrimary(currency.value);
+                    }}
+                    className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full hover:bg-blue-700 transition-colors"
                   >
-                    <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5" />
-                    <span className="hidden xs:inline">{isPrimary ? 'Primary' : 'Set'}</span>
-                    <span className="xs:hidden">{isPrimary ? 'P' : 'S'}</span>
+                    Set
                   </button>
                 )}
               </div>
             );
           })}
         </div>
-
-        {/* Save Button */}
-        <div className="flex justify-end mt-4 sm:mt-6">
-          <button
-            onClick={handleSave}
-            disabled={loading || !dirty || selectedCurrencies.length === 0}
-            className="flex items-center gap-2 px-4 py-2 sm:py-2.5 rounded-lg bg-gradient-primary text-white font-semibold text-sm hover:bg-gradient-primary-hover disabled:opacity-60 transition-all duration-200"
-          >
-            <Save className="w-4 h-4" />
-            {loading ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
       </div>
 
-      {/* How it works */}
+      {/* Current Selection Summary */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4">
-        <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2 sm:mb-3 text-sm sm:text-base">
-          How it works
+        <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+          Current Selection
         </h4>
-        <ul className="text-xs sm:text-sm text-blue-800 dark:text-blue-200 space-y-1 sm:space-y-1.5">
-          <li className="flex items-start gap-2">
-            <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-            <span>Forms and default display use your primary currency</span>
+        <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+          <li>
+            <strong>Primary Currency:</strong> {primaryCurrency} ({currencyOptions.find(c => c.value === primaryCurrency)?.symbol})
           </li>
-          <li className="flex items-start gap-2">
-            <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-            <span>You can filter and view data in any of your selected currencies</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-            <span>You can change your selection anytime</span>
+          <li>
+            <strong>Selected Currencies:</strong> {selectedCurrencies.join(', ')}
           </li>
         </ul>
       </div>
@@ -186,6 +276,15 @@ export const CurrencySettings: React.FC = () => {
           💡 <strong>Tip:</strong> Tap a currency to select/deselect. Tap "Set" to make it primary.
         </p>
       </div>
+
+      {/* Notification Settings Section */}
+      <div className="mt-8">
+        <NotificationSettings 
+          preferences={notificationPreferences}
+          onPreferenceChange={handleNotificationPreferenceChange}
+          dirty={notificationDirty}
+        />
+      </div>
     </div>
   );
-}; 
+};

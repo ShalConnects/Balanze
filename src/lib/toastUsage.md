@@ -2,7 +2,7 @@
 
 ## Overview
 
-This enhanced toast notification system provides a unified, customizable, and context-aware notification experience for the FinTech application. It replaces the inconsistent use of different toast libraries with a single, powerful system.
+This enhanced toast notification system provides a unified, customizable, and context-aware notification experience for the Balanze application. It replaces the inconsistent use of different toast libraries with a single, powerful system.
 
 ## Features
 

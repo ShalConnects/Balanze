@@ -1,56 +1,20 @@
 import React from 'react';
+import { SkeletonMobileCard, SkeletonStaggered, SkeletonMobileFilters, SkeletonMobileSummaryCards } from '../common/Skeleton';
 
 // Enhanced skeleton for donation cards (mobile view) - matches real DonationCard structure
 export const DonationCardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => {
   return (
-    <div className="space-y-4 p-4">
+    <div className="skeleton-mobile-list">
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={index}
-          className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-all duration-200"
+          className="skeleton-mobile-card"
+          style={{ 
+            animationDelay: `${index * 0.1}s`,
+            animationDuration: '2.5s'
+          }}
         >
-          {/* Donation Header - matches real structure */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3 flex-1 min-w-0">
-              {/* Donation icon placeholder - matches real donation icons */}
-              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                <div className="w-5 h-5 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
-              </div>
-              
-              <div className="flex-1 min-w-0">
-                {/* Transaction ID - matches real text styling */}
-                <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded mb-1 w-32 animate-pulse"></div>
-                {/* Mode badge - matches real badge styling */}
-                <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded-full w-20 animate-pulse"></div>
-              </div>
-            </div>
-            
-            <div className="text-right ml-4">
-              {/* Amount - matches real amount styling */}
-              <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded mb-1 w-24 animate-pulse"></div>
-              {/* Currency - matches real currency styling */}
-              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-12 animate-pulse"></div>
-            </div>
-          </div>
-
-          {/* Donation Stats - matches real stats layout */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-4">
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 animate-pulse"></div>
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
-            </div>
-            <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded-full w-16 animate-pulse"></div>
-          </div>
-
-          {/* Action Buttons - matches real button layout */}
-          <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
-            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-20 animate-pulse"></div>
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
-              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
-              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
-            </div>
-          </div>
+          <SkeletonMobileCard />
         </div>
       ))}
     </div>
@@ -60,7 +24,7 @@ export const DonationCardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }
 // Enhanced skeleton for donation table (desktop view) - matches real table structure
 export const DonationTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) => {
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto skeleton-mobile">
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
         {/* Table Header - matches real header structure */}
         <thead className="bg-gray-50 dark:bg-gray-800">
@@ -133,109 +97,18 @@ export const DonationTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 })
 
 // Enhanced skeleton for donation summary cards - matches real summary cards structure
 export const DonationSummaryCardsSkeleton: React.FC = () => {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3">
-      {/* Total Donations - matches real card structure */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 py-3 px-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="text-left flex-1">
-            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded mb-2 w-20 animate-pulse"></div>
-            <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-8 animate-pulse"></div>
-          </div>
-          <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg ml-3 animate-pulse"></div>
-        </div>
-      </div>
-      
-      {/* Total Savings - matches real card structure */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 py-3 px-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="text-left flex-1">
-            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded mb-2 w-24 animate-pulse"></div>
-            <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-8 animate-pulse"></div>
-          </div>
-          <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg ml-3 animate-pulse"></div>
-        </div>
-      </div>
-      
-      {/* Pending Donations - matches real card structure */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 py-3 px-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="text-left flex-1">
-            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded mb-2 w-26 animate-pulse"></div>
-            <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-8 animate-pulse"></div>
-          </div>
-          <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg ml-3 animate-pulse"></div>
-        </div>
-      </div>
-      
-      {/* Average Donation - matches real card structure */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 py-3 px-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="text-left flex-1">
-            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded mb-2 w-20 animate-pulse"></div>
-            <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-16 animate-pulse"></div>
-          </div>
-          <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg ml-3 animate-pulse"></div>
-        </div>
-      </div>
-      
-      {/* Success Rate - matches real card structure */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 py-3 px-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="text-left flex-1">
-            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded mb-2 w-20 animate-pulse"></div>
-            <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-12 animate-pulse"></div>
-          </div>
-          <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg ml-3 animate-pulse"></div>
-        </div>
-      </div>
-    </div>
-  );
+  return <SkeletonMobileSummaryCards />;
 };
 
 // Enhanced skeleton for donation filters - matches real filter structure
 export const DonationFiltersSkeleton: React.FC = () => {
-  return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex flex-wrap md:flex-nowrap justify-between items-center w-full gap-3">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-2 flex-1">
-            {/* Search - matches real search input */}
-            <div className="flex-1 min-w-[200px] relative">
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
-              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg pl-10 animate-pulse"></div>
-            </div>
-            
-            {/* Mode Filter - matches real dropdown */}
-            <div className="relative">
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
-            </div>
-            
-            {/* Status Filter - matches real dropdown */}
-            <div className="relative">
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-28 animate-pulse"></div>
-            </div>
-            
-            {/* Currency Filter - matches real dropdown */}
-            <div className="relative">
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
-            </div>
-            
-            {/* Date Range Filter - matches real date picker */}
-            <div className="relative">
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <SkeletonMobileFilters />;
 };
 
 // Enhanced skeleton for donation analytics - matches real analytics structure
 export const DonationAnalyticsSkeleton: React.FC = () => {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 skeleton-mobile">
       {/* KPI Cards - matches real KPI structure */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Donations */}

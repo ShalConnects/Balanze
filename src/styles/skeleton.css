@@ -1,6 +1,6 @@
-/* Enhanced Skeleton Loading Styles */
+/* Enhanced Skeleton Loading Styles - Mobile Optimized */
 
-/* Base skeleton animation */
+/* Base skeleton animation - optimized for mobile */
 @keyframes pulse {
     0%, 100% {
       opacity: 1;
@@ -10,7 +10,7 @@
     }
   }
   
-  /* Shimmer animation */
+  /* Shimmer animation - optimized for mobile performance */
   @keyframes shimmer {
     0% {
       transform: translateX(-100%);
@@ -20,7 +20,7 @@
     }
   }
   
-  /* Wave animation */
+  /* Wave animation - optimized for mobile */
   @keyframes wave {
     0% {
       transform: translateX(-100%);
@@ -33,7 +33,7 @@
     }
   }
   
-  /* Fade in animation */
+  /* Fade in animation - optimized for mobile */
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -45,7 +45,7 @@
     }
   }
   
-  /* Stagger animation for multiple skeletons */
+  /* Stagger animation for multiple skeletons - mobile optimized */
   @keyframes stagger {
     0% {
       opacity: 0;
@@ -56,13 +56,25 @@
       transform: translateY(0);
     }
   }
+
+  /* Mobile-optimized pulse animation */
+  @keyframes mobilePulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.3;
+    }
+  }
   
-  /* Skeleton base styles */
+  /* Skeleton base styles - mobile optimized */
   .skeleton {
     background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
     border-radius: 4px;
+    will-change: transform;
+    transform: translateZ(0); /* Force hardware acceleration */
   }
   
   .skeleton-dark {
@@ -70,17 +82,21 @@
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
     border-radius: 4px;
+    will-change: transform;
+    transform: translateZ(0);
   }
   
-  /* Enhanced pulse animation */
+  /* Enhanced pulse animation - mobile optimized */
   .animate-pulse-enhanced {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    animation: mobilePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    will-change: opacity;
   }
   
-  /* Shimmer effect */
+  /* Shimmer effect - mobile optimized */
   .shimmer {
     position: relative;
     overflow: hidden;
+    will-change: transform;
   }
   
   .shimmer::before {
@@ -97,6 +113,7 @@
       transparent
     );
     animation: shimmer 2s infinite;
+    will-change: transform;
   }
   
   .shimmer-dark::before {
@@ -108,10 +125,11 @@
     );
   }
   
-  /* Wave effect */
+  /* Wave effect - mobile optimized */
   .wave {
     position: relative;
     overflow: hidden;
+    will-change: transform;
   }
   
   .wave::before {
@@ -128,12 +146,14 @@
       transparent
     );
     animation: wave 1.5s infinite;
+    will-change: transform;
   }
   
-  /* Staggered animation for lists */
+  /* Staggered animation for lists - mobile optimized */
   .skeleton-stagger > * {
     animation: stagger 0.3s ease-out forwards;
     opacity: 0;
+    will-change: transform, opacity;
   }
   
   .skeleton-stagger > *:nth-child(1) { animation-delay: 0.1s; }
@@ -143,12 +163,13 @@
   .skeleton-stagger > *:nth-child(5) { animation-delay: 0.5s; }
   .skeleton-stagger > *:nth-child(6) { animation-delay: 0.6s; }
   
-  /* Fade in animation */
+  /* Fade in animation - mobile optimized */
   .skeleton-fade-in {
     animation: fadeIn 0.5s ease-out;
+    will-change: transform, opacity;
   }
   
-  /* Loading spinner */
+  /* Loading spinner - mobile optimized */
   .skeleton-spinner {
     width: 40px;
     height: 40px;
@@ -156,6 +177,7 @@
     border-top: 4px solid #3498db;
     border-radius: 50%;
     animation: spin 1s linear infinite;
+    will-change: transform;
   }
   
   @keyframes spin {
@@ -163,11 +185,12 @@
     100% { transform: rotate(360deg); }
   }
   
-  /* Skeleton text variations */
+  /* Skeleton text variations - mobile optimized */
   .skeleton-text {
     height: 1em;
     margin-bottom: 0.5em;
     border-radius: 4px;
+    will-change: transform;
   }
   
   .skeleton-text-sm {
@@ -182,11 +205,12 @@
     height: 1.5em;
   }
   
-  /* Skeleton button */
+  /* Skeleton button - mobile optimized */
   .skeleton-button {
     height: 2.5rem;
     border-radius: 0.5rem;
     width: 100%;
+    will-change: transform;
   }
   
   .skeleton-button-sm {
@@ -199,11 +223,12 @@
     width: 8rem;
   }
   
-  /* Skeleton avatar */
+  /* Skeleton avatar - mobile optimized */
   .skeleton-avatar {
     width: 2.5rem;
     height: 2.5rem;
     border-radius: 50%;
+    will-change: transform;
   }
   
   .skeleton-avatar-sm {
@@ -216,13 +241,15 @@
     height: 3rem;
   }
   
-  /* Skeleton card */
+  /* Skeleton card - mobile optimized */
   .skeleton-card {
     background: white;
     border-radius: 0.5rem;
     padding: 1rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     border: 1px solid #e5e7eb;
+    will-change: transform;
+    transform: translateZ(0);
   }
   
   .skeleton-card-dark {
@@ -230,10 +257,11 @@
     border-color: #374151;
   }
   
-  /* Skeleton table */
+  /* Skeleton table - mobile optimized */
   .skeleton-table {
     width: 100%;
     border-collapse: collapse;
+    will-change: transform;
   }
   
   .skeleton-table th,
@@ -247,7 +275,7 @@
     border-bottom-color: #374151;
   }
   
-  /* Skeleton form */
+  /* Skeleton form - mobile optimized */
   .skeleton-form-group {
     margin-bottom: 1rem;
   }
@@ -257,15 +285,43 @@
     width: 6rem;
     margin-bottom: 0.5rem;
     border-radius: 4px;
+    will-change: transform;
   }
   
   .skeleton-input {
     height: 2.5rem;
     width: 100%;
     border-radius: 0.375rem;
+    will-change: transform;
   }
   
-  /* Responsive skeleton */
+  /* Mobile-specific optimizations */
+  .skeleton-mobile {
+    /* Optimize for mobile scrolling */
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+  
+  .skeleton-mobile-card {
+    /* Mobile card optimizations */
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+    /* Reduce animation complexity on mobile */
+    animation: mobilePulse 2.5s ease-in-out infinite;
+  }
+  
+  .skeleton-mobile-list {
+    /* Mobile list optimizations */
+    transform: translateZ(0);
+    will-change: transform;
+    /* Use transform3d for better performance */
+    transform-style: preserve-3d;
+  }
+  
+  /* Responsive skeleton - mobile optimized */
   @media (max-width: 768px) {
     .skeleton-responsive {
       grid-template-columns: 1fr;
@@ -273,10 +329,28 @@
     
     .skeleton-card {
       padding: 0.75rem;
+      /* Reduce animation complexity on mobile */
+      animation: mobilePulse 2.5s ease-in-out infinite;
+    }
+    
+    /* Optimize animations for mobile */
+    .skeleton {
+      animation-duration: 2.5s;
+      animation-timing-function: ease-in-out;
+    }
+    
+    .shimmer::before {
+      animation-duration: 2.5s;
+      animation-timing-function: ease-in-out;
+    }
+    
+    /* Reduce motion for better mobile performance */
+    .skeleton-stagger > * {
+      animation-duration: 0.4s;
     }
   }
   
-  /* Dark mode support */
+  /* Dark mode support - mobile optimized */
   @media (prefers-color-scheme: dark) {
     .skeleton {
       background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
@@ -288,7 +362,7 @@
     }
   }
   
-  /* High contrast mode support */
+  /* High contrast mode support - mobile optimized */
   @media (prefers-contrast: high) {
     .skeleton {
       background: linear-gradient(90deg, #d1d5db 25%, #9ca3af 50%, #d1d5db 75%);
@@ -299,7 +373,7 @@
     }
   }
   
-  /* Reduced motion support */
+  /* Reduced motion support - mobile optimized */
   @media (prefers-reduced-motion: reduce) {
     .skeleton,
     .skeleton-dark,
@@ -311,6 +385,38 @@
     .skeleton-stagger > * {
       animation: none;
       opacity: 1;
+    }
+    
+    .skeleton-mobile-card {
+      animation: none;
+    }
+  }
+  
+  /* Mobile-specific performance optimizations */
+  @media (max-width: 768px) {
+    /* Disable complex animations on low-end devices */
+    @media (max-device-width: 480px) {
+      .skeleton {
+        animation: mobilePulse 3s ease-in-out infinite;
+      }
+      
+      .shimmer::before {
+        animation: none;
+      }
+      
+      .wave::before {
+        animation: none;
+      }
+    }
+    
+    /* Optimize for touch devices */
+    .skeleton-card {
+      touch-action: manipulation;
+    }
+    
+    /* Reduce repaints during scroll */
+    .skeleton-mobile-list {
+      contain: layout style paint;
     }
   }
   

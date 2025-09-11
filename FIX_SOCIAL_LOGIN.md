@@ -42,7 +42,7 @@ This error occurs because Google and Apple OAuth providers are not enabled in yo
    - Add authorized redirect URIs:
      ```
      https://your-project-ref.supabase.co/auth/v1/callback
-     https://fin-tech-mfjhke0l5-shalauddin-kaders-projects.vercel.app/auth/callback
+     https://balanze.cash/auth/callback
      ```
 
 ### 2.2 Add Credentials to Supabase
@@ -77,12 +77,12 @@ This error occurs because Google and Apple OAuth providers are not enabled in yo
 1. In Supabase dashboard, go to **Authentication** → **URL Configuration**
 2. Update the Site URL to your Vercel domain:
    ```
-   https://fin-tech-mfjhke0l5-shalauddin-kaders-projects.vercel.app
+   https://balanze.cash
    ```
 3. Add redirect URLs:
    ```
-   https://fin-tech-mfjhke0l5-shalauddin-kaders-projects.vercel.app/auth/callback
-   https://fin-tech-mfjhke0l5-shalauddin-kaders-projects.vercel.app/dashboard
+   https://balanze.cash/auth/callback
+   https://balanze.cash/dashboard
    ```
 
 ### 4.2 Google OAuth Redirect URLs
@@ -90,7 +90,7 @@ This error occurs because Google and Apple OAuth providers are not enabled in yo
 2. Add these authorized redirect URIs:
    ```
    https://your-project-ref.supabase.co/auth/v1/callback
-   https://fin-tech-mfjhke0l5-shalauddin-kaders-projects.vercel.app/auth/callback
+   https://balanze.cash/auth/callback
    ```
 
 ### 4.3 Apple Sign-In Redirect URLs
@@ -106,7 +106,7 @@ node test_social_login.js
 ```
 
 ### 5.2 Manual Testing
-1. Visit your deployed app: https://fin-tech-mfjhke0l5-shalauddin-kaders-projects.vercel.app
+1. Visit your deployed app: https://balanze.cash
 2. Try clicking "Continue with Google"
 3. Try clicking "Continue with Apple"
 4. Check browser console for any errors

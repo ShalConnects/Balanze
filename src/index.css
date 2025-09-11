@@ -68,6 +68,46 @@
   to { opacity: 1; transform: none; }
 }
 
+/* Last Wish Widget Animations */
+@keyframes pulse-urgent {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    transform: scale(1.02);
+  }
+}
+
+@keyframes slideInFromRight {
+  from { 
+    opacity: 0; 
+    transform: translateX(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+@keyframes progressFill {
+  from { width: 0%; }
+  to { width: var(--progress-width); }
+}
+
+.animate-pulse-urgent {
+  animation: pulse-urgent 2s infinite;
+}
+
+.animate-slide-in {
+  animation: slideInFromRight 0.5s ease-out;
+}
+
+.progress-animate {
+  animation: progressFill 1s ease-out;
+}
+
 /* Hide scrollbar for specific elements */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
@@ -122,6 +162,262 @@
 .dark .focus-ring-gradient {
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1), 0 0 0 1px rgba(167, 139, 250, 0.2);
 }
+
+/* Option 1: Enhanced Gradient Background for Sidebar Active Menu */
+.sidebar-active-gradient {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border-left: 4px solid transparent;
+  border-image: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%) 1;
+  position: relative;
+}
+
+.sidebar-active-gradient::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+  border-radius: 8px;
+  z-index: -1;
+}
+
+.dark .sidebar-active-gradient {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.15) 0%, rgba(167, 139, 250, 0.15) 100%);
+  border-image: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%) 1;
+}
+
+.dark .sidebar-active-gradient::before {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.08) 0%, rgba(167, 139, 250, 0.08) 100%);
+}
+
+/* Option 2: Modern Rounded Style with Shadow */
+.sidebar-active-modern {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar-active-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  border-radius: 12px;
+  z-index: 0;
+}
+
+.sidebar-active-modern > * {
+  position: relative;
+  z-index: 1;
+}
+
+.dark .sidebar-active-modern {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.12) 0%, rgba(167, 139, 250, 0.12) 100%);
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.dark .sidebar-active-modern::before {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+}
+
+/* Option 3: Animated Border Effect */
+.sidebar-active-animated {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.sidebar-active-animated::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #3b82f6);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+  z-index: 1;
+}
+
+.sidebar-active-animated::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+  border-radius: 8px;
+  z-index: 0;
+}
+
+.sidebar-active-animated > * {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes shimmer {
+  0% { 
+    background-position: -200% 0; 
+  }
+  100% { 
+    background-position: 200% 0; 
+  }
+}
+
+.dark .sidebar-active-animated {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.15) 0%, rgba(167, 139, 250, 0.15) 100%);
+}
+
+.dark .sidebar-active-animated::before {
+  background: linear-gradient(90deg, #60a5fa, #a78bfa, #60a5fa);
+}
+
+.dark .sidebar-active-animated::after {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.08) 0%, rgba(167, 139, 250, 0.08) 100%);
+}
+
+/* Option 4: Icon Enhancement */
+.sidebar-active-icon {
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.4));
+  transform: scale(1.1);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.sidebar-active-icon::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(1.5);
+  z-index: -1;
+  animation: icon-pulse 2s infinite;
+}
+
+@keyframes icon-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+  50% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(1.8);
+  }
+}
+
+.dark .sidebar-active-icon {
+  filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.5));
+}
+
+.dark .sidebar-active-icon::before {
+  background: radial-gradient(circle, rgba(96, 165, 250, 0.3) 0%, transparent 70%);
+}
+
+/* Option 5: Pulse Animation */
+.sidebar-active-pulse {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  animation: pulse-glow 2s infinite;
+}
+
+.sidebar-active-pulse::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+  border-radius: 8px;
+  z-index: 0;
+}
+
+.sidebar-active-pulse > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.3);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+    transform: scale(1.02);
+  }
+}
+
+.dark .sidebar-active-pulse {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.15) 0%, rgba(167, 139, 250, 0.15) 100%);
+}
+
+.dark .sidebar-active-pulse::before {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.08) 0%, rgba(167, 139, 250, 0.08) 100%);
+}
+
+@keyframes pulse-glow-dark {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.4);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 0 8px rgba(96, 165, 250, 0);
+    transform: scale(1.02);
+  }
+}
+
+.dark .sidebar-active-pulse {
+  animation: pulse-glow-dark 2s infinite;
+}
+
+/* Simple Approach: Gradient Text and Icons with Clean Background */
+.sidebar-active-simple {
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  transition: all 0.2s ease;
+}
+
+/* Ensure icons get gradient color in active state */
+.sidebar-active-simple svg {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  fill: url(#gradient);
+}
+
+.dark .sidebar-active-simple {
+  background: rgba(96, 165, 250, 0.15);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.dark .sidebar-active-simple svg {
+  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 
 .unified-dropdown {
   background-color: #f3f4f6; /* bg-gray-100 */

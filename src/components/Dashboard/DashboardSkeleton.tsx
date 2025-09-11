@@ -1,9 +1,9 @@
 import React from 'react';
-import { Skeleton, SkeletonCard, SkeletonChart } from '../common/Skeleton';
+import { Skeleton, SkeletonCard, SkeletonChart, SkeletonMobileCard, SkeletonStaggered } from '../common/Skeleton';
 
 export const DashboardSkeleton: React.FC = () => {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 skeleton-mobile">
       {/* Header Skeleton */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -203,6 +203,11 @@ export const DashboardSkeleton: React.FC = () => {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Mobile-optimized skeleton for mobile view */}
+      <div className="md:hidden">
+        <SkeletonStaggered count={4} />
       </div>
     </div>
   );

@@ -35,7 +35,7 @@ async function testSendGridSMTP() {
       email: testEmail,
       password: testPassword,
       options: {
-        emailRedirectTo: 'https://fin-tech-dq5uuczkm-shalauddin-kaders-projects.vercel.app'
+        emailRedirectTo: 'https://balanze.cash'
       }
     });
     

@@ -161,21 +161,24 @@ export const getFilteredCategoriesForTransaction = (
  * @param purchaseCategories - Array of purchase categories
  * @param accounts - Array of accounts
  * @param accountId - Selected account ID
+ * @param manualCurrency - Optional manual currency override (for exclude from calculation mode)
  * @returns Object with filtered categories and account currency
  */
 export const getFilteredCategoriesForPurchase = (
   purchaseCategories: PurchaseCategory[],
   accounts: Account[],
-  accountId: string
+  accountId: string,
+  manualCurrency?: string
 ) => {
-  const accountCurrency = getAccountCurrency(accounts, accountId);
-  const filteredCategories = accountCurrency 
-    ? filterPurchaseCategoriesByCurrency(purchaseCategories, accountCurrency)
+  // Use manual currency if provided, otherwise get from account
+  const effectiveCurrency = manualCurrency || getAccountCurrency(accounts, accountId);
+  const filteredCategories = effectiveCurrency 
+    ? filterPurchaseCategoriesByCurrency(purchaseCategories, effectiveCurrency)
     : sortPurchaseCategoriesByCurrency(purchaseCategories);
   
   return {
     categories: filteredCategories,
-    accountCurrency,
+    accountCurrency: effectiveCurrency,
     hasMatchingCategories: filteredCategories.length > 0,
     totalCategories: purchaseCategories.length
   };

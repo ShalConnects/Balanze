@@ -22,7 +22,7 @@ async function testSignupErrorHandling() {
         data: {
           full_name: testFullName
         },
-        emailRedirectTo: 'https://fin-tech-e81hmfw1p-shalauddin-kaders-projects.vercel.app/auth'
+        emailRedirectTo: 'https://balanze.cash/auth'
       }
     });
     

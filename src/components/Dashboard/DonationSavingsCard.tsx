@@ -51,6 +51,15 @@ export const DonationSavingsCard: React.FC<{ t: any; formatCurrency: any }> = ({
   const totalDonated = useMemo(() => {
     return donationSavingRecords.filter(record => {
       if (record.status !== 'donated') return false;
+      
+      // For manual donations (no transaction_id), check currency from note
+      if (!record.transaction_id) {
+        const currencyMatch = record.note?.match(/\(?Currency:\s*([A-Z]{3})\)?/);
+        const manualCurrency = currencyMatch ? currencyMatch[1] : 'USD';
+        return manualCurrency === filterCurrency;
+      }
+      
+      // For regular donations, check currency from linked transaction
       const transaction = transactions.find(t => t.id === record.transaction_id);
       const account = transaction ? accounts.find(a => a.id === transaction.account_id) : undefined;
       return account && account.currency === filterCurrency;

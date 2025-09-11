@@ -721,6 +721,31 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         onClose(); // Only close after success
       } catch (error) {
         console.error('Error saving transaction:', error);
+        
+        // Check if it's a plan limit error and show upgrade prompt
+        if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+          const errorMessage = error.message;
+          
+          if (errorMessage && errorMessage.includes('TRANSACTION_LIMIT_EXCEEDED')) {
+            // Show toast and navigate to plans
+            const { transactions } = useFinanceStore.getState();
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            const monthlyTransactions = transactions.filter(t => {
+              const transactionDate = new Date(t.date);
+              return transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
+            }).length;
+            const limit = 100;
+            
+            toast.error(`Transaction limit exceeded! You have ${monthlyTransactions}/${limit} transactions this month. Upgrade to Premium for unlimited transactions.`);
+            setTimeout(() => {
+              window.location.href = '/settings?tab=plans';
+            }, 2000);
+            
+            return;
+          }
+        }
+        
         // Removed transaction error notifications - only show toast for errors
         toast.error(`Failed to ${isEditMode ? 'update' : 'add'} transaction. Please try again.`);
       } finally {

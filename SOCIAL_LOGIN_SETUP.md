@@ -1,6 +1,6 @@
 # Social Login Setup Guide
 
-This guide will help you configure Google and Apple social login for your FinTech application using Supabase.
+This guide will help you configure Google and Apple social login for your Balanze application using Supabase.
 
 ## Prerequisites
 

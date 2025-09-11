@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, Wallet, Target, Handshake, PiggyBank, Bell, Shield, Heart,
   Check, ChevronDown, ChevronUp, Star, ArrowRight, BarChart3, PieChart,
-  Users, Globe, Mail, Phone, Facebook, Twitter, Instagram, Linkedin, Github, ArrowUp, Moon, Sun, LogOut
+  Users, Globe, Mail, Phone, Facebook, Twitter, Instagram, Linkedin, Github, ArrowUp, Moon, Sun, LogOut, Menu, X,
+  Zap, MessageSquare, Download, Settings, CreditCard
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import InteractiveBackground from '../components/InteractiveBackground';
@@ -12,6 +13,8 @@ import { useAuthStore } from '../store/authStore';
 const LandingPage: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'one-time'>('monthly');
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useThemeStore();
   const { user, signOut } = useAuthStore();
@@ -43,7 +46,7 @@ const LandingPage: React.FC = () => {
   const testimonials = [
     {
       name: "Sarah Johnson", title: "Marketing Manager",
-      quote: "FinanceFlow helped me save $5,000 in just 6 months. The spending tracker is a game-changer!",
+              quote: "Balanze helped me save $5,000 in just 6 months. The spending tracker is a game-changer!",
       avatar: "https://ui-avatars.com/api/?name=Sarah+Johnson&background=0D8ABC&color=fff"
     },
     {
@@ -73,57 +76,127 @@ const LandingPage: React.FC = () => {
       <div className="relative z-10">
         {/* Navigation Header */}
         <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                FinanceFlow
-              </h1>
-            </div>
-            <div className="hidden md:flex items-center space-x-8">
-              <button
-                className="bg-transparent text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
-                onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-              >
-                Features
-              </button>
-              <button
-                className="bg-transparent text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
-                onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
-              >
-                Pricing
-              </button>
-              <button
-                className="bg-transparent text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
-                onClick={() => document.getElementById('testimonials')?.scrollIntoView({ behavior: 'smooth' })}
-              >
-                Testimonials
-              </button>
-              {user ? (
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm text-gray-600 dark:text-gray-300">
-                    Welcome, {user.email}
-                  </span>
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">B</span>
+                </div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Balanze
+                </h1>
+              </div>
+              
+              {/* Desktop Navigation */}
+              <div className="hidden md:flex items-center space-x-8">
+                <button
+                  className="bg-transparent text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
+                  onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                >
+                  Features
+                </button>
+                <button
+                  className="bg-transparent text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
+                  onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                >
+                  Pricing
+                </button>
+                <button
+                  className="bg-transparent text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
+                  onClick={() => document.getElementById('testimonials')?.scrollIntoView({ behavior: 'smooth' })}
+                >
+                  Testimonials
+                </button>
+                {user ? (
+                  <div className="flex items-center space-x-4">
+                    <span className="text-sm text-gray-600 dark:text-gray-300">
+                      Welcome, {user.email}
+                    </span>
+                    <button 
+                      onClick={() => signOut()}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-semibold flex items-center space-x-2"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => navigate('/auth')}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors font-semibold"
+                  >
+                    Sign In
+                  </button>
+                )}
+              </div>
+
+              {/* Mobile Menu Button */}
+              <div className="md:hidden flex items-center space-x-4">
+                {user ? (
                   <button 
                     onClick={() => signOut()}
-                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-semibold flex items-center space-x-2"
+                    className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors font-semibold text-sm flex items-center space-x-1"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Logout</span>
                   </button>
-                </div>
-              ) : (
-                <button 
-                  onClick={() => navigate('/auth')}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors font-semibold"
+                ) : (
+                  <button 
+                    onClick={() => navigate('/auth')}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors font-semibold text-sm"
+                  >
+                    Sign In
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                 >
-                  Sign In
+                  {isMobileMenuOpen ? (
+                    <X className="w-6 h-6" />
+                  ) : (
+                    <Menu className="w-6 h-6" />
+                  )}
                 </button>
-              )}
+              </div>
             </div>
+
+            {/* Mobile Menu */}
+            {isMobileMenuOpen && (
+              <div className="md:hidden border-t border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md">
+                <div className="px-2 pt-2 pb-3 space-y-1">
+                  <button
+                    className="block w-full text-left px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
+                    onClick={() => {
+                      document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+                      setIsMobileMenuOpen(false);
+                    }}
+                  >
+                    Features
+                  </button>
+                  <button
+                    className="block w-full text-left px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
+                    onClick={() => {
+                      document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
+                      setIsMobileMenuOpen(false);
+                    }}
+                  >
+                    Pricing
+                  </button>
+                  <button
+                    className="block w-full text-left px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
+                    onClick={() => {
+                      document.getElementById('testimonials')?.scrollIntoView({ behavior: 'smooth' });
+                      setIsMobileMenuOpen(false);
+                    }}
+                  >
+                    Testimonials
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      </nav>
+        </nav>
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 overflow-hidden">
@@ -215,7 +288,7 @@ const LandingPage: React.FC = () => {
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-4 transform rotate-3 hover:rotate-0 transition-transform duration-500">
                 <img 
                   src="/dashboard-screenshot-light.png" 
-                  alt="FinanceFlow Dashboard"
+                  alt="Balanze Dashboard"
                   className="w-full max-w-4xl rounded-xl"
                 />
               </div>
@@ -337,7 +410,7 @@ const LandingPage: React.FC = () => {
               <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Last Wish</span> — Your Digital Time Capsule
             </h2>
             <p className="text-xl text-gray-700 dark:text-gray-300 mb-6 max-w-2xl mx-auto md:mx-0">
-              Securely record your final wishes, messages, and important information for your loved ones. FinanceFlow's <b>Last Wish</b> feature lets you create a digital legacy, ensuring your voice and intentions are preserved and delivered when it matters most.
+              Securely record your final wishes, messages, and important information for your loved ones. Balanze's <b>Last Wish</b> feature lets you create a digital legacy, ensuring your voice and intentions are preserved and delivered when it matters most.
             </p>
             <ul className="text-left text-gray-700 dark:text-gray-300 mb-6 max-w-2xl mx-auto md:mx-0 space-y-2">
               <li className="flex items-center"><span className="inline-block w-2 h-2 bg-blue-500 rounded-full mr-3"></span> Leave personal messages for family and friends</li>
@@ -358,113 +431,274 @@ const LandingPage: React.FC = () => {
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Simple, Transparent Pricing
             </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+              Choose the perfect plan for your financial needs
+            </p>
+            
+            {/* Billing Cycle Selector */}
+            <div className="mt-6 flex items-center justify-center">
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-1 flex w-full max-w-xs">
+                <button
+                  onClick={() => setBillingCycle('monthly')}
+                  className={`flex-1 px-3 md:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    billingCycle === 'monthly'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Monthly
+                </button>
+                <button
+                  onClick={() => setBillingCycle('one-time')}
+                  className={`flex-1 px-3 md:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    billingCycle === 'one-time'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  One-time
+                  <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
+                    Lifetime access
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <div className="bg-white dark:bg-gray-700 rounded-2xl p-8 shadow-lg">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Free</h3>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-gray-900 dark:text-white">$0</span>
-                <span className="text-gray-600 dark:text-gray-400">/month</span>
+            {/* Free Plan */}
+            <div className="relative rounded-xl border border-gray-200 dark:border-gray-700 shadow p-4 md:p-6 transition-all duration-200 hover:shadow-xl bg-white dark:bg-gray-800 flex flex-col h-full">
+              <div className="text-center mb-6">
+                <h3 className="text-lg md:text-xl font-semibold mb-2 text-gray-900 dark:text-white">Free</h3>
+                <p className="text-sm mb-4 text-gray-600 dark:text-gray-400">Perfect for getting started with basic financial tracking</p>
+                <div className="flex items-baseline justify-center">
+                  <span className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">$0</span>
+                  <span className="ml-1 text-base md:text-lg text-gray-500 dark:text-gray-400">/{billingCycle === 'one-time' ? 'lifetime' : 'month'}</span>
+                </div>
+                
+                {/* Free plan promotional badge */}
+                <div className="mt-2 text-center">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
+                    Always Free
+                  </span>
+                </div>
               </div>
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-green-500 mr-3" />
-                  <span className="text-gray-600 dark:text-gray-300">Basic financial tracking</span>
+
+              <ul className="space-y-2 md:space-y-3 mb-4 md:mb-6 flex-1">
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <BarChart3 className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Basic financial tracking</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-green-500 mr-3" />
-                  <span className="text-gray-600 dark:text-gray-300">Up to 3 accounts</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Users className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Up to 5 accounts</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-green-500 mr-3" />
-                  <span className="text-gray-600 dark:text-gray-300">Basic reports</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Globe className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">1 currency only</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-green-500 mr-3" />
-                  <span className="text-gray-600 dark:text-gray-300">Email support</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <BarChart3 className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Basic reports</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-green-500 mr-3" />
-                  <span className="text-gray-600 dark:text-gray-300">Transaction management</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <MessageSquare className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Email support (24-48h response)</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-green-500 mr-3" />
-                  <span className="text-gray-600 dark:text-gray-300">Purchase tracking</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Download className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Basic purchase tracking</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-green-500 mr-3" />
-                  <span className="text-gray-600 dark:text-gray-300">Basic analytics</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <BarChart3 className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Basic analytics</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <CreditCard className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Transaction management</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Settings className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-500 dark:text-gray-500 line-through">Custom categories</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Users className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-500 dark:text-gray-500 line-through">Lend & borrow tracking</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Download className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-500 dark:text-gray-500 line-through">Data export</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Heart className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-500 dark:text-gray-500 line-through">Last Wish - Digital Time Capsule</span>
+                  </div>
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 ml-2">
+                    <Heart className="w-3 h-3 mr-1" />
+                    Premium
+                  </span>
                 </li>
               </ul>
-              <button 
-                className="w-full bg-gray-200 text-gray-900 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
-                onClick={() => navigate('/auth')}
-              >
-                Get Started Free
-              </button>
+
+              <div className="mt-auto pt-4 md:pt-6">
+                <button
+                  className="w-full rounded-lg px-3 md:px-4 py-2 md:py-3 text-sm font-medium transition-colors bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-800 dark:hover:bg-gray-600"
+                  onClick={() => navigate('/auth')}
+                >
+                  Get Started Free
+                </button>
+              </div>
             </div>
 
-            <div className="bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl p-8 shadow-xl relative transform scale-105">
+            {/* Premium Plan */}
+            <div className="relative rounded-xl border border-blue-500 shadow-lg dark:border-blue-400 p-4 md:p-6 transition-all duration-200 hover:shadow-xl bg-white dark:bg-gray-800 flex flex-col h-full transform scale-105">
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <span className="bg-yellow-400 text-yellow-900 px-4 py-2 rounded-full text-sm font-semibold">
-                  Most Popular
+                <span className="inline-flex items-center px-4 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-purple-100 to-blue-100 text-purple-800 dark:from-purple-900/50 dark:to-blue-900/50 dark:text-purple-300 border border-purple-200 dark:border-purple-700">
+                  <Zap className="w-4 h-4 mr-1" />
+                  Recommended
                 </span>
               </div>
-              <h3 className="text-2xl font-bold text-white mb-4">Premium</h3>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-white">$9.99</span>
-                <span className="text-blue-100">/month</span>
+
+              <div className="text-center mb-6">
+                <h3 className="text-lg md:text-xl font-semibold mb-2 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Premium</h3>
+                <p className="text-sm mb-4 text-purple-700 dark:text-purple-300 font-medium">Unlock unlimited features and advanced financial insights</p>
+                <div className="flex items-baseline justify-center">
+                  <span className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                    ${billingCycle === 'one-time' ? '99.99' : '7.99'}
+                  </span>
+                  <span className="ml-1 text-base md:text-lg text-purple-600 dark:text-purple-400">/{billingCycle === 'one-time' ? 'lifetime' : 'month'}</span>
+                </div>
+                
+                {/* Show lifetime access benefit for one-time Premium */}
+                {billingCycle === 'one-time' && (
+                  <div className="mt-2 text-center">
+                    <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                      ✨ Premium lifetime access - No recurring fees
+                    </span>
+                  </div>
+                )}
+                
+                {/* First month discount badge - only show for monthly */}
+                {billingCycle === 'monthly' && (
+                  <div className="mt-2 text-center">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300">
+                      First month 50% off
+                    </span>
+                  </div>
+                )}
               </div>
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-white mr-3" />
-                  <span className="text-blue-100">Everything in Free</span>
+
+              <ul className="space-y-2 md:space-y-3 mb-4 md:mb-6 flex-1">
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Check className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Everything in Free</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-white mr-3" />
-                  <span className="text-blue-100">Unlimited accounts</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Users className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Unlimited accounts</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-white mr-3" />
-                  <span className="text-blue-100">Advanced analytics</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Globe className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Unlimited currencies</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-white mr-3" />
-                  <span className="text-blue-100">Multi-currency support</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <BarChart3 className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Advanced analytics</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-white mr-3" />
-                  <span className="text-blue-100">Priority support</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <MessageSquare className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Priority email support (4-8h response)</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-white mr-3" />
-                  <span className="text-blue-100">Custom categories</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Settings className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Custom categories</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-white mr-3" />
-                  <span className="text-blue-100">Lend & Borrow tracking</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Users className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Lend & borrow tracking</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-white mr-3" />
-                  <span className="text-blue-100">Last Wish - Digital Time Capsule</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <BarChart3 className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Advanced reporting</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-white mr-3" />
-                  <span className="text-blue-100">Advanced reporting</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Download className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Data export (CSV, Excel, PDF)</span>
+                  </div>
                 </li>
-                <li className="flex items-center">
-                  <Check className="w-5 h-5 text-white mr-3" />
-                  <span className="text-blue-100">Data export</span>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Heart className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Last Wish - Digital Time Capsule</span>
+                  </div>
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 ml-2">
+                    <Heart className="w-3 h-3 mr-1" />
+                    Premium
+                  </span>
                 </li>
               </ul>
-              <button 
-                className="w-full bg-white text-blue-600 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
-                onClick={() => navigate('/auth')}
-              >
-                Start Free Trial
-              </button>
+
+              <div className="mt-auto pt-4 md:pt-6">
+                <button
+                  className="w-full rounded-lg px-3 md:px-4 py-2 md:py-3 text-sm font-medium transition-colors bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg"
+                  onClick={() => navigate('/auth')}
+                >
+                  Start Free Trial
+                </button>
+              </div>
             </div>
+          </div>
+
+          <div className="mt-8 text-center space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border border-green-200 dark:border-green-800 rounded-lg shadow-sm">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                <span className="font-semibold">Premium plan</span> includes a{' '}
+                <span className="font-bold text-green-800 dark:text-green-200">14-day free trial</span>. 
+                No credit card required.
+              </p>
+            </div>
+            
           </div>
         </div>
       </section>
@@ -477,7 +711,7 @@ const LandingPage: React.FC = () => {
               Loved by Thousands of Users
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-              See what our users are saying about FinanceFlow
+              See what our users are saying about Balanze
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -553,9 +787,14 @@ const LandingPage: React.FC = () => {
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="col-span-1 md:col-span-2">
-              <h3 className="text-2xl font-bold mb-4">FinanceFlow</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-2">
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">B</span>
+                </div>
+                <h3 className="text-2xl font-bold">Balanze</h3>
+              </div>
               <p className="text-gray-400 mb-6 max-w-md">
                 Take control of your financial future with our comprehensive personal finance platform.
               </p>
@@ -584,6 +823,7 @@ const LandingPage: React.FC = () => {
                 <li><a href="/about" className="text-gray-400 hover:text-white transition-colors">About</a></li>
                 <li><a href="/blog" className="text-gray-400 hover:text-white transition-colors">Blog</a></li>
                 <li><a href="/privacypolicy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a></li>
+                <li><a href="/refundpolicy" className="text-gray-400 hover:text-white transition-colors">Refund Policy</a></li>
                 <li><a href="/termsofservice" className="text-gray-400 hover:text-white transition-colors">Terms of Service</a></li>
               </ul>
             </div>
@@ -592,12 +832,12 @@ const LandingPage: React.FC = () => {
           <div className="border-t border-gray-800 mt-12 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center">
               <p className="text-gray-400 text-sm">
-                © 2025 FinanceFlow. All rights reserved.
+                © 2025 Balanze. All rights reserved.
               </p>
               <div className="flex items-center space-x-4 mt-4 md:mt-0">
-                <a href="mailto:salauddin.kader406@gmail.com" className="text-gray-400 hover:text-white transition-colors text-sm">
+                <a href="mailto:shalconnect00@gmail.com" className="text-gray-400 hover:text-white transition-colors text-sm">
                   <Mail className="w-4 h-4 inline mr-2" />
-                  salauddin.kader406@gmail.com
+                  shalconnect00@gmail.com
                 </a>
               </div>
             </div>

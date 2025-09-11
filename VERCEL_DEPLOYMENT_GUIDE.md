@@ -1,6 +1,6 @@
 # Vercel Deployment Guide
 
-This guide will help you deploy your FinTech application with social login to Vercel.
+This guide will help you deploy your Balanze application with social login to Vercel.
 
 ## Prerequisites
 

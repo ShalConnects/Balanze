@@ -8,6 +8,12 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { 
+  TransactionTableSkeleton, 
+  TransactionMobileSkeleton, 
+  TransactionSummaryCardsSkeleton, 
+  TransactionFiltersSkeleton 
+} from '../Accounts/AccountSkeleton';
 
 export const TransactionsView: React.FC = () => {
   const { transactions, accounts, categories, loading, error, globalSearchTerm, fetchTransactions, fetchCategories, fetchPurchaseCategories, purchaseCategories } = useFinanceStore();
@@ -181,6 +187,33 @@ export const TransactionsView: React.FC = () => {
     setShowExportMenu(false);
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        {/* Smooth skeleton for transactions page */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          {/* Filters skeleton */}
+          <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+            <TransactionFiltersSkeleton />
+          </div>
+          
+          {/* Summary cards skeleton */}
+          <div className="p-4">
+            <TransactionSummaryCardsSkeleton />
+          </div>
+          
+          {/* Responsive skeleton - Desktop table, Mobile cards */}
+          <div className="hidden md:block p-4">
+            <TransactionTableSkeleton rows={6} />
+          </div>
+          <div className="md:hidden">
+            <TransactionMobileSkeleton count={4} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return <div className="min-h-[300px] flex items-center justify-center text-red-600 text-xl">{error}</div>;
   }
@@ -190,7 +223,7 @@ export const TransactionsView: React.FC = () => {
       {/* Transaction List */}
       <div>
         <TransactionList 
-          transactions={filteredTransactions as any}
+          transactions={transactions as any}
           selectedTransactionId={selectedTransactionId}
         />
       </div>

@@ -10,6 +10,11 @@ import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 export const LendBorrowSummaryCard: React.FC = () => {
   const { user, profile } = useAuthStore();
+  
+  // Check if user has Premium plan for Lend & Borrow
+  const isPremium = profile?.subscription?.plan === 'premium';
+  
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [records, setRecords] = useState<LendBorrow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLentTooltip, setShowLentTooltip] = useState(false);
@@ -52,6 +57,11 @@ export const LendBorrowSummaryCard: React.FC = () => {
         setLoading(false);
       });
   }, [user]);
+  
+  // Don't render for free users
+  if (!isPremium) {
+    return null;
+  }
 
   // Filter records by currency
   const filteredRecords = records.filter(r => r.currency === filterCurrency);

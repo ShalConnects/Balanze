@@ -146,7 +146,7 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
         amount: amountNum,
         mode: 'fixed',
         mode_value: amountNum,
-        note: note ? `${note} (Currency: ${currency})` : `Currency: ${currency}`,
+        note: note ? `${note} Currency: ${currency}` : `Currency: ${currency}`,
         status: 'donated', // Manual donations are marked as donated by default
         created_at: new Date().toISOString().split('T')[0] // Always use current date for created_at
       };
@@ -321,12 +321,12 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
               onChange={(e) => setNote(e.target.value)}
               placeholder="Add a note about this donation..."
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
             />
           </div>
 
           {/* Submit Button */}
-          <div className="flex space-x-3 pt-4">
+          <div className="flex space-x-3">
             <button
               type="button"
               onClick={onClose}

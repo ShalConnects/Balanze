@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { Tooltip } from '../components/common/Tooltip';
 import { useAuthStore } from '../store/authStore';
 import { DonationCardSkeleton, DonationTableSkeleton, DonationSummaryCardsSkeleton, DonationFiltersSkeleton } from '../components/Donations/DonationSkeleton';
+import { ManualDonationModal } from '../components/common/ManualDonationModal';
 import { toast } from 'sonner';
 
 const DonationsSavingsPage: React.FC = () => {
@@ -23,7 +24,20 @@ const DonationsSavingsPage: React.FC = () => {
   const [filterMode, setFilterMode] = useState<'all' | 'fixed' | 'percent'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'donated' | 'pending'>('all');
   const [filterCurrency, setFilterCurrency] = useState('');
-  const [filterDateRange, setFilterDateRange] = useState<'1month' | '3months' | '6months' | '1year'>('1month');
+  const [filterDateRange, setFilterDateRange] = useState<'1month' | '3months' | '6months' | '1year' | 'allTime'>('1month');
+
+  // Mobile filter states
+  const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
+  const [tempFilters, setTempFilters] = useState({
+    searchTerm: '',
+    filterMode: 'all' as 'all' | 'fixed' | 'percent',
+    filterStatus: 'all' as 'all' | 'donated' | 'pending',
+    filterCurrency: '',
+    filterDateRange: '1month' as '1month' | '3months' | '6months' | '1year' | 'allTime'
+  });
+
+  // Manual donation modal state
+  const [showManualDonationModal, setShowManualDonationModal] = useState(false);
 
   // Add sorting state
   const [sortConfig, setSortConfig] = useState<{
@@ -203,6 +217,12 @@ const DonationsSavingsPage: React.FC = () => {
     [key: string]: any;
   };
   const handleToggleStatus = async (record: DonationRecord) => {
+    // Disable status toggle for manual donations
+    if (!record.transaction_id) {
+      toast.error('Cannot change status for manual donations');
+      return;
+    }
+    
     const newStatus = record.status === 'donated' ? 'pending' : 'donated';
     // Optimistically update UI
     if (typeof setDonationSavingRecords === 'function') {
@@ -238,11 +258,19 @@ const DonationsSavingsPage: React.FC = () => {
   // Filter records by selected currency
   const filteredCurrencyRecords = filterCurrency
     ? donationSavingRecords.filter(record => {
+        // For manual donations (no transaction_id), check currency from note
+        if (!record.transaction_id) {
+          const currencyMatch = record.note?.match(/\(?Currency:\s*([A-Z]{3})\)?/);
+          const manualCurrency = currencyMatch ? currencyMatch[1] : 'USD';
+          return manualCurrency === filterCurrency;
+        }
+        
+        // For regular donations, check currency from linked transaction
         const transaction = transactions.find(t => t.id === record.transaction_id);
         const account = transaction ? accounts.find(a => a.id === transaction.account_id) : undefined;
         return account && account.currency === filterCurrency;
       })
-    : [];
+    : donationSavingRecords; // Show all records when no currency filter is applied
 
   // Date filtering logic
   const getDateRangeFilter = () => {
@@ -261,6 +289,10 @@ const DonationsSavingsPage: React.FC = () => {
         break;
       case '1year':
         monthsAgo.setFullYear(now.getFullYear() - 1);
+        break;
+      case 'allTime':
+        // For all time, set a very old date to include all records
+        monthsAgo.setFullYear(1900);
         break;
       default:
         monthsAgo.setMonth(now.getMonth() - 1);
@@ -313,11 +345,14 @@ const DonationsSavingsPage: React.FC = () => {
   const filteredRecords = React.useMemo(() => {
     const filtered = sortedRecords.filter(record => {
       const displayTransactionId = transactions.find(t => t.id === record.transaction_id)?.transaction_id || '';
+      const manualTransactionId = record.custom_transaction_id || '';
       const matchesSearch = searchTerm === '' || 
         (record.note?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         ((record.transaction_id || '').toLowerCase().includes(searchTerm.toLowerCase())) ||
         (displayTransactionId.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (`#${displayTransactionId}`.toLowerCase().includes(searchTerm.toLowerCase()));
+        (`#${displayTransactionId}`.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (manualTransactionId.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (`#${manualTransactionId}`.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesMode = filterMode === 'all' || record.mode === filterMode;
       const matchesStatus = filterStatus === 'all' || record.status === filterStatus;
       
@@ -386,6 +421,47 @@ const DonationsSavingsPage: React.FC = () => {
   // Add a helper function at the top of the component
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+  // Mobile filter functionality
+  useEffect(() => {
+    if (showMobileFilterMenu) {
+      setTempFilters({
+        searchTerm,
+        filterMode,
+        filterStatus,
+        filterCurrency,
+        filterDateRange
+      });
+    }
+  }, [showMobileFilterMenu, searchTerm, filterMode, filterStatus, filterCurrency, filterDateRange]);
+
+  const handleCloseModal = () => {
+    setTempFilters({
+      searchTerm: '',
+      filterMode: 'all',
+      filterStatus: 'all',
+      filterCurrency: '',
+      filterDateRange: '1month'
+    });
+    setShowMobileFilterMenu(false);
+  };
+
+  // Handle Escape key to close mobile filter modal
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && showMobileFilterMenu) {
+        handleCloseModal();
+      }
+    };
+
+    if (showMobileFilterMenu) {
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showMobileFilterMenu]);
+
   const handleCopyTransactionId = (transactionId: string) => {
     if (!transactionId) return;
     navigator.clipboard.writeText(transactionId);
@@ -407,15 +483,13 @@ const DonationsSavingsPage: React.FC = () => {
             <DonationSummaryCardsSkeleton />
           </div>
           
-          {/* Table skeleton */}
-          <div className="p-4">
+          {/* Responsive skeleton - Desktop table, Mobile cards */}
+          <div className="hidden md:block p-4">
             <DonationTableSkeleton rows={6} />
           </div>
-        </div>
-        
-        {/* Mobile skeleton */}
-        <div className="md:hidden">
-          <DonationCardSkeleton count={4} />
+          <div className="md:hidden">
+            <DonationCardSkeleton count={4} />
+          </div>
         </div>
       </div>
     );
@@ -425,12 +499,6 @@ const DonationsSavingsPage: React.FC = () => {
 
   return (
     <div className="dark:bg-gray-900">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        {/* <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Donation</h1> */}
-      </div>
-      {/* Removed subheading from body as it is now in the header */}
-
       {/* Unified Table View */}
       <div className="space-y-6">
 
@@ -440,7 +508,7 @@ const DonationsSavingsPage: React.FC = () => {
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex flex-wrap md:flex-nowrap justify-between items-center w-full" style={{ marginBottom: 0 }}>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <div>
+                        <div>
                   <div className="relative">
                     <Search className={`absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 ${searchTerm ? 'text-blue-500' : 'text-gray-400 dark:text-gray-500'}`} />
                     <input
@@ -458,8 +526,38 @@ const DonationsSavingsPage: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Mobile Filter and Export Buttons */}
+                <div className="md:hidden flex items-center gap-2">
+                  <button
+                    onClick={() => setShowMobileFilterMenu(true)}
+                    className={`px-2 py-1.5 text-[13px] h-8 w-8 rounded-md transition-colors flex items-center justify-center ${
+                      (filterMode !== 'all' || filterStatus !== 'all' || filterCurrency || filterDateRange !== '1month')
+                        ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                    style={(filterMode !== 'all' || filterStatus !== 'all' || filterCurrency || filterDateRange !== '1month') ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+                    title="Filters"
+                  >
+                    <Filter className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={exportData}
+                    className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 px-2 py-1.5 h-8 w-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
+                    title="Export"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setShowManualDonationModal(true)}
+                    className="bg-gradient-primary text-white px-2 py-1.5 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center justify-center text-[13px] h-8 w-8"
+                    title="Manual donation"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+
                 {/* Currency Filter */}
-                <div className="relative" ref={currencyMenuRef}>
+                <div className="relative hidden md:block" ref={currencyMenuRef}>
                   <button
                     onClick={() => setShowCurrencyMenu(v => !v)}
                     className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
@@ -490,7 +588,7 @@ const DonationsSavingsPage: React.FC = () => {
                 </div>
 
                 {/* Mode Filter */}
-                <div className="relative" ref={modeMenuRef}>
+                <div className="relative hidden md:block" ref={modeMenuRef}>
                   <button
                     onClick={() => setShowModeMenu(v => !v)}
                     className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
@@ -530,7 +628,7 @@ const DonationsSavingsPage: React.FC = () => {
                 </div>
 
                 {/* Status Filter */}
-                <div className="relative" ref={statusMenuRef}>
+                <div className="relative hidden md:block" ref={statusMenuRef}>
                   <button
                     onClick={() => setShowStatusMenu(v => !v)}
                     className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
@@ -570,7 +668,7 @@ const DonationsSavingsPage: React.FC = () => {
                 </div>
 
                 {/* Date Filter */}
-                <div className="relative" ref={dateMenuRef}>
+                <div className="relative hidden md:block" ref={dateMenuRef}>
                   <button
                     onClick={() => setShowDateMenu(v => !v)}
                     className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
@@ -580,10 +678,11 @@ const DonationsSavingsPage: React.FC = () => {
                     }`}
                     style={filterDateRange ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                   >
-                    <span>{filterDateRange === '1month' ? '1 Month' : 
-                          filterDateRange === '3months' ? '3 Months' : 
-                          filterDateRange === '6months' ? '6 Months' : 
-                          filterDateRange === '1year' ? '1 Year' : '1 Month'}</span>
+                                        <span>{filterDateRange === '1month' ? '1 Month' :
+                          filterDateRange === '3months' ? '3 Months' :
+                          filterDateRange === '6months' ? '6 Months' :
+                          filterDateRange === '1year' ? '1 Year' :
+                          filterDateRange === 'allTime' ? 'All Time' : '1 Month'}</span>
                     <svg className="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                     </svg>
@@ -614,6 +713,12 @@ const DonationsSavingsPage: React.FC = () => {
                       >
                         1 Year
                       </button>
+                      <button
+                        onClick={() => { setFilterDateRange('allTime'); setShowDateMenu(false); }}
+                        className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-300 ${filterDateRange === 'allTime' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : ''}`}
+                      >
+                        All Time
+                      </button>
                     </div>
                   )}
                 </div>
@@ -636,13 +741,24 @@ const DonationsSavingsPage: React.FC = () => {
                   </button>
                 )}
         </div>
-        <button
-          onClick={exportData}
-                className="bg-gradient-primary hover:bg-gradient-primary-hover text-white px-3 py-1.5 rounded-md transition-colors flex items-center space-x-1.5 mt-2 md:mt-0 text-[13px] h-8"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span>Export</span>
-        </button>
+            <div className="flex-grow" />
+            {/* Action Buttons in filter row */}
+            <div className="hidden md:flex items-center gap-2">
+              <button
+                onClick={exportData}
+                className="bg-gray-100 text-gray-700 px-3 py-1.5 h-8 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center"
+                aria-label="Export"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setShowManualDonationModal(true)}
+                className="bg-gradient-primary text-white px-3 py-1.5 h-8 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center space-x-1.5 text-[13px]"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Manual donation</span>
+              </button>
+            </div>
             </div>
       </div>
 
@@ -761,64 +877,117 @@ const DonationsSavingsPage: React.FC = () => {
                     filteredRecords.map((record) => {
                     const transaction = transactions.find(t => t.id === record.transaction_id);
                     const account = transaction ? accounts.find(a => a.id === transaction.account_id) : undefined;
-                    const currency = account ? account.currency : 'USD';
+                    
+                    // For manual donations, extract currency from note
+                    let currency = 'USD';
+                    if (!record.transaction_id) {
+                      const currencyMatch = record.note?.match(/Currency:\s*([A-Z]{3})/);
+                      currency = currencyMatch ? currencyMatch[1] : 'USD';
+                    } else {
+                      currency = account ? account.currency : 'USD';
+                    }
+                    
                     return (
                         <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           {formatDate(record.created_at)}
                         </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                            {transaction ? `${currencySymbols[currency] || currency}${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                            {transaction ? `${currencySymbols[currency] || currency}${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 
+                              record.note ? 
+                                <span title={record.note.replace(/\(?Currency:\s*[A-Z]{3}\)?/, '').trim()}>
+                                  {(record.note.replace(/\(?Currency:\s*[A-Z]{3}\)?/, '').trim() || 'Manual Donation').substring(0, 30)}
+                                  {(record.note.replace(/\(?Currency:\s*[A-Z]{3}\)?/, '').trim() || 'Manual Donation').length > 30 ? '...' : ''}
+                                </span>
+                                : 'Manual Donation'
+                            }
                         </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                             {`${currencySymbols[currency] || currency}${record.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                         </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {getModeBadge(record.mode, record.mode_value, currency)}
+                        {!record.transaction_id ? '-' : getModeBadge(record.mode, record.mode_value, currency)}
                       </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-mono">
                             {transaction ? (
-      <span className="inline-flex items-center gap-1">
-        #{transaction.transaction_id}
-        <button
-          type="button"
-          onClick={() => transaction.transaction_id && handleCopyTransactionId(transaction.transaction_id)}
-          className="ml-1 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none"
-          title="Copy transaction ID"
-          aria-label="Copy transaction ID"
-        >
-          <Copy className="w-3 h-3" />
-        </button>
-      </span>
-    ) : (
-      '-'
-    )}
+                              <span className="inline-flex items-center gap-1">
+                                #{transaction.transaction_id}
+                                <button
+                                  type="button"
+                                  onClick={() => transaction.transaction_id && handleCopyTransactionId(transaction.transaction_id)}
+                                  className="ml-1 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none"
+                                  title="Copy transaction ID"
+                                  aria-label="Copy transaction ID"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              </span>
+                            ) : record.custom_transaction_id ? (
+                              <span className="inline-flex items-center gap-1">
+                                <span className="text-blue-600 dark:text-blue-400">#{record.custom_transaction_id}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => record.custom_transaction_id && handleCopyTransactionId(record.custom_transaction_id)}
+                                  className="ml-1 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none"
+                                  title="Copy manual donation ID"
+                                  aria-label="Copy manual donation ID"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              </span>
+                            ) : (
+                              '-'
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <button
-                              type="button"
-                          onClick={() => handleToggleStatus(record)}
-                              className={
-                                record.status === 'donated'
-                                  ? "inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold text-xs hover:bg-green-100 dark:hover:bg-green-900/50 transition"
-                                  : "inline-flex items-center gap-1 px-3 py-1 rounded-full bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 font-semibold text-xs hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition"
-                              }
-                              aria-label={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
-                              title={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
-                      >
-                        {record.status === 'donated' ? (
-                                <>
-                                  <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400" />
-                                  Donated
-                                </>
-                        ) : (
-                                <>
-                          <Clock className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
-                                  Pending
-                                </>
-                        )}
-                            </button>
-                      </td>
+                            {!record.transaction_id ? (
+                              // Manual donations - show static status
+                              <span
+                                className={
+                                  record.status === 'donated'
+                                    ? "inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold text-xs"
+                                    : "inline-flex items-center gap-1 px-3 py-1 rounded-full bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 font-semibold text-xs"
+                                }
+                              >
+                                {record.status === 'donated' ? (
+                                  <>
+                                    <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400" />
+                                    Donated
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
+                                    Pending
+                                  </>
+                                )}
+                              </span>
+                            ) : (
+                              // Regular donations - show clickable button
+                              <button
+                                type="button"
+                                onClick={() => handleToggleStatus(record)}
+                                className={
+                                  record.status === 'donated'
+                                    ? "inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold text-xs hover:bg-green-100 dark:hover:bg-green-900/50 transition"
+                                    : "inline-flex items-center gap-1 px-3 py-1 rounded-full bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 font-semibold text-xs hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition"
+                                }
+                                aria-label={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
+                                title={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
+                              >
+                                {record.status === 'donated' ? (
+                                  <>
+                                    <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400" />
+                                    Donated
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
+                                    Pending
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       );
                     })
@@ -845,7 +1014,15 @@ const DonationsSavingsPage: React.FC = () => {
                 filteredRecords.map((record) => {
                   const transaction = transactions.find(t => t.id === record.transaction_id);
                   const account = transaction ? accounts.find(a => a.id === transaction.account_id) : undefined;
-                  const currency = account ? account.currency : 'USD';
+                  
+                  // For manual donations, extract currency from note
+                  let currency = 'USD';
+                  if (!record.transaction_id) {
+                    const currencyMatch = record.note?.match(/Currency:\s*([A-Z]{3})/);
+                    currency = currencyMatch ? currencyMatch[1] : 'USD';
+                  } else {
+                    currency = account ? account.currency : 'USD';
+                  }
                   
                   return (
                     <div key={record.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -860,7 +1037,14 @@ const DonationsSavingsPage: React.FC = () => {
                         <div>
                           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Original Amount</div>
                           <div className="text-sm text-gray-900 dark:text-white">
-                            {transaction ? `${currencySymbols[currency] || currency}${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                            {transaction ? `${currencySymbols[currency] || currency}${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 
+                              record.note ? 
+                                <span title={record.note.replace(/\(?Currency:\s*[A-Z]{3}\)?/, '').trim()}>
+                                  {(record.note.replace(/\(?Currency:\s*[A-Z]{3}\)?/, '').trim() || 'Manual Donation').substring(0, 25)}
+                                  {(record.note.replace(/\(?Currency:\s*[A-Z]{3}\)?/, '').trim() || 'Manual Donation').length > 25 ? '...' : ''}
+                                </span>
+                                : 'Manual Donation'
+                            }
                           </div>
                         </div>
                         <div>
@@ -875,7 +1059,7 @@ const DonationsSavingsPage: React.FC = () => {
                       <div className="grid grid-cols-3 gap-4 p-4">
                         <div>
                           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Mode</div>
-                          <div>{getModeBadge(record.mode, record.mode_value, currency)}</div>
+                          <div>{!record.transaction_id ? '-' : getModeBadge(record.mode, record.mode_value, currency)}</div>
                         </div>
                         <div>
                           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Transaction ID</div>
@@ -893,6 +1077,19 @@ const DonationsSavingsPage: React.FC = () => {
                                   <Copy className="w-3 h-3" />
                                 </button>
                               </span>
+                            ) : record.custom_transaction_id ? (
+                              <span className="inline-flex items-center gap-1">
+                                <span className="text-blue-600 dark:text-blue-400">#{record.custom_transaction_id}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => record.custom_transaction_id && handleCopyTransactionId(record.custom_transaction_id)}
+                                  className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none"
+                                  title="Copy manual donation ID"
+                                  aria-label="Copy manual donation ID"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              </span>
                             ) : (
                               '-'
                             )}
@@ -900,29 +1097,53 @@ const DonationsSavingsPage: React.FC = () => {
                         </div>
                         <div>
                           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Status</div>
-                          <button
-                            type="button"
-                            onClick={() => handleToggleStatus(record)}
-                            className={
-                              record.status === 'donated'
-                                ? "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold text-xs hover:bg-green-100 dark:hover:bg-green-900/50 transition"
-                                : "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 font-semibold text-xs hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition"
-                            }
-                            aria-label={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
-                            title={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
-                          >
-                            {record.status === 'donated' ? (
-                              <>
-                                <CheckCircle className="w-3 h-3 text-green-500 dark:text-green-400" />
-                                Donated
-                              </>
-                            ) : (
-                              <>
-                                <Clock className="w-3 h-3 text-yellow-500 dark:text-yellow-400" />
-                                Pending
-                              </>
-                            )}
-                          </button>
+                          {!record.transaction_id ? (
+                            // Manual donations - show static status
+                            <span
+                              className={
+                                record.status === 'donated'
+                                  ? "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold text-xs"
+                                  : "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 font-semibold text-xs"
+                              }
+                            >
+                              {record.status === 'donated' ? (
+                                <>
+                                  <CheckCircle className="w-3 h-3 text-green-500 dark:text-green-400" />
+                                  Donated
+                                </>
+                              ) : (
+                                <>
+                                  <Clock className="w-3 h-3 text-yellow-500 dark:text-yellow-400" />
+                                  Pending
+                                </>
+                              )}
+                            </span>
+                          ) : (
+                            // Regular donations - show clickable button
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStatus(record)}
+                              className={
+                                record.status === 'donated'
+                                  ? "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold text-xs hover:bg-green-100 dark:hover:bg-green-900/50 transition"
+                                  : "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 font-semibold text-xs hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition"
+                              }
+                              aria-label={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
+                              title={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
+                            >
+                              {record.status === 'donated' ? (
+                                <>
+                                  <CheckCircle className="w-3 h-3 text-green-500 dark:text-green-400" />
+                                  Donated
+                                </>
+                              ) : (
+                                <>
+                                  <Clock className="w-3 h-3 text-yellow-500 dark:text-yellow-400" />
+                                  Pending
+                                </>
+                              )}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -948,7 +1169,15 @@ const DonationsSavingsPage: React.FC = () => {
               filteredRecords.map((record) => {
                 const transaction = transactions.find(t => t.id === record.transaction_id);
                 const account = transaction ? accounts.find(a => a.id === transaction.account_id) : undefined;
-                const currency = account ? account.currency : 'USD';
+                
+                // For manual donations, extract currency from note
+                let currency = 'USD';
+                if (!record.transaction_id) {
+                  const currencyMatch = record.note?.match(/Currency:\s*([A-Z]{3})/);
+                  currency = currencyMatch ? currencyMatch[1] : 'USD';
+                } else {
+                  currency = account ? account.currency : 'USD';
+                }
                 
                 return (
                   <div key={record.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -961,29 +1190,53 @@ const DonationsSavingsPage: React.FC = () => {
                             {formatDate(record.created_at)}
                           </span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleStatus(record)}
-                          className={
-                            record.status === 'donated'
-                              ? "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold text-xs hover:bg-green-100 dark:hover:bg-green-900/50 transition"
-                              : "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 font-semibold text-xs hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition"
-                          }
-                          aria-label={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
-                          title={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
-                        >
-                          {record.status === 'donated' ? (
-                            <>
-                              <CheckCircle className="w-3 h-3 text-green-500 dark:text-green-400" />
-                              Donated
-                            </>
-                          ) : (
-                            <>
-                              <Clock className="w-3 h-3 text-yellow-500 dark:text-yellow-400" />
-                              Pending
-                            </>
-                          )}
-                        </button>
+                        {!record.transaction_id ? (
+                          // Manual donations - show static status
+                          <span
+                            className={
+                              record.status === 'donated'
+                                ? "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold text-xs"
+                                : "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 font-semibold text-xs"
+                            }
+                          >
+                            {record.status === 'donated' ? (
+                              <>
+                                <CheckCircle className="w-3 h-3 text-green-500 dark:text-green-400" />
+                                Donated
+                              </>
+                            ) : (
+                              <>
+                                <Clock className="w-3 h-3 text-yellow-500 dark:text-yellow-400" />
+                                Pending
+                              </>
+                            )}
+                          </span>
+                        ) : (
+                          // Regular donations - show clickable button
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(record)}
+                            className={
+                              record.status === 'donated'
+                                ? "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold text-xs hover:bg-green-100 dark:hover:bg-green-900/50 transition"
+                                : "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 font-semibold text-xs hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition"
+                            }
+                            aria-label={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
+                            title={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
+                          >
+                            {record.status === 'donated' ? (
+                              <>
+                                <CheckCircle className="w-3 h-3 text-green-500 dark:text-green-400" />
+                                Donated
+                              </>
+                            ) : (
+                              <>
+                                <Clock className="w-3 h-3 text-yellow-500 dark:text-yellow-400" />
+                                Pending
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -994,7 +1247,14 @@ const DonationsSavingsPage: React.FC = () => {
                         <div>
                           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Original Amount</div>
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {transaction ? `${currencySymbols[currency] || currency}${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                            {transaction ? `${currencySymbols[currency] || currency}${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 
+                              record.note ? 
+                                <span title={record.note.replace(/\(?Currency:\s*[A-Z]{3}\)?/, '').trim()}>
+                                  {(record.note.replace(/\(?Currency:\s*[A-Z]{3}\)?/, '').trim() || 'Manual Donation').substring(0, 20)}
+                                  {(record.note.replace(/\(?Currency:\s*[A-Z]{3}\)?/, '').trim() || 'Manual Donation').length > 20 ? '...' : ''}
+                                </span>
+                                : 'Manual Donation'
+                            }
                           </div>
                         </div>
                         <div>
@@ -1008,7 +1268,7 @@ const DonationsSavingsPage: React.FC = () => {
                       {/* Mode */}
                       <div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Mode</div>
-                        <div>{getModeBadge(record.mode, record.mode_value, currency)}</div>
+                        <div>{!record.transaction_id ? '-' : getModeBadge(record.mode, record.mode_value, currency)}</div>
                       </div>
 
                       {/* Transaction ID */}
@@ -1028,6 +1288,19 @@ const DonationsSavingsPage: React.FC = () => {
                                 <Copy className="w-3 h-3" />
                               </button>
                             </span>
+                          ) : record.custom_transaction_id ? (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="text-blue-600 dark:text-blue-400">#{record.custom_transaction_id}</span>
+                              <button
+                                type="button"
+                                onClick={() => record.custom_transaction_id && handleCopyTransactionId(record.custom_transaction_id)}
+                                className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none"
+                                title="Copy manual donation ID"
+                                aria-label="Copy manual donation ID"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </span>
                           ) : (
                             '-'
                           )}
@@ -1039,10 +1312,267 @@ const DonationsSavingsPage: React.FC = () => {
               })
             )}
           </div>
+        </div>
       </div>
-      </div>
+
+      {/* Mobile Filter Modal */}
+      {showMobileFilterMenu && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999] md:hidden">
+          <div 
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-[calc(100vw-2rem)] max-w-xs p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Filters</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setSearchTerm(tempFilters.searchTerm);
+                    setFilterMode(tempFilters.filterMode);
+                    setFilterStatus(tempFilters.filterStatus);
+                    setFilterCurrency(tempFilters.filterCurrency);
+                    setFilterDateRange(tempFilters.filterDateRange);
+                    setShowMobileFilterMenu(false);
+                  }}
+                  className={`p-1 rounded-full transition-colors ${
+                    (tempFilters.filterMode !== 'all' || tempFilters.filterStatus !== 'all' || tempFilters.filterCurrency || tempFilters.filterDateRange !== '1month')
+                      ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
+                      : 'text-gray-400'
+                  }`}
+                  title="Apply Filters"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={handleCloseModal}
+                  className="p-1 rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  title="Clear All"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select filters and click ✓ to apply</p>
+
+            {/* Filter Options */}
+            <div className="space-y-4">
+              {/* Currency Filter */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Currency</h4>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, filterCurrency: '' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.filterCurrency === ''
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    All Currencies
+                  </button>
+                  {recordCurrencies.map(currency => (
+                    <button
+                      key={currency}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTempFilters({ ...tempFilters, filterCurrency: currency });
+                      }}
+                      className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                        tempFilters.filterCurrency === currency
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {currency}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Mode Filter */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Mode</h4>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, filterMode: 'all' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.filterMode === 'all'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    All Modes
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, filterMode: 'fixed' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.filterMode === 'fixed'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    Fixed
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, filterMode: 'percent' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.filterMode === 'percent'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    Percentage
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Status</h4>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, filterStatus: 'all' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.filterStatus === 'all'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    All Status
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, filterStatus: 'donated' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.filterStatus === 'donated'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    Donated
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, filterStatus: 'pending' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.filterStatus === 'pending'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    Pending
+                  </button>
+                </div>
+              </div>
+
+              {/* Date Range Filter */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Date Range</h4>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, filterDateRange: '1month' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.filterDateRange === '1month'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    1 Month
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, filterDateRange: '3months' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.filterDateRange === '3months'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    3 Months
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, filterDateRange: '6months' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.filterDateRange === '6months'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    6 Months
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, filterDateRange: '1year' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.filterDateRange === '1year'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    1 Year
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, filterDateRange: 'allTime' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.filterDateRange === 'allTime'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    All Time
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Donation Modal */}
+      <ManualDonationModal 
+        isOpen={showManualDonationModal} 
+        onClose={() => setShowManualDonationModal(false)} 
+      />
     </div>
   );
 };
 
-export default DonationsSavingsPage; 
+export default DonationsSavingsPage;

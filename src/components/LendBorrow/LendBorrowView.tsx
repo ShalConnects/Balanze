@@ -28,7 +28,12 @@ const getCurrencySymbol = (currency: string) => currencySymbols[currency] || cur
 
 export const LendBorrowView: React.FC = () => {
   const { t } = useTranslation();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
+  
+  // Check if user has Premium plan for Lend & Borrow
+  const isPremium = profile?.subscription?.plan === 'premium';
+  
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const { accounts, lendBorrowRecords, fetchLendBorrowRecords, fetchAccounts, addLendBorrowRecord, loading: storeLoading } = useFinanceStore();
   const [analytics, setAnalytics] = useState<LendBorrowAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,6 +50,16 @@ export const LendBorrowView: React.FC = () => {
     currency: '' as string,
     dateRange: { start: '', end: '' }
   });
+
+  // Mobile filter states
+  const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
+  const [tempFilters, setTempFilters] = useState({
+    type: 'all' as 'all' | 'lend' | 'borrow',
+    status: 'all' as 'all' | 'active' | 'settled' | 'overdue',
+    search: '',
+    currency: '' as string,
+    dateRange: { start: '', end: '' }
+  });
   const [showTypeMenu, setShowTypeMenu] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
@@ -52,8 +67,32 @@ export const LendBorrowView: React.FC = () => {
   const typeMenuRef = useRef<HTMLDivElement>(null);
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const presetDropdownRef = useRef<HTMLDivElement>(null);
-  const { profile } = useAuthStore();
   const { wrapAsync, setLoadingMessage } = useLoadingContext();
+  
+  // Show upgrade prompt for free users
+  if (!isPremium) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
+          <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Handshake className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            Lend & Borrow Tracking
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Track loans and borrowings with detailed analytics. This feature is available for Premium users only.
+          </p>
+          <button
+            onClick={() => window.location.href = '/settings?tab=plans'}
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
+          >
+            Upgrade to Premium
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Date filter functions
   const getThisMonthDateRange = () => {
@@ -68,7 +107,7 @@ export const LendBorrowView: React.FC = () => {
 
   const getDateRangeLabel = () => {
     if (!filters.dateRange.start || !filters.dateRange.end) {
-      return 'Date Range';
+      return 'All Time';
     }
     const today = new Date();
     const todayStr = today.toISOString().slice(0, 10);
@@ -157,6 +196,10 @@ export const LendBorrowView: React.FC = () => {
         end = last.toISOString().slice(0, 10);
         break;
       }
+      case 'allTime':
+        start = '';
+        end = '';
+        break;
       default:
         break;
     }
@@ -601,6 +644,41 @@ export const LendBorrowView: React.FC = () => {
   // Helper to capitalize first letter
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+  // Mobile filter functionality
+  useEffect(() => {
+    if (showMobileFilterMenu) {
+      setTempFilters(filters);
+    }
+  }, [showMobileFilterMenu, filters]);
+
+  const handleCloseModal = () => {
+    setTempFilters({
+      type: 'all',
+      status: 'all',
+      search: '',
+      currency: '',
+      dateRange: { start: '', end: '' }
+    });
+    setShowMobileFilterMenu(false);
+  };
+
+  // Handle Escape key to close mobile filter modal
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && showMobileFilterMenu) {
+        handleCloseModal();
+      }
+    };
+
+    if (showMobileFilterMenu) {
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showMobileFilterMenu]);
+
   // Helper function to get default currency
   const getDefaultCurrency = () => {
     if (profile?.local_currency && availableCurrencies.includes(profile.local_currency)) {
@@ -624,15 +702,13 @@ export const LendBorrowView: React.FC = () => {
             <LendBorrowSummaryCardsSkeleton />
           </div>
           
-          {/* Table skeleton */}
-          <div className="p-4">
+          {/* Responsive skeleton - Desktop table, Mobile cards */}
+          <div className="hidden md:block p-4">
             <LendBorrowTableSkeleton rows={6} />
           </div>
-        </div>
-        
-        {/* Mobile skeleton */}
-        <div className="md:hidden">
-          <LendBorrowCardSkeleton count={4} />
+          <div className="md:hidden">
+            <LendBorrowCardSkeleton count={4} />
+          </div>
         </div>
       </div>
     );
@@ -675,7 +751,30 @@ export const LendBorrowView: React.FC = () => {
                   </div>
                 </div>
 
-                <div>
+                {/* Mobile Filter and Add Buttons */}
+                <div className="md:hidden flex items-center gap-2">
+                  <button
+                    onClick={() => setShowMobileFilterMenu(true)}
+                    className={`px-2 py-1.5 text-[13px] h-8 w-8 rounded-md transition-colors flex items-center justify-center ${
+                      (filters.type !== 'all' || filters.status !== 'all' || filters.currency || filters.dateRange.start || filters.dateRange.end)
+                        ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                    style={(filters.type !== 'all' || filters.status !== 'all' || filters.currency || filters.dateRange.start || filters.dateRange.end) ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+                    title="Filters"
+                  >
+                    <Filter className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setShowForm(true)}
+                    className="bg-gradient-primary text-white px-2 py-1.5 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center justify-center text-[13px] h-8 w-8"
+                    title="Add Lend/Borrow"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="hidden md:block">
                   <div className="relative">
                     <button
                       onClick={() => {
@@ -711,7 +810,7 @@ export const LendBorrowView: React.FC = () => {
                   </div>
                 </div>
 
-                <div>
+                <div className="hidden md:block">
                   <div className="relative" ref={typeMenuRef}>
                     <button
                       onClick={() => {
@@ -756,7 +855,7 @@ export const LendBorrowView: React.FC = () => {
                   </div>
                 </div>
 
-                <div>
+                <div className="hidden md:block">
                   <div className="relative" ref={statusMenuRef}>
                     <button
                       onClick={() => {
@@ -808,7 +907,7 @@ export const LendBorrowView: React.FC = () => {
                 </div>
 
                 {/* Date Range Filter */}
-                <div>
+                <div className="hidden md:block">
                   <div className="relative" ref={presetDropdownRef}>
                     <button
                       className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
@@ -857,6 +956,12 @@ export const LendBorrowView: React.FC = () => {
                         >
                           This Year
                         </button>
+                        <button
+                          onClick={() => handlePresetRange('allTime')}
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        >
+                          All Time
+                        </button>
                         <div className="border-t border-gray-200 dark:border-gray-700">
                           <button
                             onClick={() => handlePresetRange('custom')}
@@ -883,7 +988,7 @@ export const LendBorrowView: React.FC = () => {
                   </button>
                 )}
 
-                <div className="ml-auto">
+                <div className="ml-auto hidden md:block">
                   <button
                     onClick={() => setShowForm(true)}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-primary text-white rounded-md hover:bg-gradient-primary-hover transition-colors whitespace-nowrap h-8 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
@@ -969,6 +1074,242 @@ export const LendBorrowView: React.FC = () => {
             }
           }}
         />
+      )}
+
+      {/* Mobile Filter Modal */}
+      {showMobileFilterMenu && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999] md:hidden">
+          <div 
+            className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-[calc(100vw-2rem)] max-w-xs p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filters</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setFilters(tempFilters);
+                    setShowMobileFilterMenu(false);
+                  }}
+                  className={`p-1 rounded-full transition-colors ${
+                    (tempFilters.type !== 'all' || tempFilters.status !== 'all' || tempFilters.currency || tempFilters.dateRange.start || tempFilters.dateRange.end)
+                      ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
+                      : 'text-gray-400'
+                  }`}
+                  title="Apply Filters"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={handleCloseModal}
+                  className="p-1 rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  title="Clear All"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select filters and click ✓ to apply</p>
+
+            {/* Filter Options */}
+            <div className="space-y-4">
+              {/* Currency Filter */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Currency</h4>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, currency: '' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.currency === ''
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {availableCurrencies.map(currency => (
+                    <button
+                      key={currency}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTempFilters({ ...tempFilters, currency });
+                      }}
+                      className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                        tempFilters.currency === currency
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {currency}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Type Filter */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Type</h4>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, type: 'all' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.type === 'all'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    All Types
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, type: 'lend' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.type === 'lend'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {t('lendBorrow.lend')}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, type: 'borrow' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.type === 'borrow'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {t('lendBorrow.borrow')}
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Status</h4>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, status: 'all' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.status === 'all'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    All Status
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, status: 'active' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.status === 'active'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {t('lendBorrow.active')}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, status: 'settled' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.status === 'settled'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {t('lendBorrow.settled')}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, status: 'overdue' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.status === 'overdue'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {t('lendBorrow.overdue')}
+                  </button>
+                </div>
+              </div>
+
+              {/* Date Range Filter */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Date Range</h4>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, dateRange: { start: '', end: '' } });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      !tempFilters.dateRange.start && !tempFilters.dateRange.end
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    All Dates
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const today = new Date().toISOString().slice(0, 10);
+                      setTempFilters({ ...tempFilters, dateRange: { start: today, end: today } });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.dateRange.start === new Date().toISOString().slice(0, 10) && tempFilters.dateRange.end === new Date().toISOString().slice(0, 10)
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const { start, end } = getThisMonthDateRange();
+                      setTempFilters({ ...tempFilters, dateRange: { start, end } });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.dateRange.start === getThisMonthDateRange().start && tempFilters.dateRange.end === getThisMonthDateRange().end
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    This Month
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Partial Return Modal */}

@@ -1,4 +1,4 @@
-console.log('🔧 FinTech Test Script Setup');
+console.log('🔧 Balanze Test Script Setup');
 console.log('=' .repeat(40));
 
 // Instructions for getting Supabase credentials

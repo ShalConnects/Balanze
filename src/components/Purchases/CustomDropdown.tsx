@@ -40,11 +40,11 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
       }
     }
     if (open) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('click', handleClickOutside);
     } else {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('click', handleClickOutside);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
   }, [open, onBlur]);
 
   // Keyboard navigation
@@ -104,7 +104,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
         type="button"
         ref={buttonRef}
         disabled={disabled}
-        className={`bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 px-4 pr-[10px] py-2 text-[14px] h-10 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2 ${fullWidth ? 'w-full' : ''} focus:outline-none focus:ring-2 focus-ring-gradient ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className || ''}`}
+        className={`bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 px-4 pr-[10px] py-2 text-[14px] h-10 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2 ${fullWidth ? 'w-full' : ''} focus:outline-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className || ''}`}
         style={style}
         onClick={handleToggle}
         aria-haspopup="listbox"
@@ -122,11 +122,18 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
       {open && (
         <div
           ref={menuRef}
-          className={`absolute ${dropdownAlign === 'left' ? 'left-0' : 'right-0'} w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 shadow-xl rounded-xl z-50 max-h-60 overflow-y-auto text-xs p-1 animate-fadein ${dropdownMenuClassName || ''} ${
+          className={`absolute ${dropdownAlign === 'left' ? 'left-0' : 'right-0'} w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 shadow-xl rounded-xl z-[9999] max-h-60 overflow-y-auto text-xs p-1 animate-fadein ${dropdownMenuClassName || ''} ${
             dropdownPosition === 'bottom' ? 'mt-2' : 'mb-2 bottom-full'
           }`}
+          style={{ 
+            minWidth: 140, 
+            maxWidth: 320,
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 'auto'
+          }}
           tabIndex={-1}
-          style={{ minWidth: 140, maxWidth: 320 }}
         >
           {options.map(opt => (
             <button

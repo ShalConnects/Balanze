@@ -28,6 +28,8 @@ import { SkeletonCard, SkeletonChart } from '../common/Skeleton';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import { LastWishCountdownWidget } from './LastWishCountdownWidget';
 import { MotivationalQuote } from './MotivationalQuote';
+import { getPreference, setPreference } from '../../lib/userPreferences';
+import { toast } from 'sonner';
 
 
 interface DashboardProps {
@@ -95,17 +97,51 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   // Debug logging for currency card issue
 
   const [selectedCurrency, setSelectedCurrency] = useState(stats.byCurrency[0]?.currency || 'USD');
-  const [showMultiCurrencyAnalytics, setShowMultiCurrencyAnalytics] = useState(() => {
-    const saved = localStorage.getItem('showMultiCurrencyAnalytics');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
+  const [showMultiCurrencyAnalytics, setShowMultiCurrencyAnalytics] = useState(true);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  // Save Multi-Currency Analytics visibility preference to localStorage
+  // Load user preferences for multi-currency analytics
   useEffect(() => {
-    localStorage.setItem('showMultiCurrencyAnalytics', JSON.stringify(showMultiCurrencyAnalytics));
-  }, [showMultiCurrencyAnalytics]);
+    if (user?.id) {
+      const loadPreferences = async () => {
+        try {
+          const showAnalytics = await getPreference(user.id, 'showMultiCurrencyAnalytics', true);
+          setShowMultiCurrencyAnalytics(showAnalytics);
+        } catch (error) {
+          console.error('Error loading user preferences:', error);
+          setShowMultiCurrencyAnalytics(true); // Default to showing
+        }
+      };
+      loadPreferences();
+    }
+  }, [user?.id]);
+
+  // Save Multi-Currency Analytics visibility preference to database
+  const handleMultiCurrencyAnalyticsToggle = async (show: boolean) => {
+    if (user?.id) {
+      try {
+        await setPreference(user.id, 'showMultiCurrencyAnalytics', show);
+        setShowMultiCurrencyAnalytics(show);
+        toast.success('Preference saved!', {
+          description: show ? 'Multi-currency analytics will be shown' : 'Multi-currency analytics hidden'
+        });
+      } catch (error) {
+        console.error('Error saving user preferences:', error);
+        // Still update local state even if database save fails
+        setShowMultiCurrencyAnalytics(show);
+        toast.error('Failed to save preference', {
+          description: 'Your preference will be saved locally only'
+        });
+      }
+    } else {
+      // Fallback to localStorage if no user
+      setShowMultiCurrencyAnalytics(show);
+      toast.info('Preference saved locally', {
+        description: 'Sign in to sync preferences across devices'
+      });
+    }
+  };
 
   // Get purchase analytics
   const purchaseAnalytics = useFinanceStore((state) => state.getMultiCurrencyPurchaseAnalytics());
@@ -336,7 +372,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           {stats.byCurrency.length > 1 && showMultiCurrencyAnalytics && (
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-700 relative">
               <button
-                onClick={() => setShowMultiCurrencyAnalytics(false)}
+                onClick={() => handleMultiCurrencyAnalyticsToggle(false)}
                 className="absolute top-1/2 right-2 transform -translate-y-1/2 p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
                 aria-label="Close Multi-Currency Analytics"
               >

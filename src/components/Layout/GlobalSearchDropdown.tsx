@@ -40,7 +40,7 @@ function expandQuery(query: string): string[] {
 }
 
 // Recent searches (localStorage)
-const RECENT_KEY = 'fintech_recent_searches';
+  const RECENT_KEY = 'balanze_recent_searches';
 function getRecentSearches(): string[] {
   try {
     return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
@@ -215,7 +215,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         toCurrency: toAccount?.currency,
         note: expense.note || income.note || expense.description || income.description,
         exchangeRate,
-        time: format(new Date(expense.date), 'h:mm a'),
+        created_at: expense.created_at, // Include created_at for accurate time display
         transaction_id: expense.transaction_id || income.transaction_id,
       });
     }

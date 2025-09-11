@@ -81,7 +81,7 @@ Minimum Interval: 60
 
 ## Step 7: Test Registration
 
-1. **Go to your app:** https://fin-tech-dq5uuczkm-shalauddin-kaders-projects.vercel.app
+1. **Go to your app:** https://balanze.cash
 2. **Try registering** a new user
 3. **Check your email** for confirmation
 4. **Click the confirmation link**

@@ -1,4 +1,4 @@
-# FinTech SaaS Production Checklist
+# Balanze SaaS Production Checklist
 
 ## ✅ **SMTP Configuration**
 - [x] Gmail SMTP configured in Supabase
@@ -66,7 +66,7 @@
 
 ## 🎯 **Success Criteria**
 
-Your FinTech SaaS is production-ready when:
+Your Balanze SaaS is production-ready when:
 - ✅ Users can register and verify emails
 - ✅ All financial features work properly
 - ✅ Data is saved and synchronized
@@ -83,4 +83,4 @@ If you encounter issues:
 
 ---
 
-**Your FinTech SaaS should now be fully functional!** 🎉 
+**Your Balanze SaaS should now be fully functional!** 🎉 

@@ -14,7 +14,7 @@ import { getCurrencySymbol } from '../../utils/currency';
 import { Loader } from '../../components/common/Loader';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { CategoryModal } from '../common/CategoryModal';
-import { getFilteredCategoriesForPurchase } from '../../utils/categoryFiltering';
+
 
 interface PurchaseFormProps {
   record?: Purchase;
@@ -85,14 +85,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     }
   }, [isOpen, user, purchaseCategories.length]);
 
-  // Get filtered categories based on account currency
-  const filteredCategoriesData = React.useMemo(() => {
-    return getFilteredCategoriesForPurchase(
-      purchaseCategories,
-      accounts,
-      selectedAccountId
-    );
-  }, [purchaseCategories, accounts, selectedAccountId]);
+
 
   // Validation logic
   const validateForm = (dataOverride?: typeof formData, accountIdOverride?: string) => {
@@ -152,6 +145,8 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
 
   const handleAccountChange = (val: string) => {
     setSelectedAccountId(val);
+    // Clear the category when account changes to avoid showing incompatible categories
+    setFormData(f => ({ ...f, category: '' }));
     setTouched(t => ({ ...t, account: true }));
     validateForm(formData, val);
   };
@@ -622,7 +617,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                         }
                         value={formData.currency}
                         onChange={val => {
-                          setFormData(f => ({ ...f, currency: val }));
+                          setFormData(f => ({ ...f, currency: val, category: '' }));
                         }}
                         placeholder="Select Currency *"
                         fullWidth={true}
@@ -634,13 +629,8 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                   {/* Category */}
                   <div className="relative">
                     <CustomDropdown
-                      options={[
-                        { value: '', label: 'Select category' },
-                        ...filteredCategoriesData.categories.map(cat => ({ label: cat.category_name, value: cat.category_name })),
-                        { value: '__add_new__', label: '+ Add New Category' },
-                      ]}
                       value={formData.category}
-                      onChange={val => {
+                      onChange={(val: string) => {
                         if (val === '__add_new__') {
                           setShowCategoryModal(true);
                         } else {
@@ -655,6 +645,18 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                       onBlur={() => {
                         setTouched(t => ({ ...t, category: true }));
                       }}
+                      options={[
+                        { value: '', label: 'Select category' },
+                        ...purchaseCategories
+                          .filter(cat => {
+                            // When excluding from calculation, filter by manually selected currency
+                            // Otherwise, filter by account currency
+                            const targetCurrency = excludeFromCalculation ? formData.currency : accounts.find(a => a.id === selectedAccountId)?.currency;
+                            return cat.currency === targetCurrency;
+                          })
+                          .map(cat => ({ label: cat.category_name, value: cat.category_name })),
+                        { value: '__add_new__', label: '+ Add New Category' },
+                      ]}
                       placeholder="Select category *"
                       fullWidth={true}
                       summaryMode={true}
@@ -663,19 +665,37 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                     {fieldErrors.category && touched.category && (
                       <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.category}</span>
                     )}
-                    {filteredCategoriesData.accountCurrency && !filteredCategoriesData.hasMatchingCategories && (
-                      <div className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
-                        <span>⚠️</span>
-                        No categories found for {filteredCategoriesData.accountCurrency}. 
-                        <button 
-                          type="button" 
-                          onClick={() => setShowCategoryModal(true)}
-                          className="text-blue-600 hover:text-blue-800 underline"
-                        >
-                          Add a category in {filteredCategoriesData.accountCurrency}
-                        </button>
-                      </div>
-                    )}
+                    {(() => {
+                      const targetCurrency = excludeFromCalculation ? formData.currency : accounts.find(a => a.id === selectedAccountId)?.currency;
+                      const hasMatchingCategories = purchaseCategories.some(cat => cat.currency === targetCurrency);
+                      
+                      if (targetCurrency && !hasMatchingCategories) {
+                        return (
+                          <div className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                            <span>⚠️</span>
+                            No categories found for {targetCurrency}. 
+                            <button 
+                              type="button" 
+                              onClick={() => setShowCategoryModal(true)}
+                              className="text-blue-600 hover:text-blue-800 underline"
+                            >
+                              Add a category in {targetCurrency}
+                            </button>
+                          </div>
+                        );
+                      }
+                      
+                      if (excludeFromCalculation && targetCurrency) {
+                        return (
+                          <div className="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1">
+                            <span>ℹ️</span>
+                            Categories filtered by selected currency: {targetCurrency}
+                          </div>
+                        );
+                      }
+                      
+                      return null;
+                    })()}
                   </div>
                   
                   <div className="relative flex-1 min-w-0">
@@ -799,7 +819,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
         open={showCategoryModal}
         initialValues={{
           ...newCategory,
-          currency: filteredCategoriesData.accountCurrency || newCategory.currency || 'USD'
+          currency: (excludeFromCalculation ? formData.currency : accounts.find(a => a.id === selectedAccountId)?.currency) || newCategory.currency || 'USD'
         }}
         isEdit={false}
         onSave={async (values) => {

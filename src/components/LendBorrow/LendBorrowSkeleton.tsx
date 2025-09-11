@@ -1,4 +1,5 @@
 import React from 'react';
+import { Skeleton } from '../common/Skeleton';
 
 // Enhanced skeleton for lend/borrow cards (mobile view) - matches real LendBorrowCard structure
 export const LendBorrowCardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => {
@@ -8,6 +9,10 @@ export const LendBorrowCardSkeleton: React.FC<{ count?: number }> = ({ count = 3
         <div
           key={index}
           className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-all duration-200"
+          style={{ 
+            animationDelay: `${index * 0.1}s`,
+            animationDuration: '2.5s'
+          }}
         >
           {/* Lend/Borrow Header - matches real structure */}
           <div className="flex items-center justify-between mb-4">
@@ -198,37 +203,39 @@ export const LendBorrowSummaryCardsSkeleton: React.FC = () => {
 // Enhanced skeleton for lend/borrow filters - matches real filter structure
 export const LendBorrowFiltersSkeleton: React.FC = () => {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex flex-wrap md:flex-nowrap justify-between items-center w-full gap-3">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-2 flex-1">
-            {/* Search - matches real search input */}
-            <div className="flex-1 min-w-[200px] relative">
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
-              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg pl-10 animate-pulse"></div>
-            </div>
-            
-            {/* Type Filter - matches real dropdown */}
-            <div className="relative">
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
-            </div>
-            
-            {/* Status Filter - matches real dropdown */}
-            <div className="relative">
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-28 animate-pulse"></div>
-            </div>
-            
-            {/* Currency Filter - matches real dropdown */}
-            <div className="relative">
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
-            </div>
-            
-            {/* Date Range Filter - matches real date picker */}
-            <div className="relative">
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
-            </div>
-          </div>
+    <div className="flex flex-wrap md:flex-nowrap justify-between items-center w-full gap-3">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 flex-1">
+        {/* Search - matches real search input */}
+        <div className="flex-1 min-w-[200px] relative">
+          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
+          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg pl-10 animate-pulse"></div>
         </div>
+        
+        {/* Type Filter - matches real dropdown */}
+        <div className="relative">
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
+        </div>
+        
+        {/* Status Filter - matches real dropdown */}
+        <div className="relative">
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-28 animate-pulse"></div>
+        </div>
+        
+        {/* Currency Filter - matches real dropdown */}
+        <div className="relative">
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
+        </div>
+        
+        {/* Date Range Filter - matches real date picker */}
+        <div className="relative">
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
+        </div>
+      </div>
+      
+      {/* Mobile buttons */}
+      <div className="md:hidden flex items-center gap-2">
+        <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+        <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
       </div>
     </div>
   );

@@ -46,29 +46,21 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
       const { user } = useAuthStore.getState();
       if (!user) throw new Error('Not authenticated');
       
-      // Create cash account directly in Supabase to avoid duplicate creation
-      const { data: cashAccount, error: cashError } = await supabase
-        .from('accounts')
-        .insert([{
-          name: 'Cash Wallet',
-          type: 'cash',
-          initial_balance: 0,
-          calculated_balance: 0,
-          currency: selectedCurrency,
-          description: 'Default cash account for tracking physical money',
-          has_dps: false,
-          dps_type: null,
-          dps_amount_type: null,
-          dps_fixed_amount: null,
-          is_active: true,
-          user_id: user.id
-        }])
-        .select()
-        .single();
+      // Use the database function to create cash account safely
+      const { data: result, error: cashError } = await supabase.rpc('create_cash_account', {
+        p_currency: selectedCurrency,
+        p_initial_balance: 0
+      });
 
       if (cashError) {
         console.error('Error creating cash account:', cashError);
         throw cashError;
+      }
+
+      if (!result || !result.success) {
+        const errorMessage = result?.error_message || 'Failed to create cash account';
+        console.error('Cash account creation failed:', errorMessage);
+        throw new Error(errorMessage);
       }
       
       // Wait a bit for the account to be properly saved
@@ -118,18 +110,18 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
             {/* Welcome Message */}
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                Welcome to FinTrack! 🎉
+                Welcome to Balanze! 🎉
               </h2>
               <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
-                By default we created a cash account for you. You can navigate by clicking on account tab in the sidebar, 
-                you can edit it to add any initial balance.
+                Let's get started by creating your first account. You can navigate to the Accounts tab in the sidebar 
+                to manage your accounts and add initial balances.
               </p>
             </div>
 
             {/* Currency Selection */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                We will create account based on your default currency, which currency you want to use?
+                Which currency would you like to use for your first account?
               </label>
               <CustomDropdown
                 options={currencyOptions}

@@ -4,13 +4,17 @@ import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/authStore';
 import { useFinanceStore } from './store/useFinanceStore';
 import { Auth } from './pages/Auth';
+import AuthCallback from './pages/AuthCallback';
+import ResetPassword from './pages/ResetPassword';
 import { Dashboard } from './pages/Dashboard';
 import LandingPage from './pages/LandingPage';
 import { Toaster } from 'sonner';
 import About from './pages/About';
 import Blog from './pages/Blog';
+import BlogDetail from './pages/BlogDetail';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
+import RefundPolicy from './pages/RefundPolicy';
 import { LoadingProvider, useLoadingContext } from './context/LoadingContext';
 import { Loader } from './components/common/Loader';
 import TestAuthPanel from './components/TestAuthPanel';
@@ -27,8 +31,9 @@ import { LendBorrowAnalytics } from './components/LendBorrow/LendBorrowAnalytics
 import { AnalyticsView } from './components/Reports/AnalyticsView';
 import { CurrencyAnalytics } from './components/Reports/CurrencyAnalytics';
 import { Settings } from './components/Dashboard/Settings';
-import { HelpAndSupport } from './pages/HelpAndSupport';
+import HelpAndSupport from './pages/HelpAndSupport';
 import { History } from './pages/History';
+import { HelpLayout } from './components/Layout/HelpLayout';
 import DonationsSavingsPage from './pages/DonationsSavingsPage';
 import { FavoriteQuotes } from './pages/FavoriteQuotes';
 import { WelcomeModal } from './components/common/WelcomeModal';
@@ -178,6 +183,9 @@ function AppContent() {
   useEffect(() => {
     if (user && !loading) {
       initializeDefaultNotifications();
+      // Add help center notification for existing users
+      const { addHelpCenterNotification } = useNotificationStore.getState();
+      addHelpCenterNotification();
     }
   }, [user, loading, initializeDefaultNotifications]);
 
@@ -228,7 +236,7 @@ function AppContent() {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
         <div className="text-lg font-medium text-gray-700 dark:text-gray-300">
-          Loading FinTrack...
+          Loading Balanze...
         </div>
       </div>
     );
@@ -258,6 +266,8 @@ function AppContent() {
         <Route path="/login" element={user ? <Navigate to="/" /> : <Auth />} />
         <Route path="/register" element={user ? <Navigate to="/" /> : <Auth />} />
         <Route path="/auth" element={user ? <Navigate to="/" /> : <Auth />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/auth/reset-password" element={<ResetPassword />} />
         
         {/* Dashboard routes - all protected */}
         <Route path="/accounts" element={user ? <MainLayout><AccountsView /></MainLayout> : <Navigate to="/login" />} />
@@ -272,7 +282,7 @@ function AppContent() {
         <Route path="/analytics" element={user ? <MainLayout><AnalyticsView /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/currency-analytics" element={user ? <MainLayout><CurrencyAnalytics /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/settings" element={user ? <MainLayout><Settings /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/help" element={user ? <MainLayout><HelpAndSupport /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/help" element={user ? <HelpLayout><HelpAndSupport /></HelpLayout> : <Navigate to="/login" />} />
         <Route path="/history" element={user ? <MainLayout><History /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/donations" element={user ? <MainLayout><DonationsSavingsPage /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/favorite-quotes" element={user ? <MainLayout><FavoriteQuotes /></MainLayout> : <Navigate to="/login" />} />
@@ -280,8 +290,10 @@ function AppContent() {
         {/* Public routes */}
         <Route path="/about" element={<About />} />
         <Route path="/blog" element={<Blog />} />
+        <Route path="/blog/:slug" element={<BlogDetail />} />
         <Route path="/privacypolicy" element={<PrivacyPolicy />} />
         <Route path="/termsofservice" element={<TermsOfService />} />
+        <Route path="/refundpolicy" element={<RefundPolicy />} />
       </Routes>
       
       {/* Welcome Modal for new users without accounts */}

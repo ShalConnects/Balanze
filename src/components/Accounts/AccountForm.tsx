@@ -9,6 +9,11 @@ import { Loader } from '../common/Loader';
 import { toast } from 'sonner';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { validateAccount, ACCOUNT_TYPES, CURRENCY_OPTIONS, getAccountTypeDisplayName } from '../../utils/accountUtils';
+import { useUpgradeModal } from '../../hooks/useUpgradeModal';
+import { UpgradeModal } from '../common/UpgradeModal';
+import { getAccountIcon } from '../../utils/accountIcons';
+import { Tooltip } from '../common/Tooltip';
+import { CreditCard, Wallet, PiggyBank, Building } from 'lucide-react';
 
 interface AccountFormProps {
   isOpen: boolean;
@@ -19,7 +24,16 @@ interface AccountFormProps {
 export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, account }) => {
   const { addAccount, updateAccount, loading, error } = useFinanceStore();
   const { profile } = useAuthStore();
-  const { wrapAsync, setLoadingMessage } = useLoadingContext();
+  const { modalState, closeModal, handleDatabaseError } = useUpgradeModal();
+  
+  console.log('🔧 AccountForm render - modalState:', modalState);
+
+  // Watch for modal state changes
+  useEffect(() => {
+    console.log('🔧 Modal state changed:', modalState);
+  }, [modalState]);
+
+
 
   const [formData, setFormData] = useState({
     name: account?.name || '',
@@ -163,6 +177,8 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
     e.preventDefault();
     if (submitting) return;
     
+    console.log('🚀 Form submitted, preventing default');
+    
     // Mark all fields as touched
     setTouched({
       name: true,
@@ -182,45 +198,76 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
       return;
     }
     
-    const wrappedSubmit = wrapAsync(async () => {
-      setLoadingMessage(account ? 'Updating account...' : 'Saving account...');
-      setSubmitting(true);
-      
-      try {
-                 const accountData = {
-           name: formData.name.trim(),
-           type: formData.type as any,
-           initial_balance: parseFloat(formData.balance),
-           currency: formData.currency,
-           description: formData.description.trim() || undefined,
-           has_dps: formData.has_dps,
-           dps_type: formData.has_dps ? formData.dps_type : null,
-           dps_amount_type: formData.has_dps ? formData.dps_amount_type : null,
-           dps_fixed_amount: formData.has_dps && formData.dps_amount_type === 'fixed' ? parseFloat(formData.dps_fixed_amount) : null,
-           dps_savings_account_id: null,
-           isActive: true,
-           updated_at: new Date().toISOString(),
-           dps_initial_balance: formData.has_dps ? parseFloat(formData.dps_initial_balance) || 0 : 0
-         };
-
-        if (account) {
-          await updateAccount(account.id, accountData);
-          toast.success('Account updated successfully!');
-        } else {
-          await addAccount(accountData);
-          toast.success('Account created successfully!');
-        }
-        
-        onClose();
-      } catch (error) {
-        console.error('Error saving account:', error);
-        toast.error('Failed to save account. Please try again.');
-      } finally {
-        setSubmitting(false);
-      }
-    });
+    setSubmitting(true);
     
-    await wrappedSubmit();
+    try {
+      const accountData = {
+        name: formData.name.trim(),
+        type: formData.type as any,
+        initial_balance: parseFloat(formData.balance),
+        currency: formData.currency,
+        description: formData.description.trim() || undefined,
+        has_dps: formData.has_dps,
+        dps_type: formData.has_dps ? formData.dps_type : null,
+        dps_amount_type: formData.has_dps ? formData.dps_amount_type : null,
+        dps_fixed_amount: formData.has_dps && formData.dps_amount_type === 'fixed' ? parseFloat(formData.dps_fixed_amount) : null,
+        dps_savings_account_id: null,
+        isActive: true,
+        updated_at: new Date().toISOString(),
+        dps_initial_balance: formData.has_dps ? parseFloat(formData.dps_initial_balance) || 0 : 0
+      };
+
+      console.log('🚀 Attempting to create account...');
+
+      if (account) {
+        await updateAccount(account.id, accountData);
+        toast.success('Account updated successfully!');
+      } else {
+        await addAccount(accountData);
+        toast.success('Account created successfully!');
+      }
+      
+      onClose();
+    } catch (error) {
+      console.error('Error saving account:', error);
+      
+              // Check if it's a plan limit error and show upgrade prompt
+        if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+          const errorMessage = error.message;
+          
+          if (errorMessage.includes('ACCOUNT_LIMIT_EXCEEDED')) {
+            // Show toast and navigate to plans
+            const { accounts } = useFinanceStore.getState();
+            const current = accounts.length;
+            const limit = 5;
+            
+                      toast.error(`Account limit exceeded! You have ${current}/${limit} accounts. Upgrade to Premium for unlimited accounts.`);
+          setTimeout(() => {
+            window.location.href = '/settings?tab=plans';
+          }, 2000);
+            
+            return;
+          }
+          
+          if (errorMessage.includes('CURRENCY_LIMIT_EXCEEDED')) {
+            // Show toast and navigate to plans
+            const { accounts } = useFinanceStore.getState();
+            const uniqueCurrencies = new Set(accounts.map(a => a.currency)).size;
+            const limit = 1;
+            
+            toast.error(`Currency limit exceeded! You have ${uniqueCurrencies}/${limit} currencies. Upgrade to Premium for unlimited currencies.`);
+            setTimeout(() => {
+              window.location.href = '/settings?tab=plans';
+            }, 2000);
+            
+            return;
+          }
+        }
+      
+      toast.error('Failed to save account. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDpsCheckbox = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -266,10 +313,11 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black bg-opacity-50" onClick={handleClose} />
-      <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-50" onClick={handleClose} />
+        <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+          {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             {account ? 'Edit Account' : 'Add New Account'}
@@ -316,19 +364,16 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
             <label htmlFor="account-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Account Type *
             </label>
-            <select
-              id="account-type"
+            <CustomDropdown
+              options={ACCOUNT_TYPES.filter(type => type !== 'lend_borrow').map(type => ({
+                label: getAccountTypeDisplayName(type),
+                value: type
+              }))}
               value={formData.type}
-              onChange={(e) => handleFieldChange('type', e.target.value)}
-              className={getInputClasses('type')}
+              onChange={(value) => handleFieldChange('type', value)}
+              placeholder="Select account type"
               disabled={submitting}
-            >
-              {ACCOUNT_TYPES.map(type => (
-                <option key={type} value={type}>
-                  {getAccountTypeDisplayName(type)}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* Initial Balance */}
@@ -414,9 +459,22 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
               <label htmlFor="dps-enabled" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Enable DPS (Daily Profit Sharing)
               </label>
-                             <div className="ml-2">
-                 <Info className="w-4 h-4 text-gray-400" />
-               </div>
+              <Tooltip content={
+                <div className="space-y-2">
+                  <p className="font-medium">Daily Profit Sharing (DPS)</p>
+                  <p className="text-xs">Automatically transfer a portion of your daily income to a savings account to build wealth over time.</p>
+                  <ul className="text-xs space-y-1">
+                    <li>• <strong>Monthly:</strong> Fixed amount transferred monthly</li>
+                    <li>• <strong>Flexible:</strong> Percentage of daily income</li>
+                    <li>• <strong>Fixed Amount:</strong> Set a specific amount to transfer</li>
+                    <li>• <strong>Custom Amount:</strong> Choose amount each time</li>
+                  </ul>
+                </div>
+              }>
+                <div className="ml-2">
+                  <Info className="w-4 h-4 text-gray-400 cursor-pointer" />
+                </div>
+              </Tooltip>
             </div>
 
             {formData.has_dps && (
@@ -537,5 +595,28 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
         </form>
       </div>
     </div>
+      
+      {/* Upgrade Modal */}
+      {console.log('🔧 AccountForm modalState:', modalState)}
+      {modalState.isOpen && console.log('🔧 Modal should be visible!')}
+      
+      {/* Test div to see if this section renders */}
+      {modalState.isOpen && (
+        <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'red', color: 'white', padding: '20px', zIndex: 10000 }}>
+          TEST MODAL - If you see this, the modal section is rendering
+        </div>
+      )}
+      
+      {/* Test button to manually trigger modal */}
+
+      
+              <UpgradeModal
+          isOpen={modalState.isOpen}
+          onClose={closeModal}
+          type={modalState.type}
+          feature={modalState.feature}
+          currentUsage={modalState.currentUsage}
+        />
+    </>
   );
 };

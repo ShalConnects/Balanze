@@ -15,7 +15,7 @@ interface CurrencyOverviewCardProps {
 
 export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   currency,
-  transactions,
+  transactions: allTransactions,
   accounts,
   t,
   formatCurrency,
@@ -40,29 +40,32 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   // Force re-render when transactions or accounts change
   useEffect(() => {
     // This will trigger a re-render when the props change
-  }, [transactions, accounts, currency]);
+  }, [allTransactions, accounts, currency]);
 
   // Date range logic
   const now = new Date();
   let startDate: Date;
+  let endDate: Date;
   if (period === '1m') {
-    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
   } else if (period === '3m') {
-    startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0);
+    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
   } else if (period === '6m') {
-    startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1, 0, 0, 0);
+    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
   } else {
-    startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0);
+    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
   }
-  // Use current date as end date, not just the current day of the month
-  const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
   // Calculate balance as of endDate for each account
   function getAccountBalanceAtDate(account: any, endDate: Date) {
     // Start with initial balance
     let balance = account.initial_balance || 0;
     // Add all transactions for this account up to endDate
-    transactions.forEach(t => {
+    allTransactions.forEach(t => {
       if (t.account_id === account.id && new Date(t.date) <= endDate) {
         if (t.type === 'income') balance += t.amount;
         else if (t.type === 'expense') balance -= t.amount;
@@ -74,43 +77,89 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   const totalBalance = currencyAccounts.reduce((sum, acc) => sum + getAccountBalanceAtDate(acc, endDate), 0);
 
   // Filter transactions for this currency and period
-  const filteredTransactions = transactions.filter(t => {
+  const filteredTransactions = allTransactions.filter(t => {
     const accCurrency = accountCurrencyMap[t.account_id];
     const tDate = new Date(t.date);
     return accCurrency === currency && tDate >= startDate && tDate <= endDate;
   });
-  const filteredIncome = filteredTransactions.filter(t => t.type === 'income' && !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'))).reduce((sum, t) => sum + t.amount, 0);
-  const filteredExpenses = filteredTransactions.filter(t => t.type === 'expense' && !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'))).reduce((sum, t) => sum + t.amount, 0);
+  
+  const filteredIncome = filteredTransactions
+    .filter(t => t.type === 'income' && !t.tags?.some((tag: string) => 
+      tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
+    ))
+    .reduce((sum, t) => sum + t.amount, 0);
+    
+  const filteredExpenses = filteredTransactions
+    .filter(t => t.type === 'expense' && !t.tags?.some((tag: string) => 
+      tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
+    ))
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  // Debug logging for BDT currency
+  if (currency === 'BDT') {
+    const expenseTransactions = filteredTransactions.filter(t => t.type === 'expense' && !t.tags?.some((tag: string) => 
+      tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
+    ));
+    
+    console.log('Dashboard BDT Debug:', {
+      currency,
+      period,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      totalTransactions: allTransactions.length,
+      filteredTransactionsCount: filteredTransactions.length,
+      filteredExpenses,
+      expenseTransactionsCount: expenseTransactions.length,
+      expenseTransactions: expenseTransactions.map(t => ({ 
+        id: t.id, 
+        transaction_id: t.transaction_id, 
+        amount: t.amount, 
+        date: t.date, 
+        description: t.description,
+        account_currency: accounts.find(a => a.id === t.account_id)?.currency
+      }))
+    });
+  }
+
+
 
 
 
   // Compare label logic
   let prevStartDate: Date, prevEndDate: Date, compareLabel: string;
   if (period === '1m') {
-    prevStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    prevEndDate = new Date(now.getFullYear(), now.getMonth(), 0);
+    prevStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
+    prevEndDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
     compareLabel = 'Compared to previous month';
   } else if (period === '3m') {
-    prevStartDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    prevEndDate = new Date(now.getFullYear(), now.getMonth() - 3, 0);
+    prevStartDate = new Date(now.getFullYear(), now.getMonth() - 5, 1, 0, 0, 0);
+    prevEndDate = new Date(now.getFullYear(), now.getMonth() - 3, 0, 23, 59, 59);
     compareLabel = 'Compared to previous 3 months';
   } else if (period === '6m') {
-    prevStartDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    prevEndDate = new Date(now.getFullYear(), now.getMonth() - 6, 0);
+    prevStartDate = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0);
+    prevEndDate = new Date(now.getFullYear(), now.getMonth() - 6, 0, 23, 59, 59);
     compareLabel = 'Compared to previous 6 months';
   } else {
-    prevStartDate = new Date(now.getFullYear() - 1, now.getMonth(), 1);
-    prevEndDate = new Date(now.getFullYear(), now.getMonth(), 0);
+    prevStartDate = new Date(now.getFullYear() - 1, now.getMonth(), 1, 0, 0, 0);
+    prevEndDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
     compareLabel = 'Compared to previous year';
   }
   // Previous period transactions
-  const prevFilteredTransactions = transactions.filter(t => {
+  const prevFilteredTransactions = allTransactions.filter(t => {
     const accCurrency = accountCurrencyMap[t.account_id];
     const tDate = new Date(t.date);
     return accCurrency === currency && tDate >= prevStartDate && tDate <= prevEndDate;
   });
-  const prevIncome = prevFilteredTransactions.filter(t => t.type === 'income' && !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'))).reduce((sum, t) => sum + t.amount, 0);
-  const prevExpenses = prevFilteredTransactions.filter(t => t.type === 'expense' && !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'))).reduce((sum, t) => sum + t.amount, 0);
+  const prevIncome = prevFilteredTransactions
+    .filter(t => t.type === 'income' && !t.tags?.some((tag: string) => 
+      tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
+    ))
+    .reduce((sum, t) => sum + t.amount, 0);
+  const prevExpenses = prevFilteredTransactions
+    .filter(t => t.type === 'expense' && !t.tags?.some((tag: string) => 
+      tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
+    ))
+    .reduce((sum, t) => sum + t.amount, 0);
 
   // Calculate percent change
   function getPercentChange(current: number, prev: number) {

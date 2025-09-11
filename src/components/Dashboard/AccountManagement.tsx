@@ -58,6 +58,18 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
   const userName = profile?.fullName || user?.email?.split('@')[0] || 'User';
   const userEmail = user?.email || '';
   const userPicUrl = getProfilePicUrl(profile?.profilePicture);
+  
+  // Format registration date
+  const formatRegistrationDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const registrationDate = user?.created_at ? formatRegistrationDate(user.created_at) : null;
 
   const handleStartDeletion = () => {
     setShowDeleteModal(true);
@@ -153,7 +165,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `fintrack-data-${user?.id}-${new Date().toISOString().split('T')[0]}.json`;
+              a.download = `balanze-data-${user?.id}-${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -161,6 +173,22 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
       
       toast.success('Data exported successfully');
     } catch (error) {
+      console.error('Error exporting data:', error);
+      
+      // Check if it's a plan limit error and show upgrade prompt
+      if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+        const errorMessage = error.message;
+        
+        if (errorMessage && errorMessage.includes('FEATURE_NOT_AVAILABLE') && errorMessage.includes('data export')) {
+          toast.error('Data export is a Premium feature. Upgrade to Premium to export your data.');
+          setTimeout(() => {
+            window.location.href = '/settings?tab=plans';
+          }, 2000);
+          
+          return;
+        }
+      }
+      
       toast.error('Error exporting data');
     }
   };
@@ -275,6 +303,11 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
           <div>
             <div className="text-lg font-semibold text-gray-900 dark:text-white">{userName}</div>
             <div className="text-sm text-gray-500 dark:text-gray-300">{userEmail}</div>
+            {registrationDate && (
+              <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                Member since {registrationDate}
+              </div>
+            )}
           </div>
         </div>
         <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
@@ -309,6 +342,11 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
           )}
           <div className="text-base font-bold text-gray-900 dark:text-white mt-0.5">{userName}</div>
           <div className="text-xs text-gray-500 dark:text-gray-300">{userEmail}</div>
+          {registrationDate && (
+            <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+              Member since {registrationDate}
+            </div>
+          )}
           <div className="border-t border-gray-200 dark:border-gray-700 my-2 w-full" />
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2 w-full">
             <div className="flex flex-col items-center group transition-transform hover:-translate-y-0.5">

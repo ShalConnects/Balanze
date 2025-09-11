@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, ReactNode } from 'react';
-import { Menu, Bell, Search, Sun, Moon, User, Settings, LogOut, ArrowLeftRight, LifeBuoy, Globe, Heart, Quote, X } from 'lucide-react';
+import { Menu, Bell, Search, Sun, Moon, User, Settings, LogOut, ArrowLeftRight, LifeBuoy, Globe, Heart, Quote, X, BookOpen, Sparkles } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useThemeStore } from '../../store/themeStore';
 import { useAuthStore } from '../../store/authStore';
@@ -12,6 +12,7 @@ import { supabase } from '../../lib/supabase';
 import { useTranslation } from 'react-i18next';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { triggerHapticFeedback } from '../../utils/hapticFeedback';
+import { toast } from 'sonner';
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -39,6 +40,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearchOverlay, setShowSearchOverlay] = useState(false);
+  const [showHelpBanner, setShowHelpBanner] = useState(true);
   const navigate = useNavigate();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -57,6 +59,20 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
     { code: 'ar', name: 'العربية', flag: '🇸🇦' },
     { code: 'zh', name: '中文', flag: '🇨🇳' },
   ];
+
+  // Check if user has seen the help banner
+  useEffect(() => {
+    const hasSeenHelpBanner = localStorage.getItem('help-banner-dismissed');
+    if (hasSeenHelpBanner) {
+      setShowHelpBanner(false);
+    }
+  }, [navigate]);
+
+  // Dismiss help banner
+  const dismissHelpBanner = () => {
+    setShowHelpBanner(false);
+    localStorage.setItem('help-banner-dismissed', 'true');
+  };
 
   // Click outside to close user menu and language menu
   useEffect(() => {
@@ -98,13 +114,16 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
           return; // Don't close if clicking inside dropdown
         }
         setIsSearchFocused(false);
+        setGlobalSearchTerm('');
       }
     }
     if (isSearchFocused) {
       document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isSearchFocused]);
+  }, [isSearchFocused, setGlobalSearchTerm]);
 
   // Handle escape key to close search overlay
   useEffect(() => {
@@ -142,13 +161,19 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
   };
 
   const handleLogout = async () => {
-    await signOut();
-    setShowUserMenu(false);
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const handleSearchClick = () => {
     setShowSearchOverlay(true);
-    triggerHapticFeedback('light');
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 100);
   };
 
   const handleCloseSearch = () => {
@@ -159,6 +184,41 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
 
   return (
     <>
+      {/* Help Center Notification Banner */}
+      {showHelpBanner && (
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-3 relative">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-5 h-5 animate-pulse" />
+                <span className="font-semibold">New!</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <BookOpen className="w-4 h-4" />
+                <span className="text-sm sm:text-base">
+                  We've launched a comprehensive Help Center with guides, tutorials, and support resources!
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => navigate('/help')}
+                className="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1"
+              >
+                <span>Explore</span>
+                <LifeBuoy className="w-4 h-4" />
+              </button>
+              <button
+                onClick={dismissHelpBanner}
+                className="text-white/80 hover:text-white p-1 rounded transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4">
         <div className="flex items-center justify-between">
           {/* Left Section - Menu Button & Title */}
@@ -187,14 +247,14 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
           
           {/* Right Section - Actions */}
           <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 ml-2 sm:ml-4">
-            {/* Desktop Search - Inline */}
+            {/* Desktop Search */}
             <div className="hidden md:block relative">
-              <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 w-48 sm:w-64 lg:w-80">
-                <Search className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 dark:text-gray-300 mr-1.5 sm:mr-2 flex-shrink-0" />
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   placeholder={t('search')}
-                  className="bg-transparent text-xs sm:text-sm text-gray-600 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-500 border-none outline-none w-full min-w-0"
+                  className="w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   value={globalSearchTerm}
                   onChange={e => setGlobalSearchTerm(e.target.value)}
                   onFocus={() => setIsSearchFocused(true)}
@@ -292,6 +352,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
                     <User className="w-4 h-4 mr-2 flex-shrink-0" />
                     <span className="truncate">{t('editProfile')}</span>
                   </button>
+
                   <button
                     onClick={() => {
                       navigate('/history');

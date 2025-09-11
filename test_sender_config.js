@@ -16,7 +16,7 @@ async function testSenderConfiguration() {
     const { data, error } = await supabase.auth.resetPasswordForEmail(
       'test@example.com',
       {
-        redirectTo: 'https://fin-tech-kfdvcsmlj-shalauddin-kaders-projects.vercel.app'
+        redirectTo: 'https://balanze.cash'
       }
     );
     

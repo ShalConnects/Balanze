@@ -1,5 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { 
+  getFavoriteQuotes, 
+  addFavoriteQuote as addFavoriteQuoteToDB, 
+  removeFavoriteQuote as removeFavoriteQuoteFromDB,
+  removeFavoriteQuoteByContent,
+  isQuoteFavorited as isQuoteFavoritedInDB,
+  FavoriteQuote as DBFavoriteQuote 
+} from '../lib/favoriteQuotesService';
 
 export interface Notification {
   id: string;
@@ -24,10 +32,21 @@ export interface FavoriteQuote {
   category?: 'financial' | 'motivation' | 'success' | 'wisdom';
 }
 
+// Legacy interface for backward compatibility
+export interface LegacyFavoriteQuote {
+  id: string;
+  quote: string;
+  author: string;
+  createdAt: Date;
+  category?: 'financial' | 'motivation' | 'success' | 'wisdom';
+}
+
 interface NotificationStore {
   notifications: Notification[];
   unreadCount: number;
   favoriteQuotes: FavoriteQuote[];
+  isLoadingQuotes: boolean;
+  currentUserId: string | null;
   addNotification: (notification: Omit<Notification, 'id' | 'createdAt' | 'read' | 'dismissed'>) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
@@ -35,9 +54,13 @@ interface NotificationStore {
   clearAll: () => void;
   getUnreadCount: () => number;
   initializeDefaultNotifications: () => void;
-  addFavoriteQuote: (quote: Omit<FavoriteQuote, 'id' | 'createdAt'>) => void;
-  removeFavoriteQuote: (id: string) => void;
+  addHelpCenterNotification: () => void;
+  loadFavoriteQuotes: (userId: string) => Promise<void>;
+  addFavoriteQuote: (quote: Omit<FavoriteQuote, 'id' | 'createdAt'>) => Promise<void>;
+  removeFavoriteQuote: (id: string) => Promise<void>;
+  removeFavoriteQuoteByContent: (quote: string, author: string) => Promise<void>;
   isQuoteFavorited: (quote: string, author: string) => boolean;
+  setCurrentUserId: (userId: string | null) => void;
 }
 
 export const useNotificationStore = create<NotificationStore>()(
@@ -46,6 +69,8 @@ export const useNotificationStore = create<NotificationStore>()(
       notifications: [],
       unreadCount: 0,
       favoriteQuotes: [],
+      isLoadingQuotes: false,
+      currentUserId: null,
 
       addNotification: (notificationData) => {
         const newNotification: Notification = {
@@ -110,22 +135,94 @@ export const useNotificationStore = create<NotificationStore>()(
         return get().notifications.filter((n) => !n.read && !n.dismissed).length;
       },
 
-      addFavoriteQuote: (quoteData) => {
-        const newFavoriteQuote: FavoriteQuote = {
-          ...quoteData,
-          id: crypto.randomUUID(),
-          createdAt: new Date(),
-        };
-
-        set((state) => ({
-          favoriteQuotes: [newFavoriteQuote, ...state.favoriteQuotes],
-        }));
+      loadFavoriteQuotes: async (userId: string) => {
+        set({ isLoadingQuotes: true });
+        try {
+          const dbQuotes = await getFavoriteQuotes(userId);
+          const convertedQuotes: FavoriteQuote[] = dbQuotes.map(dbQuote => ({
+            id: dbQuote.id,
+            quote: dbQuote.quote,
+            author: dbQuote.author,
+            category: dbQuote.category,
+            createdAt: new Date(dbQuote.created_at)
+          }));
+          set({ favoriteQuotes: convertedQuotes, isLoadingQuotes: false });
+        } catch (error) {
+          console.error('Error loading favorite quotes:', error);
+          set({ isLoadingQuotes: false });
+        }
       },
 
-      removeFavoriteQuote: (id) => {
-        set((state) => ({
-          favoriteQuotes: state.favoriteQuotes.filter((quote) => quote.id !== id),
-        }));
+      addFavoriteQuote: async (quoteData) => {
+        const { currentUserId } = get();
+        if (!currentUserId) {
+          console.error('No current user ID for adding favorite quote');
+          return;
+        }
+
+        try {
+          const newQuote = await addFavoriteQuoteToDB(currentUserId, {
+            quote: quoteData.quote,
+            author: quoteData.author,
+            category: quoteData.category
+          });
+
+          if (newQuote) {
+            const convertedQuote: FavoriteQuote = {
+              id: newQuote.id,
+              quote: newQuote.quote,
+              author: newQuote.author,
+              category: newQuote.category,
+              createdAt: new Date(newQuote.created_at)
+            };
+
+            set((state) => ({
+              favoriteQuotes: [convertedQuote, ...state.favoriteQuotes],
+            }));
+          }
+        } catch (error) {
+          console.error('Error adding favorite quote:', error);
+        }
+      },
+
+      removeFavoriteQuote: async (id) => {
+        const { currentUserId } = get();
+        if (!currentUserId) {
+          console.error('No current user ID for removing favorite quote');
+          return;
+        }
+
+        try {
+          const success = await removeFavoriteQuoteFromDB(currentUserId, id);
+          if (success) {
+            set((state) => ({
+              favoriteQuotes: state.favoriteQuotes.filter((quote) => quote.id !== id),
+            }));
+          }
+        } catch (error) {
+          console.error('Error removing favorite quote:', error);
+        }
+      },
+
+      removeFavoriteQuoteByContent: async (quote: string, author: string) => {
+        const { currentUserId } = get();
+        if (!currentUserId) {
+          console.error('No current user ID for removing favorite quote by content');
+          return;
+        }
+
+        try {
+          const success = await removeFavoriteQuoteByContent(currentUserId, quote, author);
+          if (success) {
+            set((state) => ({
+              favoriteQuotes: state.favoriteQuotes.filter((favorite) => 
+                !(favorite.quote === quote && favorite.author === author)
+              ),
+            }));
+          }
+        } catch (error) {
+          console.error('Error removing favorite quote by content:', error);
+        }
       },
 
       isQuoteFavorited: (quote: string, author: string) => {
@@ -135,12 +232,26 @@ export const useNotificationStore = create<NotificationStore>()(
         );
       },
 
+      setCurrentUserId: (userId: string | null) => {
+        set({ currentUserId: userId });
+      },
+
       initializeDefaultNotifications: () => {
         const { notifications } = get();
         
         // Only initialize if no notifications exist
         if (notifications.length === 0) {
           const defaultNotifications: Omit<Notification, 'id' | 'createdAt' | 'read' | 'dismissed'>[] = [
+            {
+              type: 'announcement',
+              title: '📚 New Help Center Launched!',
+              message: 'We\'ve launched a comprehensive Help Center with guides, tutorials, and support resources to help you get the most out of Balanze.',
+              actionText: 'Explore Help Center',
+              actionUrl: '/help',
+              icon: '📖',
+              priority: 'high',
+              targetAudience: 'all',
+            },
             {
               type: 'feature',
               title: '🎉 Multi-Currency Support',
@@ -188,13 +299,35 @@ export const useNotificationStore = create<NotificationStore>()(
           });
         }
       },
+
+      addHelpCenterNotification: () => {
+        const { notifications } = get();
+        
+        // Check if help center notification already exists
+        const helpNotificationExists = notifications.some(
+          notification => notification.title.includes('Help Center') && notification.type === 'announcement'
+        );
+        
+        if (!helpNotificationExists) {
+          get().addNotification({
+            type: 'announcement',
+            title: '📚 New Help Center Launched!',
+            message: 'We\'ve launched a comprehensive Help Center with guides, tutorials, and support resources to help you get the most out of Balanze.',
+            actionText: 'Explore Help Center',
+            actionUrl: '/help',
+            icon: '📖',
+            priority: 'high',
+            targetAudience: 'all',
+          });
+        }
+      },
     }),
     {
       name: 'notification-storage',
       partialize: (state) => ({
         notifications: state.notifications,
         unreadCount: state.unreadCount,
-        favoriteQuotes: state.favoriteQuotes,
+        // Don't persist favoriteQuotes anymore - they're now in the database
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
@@ -203,13 +336,13 @@ export const useNotificationStore = create<NotificationStore>()(
             ...notification,
             createdAt: new Date(notification.createdAt)
           }));
-          state.favoriteQuotes = state.favoriteQuotes.map(quote => ({
-            ...quote,
-            createdAt: new Date(quote.createdAt)
-          }));
           
           // Recalculate unread count to ensure consistency
           state.unreadCount = state.notifications.filter((n) => !n.read && !n.dismissed).length;
+          
+          // Reset favorite quotes - they'll be loaded from database when user logs in
+          state.favoriteQuotes = [];
+          state.currentUserId = null;
         }
       },
     }

@@ -42,5 +42,11 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/last-wish-public",
+      "schedule": "0 0 * * *"
+    }
   ]
 } 

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
 import { LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { Home } from 'lucide-react';
 import InteractiveBackground from '../components/InteractiveBackground';
 
 
@@ -59,22 +60,16 @@ const PasswordStrengthMeter: React.FC<{ password: string }> = ({ password }) => 
 
 // Social login button component
 const SocialButton: React.FC<{
-  provider: 'google' | 'apple';
+  provider: 'google';
   onClick: () => void;
   isLoading?: boolean;
 }> = ({ provider, onClick, isLoading = false }) => {
-  const isGoogle = provider === 'google';
-  
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={isLoading}
-      className={`flex items-center justify-center w-full px-4 py-3 text-sm font-medium transition-all duration-200 shadow-sm rounded-lg ${
-        isGoogle 
-          ? 'text-gray-700 bg-white/90 backdrop-blur-sm border border-gray-300 hover:bg-white/95 dark:bg-gray-800/90 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800/95' 
-          : 'text-white bg-black/90 backdrop-blur-sm border border-gray-800 hover:bg-black/95 dark:bg-gray-900/90 dark:border-gray-700 dark:hover:bg-gray-900/95'
-      } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-md'}`}
+      className={`flex items-center justify-center w-full px-4 py-3 text-sm font-medium transition-all duration-200 shadow-sm rounded-lg text-gray-700 bg-white/90 backdrop-blur-sm border border-gray-300 hover:bg-white/95 dark:bg-gray-800/90 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800/95 ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-md'}`}
     >
       {isLoading ? (
         <div className="flex items-center">
@@ -83,19 +78,13 @@ const SocialButton: React.FC<{
         </div>
       ) : (
         <>
-          {isGoogle ? (
-            <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-            </svg>
-          ) : (
-            <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-            </svg>
-          )}
-          Continue with {isGoogle ? 'Google' : 'Apple'}
+          <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          Continue with Google
         </>
       )}
     </button>
@@ -105,7 +94,7 @@ const SocialButton: React.FC<{
 export const Auth: React.FC = () => {
   const navigate = useNavigate();
   const { isDarkMode } = useThemeStore();
-  const [activeTab, setActiveTab] = useState<'signup' | 'login'>('login');
+  const [activeTab, setActiveTab] = useState<'signup' | 'login' | 'forgot-password'>('login');
   const [signupStep, setSignupStep] = useState<1 | 2>(1);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -125,10 +114,10 @@ export const Auth: React.FC = () => {
   const passwordRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
 
-  const { signIn, signUp, signInWithProvider, isLoading, error, success, clearMessages } = useAuthStore();
+  const { signIn, signUp, signInWithProvider, resetPassword, isLoading, error, success, clearMessages } = useAuthStore();
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState<string | null>(null);
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState<boolean | null>(null);
-  const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
+  const [socialLoading, setSocialLoading] = useState<'google' | null>(null);
 
   // Debug: Log auth store state changes
   useEffect(() => {
@@ -144,6 +133,8 @@ export const Auth: React.FC = () => {
       if (activeTab === 'login') {
         emailRef.current?.focus();
       } else if (activeTab === 'signup' && signupStep === 1) {
+        emailRef.current?.focus();
+      } else if (activeTab === 'forgot-password') {
         emailRef.current?.focus();
       }
     }, 100);
@@ -196,7 +187,7 @@ export const Auth: React.FC = () => {
   };
 
   // Handle social login
-  const handleSocialLogin = async (provider: 'google' | 'apple') => {
+  const handleSocialLogin = async (provider: 'google') => {
     setSocialLoading(provider);
     try {
       const result = await signInWithProvider(provider);
@@ -291,21 +282,30 @@ export const Auth: React.FC = () => {
     }
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth`,
-      });
-
-      if (error) {
-        setForgotPasswordMessage(error.message);
-        setForgotPasswordSuccess(false);
-      } else {
-        setForgotPasswordMessage('Password reset email sent! Check your inbox.');
+      const result = await resetPassword(email);
+      
+      if (result.success) {
+        setForgotPasswordMessage(result.message || 'Password reset email sent! Check your inbox.');
         setForgotPasswordSuccess(true);
+      } else {
+        setForgotPasswordMessage(result.message || 'Failed to send reset email.');
+        setForgotPasswordSuccess(false);
       }
     } catch (error) {
       setForgotPasswordMessage('An unexpected error occurred.');
       setForgotPasswordSuccess(false);
     }
+  };
+
+  // Handle back to login from forgot password
+  const handleBackToLogin = () => {
+    setActiveTab('login');
+    setEmail('');
+    setPassword('');
+    setEmailError('');
+    setPasswordError('');
+    setForgotPasswordMessage(null);
+    setForgotPasswordSuccess(null);
   };
 
   // Handle key down for input fields
@@ -334,12 +334,33 @@ export const Auth: React.FC = () => {
       
       <div className="relative z-10 w-full max-w-md">
         {/* Tab Switcher */}
-        <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-xl shadow-xl p-6 mb-6 border border-white/20 dark:border-gray-700/50">
+        <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-xl shadow-xl p-6 mb-6 border border-white/20 dark:border-gray-700/50">
+          {/* Home Icon - Positioned in center of top border */}
+          <div className="absolute -top-6 left-1/2 transform -translate-x-1/2">
+            <button
+              onClick={() => navigate('/')}
+              className="p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 transition-all duration-200 rounded-full shadow-sm hover:shadow-md"
+              title="Go to Home"
+            >
+              <div className="w-5 h-5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="url(#gradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" style={{stopColor: '#3B82F6'}} />
+                      <stop offset="100%" style={{stopColor: '#8B5CF6'}} />
+                    </linearGradient>
+                  </defs>
+                  <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+              </div>
+            </button>
+          </div>
           {/* Header Row with Dark Mode Toggle */}
           <div className="flex items-center justify-between mb-6">
             <div className="text-left">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                FinTrack
+                Balanze
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Manage your finances with confidence
@@ -373,6 +394,8 @@ export const Auth: React.FC = () => {
                 setEmailError('');
                 setPasswordError('');
                 setNameError('');
+                setForgotPasswordMessage(null);
+                setForgotPasswordSuccess(null);
               }}
               className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-all duration-200 ${
                 activeTab === 'login'
@@ -392,6 +415,8 @@ export const Auth: React.FC = () => {
                 setEmailError('');
                 setPasswordError('');
                 setNameError('');
+                setForgotPasswordMessage(null);
+                setForgotPasswordSuccess(null);
               }}
               className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-all duration-200 ${
                 activeTab === 'signup'
@@ -409,11 +434,6 @@ export const Auth: React.FC = () => {
               provider="google" 
               onClick={() => handleSocialLogin('google')} 
               isLoading={socialLoading === 'google'}
-            />
-            <SocialButton 
-              provider="apple" 
-              onClick={() => handleSocialLogin('apple')} 
-              isLoading={socialLoading === 'apple'}
             />
           </div>
 
@@ -553,7 +573,7 @@ export const Auth: React.FC = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={handleForgotPassword}
+                  onClick={() => setActiveTab('forgot-password')}
                   className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                 >
                   Forgot password?
@@ -716,6 +736,111 @@ export const Auth: React.FC = () => {
                   </button>
                 </form>
               )}
+            </div>
+          )}
+
+          {/* Forgot Password Form */}
+          {activeTab === 'forgot-password' && (
+            <div className="space-y-4">
+              {/* Header */}
+              <div className="text-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  Reset Your Password
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Enter your email address and we'll send you a link to reset your password.
+                </p>
+              </div>
+
+              {/* Email Field */}
+              <div>
+                <label htmlFor="forgot-email" className="sr-only">
+                  Email address
+                </label>
+                <input
+                  ref={emailRef}
+                  id="forgot-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setEmailError(validateEmail(e.target.value));
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleForgotPassword();
+                    }
+                  }}
+                  placeholder="Enter your email address"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm ${
+                    emailError
+                      ? 'border-red-300 dark:border-red-600 bg-red-50/80 dark:bg-red-900/20'
+                      : 'border-gray-300/50 dark:border-gray-600/50'
+                  }`}
+                  aria-invalid={!!emailError}
+                  aria-describedby={emailError ? 'forgot-email-error' : undefined}
+                />
+                {emailError && (
+                  <p id="forgot-email-error" className="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+                    {emailError}
+                  </p>
+                )}
+              </div>
+
+              {/* Success/Error Message */}
+              {forgotPasswordMessage && (
+                <div className={`rounded-md p-4 border ${
+                  forgotPasswordSuccess 
+                    ? 'bg-green-50 border-green-200 text-green-800' 
+                    : 'bg-red-50 border-red-200 text-red-800'
+                }`}>
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      {forgotPasswordSuccess ? (
+                        <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium">{forgotPasswordMessage}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={isLoading || !email}
+                className="w-full flex items-center justify-center px-4 py-3 text-sm font-medium text-white bg-gradient-primary border border-transparent rounded-lg hover:bg-gradient-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus-ring-gradient transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Sending...
+                  </>
+                ) : (
+                  'Send Reset Link'
+                )}
+              </button>
+
+              {/* Back to Login Link */}
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={handleBackToLogin}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                >
+                  ← Back to Login
+                </button>
+              </div>
             </div>
           )}
         </div>

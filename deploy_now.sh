@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Launching Your FinTech SaaS..."
+echo "🚀 Launching Your Balanze SaaS..."
 
 # Check if git is initialized
 if [ ! -d ".git" ]; then

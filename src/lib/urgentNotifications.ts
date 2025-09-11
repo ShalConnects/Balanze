@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { createNotification } from './notifications';
+import { createNotification, createFinancialNotification } from './notifications';
 import { useAuthStore } from '../store/authStore';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { LendBorrow } from '../types/index';
@@ -107,64 +107,19 @@ export class UrgentNotificationService {
         console.error('Error fetching completed purchases:', pError);
       }
 
-      // Instead of trying to find specific notifications, just get all notifications for the user
-      // and filter them in memory to avoid 404 errors
-      const { data: allNotifications, error: notifError } = await supabase
-        .from('notifications')
-        .select('id, body')
-        .eq('user_id', userId)
-        .is('deleted', false);
+      // Clear notifications for inactive items
+      const inactiveIds = [
+        ...(inactiveLendBorrow || []).map(item => `lend_borrow_${item.id}`),
+        ...(completedPurchases || []).map(item => `purchase_${item.id}`)
+      ];
 
-      if (notifError) {
-        console.error('Error fetching notifications:', notifError);
-        return;
-      }
-
-      // Clear notifications for inactive lend/borrow records
-      if (inactiveLendBorrow && inactiveLendBorrow.length > 0 && allNotifications) {
-        for (const record of inactiveLendBorrow) {
-          const uniqueIdentifier = `lend_borrow_${record.id}`;
-          
-          // Find notifications that contain this identifier
-          const notificationsToDelete = allNotifications.filter(n => 
-            n.body && n.body.includes(`[ID:${uniqueIdentifier}]`)
-          );
-          
-          if (notificationsToDelete.length > 0) {
-            const notificationIds = notificationsToDelete.map(n => n.id);
-            const { error: deleteError } = await supabase
-              .from('notifications')
-              .update({ deleted: true })
-              .in('id', notificationIds);
-            
-            if (deleteError) {
-              console.error(`Error deleting notifications for lend_borrow ${record.id}:`, deleteError);
-            }
-          }
-        }
-      }
-
-      // Clear notifications for completed purchases
-      if (completedPurchases && completedPurchases.length > 0 && allNotifications) {
-        for (const purchase of completedPurchases) {
-          const uniqueIdentifier = `purchase_${purchase.id}`;
-          
-          // Find notifications that contain this identifier
-          const notificationsToDelete = allNotifications.filter(n => 
-            n.body && n.body.includes(`[ID:${uniqueIdentifier}]`)
-          );
-          
-          if (notificationsToDelete.length > 0) {
-            const notificationIds = notificationsToDelete.map(n => n.id);
-            const { error: deleteError } = await supabase
-              .from('notifications')
-              .update({ deleted: true })
-              .in('id', notificationIds);
-            
-            if (deleteError) {
-              console.error(`Error deleting notifications for purchase ${purchase.id}:`, deleteError);
-            }
-          }
+      if (inactiveIds.length > 0) {
+        for (const id of inactiveIds) {
+          await supabase
+            .from('notifications')
+            .update({ deleted: true })
+            .eq('user_id', userId)
+            .contains('body', `[ID:${id}]`);
         }
       }
     } catch (error) {
@@ -174,99 +129,105 @@ export class UrgentNotificationService {
 
   private async getUrgentItems(userId: string): Promise<UrgentItem[]> {
     const urgentItems: UrgentItem[] = [];
-    const today = new Date();
 
-    // Get lend/borrow records
-    const { data: lendBorrowData } = await supabase
-      .from('lend_borrow')
-      .select('*')
-      .eq('user_id', userId)
-      .in('status', ['active', 'overdue'])
-      .order('due_date', { ascending: true });
+    try {
+      // Get overdue and due soon lend/borrow records
+      const { data: lendBorrowRecords, error: lbError } = await supabase
+        .from('lend_borrow')
+        .select('*')
+        .eq('user_id', userId)
+        .in('status', ['active', 'overdue']);
 
-    // Process lend/borrow records
-    if (lendBorrowData) {
-      for (const record of lendBorrowData) {
-        if (!record.due_date) continue;
+      if (lbError) {
+        console.error('Error fetching lend/borrow records:', lbError);
+      } else if (lendBorrowRecords) {
+        for (const record of lendBorrowRecords) {
+          const dueDate = new Date(record.due_date);
+          const now = new Date();
+          const daysUntil = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-        const dueDate = new Date(record.due_date);
-        const daysUntil = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-        // Only include if due within 7 days or overdue
-        if (daysUntil <= 7 || daysUntil < 0) {
-          let status: UrgentItem['status'];
+          let status: 'overdue' | 'due_soon' | 'upcoming' = 'upcoming';
           if (daysUntil < 0) {
             status = 'overdue';
           } else if (daysUntil <= 3) {
             status = 'due_soon';
-          } else {
+          } else if (daysUntil <= 7) {
             status = 'upcoming';
           }
 
-          // Ensure currency is not empty
-          const safeCurrency = record.currency && record.currency.trim() !== '' ? record.currency : 'USD';
-
-          urgentItems.push({
-            id: record.id,
-            type: 'lend_borrow',
-            title: `${record.person_name} ${record.type === 'lend' ? 'owes you' : 'you owe'}`,
-            message: `${record.type === 'lend' ? 'You lent' : 'You borrowed'} ${formatCurrency(record.amount, safeCurrency)}`,
-            dueDate: record.due_date,
-            daysUntil,
-            amount: record.amount,
-            currency: safeCurrency,
-            personName: record.person_name,
-            status,
-            lendBorrowType: record.type
-          });
+          // Only include items that are overdue, due soon, or upcoming
+          if (status === 'overdue' || status === 'due_soon' || status === 'upcoming') {
+            urgentItems.push({
+              id: record.id,
+              type: 'lend_borrow',
+              title: `${record.person_name} ${record.type === 'lend' ? 'owes you' : 'you owe'}`,
+              message: `${record.type === 'lend' ? 'You lent' : 'You borrowed'} ${formatCurrency(record.amount, record.currency)}`,
+              dueDate: record.due_date,
+              daysUntil,
+              amount: record.amount,
+              currency: record.currency,
+              personName: record.person_name,
+              priority: status === 'overdue' ? 'high' : status === 'due_soon' ? 'medium' : 'low',
+              status,
+              lendBorrowType: record.type
+            });
+          }
         }
       }
-    }
 
-    // Get planned purchases
-    const { data: purchasesData } = await supabase
-      .from('purchases')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'planned')
-      .order('purchase_date', { ascending: true });
+      // Get planned purchases that are due soon
+      const { data: plannedPurchases, error: pError } = await supabase
+        .from('purchases')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'planned')
+        .not('planned_date', 'is', null);
 
-    // Process planned purchases
-    if (purchasesData) {
-      for (const purchase of purchasesData) {
-        const purchaseDate = new Date(purchase.purchase_date);
-        const daysUntil = Math.ceil((purchaseDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (pError) {
+        console.error('Error fetching planned purchases:', pError);
+      } else if (plannedPurchases) {
+        for (const purchase of plannedPurchases) {
+          const dueDate = new Date(purchase.planned_date);
+          const now = new Date();
+          const daysUntil = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-        // Only include if due within 7 days or overdue
-        if (daysUntil <= 7 || daysUntil < 0) {
-          let status: UrgentItem['status'];
+          let status: 'overdue' | 'due_soon' | 'upcoming' = 'upcoming';
           if (daysUntil < 0) {
             status = 'overdue';
           } else if (daysUntil <= 3) {
             status = 'due_soon';
-          } else {
+          } else if (daysUntil <= 7) {
             status = 'upcoming';
           }
 
-          urgentItems.push({
-            id: purchase.id,
-            type: 'purchase',
-            title: 'Planned Purchase Due',
-            message: purchase.item_name,
-            dueDate: purchase.purchase_date,
-            daysUntil,
-            priority: purchase.priority,
-            itemName: purchase.item_name,
-            status
-          });
+          // Only include items that are overdue, due soon, or upcoming
+          if (status === 'overdue' || status === 'due_soon' || status === 'upcoming') {
+            urgentItems.push({
+              id: purchase.id,
+              type: 'purchase',
+              title: `Planned purchase: ${purchase.title}`,
+              message: `Planned to buy ${purchase.title} for ${formatCurrency(purchase.price, purchase.currency)}`,
+              dueDate: purchase.planned_date,
+              daysUntil,
+              amount: purchase.price,
+              currency: purchase.currency,
+              itemName: purchase.title,
+              priority: status === 'overdue' ? 'high' : status === 'due_soon' ? 'medium' : 'low',
+              status
+            });
+          }
         }
       }
+    } catch (error) {
+      console.error('Error getting urgent items:', error);
     }
 
-    // Sort by urgency: overdue first, then by days until due
+    // Sort by priority and days until due
     urgentItems.sort((a, b) => {
-      if (a.status === 'overdue' && b.status !== 'overdue') return -1;
-      if (a.status !== 'overdue' && b.status === 'overdue') return 1;
+      const priorityOrder = { overdue: 0, due_soon: 1, upcoming: 2 };
+      if (priorityOrder[a.status] !== priorityOrder[b.status]) {
+        return priorityOrder[a.status] - priorityOrder[b.status];
+      }
       return a.daysUntil - b.daysUntil;
     });
 
@@ -298,28 +259,32 @@ export class UrgentNotificationService {
 
     let notificationType: 'warning' | 'error' | 'info' = 'info';
     let urgencyPrefix = '';
+    let category: 'overdue' | 'due_soon' | 'upcoming' = 'upcoming';
 
     if (item.status === 'overdue') {
       notificationType = 'error';
       urgencyPrefix = '🚨 URGENT: ';
+      category = 'overdue';
     } else if (item.status === 'due_soon') {
       notificationType = 'warning';
       urgencyPrefix = '⚠️ DUE SOON: ';
+      category = 'due_soon';
     } else {
       notificationType = 'info';
       urgencyPrefix = '📅 UPCOMING: ';
+      category = 'upcoming';
     }
 
     const title = `${urgencyPrefix}${item.title}`;
     const body = `${item.message} - ${this.getTimeDescription(item.daysUntil)} [ID:${uniqueIdentifier}]`;
 
-    // Create the notification
-    await createNotification(
+    // Create the notification using the new system with preferences
+    await createFinancialNotification(
       userId,
       title,
       notificationType,
       body,
-      false // Don't show toast for urgent notifications
+      category
     );
   }
 
@@ -337,4 +302,4 @@ export class UrgentNotificationService {
 }
 
 // Export singleton instance
-export const urgentNotificationService = UrgentNotificationService.getInstance(); 
+export const urgentNotificationService = UrgentNotificationService.getInstance();

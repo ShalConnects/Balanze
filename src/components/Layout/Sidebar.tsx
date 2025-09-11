@@ -45,7 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
   const userSectionRef = useRef<HTMLDivElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{top: number, left: number, direction: 'down' | 'up'} | null>(null);
   const navigate = useNavigate();
-  const { isSidebarCollapsed, toggleSidebar } = useThemeStore();
+  const { isSidebarCollapsed, toggleSidebar, isDarkMode } = useThemeStore();
   
   const { isMobile, isVerySmall } = useMobileDetection();
   
@@ -178,13 +178,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
             {(!isMobile && !effectiveCollapsed) || (isMobile && isOpen) ? (
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-white" />
+                  <span className="text-white font-bold text-lg">B</span>
                 </div>
-                <span className="text-xl font-bold text-gray-900 dark:text-white">FinanceFlow</span>
+                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Balanze</span>
               </div>
             ) : (
               <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center mx-auto">
-                <TrendingUp className="w-5 h-5 text-white" />
+                <span className="text-white font-bold text-lg">B</span>
               </div>
             )}
             <button 
@@ -220,16 +220,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
                       ${isMobile ? (isOpen ? 'px-4 py-3 space-x-3' : 'px-2 py-3 justify-center') : (effectiveCollapsed ? 'px-2 py-3 justify-center' : 'px-4 py-3 space-x-3')}
                       ${isMobile ? 'sidebar-nav-mobile' : ''}
                       ${isActive 
-                        ? 'bg-blue-50 dark:bg-blue-900/10 border-l-4 border-blue-500 dark:border-blue-400 text-gradient-primary font-semibold' 
+                        ? 'sidebar-active-simple font-semibold' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gradient-to-r hover:from-gray-50 hover:via-blue-50/30 hover:to-gray-50 dark:hover:from-gray-700/50 dark:hover:via-blue-900/10 dark:hover:to-gray-700/50 hover:text-gray-900 dark:hover:text-white'
                       }
                       touch-active
                     `}
                     title={isMobile || effectiveCollapsed ? t(item.name) : undefined}
                   >
-                    <Icon className={`w-5 h-5 ${isActive ? 'text-gradient-primary' : 'text-gray-400 dark:text-gray-500'}`} />
+                    <Icon 
+                      className={`w-5 h-5 ${isActive ? 'text-gradient-primary' : 'text-gray-400 dark:text-gray-500'}`}
+                      style={isActive ? {
+                        background: isDarkMode 
+                          ? 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)'
+                          : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text'
+                      } : {}}
+                    />
                     {(!isMobile && !effectiveCollapsed) || (isMobile && isOpen) ? (
-                      <span className="text-[14px] font-bold">{t(item.name)}</span>
+                      <span className={`${isActive ? 'text-gradient-primary' : ''} text-[14px] font-bold`}>{t(item.name)}</span>
                     ) : null}
                   </button>
                   

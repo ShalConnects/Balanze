@@ -125,6 +125,21 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
       onClose();
     } catch (error) {
       console.error('Error saving record:', error);
+      
+      // Check if it's a plan limit error and show upgrade prompt
+      if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+        const errorMessage = error.message;
+        
+        if (errorMessage && errorMessage.includes('FEATURE_NOT_AVAILABLE') && errorMessage.includes('lend & borrow')) {
+          toast.error('Lend & borrow tracking is a Premium feature. Upgrade to Premium to track loans and borrowings.');
+          setTimeout(() => {
+            window.location.href = '/settings?tab=plans';
+          }, 2000);
+          
+          return;
+        }
+      }
+      
       toast.error('Failed to save record. Please try again.');
     } finally {
       setSubmitting(false);

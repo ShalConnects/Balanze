@@ -16,7 +16,7 @@ Since SMTP is not working, you can temporarily disable email confirmation to all
    - Click "Save"
 
 3. **Test Registration**
-   - Go to your app: https://fin-tech-dq5uuczkm-shalauddin-kaders-projects.vercel.app
+   - Go to your app: https://balanze.cash
    - Try registering a new user
    - You should be able to log in immediately
 

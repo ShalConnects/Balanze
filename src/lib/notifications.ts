@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { toast } from 'sonner';
 import type { NotificationType } from '../types/index';
+import { notificationPreferencesService } from './notificationPreferences';
 
 // Enhanced notification types
 export type ToastType = 'success' | 'error' | 'warning' | 'info' | 'loading';
@@ -49,65 +50,67 @@ const toastConfig = {
   }
 };
 
-// Enhanced toast functions
+// Enhanced toast functions with better styling
 export const showToast = {
   success: (message: string, options?: { description?: string; action?: { label: string; onClick: () => void } }) => {
-    return toast.success(message, {
+    toast.success(message, {
       ...toastConfig.success,
       description: options?.description,
-      action: options?.action,
-      position: 'top-right'
+      action: options?.action
     });
   },
 
   error: (message: string, options?: { description?: string; action?: { label: string; onClick: () => void } }) => {
-    return toast.error(message, {
+    toast.error(message, {
       ...toastConfig.error,
       description: options?.description,
-      action: options?.action,
-      position: 'top-right'
+      action: options?.action
     });
   },
 
   warning: (message: string, options?: { description?: string; action?: { label: string; onClick: () => void } }) => {
-    return toast.warning(message, {
+    toast.warning(message, {
       ...toastConfig.warning,
       description: options?.description,
-      action: options?.action,
-      position: 'top-right'
+      action: options?.action
     });
   },
 
   info: (message: string, options?: { description?: string; action?: { label: string; onClick: () => void } }) => {
-    return toast.info(message, {
+    toast.info(message, {
       ...toastConfig.info,
       description: options?.description,
-      action: options?.action,
-      position: 'top-right'
+      action: options?.action
     });
   },
 
-  loading: (message: string) => {
+  loading: (message: string, options?: { description?: string }) => {
     return toast.loading(message, {
       ...toastConfig.loading,
-      position: 'top-right'
+      description: options?.description
     });
-  },
-
-  dismiss: (toastId: string | number) => {
-    toast.dismiss(toastId);
   }
 };
 
-// Enhanced notification creation with toast integration
+// Enhanced notification creation with user preferences integration
 export async function createNotification(
   userId: string,
   title: string,
   type: NotificationType = 'info',
   body?: string,
-  shouldShowToast: boolean = true
+  shouldShowToast: boolean = true,
+  notificationCategory?: string // New parameter to specify notification category
 ) {
   try {
+    // Check user preferences before creating notification
+    if (notificationCategory) {
+      const shouldSend = await notificationPreferencesService.shouldSendNotification(userId, notificationCategory);
+      if (!shouldSend) {
+        console.log(`Notification blocked by user preferences for category: ${notificationCategory}`);
+        return { success: true, blocked: true };
+      }
+    }
+
     const { error } = await supabase.from('notifications').insert({
       user_id: userId,
       title,
@@ -120,7 +123,7 @@ export async function createNotification(
       throw error;
     }
 
-    // Show toast notification if requested
+    // Show toast notification if requested and user preferences allow
     if (shouldShowToast) {
       const toastType = type as ToastType;
       showToast[toastType](title, { description: body });
@@ -133,19 +136,18 @@ export async function createNotification(
   }
 }
 
-// Smart notification system
+// Smart notification system with preferences integration
 export class SmartNotificationManager {
   private static instance: SmartNotificationManager;
   private notificationQueue: Array<{
     id: string;
-    type: ToastType;
-    message: string;
-    description?: string;
-    priority: number;
-    timestamp: number;
+    userId: string;
+    title: string;
+    type: NotificationType;
+    body?: string;
+    category?: string;
+    timestamp: Date;
   }> = [];
-
-  private constructor() {}
 
   static getInstance(): SmartNotificationManager {
     if (!SmartNotificationManager.instance) {
@@ -154,134 +156,112 @@ export class SmartNotificationManager {
     return SmartNotificationManager.instance;
   }
 
-  // Add notification to queue with priority
-  addToQueue(type: ToastType, message: string, description?: string, priority: number = 1) {
+  async queueNotification(
+    userId: string,
+    title: string,
+    type: NotificationType = 'info',
+    body?: string,
+    category?: string
+  ) {
     const notification = {
       id: Math.random().toString(36).substr(2, 9),
+      userId,
+      title,
       type,
-      message,
-      description,
-      priority,
-      timestamp: Date.now()
+      body,
+      category,
+      timestamp: new Date()
     };
 
     this.notificationQueue.push(notification);
-    this.processQueue();
+    await this.processQueue();
   }
 
-  // Process queue based on priority
-  private processQueue() {
-    // Sort by priority (higher first) and timestamp (older first)
-    this.notificationQueue.sort((a, b) => {
-      if (a.priority !== b.priority) {
-        return b.priority - a.priority;
-      }
-      return a.timestamp - b.timestamp;
-    });
-
-    // Show notifications with delay to prevent spam
-    this.notificationQueue.forEach((notification, index) => {
-      setTimeout(() => {
-        showToast[notification.type](notification.message, { description: notification.description });
-      }, index * 500); // 500ms delay between notifications
-    });
-
-    this.notificationQueue = [];
-  }
-
-  // Clear all toasts
-  clearAll() {
-    toast.dismiss();
-  }
-
-  // Show notification with smart timing
-  smartNotify(type: ToastType, message: string, description?: string) {
-    // Check if similar notification was shown recently
-    const recentNotifications = this.notificationQueue.filter(
-      n => n.message === message && Date.now() - n.timestamp < 5000
-    );
-
-    if (recentNotifications.length === 0) {
-      this.addToQueue(type, message, description);
+  private async processQueue() {
+    const frequency = await this.getNotificationFrequency();
+    
+    if (frequency === 'real_time') {
+      await this.processNotificationsImmediately();
+    } else if (frequency === 'daily_digest') {
+      await this.scheduleDailyDigest();
+    } else if (frequency === 'weekly_summary') {
+      await this.scheduleWeeklySummary();
     }
+  }
+
+  private async processNotificationsImmediately() {
+    const notifications = [...this.notificationQueue];
+    this.notificationQueue = [];
+
+    for (const notification of notifications) {
+      await createNotification(
+        notification.userId,
+        notification.title,
+        notification.type,
+        notification.body,
+        true,
+        notification.category
+      );
+    }
+  }
+
+  private async scheduleDailyDigest() {
+    // Implementation for daily digest
+    // This would batch notifications and send them once per day
+    console.log('Daily digest scheduling not yet implemented');
+  }
+
+  private async scheduleWeeklySummary() {
+    // Implementation for weekly summary
+    // This would batch notifications and send them once per week
+    console.log('Weekly summary scheduling not yet implemented');
+  }
+
+  private async getNotificationFrequency(): Promise<string> {
+    // This would get the frequency from the first user in the queue
+    // In a real implementation, you'd need to handle multiple users
+    if (this.notificationQueue.length > 0) {
+      return await notificationPreferencesService.getNotificationFrequency(this.notificationQueue[0].userId);
+    }
+    return 'real_time';
+  }
+
+  // Method to create specific types of notifications with proper categories
+  async createFinancialNotification(
+    userId: string,
+    title: string,
+    type: NotificationType,
+    body?: string,
+    category: 'overdue' | 'due_soon' | 'upcoming' | 'low_balance' | 'budget_exceeded' | 'large_transaction' = 'overdue'
+  ) {
+    await this.queueNotification(userId, title, type, body, category);
+  }
+
+  async createSystemNotification(
+    userId: string,
+    title: string,
+    type: NotificationType,
+    body?: string,
+    category: 'new_feature' | 'system_update' | 'tip' | 'security' = 'system_update'
+  ) {
+    await this.queueNotification(userId, title, type, body, category);
+  }
+
+  async createActivityNotification(
+    userId: string,
+    title: string,
+    type: NotificationType,
+    body?: string,
+    category: 'transaction_confirmation' | 'account_change' | 'category_update' | 'backup_reminder' = 'transaction_confirmation'
+  ) {
+    await this.queueNotification(userId, title, type, body, category);
   }
 }
 
 // Export singleton instance
-export const notificationManager = SmartNotificationManager.getInstance();
+export const smartNotificationManager = SmartNotificationManager.getInstance();
 
-// Context-aware notification helpers
-export const contextAwareNotifications = {
-  // Transaction-related notifications
-  transaction: {
-    created: (amount: number, currency: string) => 
-      showToast.success(`Transaction created`, { 
-        description: `Amount: ${new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)}` 
-      }),
-    
-    updated: (amount: number, currency: string) => 
-      showToast.info(`Transaction updated`, { 
-        description: `Amount: ${new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)}` 
-      }),
-    
-    deleted: () => 
-      showToast.warning(`Transaction deleted`),
-    
-    error: (error: string) => 
-      showToast.error(`Transaction failed`, { description: error })
-  },
-
-  // Account-related notifications
-  account: {
-    created: (name: string) => 
-      showToast.success(`Account created`, { description: `Account: ${name}` }),
-    
-    updated: (name: string) => 
-      showToast.info(`Account updated`, { description: `Account: ${name}` }),
-    
-    deleted: (name: string) => 
-      showToast.warning(`Account deleted`, { description: `Account: ${name}` }),
-    
-    error: (error: string) => 
-      showToast.error(`Account operation failed`, { description: error })
-  },
-
-  // Purchase-related notifications
-  purchase: {
-    created: (itemName: string) => 
-      showToast.success(`Purchase added`, { description: `Item: ${itemName}` }),
-    
-    updated: (itemName: string) => 
-      showToast.info(`Purchase updated`, { description: `Item: ${itemName}` }),
-    
-    completed: (itemName: string) => 
-      showToast.success(`Purchase completed`, { description: `Item: ${itemName}` }),
-    
-    error: (error: string) => 
-      showToast.error(`Purchase operation failed`, { description: error })
-  },
-
-  // Transfer-related notifications
-  transfer: {
-    successful: (amount: number, currency: string) => 
-      showToast.success(`Transfer successful`, { 
-        description: `Amount: ${new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)}` 
-      }),
-    
-    error: (error: string) => 
-      showToast.error(`Transfer failed`, { description: error })
-  },
-
-  // General notifications
-  general: {
-    loading: (message: string) => showToast.loading(message),
-    success: (message: string, description?: string) => 
-      showToast.success(message, { description }),
-    error: (message: string, description?: string) => 
-      showToast.error(message, { description }),
-    warning: (message: string, description?: string) => 
-      showToast.warning(message, { description }),
-    info: (message: string, description?: string) => 
-      showToast.info(message, { description })
-  }
-}; 
+// Convenience functions for common notification types
+export const createFinancialNotification = smartNotificationManager.createFinancialNotification.bind(smartNotificationManager);
+export const createSystemNotification = smartNotificationManager.createSystemNotification.bind(smartNotificationManager);
+export const createActivityNotification = smartNotificationManager.createActivityNotification.bind(smartNotificationManager);

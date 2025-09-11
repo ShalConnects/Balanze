@@ -151,7 +151,7 @@ export const PurchaseTracker: React.FC = () => {
   // Function to get readable date range label
   const getDateRangeLabel = () => {
     if (!filters.dateRange.start || !filters.dateRange.end) {
-      return 'Date Range';
+      return 'All Time';
     }
 
     const today = new Date();
@@ -220,6 +220,16 @@ export const PurchaseTracker: React.FC = () => {
     priority: 'all' as 'all' | 'low' | 'medium' | 'high',
     currency: '' as string,
     dateRange: getThisMonthDateRange()
+  });
+
+  // Mobile filter states
+  const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
+  const [tempFilters, setTempFilters] = useState({
+    search: '',
+    category: 'all',
+    priority: 'all' as 'all' | 'low' | 'medium' | 'high',
+    currency: '' as string,
+    dateRange: { start: '', end: '' }
   });
 
   // Add sorting state
@@ -305,6 +315,41 @@ export const PurchaseTracker: React.FC = () => {
       setSelectedCurrency(availableCurrencies[0]);
     }
   }, [availableCurrencies, selectedCurrency]);
+
+  // Mobile filter functionality
+  useEffect(() => {
+    if (showMobileFilterMenu) {
+      setTempFilters(filters);
+    }
+  }, [showMobileFilterMenu, filters]);
+
+  const handleCloseModal = () => {
+    setTempFilters({
+      search: '',
+      category: 'all',
+      priority: 'all',
+      currency: '',
+      dateRange: { start: '', end: '' }
+    });
+    setShowMobileFilterMenu(false);
+  };
+
+  // Handle Escape key to close mobile filter modal
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && showMobileFilterMenu) {
+        handleCloseModal();
+      }
+    };
+
+    if (showMobileFilterMenu) {
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showMobileFilterMenu]);
   
   // Get analytics for selected currency or all currencies combined
   const getAnalyticsForCurrency = (currency: string) => {
@@ -423,6 +468,8 @@ export const PurchaseTracker: React.FC = () => {
 
   const handleAccountChange = (val: string) => {
     setSelectedAccountId(val);
+    // Clear the category when account changes to avoid showing incompatible categories
+    setFormData(f => ({ ...f, category: '' }));
     setTouched(t => ({ ...t, account: true })); // Mark as touched on change
     // Validate with the new account ID immediately
     validateForm(formData, val);
@@ -969,6 +1016,7 @@ export const PurchaseTracker: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showPresetDropdown]);
 
+  // Preset date range handler
   const handlePresetRange = (preset: string) => {
     const today = new Date();
     if (preset === 'custom') {
@@ -1017,6 +1065,10 @@ export const PurchaseTracker: React.FC = () => {
         end = last.toISOString().slice(0, 10);
         break;
       }
+      case 'allTime':
+        start = '';
+        end = '';
+        break;
       default:
         break;
     }
@@ -1046,15 +1098,13 @@ export const PurchaseTracker: React.FC = () => {
             <PurchaseSummaryCardsSkeleton />
           </div>
           
-          {/* Table skeleton */}
-          <div className="p-4">
+          {/* Responsive skeleton - Desktop table, Mobile cards */}
+          <div className="hidden md:block p-4">
             <PurchaseTableSkeleton rows={6} />
           </div>
-        </div>
-        
-        {/* Mobile skeleton */}
-        <div className="md:hidden">
-          <PurchaseCardSkeleton count={4} />
+          <div className="md:hidden">
+            <PurchaseCardSkeleton count={4} />
+          </div>
         </div>
       </div>
     );
@@ -1170,7 +1220,37 @@ export const PurchaseTracker: React.FC = () => {
             </div>
           </div>
 
-          <div>
+          {/* Mobile Filter and Add Purchase Buttons */}
+          <div className="md:hidden flex items-center gap-2">
+            <button
+              onClick={() => setShowMobileFilterMenu(true)}
+              className={`px-2 py-1.5 text-[13px] h-8 w-8 rounded-md transition-colors flex items-center justify-center ${
+                (filters.category !== 'all' || filters.priority !== 'all' || filters.currency || filters.dateRange.start || filters.dateRange.end)
+                  ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
+              style={(filters.category !== 'all' || filters.priority !== 'all' || filters.currency || filters.dateRange.start || filters.dateRange.end) ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+              title="Filters"
+            >
+              <Filter className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                console.log('Purchase form button clicked');
+                if (checkCategoriesAndRedirect()) {
+                  setShowPurchaseForm(true);
+                }
+              }}
+              className="bg-gradient-primary text-white px-2 py-1.5 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center justify-center text-[13px] h-8 w-8"
+              disabled={submitting}
+              title="Add Purchase"
+              aria-label="Add Purchase"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="hidden md:block">
               <div className="relative" ref={filterCurrencyMenuRef}>
                 <button
                   onClick={() => setShowFilterCurrencyMenu(v => !v)}
@@ -1202,7 +1282,7 @@ export const PurchaseTracker: React.FC = () => {
 
 
 
-          <div>
+          <div className="hidden md:block">
               <div className="relative" ref={categoryMenuRef}>
                 <button
                   onClick={() => setShowCategoryMenu(v => !v)}
@@ -1238,7 +1318,7 @@ export const PurchaseTracker: React.FC = () => {
               </div>
           </div>
 
-          <div>
+          <div className="hidden md:block">
               <div className="relative" ref={priorityMenuRef}>
                 <button
                   onClick={() => setShowPriorityMenu(v => !v)}
@@ -1268,7 +1348,7 @@ export const PurchaseTracker: React.FC = () => {
               </div>
           </div>
             {/* Date Filter Dropdown and Modal (matches Transactions page) */}
-            <div className="relative">
+            <div className="relative hidden md:block">
               <button
                 className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
                   filters.dateRange.start && filters.dateRange.end 
@@ -1291,6 +1371,7 @@ export const PurchaseTracker: React.FC = () => {
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('thisMonth'); setShowPresetDropdown(false); }}>This Month</button>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('lastMonth'); setShowPresetDropdown(false); }}>Last Month</button>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('thisYear'); setShowPresetDropdown(false); }}>This Year</button>
+                  <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('allTime'); setShowPresetDropdown(false); }}>All Time</button>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('custom'); }}>Custom Range…</button>
                 </div>
               )}
@@ -1386,6 +1467,7 @@ export const PurchaseTracker: React.FC = () => {
 
             {/* Add Purchase Button moved here */}
             <div className="flex items-center gap-2 ml-auto">
+              {/* Desktop Add Purchase Button */}
               <button
                 onClick={() => {
                   console.log('Purchase form button clicked');
@@ -1393,7 +1475,7 @@ export const PurchaseTracker: React.FC = () => {
                     setShowPurchaseForm(true);
                   }
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-primary text-white rounded-md hover:bg-gradient-primary-hover transition-colors whitespace-nowrap h-8 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-gradient-primary text-white rounded-md hover:bg-gradient-primary-hover transition-colors whitespace-nowrap h-8 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
                 disabled={submitting}
                 title="Add Purchase"
                 aria-label="Add Purchase"
@@ -1401,6 +1483,8 @@ export const PurchaseTracker: React.FC = () => {
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Purchase</span>
               </button>
+
+
             </div>
           </div>
         </div>
@@ -1975,9 +2059,8 @@ export const PurchaseTracker: React.FC = () => {
       </div>
 
       {/* Purchase Form Modal */}
-                      {showPurchaseForm && (
-          console.log('PurchaseTracker: Rendering purchase form, editingPurchase =', editingPurchase),
-          <>
+      {showPurchaseForm && (
+        <>
             <Loader isLoading={submitting} message={loadingMessage} />
             <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => {
@@ -2134,7 +2217,7 @@ export const PurchaseTracker: React.FC = () => {
                           }
                           value={formData.currency}
                           onChange={val => {
-                            setFormData(f => ({ ...f, currency: val }));
+                            setFormData(f => ({ ...f, currency: val, category: '' }));
                           }}
                           placeholder="Select Currency *"
                           fullWidth={true}
@@ -2149,7 +2232,12 @@ export const PurchaseTracker: React.FC = () => {
                         options={[
                           { value: '', label: 'Select category' },
                           ...purchaseCategories
-                            .filter(cat => cat.currency === formData.currency)
+                            .filter(cat => {
+                              // When excluding from calculation, filter by manually selected currency
+                              // Otherwise, filter by account currency
+                              const targetCurrency = excludeFromCalculation ? formData.currency : accounts.find(a => a.id === selectedAccountId)?.currency;
+                              return cat.currency === targetCurrency;
+                            })
                             .map(cat => ({ label: cat.category_name, value: cat.category_name })),
                           { value: '__add_new__', label: '+ Add New Category' },
                         ]}
@@ -2177,19 +2265,37 @@ export const PurchaseTracker: React.FC = () => {
                       {fieldErrors.category && touched.category && (
                         <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.category}</span>
                       )}
-                      {formData.currency && purchaseCategories.filter(cat => cat.currency === formData.currency).length === 0 && (
-                        <div className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
-                          <span>⚠️</span>
-                          No categories found for {formData.currency}. 
-                          <button 
-                            type="button" 
-                            onClick={() => setShowCategoryModal(true)}
-                            className="text-blue-600 hover:text-blue-800 underline"
-                          >
-                            Add a category in {formData.currency}
-                          </button>
-                        </div>
-                      )}
+                      {(() => {
+                        const targetCurrency = excludeFromCalculation ? formData.currency : accounts.find(a => a.id === selectedAccountId)?.currency;
+                        const hasMatchingCategories = purchaseCategories.some(cat => cat.currency === targetCurrency);
+                        
+                        if (targetCurrency && !hasMatchingCategories) {
+                          return (
+                            <div className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                              <span>⚠️</span>
+                              No categories found for {targetCurrency}. 
+                              <button 
+                                type="button" 
+                                onClick={() => setShowCategoryModal(true)}
+                                className="text-blue-600 hover:text-blue-800 underline"
+                              >
+                                Add a category in {targetCurrency}
+                              </button>
+                            </div>
+                          );
+                        }
+                        
+                        if (excludeFromCalculation && targetCurrency) {
+                          return (
+                            <div className="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1">
+                              <span>ℹ️</span>
+                              Categories filtered by selected currency: {targetCurrency}
+                            </div>
+                          );
+                        }
+                        
+                        return null;
+                      })()}
                     </div>
                     
                     <div className="relative flex-1 min-w-0">
@@ -2417,6 +2523,207 @@ export const PurchaseTracker: React.FC = () => {
         confirmLabel="Delete Purchase"
         cancelLabel="Cancel"
       />
+
+      {/* Mobile Filter Modal */}
+      {showMobileFilterMenu && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999] md:hidden">
+          <div 
+            className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-[calc(100vw-2rem)] max-w-xs p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filters</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setFilters(tempFilters);
+                    setShowMobileFilterMenu(false);
+                  }}
+                  className={`p-1 rounded-full transition-colors ${
+                    (tempFilters.category !== 'all' || tempFilters.priority !== 'all' || tempFilters.currency || tempFilters.dateRange.start || tempFilters.dateRange.end)
+                      ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
+                      : 'text-gray-400'
+                  }`}
+                  title="Apply Filters"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={handleCloseModal}
+                  className="p-1 rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  title="Clear All"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select filters and click ✓ to apply</p>
+
+            {/* Filter Options */}
+            <div className="space-y-4">
+              {/* Currency Filter */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Currency</h4>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, currency: '' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.currency === ''
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {currencyOptions.map(currency => (
+                    <button
+                      key={currency}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTempFilters({ ...tempFilters, currency });
+                      }}
+                      className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                        tempFilters.currency === currency
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {currency}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Category Filter */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Category</h4>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, category: 'all' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.category === 'all'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    All Categories
+                  </button>
+                  {purchaseCategories.map(category => (
+                    <button
+                      key={category.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTempFilters({ ...tempFilters, category: category.category_name });
+                      }}
+                      className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                        tempFilters.category === category.category_name
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {category.category_name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Priority Filter */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Priority</h4>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, priority: 'all' });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.priority === 'all'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    All Priorities
+                  </button>
+                  {(['low', 'medium', 'high'] as const).map(priority => (
+                    <button
+                      key={priority}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTempFilters({ ...tempFilters, priority });
+                      }}
+                      className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                        tempFilters.priority === priority
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date Range Filter */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Date Range</h4>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempFilters({ ...tempFilters, dateRange: { start: '', end: '' } });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      !tempFilters.dateRange.start && !tempFilters.dateRange.end
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    All Dates
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const today = new Date().toISOString().slice(0, 10);
+                      setTempFilters({ ...tempFilters, dateRange: { start: today, end: today } });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.dateRange.start === new Date().toISOString().slice(0, 10) && tempFilters.dateRange.end === new Date().toISOString().slice(0, 10)
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const { start, end } = getThisMonthDateRange();
+                      setTempFilters({ ...tempFilters, dateRange: { start, end } });
+                    }}
+                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      tempFilters.dateRange.start === getThisMonthDateRange().start && tempFilters.dateRange.end === getThisMonthDateRange().end
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    This Month
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Category Modal */}
       <CategoryModal

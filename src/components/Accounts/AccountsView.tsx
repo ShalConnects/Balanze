@@ -1649,8 +1649,8 @@ export const AccountsView: React.FC = () => {
       {modalOpen && selectedAccount && (
         <div className="fixed inset-0 z-50 flex items-start justify-center p-2 sm:p-4 pt-16">
           <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setModalOpen(false)} />
-          <div className="relative bg-white w-full max-w-6xl rounded-lg shadow-2xl overflow-hidden" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
-            <div className="p-3 sm:p-4 pt-8 max-h-full overflow-y-auto">
+          <div className="relative bg-white w-full max-w-6xl rounded-lg shadow-2xl" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
+            <div className="p-3 sm:p-4 pt-8 pb-6 overflow-y-auto overscroll-contain -webkit-overflow-scrolling-touch" style={{ maxHeight: 'calc(100vh - 10rem)' }}>
               {/* Close Button - Absolute positioned */}
               <button 
                 className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 p-1 z-10" 
@@ -1664,7 +1664,7 @@ export const AccountsView: React.FC = () => {
                 {/* Left: Transactions List (100% on mobile, 80% on desktop) */}
                 <div className="w-full lg:w-4/5 flex flex-col">
                   <h3 className="text-sm sm:text-base font-bold mb-2">Transactions</h3>
-                  <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg">
+                  <div className="flex-1 border border-gray-200 rounded-lg">
                     <table className="w-full border-collapse">
                       <thead className="bg-gray-50 sticky top-0">
                         <tr>
@@ -1757,7 +1757,7 @@ export const AccountsView: React.FC = () => {
                 {/* Right: Account Info (100% on mobile, 20% on desktop) */}
                 <div className="w-full lg:w-1/5 flex flex-col mt-3 lg:mt-0">
                   <h3 className="text-sm sm:text-base font-bold mb-2">Account Info</h3>
-                  <div className="flex-1 overflow-y-auto p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex-1 p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="space-y-1.5 sm:space-y-2 text-xs">
                       <div><b>Name:</b> {selectedAccount.name.charAt(0).toUpperCase() + selectedAccount.name.slice(1)}</div>
                       <div><b>Type:</b> <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getAccountColor(selectedAccount.type)} ml-1`}>

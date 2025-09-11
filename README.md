@@ -1,4 +1,4 @@
-# FinTech SaaS Platform
+# Balanze - Personal Finance Management
 
 A modern, multi-user SaaS finance application built with React, TypeScript, Zustand, Supabase, Vite, and Tailwind CSS.
 

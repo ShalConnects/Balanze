@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS subscription_plans (
     description TEXT,
     price DECIMAL(10,2) NOT NULL,
     currency TEXT DEFAULT 'USD',
-    billing_cycle TEXT CHECK (billing_cycle IN ('monthly', 'yearly')) NOT NULL,
+    billing_cycle TEXT CHECK (billing_cycle IN ('monthly', 'one-time')) NOT NULL,
     features JSONB NOT NULL,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

@@ -460,7 +460,7 @@ async function testRecentFixes() {
 }
 
 async function runAllTests() {
-  console.log('🚀 Starting Comprehensive FinTech App Test Suite');
+  console.log('🚀 Starting Comprehensive Balanze App Test Suite');
   console.log('=' .repeat(60));
   
   // Test authentication first
@@ -497,7 +497,7 @@ async function runAllTests() {
   
   console.log('\n🎯 RECOMMENDATIONS:');
   if (testResults.failed === 0) {
-    console.log('   ✅ All tests passed! Your FinTech app is working perfectly.');
+    console.log('   ✅ All tests passed! Your Balanze app is working perfectly.');
   } else {
     console.log('   ⚠️  Some tests failed. Please review the errors above.');
     console.log('   🔧 Consider running individual test functions to debug specific issues.');

@@ -116,6 +116,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'settings': return 'Settings';
       case 'about': return 'About';
       case 'donations': return 'Donations';
+      case 'favorite-quotes': return 'Favorite Quotes';
       default: return 'Dashboard';
     }
   };

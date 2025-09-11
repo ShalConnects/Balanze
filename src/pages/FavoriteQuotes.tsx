@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, Trash2, Search, Filter, Bookmark, Calendar, User, Eye, Quote, ChevronDown, ChevronUp, Grid, List } from 'lucide-react';
 import { useNotificationStore, FavoriteQuote } from '../store/notificationStore';
+import { useAuthStore } from '../store/authStore';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -9,7 +10,8 @@ import { CustomDropdown } from '../components/Purchases/CustomDropdown';
 export const FavoriteQuotes: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { favoriteQuotes, removeFavoriteQuote } = useNotificationStore();
+  const { user } = useAuthStore();
+  const { favoriteQuotes, removeFavoriteQuote, loadFavoriteQuotes, setCurrentUserId } = useNotificationStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'author' | 'category'>('date');
@@ -17,6 +19,16 @@ export const FavoriteQuotes: React.FC = () => {
   const [showStats, setShowStats] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   
+  // Load favorite quotes and set current user ID when user changes
+  useEffect(() => {
+    if (user?.id) {
+      setCurrentUserId(user.id);
+      loadFavoriteQuotes(user.id);
+    } else {
+      setCurrentUserId(null);
+    }
+  }, [user?.id, setCurrentUserId, loadFavoriteQuotes]);
+
   // Check if Quote Widget is hidden on dashboard
   const [showQuoteWidget, setShowQuoteWidget] = useState(() => {
     const saved = localStorage.getItem('showQuoteWidget');
@@ -98,6 +110,20 @@ export const FavoriteQuotes: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Show Quote Widget Button */}
+          <div className="flex justify-end mb-6">
+            {!showQuoteWidget && (
+              <button
+                onClick={handleShowQuoteWidget}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 text-sm"
+                title="Show Quote Widget on Dashboard"
+              >
+                <Quote className="w-4 h-4" />
+                <span className="hidden sm:inline">Show on Dashboard</span>
+              </button>
+            )}
+          </div>
+
           <div className="text-center">
             <div className="mx-auto w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-4">
               <Heart className="w-8 h-8 text-red-500" />
@@ -129,23 +155,9 @@ export const FavoriteQuotes: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-4">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Compact Header */}
+        {/* Action Buttons */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
-                <Heart className="w-5 h-5 text-red-500" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Favorite Quotes
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {favoriteQuotes.length} quotes • {new Set(favoriteQuotes.map(q => q.author)).size} authors
-                </p>
-              </div>
-            </div>
-            
             <div className="flex items-center gap-2">
               {/* View Mode Toggle */}
               <div className="flex bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-1">
@@ -170,7 +182,9 @@ export const FavoriteQuotes: React.FC = () => {
                   <List className="w-4 h-4" />
                 </button>
               </div>
-
+            </div>
+            
+            <div className="flex items-center gap-2">
               {/* Show Quote Widget Button */}
               {!showQuoteWidget && (
                 <button
@@ -314,7 +328,7 @@ export const FavoriteQuotes: React.FC = () => {
                     </span>
                   </div>
                   <button
-                    onClick={() => removeFavoriteQuote(quote.id)}
+                    onClick={async () => await removeFavoriteQuote(quote.id)}
                     className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
                     title="Remove from favorites"
                   >
@@ -371,7 +385,7 @@ export const FavoriteQuotes: React.FC = () => {
                     </div>
                   </div>
                   <button
-                    onClick={() => removeFavoriteQuote(quote.id)}
+                    onClick={async () => await removeFavoriteQuote(quote.id)}
                     className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors flex-shrink-0"
                     title="Remove from favorites"
                   >

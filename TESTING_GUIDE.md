@@ -1,8 +1,8 @@
-# 🧪 FinTech App Testing Guide
+# 🧪 Balanze App Testing Guide
 
 ## 📋 Overview
 
-This guide provides comprehensive testing tools and instructions for verifying all features of your FinTech application. We've created both automated and manual testing approaches to ensure everything works correctly.
+This guide provides comprehensive testing tools and instructions for verifying all features of your Balanze application. We've created both automated and manual testing approaches to ensure everything works correctly.
 
 ## 🚀 Quick Start
 
@@ -174,7 +174,7 @@ await testCategories();
 
 After running tests, verify your live deployment:
 
-1. **Visit:** https://fin-tech-3yxp8ifxd-shalauddin-kaders-projects.vercel.app
+1. **Visit:** https://balanze.cash
 2. **Login** with test credentials
 3. **Test key features:**
    - Add categories
@@ -212,7 +212,7 @@ After running tests, document your findings:
 
 ## 🎉 Success Criteria
 
-Your FinTech app is working perfectly when:
+Your Balanze app is working perfectly when:
 
 1. ✅ All automated tests pass
 2. ✅ All manual tests pass

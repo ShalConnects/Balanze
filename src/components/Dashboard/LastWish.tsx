@@ -56,8 +56,8 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
   const { accounts, transactions, purchases, donationSavingRecords } = useFinanceStore();
   const [lendBorrowRecords, setLendBorrowRecords] = useState<any[]>([]);
   
-  // Enable for all users (removed premium restriction)
-  const isPremium = true;
+  // Check if user has Premium plan
+  const isPremium = profile?.subscription?.plan === 'premium';
   const [settings, setSettings] = useState<LastWishSettings>({
     isEnabled: false,
     checkInFrequency: 30,
@@ -77,15 +77,55 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
   const [loading, setLoading] = useState(false);
   const [showRecipientModal, setShowRecipientModal] = useState(false);
   const [editingRecipient, setEditingRecipient] = useState<any>(null);
-  const [showMessage, setShowMessage] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [daysUntilCheckIn, setDaysUntilCheckIn] = useState<number | null>(null);
   const messageEditorRef = useRef<HTMLDivElement>(null);
   const [isEditorInitialized, setIsEditorInitialized] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [showHtmlCode, setShowHtmlCode] = useState(false);
+  const [selectedFont, setSelectedFont] = useState('Arial');
+  const [selectedFontSize, setSelectedFontSize] = useState('14');
+  const [showFontDropdown, setShowFontDropdown] = useState(false);
+  const [showFontSizeDropdown, setShowFontSizeDropdown] = useState(false);
+  const [fontButtonRect, setFontButtonRect] = useState<DOMRect | null>(null);
+  const [fontSizeButtonRect, setFontSizeButtonRect] = useState<DOMRect | null>(null);
+  const [showTemplatesDropdown, setShowTemplatesDropdown] = useState(false);
+  const [templatesButtonRect, setTemplatesButtonRect] = useState<DOMRect | null>(null);
 
   // Load settings from database
   useEffect(() => {
     loadLastWishSettings();
   }, [user]);
+
+  // Cleanup auto-save timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Element;
+      if (!target.closest('.font-dropdown') && !target.closest('.font-size-dropdown') && !target.closest('.templates-dropdown')) {
+        setShowFontDropdown(false);
+        setShowFontSizeDropdown(false);
+        setShowTemplatesDropdown(false);
+      }
+    }
+
+    if (showFontDropdown || showFontSizeDropdown || showTemplatesDropdown) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showFontDropdown, showFontSizeDropdown, showTemplatesDropdown]);
 
   // Debug: Check current database state
   useEffect(() => {
@@ -290,6 +330,21 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
       toast.success('Last Wish settings saved successfully');
     } catch (error) {
       console.error('Error saving last wish settings:', error);
+      
+      // Check if it's a plan limit error and show upgrade prompt
+      if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+        const errorMessage = error.message;
+        
+        if (errorMessage && errorMessage.includes('FEATURE_NOT_AVAILABLE') && errorMessage.includes('Last Wish')) {
+          toast.error('Last Wish - Digital Time Capsule is a Premium feature. Upgrade to Premium to create your digital legacy.');
+          setTimeout(() => {
+            window.location.href = '/settings?tab=plans';
+          }, 2000);
+          
+          return;
+        }
+      }
+      
       toast.error('Failed to save settings');
     } finally {
       setLoading(false);
@@ -543,11 +598,226 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
     }
   };
 
-  // Text Editor Functions
-  const formatText = (command: string) => {
+  // Simplified Text Editor Functions
+  const formatText = (command: string, value?: string) => {
     if (messageEditorRef.current) {
-      document.execCommand(command, false);
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        
+        // Special handling for bullet points
+        if (command === 'insertUnorderedList') {
+          const selectedText = selection.toString();
+          
+          if (selectedText) {
+            // Multiple lines selected - convert each line to a bullet point
+            const lines = selectedText.split('\n').filter(line => line.trim() !== '');
+            if (lines.length > 0) {
+              const ul = document.createElement('ul');
+              lines.forEach(line => {
+                const li = document.createElement('li');
+                li.textContent = line.trim();
+                ul.appendChild(li);
+              });
+              
+              range.deleteContents();
+              range.insertNode(ul);
+              
+              // Move cursor to end of the list
+              const newRange = document.createRange();
+              newRange.setStartAfter(ul);
+              newRange.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+            }
+          } else {
+            // No selection - create single bullet point
+            const container = range.commonAncestorContainer;
+            const listItem = container.nodeType === Node.TEXT_NODE 
+              ? container.parentElement?.closest('li')
+              : (container as Element)?.closest('li');
+            
+            if (listItem) {
+              // If already in a list, remove the list
+              document.execCommand('insertUnorderedList', false);
+            } else {
+              // Create a new list
+              const ul = document.createElement('ul');
+              const li = document.createElement('li');
+              li.textContent = '• ';
+              ul.appendChild(li);
+              range.deleteContents();
+              range.insertNode(ul);
+              
+              // Move cursor inside the list item
+              const newRange = document.createRange();
+              newRange.setStart(li, 1);
+              newRange.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+            }
+          }
+        }
+        // Special handling for numbered lists
+        else if (command === 'insertOrderedList') {
+          const selectedText = selection.toString();
+          
+          if (selectedText) {
+            // Multiple lines selected - convert each line to a numbered item
+            const lines = selectedText.split('\n').filter(line => line.trim() !== '');
+            if (lines.length > 0) {
+              const ol = document.createElement('ol');
+              lines.forEach(line => {
+                const li = document.createElement('li');
+                li.textContent = line.trim();
+                ol.appendChild(li);
+              });
+              
+              range.deleteContents();
+              range.insertNode(ol);
+              
+              // Move cursor to end of the list
+              const newRange = document.createRange();
+              newRange.setStartAfter(ol);
+              newRange.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+            }
+          } else {
+            // No selection - create single numbered item
+            const container = range.commonAncestorContainer;
+            const listItem = container.nodeType === Node.TEXT_NODE 
+              ? container.parentElement?.closest('li')
+              : (container as Element)?.closest('li');
+            
+            if (listItem) {
+              // If already in a list, remove the list
+              document.execCommand('insertOrderedList', false);
+            } else {
+              // Create a new numbered list
+              const ol = document.createElement('ol');
+              const li = document.createElement('li');
+              li.textContent = '1. ';
+              ol.appendChild(li);
+              range.deleteContents();
+              range.insertNode(ol);
+              
+              // Move cursor inside the list item
+              const newRange = document.createRange();
+              newRange.setStart(li, 3);
+              newRange.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+            }
+          }
+        }
+        else {
+          // Use standard execCommand for other formatting
+          document.execCommand(command, false, value);
+        }
+      }
+      
       messageEditorRef.current.focus();
+      // Trigger auto-save after formatting
+      setTimeout(() => {
+        if (messageEditorRef.current) {
+          const content = messageEditorRef.current.innerHTML;
+          setSettings(prev => ({ ...prev, message: content }));
+          setSaveStatus('unsaved');
+        }
+      }, 100);
+    }
+  };
+
+  const changeFont = (fontFamily: string) => {
+    setSelectedFont(fontFamily);
+    formatText('fontName', fontFamily);
+  };
+
+  const changeFontSize = (fontSize: string) => {
+    setSelectedFontSize(fontSize);
+    formatText('fontSize', fontSize);
+  };
+
+  const toggleHtmlCode = () => {
+    setShowHtmlCode(!showHtmlCode);
+  };
+
+  const getHtmlContent = () => {
+    if (messageEditorRef.current) {
+      return messageEditorRef.current.innerHTML;
+    }
+    return '';
+  };
+
+  const setHtmlContent = (html: string) => {
+    if (messageEditorRef.current) {
+      messageEditorRef.current.innerHTML = html;
+      setSettings(prev => ({ ...prev, message: html }));
+      setSaveStatus('unsaved');
+      
+      // Clear any pending auto-save and set new timeout
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        autoSaveMessage(html);
+      }, 2000);
+    }
+  };
+
+  const insertTemplate = (templateType: string) => {
+    const templates = {
+      personal: `
+        <h2>My Personal Message</h2>
+        <p>Dear loved ones,</p>
+        <p>This is my final message to you...</p>
+        <ul>
+          <li>Important memories I want to share</li>
+          <li>Words of wisdom and love</li>
+          <li>Final wishes and thoughts</li>
+        </ul>
+        <p>With all my love,<br>Your name</p>
+      `,
+      financial: `
+        <h2>Financial Information</h2>
+        <p>Important financial details and instructions:</p>
+        <ul>
+          <li>Bank account information</li>
+          <li>Investment details</li>
+          <li>Insurance policies</li>
+          <li>Property information</li>
+        </ul>
+        <p><strong>Note:</strong> Please consult with a financial advisor for detailed guidance.</p>
+      `,
+      memories: `
+        <h2>My Life Story</h2>
+        <p>I want to share some of my most cherished memories:</p>
+        <h3>Childhood</h3>
+        <p>My earliest memories include...</p>
+        <h3>Adulthood</h3>
+        <p>As I grew older, I learned...</p>
+        <h3>Family</h3>
+        <p>The most important thing in my life has been...</p>
+      `
+    };
+
+    const template = templates[templateType as keyof typeof templates] || '';
+    if (messageEditorRef.current) {
+      messageEditorRef.current.innerHTML = template;
+      setSettings(prev => ({ ...prev, message: template }));
+      setSaveStatus('unsaved');
+      messageEditorRef.current.focus();
+      
+      // Clear any pending auto-save and set new timeout
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        autoSaveMessage(template);
+      }, 2000);
     }
   };
 
@@ -594,15 +864,24 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
     if (messageEditorRef.current) {
       messageEditorRef.current.innerHTML = '';
       setSettings(prev => ({ ...prev, message: '' }));
+      setSaveStatus('unsaved');
     }
   };
 
   const handleMessageInput = (e: React.FormEvent<HTMLDivElement>) => {
     const content = e.currentTarget.innerHTML;
-    // Only update if content actually changed to prevent unnecessary re-renders
-    if (content !== settings.message) {
-      setSettings(prev => ({ ...prev, message: content }));
+    setSettings(prev => ({ ...prev, message: content }));
+    setSaveStatus('unsaved');
+    
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
     }
+    
+    // Set new timeout for auto-save (2 seconds after user stops typing)
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      autoSaveMessage(content);
+    }, 2000);
   };
 
   // Initialize editor content only once
@@ -617,6 +896,15 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
     if (messageEditorRef.current) {
       const content = messageEditorRef.current.innerHTML;
       setSettings(prev => ({ ...prev, message: content }));
+      
+      // Clear any pending auto-save and save immediately
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      
+      if (content !== settings.message) {
+        autoSaveMessage(content);
+      }
     }
   };
 
@@ -668,23 +956,114 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter') {
+    // Handle keyboard shortcuts
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key.toLowerCase()) {
+        case 'b':
+          e.preventDefault();
+          formatText('bold');
+          break;
+        case 'i':
+          e.preventDefault();
+          formatText('italic');
+          break;
+        case 'u':
+          e.preventDefault();
+          formatText('underline');
+          break;
+        case 'k':
+          e.preventDefault();
+          const url = prompt('Enter URL:');
+          if (url) {
+            formatText('createLink', url);
+          }
+          break;
+        case 'z':
+          if (e.shiftKey) {
+            e.preventDefault();
+            formatText('redo');
+          } else {
+            e.preventDefault();
+            formatText('undo');
+          }
+          break;
+        case 'y':
+          e.preventDefault();
+          formatText('redo');
+          break;
+      }
+    }
+    
+    // Handle Tab key
+    if (e.key === 'Tab') {
       e.preventDefault();
-      
-      // Insert a line break at cursor position
+      insertText('  '); // Insert 2 spaces for tab
+    }
+    
+    // Handle Enter key for better list handling
+    if (e.key === 'Enter' && !e.shiftKey) {
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
-        const br = document.createElement('br');
-        range.deleteContents();
-        range.insertNode(br);
+        const container = range.commonAncestorContainer;
         
-        // Move cursor after the line break
-        range.setStartAfter(br);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
+        // Check if we're in a list item
+        const listItem = container.nodeType === Node.TEXT_NODE 
+          ? container.parentElement?.closest('li')
+          : (container as Element)?.closest('li');
+        
+        if (listItem) {
+          // Let the browser handle list continuation
+          return;
+        }
       }
+      
+      // For non-list content, insert a paragraph break
+      e.preventDefault();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const p = document.createElement('p');
+        p.innerHTML = '<br>';
+        range.deleteContents();
+        range.insertNode(p);
+        
+        // Move cursor after the paragraph
+        const newRange = document.createRange();
+        newRange.setStartAfter(p);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+      }
+    }
+  };
+
+  const autoSaveMessage = async (content: string) => {
+    if (!user) return;
+    
+    setSaveStatus('saving');
+    try {
+      const { error } = await supabase
+        .from('last_wish_settings')
+        .upsert({
+          user_id: user.id,
+          is_enabled: settings.isEnabled,
+          check_in_frequency: settings.checkInFrequency,
+          last_check_in: settings.lastCheckIn,
+          recipients: settings.recipients,
+          include_data: settings.includeData,
+          message: content,
+          is_active: settings.isActive,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (error) throw error;
+
+      setSaveStatus('saved');
+      console.log('Message auto-saved successfully');
+    } catch (error) {
+      console.error('Error auto-saving message:', error);
+      setSaveStatus('unsaved');
+      toast.error('Failed to auto-save message');
     }
   };
 
@@ -814,9 +1193,109 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
 
   return (
     <div className="space-y-6">
+      {/* Enhanced Editor Styles */}
+      <style>{`
+        .rich-editor h1 {
+          font-size: 1.875rem;
+          font-weight: 700;
+          margin: 1rem 0 0.5rem 0;
+          line-height: 1.2;
+        }
+        .rich-editor h2 {
+          font-size: 1.5rem;
+          font-weight: 600;
+          margin: 0.875rem 0 0.5rem 0;
+          line-height: 1.3;
+        }
+        .rich-editor h3 {
+          font-size: 1.25rem;
+          font-weight: 600;
+          margin: 0.75rem 0 0.5rem 0;
+          line-height: 1.4;
+        }
+        .rich-editor p {
+          margin: 0.5rem 0;
+          line-height: 1.6;
+        }
+        .rich-editor ul, .rich-editor ol {
+          margin: 0.5rem 0;
+          padding-left: 1.5rem;
+        }
+        .rich-editor ul {
+          list-style-type: disc;
+        }
+        .rich-editor ol {
+          list-style-type: decimal;
+        }
+        .rich-editor li {
+          margin: 0.25rem 0;
+          line-height: 1.5;
+          display: list-item;
+        }
+        .rich-editor blockquote {
+          border-left: 4px solid #e5e7eb;
+          padding-left: 1rem;
+          margin: 1rem 0;
+          font-style: italic;
+          color: #6b7280;
+          background-color: #f9fafb;
+          padding: 0.75rem 1rem;
+          border-radius: 0.375rem;
+        }
+        .rich-editor code {
+          background-color: #f3f4f6;
+          padding: 0.125rem 0.25rem;
+          border-radius: 0.25rem;
+          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+          font-size: 0.875rem;
+        }
+        .rich-editor a {
+          color: #3b82f6;
+          text-decoration: underline;
+        }
+        .rich-editor a:hover {
+          color: #1d4ed8;
+        }
+        .rich-editor strong {
+          font-weight: 700;
+        }
+        .rich-editor em {
+          font-style: italic;
+        }
+        .rich-editor u {
+          text-decoration: underline;
+        }
+        .rich-editor s {
+          text-decoration: line-through;
+        }
+        .rich-editor[data-placeholder]:empty:before {
+          content: attr(data-placeholder);
+          color: #9ca3af;
+          pointer-events: none;
+          position: absolute;
+        }
+        .dark .rich-editor blockquote {
+          background-color: #374151;
+          border-left-color: #4b5563;
+          color: #d1d5db;
+        }
+        .dark .rich-editor code {
+          background-color: #374151;
+          color: #f3f4f6;
+        }
+        .dark .rich-editor a {
+          color: #60a5fa;
+        }
+        .dark .rich-editor a:hover {
+          color: #93c5fd;
+        }
+      `}</style>
+      
       {/* Header */}
       <div className="flex items-center space-x-3">
-        <Heart className="w-6 h-6 text-red-500" />
+        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+          <Heart className="w-6 h-6 text-white" />
+        </div>
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Last Wish - Digital Time Capsule
@@ -828,7 +1307,10 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
       </div>
 
       {/* Status Card */}
-      <div className="bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+      <div className={`${settings.isEnabled 
+        ? 'bg-gradient-to-r from-blue-50 via-purple-50 to-indigo-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800' 
+        : 'bg-gradient-to-r from-gray-50 via-slate-50 to-zinc-50 dark:from-gray-900/20 dark:via-slate-900/20 dark:to-zinc-900/20 border-gray-200 dark:border-gray-800'
+      } border rounded-lg p-6 transition-all duration-300 ease-in-out`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className={`w-3 h-3 rounded-full ${settings.isEnabled ? 'bg-green-500' : 'bg-gray-400'}`} />
@@ -976,99 +1458,277 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
         <div className="flex items-center justify-between mb-4">
           <h4 className="font-medium text-gray-900 dark:text-white">Personal Message</h4>
           <button
-            onClick={() => setShowMessage(!showMessage)}
+            onClick={() => setShowPreview(true)}
             className="text-blue-600 hover:text-blue-700 flex items-center space-x-2"
           >
-            {showMessage ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            <span>{showMessage ? 'Hide' : 'Show'}</span>
+            <Eye className="w-4 h-4" />
+            <span>Preview Message</span>
           </button>
         </div>
-        <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
-          {/* Text Editor Toolbar */}
-          <div className="bg-gray-50 dark:bg-gray-700 border-b border-gray-300 dark:border-gray-600 p-2 flex flex-wrap gap-1">
-            <button
-              type="button"
-              onClick={() => formatText('bold')}
-              className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-              title="Bold"
-            >
-              <strong>B</strong>
-            </button>
-            <button
-              type="button"
-              onClick={() => formatText('italic')}
-              className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-              title="Italic"
-            >
-              <em>I</em>
-            </button>
-            <button
-              type="button"
-              onClick={() => formatText('underline')}
-              className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-              title="Underline"
-            >
-              <u>U</u>
-            </button>
-            <div className="w-px bg-gray-300 dark:bg-gray-600 mx-1"></div>
-            <button
-              type="button"
-              onClick={() => insertText('\n• ')}
-              className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-              title="Bullet List"
-            >
-              • List
-            </button>
-            <button
-              type="button"
-              onClick={() => insertText('\n1. ')}
-              className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-              title="Numbered List"
-            >
-              1. List
-            </button>
-            <div className="w-px bg-gray-300 dark:bg-gray-600 mx-1"></div>
-            <button
-              type="button"
-              onClick={() => insertText('\n\n')}
-              className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-              title="New Line"
-            >
-              ↵
-            </button>
-            <button
-              type="button"
-              onClick={clearMessage}
-              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-              title="Clear Message"
-            >
-              Clear
-            </button>
+        <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-visible" style={{ position: 'relative' }}>
+          {/* Ultra-Compact Single Row Toolbar */}
+          <div className="bg-gray-50 dark:bg-gray-700 border-b border-gray-300 dark:border-gray-600 px-2 py-1">
+            <div className="flex items-center gap-1 overflow-x-auto">
+              {/* Font Family Dropdown - Modal Style */}
+              <div className="relative font-dropdown">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    console.log('Font dropdown clicked, current state:', showFontDropdown);
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setFontButtonRect(rect);
+                    setShowFontDropdown(!showFontDropdown);
+                    setShowFontSizeDropdown(false); // Close other dropdown
+                  }}
+                  className="min-w-[100px] text-xs bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 px-3 pr-8 py-1.5 h-8 rounded-md border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 transition-all duration-150 focus:outline-none focus:border-gray-500 dark:focus:border-gray-400 cursor-pointer flex items-center justify-between"
+                  style={{ fontFamily: selectedFont }}
+                >
+                  <span>{selectedFont}</span>
+                  <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Font Size Dropdown - Modal Style */}
+              <div className="relative font-size-dropdown">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    console.log('Font size dropdown clicked, current state:', showFontSizeDropdown);
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setFontSizeButtonRect(rect);
+                    setShowFontSizeDropdown(!showFontSizeDropdown);
+                    setShowFontDropdown(false); // Close other dropdown
+                  }}
+                  className="min-w-[65px] text-xs bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 px-3 pr-8 py-1.5 h-8 rounded-md border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 transition-all duration-150 focus:outline-none focus:border-gray-500 dark:focus:border-gray-400 cursor-pointer flex items-center justify-between"
+                >
+                  <span>{selectedFontSize}px</span>
+                  <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="w-px bg-gray-300 dark:bg-gray-600 h-4 mx-1"></div>
+
+              {/* Text Formatting Buttons - Enhanced */}
+              <button
+                type="button"
+                onClick={() => formatText('bold')}
+                className="p-1 text-gray-600 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 rounded text-xs font-bold min-w-[28px] h-8 transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
+                title="Bold (Ctrl+B)"
+              >
+                B
+              </button>
+              <button
+                type="button"
+                onClick={() => formatText('italic')}
+                className="p-1 text-gray-600 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 rounded text-xs italic min-w-[28px] h-8 transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
+                title="Italic (Ctrl+I)"
+              >
+                I
+              </button>
+              <button
+                type="button"
+                onClick={() => formatText('underline')}
+                className="p-1 text-gray-600 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 rounded text-xs underline min-w-[28px] h-8 transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
+                title="Underline (Ctrl+U)"
+              >
+                U
+              </button>
+              <button
+                type="button"
+                onClick={() => formatText('strikeThrough')}
+                className="p-1 text-gray-600 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 rounded text-xs line-through min-w-[28px] h-8 transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
+                title="Strikethrough"
+              >
+                S
+              </button>
+
+              <div className="w-px bg-gray-300 dark:bg-gray-600 h-4 mx-1"></div>
+
+              {/* List Buttons - Enhanced */}
+              <button
+                type="button"
+                onClick={() => formatText('insertUnorderedList')}
+                className="p-1 text-gray-600 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 rounded text-xs min-w-[28px] h-8 transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
+                title="Bullet List"
+              >
+                •
+              </button>
+              <button
+                type="button"
+                onClick={() => formatText('insertOrderedList')}
+                className="p-1 text-gray-600 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 rounded text-xs min-w-[28px] h-8 transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
+                title="Numbered List"
+              >
+                1.
+              </button>
+
+              <div className="w-px bg-gray-300 dark:bg-gray-600 h-4 mx-1"></div>
+
+              {/* Alignment Buttons - Enhanced */}
+              <button
+                type="button"
+                onClick={() => formatText('justifyLeft')}
+                className="p-1 text-gray-600 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 rounded text-xs min-w-[28px] h-8 transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
+                title="Align Left"
+              >
+                ⬅
+              </button>
+              <button
+                type="button"
+                onClick={() => formatText('justifyCenter')}
+                className="p-1 text-gray-600 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 rounded text-xs min-w-[28px] h-8 transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
+                title="Align Center"
+              >
+                ↔
+              </button>
+              <button
+                type="button"
+                onClick={() => formatText('justifyRight')}
+                className="p-1 text-gray-600 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 rounded text-xs min-w-[28px] h-8 transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
+                title="Align Right"
+              >
+                ➡
+              </button>
+
+              <div className="w-px bg-gray-300 dark:bg-gray-600 h-4 mx-1"></div>
+
+              {/* Template Dropdown - Modal Style */}
+              <div className="relative templates-dropdown">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setTemplatesButtonRect(rect);
+                    setShowTemplatesDropdown(!showTemplatesDropdown);
+                    setShowFontDropdown(false); // Close other dropdowns
+                    setShowFontSizeDropdown(false);
+                  }}
+                  className="min-w-[120px] text-xs bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 px-3 pr-8 py-1.5 h-8 rounded-md border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 transition-all duration-150 focus:outline-none focus:border-gray-500 dark:focus:border-gray-400 cursor-pointer flex items-center justify-between"
+                >
+                  <span>📝 Templates</span>
+                  <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="w-px bg-gray-300 dark:bg-gray-600 h-4 mx-1"></div>
+              {/* Special Elements - Enhanced */}
+              <button
+                type="button"
+                onClick={() => formatText('insertHorizontalRule')}
+                className="px-2 py-1 text-xs text-gray-600 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 rounded h-8 transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
+                title="Horizontal Line"
+              >
+                Line
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const url = prompt('Enter URL:');
+                  if (url) {
+                    formatText('createLink', url);
+                  }
+                }}
+                className="px-2 py-1 text-xs text-gray-600 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 rounded h-8 transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-blue-700"
+                title="Insert Link"
+              >
+                Link
+              </button>
+
+              <div className="w-px bg-gray-300 dark:bg-gray-600 h-4 mx-1"></div>
+
+              {/* Clear Actions - Enhanced */}
+              <button
+                type="button"
+                onClick={() => formatText('removeFormat')}
+                className="px-2 py-1 text-xs text-gray-600 dark:text-gray-300 hover:bg-orange-100 dark:hover:bg-orange-900/30 hover:text-orange-600 dark:hover:text-orange-400 rounded h-8 transition-all duration-200 border border-transparent hover:border-orange-200 dark:hover:border-orange-700"
+                title="Clear Format"
+              >
+                Clear Format
+              </button>
+              <button
+                type="button"
+                onClick={clearMessage}
+                className="px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-700 dark:hover:text-red-300 rounded h-8 transition-all duration-200 border border-transparent hover:border-red-200 dark:hover:border-red-700"
+                title="Clear All Content"
+              >
+                Clear All
+              </button>
+
+              {/* HTML Toggle - Enhanced */}
+              <div className="ml-auto flex items-center">
+                <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showHtmlCode}
+                    onChange={toggleHtmlCode}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-all"
+                  />
+                  <span className="font-medium">HTML</span>
+                </label>
+              </div>
+            </div>
           </div>
-          {/* Text Editor */}
-          <div
-            ref={messageEditorRef}
-            contentEditable
-            className="w-full p-3 min-h-[120px] max-h-[300px] overflow-y-auto focus:outline-none dark:bg-gray-700 dark:text-white resize-y"
-            onInput={handleMessageInput}
-            onBlur={handleMessageBlur}
-            onFocus={handleMessageFocus}
-            onKeyDown={handleKeyDown}
-            data-placeholder="Write a personal message to be included with your data..."
-          />
+          {/* Enhanced Text Editor */}
+          {showHtmlCode ? (
+            <textarea
+              value={getHtmlContent()}
+              onChange={(e) => setHtmlContent(e.target.value)}
+              className="w-full p-4 min-h-[150px] max-h-[400px] overflow-y-auto focus:outline-none dark:bg-gray-700 dark:text-white resize-y font-mono text-sm"
+              style={{
+                lineHeight: '1.6',
+                fontFamily: 'Monaco, Menlo, Ubuntu Mono, monospace'
+              }}
+              placeholder="HTML code will appear here..."
+            />
+          ) : (
+            <div
+              ref={messageEditorRef}
+              contentEditable
+              className="rich-editor w-full p-4 min-h-[150px] max-h-[400px] overflow-y-auto focus:outline-none dark:bg-gray-700 dark:text-white resize-y"
+              style={{
+                lineHeight: '1.6',
+                fontFamily: 'system-ui, -apple-system, sans-serif'
+              }}
+              onInput={handleMessageInput}
+              onBlur={handleMessageBlur}
+              onFocus={handleMessageFocus}
+              onKeyDown={handleKeyDown}
+              data-placeholder="Write a personal message to be included with your data..."
+              suppressContentEditableWarning={true}
+            />
+          )}
         </div>
         <div className="flex justify-between items-center mt-2">
           <span className="text-xs text-gray-500 dark:text-gray-400">
             {settings.message.length} characters
           </span>
-          <button
-            type="button"
-            onClick={saveMessage}
-            disabled={loading}
-            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Saving...' : 'Save Message'}
-          </button>
+          <div className="flex items-center space-x-2">
+            {saveStatus === 'saving' && (
+              <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center">
+                <div className="w-3 h-3 border border-blue-600 border-t-transparent rounded-full animate-spin mr-1"></div>
+                Saving...
+              </span>
+            )}
+            {saveStatus === 'saved' && (
+              <span className="text-xs text-green-600 dark:text-green-400 flex items-center">
+                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Saved
+              </span>
+            )}
+            {saveStatus === 'unsaved' && (
+              <span className="text-xs text-orange-600 dark:text-orange-400">
+                Unsaved changes
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1093,6 +1753,151 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
           currentRecipientCount={settings.recipients.length}
           currentRecipients={settings.recipients}
         />
+      )}
+
+      {/* Message Preview Modal */}
+      {showPreview && (
+        <MessagePreviewModal
+          onClose={() => setShowPreview(false)}
+          message={settings.message}
+          recipients={settings.recipients}
+          includeData={settings.includeData}
+          dataSummary={dataSummary}
+          checkInFrequency={settings.checkInFrequency}
+          userProfile={profile}
+          user={user}
+        />
+      )}
+
+      {/* Font Family Dropdown Modal */}
+      {showFontDropdown && fontButtonRect && (
+        <div className="fixed inset-0 z-[10000]" onClick={() => setShowFontDropdown(false)}>
+          <div 
+            className="absolute bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 shadow-xl rounded-xl max-h-80 overflow-y-auto text-xs p-2 min-w-[200px] max-w-[300px]"
+            style={{
+              top: fontButtonRect.bottom + 1,
+              left: fontButtonRect.left,
+              zIndex: 10001
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-sm font-medium text-gray-900 dark:text-white mb-2 px-2">Select Font</div>
+            {[
+              { value: 'Arial', label: 'Arial' },
+              { value: 'Helvetica', label: 'Helvetica' },
+              { value: 'Times New Roman', label: 'Times New Roman' },
+              { value: 'Georgia', label: 'Georgia' },
+              { value: 'Verdana', label: 'Verdana' },
+              { value: 'Courier New', label: 'Courier New' },
+              { value: 'Comic Sans MS', label: 'Comic Sans MS' },
+              { value: 'Impact', label: 'Impact' }
+            ].map((font) => (
+              <button
+                key={font.value}
+                type="button"
+                className={`w-full flex items-center text-left text-sm rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors px-3 py-2 mb-1 ${selectedFont === font.value ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold' : 'text-gray-700 dark:text-gray-100'}`}
+                onClick={() => {
+                  changeFont(font.value);
+                  setShowFontDropdown(false);
+                }}
+                style={{ fontFamily: font.value }}
+              >
+                <span className="flex-1">{font.label}</span>
+                {selectedFont === font.value && (
+                  <svg className="w-4 h-4 text-white ml-2" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Font Size Dropdown Modal */}
+      {showFontSizeDropdown && fontSizeButtonRect && (
+        <div className="fixed inset-0 z-[10000]" onClick={() => setShowFontSizeDropdown(false)}>
+          <div 
+            className="absolute bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 shadow-xl rounded-xl max-h-80 overflow-y-auto text-xs p-2 min-w-[150px] max-w-[200px]"
+            style={{
+              top: fontSizeButtonRect.bottom + 1,
+              left: fontSizeButtonRect.left,
+              zIndex: 10001
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-sm font-medium text-gray-900 dark:text-white mb-2 px-2">Select Font Size</div>
+            {[
+              { value: '8', label: '8px' },
+              { value: '9', label: '9px' },
+              { value: '10', label: '10px' },
+              { value: '11', label: '11px' },
+              { value: '12', label: '12px' },
+              { value: '14', label: '14px' },
+              { value: '16', label: '16px' },
+              { value: '18', label: '18px' },
+              { value: '20', label: '20px' },
+              { value: '24', label: '24px' },
+              { value: '28', label: '28px' },
+              { value: '32', label: '32px' },
+              { value: '36', label: '36px' },
+              { value: '48', label: '48px' },
+              { value: '72', label: '72px' }
+            ].map((size) => (
+              <button
+                key={size.value}
+                type="button"
+                className={`w-full flex items-center text-left text-sm rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors px-3 py-2 mb-1 ${selectedFontSize === size.value ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold' : 'text-gray-700 dark:text-gray-100'}`}
+                onClick={() => {
+                  changeFontSize(size.value);
+                  setShowFontSizeDropdown(false);
+                }}
+              >
+                <span className="flex-1">{size.label}</span>
+                {selectedFontSize === size.value && (
+                  <svg className="w-4 h-4 text-white ml-2" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Templates Dropdown Modal */}
+      {showTemplatesDropdown && templatesButtonRect && (
+        <div className="fixed inset-0 z-[10000]" onClick={() => setShowTemplatesDropdown(false)}>
+          <div 
+            className="absolute bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 shadow-xl rounded-xl max-h-80 overflow-y-auto text-xs p-2 min-w-[200px] max-w-[300px]"
+            style={{
+              top: templatesButtonRect.bottom + 1,
+              left: templatesButtonRect.left,
+              zIndex: 10001
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-sm font-medium text-gray-900 dark:text-white mb-2 px-2">Select Template</div>
+            {[
+              { value: 'personal', label: '💝 Personal Message', description: 'A heartfelt personal message template' },
+              { value: 'financial', label: '💰 Financial Info', description: 'Financial information and instructions' },
+              { value: 'memories', label: '📖 Life Story', description: 'Life story and memories template' }
+            ].map((template) => (
+              <button
+                key={template.value}
+                type="button"
+                className="w-full flex flex-col items-start text-left text-sm rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors px-3 py-2 mb-1 text-gray-700 dark:text-gray-100"
+                onClick={() => {
+                  insertTemplate(template.value);
+                  setShowTemplatesDropdown(false);
+                }}
+              >
+                <span className="font-medium">{template.label}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">{template.description}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1204,6 +2009,221 @@ const RecipientModal: React.FC<RecipientModalProps> = ({ onClose, onAdd, editing
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+};
+
+// Message Preview Modal Component
+interface MessagePreviewModalProps {
+  onClose: () => void;
+  message: string;
+  recipients: Array<{ id: string; email: string; name: string; relationship: string; }>;
+  includeData: {
+    accounts: boolean;
+    transactions: boolean;
+    purchases: boolean;
+    lendBorrow: boolean;
+    savings: boolean;
+    analytics: boolean;
+  };
+  dataSummary: {
+    accounts: number;
+    transactions: number;
+    purchases: number;
+    lendBorrow: number;
+    savings: number;
+    totalValue: number;
+  };
+  checkInFrequency: number;
+  userProfile: any;
+  user: any;
+}
+
+const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({ 
+  onClose, 
+  message, 
+  recipients, 
+  includeData, 
+  dataSummary, 
+  checkInFrequency,
+  userProfile,
+  user
+}) => {
+  // Extract first name from full name, fallback to email or 'User'
+  const getFirstName = (fullName: string | undefined, email: string | undefined) => {
+    if (fullName) {
+      const firstName = fullName.split(' ')[0];
+      return firstName || 'User';
+    }
+    if (email) {
+      const emailName = email.split('@')[0];
+      return emailName;
+    }
+    return 'User';
+  };
+  
+  const userName = userProfile?.fullName || user?.email || 'User';
+  const userFirstName = getFirstName(userProfile?.fullName, user?.email);
+  const currentDate = new Date().toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+
+  const getIncludedDataList = () => {
+    const included = [];
+    if (includeData.accounts) included.push(`• ${dataSummary.accounts} accounts ($${dataSummary.totalValue.toLocaleString()} total)`);
+    if (includeData.transactions) included.push(`• ${dataSummary.transactions} transactions`);
+    if (includeData.purchases) included.push(`• ${dataSummary.purchases} purchases`);
+    if (includeData.lendBorrow) included.push(`• ${dataSummary.lendBorrow} lend/borrow records`);
+    if (includeData.savings) included.push(`• ${dataSummary.savings} savings goals`);
+    if (includeData.analytics) included.push(`• Financial analytics and insights`);
+    return included;
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-3">
+            <Mail className="w-6 h-6 text-blue-600" />
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Message Preview
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                This is what your recipients will receive
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Email Preview Content */}
+        <div className="p-6 space-y-6">
+          {/* Email Header */}
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">From:</span>
+                <span className="text-sm text-gray-900 dark:text-white">Balanze Last Wish System</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">To:</span>
+                <span className="text-sm text-gray-900 dark:text-white">
+                  {recipients.map(r => r.email).join(', ')}
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Subject:</span>
+                <span className="text-sm text-gray-900 dark:text-white">
+                  Your Last Wish - Digital Time Capsule from {userName}
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Date:</span>
+                <span className="text-sm text-gray-900 dark:text-white">{currentDate}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Email Body */}
+          <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-6 bg-white dark:bg-gray-800">
+            <div className="space-y-4">
+              {/* Greeting */}
+              <div>
+                <p className="text-gray-900 dark:text-white">
+                  Dear {recipients.length > 1 ? 'Loved Ones' : recipients[0]?.name || 'Recipient'},
+                </p>
+                <p className="text-gray-700 dark:text-gray-300 mt-2">
+                  This is an automated message from <strong>{userFirstName}'s</strong> Last Wish - Digital Time Capsule system.
+                </p>
+              </div>
+
+              {/* Personal Message */}
+              {message && (
+                <div className="border-l-4 border-blue-500 pl-4 py-2">
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Personal Message:</h4>
+                  <div 
+                    className="prose prose-sm max-w-none text-gray-700 dark:text-gray-300 rich-editor"
+                    dangerouslySetInnerHTML={{ __html: message }}
+                    style={{
+                      lineHeight: '1.6',
+                      fontFamily: 'system-ui, -apple-system, sans-serif'
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Data Summary */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Financial Data Summary:</h4>
+                <div className="space-y-1">
+                  {getIncludedDataList().map((item, index) => (
+                    <p key={index} className="text-sm text-gray-700 dark:text-gray-300">{item}</p>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
+                  * Detailed financial data will be attached as encrypted files for your security.
+                </p>
+              </div>
+
+              {/* System Message */}
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">System Information:</h4>
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  This message was sent because <strong>{userFirstName}</strong> hasn't checked in for <strong>{checkInFrequency} days</strong>. 
+                  This is part of their Last Wish system to ensure their financial legacy is preserved and shared with loved ones.
+                </p>
+              </div>
+
+              {/* Footer */}
+              <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  This message was generated automatically by Balanze's Last Wish system. 
+                  For questions about this system, please contact Balanze support.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Recipients List */}
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Recipients ({recipients.length}):</h4>
+            <div className="space-y-2">
+              {recipients.map((recipient) => (
+                <div key={recipient.id} className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+                    <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{recipient.name}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">{recipient.email} • {recipient.relationship}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end p-6 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Close Preview
+          </button>
+        </div>
       </div>
     </div>
   );

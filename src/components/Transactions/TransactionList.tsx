@@ -55,7 +55,7 @@ export const TransactionList: React.FC<{
   // Function to get readable date range label
   const getDateRangeLabel = () => {
     if (!filters.dateRange.start || !filters.dateRange.end) {
-      return 'Date Range';
+      return 'All Time';
     }
 
     const today = new Date();
@@ -456,6 +456,7 @@ export const TransactionList: React.FC<{
 
   // Filtering
   const filteredTransactions = React.useMemo(() => {
+    const today = new Date();
     const filtered = transactions
       .filter(t => !t.tags?.some(tag => tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'))
       .filter(t => {
@@ -473,7 +474,23 @@ export const TransactionList: React.FC<{
           const txDate = new Date(t.date);
           const startDate = new Date(filters.dateRange.start);
           const endDate = new Date(filters.dateRange.end);
-          if (txDate < startDate || txDate > endDate) return false;
+          
+          // For "this month" filter, use the same logic as Dashboard
+          if (filters.dateRange.start === new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10) &&
+              filters.dateRange.end === new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10)) {
+            // This is "this month" filter - use same timezone logic as Dashboard
+            const localStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            const localEndDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            
+            // Convert to UTC with timezone offset (same as Dashboard)
+            const utcStartDate = new Date(localStartDate.getTime() - (localStartDate.getTimezoneOffset() * 60000));
+            const utcEndDate = new Date(localEndDate.getTime() - (localEndDate.getTimezoneOffset() * 60000) + (24 * 60 * 60 * 1000) - 1);
+            
+            if (txDate < utcStartDate || txDate > utcEndDate) return false;
+          } else {
+            // For other date ranges, use the original logic
+            if (txDate < startDate || txDate > endDate) return false;
+          }
         }
         return true;
       });
@@ -486,6 +503,26 @@ export const TransactionList: React.FC<{
   const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const transactionCount = filteredTransactions.length;
+
+  // Debug logging for BDT currency
+  if (filters.currency === 'BDT' || (!filters.currency && accounts.some(a => a.currency === 'BDT'))) {
+    console.log('TransactionList BDT Debug:', {
+      filters,
+      totalTransactions: transactions.length,
+      filteredTransactionsCount: filteredTransactions.length,
+      totalExpense,
+      expenseTransactions: filteredTransactions.filter(t => t.type === 'expense').map(t => ({ 
+        id: t.id, 
+        transaction_id: t.transaction_id, 
+        amount: t.amount, 
+        date: t.date, 
+        description: t.description,
+        account_currency: accounts.find(a => a.id === t.account_id)?.currency
+      }))
+    });
+  }
+
+
 
 
 
@@ -538,6 +575,10 @@ export const TransactionList: React.FC<{
         end = last.toISOString().slice(0, 10);
         break;
       }
+      case 'allTime':
+        start = '';
+        end = '';
+        break;
       default:
         break;
     }
@@ -601,10 +642,47 @@ export const TransactionList: React.FC<{
                     ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
+                style={(filters.type !== 'all' || filters.account !== 'all' || filters.currency || filters.dateRange.start || filters.dateRange.end) ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                 title="Filters"
               >
                 <Filter className="w-4 h-4" />
               </button>
+            </div>
+
+            {/* Mobile Download Button */}
+            <div className="md:hidden">
+              <div className="relative" ref={exportMenuRef}>
+                <button
+                  onClick={() => setShowExportMenu(v => !v)}
+                  className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 px-2 py-1.5 h-8 w-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
+                  aria-label="Export"
+                  title="Export"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+                {showExportMenu && (
+                  <div className="absolute right-0 mt-2 w-32 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
+                    <button
+                      onClick={handleExportCSV}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    >
+                      CSV
+                    </button>
+                    <button
+                      onClick={handleExportPDF}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    >
+                      PDF
+                    </button>
+                    <button
+                      onClick={handleExportHTML}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    >
+                      HTML
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Mobile Add Transaction Button */}
@@ -620,6 +698,7 @@ export const TransactionList: React.FC<{
                 <Plus className="w-4 h-4" />
               </button>
             </div>
+
             {/* Currency Filter */}
             <div className="hidden md:block">
               <div className="relative" ref={currencyMenuRef}>
@@ -762,6 +841,7 @@ export const TransactionList: React.FC<{
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('thisMonth'); setShowPresetDropdown(false); }}>This Month</button>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('lastMonth'); setShowPresetDropdown(false); }}>Last Month</button>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('thisYear'); setShowPresetDropdown(false); }}>This Year</button>
+                  <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('allTime'); setShowPresetDropdown(false); }}>All Time</button>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('custom'); }}>Custom Range…</button>
                 </div>
               )}
@@ -855,7 +935,7 @@ export const TransactionList: React.FC<{
             )}
             <div className="flex-grow" />
             {/* Action Buttons in filter row */}
-            <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
               <div className="relative" ref={exportMenuRef}>
                 <button
                   onClick={() => setShowExportMenu(v => !v)}

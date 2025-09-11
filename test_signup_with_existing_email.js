@@ -22,7 +22,7 @@ async function testSignupWithExistingEmail() {
         data: {
           full_name: testFullName
         },
-        emailRedirectTo: 'https://fin-tech-eight.vercel.app/auth'
+        emailRedirectTo: 'https://balanze.cash/auth'
       }
     });
     

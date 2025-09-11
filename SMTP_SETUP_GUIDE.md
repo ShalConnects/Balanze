@@ -1,6 +1,6 @@
-# Gmail SMTP Setup Guide for FinTech SaaS
+# Gmail SMTP Setup Guide for Balanze SaaS
 
-This guide will help you set up Gmail SMTP to fix the email rate limit issue in your FinTech application.
+This guide will help you set up Gmail SMTP to fix the email rate limit issue in your Balanze application.
 
 ## 🚨 **Why This is Needed**
 
@@ -53,12 +53,12 @@ SMTP Pass: [your-16-character-app-password]
 
 ### **3.1 Run Test Script**
 ```bash
-cd /Users/shalconnects/Downloads/FinTech
+cd /Users/shalconnects/Downloads/Balanze
 node test_smtp.js
 ```
 
 ### **3.2 Manual Test**
-1. Go to your FinTech app: https://fin-tech-kfdvcsmlj-shalauddin-kaders-projects.vercel.app
+1. Go to your Balanze app: https://balanze.cash
 2. Try to register a new user
 3. Check if you receive the verification email
 4. Try password reset functionality
@@ -136,4 +136,4 @@ Once SMTP is configured:
 
 ---
 
-**Your FinTech SaaS will be fully functional once SMTP is properly configured!** 🎉 
+**Your Balanze SaaS will be fully functional once SMTP is properly configured!** 🎉 

@@ -109,6 +109,13 @@ export const TransfersView: React.FC = () => {
         .order('date', { ascending: true }); // ascending for before/after logic
       if (allTxError) throw allTxError;
 
+      // Debug: Log what data we're getting
+      console.log('=== TRANSFER DATA DEBUG ===');
+      console.log('Regular transfers:', transferData?.slice(0, 2));
+      console.log('DPS transfers:', dpsData?.slice(0, 2));
+      console.log('Sample transfer date field:', transferData?.[0]?.date);
+      console.log('Sample transfer created_at field:', transferData?.[0]?.created_at);
+      
       setTransfers(transferData || []);
       setDpsTransfers(dpsData || []);
       setAllTransactions(allTx || []);
@@ -136,17 +143,32 @@ export const TransfersView: React.FC = () => {
   function getCombinedTransfers(transfers: any[], accounts: any[]) {
     const grouped = groupTransfersByTransferId(transfers);
     const combined: any[] = [];
+    
+    // Debug: Log the first few transfers
+    console.log('=== COMBINED TRANSFERS DEBUG ===');
+    console.log('First few transfers:', transfers.slice(0, 3));
+    
     for (const group of Object.values(grouped)) {
       if (group.length < 2) continue; // skip incomplete pairs
       const expense = group.find((t: any) => t.type === 'expense');
       const income = group.find((t: any) => t.type === 'income');
       if (!expense || !income) continue;
+      
+      // Debug: Log expense transaction details
+      console.log('Expense transaction:', {
+        id: expense.id,
+        date: expense.date,
+        created_at: expense.created_at,
+        type: expense.type
+      });
+      
       const fromAccount = accounts.find(a => a.id === expense.account_id);
       const toAccount = accounts.find(a => a.id === income.account_id);
       const exchangeRate = income.amount / expense.amount;
       combined.push({
         id: expense.id + '_' + income.id,
         date: expense.date,
+        created_at: expense.created_at, // Include created_at for accurate time display
         fromAccount,
         toAccount,
         fromAmount: expense.amount,
@@ -155,9 +177,11 @@ export const TransfersView: React.FC = () => {
         toCurrency: toAccount?.currency,
         note: expense.note || income.note || expense.description || income.description,
         exchangeRate,
-        time: format(new Date(expense.date), 'h:mm a'),
+        // Remove the pre-computed time field to avoid caching issues
       });
     }
+    
+    console.log('Combined transfers result:', combined.slice(0, 2));
     return combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
@@ -412,7 +436,7 @@ export const TransfersView: React.FC = () => {
                           <div className="text-lg font-bold text-green-600">{formatCurrency(transfer.amount, dpsAccount?.currency || 'USD')}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">Balance: {formatCurrency(dpsAccountBalance, dpsAccount?.currency || 'USD')}</div>
                         </div>
-                      </div>
+                          </div>
                       
                       <div 
                         className="flex justify-between items-center border-t border-gray-100 dark:border-gray-700"
@@ -496,15 +520,15 @@ export const TransfersView: React.FC = () => {
                           </button>
                         )}
                         <div className="text-xs text-gray-400 dark:text-gray-500">
-                          {format(new Date(transfer.date), 'MMM d')} • {transfer.time}
+                          {format(new Date(transfer.date), 'MMM d')} • {transfer.created_at ? format(new Date(transfer.created_at), 'h:mm a') : '12:00 AM'}
                         </div>
                       </div>
                     </div>
-                  </div>
+                </div>
                 );
               })}
-            </div>
-          )}
+              </div>
+            )}
         </div>
       </div>
 
@@ -556,7 +580,7 @@ export const TransfersView: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <span className="text-xs px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium">DPS Transfer</span>
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {format(new Date(transfer.date), 'MMM d, yyyy')} • {format(new Date(transfer.date), 'h:mm a')}
+                            {format(new Date(transfer.date), 'MMM d, yyyy')} • {transfer.created_at ? format(new Date(transfer.created_at), 'h:mm a') : '12:00 AM'}
                           </span>
                         </div>
                         {transfer.transaction_id && (
@@ -621,7 +645,7 @@ export const TransfersView: React.FC = () => {
                           <span className="text-xs px-2 py-1 rounded-full bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 font-medium">In-account Transfer</span>
                         )}
                         <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {format(new Date(transfer.date), 'MMM d, yyyy')} • {transfer.time}
+                          {format(new Date(transfer.date), 'MMM d, yyyy')} • {transfer.created_at ? format(new Date(transfer.created_at), 'h:mm a') : '12:00 AM'}
                         </span>
                       </div>
                       {transfer.transaction_id && (

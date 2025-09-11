@@ -56,9 +56,12 @@ const getPriorityColor = (priority?: 'low' | 'medium' | 'high') => {
 };
 
 export const UrgentNotifications: React.FC = () => {
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const { purchases } = useFinanceStore();
   const { t } = useTranslation();
+  
+  // Check if user has Premium plan for Lend & Borrow
+  const isPremium = profile?.subscription?.plan === 'premium';
   const [lendBorrowRecords, setLendBorrowRecords] = useState<LendBorrow[]>([]);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<UrgentNotification[]>([]);
@@ -94,8 +97,9 @@ export const UrgentNotifications: React.FC = () => {
     const today = new Date();
     const urgentNotifications: UrgentNotification[] = [];
 
-    // Process lend/borrow records
-    lendBorrowRecords.forEach(record => {
+    // Process lend/borrow records (Premium only)
+    if (isPremium) {
+      lendBorrowRecords.forEach(record => {
       if (!record.due_date) return;
 
       const dueDate = new Date(record.due_date);
@@ -126,6 +130,7 @@ export const UrgentNotifications: React.FC = () => {
         });
       }
     });
+    }
 
     // Process planned purchases
     const plannedPurchases = purchases.filter(p => p.status === 'planned');

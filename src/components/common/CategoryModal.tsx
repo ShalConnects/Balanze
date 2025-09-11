@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, DollarSign, Loader2, AlertCircle } from 'lucide-react';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
+import { toast } from 'sonner';
 
 export interface CategoryModalProps {
   open: boolean;
@@ -136,6 +137,20 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
       await onSave(formData);
     } catch (error) {
       console.error('Error saving category:', error);
+      
+      // Check if it's a plan limit error and show upgrade prompt
+      if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+        const errorMessage = error.message;
+        
+        if (errorMessage && errorMessage.includes('FEATURE_NOT_AVAILABLE') && errorMessage.includes('custom categories')) {
+          toast.error('Custom categories are a Premium feature. Upgrade to Premium to create custom categories.');
+          setTimeout(() => {
+            window.location.href = '/settings?tab=plans';
+          }, 2000);
+          
+          return;
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -159,7 +174,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             {title || (isEdit ? 'Edit Category' : 'Add New Category')}
           </h2>
@@ -171,7 +186,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 px-4 py-4">
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="relative">
@@ -308,7 +323,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
               </div>
             </div>
           )}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-600">
+          <div className="flex justify-end gap-3 pt-4 pb-6 border-t border-gray-200 dark:border-gray-600">
             <button
               type="button"
               onClick={onClose}

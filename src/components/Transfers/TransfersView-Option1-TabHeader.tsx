@@ -116,6 +116,7 @@ export const TransfersView: React.FC = () => {
       combined.push({
         id: expense.id + '_' + income.id,
         date: expense.date,
+        created_at: expense.created_at, // Include created_at for accurate time display
         fromAccount,
         toAccount,
         fromAmount: expense.amount,
@@ -124,7 +125,7 @@ export const TransfersView: React.FC = () => {
         toCurrency: toAccount?.currency,
         note: expense.note || income.note || expense.description || income.description,
         exchangeRate,
-        time: format(new Date(expense.date), 'h:mm a'),
+        // Remove the pre-computed time field to avoid caching issues
       });
     }
     return combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -407,7 +408,7 @@ export const TransfersView: React.FC = () => {
                           </button>
                         )}
                         <div className="text-xs text-gray-400">
-                          {format(new Date(transfer.date), 'MMM d')} • {transfer.time}
+                          {format(new Date(transfer.date), 'MMM d')} • {format(new Date(transfer.date), 'h:mm a')}
                         </div>
                       </div>
                     </div>

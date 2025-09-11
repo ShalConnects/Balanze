@@ -1,4 +1,4 @@
-# 🧪 FinTech Web App Manual Test Checklist
+# 🧪 Balanze Web App Manual Test Checklist
 
 ## 🔐 Authentication Tests
 - [ ] **Login with salauddin.kader405@gmail.com / New12###T**

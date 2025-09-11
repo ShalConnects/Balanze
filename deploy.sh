@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# FinTech App Deployment Script
+# Balanze App Deployment Script
 # This script helps deploy the application to Vercel with proper configuration
 
 set -e
 
-echo "🚀 Starting FinTech App Deployment to Vercel..."
+echo "🚀 Starting Balanze App Deployment to Vercel..."
 
 # Colors for output
 RED='\033[0;31m'
@@ -141,7 +141,7 @@ test_deployment() {
 # Main deployment process
 main() {
     echo "=========================================="
-    echo "FinTech App Deployment to Vercel"
+    echo "Balanze App Deployment to Vercel"
     echo "=========================================="
     
     check_vercel_cli
