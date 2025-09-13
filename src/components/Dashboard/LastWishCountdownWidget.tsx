@@ -22,6 +22,11 @@ interface CountdownData {
   isOverdue: boolean;
   urgencyLevel: 'safe' | 'warning' | 'critical' | 'overdue';
   progressPercentage: number;
+  timeLeft?: {
+    hours: number;
+    minutes: number;
+    seconds: number;
+  };
 }
 
 export const LastWishCountdownWidget: React.FC = () => {
@@ -37,6 +42,15 @@ export const LastWishCountdownWidget: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [deliveryStatus, setDeliveryStatus] = useState<{
+    isDelivered: boolean;
+    deliveredAt: string | null;
+    recipients: string[];
+  }>({
+    isDelivered: false,
+    deliveredAt: null,
+    recipients: []
+  });
 
   useEffect(() => {
     if (!user) {
@@ -57,8 +71,10 @@ export const LastWishCountdownWidget: React.FC = () => {
         
         if (data.last_check_in) {
           const lastCheckIn = new Date(data.last_check_in);
-          const nextCheckIn = new Date(lastCheckIn.getTime() + data.check_in_frequency * 24 * 60 * 60 * 1000);
           const now = new Date();
+          
+          // Normal mode: calculate days
+          const nextCheckIn = new Date(lastCheckIn.getTime() + data.check_in_frequency * 24 * 60 * 60 * 1000);
           const daysLeft = Math.ceil((nextCheckIn.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
           const isOverdue = daysLeft < 0;
           
@@ -90,7 +106,7 @@ export const LastWishCountdownWidget: React.FC = () => {
             nextCheckIn: 'Not set yet',
             isOverdue: false,
             urgencyLevel: 'safe',
-            progressPercentage: 0
+            progressPercentage: 0,
           });
         }
       } else {
@@ -101,6 +117,7 @@ export const LastWishCountdownWidget: React.FC = () => {
     
     fetchLastWish();
   }, [user]);
+
   
   // Don't render for free users
   if (!isPremium) {
@@ -236,7 +253,9 @@ export const LastWishCountdownWidget: React.FC = () => {
              )}
            </div>
            <div>
-             <h3 className={`font-bold text-lg ${colors.text}`}>Last Wish Check-in</h3>
+             <h3 className={`font-bold text-lg ${colors.text}`}>
+               Last Wish Check-in
+             </h3>
              <p className={`text-sm ${colors.text} opacity-80`}>
                {getUrgencyMessage(countdown.urgencyLevel, countdown.daysLeft)}
              </p>
@@ -299,6 +318,22 @@ export const LastWishCountdownWidget: React.FC = () => {
           <Settings className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Delivery Status */}
+      {deliveryStatus.isDelivered && (
+        <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <Mail className="w-4 h-4 text-green-600 dark:text-green-400" />
+            <span className="text-sm font-medium text-green-800 dark:text-green-200">
+              ✅ Last Wish Delivered!
+            </span>
+          </div>
+          <div className="mt-1 text-xs text-green-700 dark:text-green-300">
+            <p>Delivered to: {deliveryStatus.recipients.join(', ')}</p>
+            <p>Time: {deliveryStatus.deliveredAt ? new Date(deliveryStatus.deliveredAt).toLocaleString() : 'Unknown'}</p>
+          </div>
+        </div>
+      )}
 
       {/* Details Section */}
       {showDetails && (

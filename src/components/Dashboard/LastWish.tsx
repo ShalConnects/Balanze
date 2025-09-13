@@ -7,19 +7,12 @@ import {
   Clock, 
   Mail, 
   Shield, 
-  AlertTriangle, 
   CheckCircle, 
-  Calendar,
   User,
-  FileText,
-  Download,
-  Bell,
   Settings,
   Trash2,
   Plus,
-  Edit,
   Eye,
-  EyeOff,
   Check
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -51,7 +44,7 @@ interface LastWishSettings {
   isActive: boolean;
 }
 
-export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAccess }) => {
+export const LastWish: React.FC<LastWishProps> = ({ setActiveTab }) => {
   const { user, profile } = useAuthStore();
   const { accounts, transactions, purchases, donationSavingRecords } = useFinanceStore();
   const [lendBorrowRecords, setLendBorrowRecords] = useState<any[]>([]);
@@ -79,6 +72,11 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
   const [editingRecipient, setEditingRecipient] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [daysUntilCheckIn, setDaysUntilCheckIn] = useState<number | null>(null);
+  const [timeUntilCheckIn, setTimeUntilCheckIn] = useState<{
+    hours: number;
+    minutes: number;
+    seconds: number;
+  } | null>(null);
   const messageEditorRef = useRef<HTMLDivElement>(null);
   const [isEditorInitialized, setIsEditorInitialized] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
@@ -164,17 +162,22 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
     fetchLendBorrowRecords();
   }, [user]);
 
-  // Calculate days until next check-in
+  // Calculate time until next check-in (days)
   useEffect(() => {
     if (settings.lastCheckIn && settings.isEnabled) {
       const lastCheckIn = new Date(settings.lastCheckIn);
-      const nextCheckIn = new Date(lastCheckIn.getTime() + (settings.checkInFrequency * 24 * 60 * 60 * 1000));
       const now = new Date();
+      
+      // Normal mode: calculate days
+      const nextCheckIn = new Date(lastCheckIn.getTime() + (settings.checkInFrequency * 24 * 60 * 60 * 1000));
       const diffTime = nextCheckIn.getTime() - now.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       setDaysUntilCheckIn(diffDays);
+      setTimeUntilCheckIn(null);
     }
   }, [settings.lastCheckIn, settings.checkInFrequency, settings.isEnabled]);
+
+
 
   const loadLastWishSettings = async () => {
     if (!user) return;
@@ -311,19 +314,22 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
 
     setLoading(true);
     try {
+      // This way we don't need the database field yet
+      const updateData = {
+        user_id: user.id,
+        is_enabled: settings.isEnabled,
+        check_in_frequency: settings.checkInFrequency,
+        last_check_in: settings.lastCheckIn,
+        recipients: settings.recipients,
+        include_data: settings.includeData,
+        message: settings.message,
+        is_active: settings.isActive,
+        updated_at: new Date().toISOString(),
+      };
+
       const { error } = await supabase
         .from('last_wish_settings')
-        .upsert({
-          user_id: user.id,
-          is_enabled: settings.isEnabled,
-          check_in_frequency: settings.checkInFrequency,
-          last_check_in: settings.lastCheckIn,
-          recipients: settings.recipients,
-          include_data: settings.includeData,
-          message: settings.message,
-          is_active: settings.isActive,
-          updated_at: new Date().toISOString(),
-        });
+        .upsert(updateData);
 
       if (error) throw error;
 
@@ -573,30 +579,43 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
     setSettings(prev => ({ ...prev, checkInFrequency: frequency }));
     
     try {
+      // This way we don't need the database field yet
+      const updateData = {
+        user_id: user.id,
+        is_enabled: settings.isEnabled,
+        check_in_frequency: frequency,
+        last_check_in: settings.lastCheckIn,
+        recipients: settings.recipients,
+        include_data: settings.includeData,
+        message: settings.message,
+        is_active: settings.isActive,
+        updated_at: new Date().toISOString(),
+      };
+
       const { error } = await supabase
         .from('last_wish_settings')
-        .upsert({
-          user_id: user.id,
-          is_enabled: settings.isEnabled,
-          check_in_frequency: frequency,
-          last_check_in: settings.lastCheckIn,
-          recipients: settings.recipients,
-          include_data: settings.includeData,
-          message: settings.message,
-          is_active: settings.isActive,
-          updated_at: new Date().toISOString(),
-        });
+        .upsert(updateData);
 
       if (error) throw error;
 
       toast.success('Check-in frequency updated successfully');
     } catch (error) {
       console.error('Error updating check-in frequency:', error);
-      toast.error('Failed to update check-in frequency');
+      
+      // Show more specific error message
+      let errorMessage = 'Failed to update check-in frequency';
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = `Failed to update check-in frequency: ${error.message}`;
+      }
+      
+      toast.error(errorMessage);
       // Revert the state if save failed
       setSettings(prev => ({ ...prev, checkInFrequency: settings.checkInFrequency }));
     }
   };
+
+
+
 
   // Simplified Text Editor Functions
   const formatText = (command: string, value?: string) => {
@@ -1067,34 +1086,6 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
     }
   };
 
-  const saveMessage = async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('last_wish_settings')
-        .upsert({
-          user_id: user.id,
-          is_enabled: settings.isEnabled,
-          check_in_frequency: settings.checkInFrequency,
-          last_check_in: settings.lastCheckIn,
-          recipients: settings.recipients,
-          include_data: settings.includeData,
-          message: settings.message,
-          is_active: settings.isActive,
-          updated_at: new Date().toISOString(),
-        });
-
-      if (error) throw error;
-      toast.success('Message saved successfully');
-    } catch (error) {
-      console.error('Error saving message:', error);
-      toast.error('Failed to save message');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getDataSummary = () => {
     return {
@@ -1318,14 +1309,15 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
               {settings.isEnabled ? 'Active' : 'Inactive'}
             </span>
           </div>
-          {settings.isEnabled && daysUntilCheckIn !== null && (
+          {settings.isEnabled && (daysUntilCheckIn !== null || timeUntilCheckIn !== null) && (
             <div className="flex items-center space-x-2">
               <Clock className="w-4 h-4 text-orange-500" />
               <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                {daysUntilCheckIn > 0 ? `${daysUntilCheckIn} days until check-in` : 'Overdue for check-in'}
+                {daysUntilCheckIn && daysUntilCheckIn > 0 ? `${daysUntilCheckIn} days until check-in` : 'Overdue for check-in'}
               </span>
             </div>
           )}
+          
         </div>
         
         {settings.isEnabled && (
@@ -1338,6 +1330,8 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
               <CheckCircle className="w-4 h-4" />
               <span>Check In Now</span>
             </button>
+            
+            
             <button
               onClick={() => toggleLastWishEnabled(false)}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center space-x-2"
@@ -1370,9 +1364,12 @@ export const LastWish: React.FC<LastWishProps> = ({ setActiveTab, forceFreeAcces
           </p>
         </div>
 
+
         {/* Check-in Frequency */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-          <h4 className="font-medium text-gray-900 dark:text-white mb-4">Check-in Frequency</h4>
+          <h4 className="font-medium text-gray-900 dark:text-white mb-4">
+            Check-in Frequency
+          </h4>
           <div className="space-y-3">
             {[7, 14, 30, 60, 90].map((days) => (
               <label key={days} className="flex items-center space-x-3 cursor-pointer">

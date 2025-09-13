@@ -269,12 +269,16 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
                   <div>
                     <div className="font-medium mb-1">Recent Donations:</div>
                     <ul className="space-y-1">
-                      {recentDonations.map((donation, index) => (
-                        <li key={index} className="flex justify-between">
-                          <span className="truncate max-w-[120px]" title={donation.note || 'Donation'}>{donation.note || 'Donation'}</span>
-                          <span className="ml-2 tabular-nums">{formatCurrency(donation.amount || 0, filterCurrency || 'USD')}</span>
-                        </li>
-                      ))}
+                      {recentDonations.map((donation, index) => {
+                        // Clean up donation note by removing currency information
+                        const cleanNote = donation.note?.replace(/\s*\(?Currency:\s*[A-Z]{3}\)?/g, '').trim() || 'Donation';
+                        return (
+                          <li key={index} className="flex justify-between">
+                            <span className="truncate max-w-[120px]" title={cleanNote}>{cleanNote}</span>
+                            <span className="ml-2 tabular-nums">{formatCurrency(donation.amount || 0, filterCurrency || 'USD')}</span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}
@@ -364,12 +368,16 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
               <div>
                 <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">Recent Donations:</div>
                 <ul className="space-y-1 max-h-32 overflow-y-auto">
-                  {recentDonations.map((donation, index) => (
-                    <li key={index} className="flex justify-between text-xs text-gray-700 dark:text-gray-200">
-                      <span className="truncate max-w-[120px]" title={donation.note || 'Donation'}>{donation.note || 'Donation'}</span>
-                      <span className="ml-2 tabular-nums">{formatCurrency(donation.amount || 0, filterCurrency || 'USD')}</span>
-                    </li>
-                  ))}
+                  {recentDonations.map((donation, index) => {
+                    // Clean up donation note by removing currency information
+                    const cleanNote = donation.note?.replace(/\s*\(?Currency:\s*[A-Z]{3}\)?/g, '').trim() || 'Donation';
+                    return (
+                      <li key={index} className="flex justify-between text-xs text-gray-700 dark:text-gray-200">
+                        <span className="truncate max-w-[120px]" title={cleanNote}>{cleanNote}</span>
+                        <span className="ml-2 tabular-nums">{formatCurrency(donation.amount || 0, filterCurrency || 'USD')}</span>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             )}
