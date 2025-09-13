@@ -25,6 +25,15 @@ export const formatCurrency = (amount: number, currency: string = 'USD') => {
     currency = 'USD'; // Default fallback
   }
   
+  // Special handling for BDT to ensure ৳ symbol is always displayed
+  if (currency === 'BDT') {
+    const symbol = getCurrencySymbol(currency);
+    return `${symbol}${Math.abs(amount).toLocaleString('en-BD', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    })}`;
+  }
+  
   try {
     const symbol = getCurrencySymbol(currency);
     return new Intl.NumberFormat('en-US', {

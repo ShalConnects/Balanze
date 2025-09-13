@@ -431,7 +431,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
             {purchases.length > 0 && (
               <div className="w-full bg-white dark:bg-gray-800 rounded-xl p-4 lg:p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">Purchase Overview</h2>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">Purchases</h2>
                   <Link 
                     to="/purchases" 
                     className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200"

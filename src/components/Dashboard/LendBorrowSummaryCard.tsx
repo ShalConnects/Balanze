@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { ArrowUpRight, ArrowDownLeft, Handshake, AlertTriangle, ArrowRight, Calendar, HelpCircle, X } from 'lucide-react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { ArrowUpRight, ArrowDownLeft, Handshake, AlertTriangle, ArrowRight, Calendar, Info, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { LendBorrow } from '../../types/index';
@@ -18,11 +19,14 @@ export const LendBorrowSummaryCard: React.FC = () => {
   const [records, setRecords] = useState<LendBorrow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLentTooltip, setShowLentTooltip] = useState(false);
-  const [showBorrowedTooltip, setShowBorrowedTooltip] = useState(false);
   const [showLentMobileModal, setShowLentMobileModal] = useState(false);
-  const [showBorrowedMobileModal, setShowBorrowedMobileModal] = useState(false);
   const [filterCurrency, setFilterCurrency] = useState('');
+  const [tooltipPosition, setTooltipPosition] = useState<'center' | 'right'>('center');
   const { isMobile } = useMobileDetection();
+  
+  // Refs for responsive positioning
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // Get all unique currencies from records
   const recordCurrencies = useMemo(() => {
@@ -91,25 +95,136 @@ export const LendBorrowSummaryCard: React.FC = () => {
   const totalActiveLent = Object.values(lentByPerson).reduce((sum, amt) => sum + amt, 0);
   const totalActiveBorrowed = Object.values(borrowedByPerson).reduce((sum, amt) => sum + amt, 0);
 
+  // Function to calculate tooltip position
+  const calculateTooltipPosition = () => {
+    if (!tooltipRef.current || !cardRef.current) return;
+    
+    const tooltip = tooltipRef.current;
+    const card = cardRef.current;
+    
+    // Get positions
+    const cardRect = card.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    
+    // Calculate if tooltip would overflow to the right
+    const tooltipRight = cardRect.left + (cardRect.width / 2) + (tooltipRect.width / 2);
+    const cardRight = cardRect.right;
+    
+    // If tooltip would overflow, position it to the right
+    if (tooltipRight > cardRight) {
+      setTooltipPosition('right');
+    } else {
+      setTooltipPosition('center');
+    }
+  };
+
+  // Update tooltip position when tooltip is shown
+  useEffect(() => {
+    if (showLentTooltip) {
+      // Small delay to ensure tooltip is rendered
+      setTimeout(calculateTooltipPosition, 10);
+    }
+  }, [showLentTooltip]);
+
   // Don't render the card if there are no records
   if (records.length === 0) {
     return null;
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-6">
+    <div ref={cardRef} className="bg-white dark:bg-gray-800 rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white">Lend & Borrow Overview</h2>
-        {/* Currency Filter using CustomDropdown */}
-        <CustomDropdown
-          options={filteredCurrencies.map(currency => ({ value: currency, label: currency }))}
-          value={filterCurrency}
-          onChange={setFilterCurrency}
-          fullWidth={false}
-          className="bg-transparent border-0 shadow-none text-gray-500 text-xs h-7 min-h-0 hover:bg-gray-100 focus:ring-0 focus:outline-none"
-          style={{ padding: '10px', paddingRight: '5px' }}
-          dropdownMenuClassName="!bg-[#d3d3d3bf] !top-[20px]"
-        />
+        <div className="flex items-center gap-2 flex-1">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Lend & Borrow</h2>
+          <div className="relative flex items-center">
+            <button
+              type="button"
+              className="ml-1 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-110 active:scale-95"
+              onMouseEnter={() => !isMobile && setShowLentTooltip(true)}
+              onMouseLeave={() => !isMobile && setShowLentTooltip(false)}
+              onFocus={() => !isMobile && setShowLentTooltip(true)}
+              onBlur={() => !isMobile && setShowLentTooltip(false)}
+              onClick={() => {
+                if (isMobile) {
+                  setShowLentMobileModal(true);
+                } else {
+                  setShowLentTooltip(v => !v);
+                }
+              }}
+              tabIndex={0}
+              aria-label="Show lend & borrow info"
+            >
+              <Info className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200" />
+            </button>
+            {showLentTooltip && !isMobile && (
+              <div 
+                ref={tooltipRef}
+                className={`absolute top-full z-50 mt-2 w-80 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein ${
+                  tooltipPosition === 'center' 
+                    ? 'left-1/2 -translate-x-1/2' 
+                    : 'right-0'
+                }`}
+              >
+                <div className="font-semibold mb-3 text-center">Total: {formatCurrency(totalActiveLent + totalActiveBorrowed, filterCurrency)}</div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Left side - Lend list */}
+                  <div>
+                    <div className="font-medium mb-2 text-green-600 dark:text-green-400">Lent To ({Object.keys(lentByPerson).length})</div>
+                    {Object.keys(lentByPerson).length > 0 ? (
+                      <ul className="space-y-1">
+                        {Object.entries(lentByPerson).map(([person, amount]) => (
+                          <li key={person} className="flex justify-between">
+                            <span className="truncate max-w-[100px] text-green-600 dark:text-green-400" title={person}>{person}</span>
+                            <span className="ml-2 tabular-nums text-green-600 dark:text-green-400">{formatCurrency(amount, filterCurrency)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-gray-500 dark:text-gray-400 text-xs">No active loans</div>
+                    )}
+                  </div>
+                  
+                  {/* Right side - Borrow list */}
+                  <div>
+                    <div className="font-medium mb-2 text-red-600 dark:text-red-400">Borrowed From ({Object.keys(borrowedByPerson).length})</div>
+                    {Object.keys(borrowedByPerson).length > 0 ? (
+                      <ul className="space-y-1">
+                        {Object.entries(borrowedByPerson).map(([person, amount]) => (
+                          <li key={person} className="flex justify-between">
+                            <span className="truncate max-w-[100px] text-red-600 dark:text-red-400" title={person}>{person}</span>
+                            <span className="ml-2 tabular-nums text-red-600 dark:text-red-400">{formatCurrency(amount, filterCurrency)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-gray-500 dark:text-gray-400 text-xs">No active borrows</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Currency Filter using CustomDropdown */}
+          <CustomDropdown
+            options={filteredCurrencies.map(currency => ({ value: currency, label: currency }))}
+            value={filterCurrency}
+            onChange={setFilterCurrency}
+            fullWidth={false}
+            className="bg-transparent border shadow-none text-gray-500 text-xs h-7 min-h-0 hover:bg-gray-100 focus:ring-0 focus:outline-none"
+            style={{ padding: '10px', paddingRight: '5px', border: '1px solid rgb(229 231 235 / var(--tw-bg-opacity, 1))' }}
+            dropdownMenuClassName="!bg-[#d3d3d3bf] !top-[20px]"
+          />
+          <Link 
+            to="/lend-borrow" 
+            className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
+          >
+            <span>View All</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
       {loading ? (
         <div className="text-center text-gray-400 py-8">Loading...</div>
@@ -118,86 +233,14 @@ export const LendBorrowSummaryCard: React.FC = () => {
           <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 mb-6">
             <div className="w-full relative">
               <StatCard
-                title={<div className="flex items-center">Total Lend
-                  <div className="relative">
-                    <button
-                      type="button"
-                      className="ml-1 p-1 rounded-full hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
-                      onMouseEnter={() => !isMobile && setShowLentTooltip(true)}
-                      onMouseLeave={() => !isMobile && setShowLentTooltip(false)}
-                      onFocus={() => !isMobile && setShowLentTooltip(true)}
-                      onBlur={() => !isMobile && setShowLentTooltip(false)}
-                      onClick={() => {
-                        if (isMobile) {
-                          setShowLentMobileModal(true);
-                        } else {
-                          setShowLentTooltip(v => !v);
-                        }
-                      }}
-                      tabIndex={0}
-                      aria-label="Show lent info"
-                    >
-                      <HelpCircle className="w-4 h-4 text-gray-400" />
-                    </button>
-                    {showLentTooltip && !isMobile && (
-                      <div className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein normal-case">
-                        <div className="font-semibold mb-2 normal-case">Total: {formatCurrency(totalActiveLent, filterCurrency)}</div>
-                        <div className="font-medium mb-1 normal-case">People Lent To ({Object.keys(lentByPerson).length}):</div>
-                        <ul className="space-y-1">
-                          {Object.entries(lentByPerson).map(([person, amount]) => (
-                            <li key={person} className="flex justify-between">
-                              <span className="truncate max-w-[120px] normal-case" title={person}>{person}</span>
-                              <span className="ml-2 tabular-nums">{formatCurrency(amount, filterCurrency)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                </div>}
+                title="Total Lend"
                 value={formatCurrency(totalActiveLent, filterCurrency)}
                 color="green"
               />
             </div>
             <div className="w-full relative">
               <StatCard
-                title={<div className="flex items-center">Total Borrowed
-                  <div className="relative">
-                    <button
-                      type="button"
-                      className="ml-1 p-1 rounded-full hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
-                      onMouseEnter={() => !isMobile && setShowBorrowedTooltip(true)}
-                      onMouseLeave={() => !isMobile && setShowBorrowedTooltip(false)}
-                      onFocus={() => !isMobile && setShowBorrowedTooltip(true)}
-                      onBlur={() => !isMobile && setShowBorrowedTooltip(false)}
-                      onClick={() => {
-                        if (isMobile) {
-                          setShowBorrowedMobileModal(true);
-                        } else {
-                          setShowBorrowedTooltip(v => !v);
-                        }
-                      }}
-                      tabIndex={0}
-                      aria-label="Show borrowed info"
-                    >
-                      <HelpCircle className="w-4 h-4 text-gray-400" />
-                    </button>
-                    {showBorrowedTooltip && !isMobile && (
-                      <div className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein normal-case">
-                        <div className="font-semibold mb-2 normal-case">Total: {formatCurrency(totalActiveBorrowed, filterCurrency)}</div>
-                        <div className="font-medium mb-1 normal-case">People Borrowed From ({Object.keys(borrowedByPerson).length}):</div>
-                        <ul className="space-y-1">
-                          {Object.entries(borrowedByPerson).map(([person, amount]) => (
-                            <li key={person} className="flex justify-between">
-                              <span className="truncate max-w-[120px] normal-case" title={person}>{person}</span>
-                              <span className="ml-2 tabular-nums">{formatCurrency(amount, filterCurrency)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                </div>}
+                title="Total Borrowed"
                 value={formatCurrency(totalActiveBorrowed, filterCurrency)}
                 color="red"
               />
@@ -211,55 +254,56 @@ export const LendBorrowSummaryCard: React.FC = () => {
       {showLentMobileModal && isMobile && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowLentMobileModal(false)} />
-          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-64 animate-fadein normal-case">
-            <div className="flex items-center justify-between mb-2">
-              <div className="font-semibold text-gray-700 dark:text-gray-200 normal-case">Total: {formatCurrency(totalActiveLent, filterCurrency)}</div>
+          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-80 max-w-[90vw] animate-fadein normal-case">
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-semibold text-gray-700 dark:text-gray-200 normal-case text-center flex-1">Total: {formatCurrency(totalActiveLent + totalActiveBorrowed, filterCurrency)}</div>
               <button
                 onClick={() => setShowLentMobileModal(false)}
-                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ml-2"
               >
                 <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
-            <div className="font-medium mb-1 text-gray-700 dark:text-gray-200 normal-case">People Lent To ({Object.keys(lentByPerson).length}):</div>
-            <ul className="space-y-1 max-h-48 overflow-y-auto">
-              {Object.entries(lentByPerson).map(([person, amount]) => (
-                <li key={person} className="flex justify-between text-xs text-gray-700 dark:text-gray-200">
-                  <span className="truncate max-w-[120px] normal-case" title={person}>{person}</span>
-                  <span className="ml-2 tabular-nums">{formatCurrency(amount, filterCurrency)}</span>
-                </li>
-              ))}
-            </ul>
+            
+            <div className="space-y-4">
+              {/* Top section - Lend list */}
+              <div>
+                <div className="font-medium mb-2 text-green-600 dark:text-green-400 normal-case">Lent To ({Object.keys(lentByPerson).length})</div>
+                {Object.keys(lentByPerson).length > 0 ? (
+                  <ul className="space-y-1 max-h-32 overflow-y-auto">
+                    {Object.entries(lentByPerson).map(([person, amount]) => (
+                      <li key={person} className="flex justify-between text-xs">
+                        <span className="truncate max-w-[120px] text-green-600 dark:text-green-400 normal-case" title={person}>{person}</span>
+                        <span className="ml-2 tabular-nums text-green-600 dark:text-green-400">{formatCurrency(amount, filterCurrency)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-gray-500 dark:text-gray-400 text-xs">No active loans</div>
+                )}
+              </div>
+              
+              {/* Bottom section - Borrow list */}
+              <div>
+                <div className="font-medium mb-2 text-red-600 dark:text-red-400 normal-case">Borrowed From ({Object.keys(borrowedByPerson).length})</div>
+                {Object.keys(borrowedByPerson).length > 0 ? (
+                  <ul className="space-y-1 max-h-32 overflow-y-auto">
+                    {Object.entries(borrowedByPerson).map(([person, amount]) => (
+                      <li key={person} className="flex justify-between text-xs">
+                        <span className="truncate max-w-[120px] text-red-600 dark:text-red-400 normal-case" title={person}>{person}</span>
+                        <span className="ml-2 tabular-nums text-red-600 dark:text-red-400">{formatCurrency(amount, filterCurrency)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-gray-500 dark:text-gray-400 text-xs">No active borrows</div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Mobile Modal for Borrowed Info */}
-      {showBorrowedMobileModal && isMobile && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setShowBorrowedMobileModal(false)} />
-          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-64 animate-fadein normal-case">
-            <div className="flex items-center justify-between mb-2">
-              <div className="font-semibold text-gray-700 dark:text-gray-200 normal-case">Total: {formatCurrency(totalActiveBorrowed, filterCurrency)}</div>
-              <button
-                onClick={() => setShowBorrowedMobileModal(false)}
-                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-              </button>
-            </div>
-            <div className="font-medium mb-1 text-gray-700 dark:text-gray-200 normal-case">People Borrowed From ({Object.keys(borrowedByPerson).length}):</div>
-            <ul className="space-y-1 max-h-48 overflow-y-auto">
-              {Object.entries(borrowedByPerson).map(([person, amount]) => (
-                <li key={person} className="flex justify-between text-xs text-gray-700 dark:text-gray-200">
-                  <span className="truncate max-w-[120px] normal-case" title={person}>{person}</span>
-                  <span className="ml-2 tabular-nums">{formatCurrency(amount, filterCurrency)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
     </div>
   );
 }; 

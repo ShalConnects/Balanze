@@ -38,7 +38,7 @@
     "transfer": "স্থানান্তর",
     "addNew": "নতুন যোগ করুন",
     "overview": "সংক্ষিপ্ত বিবরণ",
-    "currencyOverview": "{{currencyCode}} সংক্ষিপ্ত বিবরণ",
+    "currencyOverview": "{{currencyCode}}",
     "todoList": "টু-ডু তালিকা",
     "addTodo": "টু-ডু যোগ করুন",
     "todoPlaceholder": "নতুন টু-ডু প্রবেশ করুন...",

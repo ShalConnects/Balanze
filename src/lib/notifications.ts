@@ -221,7 +221,14 @@ export class SmartNotificationManager {
     // This would get the frequency from the first user in the queue
     // In a real implementation, you'd need to handle multiple users
     if (this.notificationQueue.length > 0) {
-      return await notificationPreferencesService.getNotificationFrequency(this.notificationQueue[0].userId);
+      try {
+        const preferences = await notificationPreferencesService.getPreferences(this.notificationQueue[0].userId);
+        if (preferences.frequency.real_time) return 'real_time';
+        if (preferences.frequency.daily_digest) return 'daily_digest';
+        if (preferences.frequency.weekly_summary) return 'weekly_summary';
+      } catch (error) {
+        console.warn('Could not get notification frequency, defaulting to real_time:', error);
+      }
     }
     return 'real_time';
   }

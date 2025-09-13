@@ -129,8 +129,18 @@ export const StatCard: React.FC<StatCardProps> = ({
 
   // Format animated value for display
   const formatAnimatedValue = (val: number, originalValue: string) => {
-    if (typeof originalValue === 'string' && originalValue.includes('$')) {
-      return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (typeof originalValue === 'string') {
+      // Extract currency symbol from original value
+      const currencySymbol = originalValue.match(/^[^\d\s,.-]+/)?.[0] || '';
+      
+      if (currencySymbol) {
+        // Handle BDT with proper formatting
+        if (currencySymbol === '৳') {
+          return `${currencySymbol}${val.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        // Handle other currencies
+        return `${currencySymbol}${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
     }
     return val.toLocaleString();
   };

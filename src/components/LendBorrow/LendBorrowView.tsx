@@ -1134,7 +1134,7 @@ export const LendBorrowView: React.FC = () => {
                         : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                     }`}
                   >
-                    All
+                    All Currencies
                   </button>
                   {availableCurrencies.map(currency => (
                     <button

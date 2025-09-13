@@ -31,7 +31,7 @@
   
   "dashboard": {
     "welcome": "Welcome to your Dashboard!",
-    "currencyOverview": "{{currencyCode}} Overview",
+    "currencyOverview": "{{currencyCode}}",
     "totalBalance": "Total Balance",
     "monthlyIncome": "Income",
     "monthlyExpenses": "Expenses",

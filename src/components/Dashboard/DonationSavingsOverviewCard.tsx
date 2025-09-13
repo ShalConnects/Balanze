@@ -293,8 +293,8 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
             value={filterCurrency}
             onChange={setFilterCurrency}
             fullWidth={false}
-            className="bg-transparent border-0 shadow-none text-gray-500 text-xs h-7 min-h-0 hover:bg-gray-100 focus:ring-0 focus:outline-none"
-            style={{ padding: '10px', paddingRight: '5px' }}
+            className="bg-transparent border shadow-none text-gray-500 text-xs h-7 min-h-0 hover:bg-gray-100 focus:ring-0 focus:outline-none"
+            style={{ padding: '10px', paddingRight: '5px', border: '1px solid rgb(229 231 235 / var(--tw-bg-opacity, 1))' }}
             dropdownMenuClassName="!bg-[#d3d3d3bf] !top-[20px]"
           />
           <Link 
