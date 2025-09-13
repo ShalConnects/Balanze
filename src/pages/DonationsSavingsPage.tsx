@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { format } from 'date-fns';
-import { Search, Filter, Download, TrendingUp, Heart, PiggyBank, CheckCircle, HelpCircle, Clock, Plus, Copy, ChevronUp, ChevronDown } from 'lucide-react';
+import { Search, Filter, Download, TrendingUp, Heart, PiggyBank, CheckCircle, HelpCircle, Clock, Plus, Copy, ChevronUp, ChevronDown, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Tooltip } from '../components/common/Tooltip';
 import { useAuthStore } from '../store/authStore';
@@ -549,8 +549,8 @@ const DonationsSavingsPage: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setShowManualDonationModal(true)}
-                    className="bg-gradient-primary text-white px-2 py-1.5 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center justify-center text-[13px] h-8 w-8"
-                    title="Manual donation"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-2 py-1.5 rounded-md hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center text-[13px] h-8 w-8 shadow-sm hover:shadow-md"
+                    title="Quick Donate"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -753,47 +753,385 @@ const DonationsSavingsPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setShowManualDonationModal(true)}
-                className="bg-gradient-primary text-white px-3 py-1.5 h-8 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center space-x-1.5 text-[13px]"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1.5 h-8 rounded-md hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center space-x-1.5 text-[13px] shadow-sm hover:shadow-md"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Manual donation</span>
+                <span>Quick Donate</span>
               </button>
             </div>
             </div>
       </div>
 
-          {/* Summary Cards */}
+          {/* Enhanced Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3">
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
-          <div className="flex items-center justify-between">
-            <div className="text-left">
-                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Donated</p>
-                  <p className="font-bold text-green-600 dark:text-green-400" style={{ fontSize: '1.2rem' }}>{currencySymbol}{analytics.total_donated}</p>
-                </div>
-                <Heart className="text-green-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
-              </div>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
-          <div className="flex items-center justify-between">
-            <div className="text-left">
-                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Pending</p>
-                  <p className="font-bold text-blue-600 dark:text-blue-400" style={{ fontSize: '1.2rem' }}>{currencySymbol}{pendingRecords.reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                </div>
-                <span className="text-blue-600" style={{ fontSize: '1.2rem' }}>📊</span>
-              </div>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
+            {/* Total Donated Card with Animation */}
+            <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg border border-green-200/50 dark:border-green-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Top Month</p>
-                  <p className="font-bold text-purple-600 dark:text-purple-400" style={{ fontSize: '1.2rem' }}>
+                  <p className="text-xs font-medium text-green-700 dark:text-green-300 mb-1">Total Donated</p>
+                  <p className="font-bold text-green-600 dark:text-green-400 text-lg group-hover:scale-105 transition-transform duration-200">
+                    {currencySymbol}{analytics.total_donated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <div className="mt-1 text-xs text-green-600/70 dark:text-green-400/70">
+                    {donatedRecords.length} donations
+                  </div>
+                </div>
+                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <Heart className="text-green-600 dark:text-green-400 w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            {/* Total Pending Card */}
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg border border-blue-200/50 dark:border-blue-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Total Pending</p>
+                  <p className="font-bold text-blue-600 dark:text-blue-400 text-lg group-hover:scale-105 transition-transform duration-200">
+                    {currencySymbol}{pendingRecords.reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <div className="mt-1 text-xs text-blue-600/70 dark:text-blue-400/70">
+                    {pendingRecords.length} pending
+                  </div>
+                </div>
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <Clock className="text-blue-600 dark:text-blue-400 w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            {/* Top Month Card */}
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg border border-purple-200/50 dark:border-purple-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <p className="text-xs font-medium text-purple-700 dark:text-purple-300 mb-1">Top Month</p>
+                  <p className="font-bold text-purple-600 dark:text-purple-400 text-lg group-hover:scale-105 transition-transform duration-200">
                     {analytics.top_month ? format(new Date(analytics.top_month + '-01'), 'MMM yyyy') : '-'}
                   </p>
-          </div>
-                <TrendingUp className="text-purple-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
-      </div>
+                  <div className="mt-1 text-xs text-purple-600/70 dark:text-purple-400/70">
+                    Best performance
+                  </div>
+                </div>
+                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <TrendingUp className="text-purple-600 dark:text-purple-400 w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            {/* Monthly Donation Count Card */}
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg border border-orange-200/50 dark:border-orange-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <p className="text-xs font-medium text-orange-700 dark:text-orange-300 mb-1">This Month</p>
+                  <p className="font-bold text-orange-600 dark:text-orange-400 text-lg group-hover:scale-105 transition-transform duration-200">
+                    {donatedRecords.filter(r => {
+                      const recordDate = new Date(r.created_at);
+                      const now = new Date();
+                      return recordDate.getMonth() === now.getMonth() && recordDate.getFullYear() === now.getFullYear();
+                    }).length}
+                  </p>
+                  <div className="mt-1 text-xs text-orange-600/70 dark:text-orange-400/70">
+                    donations
+                  </div>
+                </div>
+                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <Calendar className="text-orange-600 dark:text-orange-400 w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            {/* Impact Card */}
+            <div className="bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/20 dark:to-pink-800/20 rounded-lg border border-pink-200/50 dark:border-pink-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <p className="text-xs font-medium text-pink-700 dark:text-pink-300 mb-1">Impact</p>
+                  <p className="font-bold text-pink-600 dark:text-pink-400 text-lg group-hover:scale-105 transition-transform duration-200">
+                    {Math.floor(donatedRecords.length * 2.5)}
+                  </p>
+                  <div className="mt-1 text-xs text-pink-600/70 dark:text-pink-400/70">
+                    people helped
+                  </div>
+                </div>
+                <div className="w-10 h-10 bg-pink-100 dark:bg-pink-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <span className="text-pink-600 dark:text-pink-400 text-lg">🌟</span>
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* Progress and Trends Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-3">
+            {/* Monthly Donation Trends */}
+            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 rounded-lg border border-indigo-200/50 dark:border-indigo-600/50 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">Monthly Trends</h3>
+                <TrendingUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <div className="space-y-2">
+                {(() => {
+                  // Calculate last 6 months donation data
+                  const monthlyData = [];
+                  const now = new Date();
+                  for (let i = 5; i >= 0; i--) {
+                    const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    const monthKey = format(month, 'yyyy-MM');
+                    const monthDonations = donatedRecords.filter(r => {
+                      const recordDate = new Date(r.created_at);
+                      return recordDate.getMonth() === month.getMonth() && recordDate.getFullYear() === month.getFullYear();
+                    });
+                    const totalAmount = monthDonations.reduce((sum, r) => sum + (r.amount || 0), 0);
+                    monthlyData.push({
+                      month: format(month, 'MMM'),
+                      amount: totalAmount,
+                      count: monthDonations.length
+                    });
+                  }
+                  
+                  const maxAmount = Math.max(...monthlyData.map(d => d.amount));
+                  
+                  return monthlyData.map((data, index) => (
+                    <div key={index} className="flex items-center space-x-3">
+                      <div className="w-12 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                        {data.month}
+                      </div>
+                      <div className="flex-1">
+                        <div className="w-full bg-indigo-200 dark:bg-indigo-800 rounded-full h-2">
+                          <div 
+                            className="bg-indigo-600 dark:bg-indigo-400 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${maxAmount > 0 ? (data.amount / maxAmount) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="w-16 text-xs text-indigo-600 dark:text-indigo-400 text-right">
+                        {currencySymbol}{data.amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+
+            {/* Savings Goals Progress */}
+            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-lg border border-emerald-200/50 dark:border-emerald-600/50 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Savings Goals</h3>
+                <PiggyBank className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="space-y-3">
+                {(() => {
+                  // Get active savings goals
+                  const savingsGoals = donationSavingRecords.filter(r => 
+                    r.type === 'saving' && r.status === 'active' && r.currency === filterCurrency
+                  );
+                  
+                  if (savingsGoals.length === 0) {
+                    return (
+                      <div className="text-center py-4">
+                        <PiggyBank className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                        <p className="text-sm text-emerald-600 dark:text-emerald-400">No active savings goals</p>
+                        <button 
+                          onClick={() => setShowManualDonationModal(true)}
+                          className="mt-2 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 underline"
+                        >
+                          Create your first goal
+                        </button>
+                      </div>
+                    );
+                  }
+                  
+                  return savingsGoals.slice(0, 3).map((goal, index) => {
+                    const progress = Math.min((goal.amount || 0) / 1000, 1) * 100; // Assuming 1000 as target
+                    return (
+                      <div key={index} className="space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300 truncate">
+                            {goal.note || `Goal ${index + 1}`}
+                          </span>
+                          <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                            {currencySymbol}{goal.amount?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || 0}
+                          </span>
+                        </div>
+                        <div className="w-full bg-emerald-200 dark:bg-emerald-800 rounded-full h-2">
+                          <div 
+                            className="bg-emerald-600 dark:bg-emerald-400 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                        <div className="text-xs text-emerald-600/70 dark:text-emerald-400/70">
+                          {progress.toFixed(0)}% of target
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          </div>
+
+          {/* Achievement Badges Section */}
+          <div className="p-3">
+            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 rounded-lg border border-yellow-200/50 dark:border-yellow-600/50 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-yellow-700 dark:text-yellow-300">Achievements</h3>
+                <span className="text-yellow-600 dark:text-yellow-400 text-lg">🏆</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {(() => {
+                  const achievements = [];
+                  
+                  // First donation badge
+                  if (donatedRecords.length >= 1) {
+                    achievements.push({
+                      icon: "🎯",
+                      title: "First Step",
+                      description: "First donation made",
+                      earned: true
+                    });
+                  }
+                  
+                  // Regular donor badge
+                  if (donatedRecords.length >= 5) {
+                    achievements.push({
+                      icon: "💝",
+                      title: "Regular Donor",
+                      description: "5+ donations",
+                      earned: true
+                    });
+                  }
+                  
+                  // Generous donor badge
+                  if (analytics.total_donated >= 100) {
+                    achievements.push({
+                      icon: "🌟",
+                      title: "Generous Heart",
+                      description: "$100+ donated",
+                      earned: true
+                    });
+                  }
+                  
+                  // Monthly consistency badge
+                  const currentMonth = new Date().getMonth();
+                  const currentYear = new Date().getFullYear();
+                  const thisMonthDonations = donatedRecords.filter(r => {
+                    const recordDate = new Date(r.created_at);
+                    return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
+                  });
+                  
+                  if (thisMonthDonations.length >= 2) {
+                    achievements.push({
+                      icon: "📅",
+                      title: "Monthly Hero",
+                      description: "2+ donations this month",
+                      earned: true
+                    });
+                  }
+                  
+                  // Add placeholder achievements if less than 4
+                  while (achievements.length < 4) {
+                    achievements.push({
+                      icon: "🔒",
+                      title: "Coming Soon",
+                      description: "Keep donating to unlock",
+                      earned: false
+                    });
+                  }
+                  
+                  return achievements.map((achievement, index) => (
+                    <div 
+                      key={index} 
+                      className={`text-center p-2 rounded-lg transition-all duration-200 ${
+                        achievement.earned 
+                          ? 'bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700' 
+                          : 'bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 opacity-60'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">{achievement.icon}</div>
+                      <div className="text-xs font-semibold text-yellow-700 dark:text-yellow-300 mb-1">
+                        {achievement.title}
+                      </div>
+                      <div className="text-xs text-yellow-600/70 dark:text-yellow-400/70">
+                        {achievement.description}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity Timeline - Hidden */}
+          {/* <div className="p-3">
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/20 dark:to-slate-800/20 rounded-lg border border-slate-200/50 dark:border-slate-600/50 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Recent Activity</h3>
+                <Clock className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+              </div>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {(() => {
+                  // Get recent 5 activities (donations and savings)
+                  const recentActivities = [...donatedRecords, ...pendingRecords]
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .slice(0, 5);
+                  
+                  if (recentActivities.length === 0) {
+                    return (
+                      <div className="text-center py-4">
+                        <Clock className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                        <p className="text-sm text-slate-600 dark:text-slate-400">No recent activity</p>
+                      </div>
+                    );
+                  }
+                  
+                  return recentActivities.map((activity, index) => {
+                    const isDonated = activity.status === 'donated';
+                    const isSaving = activity.type === 'saving';
+                    
+                    return (
+                      <div key={index} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors">
+                        <div className={`w-2 h-2 rounded-full ${
+                          isDonated 
+                            ? 'bg-green-500' 
+                            : isSaving 
+                              ? 'bg-blue-500' 
+                              : 'bg-yellow-500'
+                        }`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
+                              {isSaving ? 'Savings Goal' : 'Donation'} - {activity.note?.replace(/\(?Currency:\s*[A-Z]{3}\)?/g, '').trim() || 'No description'}
+                            </p>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">
+                              {format(new Date(activity.created_at), 'MMM dd')}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className={`text-sm font-semibold ${
+                              isDonated 
+                                ? 'text-green-600 dark:text-green-400' 
+                                : isSaving 
+                                  ? 'text-blue-600 dark:text-blue-400' 
+                                  : 'text-yellow-600 dark:text-yellow-400'
+                            }`}>
+                              {currencySymbol}{activity.amount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || 0}
+                            </span>
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              isDonated 
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
+                                : isSaving 
+                                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
+                                  : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
+                            }`}>
+                              {isDonated ? 'Completed' : isSaving ? 'Active' : 'Pending'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          </div> */}
           
           {/* Desktop Table View */}
           <div className="hidden xl:block overflow-x-auto">

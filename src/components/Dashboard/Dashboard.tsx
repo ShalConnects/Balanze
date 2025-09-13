@@ -434,7 +434,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">Purchase Overview</h2>
                   <Link 
                     to="/purchases" 
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center space-x-1"
+                    className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
                   >
                     <span>View All</span>
                     <ArrowRight className="w-4 h-4" />
@@ -471,7 +471,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('dashboard.recentTransactions')}</h2>
               <Link 
                 to="/transactions" 
-                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center space-x-1"
+                className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
               >
                 <span>View All</span>
                 <ArrowRight className="w-4 h-4" />
@@ -498,7 +498,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('dashboard.recentTransactions')}</h2>
               <Link 
                 to="/transactions" 
-                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center space-x-1"
+                className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
               >
                 <span>View All</span>
                 <ArrowRight className="w-4 h-4" />

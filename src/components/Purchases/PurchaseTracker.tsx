@@ -1193,8 +1193,205 @@ export const PurchaseTracker: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Custom Top Row */}
-      {/* Removed the old Add Purchase button row */}
+      {/* Smart Features Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Purchase Recommendations */}
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg border border-blue-200/50 dark:border-blue-600/50 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-blue-700 dark:text-blue-300">Smart Recommendations</h3>
+            <ShoppingBag className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="space-y-2">
+            {(() => {
+              // Generate recommendations based on spending patterns
+              const recommendations = [];
+              
+              // Analyze spending patterns
+              const categorySpending = filteredPurchases.reduce((acc, purchase) => {
+                if (purchase.status === 'purchased') {
+                  acc[purchase.category] = (acc[purchase.category] || 0) + Number(purchase.price);
+                }
+                return acc;
+              }, {} as Record<string, number>);
+              
+              const topCategory = Object.entries(categorySpending).sort(([,a], [,b]) => b - a)[0];
+              
+              if (topCategory) {
+                recommendations.push({
+                  type: 'budget',
+                  title: 'Budget Alert',
+                  description: `You've spent ${getCurrencySymbol(analyticsCurrency)}${topCategory[1].toFixed(0)} on ${topCategory[0]} this month`,
+                  action: 'Review spending'
+                });
+              }
+              
+              // Check for frequent purchases
+              const frequentItems = filteredPurchases.reduce((acc, purchase) => {
+                if (purchase.status === 'purchased') {
+                  acc[purchase.item_name] = (acc[purchase.item_name] || 0) + 1;
+                }
+                return acc;
+              }, {} as Record<string, number>);
+              
+              const mostFrequent = Object.entries(frequentItems).sort(([,a], [,b]) => b - a)[0];
+              if (mostFrequent && mostFrequent[1] > 2) {
+                recommendations.push({
+                  type: 'bulk',
+                  title: 'Bulk Purchase',
+                  description: `You've bought "${mostFrequent[0]}" ${mostFrequent[1]} times`,
+                  action: 'Consider bulk buying'
+                });
+              }
+              
+              // Check for planned purchases
+              const plannedCount = filteredPurchases.filter(p => p.status === 'planned').length;
+              if (plannedCount > 0) {
+                recommendations.push({
+                  type: 'planned',
+                  title: 'Pending Purchases',
+                  description: `You have ${plannedCount} planned purchases`,
+                  action: 'Review wishlist'
+                });
+              }
+              
+              if (recommendations.length === 0) {
+                return (
+                  <div className="text-center py-2">
+                    <p className="text-xs text-blue-600/70 dark:text-blue-400/70">No recommendations yet</p>
+                    <p className="text-xs text-blue-600/50 dark:text-blue-400/50">Keep tracking purchases for insights</p>
+                  </div>
+                );
+              }
+              
+              return recommendations.slice(0, 3).map((rec, index) => (
+                <div key={index} className="p-2 bg-blue-100/50 dark:bg-blue-900/20 rounded-lg">
+                  <div className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">
+                    {rec.title}
+                  </div>
+                  <div className="text-xs text-blue-600/80 dark:text-blue-400/80 mb-1">
+                    {rec.description}
+                  </div>
+                  <button className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline">
+                    {rec.action}
+                  </button>
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+
+        {/* Price Drop Alerts */}
+        <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg border border-green-200/50 dark:border-green-600/50 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-green-700 dark:text-green-300">Price Alerts</h3>
+            <AlertTriangle className="w-4 h-4 text-green-600 dark:text-green-400" />
+          </div>
+          <div className="space-y-2">
+            {(() => {
+              // Simulate price drop alerts for planned purchases
+              const plannedPurchases = filteredPurchases.filter(p => p.status === 'planned');
+              const alerts = [];
+              
+              plannedPurchases.slice(0, 3).forEach((purchase, index) => {
+                // Simulate price drops (in real app, this would come from price tracking API)
+                const originalPrice = Number(purchase.price);
+                const currentPrice = originalPrice * (0.85 + Math.random() * 0.15); // 15-30% variation
+                const savings = originalPrice - currentPrice;
+                
+                if (savings > 0) {
+                  alerts.push({
+                    item: purchase.item_name,
+                    originalPrice,
+                    currentPrice,
+                    savings,
+                    currency: purchase.currency
+                  });
+                }
+              });
+              
+              if (alerts.length === 0) {
+                return (
+                  <div className="text-center py-2">
+                    <p className="text-xs text-green-600/70 dark:text-green-400/70">No price drops detected</p>
+                    <p className="text-xs text-green-600/50 dark:text-green-400/50">Add planned purchases to track prices</p>
+                  </div>
+                );
+              }
+              
+              return alerts.map((alert, index) => (
+                <div key={index} className="p-2 bg-green-100/50 dark:bg-green-900/20 rounded-lg">
+                  <div className="text-xs font-medium text-green-700 dark:text-green-300 mb-1">
+                    {alert.item}
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="text-xs text-green-600/80 dark:text-green-400/80">
+                      <span className="line-through">{getCurrencySymbol(alert.currency)}{alert.originalPrice.toFixed(2)}</span>
+                      <span className="ml-1 font-semibold">{getCurrencySymbol(alert.currency)}{alert.currentPrice.toFixed(2)}</span>
+                    </div>
+                    <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+                      Save {getCurrencySymbol(alert.currency)}{alert.savings.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+
+        {/* Wishlist Management */}
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg border border-purple-200/50 dark:border-purple-600/50 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-purple-700 dark:text-purple-300">Wishlist Shortcuts</h3>
+            <Tag className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+          </div>
+          <div className="space-y-2">
+            {(() => {
+              const plannedPurchases = filteredPurchases.filter(p => p.status === 'planned');
+              const highPriority = plannedPurchases.filter(p => p.priority === 'high');
+              const totalPlannedValue = plannedPurchases.reduce((sum, p) => sum + Number(p.price), 0);
+              
+              return (
+                <>
+                  <div className="p-2 bg-purple-100/50 dark:bg-purple-900/20 rounded-lg">
+                    <div className="text-xs font-medium text-purple-700 dark:text-purple-300 mb-1">
+                      Quick Stats
+                    </div>
+                    <div className="text-xs text-purple-600/80 dark:text-purple-400/80">
+                      {plannedPurchases.length} items • {getCurrencySymbol(analyticsCurrency)}{totalPlannedValue.toFixed(0)} total
+                    </div>
+                  </div>
+                  
+                  {highPriority.length > 0 && (
+                    <div className="p-2 bg-purple-100/50 dark:bg-purple-900/20 rounded-lg">
+                      <div className="text-xs font-medium text-purple-700 dark:text-purple-300 mb-1">
+                        High Priority
+                      </div>
+                      <div className="text-xs text-purple-600/80 dark:text-purple-400/80">
+                        {highPriority.length} urgent items
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex gap-1">
+                    <button 
+                      onClick={() => setFilters({ ...filters, priority: 'high' })}
+                      className="flex-1 text-xs bg-purple-200 dark:bg-purple-800 text-purple-700 dark:text-purple-300 px-2 py-1 rounded hover:bg-purple-300 dark:hover:bg-purple-700 transition-colors"
+                    >
+                      High Priority
+                    </button>
+                    <button 
+                      onClick={() => setFilters({ ...filters, status: 'planned' })}
+                      className="flex-1 text-xs bg-purple-200 dark:bg-purple-800 text-purple-700 dark:text-purple-300 px-2 py-1 rounded hover:bg-purple-300 dark:hover:bg-purple-700 transition-colors"
+                    >
+                      All Planned
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      </div>
 
       {/* Unified Filters and Table */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">

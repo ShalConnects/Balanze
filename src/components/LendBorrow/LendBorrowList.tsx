@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LendBorrow, LendBorrowReturn } from '../../types/index';
 import { useTranslation } from 'react-i18next';
-import { Edit2, Trash2, InfoIcon, CheckCircle, Clock, AlertTriangle, DollarSign, CornerDownLeft, ChevronUp, ChevronDown, Handshake } from 'lucide-react';
+import { Edit2, Trash2, InfoIcon, CheckCircle, Clock, AlertTriangle, DollarSign, CornerDownLeft, ChevronUp, ChevronDown, Handshake, RotateCcw } from 'lucide-react';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { supabase } from '../../lib/supabase';
 
@@ -227,20 +227,32 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                     </div>
                   </div>
                   <div className="col-span-2 flex items-center justify-end gap-1">
-                    <button
-                      onClick={() => onPartialReturn(record)}
-                      className="p-1 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
-                      title="Partial Return"
-                    >
-                      <CornerDownLeft className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => onUpdateStatus(record.id, 'settled')}
-                      className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                      title="Mark as Settled"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                    </button>
+                    {record.status !== 'settled' ? (
+                      <>
+                        <button
+                          onClick={() => onPartialReturn(record)}
+                          className="p-1 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                          title="Partial Return"
+                        >
+                          <CornerDownLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => onUpdateStatus(record.id, 'settled')}
+                          className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                          title="Mark as Settled"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => onUpdateStatus(record.id, 'active')}
+                        className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        title="Mark as Active"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => onEdit(record)}
                       className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
@@ -591,7 +603,7 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      {record.status !== 'settled' && (
+                      {record.status !== 'settled' ? (
                         <>
                           <button
                             onClick={() => onPartialReturn(record)}
@@ -608,6 +620,14 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                             <CheckCircle className="w-4 h-4" />
                           </button>
                         </>
+                      ) : (
+                        <button
+                          onClick={() => onUpdateStatus(record.id, 'active')}
+                          className="text-gray-500 hover:text-blue-600"
+                          title="Mark as Active"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </button>
                       )}
                       <button
                         onClick={() => handleDeleteClick(record)}

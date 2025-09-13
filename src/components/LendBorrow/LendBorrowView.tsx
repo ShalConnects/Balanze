@@ -68,31 +68,6 @@ export const LendBorrowView: React.FC = () => {
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const presetDropdownRef = useRef<HTMLDivElement>(null);
   const { wrapAsync, setLoadingMessage } = useLoadingContext();
-  
-  // Show upgrade prompt for free users
-  if (!isPremium) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
-          <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Handshake className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            Lend & Borrow Tracking
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Track loans and borrowings with detailed analytics. This feature is available for Premium users only.
-          </p>
-          <button
-            onClick={() => window.location.href = '/settings?tab=plans'}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
-          >
-            Upgrade to Premium
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // Date filter functions
   const getThisMonthDateRange = () => {
@@ -720,6 +695,31 @@ export const LendBorrowView: React.FC = () => {
 
   if (!selectedCurrency) {
     return <div className="min-h-[300px] flex items-center justify-center text-xl">No currency selected or available.</div>;
+  }
+
+  // Show upgrade prompt for free users
+  if (!isPremium) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
+          <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Handshake className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            Lend & Borrow Tracking
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Track loans and borrowings with detailed analytics. This feature is available for Premium users only.
+          </p>
+          <button
+            onClick={() => window.location.href = '/settings?tab=plans'}
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
+          >
+            Upgrade to Premium
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

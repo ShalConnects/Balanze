@@ -235,14 +235,14 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 flex-1">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('dashboard.currencyOverview', { currencyCode: currency })}</h2>
           <div className="relative flex items-center">
             <button
               type="button"
-              className="ml-1 p-1 rounded-full hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+              className="ml-1 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-110 active:scale-95"
               onMouseEnter={() => !isMobile && setShowTooltip(true)}
               onMouseLeave={() => !isMobile && setShowTooltip(false)}
               onFocus={() => !isMobile && setShowTooltip(true)}
@@ -257,7 +257,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
               tabIndex={0}
               aria-label="Show account info"
             >
-              <Info className="w-4 h-4 text-gray-400" />
+              <Info className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200" />
             </button>
             {showTooltip && !isMobile && (
               <div className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
@@ -294,9 +294,11 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
         <div className="w-full">
           <StatCard
             title={<span className="text-[13px]">{t('dashboard.monthlyIncome')}</span>}
-            value={<span className="text-[16px] font-bold text-green-600">{formatCurrency(filteredIncome, currency)}</span>}
+            value={formatCurrency(filteredIncome, currency)}
             trend="up"
             color="green"
+            gradient={true}
+            animated={true}
             insight={renderInsight(incomeChange, compareLabel)}
             trendGraph={
               <LineChart width={60} height={24} data={sparkData} margin={{ top: 6, right: 0, left: 0, bottom: 0 }}>
@@ -308,9 +310,11 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
         <div className="w-full">
           <StatCard
             title={<span className="text-[13px]">{t('dashboard.monthlyExpenses')}</span>}
-            value={<span className="text-[16px] font-bold text-red-600">{formatCurrency(filteredExpenses, currency)}</span>}
+            value={formatCurrency(filteredExpenses, currency)}
             trend="down"
             color="red"
+            gradient={true}
+            animated={true}
             insight={renderInsight(expensesChange, compareLabel, true)}
             trendGraph={
               <LineChart width={60} height={24} data={sparkData} margin={{ top: 6, right: 0, left: 0, bottom: 0 }}>

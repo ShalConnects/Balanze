@@ -450,7 +450,8 @@ function createEmailContent(user, recipient, data, settings) {
   const totalLendBorrow = data.lendBorrow?.length || 0;
   const totalSavings = data.donationSavings?.length || 0;
   
-  const userName = user.user_metadata?.full_name || 'User';
+  const fullName = user.user_metadata?.full_name || 'User';
+  const userName = fullName.split(' ')[0]; // Extract first name only
   const userEmail = user.email;
 
   return `
@@ -501,6 +502,8 @@ function createEmailContent(user, recipient, data, settings) {
                 color: white;
                 border: 2px solid rgba(255, 255, 255, 0.3);
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                text-align: center;
+                line-height: 1;
             }
             .logo-text {
                 font-size: 28px;

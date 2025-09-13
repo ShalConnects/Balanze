@@ -1008,7 +1008,7 @@ export const TransactionList: React.FC<{
           <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
             <div className="flex items-center justify-between">
               <div className="text-left">
-                                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Net Total</p>
+                                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Transactions</p>
                 <p className="font-bold text-blue-600 dark:text-blue-400" style={{ fontSize: '1.2rem' }}>{transactionCount}</p>
               </div>
               <span className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }}>#</span>
