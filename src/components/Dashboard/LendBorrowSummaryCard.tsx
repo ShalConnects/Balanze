@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { ArrowUpRight, ArrowDownLeft, Handshake, AlertTriangle, ArrowRight, Calendar, Info, X } from 'lucide-react';
+import { ArrowRight, Info, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
@@ -49,52 +49,6 @@ export const LendBorrowSummaryCard: React.FC = () => {
     }
   }, [filteredCurrencies, filterCurrency]);
 
-  useEffect(() => {
-    if (!user) return;
-    setLoading(true);
-    supabase
-      .from('lend_borrow')
-      .select('*')
-      .eq('user_id', user.id)
-      .then(({ data }) => {
-        setRecords(data || []);
-        setLoading(false);
-      });
-  }, [user]);
-  
-  // Don't render for free users
-  if (!isPremium) {
-    return null;
-  }
-
-  // Filter records by currency
-  const filteredRecords = records.filter(r => r.currency === filterCurrency);
-
-  const totalLent = filteredRecords.filter(r => r.type === 'lend').reduce((sum, r) => sum + r.amount, 0);
-  const totalBorrowed = filteredRecords.filter(r => r.type === 'borrow').reduce((sum, r) => sum + r.amount, 0);
-  const outstandingLoans = filteredRecords.filter(r => r.type === 'lend' && r.status === 'active').reduce((sum, r) => sum + r.amount, 0);
-  const outstandingDebts = filteredRecords.filter(r => r.type === 'borrow' && r.status === 'active').reduce((sum, r) => sum + r.amount, 0);
-
-  // Group by person for tooltips (only active records)
-  const lentByPerson = filteredRecords
-    .filter(r => r.type === 'lend' && r.status === 'active')
-    .reduce((acc, record) => {
-      const person = record.person_name || 'Unknown';
-      acc[person] = (acc[person] || 0) + record.amount;
-      return acc;
-    }, {} as Record<string, number>);
-
-  const borrowedByPerson = filteredRecords
-    .filter(r => r.type === 'borrow' && r.status === 'active')
-    .reduce((acc, record) => {
-      const person = record.person_name || 'Unknown';
-      acc[person] = (acc[person] || 0) + record.amount;
-      return acc;
-    }, {} as Record<string, number>);
-
-  const totalActiveLent = Object.values(lentByPerson).reduce((sum, amt) => sum + amt, 0);
-  const totalActiveBorrowed = Object.values(borrowedByPerson).reduce((sum, amt) => sum + amt, 0);
-
   // Function to calculate tooltip position
   const calculateTooltipPosition = () => {
     if (!tooltipRef.current || !cardRef.current) return;
@@ -118,6 +72,19 @@ export const LendBorrowSummaryCard: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (!user || !isPremium) return;
+    setLoading(true);
+    supabase
+      .from('lend_borrow')
+      .select('*')
+      .eq('user_id', user.id)
+      .then(({ data }) => {
+        setRecords(data || []);
+        setLoading(false);
+      });
+  }, [user, isPremium]);
+
   // Update tooltip position when tooltip is shown
   useEffect(() => {
     if (showLentTooltip) {
@@ -125,6 +92,34 @@ export const LendBorrowSummaryCard: React.FC = () => {
       setTimeout(calculateTooltipPosition, 10);
     }
   }, [showLentTooltip]);
+  
+  // Don't render for free users - MOVED TO END AFTER ALL HOOKS
+  if (!isPremium) {
+    return null;
+  }
+
+  // Filter records by currency
+  const filteredRecords = records.filter(r => r.currency === filterCurrency);
+
+  // Group by person for tooltips (only active records)
+  const lentByPerson = filteredRecords
+    .filter(r => r.type === 'lend' && r.status === 'active')
+    .reduce((acc, record) => {
+      const person = record.person_name || 'Unknown';
+      acc[person] = (acc[person] || 0) + record.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+  const borrowedByPerson = filteredRecords
+    .filter(r => r.type === 'borrow' && r.status === 'active')
+    .reduce((acc, record) => {
+      const person = record.person_name || 'Unknown';
+      acc[person] = (acc[person] || 0) + record.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+  const totalActiveLent = Object.values(lentByPerson).reduce((sum, amt) => sum + amt, 0);
+  const totalActiveBorrowed = Object.values(borrowedByPerson).reduce((sum, amt) => sum + amt, 0);
 
   // Don't render the card if there are no records
   if (records.length === 0) {
@@ -135,7 +130,7 @@ export const LendBorrowSummaryCard: React.FC = () => {
     <div ref={cardRef} className="bg-white dark:bg-gray-800 rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2 flex-1">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Lend & Borrow</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Lent & Borrow</h2>
           <div className="relative flex items-center">
             <button
               type="button"
@@ -233,7 +228,7 @@ export const LendBorrowSummaryCard: React.FC = () => {
           <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 mb-6">
             <div className="w-full relative">
               <StatCard
-                title="Total Lend"
+                title="Total Lent"
                 value={formatCurrency(totalActiveLent, filterCurrency)}
                 color="green"
               />
