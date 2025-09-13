@@ -19,7 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { LendBorrowSingleReminder } from './LendBorrowSingleReminder';
 import { LendBorrowSummaryCard } from './LendBorrowSummaryCard';
 import { CurrencyOverviewCard } from './CurrencyOverviewCard';
-import { DonationSavingsCard } from './DonationSavingsCard';
+import { DonationSavingsOverviewCard } from './DonationSavingsOverviewCard';
 import { StickyNote } from '../StickyNote';
 import { NotesAndTodosWidget } from './NotesAndTodosWidget';
 import { PurchaseForm } from '../Purchases/PurchaseForm';
@@ -400,7 +400,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
 
 
-          {/* Currency Sections - Responsive grid */}
+          {/* Currency Sections & Donations & Savings - Responsive grid */}
           <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6">
             {stats.byCurrency.map(({ currency }) => (
               <div key={currency} className="w-full">
@@ -413,7 +413,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                 />
               </div>
             ))}
+            {/* Donations & Savings Overview Card - Place after currency cards */}
+            <div className="w-full">
+              <DonationSavingsOverviewCard
+                t={t}
+                formatCurrency={formatCurrency}
+              />
+            </div>
           </div>
+
+          {/* Separator */}
+          <div className="border-t border-gray-200 dark:border-gray-700 my-6"></div>
 
           {/* Purchase Overview & Lend & Borrow Summary Row - Responsive grid */}
           <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6">
@@ -475,20 +485,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         <div className="hidden lg:block w-72 space-y-6">
           <LastWishCountdownWidget />
           <NotesAndTodosWidget />
-          <DonationSavingsCard
-            t={t}
-            formatCurrency={formatCurrency}
-          />
         </div>
 
         {/* Mobile Bottom Section - Notes/Todos and Recent Transactions */}
         <div className="lg:hidden space-y-6">
           <LastWishCountdownWidget />
           <NotesAndTodosWidget />
-          <DonationSavingsCard
-            t={t}
-            formatCurrency={formatCurrency}
-          />
           
           {/* Recent Transactions - Mobile version */}
           <div className="w-full bg-white dark:bg-gray-800 rounded-xl p-4 lg:p-6">

@@ -140,13 +140,13 @@ export const LendBorrowSummaryCard: React.FC = () => {
                       <HelpCircle className="w-4 h-4 text-gray-400" />
                     </button>
                     {showLentTooltip && !isMobile && (
-                      <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein capitalize">
-                        <div className="font-semibold mb-2 text-xs">Total: <span className="font-bold">{formatCurrency(totalActiveLent, filterCurrency)}</span></div>
-                        <div className="font-medium mb-1 text-xs">People Lent To ({Object.keys(lentByPerson).length}):</div>
+                      <div className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein normal-case">
+                        <div className="font-semibold mb-2 normal-case">Total: {formatCurrency(totalActiveLent, filterCurrency)}</div>
+                        <div className="font-medium mb-1 normal-case">People Lent To ({Object.keys(lentByPerson).length}):</div>
                         <ul className="space-y-1">
                           {Object.entries(lentByPerson).map(([person, amount]) => (
                             <li key={person} className="flex justify-between">
-                              <span className="truncate max-w-[120px]" title={person}>{person}</span>
+                              <span className="truncate max-w-[120px] normal-case" title={person}>{person}</span>
                               <span className="ml-2 tabular-nums">{formatCurrency(amount, filterCurrency)}</span>
                             </li>
                           ))}
@@ -183,13 +183,13 @@ export const LendBorrowSummaryCard: React.FC = () => {
                       <HelpCircle className="w-4 h-4 text-gray-400" />
                     </button>
                     {showBorrowedTooltip && !isMobile && (
-                      <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein capitalize">
-                        <div className="font-semibold mb-2 text-xs">Total: <span className="font-bold">{formatCurrency(totalActiveBorrowed, filterCurrency)}</span></div>
-                        <div className="font-medium mb-1 text-xs">People Borrowed From ({Object.keys(borrowedByPerson).length}):</div>
+                      <div className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein normal-case">
+                        <div className="font-semibold mb-2 normal-case">Total: {formatCurrency(totalActiveBorrowed, filterCurrency)}</div>
+                        <div className="font-medium mb-1 normal-case">People Borrowed From ({Object.keys(borrowedByPerson).length}):</div>
                         <ul className="space-y-1">
                           {Object.entries(borrowedByPerson).map(([person, amount]) => (
                             <li key={person} className="flex justify-between">
-                              <span className="truncate max-w-[120px]" title={person}>{person}</span>
+                              <span className="truncate max-w-[120px] normal-case" title={person}>{person}</span>
                               <span className="ml-2 tabular-nums">{formatCurrency(amount, filterCurrency)}</span>
                             </li>
                           ))}
@@ -211,9 +211,9 @@ export const LendBorrowSummaryCard: React.FC = () => {
       {showLentMobileModal && isMobile && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowLentMobileModal(false)} />
-          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-64 animate-fadein capitalize">
+          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-64 animate-fadein normal-case">
             <div className="flex items-center justify-between mb-2">
-              <div className="font-semibold text-gray-700 dark:text-gray-200 text-xs">Total: <span className="font-bold">{formatCurrency(totalActiveLent, filterCurrency)}</span></div>
+              <div className="font-semibold text-gray-700 dark:text-gray-200 normal-case">Total: {formatCurrency(totalActiveLent, filterCurrency)}</div>
               <button
                 onClick={() => setShowLentMobileModal(false)}
                 className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -221,11 +221,11 @@ export const LendBorrowSummaryCard: React.FC = () => {
                 <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
-            <div className="font-medium mb-1 text-gray-700 dark:text-gray-200 text-xs">People Lent To ({Object.keys(lentByPerson).length}):</div>
+            <div className="font-medium mb-1 text-gray-700 dark:text-gray-200 normal-case">People Lent To ({Object.keys(lentByPerson).length}):</div>
             <ul className="space-y-1 max-h-48 overflow-y-auto">
               {Object.entries(lentByPerson).map(([person, amount]) => (
                 <li key={person} className="flex justify-between text-xs text-gray-700 dark:text-gray-200">
-                  <span className="truncate max-w-[120px]" title={person}>{person}</span>
+                  <span className="truncate max-w-[120px] normal-case" title={person}>{person}</span>
                   <span className="ml-2 tabular-nums">{formatCurrency(amount, filterCurrency)}</span>
                 </li>
               ))}
@@ -238,9 +238,9 @@ export const LendBorrowSummaryCard: React.FC = () => {
       {showBorrowedMobileModal && isMobile && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowBorrowedMobileModal(false)} />
-          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-64 animate-fadein capitalize">
+          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-64 animate-fadein normal-case">
             <div className="flex items-center justify-between mb-2">
-              <div className="font-semibold text-gray-700 dark:text-gray-200 text-xs">Total: <span className="font-bold">{formatCurrency(totalActiveBorrowed, filterCurrency)}</span></div>
+              <div className="font-semibold text-gray-700 dark:text-gray-200 normal-case">Total: {formatCurrency(totalActiveBorrowed, filterCurrency)}</div>
               <button
                 onClick={() => setShowBorrowedMobileModal(false)}
                 className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -248,11 +248,11 @@ export const LendBorrowSummaryCard: React.FC = () => {
                 <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
-            <div className="font-medium mb-1 text-gray-700 dark:text-gray-200 text-xs">People Borrowed From ({Object.keys(borrowedByPerson).length}):</div>
+            <div className="font-medium mb-1 text-gray-700 dark:text-gray-200 normal-case">People Borrowed From ({Object.keys(borrowedByPerson).length}):</div>
             <ul className="space-y-1 max-h-48 overflow-y-auto">
               {Object.entries(borrowedByPerson).map(([person, amount]) => (
                 <li key={person} className="flex justify-between text-xs text-gray-700 dark:text-gray-200">
-                  <span className="truncate max-w-[120px]" title={person}>{person}</span>
+                  <span className="truncate max-w-[120px] normal-case" title={person}>{person}</span>
                   <span className="ml-2 tabular-nums">{formatCurrency(amount, filterCurrency)}</span>
                 </li>
               ))}
