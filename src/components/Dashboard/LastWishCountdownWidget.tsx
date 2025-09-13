@@ -27,6 +27,7 @@ interface CountdownData {
     minutes: number;
     seconds: number;
   };
+  isFinalHour?: boolean;
 }
 
 export const LastWishCountdownWidget: React.FC = () => {
@@ -39,18 +40,8 @@ export const LastWishCountdownWidget: React.FC = () => {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [countdown, setCountdown] = useState<CountdownData | null>(null);
   const [enabled, setEnabled] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const [deliveryStatus, setDeliveryStatus] = useState<{
-    isDelivered: boolean;
-    deliveredAt: string | null;
-    recipients: string[];
-  }>({
-    isDelivered: false,
-    deliveredAt: null,
-    recipients: []
-  });
 
   useEffect(() => {
     if (!user) {
@@ -75,13 +66,33 @@ export const LastWishCountdownWidget: React.FC = () => {
           
           // Normal mode: calculate days
           const nextCheckIn = new Date(lastCheckIn.getTime() + data.check_in_frequency * 24 * 60 * 60 * 1000);
-          const daysLeft = Math.ceil((nextCheckIn.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          const totalTimeLeft = nextCheckIn.getTime() - now.getTime();
+          const daysLeft = Math.ceil(totalTimeLeft / (1000 * 60 * 60 * 24));
           const isOverdue = daysLeft < 0;
+          
+          // Check if we're in the final hour (less than 24 hours remaining)
+          const isFinalHour = totalTimeLeft > 0 && totalTimeLeft <= 24 * 60 * 60 * 1000;
+          
+          // Calculate final hour time if applicable
+          let finalHourTimeData = null;
+          if (isFinalHour && totalTimeLeft > 0) {
+            const totalHours = Math.floor(totalTimeLeft / (1000 * 60 * 60));
+            const totalMinutes = Math.floor((totalTimeLeft % (1000 * 60 * 60)) / (1000 * 60));
+            const totalSeconds = Math.floor((totalTimeLeft % (1000 * 60)) / 1000);
+            
+            finalHourTimeData = {
+              hours: totalHours,
+              minutes: totalMinutes,
+              seconds: totalSeconds
+            };
+          }
           
           // Calculate urgency level
           let urgencyLevel: 'safe' | 'warning' | 'critical' | 'overdue' = 'safe';
           if (isOverdue) {
             urgencyLevel = 'overdue';
+          } else if (isFinalHour) {
+            urgencyLevel = 'critical';
           } else if (daysLeft <= 3) {
             urgencyLevel = 'critical';
           } else if (daysLeft <= 7) {
@@ -98,7 +109,9 @@ export const LastWishCountdownWidget: React.FC = () => {
             nextCheckIn: nextCheckIn.toLocaleDateString(),
             isOverdue,
             urgencyLevel,
-            progressPercentage
+            progressPercentage,
+            isFinalHour,
+            timeLeft: finalHourTimeData || undefined
           });
         } else {
           setCountdown({
@@ -118,6 +131,56 @@ export const LastWishCountdownWidget: React.FC = () => {
     fetchLastWish();
   }, [user]);
 
+  // Real-time countdown timer for final hour
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (countdown?.isFinalHour && enabled && countdown.timeLeft) {
+      interval = setInterval(() => {
+        // Re-fetch to get updated time
+        const fetchUpdatedTime = async () => {
+          const { data, error } = await supabase
+            .from('last_wish_settings')
+            .select('last_check_in, check_in_frequency')
+            .eq('user_id', user?.id)
+            .single();
+          
+          if (!error && data && data.last_check_in) {
+            const lastCheckIn = new Date(data.last_check_in);
+            const now = new Date();
+            const nextCheckIn = new Date(lastCheckIn.getTime() + data.check_in_frequency * 24 * 60 * 60 * 1000);
+            const totalTimeLeft = nextCheckIn.getTime() - now.getTime();
+            
+            if (totalTimeLeft > 0 && totalTimeLeft <= 24 * 60 * 60 * 1000) {
+              const totalHours = Math.floor(totalTimeLeft / (1000 * 60 * 60));
+              const totalMinutes = Math.floor((totalTimeLeft % (1000 * 60 * 60)) / (1000 * 60));
+              const totalSeconds = Math.floor((totalTimeLeft % (1000 * 60)) / 1000);
+              
+              
+              // Update countdown state
+              setCountdown(prev => prev ? {
+                ...prev,
+                timeLeft: { hours: totalHours, minutes: totalMinutes, seconds: totalSeconds }
+              } : null);
+            } else {
+              // No longer in final hour, clear the timer
+              setCountdown(prev => prev ? {
+                ...prev,
+                isFinalHour: false,
+                timeLeft: undefined
+              } : null);
+            }
+          }
+        };
+        
+        fetchUpdatedTime();
+      }, 1000); // Update every second
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [countdown?.isFinalHour, enabled, user?.id]);
   
   // Don't render for free users
   if (!isPremium) {
@@ -198,7 +261,12 @@ export const LastWishCountdownWidget: React.FC = () => {
     }
   };
 
-  const getUrgencyMessage = (level: string, daysLeft: number) => {
+  const getUrgencyMessage = (level: string, daysLeft: number, isFinalHour: boolean = false, timeLeft?: { hours: number; minutes: number; seconds: number }) => {
+    if (isFinalHour && timeLeft) {
+      const timeStr = `${timeLeft.hours.toString().padStart(2, '0')}:${timeLeft.minutes.toString().padStart(2, '0')}:${timeLeft.seconds.toString().padStart(2, '0')}`;
+      return `Final hour: ${timeStr} remaining - Check in now!`;
+    }
+    
     switch (level) {
       case 'overdue':
         return `OVERDUE! Check in immediately`;
@@ -255,9 +323,14 @@ export const LastWishCountdownWidget: React.FC = () => {
            <div>
              <h3 className={`font-bold text-lg ${colors.text}`}>
                Last Wish Check-in
+               {countdown.isFinalHour && (
+                 <span className="ml-2 px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium rounded-full animate-pulse">
+                   FINAL HOUR
+                 </span>
+               )}
              </h3>
              <p className={`text-sm ${colors.text} opacity-80`}>
-               {getUrgencyMessage(countdown.urgencyLevel, countdown.daysLeft)}
+               {getUrgencyMessage(countdown.urgencyLevel, countdown.daysLeft, countdown.isFinalHour, countdown.timeLeft)}
              </p>
            </div>
          </div>
@@ -284,13 +357,20 @@ export const LastWishCountdownWidget: React.FC = () => {
         </div>
         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
           <div 
-            className={`h-2 rounded-full transition-all duration-1000 ease-out ${colors.progress} progress-animate`}
+            className={`h-2 rounded-full transition-all duration-1000 ease-out ${
+              countdown.isFinalHour ? 'bg-red-600 animate-pulse' : colors.progress
+            } progress-animate`}
             style={{ 
               width: `${countdown.progressPercentage}%`,
               '--progress-width': `${countdown.progressPercentage}%`
             } as React.CSSProperties}
           />
         </div>
+        {countdown.isFinalHour && (
+          <div className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium animate-pulse">
+            ⚠️ Final hour countdown active - Check in now to prevent Last Wish delivery!
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}
@@ -319,21 +399,6 @@ export const LastWishCountdownWidget: React.FC = () => {
         </button>
       </div>
 
-      {/* Delivery Status */}
-      {deliveryStatus.isDelivered && (
-        <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-          <div className="flex items-center space-x-2">
-            <Mail className="w-4 h-4 text-green-600 dark:text-green-400" />
-            <span className="text-sm font-medium text-green-800 dark:text-green-200">
-              ✅ Last Wish Delivered!
-            </span>
-          </div>
-          <div className="mt-1 text-xs text-green-700 dark:text-green-300">
-            <p>Delivered to: {deliveryStatus.recipients.join(', ')}</p>
-            <p>Time: {deliveryStatus.deliveredAt ? new Date(deliveryStatus.deliveredAt).toLocaleString() : 'Unknown'}</p>
-          </div>
-        </div>
-      )}
 
       {/* Details Section */}
       {showDetails && (
