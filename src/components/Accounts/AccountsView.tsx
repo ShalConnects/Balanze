@@ -1368,12 +1368,12 @@ export const AccountsView: React.FC = () => {
                               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">DPS</div>
                               <div>
                                 {account.has_dps ? (
-                                  <div className="flex items-center gap-2">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200">
+                                  <div className="flex flex-col gap-1">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 w-fit">
                                       Active
                                     </span>
                                     {dpsSavingsAccount && (
-                                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      <span className="text-xs text-gray-500 dark:text-gray-400 break-words">
                                         {formatCurrency(dpsSavingsAccount.calculated_balance, dpsSavingsAccount.currency)}
                                       </span>
                                     )}

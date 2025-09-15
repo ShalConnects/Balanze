@@ -40,7 +40,7 @@ export const Settings: React.FC = () => {
     { id: 'categories', label: 'Categories', icon: null },
     { id: 'account-management', label: 'Account', icon: null },
     { id: 'plans-usage', label: 'Plans & Usage', icon: null },
-    { id: 'lw', label: 'Legacy Management', icon: null }
+    { id: 'lw', label: 'Last wish', icon: null }
   ];
 
   // Handle URL parameters for tab selection

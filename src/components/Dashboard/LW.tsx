@@ -915,14 +915,14 @@ These memories are my gift to you.`
           {/* System Title & Description */}
           <div className="flex items-start space-x-4">
             <div className="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-800 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-              <Shield className="w-6 h-6 text-white" />
+              <Shield className="w-6 h-6 text-blue-500" />
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-1">
-                Financial Legacy Management System
+                Last Wish - Digital Time Capsule
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                Enterprise-grade automated data preservation and secure beneficiary distribution platform
+                Ensure your financial legacy is preserved and shared with loved ones
               </p>
             </div>
           </div>
