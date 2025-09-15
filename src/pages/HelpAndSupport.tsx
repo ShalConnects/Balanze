@@ -271,7 +271,7 @@ Purchase Categories:
           tags: ['purchases', 'shopping', 'tracking']
         },
         {
-          id: 'lend-borrow',
+          id: 'lent-borrow',
           title: 'Lend & Borrow',
           description: 'Track money you lend or borrow',
           content: `Keep track of money you lend to others or borrow:

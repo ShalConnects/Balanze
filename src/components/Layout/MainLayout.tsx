@@ -111,8 +111,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'purchases': return 'Purchases';
       case 'purchase-categories': return 'Purchase Categories';
       case 'purchase-analytics': return 'Purchase Analytics';
-      case 'lend-borrow': return 'Lend & Borrow';
-      case 'lend-borrow-analytics': return 'Lend & Borrow Analytics';
+      case 'lent-borrow': return 'Lent & Borrow';
+      case 'lent-borrow-analytics': return 'Lent & Borrow Analytics';
       case 'settings': return 'Settings';
       case 'about': return 'About';
       case 'donations': return 'Donations';
@@ -166,12 +166,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                     ? 'Track and manage all your financial transactions'
                     : currentView === 'purchases'
                       ? 'Track and manage all your purchases.'
-                      : currentView === 'lend-borrow'
+                      : currentView === 'lent-borrow'
                         ? 'Track and manage all your lending and borrowing activities'
                         : undefined
             )}
           />
-          <main className="flex-1 p-2 sm:p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+          <main className="flex-1 p-1 sm:p-2 lg:p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 max-w-full">
             {children}
           </main>
         </div>

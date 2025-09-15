@@ -105,24 +105,12 @@ export const MotivationalQuote: React.FC = () => {
     setError(false);
     
     try {
-      const response = await fetch('https://zenquotes.io/api/random');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch quote');
-      }
-      
-      const data = await response.json();
-      
-      if (data && data[0] && data[0].q) {
-        setQuote({
-          q: data[0].q,
-          a: data[0].a
-        });
-      } else {
-        throw new Error('Invalid quote data');
-      }
+      // Skip API call and use fallback quotes directly to avoid CORS issues
+      console.log('Using fallback quotes to avoid CORS issues');
+      const randomIndex = Math.floor(Math.random() * fallbackQuotes.length);
+      setQuote(fallbackQuotes[randomIndex]);
     } catch (err) {
-      console.warn('Failed to fetch quote from API, using fallback:', err);
+      console.warn('Failed to fetch quote, using fallback:', err);
       setError(true);
       // Use a random fallback quote
       const randomIndex = Math.floor(Math.random() * fallbackQuotes.length);

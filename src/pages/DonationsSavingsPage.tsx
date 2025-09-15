@@ -763,217 +763,88 @@ const DonationsSavingsPage: React.FC = () => {
       </div>
 
           {/* Enhanced Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3 p-3">
             {/* Total Donated Card with Animation */}
-            <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg border border-green-200/50 dark:border-green-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg border border-blue-200/50 dark:border-blue-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <p className="text-xs font-medium text-green-700 dark:text-green-300 mb-1">Total Donated</p>
-                  <p className="font-bold text-green-600 dark:text-green-400 text-lg group-hover:scale-105 transition-transform duration-200">
+                  <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Total Donated</p>
+                  <p className="font-bold text-blue-600 dark:text-blue-400 text-lg group-hover:scale-105 transition-transform duration-200">
                     {currencySymbol}{analytics.total_donated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
-                  <div className="mt-1 text-xs text-green-600/70 dark:text-green-400/70">
+                  <div className="mt-1 text-xs text-blue-600/70 dark:text-blue-400/70">
                     {donatedRecords.length} donations
                   </div>
                 </div>
-                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <Heart className="text-green-600 dark:text-green-400 w-5 h-5" />
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <Heart className="text-blue-600 dark:text-blue-400 w-5 h-5" />
                 </div>
               </div>
             </div>
 
             {/* Total Pending Card */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg border border-blue-200/50 dark:border-blue-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 rounded-lg border border-indigo-200/50 dark:border-indigo-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Total Pending</p>
-                  <p className="font-bold text-blue-600 dark:text-blue-400 text-lg group-hover:scale-105 transition-transform duration-200">
+                  <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mb-1">Total Pending</p>
+                  <p className="font-bold text-indigo-600 dark:text-indigo-400 text-lg group-hover:scale-105 transition-transform duration-200">
                     {currencySymbol}{pendingRecords.reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
-                  <div className="mt-1 text-xs text-blue-600/70 dark:text-blue-400/70">
+                  <div className="mt-1 text-xs text-indigo-600/70 dark:text-indigo-400/70">
                     {pendingRecords.length} pending
                   </div>
                 </div>
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <Clock className="text-blue-600 dark:text-blue-400 w-5 h-5" />
+                <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <Clock className="text-indigo-600 dark:text-indigo-400 w-5 h-5" />
                 </div>
               </div>
             </div>
 
             {/* Top Month Card */}
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg border border-purple-200/50 dark:border-purple-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/20 dark:to-violet-800/20 rounded-lg border border-violet-200/50 dark:border-violet-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <p className="text-xs font-medium text-purple-700 dark:text-purple-300 mb-1">Top Month</p>
-                  <p className="font-bold text-purple-600 dark:text-purple-400 text-lg group-hover:scale-105 transition-transform duration-200">
+                  <p className="text-xs font-medium text-violet-700 dark:text-violet-300 mb-1">Top Month</p>
+                  <p className="font-bold text-violet-600 dark:text-violet-400 text-lg group-hover:scale-105 transition-transform duration-200">
                     {analytics.top_month ? format(new Date(analytics.top_month + '-01'), 'MMM yyyy') : '-'}
                   </p>
-                  <div className="mt-1 text-xs text-purple-600/70 dark:text-purple-400/70">
+                  <div className="mt-1 text-xs text-violet-600/70 dark:text-violet-400/70">
                     Best performance
                   </div>
                 </div>
-                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <TrendingUp className="text-purple-600 dark:text-purple-400 w-5 h-5" />
+                <div className="w-10 h-10 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <TrendingUp className="text-violet-600 dark:text-violet-400 w-5 h-5" />
                 </div>
               </div>
             </div>
 
-            {/* Monthly Donation Count Card */}
-            <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg border border-orange-200/50 dark:border-orange-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
-              <div className="flex items-center justify-between">
-                <div className="text-left">
-                  <p className="text-xs font-medium text-orange-700 dark:text-orange-300 mb-1">This Month</p>
-                  <p className="font-bold text-orange-600 dark:text-orange-400 text-lg group-hover:scale-105 transition-transform duration-200">
-                    {donatedRecords.filter(r => {
-                      const recordDate = new Date(r.created_at);
-                      const now = new Date();
-                      return recordDate.getMonth() === now.getMonth() && recordDate.getFullYear() === now.getFullYear();
-                    }).length}
-                  </p>
-                  <div className="mt-1 text-xs text-orange-600/70 dark:text-orange-400/70">
-                    donations
-                  </div>
-                </div>
-                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <Calendar className="text-orange-600 dark:text-orange-400 w-5 h-5" />
-                </div>
-              </div>
-            </div>
 
             {/* Impact Card */}
-            <div className="bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/20 dark:to-pink-800/20 rounded-lg border border-pink-200/50 dark:border-pink-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg border border-purple-200/50 dark:border-purple-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <p className="text-xs font-medium text-pink-700 dark:text-pink-300 mb-1">Impact</p>
-                  <p className="font-bold text-pink-600 dark:text-pink-400 text-lg group-hover:scale-105 transition-transform duration-200">
+                  <p className="text-xs font-medium text-purple-700 dark:text-purple-300 mb-1">Impact</p>
+                  <p className="font-bold text-purple-600 dark:text-purple-400 text-lg group-hover:scale-105 transition-transform duration-200">
                     {Math.floor(donatedRecords.length * 2.5)}
                   </p>
-                  <div className="mt-1 text-xs text-pink-600/70 dark:text-pink-400/70">
+                  <div className="mt-1 text-xs text-purple-600/70 dark:text-purple-400/70">
                     people helped
                   </div>
                 </div>
-                <div className="w-10 h-10 bg-pink-100 dark:bg-pink-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <span className="text-pink-600 dark:text-pink-400 text-lg">🌟</span>
+                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <span className="text-purple-600 dark:text-purple-400 text-lg">🌟</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Progress and Trends Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-3">
-            {/* Monthly Donation Trends */}
-            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 rounded-lg border border-indigo-200/50 dark:border-indigo-600/50 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">Monthly Trends</h3>
-                <TrendingUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <div className="space-y-2">
-                {(() => {
-                  // Calculate last 6 months donation data
-                  const monthlyData = [];
-                  const now = new Date();
-                  for (let i = 5; i >= 0; i--) {
-                    const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                    const monthKey = format(month, 'yyyy-MM');
-                    const monthDonations = donatedRecords.filter(r => {
-                      const recordDate = new Date(r.created_at);
-                      return recordDate.getMonth() === month.getMonth() && recordDate.getFullYear() === month.getFullYear();
-                    });
-                    const totalAmount = monthDonations.reduce((sum, r) => sum + (r.amount || 0), 0);
-                    monthlyData.push({
-                      month: format(month, 'MMM'),
-                      amount: totalAmount,
-                      count: monthDonations.length
-                    });
-                  }
-                  
-                  const maxAmount = Math.max(...monthlyData.map(d => d.amount));
-                  
-                  return monthlyData.map((data, index) => (
-                    <div key={index} className="flex items-center space-x-3">
-                      <div className="w-12 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-                        {data.month}
-                      </div>
-                      <div className="flex-1">
-                        <div className="w-full bg-indigo-200 dark:bg-indigo-800 rounded-full h-2">
-                          <div 
-                            className="bg-indigo-600 dark:bg-indigo-400 h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${maxAmount > 0 ? (data.amount / maxAmount) * 100 : 0}%` }}
-                          />
-                        </div>
-                      </div>
-                      <div className="w-16 text-xs text-indigo-600 dark:text-indigo-400 text-right">
-                        {currencySymbol}{data.amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-
-            {/* Savings Goals Progress */}
-            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-lg border border-emerald-200/50 dark:border-emerald-600/50 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Savings Goals</h3>
-                <PiggyBank className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div className="space-y-3">
-                {(() => {
-                  // Get active savings goals
-                  const savingsGoals = donationSavingRecords.filter(r => 
-                    r.type === 'saving' && r.status === 'active' && r.currency === filterCurrency
-                  );
-                  
-                  if (savingsGoals.length === 0) {
-                    return (
-                      <div className="text-center py-4">
-                        <PiggyBank className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                        <p className="text-sm text-emerald-600 dark:text-emerald-400">No active savings goals</p>
-                        <button 
-                          onClick={() => setShowManualDonationModal(true)}
-                          className="mt-2 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 underline"
-                        >
-                          Create your first goal
-                        </button>
-                      </div>
-                    );
-                  }
-                  
-                  return savingsGoals.slice(0, 3).map((goal, index) => {
-                    const progress = Math.min((goal.amount || 0) / 1000, 1) * 100; // Assuming 1000 as target
-                    return (
-                      <div key={index} className="space-y-1">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300 truncate">
-                            {goal.note || `Goal ${index + 1}`}
-                          </span>
-                          <span className="text-xs text-emerald-600 dark:text-emerald-400">
-                            {currencySymbol}{goal.amount?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || 0}
-                          </span>
-                        </div>
-                        <div className="w-full bg-emerald-200 dark:bg-emerald-800 rounded-full h-2">
-                          <div 
-                            className="bg-emerald-600 dark:bg-emerald-400 h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                        <div className="text-xs text-emerald-600/70 dark:text-emerald-400/70">
-                          {progress.toFixed(0)}% of target
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
-          </div>
 
           {/* Achievement Badges Section */}
           <div className="p-3">
-            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 rounded-lg border border-yellow-200/50 dark:border-yellow-600/50 p-4">
+            <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200/50 dark:border-blue-600/50 p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-yellow-700 dark:text-yellow-300">Achievements</h3>
-                <span className="text-yellow-600 dark:text-yellow-400 text-lg">🏆</span>
+                <h3 className="text-sm font-semibold text-blue-700 dark:text-blue-300">Achievements</h3>
+                <span className="text-blue-600 dark:text-blue-400 text-lg">🏆</span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {(() => {
@@ -1041,15 +912,15 @@ const DonationsSavingsPage: React.FC = () => {
                       key={index} 
                       className={`text-center p-2 rounded-lg transition-all duration-200 ${
                         achievement.earned 
-                          ? 'bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700' 
+                          ? 'bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700' 
                           : 'bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 opacity-60'
                       }`}
                     >
                       <div className="text-2xl mb-1">{achievement.icon}</div>
-                      <div className="text-xs font-semibold text-yellow-700 dark:text-yellow-300 mb-1">
+                      <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">
                         {achievement.title}
                       </div>
-                      <div className="text-xs text-yellow-600/70 dark:text-yellow-400/70">
+                      <div className="text-xs text-blue-600/70 dark:text-blue-400/70">
                         {achievement.description}
                       </div>
                     </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { testAuth } from '../lib/testAuth';
 import { useAuthStore } from '../store/authStore';
 import { useFinanceStore } from '../store/useFinanceStore';
-import { LastWish } from './Dashboard/LastWish';
+import { LW } from './Dashboard/LW';
 
 const TestAuthPanel: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -12,7 +12,7 @@ const TestAuthPanel: React.FC = () => {
   const [customPassword, setCustomPassword] = useState('');
   const [customName, setCustomName] = useState('');
   const { setUserAndProfile } = useAuthStore();
-  const [showLastWish, setShowLastWish] = useState(false);
+  const [showLW, setShowLW] = useState(false);
 
   // Check current session on mount
   useEffect(() => {
@@ -183,7 +183,7 @@ const TestAuthPanel: React.FC = () => {
           Create Premium Test User
         </button>
         <button
-          onClick={() => setShowLastWish(true)}
+          onClick={() => setShowLW(true)}
           className="w-full bg-pink-500 text-white px-3 py-2 rounded text-sm hover:bg-pink-600"
         >
           Test Last Wish (Free Access)
@@ -245,16 +245,16 @@ const TestAuthPanel: React.FC = () => {
         <p>✅ Sessions now persist on refresh</p>
         <p>⚠️ Note: Users need email confirmation.</p>
       </div>
-      {showLastWish && (
+      {showLW && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl p-6 max-w-2xl w-full relative max-h-[90vh] overflow-y-auto">
             <button
-              onClick={() => setShowLastWish(false)}
+              onClick={() => setShowLW(false)}
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
             >
               ✕
             </button>
-            <LastWish forceFreeAccess={true} />
+            <LW forceFreeAccess={true} />
           </div>
         </div>
       )}

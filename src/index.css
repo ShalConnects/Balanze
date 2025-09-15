@@ -51,6 +51,20 @@
                 border-color var(--transition-duration) ease-in-out,
                 color var(--transition-duration) ease-in-out;
   }
+
+  /* Ensure proper mobile responsiveness */
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Better text wrapping on mobile */
+  @media (max-width: 640px) {
+    * {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+  }
 }
 
 /* Fade-in animation for dashboard sections */

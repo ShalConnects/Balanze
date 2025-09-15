@@ -164,7 +164,7 @@ export const FloatingActionButton: React.FC = () => {
   const actions = React.useMemo(() => [
     { label: t('dashboard.addTransaction'), icon: CreditCard, color: 'bg-blue-600', onClick: () => handleAction(handleAddTransaction), delay: '200ms' },
     { label: 'Add Purchase', icon: ShoppingCart, color: 'bg-orange-600', onClick: () => handleAction(handleAddPurchase), delay: '150ms' },
-    { label: 'Lend & Borrow', icon: Handshake, color: 'bg-indigo-600', onClick: () => handleAction(() => setShowLendBorrowForm(true)), delay: '100ms' },
+    { label: 'Lent & Borrow', icon: Handshake, color: 'bg-indigo-600', onClick: () => handleAction(() => setShowLendBorrowForm(true)), delay: '100ms' },
     { label: t('dashboard.addAccount'), icon: Wallet, color: 'bg-green-600', onClick: () => handleAction(() => setShowAccountFormLocal(true)), delay: '50ms' },
     { label: t('dashboard.transfer'), icon: ArrowLeftRight, color: 'bg-purple-600', onClick: handleTransfer, delay: '0ms' },
   ], [t, handleAction, handleAddTransaction, handleAddPurchase, setShowLendBorrowForm, setShowAccountFormLocal, handleTransfer]);

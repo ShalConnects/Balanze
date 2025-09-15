@@ -275,10 +275,10 @@ function AppContent() {
         <Route path="/transfers" element={user ? <MainLayout><TransfersView /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/savings" element={user ? <MainLayout><SavingsView /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/purchases" element={user ? <MainLayout><PurchaseTracker /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/lend-borrow" element={user ? <MainLayout><LendBorrowPage /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/lent-borrow" element={user ? <MainLayout><LendBorrowPage /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/purchase-categories" element={user ? <MainLayout><PurchaseCategories /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/purchase-analytics" element={user ? <MainLayout><PurchaseAnalytics /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/lend-borrow-analytics" element={user ? <MainLayout><LendBorrowAnalytics /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/lent-borrow-analytics" element={user ? <MainLayout><LendBorrowAnalytics /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/analytics" element={user ? <MainLayout><AnalyticsView /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/currency-analytics" element={user ? <MainLayout><CurrencyAnalytics /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/settings" element={user ? <MainLayout><Settings /></MainLayout> : <Navigate to="/login" />} />

@@ -58,9 +58,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   // Use local loading state for dashboard instead of global store loading
   const [dashboardLoading, setDashboardLoading] = useState(true);
   
-  // Debug loading state
-  console.log('Dashboard: Store loading state:', storeLoading, 'Dashboard loading state:', dashboardLoading, 'Accounts length:', accounts.length);
-  
 
 
   // Memoize store functions to prevent infinite loops
@@ -85,14 +82,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   }, []);
   
   const { wrapAsync, setLoadingMessage } = useLoadingContext();
-  
   const { user } = useAuthStore();
-
   
   const stats = getDashboardStats();
   const activeAccounts = getActiveAccounts();
   const transactions = getActiveTransactions();
   const allTransactions = useFinanceStore((state) => state.transactions); // Get all transactions, not just active ones
+  
+  // Debug loading state
+  console.log('Dashboard: Store loading state:', storeLoading, 'Dashboard loading state:', dashboardLoading, 'Accounts length:', accounts.length);
+  console.log('Dashboard: User:', user ? 'authenticated' : 'not authenticated');
+  console.log('Dashboard: Stats by currency:', stats.byCurrency.length);
   
   // Debug logging for currency card issue
 
@@ -361,10 +361,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     );
   }
 
+  // If no accounts, show empty state instead of blurred content
+  if (accounts.length === 0 && !dashboardLoading) {
+    return (
+      <>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center p-8">
+            <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+              <Wallet className="w-12 h-12 text-gray-400" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              Welcome to FinTrack!
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+              Get started by creating your first account. You can add accounts, track transactions, and manage your finances all in one place.
+            </p>
+            <button
+              onClick={() => setShowAccountForm(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 mx-auto"
+            >
+              <Plus className="w-5 h-5" />
+              Create Your First Account
+            </button>
+          </div>
+        </div>
+        
+        <FloatingActionButton />
+        
+        {/* Account Form Modal */}
+        {showAccountForm && (
+          <AccountForm isOpen={showAccountForm} onClose={() => setShowAccountForm(false)} />
+        )}
+      </>
+    );
+  }
+
   return (
     <>
-      {/* Main Dashboard Content - Always render, but blur if no accounts */}
-      <div className={`flex flex-col lg:flex-row gap-6 ${accounts.length === 0 ? 'blur-sm pointer-events-none' : ''}`}>
+      {/* Main Dashboard Content */}
+      <div className="flex flex-col lg:flex-row gap-6">
         {/* Main Content - Full width on mobile, flex-1 on desktop */}
         <div className="flex-1 space-y-6">
 

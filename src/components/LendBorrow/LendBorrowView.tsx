@@ -45,7 +45,7 @@ export const LendBorrowView: React.FC = () => {
   const currencyMenuRef = useRef<HTMLDivElement>(null);
   const [filters, setFilters] = useState({
     type: 'all' as 'all' | 'lend' | 'borrow',
-    status: 'all' as 'all' | 'active' | 'settled' | 'overdue',
+    status: 'active' as 'all' | 'active' | 'settled' | 'overdue',
     search: '',
     currency: '' as string,
     dateRange: { start: '', end: '' }
@@ -55,7 +55,7 @@ export const LendBorrowView: React.FC = () => {
   const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
   const [tempFilters, setTempFilters] = useState({
     type: 'all' as 'all' | 'lend' | 'borrow',
-    status: 'all' as 'all' | 'active' | 'settled' | 'overdue',
+    status: 'active' as 'all' | 'active' | 'settled' | 'overdue',
     search: '',
     currency: '' as string,
     dateRange: { start: '', end: '' }
@@ -706,7 +706,7 @@ export const LendBorrowView: React.FC = () => {
             <Handshake className="w-8 h-8 text-purple-600 dark:text-purple-400" />
           </div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            Lend & Borrow Tracking
+            Lent & Borrow Tracking
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             Track loans and borrowings with detailed analytics. This feature is available for Premium users only.
@@ -768,7 +768,7 @@ export const LendBorrowView: React.FC = () => {
                   <button
                     onClick={() => setShowForm(true)}
                     className="bg-gradient-primary text-white px-2 py-1.5 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center justify-center text-[13px] h-8 w-8"
-                    title="Add Lend/Borrow"
+                    title="Add Lent/Borrow"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -994,7 +994,7 @@ export const LendBorrowView: React.FC = () => {
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-primary text-white rounded-md hover:bg-gradient-primary-hover transition-colors whitespace-nowrap h-8 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Add Lend/Borrow
+                    Add Lent/Borrow
                   </button>
                 </div>
               </div>

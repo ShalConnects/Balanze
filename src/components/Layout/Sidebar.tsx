@@ -32,7 +32,7 @@ const navigation = [
   { name: 'navigation.accounts', id: 'accounts', icon: CreditCard },
   { name: 'navigation.transactions', id: 'transactions', icon: TrendingUp },
   { name: 'navigation.purchases', id: 'purchases', icon: ShoppingBag },
-  { name: 'navigation.lendBorrow', id: 'lend-borrow', icon: Handshake },
+  { name: 'navigation.lendBorrow', id: 'lent-borrow', icon: Handshake },
   { name: 'navigation.analytics', id: 'analytics', icon: PieChart },
   { name: 'navigation.settings', id: 'settings', icon: Settings },
 ];
@@ -205,7 +205,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
             {navigation.map((item) => {
               const Icon = item.icon;
               const isActive = currentView === item.id;
-              const isAnalyticsActive = Boolean(currentView === 'analytics' || currentView === 'purchase-analytics' || currentView === 'lend-borrow-analytics');
+              const isAnalyticsActive = Boolean(currentView === 'analytics' || currentView === 'purchase-analytics' || currentView === 'lent-borrow-analytics');
               
               return (
                 <div key={item.id}>
@@ -264,12 +264,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
                       </button>
                       <button
                         onClick={() => {
-                          onViewChange('lend-borrow-analytics');
+                          onViewChange('lent-borrow-analytics');
                           if (window.innerWidth < 768) onToggle();
                         }}
                         className={`
                           w-full flex items-center space-x-3 px-4 py-2 rounded-lg transition-all duration-200 text-sm text-left
-                          ${currentView === 'lend-borrow-analytics'
+                          ${currentView === 'lent-borrow-analytics'
                             ? 'bg-gradient-to-r from-blue-100 via-purple-100 to-blue-100 dark:from-blue-800/30 dark:via-purple-800/30 dark:to-blue-800/30 text-gradient-primary shadow-sm' 
                             : 'text-gray-500 dark:text-gray-400 hover:bg-gradient-to-r hover:from-gray-50 hover:via-blue-50/40 hover:to-gray-50 dark:hover:from-gray-700/50 dark:hover:via-blue-900/15 dark:hover:to-gray-700/50 hover:text-gray-700 dark:hover:text-gray-300'
                           }

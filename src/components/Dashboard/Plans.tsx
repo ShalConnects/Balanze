@@ -31,7 +31,7 @@ const plans: Plan[] = [
     description: 'Perfect for getting started with basic financial tracking',
     features: [
       { text: 'Basic financial tracking', included: true, icon: BarChart3 },
-      { text: 'Up to 5 accounts', included: true, icon: Users },
+      { text: 'Up to 3 accounts', included: true, icon: Users },
       { text: '1 currency only', included: true, icon: Globe },
       { text: 'Basic reports', included: true, icon: BarChart3 },
       { text: 'Email support (24-48h response)', included: true, icon: MessageSquare },

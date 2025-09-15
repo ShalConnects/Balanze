@@ -116,7 +116,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         break;
       case 'lendborrow':
         console.log('Navigating to lend & borrow:', itemId);
-        navigate(`/lend-borrow?selected=${itemId}`);
+        navigate(`/lent-borrow?selected=${itemId}`);
         break;
       default:
         console.log('Unknown result type:', type);

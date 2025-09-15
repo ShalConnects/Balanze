@@ -36,7 +36,7 @@ const LandingPage: React.FC = () => {
   const features = [
     { icon: TrendingUp, title: "Spending Tracker", description: "See exactly where your money goes." },
     { icon: Wallet, title: "Budget Planner", description: "Set budgets and beat overspending." },
-    { icon: Handshake, title: "Lend & Borrow", description: "Keep tabs on loans and IOUs." },
+    { icon: Handshake, title: "Lent & Borrow", description: "Keep tabs on loans and IOUs." },
     { icon: PiggyBank, title: "Savings Goals", description: "Visualize your progress with goal thermometers." },
     { icon: Bell, title: "Smart Alerts", description: "Get nudges when you're off track." },
     { icon: Shield, title: "Secure & Private", description: "Bank-level security & data encryption." },
@@ -287,7 +287,7 @@ const LandingPage: React.FC = () => {
             <div className="relative">
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-4 transform rotate-3 hover:rotate-0 transition-transform duration-500">
                 <img 
-                  src="/dashboard-screenshot-light.png" 
+                  src="/main-dashboard.png" 
                   alt="Balanze Dashboard"
                   className="w-full max-w-4xl rounded-xl"
                 />
@@ -335,6 +335,72 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
+      {/* Key Features Showcase */}
+      <section className="py-20 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 relative">
+        <div className="w-4/5 mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              Experience the Power of Balanze
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+              Discover how our intuitive interface makes financial management effortless
+            </p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="bg-white dark:bg-gray-700 rounded-lg p-4 mb-6 h-64 flex items-center justify-center">
+                <img 
+                  src="/info-feature-1.png" 
+                  alt="Lent & Borrow Overview" 
+                  className="w-full h-full object-contain rounded-md shadow-sm"
+                />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+                All Lent & Borrow at a Glance
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300">
+                Track all your lending and borrowing activities in one comprehensive view. Monitor outstanding amounts, payment schedules, and transaction history effortlessly.
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="bg-white dark:bg-gray-700 rounded-lg p-4 mb-6 h-64 flex items-center justify-center">
+                <img 
+                  src="/info-feature-2.png" 
+                  alt="Multi-Currency Details" 
+                  className="w-full h-full object-contain rounded-md shadow-sm"
+                />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+                Intensive Details for Each Currency
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300">
+                Get comprehensive breakdowns of your finances across multiple currencies. View detailed analytics, account balances, and transaction patterns for each currency you manage.
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="bg-white dark:bg-gray-700 rounded-lg p-4 mb-6 h-64 flex items-center justify-center">
+                <img 
+                  src="/info-feature-3.png" 
+                  alt="Donations & Savings Tracking" 
+                  className="w-full h-full object-contain rounded-md shadow-sm"
+                />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+                Track Your Donations & Savings
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300">
+                See exactly where your donations go and monitor how much you've saved over time. Visualize your charitable giving impact and savings growth with detailed insights.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Analytics Showcase */}
       <section className="py-20 relative">
         <div className="w-4/5 mx-auto px-4 sm:px-6 lg:px-8">
@@ -371,7 +437,7 @@ const LandingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Lend & Borrow Analytics Card */}
+            {/* Lent & Borrow Analytics Card */}
             <div className="bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-8 shadow-lg flex flex-col">
               <div className="flex items-center mb-6">
                 <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mr-4">
@@ -379,7 +445,7 @@ const LandingPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    Lend & Borrow Analytics
+                    Lent & Borrow Analytics
                   </h3>
                   <p className="text-gray-600 dark:text-gray-300">
                     Monitor your loans and IOUs
@@ -389,7 +455,7 @@ const LandingPage: React.FC = () => {
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-6 flex-1 flex items-center justify-center">
                 <img 
                   src="/lend-borrow-analytics-demo.png" 
-                  alt="Lend & Borrow Analytics Demo" 
+                  alt="Lent & Borrow Analytics Demo" 
                   className="w-full h-auto max-h-72 object-contain rounded-md shadow"
                 />
               </div>
@@ -494,7 +560,7 @@ const LandingPage: React.FC = () => {
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
                     <Users className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Up to 5 accounts</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Up to 3 accounts</span>
                   </div>
                 </li>
                 <li className="flex items-start">
@@ -542,7 +608,7 @@ const LandingPage: React.FC = () => {
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
                     <Users className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
-                    <span className="text-sm text-gray-500 dark:text-gray-500 line-through">Lend & borrow tracking</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-500 line-through">Lent & borrow tracking</span>
                   </div>
                 </li>
                 <li className="flex items-start">
@@ -651,7 +717,7 @@ const LandingPage: React.FC = () => {
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
                     <Users className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
-                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Lend & borrow tracking</span>
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Lent & borrow tracking</span>
                   </div>
                 </li>
                 <li className="flex items-start">

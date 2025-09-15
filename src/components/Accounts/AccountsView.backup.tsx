@@ -614,9 +614,10 @@ export const AccountsView: React.FC = () => {
   }
 
   return (
-    <div>
-      {/* Header */}
-      {/* Only keep the header at the top-level layout, remove this one from the body */}
+    <>
+      <div>
+        {/* Header */}
+        {/* Only keep the header at the top-level layout, remove this one from the body */}
 
 
 
@@ -627,7 +628,8 @@ export const AccountsView: React.FC = () => {
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           {/* Filters Section */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1" style={{ marginBottom: 0 }}>
+            <div className="flex flex-wrap md:flex-nowrap justify-between items-center w-full" style={{ marginBottom: 0 }}>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <div>
                   <div className="relative">
                     <Search className={`absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 ${tableFilters.search ? 'text-blue-500' : 'text-gray-400'}`} />
@@ -701,7 +703,7 @@ export const AccountsView: React.FC = () => {
                           </button>
                         ))}
                       </div>
-                    )}
+                  )}
                   </div>
                 </div>
 
@@ -739,7 +741,7 @@ export const AccountsView: React.FC = () => {
                           </button>
                         ))}
                       </div>
-                    )}
+                  )}
                   </div>
                 </div>
 
@@ -788,37 +790,41 @@ export const AccountsView: React.FC = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
-                )}
+                  )}
               </div>
-              
-              <div className="flex-grow" />
-              {/* Action Buttons in filter row */}
-              <div className="hidden md:flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setEditingAccount(null);
-                    setShowAccountForm(true);
-                  }}
-                  className="bg-gradient-primary text-white px-3 py-1.5 h-8 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Account</span>
-                </button>
+
+              {/* Action Buttons on the right side */}
+              <div className="flex items-center gap-2">
+                {/* Mobile Add Account Button */}
+                <div className="md:hidden">
+                  <button
+                    onClick={() => {
+                      setEditingAccount(null);
+                      setShowAccountForm(true);
+                    }}
+                    className="bg-gradient-primary text-white px-2 py-1.5 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center justify-center text-[13px] h-8 w-8"
+                    title="Add Account"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                {/* Desktop Add Account Button */}
+                <div className="hidden md:flex">
+                  <button
+                    onClick={() => {
+                      setEditingAccount(null);
+                      setShowAccountForm(true);
+                    }}
+                    className="bg-gradient-primary text-white px-3 py-1.5 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center space-x-1.5 text-[13px] h-8"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Account</span>
+                  </button>
+                </div>
               </div>
-              
-              {/* Mobile Add Account Button */}
-              <div className="md:hidden flex items-center">
-                <button
-                  onClick={() => {
-                    setEditingAccount(null);
-                    setShowAccountForm(true);
-                  }}
-                  className="bg-gradient-primary text-white px-2 py-1.5 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center justify-center text-[13px] h-8 w-8"
-                  title="Add Account"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
               </div>
+            </div>
             </div>
           </div>
 
@@ -988,7 +994,7 @@ export const AccountsView: React.FC = () => {
                                       {account.description}
                                       <div className="absolute bottom-0 left-4 transform translate-y-1/2 w-2 h-2 bg-gray-800 rotate-45 border-r border-b border-gray-700"></div>
                                     </div>
-                                  )}
+                  )}
                                 </div>
                               </div>
                               <div className="ml-2">
@@ -1035,11 +1041,11 @@ export const AccountsView: React.FC = () => {
                                     <div className="text-xs text-gray-500 dark:text-gray-400">
                                       {formatCurrency(dpsSavingsAccount.calculated_balance, dpsSavingsAccount.currency)}
                                     </div>
-                                  )}
+                  )}
                                 </>
                               ) : (
                                 <span className="text-sm text-gray-400 dark:text-gray-500">-</span>
-                              )}
+                  )}
                             </div>
                           </td>
                           <td className="px-6 py-[0.7rem] text-center">
@@ -1055,7 +1061,7 @@ export const AccountsView: React.FC = () => {
                                 >
                                   <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform duration-200 ${account.isActive ? 'translate-x-5' : 'translate-x-1'}`} />
                                 </button>
-                              )}
+                  )}
                               <button
                                 onClick={() => {
                                   setSelectedAccount(account);
@@ -1074,7 +1080,7 @@ export const AccountsView: React.FC = () => {
                                 >
                                   <Edit2 className="w-4 h-4" />
                                 </button>
-                              )}
+                  )}
                               {!isDpsSavingsAccount && (
                                 <button
                                   onClick={() => handleAddTransaction(account.id)}
@@ -1083,7 +1089,7 @@ export const AccountsView: React.FC = () => {
                                 >
                                   <PlusCircle className="w-4 h-4" />
                                 </button>
-                              )}
+                  )}
                               {(account.type !== 'cash' && !isDpsSavingsAccount) && (
                                 <button
                                   onClick={() => handleDeleteAccount(account)}
@@ -1092,7 +1098,7 @@ export const AccountsView: React.FC = () => {
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
-                              )}
+                  )}
                             </div>
                           </td>
                         </tr>
@@ -1120,13 +1126,13 @@ export const AccountsView: React.FC = () => {
                                           })()
                                         }
                                       </div>
-                                    )}
+                  )}
                                     {!accounts.some(a => a.dps_savings_account_id === account.id) && (
                                       <>
                                         <div><span className="font-medium">Total Saved:</span> {formatCurrency(totalSaved, account.currency)}</div>
                                         <div><span className="font-medium">Total Donated:</span> {formatCurrency(totalDonated, account.currency)}</div>
                                       </>
-                                    )}
+                  )}
                                     <div><span className="font-medium">Last Transaction:</span> {accountTransactions.length > 0 ? new Date(accountTransactions[accountTransactions.length - 1].date).toLocaleDateString() : 'None'}</div>
                                   </div>
                                 </div>
@@ -1140,10 +1146,10 @@ export const AccountsView: React.FC = () => {
                                       <div><span className="font-medium">Amount Type:</span> {account.dps_amount_type}</div>
                                       {account.dps_fixed_amount && (
                                         <div><span className="font-medium">Fixed Amount:</span> {formatCurrency(account.dps_fixed_amount, account.currency)}</div>
-                                      )}
+                  )}
                                       {dpsSavingsAccount && (
                                         <div><span className="font-medium">Savings Account:</span> {dpsSavingsAccount.name}</div>
-                                      )}
+                  )}
                                       <div className="pt-2 flex gap-2">
                                         <button
                                           onClick={() => handleManageDPS(account)}
@@ -1187,7 +1193,7 @@ export const AccountsView: React.FC = () => {
                                         </button>
                                       </div>
                                     </div>
-                                  )}
+                  )}
                                 </div>
 
                                 {/* Recent History */}
@@ -1204,24 +1210,24 @@ export const AccountsView: React.FC = () => {
                                             }
                                           </div>
                                         </div>
-                                        <div className={`font-medium ml-2 ${transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                        <div className={transaction.type === 'income' ? 'font-medium ml-2 text-green-600 dark:text-green-400' : 'font-medium ml-2 text-red-600 dark:text-red-400'}>
                                           {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount, account.currency)}
                                         </div>
                                       </div>
                                     ))}
                                     {accountTransactions.length === 0 && (
                                       <div className="text-gray-400 italic">No transactions yet</div>
-                                    )}
+                  )}
                                   </div>
                                 </div>
                               </div>
                             </td>
                           </tr>
-                        )}
+                  )}
                       </React.Fragment>
                     );
                   })
-                )}
+                  )}
               </tbody>
             </table>
             </div>
@@ -1325,7 +1331,7 @@ export const AccountsView: React.FC = () => {
                                   >
                                     <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform duration-200 ${account.isActive ? 'translate-x-5' : 'translate-x-1'}`} />
                                   </button>
-                                )}
+                  )}
                                 <button
                                   onClick={() => {
                                     setSelectedAccount(account);
@@ -1344,7 +1350,7 @@ export const AccountsView: React.FC = () => {
                                   >
                                     <PlusCircle className="w-4 h-4" />
                                   </button>
-                                )}
+                  )}
                               </div>
                             </div>
                           </div>
@@ -1376,11 +1382,11 @@ export const AccountsView: React.FC = () => {
                                       <span className="text-xs text-gray-500 dark:text-gray-400">
                                         {formatCurrency(dpsSavingsAccount.calculated_balance, dpsSavingsAccount.currency)}
                                       </span>
-                                    )}
+                  )}
                                   </div>
                                 ) : (
                                   <span className="text-sm text-gray-400 dark:text-gray-500">-</span>
-                                )}
+                  )}
                               </div>
                             </div>
                           </div>
@@ -1408,13 +1414,13 @@ export const AccountsView: React.FC = () => {
                                         })()
                                       }
                                     </div>
-                                  )}
+                  )}
                                   {!accounts.some(a => a.dps_savings_account_id === account.id) && (
                                     <>
                                       <div><span className="font-medium">Total Saved:</span> {formatCurrency(totalSaved, account.currency)}</div>
                                       <div><span className="font-medium">Total Donated:</span> {formatCurrency(totalDonated, account.currency)}</div>
                                     </>
-                                  )}
+                  )}
                                   <div><span className="font-medium">Last Transaction:</span> {accountTransactions.length > 0 ? new Date(accountTransactions[accountTransactions.length - 1].date).toLocaleDateString() : 'None'}</div>
                                 </div>
                               </div>
@@ -1428,10 +1434,10 @@ export const AccountsView: React.FC = () => {
                                     <div><span className="font-medium">Amount Type:</span> {account.dps_amount_type}</div>
                                     {account.dps_fixed_amount && (
                                       <div><span className="font-medium">Fixed Amount:</span> {formatCurrency(account.dps_fixed_amount, account.currency)}</div>
-                                    )}
+                  )}
                                     {dpsSavingsAccount && (
                                       <div><span className="font-medium">Savings Account:</span> {dpsSavingsAccount.name}</div>
-                                    )}
+                  )}
                                     <div className="pt-2 flex gap-2">
                                       <button
                                         onClick={() => handleManageDPS(account)}
@@ -1475,44 +1481,45 @@ export const AccountsView: React.FC = () => {
                                       </button>
                                     </div>
                                   </div>
-                                )}
+                  )}
                               </div>
 
                               {/* Recent History */}
                               <div className="space-y-2">
                                 <h4 className="text-sm font-medium text-gray-900 dark:text-white">Recent History</h4>
                                 <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                  {accountTransactions.slice(-3).reverse().map((transaction, index) => (
-                                    <div key={transaction.id} className="flex justify-between items-center">
-                                      <div className="flex-1 min-w-0">
-                                        <div className="truncate">
-                                          {(transaction.description || 'No description').length > 20 
-                                            ? (transaction.description || 'No description').substring(0, 20) + '...'
-                                            : (transaction.description || 'No description')
-                                          }
+                                  <>
+                                    {accountTransactions.slice(-3).reverse().map((transaction, index) => (
+                                      <div key={transaction.id} className="flex justify-between items-center">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="truncate">
+                                            {(transaction.description || 'No description').length > 20 
+                                              ? (transaction.description || 'No description').substring(0, 20) + '...'
+                                              : (transaction.description || 'No description')}
+                                          </div>
+                                        </div>
+                                        <div className={transaction.type === 'income' ? 'font-medium ml-2 text-green-600 dark:text-green-400' : 'font-medium ml-2 text-red-600 dark:text-red-400'}>
+                                          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount, account.currency)}
                                         </div>
                                       </div>
-                                      <div className={`font-medium ml-2 ${transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount, account.currency)}
-                                      </div>
-                                    </div>
-                                  ))}
-                                  {accountTransactions.length === 0 && (
-                                    <div className="text-gray-400 italic">No transactions yet</div>
-                                  )}
+                                    ))}
+                                    {accountTransactions.length === 0 && (
+                                      <div className="text-gray-400 italic">No transactions yet</div>
+                                    )}
+                                  </>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {accounts.length === 0 && (
@@ -1533,12 +1540,13 @@ export const AccountsView: React.FC = () => {
         </div>
       )}
 
+      {/* All Modals */}
       {/* Account Form Modal */}
       <AccountForm
-        isOpen={showAccountForm}
-        onClose={handleCloseAccountForm}
-        account={editingAccount || undefined}
-      />
+          isOpen={showAccountForm}
+          onClose={handleCloseAccountForm}
+          account={editingAccount || undefined}
+        />
 
       {/* Transaction Form Modal */}
       {showTransactionForm && (
@@ -1553,12 +1561,12 @@ export const AccountsView: React.FC = () => {
 
       {/* Delete Account Modal */}
       <DeleteConfirmationModal
-        isOpen={showDeleteModal && !!accountToDelete}
-        onClose={() => setShowDeleteModal(false)}
-        onConfirm={confirmDeleteAccount}
-        title="Delete Account"
-        message={`Are you sure you want to delete ${accountToDelete?.name}? This will remove all associated transactions and cannot be undone.`}
-        recordDetails={
+          isOpen={showDeleteModal && !!accountToDelete}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={confirmDeleteAccount}
+          title="Delete Account"
+          message={`Are you sure you want to delete ${accountToDelete?.name}? This will remove all associated transactions and cannot be undone.`}
+          recordDetails={
           <>
             <div className="flex items-center gap-2 mb-2">
               <span className="font-medium text-red-800">Account Details:</span>
@@ -1569,10 +1577,10 @@ export const AccountsView: React.FC = () => {
               <div><span className="font-medium">Balance:</span> {formatCurrency(accountToDelete?.calculated_balance || 0, accountToDelete?.currency || 'USD')}</div>
           </div>
           </>
-        }
-        confirmLabel="Delete Account"
-        cancelLabel="Cancel"
-      />
+          }
+          confirmLabel="Delete Account"
+          cancelLabel="Cancel"
+        />
 
       {/* DPS Delete Confirmation Modal */}
       {showDpsDeleteModal && dpsDeleteContext && (
@@ -1646,7 +1654,7 @@ export const AccountsView: React.FC = () => {
             </button>
           </div>
         </div>
-      )}
+                  )}
 
       {modalOpen && selectedAccount && (
         <div className="fixed inset-0 z-50 flex items-start justify-center p-2 sm:p-4 pt-16">
@@ -1797,7 +1805,7 @@ export const AccountsView: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+                  )}
 
       {/* Mobile Filter Modal */}
       {showMobileFilterMenu && (
@@ -1950,6 +1958,6 @@ export const AccountsView: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
