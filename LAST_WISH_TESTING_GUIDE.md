@@ -1,297 +1,254 @@
-# Last Wish Feature Testing Guide
+# Last Wish System Testing Guide
 
-## Overview
-The Last Wish feature is a digital time capsule system that automatically delivers financial data to designated recipients if a user doesn't check in within a specified timeframe.
+This guide provides comprehensive testing instructions for the Last Wish digital time capsule system.
 
-## Testing Methods
+## 🎯 Overview
 
-### 1. **Frontend UI Testing**
+The Last Wish system allows users to set up automatic delivery of their financial data to designated recipients if they don't check in within a specified time period. This guide covers testing all aspects of the system.
 
-#### Access the Feature:
-- **Method 1**: Navigate to Dashboard → Last Wish tab
-- **Method 2**: Use test panel → Click "🧪 Test Auth" → "Test Last Wish (Free Access)"
+## 📋 Test Scripts Available
 
-#### Test Scenarios:
+### 1. Quick Test Script (`quick-test-last-wish.js`)
+**Purpose**: Immediate verification that the system is working
+**Usage**: `node quick-test-last-wish.js`
+**Tests**:
+- CORS configuration
+- API endpoint availability
+- Email API functionality
+- OPTIONS preflight requests
 
-**Basic Functionality:**
-- ✅ Toggle Last Wish on/off
-- ✅ Set check-in frequency (7, 14, 30, 60, 90 days)
-- ✅ Add/remove recipients
-- ✅ Select data types to include
-- ✅ Add personal message
-- ✅ Manual check-in functionality
+### 2. Simple Test Script (`test-last-wish-simple.js`)
+**Purpose**: Comprehensive testing without complex dependencies
+**Usage**: `node test-last-wish-simple.js`
+**Tests**:
+- All quick test features
+- Error handling
+- Response times
+- Invalid input handling
 
-**Advanced Testing:**
-- ✅ Test with different currencies
-- ✅ Test with various data combinations
-- ✅ Test recipient validation
-- ✅ Test message length limits
-- ✅ Test countdown widget display
+### 3. Comprehensive Test Script (`test-last-wish-comprehensive.js`)
+**Purpose**: Full system testing with database operations
+**Usage**: `node test-last-wish-comprehensive.js`
+**Requirements**: Supabase credentials and environment variables
+**Tests**:
+- Database operations
+- Settings CRUD
+- Data gathering
+- Check-in system
+- Delivery logs
+- Test mode functionality
+- Security and permissions
+- Performance and edge cases
 
-### 2. **Database Testing**
+### 4. Browser Test Suite (`test-last-wish-browser.html`)
+**Purpose**: Interactive testing in a web browser
+**Usage**: Open the HTML file in a web browser
+**Features**:
+- Interactive test interface
+- Real-time results
+- Configuration options
+- Visual progress tracking
 
-#### Manual SQL Testing:
-```sql
--- Check if tables exist
-SELECT table_name FROM information_schema.tables 
-WHERE table_name IN ('last_wish_settings', 'last_wish_deliveries');
+## 🚀 Quick Start Testing
 
--- Check table structure
-\d last_wish_settings;
-\d last_wish_deliveries;
-
--- Test overdue function
-SELECT * FROM check_overdue_last_wish();
-
--- Create test settings
-INSERT INTO last_wish_settings (
-  user_id,
-  is_enabled,
-  check_in_frequency,
-  last_check_in,
-  recipients,
-  include_data,
-  message,
-  is_active
-) VALUES (
-  'your-test-user-id',
-  true,
-  7,
-  NOW() - INTERVAL '8 days',
-  '[{"email": "test@example.com", "name": "Test", "relationship": "Family"}]',
-  '{"accounts": true, "transactions": true, "purchases": true, "lendBorrow": true, "savings": true, "analytics": true}',
-  'Test message',
-  true
-);
-```
-
-### 3. **Automated Testing**
-
-#### Run the Test Suite:
+### Step 1: Run Quick Test
 ```bash
-# Run comprehensive tests
-npm run test:last-wish
-
-# Test the service directly
-npm run test:last-wish-service
+node quick-test-last-wish.js
 ```
 
-#### Test Coverage:
-- ✅ Database connection
-- ✅ Table accessibility
-- ✅ Overdue function
-- ✅ Test user creation
-- ✅ Settings management
-- ✅ Data gathering
-- ✅ Delivery trigger
-- ✅ Cleanup procedures
+This will immediately tell you if the basic system is working.
 
-### 4. **Service Testing**
+### Step 2: Open Browser Test Suite
+Open `test-last-wish-browser.html` in your browser for interactive testing.
 
-#### Manual Service Testing:
+### Step 3: Run Comprehensive Tests (Optional)
+If you have Supabase credentials configured:
 ```bash
-# Run the service manually
-node last-wish-service.js
-
-# Check logs
-tail -f last-wish-logs.txt
+node test-last-wish-comprehensive.js
 ```
 
-#### Service Test Scenarios:
-- ✅ Check for overdue users
-- ✅ Process overdue users
-- ✅ Send emails to recipients
-- ✅ Update delivery status
-- ✅ Handle errors gracefully
+## 🧪 Test Categories
 
-### 5. **Email Testing**
+### 1. CORS and API Tests
+- **CORS Configuration**: Verifies cross-origin requests work
+- **API Endpoints**: Tests all Last Wish API endpoints
+- **Preflight Requests**: Ensures OPTIONS requests work properly
 
-#### Test Email Delivery:
-1. Set up test Last Wish settings with your email
-2. Make the user overdue (set last_check_in to past date)
-3. Run the service manually
-4. Check your email for delivery
+### 2. Email Functionality Tests
+- **Test Mode**: Sends test emails without real data
+- **Real Email**: Sends actual emails (use with caution)
+- **Email Templates**: Tests email content generation
+- **SMTP Configuration**: Verifies email server setup
 
-#### Email Content Verification:
-- ✅ Personal message included
-- ✅ Data summary correct
-- ✅ JSON attachment present
-- ✅ Proper formatting
-- ✅ Security notices included
+### 3. Database Operations Tests
+- **Settings CRUD**: Create, read, update, delete Last Wish settings
+- **Data Gathering**: Tests collection of user financial data
+- **Check-in System**: Tests the check-in tracking mechanism
+- **Delivery Logs**: Tests email delivery logging
 
-### 6. **Integration Testing**
+### 4. Security and Error Handling Tests
+- **Invalid Inputs**: Tests handling of bad data
+- **Missing Data**: Tests handling of incomplete requests
+- **Security Headers**: Verifies proper security headers
+- **RLS Policies**: Tests Row Level Security
 
-#### End-to-End Testing:
-1. **Setup**: Create test user with Last Wish enabled
-2. **Configure**: Set 7-day frequency, add recipients
-3. **Simulate**: Set last_check_in to 8 days ago
-4. **Trigger**: Run service manually
-5. **Verify**: Check email delivery and database updates
+### 5. Performance Tests
+- **Response Times**: Ensures APIs respond quickly
+- **Concurrent Requests**: Tests system under load
+- **Large Payloads**: Tests handling of large data
 
-#### Test Data Requirements:
-```javascript
-// Minimum test data needed
-const testData = {
-  accounts: [{ id: 1, name: 'Test Account', balance: 1000 }],
-  transactions: [{ id: 1, amount: 100, description: 'Test Transaction' }],
-  purchases: [{ id: 1, amount: 50, description: 'Test Purchase' }],
-  lendBorrow: [{ id: 1, amount: 200, type: 'lend', person_name: 'Test Person' }],
-  donationSavings: [{ id: 1, amount: 300, type: 'savings' }]
-};
-```
+## 🔧 Configuration
 
-### 7. **Security Testing**
+### Environment Variables
+For comprehensive testing, set these environment variables:
 
-#### Access Control Testing:
-- ✅ Users can only access their own settings
-- ✅ RLS policies working correctly
-- ✅ Service account has minimal permissions
-- ✅ Data encryption in transit and at rest
-
-#### Privacy Testing:
-- ✅ Personal data properly filtered
-- ✅ Recipient information secure
-- ✅ Audit logs maintained
-- ✅ GDPR compliance
-
-### 8. **Performance Testing**
-
-#### Load Testing:
-- ✅ Multiple overdue users
-- ✅ Large data sets
-- ✅ Concurrent deliveries
-- ✅ Memory usage monitoring
-
-#### Stress Testing:
-- ✅ Invalid email addresses
-- ✅ Network failures
-- ✅ Database connection issues
-- ✅ Service recovery
-
-## Testing Checklist
-
-### Pre-Testing Setup:
-- [ ] Database tables created
-- [ ] RLS policies configured
-- [ ] Service account set up
-- [ ] SMTP credentials configured
-- [ ] Test email addresses ready
-
-### Core Functionality:
-- [ ] Last Wish settings CRUD operations
-- [ ] Check-in functionality
-- [ ] Overdue detection
-- [ ] Data gathering
-- [ ] Email delivery
-- [ ] Status tracking
-
-### Edge Cases:
-- [ ] Empty recipient list
-- [ ] Invalid email formats
-- [ ] Large message content
-- [ ] Network timeouts
-- [ ] Database errors
-- [ ] Service crashes
-
-### Integration:
-- [ ] Frontend ↔ Backend communication
-- [ ] Database ↔ Service communication
-- [ ] Email service integration
-- [ ] Logging system
-- [ ] Error handling
-
-## Troubleshooting
-
-### Common Issues:
-
-**Service Won't Start:**
 ```bash
-# Check environment variables
-echo $SUPABASE_URL
-echo $SUPABASE_SERVICE_KEY
-echo $SMTP_USER
-echo $SMTP_PASS
-
-# Check dependencies
-npm install @supabase/supabase-js nodemailer
-```
-
-**Database Connection Issues:**
-```sql
--- Check RLS policies
-SELECT * FROM pg_policies WHERE tablename = 'last_wish_settings';
-
--- Check permissions
-GRANT USAGE ON SCHEMA public TO authenticated;
-GRANT ALL ON last_wish_settings TO authenticated;
-```
-
-**Email Delivery Issues:**
-```javascript
-// Test SMTP connection
-const testTransporter = nodemailer.createTransporter({
-  host: SMTP_HOST,
-  port: SMTP_PORT,
-  secure: false,
-  auth: { user: SMTP_USER, pass: SMTP_PASS }
-});
-
-testTransporter.verify((error, success) => {
-  if (error) console.log('SMTP Error:', error);
-  else console.log('SMTP Ready:', success);
-});
-```
-
-## Test Environment Setup
-
-### Required Environment Variables:
-```bash
-# Supabase
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_anon_key
+# Supabase Configuration
+SUPABASE_URL=your_supabase_url
 SUPABASE_SERVICE_KEY=your_service_key
 
-# SMTP
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
+# SMTP Configuration (for email tests)
 SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_app_password
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+
+# Test Configuration
+TEST_USER_ID=test-user-123
+TEST_EMAIL=test@example.com
+TEST_RECIPIENT_EMAIL=recipient@example.com
 ```
 
-### Test Data Setup:
-```sql
--- Create test user
-INSERT INTO auth.users (id, email) VALUES 
-('test-user-id', 'test@example.com');
+### API Configuration
+The test scripts use these default API endpoints:
+- Base URL: `https://balanze.cash/api`
+- CORS Test: `/cors-test`
+- Last Wish Check: `/last-wish-check`
+- Last Wish Public: `/last-wish-public`
+- Send Email: `/send-last-wish-email`
 
--- Create test settings
-INSERT INTO last_wish_settings (...) VALUES (...);
+## 📊 Expected Results
+
+### Successful Test Results
+- ✅ All CORS headers present
+- ✅ API endpoints responding (200-499 status codes)
+- ✅ JSON responses valid
+- ✅ Error handling working properly
+- ✅ Response times under 5 seconds
+
+### Common Issues and Solutions
+
+#### CORS Errors
+**Problem**: `Access-Control-Allow-Origin` header missing
+**Solution**: Deploy the updated CORS configuration
+
+#### API Not Found (404)
+**Problem**: API endpoints returning 404
+**Solution**: Ensure API routes are deployed to Vercel
+
+#### SMTP Not Configured
+**Problem**: Email tests failing with SMTP errors
+**Solution**: Set up SMTP credentials in environment variables
+
+#### Database Connection Issues
+**Problem**: Database operations failing
+**Solution**: Verify Supabase credentials and connection
+
+## 🎯 Test Scenarios
+
+### Scenario 1: New User Setup
+1. User enables Last Wish system
+2. Adds recipients
+3. Sets check-in frequency
+4. Writes personal message
+5. Tests email functionality
+
+### Scenario 2: Check-in Process
+1. User checks in before deadline
+2. System resets check-in timer
+3. No emails are sent
+4. Status remains active
+
+### Scenario 3: Overdue User
+1. User doesn't check in by deadline
+2. System detects overdue status
+3. Emails are sent to recipients
+4. System marks as delivered
+5. Status becomes inactive
+
+### Scenario 4: Test Mode
+1. User enables test mode
+2. System uses shorter time intervals (hours vs days)
+3. Test emails are sent
+4. No real data is shared
+
+## 🔍 Debugging
+
+### Check API Status
+```bash
+curl -X GET https://balanze.cash/api/cors-test
 ```
 
-## Reporting
-
-### Test Results Format:
-```markdown
-## Last Wish Test Results
-
-**Date**: [Date]
-**Tester**: [Name]
-**Environment**: [Development/Staging/Production]
-
-### Test Results:
-- [ ] Database Connection: ✅/❌
-- [ ] UI Functionality: ✅/❌
-- [ ] Service Operations: ✅/❌
-- [ ] Email Delivery: ✅/❌
-- [ ] Security: ✅/❌
-
-### Issues Found:
-1. [Issue description]
-2. [Issue description]
-
-### Recommendations:
-1. [Recommendation]
-2. [Recommendation]
+### Test CORS Manually
+```bash
+curl -X OPTIONS \
+  -H "Origin: http://localhost:5173" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: Content-Type" \
+  https://balanze.cash/api/send-last-wish-email
 ```
 
-This comprehensive testing guide ensures thorough validation of the Last Wish feature across all aspects of functionality, security, and performance. 
+### Check Database Connection
+```bash
+node -e "
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+supabase.from('last_wish_settings').select('count').then(console.log);
+"
+```
+
+## 📝 Test Checklist
+
+### Pre-Deployment Testing
+- [ ] CORS configuration working
+- [ ] All API endpoints responding
+- [ ] Database operations working
+- [ ] Email functionality working
+- [ ] Error handling working
+- [ ] Security headers present
+
+### Post-Deployment Testing
+- [ ] Frontend can access APIs
+- [ ] Real email sending works
+- [ ] Check-in system functional
+- [ ] Overdue detection working
+- [ ] Data gathering complete
+- [ ] Delivery logging working
+
+### Production Readiness
+- [ ] All tests passing
+- [ ] Performance acceptable
+- [ ] Security measures in place
+- [ ] Error handling robust
+- [ ] Monitoring in place
+- [ ] Documentation complete
+
+## 🚨 Important Notes
+
+1. **Test Mode**: Always use test mode for initial testing to avoid sending real emails
+2. **SMTP Limits**: Be aware of email sending limits to avoid being blocked
+3. **Database Cleanup**: Test scripts may create test data that should be cleaned up
+4. **Rate Limiting**: Don't run tests too frequently to avoid rate limiting
+5. **Real Emails**: Only test real email sending with explicit permission
+
+## 📞 Support
+
+If tests fail or you encounter issues:
+
+1. Check the error messages in the test output
+2. Verify your configuration and credentials
+3. Check the API deployment status
+4. Review the CORS configuration
+5. Ensure database connectivity
+
+For additional help, refer to the deployment guide and troubleshooting documentation.

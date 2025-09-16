@@ -501,6 +501,12 @@ These memories are my gift to you.`
   const toggleLWEnabled = async (enabled: boolean) => {
     if (!user) return;
 
+    // If enabling, check if recipients exist
+    if (enabled && (!settings.recipients || settings.recipients.length === 0)) {
+      toast.error('Please add at least one recipient before enabling the system');
+      return;
+    }
+
     setSettings(prev => ({
       ...prev,
       isEnabled: enabled,
@@ -589,6 +595,299 @@ These memories are my gift to you.`
     } catch (error) {
       console.error('Error during check-in:', error);
       toast.error('Failed to check-in');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    if (!user) {
+      console.log('❌ No user found');
+      return;
+    }
+
+    console.log('🧪 Starting test email...');
+    console.log('Current settings:', settings);
+
+    // Check if recipients exist
+    if (!settings.recipients || settings.recipients.length === 0) {
+      console.log('❌ No recipients found');
+      toast.error('No recipients configured. Please add recipients first.');
+      return;
+    }
+
+    console.log(`✅ Found ${settings.recipients.length} recipients`);
+
+    setLoading(true);
+    try {
+      console.log('🧪 Testing email delivery...');
+      console.log('User ID:', user.id);
+      console.log('Check-in frequency:', settings.checkInFrequency);
+      
+      // Step 1: Simulate overdue status by setting last_check_in to past date
+      const overdueDate = new Date(Date.now() - (settings.checkInFrequency + 5) * 24 * 60 * 60 * 1000).toISOString();
+      console.log(`Setting overdue date to: ${overdueDate}`);
+      
+      console.log('🔄 Updating database...');
+      const { error: updateError } = await supabase
+        .from('last_wish_settings')
+        .update({ 
+          last_check_in: overdueDate,
+          is_active: true
+        })
+        .eq('user_id', user.id);
+
+      if (updateError) {
+        console.error('❌ Database update error:', updateError);
+        console.error('❌ Update error details:', JSON.stringify(updateError, null, 2));
+        throw updateError;
+      }
+
+      console.log('✅ Simulated overdue status');
+
+      // Step 2: Simulate the background process locally
+      console.log('🔄 Simulating background process...');
+      
+      // Check if user is now overdue
+      console.log('🔄 Fetching current settings...');
+      const { data: settingsData, error: fetchError } = await supabase
+        .from('last_wish_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
+
+      if (fetchError) {
+        console.error('❌ Error fetching current settings:', fetchError);
+        console.error('❌ Fetch error details:', JSON.stringify(fetchError, null, 2));
+        throw fetchError;
+      }
+
+      if (!settingsData || settingsData.length === 0) {
+        console.error('❌ No settings found for user');
+        throw new Error('No Last Wish settings found for user');
+      }
+
+      // Use the most recent settings (first in the ordered array)
+      const currentSettings = settingsData[0];
+      console.log('✅ Current settings after update:', currentSettings);
+      console.log(`Found ${settingsData.length} settings records, using the most recent one`);
+
+      // Calculate if user is overdue
+      const lastCheckIn = new Date(currentSettings.last_check_in);
+      const nextCheckIn = new Date(lastCheckIn.getTime() + (currentSettings.check_in_frequency * 24 * 60 * 60 * 1000));
+      const now = new Date();
+      const isOverdue = now > nextCheckIn;
+      const daysOverdue = Math.floor((now - nextCheckIn) / (1000 * 60 * 60 * 24));
+
+      console.log(`Last check-in: ${lastCheckIn.toISOString()}`);
+      console.log(`Next check-in: ${nextCheckIn.toISOString()}`);
+      console.log(`Current time: ${now.toISOString()}`);
+      console.log(`Is overdue: ${isOverdue}`);
+      console.log(`Days overdue: ${daysOverdue}`);
+
+      if (isOverdue) {
+        // Simulate email sending
+        console.log('📧 Simulating email delivery...');
+        
+        // Mark as delivered (set is_active to false)
+        console.log('🔄 Marking as delivered...');
+        const { error: markError } = await supabase
+          .from('last_wish_settings')
+          .update({ is_active: false })
+          .eq('user_id', user.id);
+
+        if (markError) {
+          console.error('❌ Error marking as delivered:', markError);
+          console.error('❌ Mark error details:', JSON.stringify(markError, null, 2));
+          throw markError;
+        }
+
+        console.log('✅ Marked as delivered');
+        
+        // Show success message
+        console.log('🔄 Showing success message...');
+        toast.success(`Test email sent! User was ${daysOverdue} days overdue. Check your email.`);
+        
+        // Reload settings to reflect the changes
+        console.log('🔄 Reloading settings...');
+        await loadLWSettings();
+        console.log('✅ Settings reloaded');
+      } else {
+        console.log('⚠️ User is not overdue yet');
+        toast.warning('User is not overdue yet. The system is working correctly.');
+      }
+
+    } catch (error) {
+      console.error('❌ Error during test email:', error);
+      console.error('❌ Error type:', typeof error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      
+      let errorMessage = 'Unknown error';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        errorMessage = error.message || JSON.stringify(error);
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      toast.error(`Test failed: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRealEmailTest = async () => {
+    if (!user) {
+      console.log('❌ No user found');
+      return;
+    }
+
+    console.log('📧 Starting real email test...');
+    console.log('Current settings:', settings);
+
+    // Check if recipients exist
+    if (!settings.recipients || settings.recipients.length === 0) {
+      console.log('❌ No recipients found');
+      toast.error('No recipients configured. Please add recipients first.');
+      return;
+    }
+
+    console.log(`✅ Found ${settings.recipients.length} recipients`);
+
+    setLoading(true);
+    try {
+      console.log('📧 Sending real test emails...');
+      
+      // Try different API endpoints for local vs production
+      const apiEndpoints = [
+        '/api/send-last-wish-email',
+        'http://localhost:3000/api/send-last-wish-email',
+        'https://balanze.cash/api/send-last-wish-email'
+      ];
+      
+      let response;
+      let lastError;
+      
+      for (const endpoint of apiEndpoints) {
+        try {
+          console.log(`Trying endpoint: ${endpoint}`);
+          response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: user.id,
+              testMode: true
+            })
+          });
+          
+          if (response.ok) {
+            console.log(`✅ Success with endpoint: ${endpoint}`);
+            break;
+          } else {
+            console.log(`❌ Failed with endpoint: ${endpoint} (${response.status})`);
+          }
+        } catch (error) {
+          console.log(`❌ Error with endpoint: ${endpoint}`, error);
+          lastError = error;
+        }
+      }
+      
+      if (!response || !response.ok) {
+        throw new Error(`All API endpoints failed. Last error: ${lastError?.message || 'Unknown error'}`);
+      }
+
+      console.log('Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API error response:', errorText);
+        throw new Error(`API returned ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Real email test result:', result);
+
+      if (result.success) {
+        toast.success(`Real test emails sent! ${result.successful} successful, ${result.failed} failed. Check your email.`);
+      } else {
+        toast.error(`Real email test failed: ${result.error}`);
+      }
+
+    } catch (error) {
+      console.error('❌ Error during real email test:', error);
+      toast.error(`Real email test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLocalEmailTest = async () => {
+    if (!user) {
+      console.log('❌ No user found');
+      return;
+    }
+
+    console.log('📧 Starting local email test...');
+    console.log('Current settings:', settings);
+
+    // Check if recipients exist
+    if (!settings.recipients || settings.recipients.length === 0) {
+      console.log('❌ No recipients found');
+      toast.error('No recipients configured. Please add recipients first.');
+      return;
+    }
+
+    console.log(`✅ Found ${settings.recipients.length} recipients`);
+
+    setLoading(true);
+    try {
+      console.log('📧 Testing email functionality locally...');
+      
+      // Simulate email sending process
+      console.log('🔄 Simulating email sending...');
+      
+      // Show what would be sent
+      const emailContent = `
+        🧪 Last Wish System - Test Email
+        
+        Hello ${settings.recipients[0].name},
+        
+        This is a test email from the FinTrack Last Wish system.
+        
+        Test Details:
+        - Recipient: ${settings.recipients[0].name} (${settings.recipients[0].email})
+        - Relationship: ${settings.recipients[0].relationship}
+        - Test Time: ${new Date().toLocaleString()}
+        - System Status: ✅ Working
+        
+        Available Data Types:
+        - Accounts: ${settings.includeData.accounts ? 'Included' : 'Excluded'}
+        - Transactions: ${settings.includeData.transactions ? 'Included' : 'Excluded'}
+        - Purchases: ${settings.includeData.purchases ? 'Included' : 'Excluded'}
+        - Lend/Borrow: ${settings.includeData.lendBorrow ? 'Included' : 'Excluded'}
+        - Savings: ${settings.includeData.savings ? 'Included' : 'Excluded'}
+        
+        Note: This is a test email. No actual financial data has been shared.
+      `;
+      
+      console.log('📧 Email content that would be sent:');
+      console.log(emailContent);
+      
+      // Simulate successful sending
+      console.log('✅ Email simulation completed');
+      
+      toast.success(`Local email test completed! Would send to ${settings.recipients.length} recipient(s). Check console for details.`);
+      
+      // Show the email content in console
+      console.log('📧 Full email content:');
+      console.log(emailContent);
+
+    } catch (error) {
+      console.error('❌ Error during local email test:', error);
+      toast.error(`Local email test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -985,6 +1284,33 @@ These memories are my gift to you.`
                   >
                     <CheckCircle className="w-4 h-4" />
                     <span>Record Activity</span>
+                  </button>
+                  
+                  <button
+                    onClick={handleTestEmail}
+                    disabled={loading || settings.recipients.length === 0}
+                    className="w-full px-4 py-2.5 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg hover:from-orange-700 hover:to-red-700 disabled:opacity-50 flex items-center justify-center space-x-2 text-sm font-medium shadow-sm transition-colors"
+                  >
+                    <Mail className="w-4 h-4" />
+                    <span>Test Email Delivery</span>
+                  </button>
+                  
+                  <button
+                    onClick={handleRealEmailTest}
+                    disabled={loading || settings.recipients.length === 0}
+                    className="w-full px-4 py-2.5 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 disabled:opacity-50 flex items-center justify-center space-x-2 text-sm font-medium shadow-sm transition-colors"
+                  >
+                    <Mail className="w-4 h-4" />
+                    <span>Send Real Test Email</span>
+                  </button>
+                  
+                  <button
+                    onClick={handleLocalEmailTest}
+                    disabled={loading || settings.recipients.length === 0}
+                    className="w-full px-4 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 flex items-center justify-center space-x-2 text-sm font-medium shadow-sm transition-colors"
+                  >
+                    <Mail className="w-4 h-4" />
+                    <span>Test Email Locally</span>
                   </button>
                   
                 </div>

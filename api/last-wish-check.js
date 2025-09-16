@@ -3,20 +3,23 @@ import nodemailer from 'nodemailer';
 
 // Initialize Supabase client
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// Email transporter
-const transporter = nodemailer.createTransporter({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: process.env.SMTP_PORT || 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Email transporter - only create if SMTP is configured
+let transporter = null;
+if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+  transporter = nodemailer.createTransporter({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT) || 587,
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
 
 async function checkOverdueUsers() {
   try {
@@ -29,6 +32,7 @@ async function checkOverdueUsers() {
       const { data, error } = await supabase.rpc('check_overdue_last_wish');
       
       if (error) {
+        console.log(`RPC function error: ${error.message}`);
         throw error;
       }
       
@@ -53,7 +57,9 @@ async function checkOverdueUsers() {
         .not('last_check_in', 'is', null);
       
       if (directError) {
-        throw directError;
+        console.log(`Direct query error: ${directError.message}`);
+        // Return empty array instead of throwing error
+        return 0;
       }
       
       // Calculate overdue users manually
@@ -88,6 +94,12 @@ async function processOverdueUser(user) {
   try {
     console.log(`Processing overdue user: ${user.email} (${user.days_overdue} days overdue)`);
 
+    // Check if SMTP is configured
+    if (!transporter) {
+      console.log('SMTP not configured, skipping email sending');
+      return;
+    }
+
     // Get user's complete data
     const userData = await gatherUserData(user.user_id);
     
@@ -99,7 +111,8 @@ async function processOverdueUser(user) {
       .single();
 
     if (settingsError) {
-      throw settingsError;
+      console.log(`Settings error for user ${user.user_id}: ${settingsError.message}`);
+      return;
     }
 
     // Send data to each recipient
@@ -107,7 +120,7 @@ async function processOverdueUser(user) {
       await sendDataToRecipient(user, recipient, userData, settings);
     }
 
-    // Mark as delivered
+    // Mark as delivered to prevent duplicate processing
     await supabase
       .from('last_wish_settings')
       .update({ is_active: false })

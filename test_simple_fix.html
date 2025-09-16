@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Last Wish State Test</title>
+</head>
+<body>
+    <h1>Last Wish State Test</h1>
+    <p>This is a simple test to check what's happening with the Last Wish state.</p>
+    
+    <div id="test-results">
+        <h2>Test Results:</h2>
+        <p>1. Open your browser's Developer Tools (F12)</p>
+        <p>2. Go to the Last Wish settings page</p>
+        <p>3. Activate the system control</p>
+        <p>4. Check the Console tab for any errors</p>
+        <p>5. Check the Network tab to see if the database calls are working</p>
+        <p>6. Refresh the page and see if the state persists</p>
+    </div>
+
+    <h2>What to look for:</h2>
+    <ul>
+        <li><strong>Console Errors:</strong> Any JavaScript errors that might prevent the state from loading</li>
+        <li><strong>Network Calls:</strong> Check if the database calls to `last_wish_settings` are successful</li>
+        <li><strong>Database Response:</strong> See what data is actually returned from the database</li>
+    </ul>
+
+    <h2>Quick Fix to Try:</h2>
+    <p>If you see the system becoming inactive after refresh, try this:</p>
+    <ol>
+        <li>Activate the system control</li>
+        <li>Immediately go to your database (Supabase dashboard)</li>
+        <li>Check the `last_wish_settings` table</li>
+        <li>See if `is_enabled` and `is_active` are both `true`</li>
+        <li>If they are `true` but the UI shows inactive, there's a frontend issue</li>
+        <li>If they become `false` quickly, there's a background process issue</li>
+    </ol>
+
+    <script>
+        console.log('Last Wish State Test Page Loaded');
+        console.log('Instructions:');
+        console.log('1. Go to Last Wish settings');
+        console.log('2. Activate system control');
+        console.log('3. Check browser console for errors');
+        console.log('4. Check network tab for database calls');
+        console.log('5. Refresh page and observe behavior');
+    </script>
+</body>
+</html>
