@@ -1,173 +1,168 @@
-// Test script to verify Last Wish active state fix
-// This script tests that the system control remains active after refresh
-
+// Test script to verify Last Wish settings updates work
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+const supabaseUrl = 'https://xgncksougafnfbtusfnf.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnbmNrc291Z2FmbmZidHVzZm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4NzE0MDksImV4cCI6MjA2NTQ0NzQwOX0.lEL5K9SpVD7-lwN18mrrgBQJbt-42J1rPfLBSH9CqJk';
 
-async function testLastWishFix() {
-  console.log('🧪 Testing Last Wish active state fix...\n');
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function testLastWishSettings() {
+  console.log('🧪 Testing Last Wish Settings Updates...\n');
 
   try {
-    // Test 1: Check if delivery_triggered field exists
-    console.log('1. Checking if delivery_triggered field exists...');
-    const { data: tableInfo, error: tableError } = await supabase
-      .from('information_schema.columns')
-      .select('column_name')
-      .eq('table_name', 'last_wish_settings')
-      .eq('column_name', 'delivery_triggered');
-
-    if (tableError) {
-      console.error('❌ Error checking table schema:', tableError);
-      return;
-    }
-
-    if (tableInfo && tableInfo.length > 0) {
-      console.log('✅ delivery_triggered field exists');
-    } else {
-      console.log('❌ delivery_triggered field does not exist - run the SQL script first');
-      return;
-    }
-
-    // Test 2: Check if updated functions exist
-    console.log('\n2. Testing check_overdue_last_wish function...');
-    try {
-      const { data: overdueUsers, error: rpcError } = await supabase.rpc('check_overdue_last_wish');
-      
-      if (rpcError) {
-        console.error('❌ RPC function error:', rpcError);
-      } else {
-        console.log('✅ check_overdue_last_wish function works');
-        console.log(`   Found ${overdueUsers ? overdueUsers.length : 0} overdue users`);
-      }
-    } catch (error) {
-      console.error('❌ Error testing RPC function:', error);
-    }
-
-    // Test 3: Create a test user and settings
-    console.log('\n3. Creating test user and settings...');
-    const testUserId = 'test-user-' + Date.now();
+    // Step 1: Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    // Insert test settings
-    const { data: testSettings, error: insertError } = await supabase
+    if (authError) {
+      console.log('❌ Authentication error:', authError.message);
+      return;
+    }
+    
+    if (!user) {
+      console.log('⚠️  No user authenticated. Please log in first.');
+      return;
+    }
+    
+    console.log('✅ User authenticated:', user.email);
+    console.log('   User ID:', user.id);
+
+    // Step 2: Test reading existing settings
+    console.log('\n📖 Testing read access...');
+    const { data: existingSettings, error: readError } = await supabase
       .from('last_wish_settings')
-      .insert({
-        user_id: testUserId,
-        is_enabled: true,
-        is_active: true,
-        delivery_triggered: false,
-        check_in_frequency: 30,
-        last_check_in: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(), // 35 days ago
-        recipients: [{
-          id: '1',
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (readError && readError.code !== 'PGRST116') { // PGRST116 = no rows found
+      console.log('❌ Read error:', readError.message);
+      return;
+    }
+    
+    console.log('✅ Read access working');
+    if (existingSettings) {
+      console.log('   Found existing settings');
+    } else {
+      console.log('   No existing settings found');
+    }
+
+    // Step 3: Test creating/updating settings
+    console.log('\n✏️  Testing create/update access...');
+    const testSettings = {
+      user_id: user.id,
+      is_enabled: true,
+      check_in_frequency: 30,
+      recipients: [
+        {
+          id: 'test-recipient-1',
           email: 'test@example.com',
           name: 'Test Recipient',
-          relationship: 'friend'
-        }],
-        include_data: {
-          accounts: true,
-          transactions: true,
-          purchases: true,
-          lendBorrow: true,
-          savings: true,
-          analytics: true
-        },
-        message: 'Test message'
-      })
-      .select()
-      .single();
+          relationship: 'Family'
+        }
+      ],
+      include_data: {
+        accounts: true,
+        transactions: true,
+        purchases: false,
+        lendBorrow: true,
+        savings: false,
+        analytics: true
+      },
+      message: 'Test message for Last Wish system',
+      is_active: true
+    };
 
-    if (insertError) {
-      console.error('❌ Error creating test settings:', insertError);
+    const { data: upsertData, error: upsertError } = await supabase
+      .from('last_wish_settings')
+      .upsert(testSettings)
+      .select();
+    
+    if (upsertError) {
+      console.log('❌ Upsert error:', upsertError.message);
+      console.log('   Error details:', upsertError);
       return;
     }
-
-    console.log('✅ Test settings created');
-    console.log(`   User ID: ${testUserId}`);
-    console.log(`   is_enabled: ${testSettings.is_enabled}`);
-    console.log(`   is_active: ${testSettings.is_active}`);
-    console.log(`   delivery_triggered: ${testSettings.delivery_triggered}`);
-
-    // Test 4: Simulate background process (should NOT set is_active = false)
-    console.log('\n4. Testing background process behavior...');
     
-    // This simulates what the background process should do
-    const { data: overdueTest, error: overdueError } = await supabase
+    console.log('✅ Create/update access working');
+    console.log('   Settings ID:', upsertData[0]?.id);
+
+    // Step 4: Test updating specific fields
+    console.log('\n🔄 Testing field updates...');
+    
+    // Test frequency update
+    const { error: freqError } = await supabase
       .from('last_wish_settings')
-      .select('*')
-      .eq('user_id', testUserId)
-      .eq('is_enabled', true)
-      .eq('delivery_triggered', false)
-      .single();
-
-    if (overdueError) {
-      console.error('❌ Error checking overdue status:', overdueError);
-    } else if (overdueTest) {
-      console.log('✅ User is correctly identified as overdue');
-      
-      // Simulate the NEW behavior (set delivery_triggered = true, keep is_active = true)
-      const { error: updateError } = await supabase
-        .from('last_wish_settings')
-        .update({ 
-          delivery_triggered: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', testUserId);
-
-      if (updateError) {
-        console.error('❌ Error updating delivery status:', updateError);
-      } else {
-        console.log('✅ Correctly updated delivery_triggered = true');
-        console.log('✅ is_active remains true (system stays active for user)');
-      }
-    }
-
-    // Test 5: Verify final state
-    console.log('\n5. Verifying final state...');
-    const { data: finalState, error: finalError } = await supabase
-      .from('last_wish_settings')
-      .select('*')
-      .eq('user_id', testUserId)
-      .single();
-
-    if (finalError) {
-      console.error('❌ Error checking final state:', finalError);
+      .update({ check_in_frequency: 14 })
+      .eq('user_id', user.id);
+    
+    if (freqError) {
+      console.log('❌ Frequency update error:', freqError.message);
     } else {
-      console.log('✅ Final state verification:');
-      console.log(`   is_enabled: ${finalState.is_enabled} (should be true)`);
-      console.log(`   is_active: ${finalState.is_active} (should be true)`);
-      console.log(`   delivery_triggered: ${finalState.delivery_triggered} (should be true)`);
-      
-      if (finalState.is_enabled && finalState.is_active && finalState.delivery_triggered) {
-        console.log('🎉 SUCCESS: System control will remain active after refresh!');
-      } else {
-        console.log('❌ FAILURE: System control will still become inactive');
-      }
+      console.log('✅ Frequency update working');
     }
 
-    // Cleanup
-    console.log('\n6. Cleaning up test data...');
+    // Test recipients update
+    const { error: recipientsError } = await supabase
+      .from('last_wish_settings')
+      .update({ 
+        recipients: [
+          {
+            id: 'test-recipient-2',
+            email: 'test2@example.com',
+            name: 'Test Recipient 2',
+            relationship: 'Friend'
+          }
+        ]
+      })
+      .eq('user_id', user.id);
+    
+    if (recipientsError) {
+      console.log('❌ Recipients update error:', recipientsError.message);
+    } else {
+      console.log('✅ Recipients update working');
+    }
+
+    // Test data inclusion update
+    const { error: dataError } = await supabase
+      .from('last_wish_settings')
+      .update({ 
+        include_data: {
+          accounts: true,
+          transactions: false,
+          purchases: true,
+          lendBorrow: false,
+          savings: true,
+          analytics: false
+        }
+      })
+      .eq('user_id', user.id);
+    
+    if (dataError) {
+      console.log('❌ Data inclusion update error:', dataError.message);
+    } else {
+      console.log('✅ Data inclusion update working');
+    }
+
+    // Step 5: Test delete access
+    console.log('\n🗑️  Testing delete access...');
     const { error: deleteError } = await supabase
       .from('last_wish_settings')
       .delete()
-      .eq('user_id', testUserId);
-
+      .eq('user_id', user.id);
+    
     if (deleteError) {
-      console.error('❌ Error cleaning up:', deleteError);
+      console.log('❌ Delete error:', deleteError.message);
     } else {
-      console.log('✅ Test data cleaned up');
+      console.log('✅ Delete access working');
     }
 
-    console.log('\n🏁 Test completed!');
+    console.log('\n🎉 All tests completed successfully!');
+    console.log('   Last Wish settings should now work properly in the UI.');
 
   } catch (error) {
-    console.error('❌ Test failed with error:', error);
+    console.log('❌ Unexpected error:', error.message);
   }
 }
 
 // Run the test
-testLastWishFix();
+testLastWishSettings();

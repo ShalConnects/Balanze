@@ -208,7 +208,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
   fetchAccounts: async () => {
     set({ loading: true, error: null });
-    console.log('Fetching accounts...');
     
     const { user } = useAuthStore.getState();
     if (!user) {
@@ -228,9 +227,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       return set({ loading: false, error: error.message });
     }
 
-    console.log('Raw accounts data:', data);
-    console.log('DPS accounts:', data?.filter(a => a.has_dps));
-    console.log('Account fields:', data?.[0] ? Object.keys(data[0]) : 'No accounts');
 
     // Do not filter out DPS savings accounts; include all accounts
     // When mapping from db, map is_active to isActive
@@ -248,15 +244,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       donation_preference: account.donation_preference ? Number(account.donation_preference) : null,
     }));
 
-    console.log('Processed accounts:', accounts);
-    console.log('Processed DPS accounts:', accounts.filter(a => a.has_dps));
-    console.log('DPS account details:', accounts.filter(a => a.has_dps).map(a => ({
-      name: a.name,
-      has_dps: a.has_dps,
-      dps_type: a.dps_type,
-      dps_amount_type: a.dps_amount_type,
-      dps_fixed_amount: a.dps_fixed_amount
-    })));
 
     set({ accounts, loading: false });
     
@@ -580,7 +567,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
   fetchTransactions: async () => {
     set({ loading: true, error: null });
-    console.log('Fetching transactions...');
     
     const { user } = useAuthStore.getState();
     if (!user) {
@@ -598,7 +584,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       return set({ loading: false, error: error.message });
     }
 
-    console.log('Transactions data:', data);
     set({ transactions: data || [], loading: false });
   },
 
@@ -818,7 +803,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   
   fetchCategories: async () => {
     set({ loading: true, error: null });
-    console.log('Fetching categories...');
     
     const { user } = useAuthStore.getState();
     if (!user) {
@@ -837,7 +821,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       return set({ loading: false, error: error.message });
     }
 
-    console.log('Categories data:', data);
     
     // If no categories exist, initialize with default categories
     if (!data || data.length === 0) {

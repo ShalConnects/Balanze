@@ -64,7 +64,7 @@ export const LastWishCountdownWidget: React.FC = () => {
           const lastCheckIn = new Date(data.last_check_in);
           const now = new Date();
           
-          // Normal mode: calculate days
+          // Calculate next check-in time based on frequency (in days)
           const nextCheckIn = new Date(lastCheckIn.getTime() + data.check_in_frequency * 24 * 60 * 60 * 1000);
           const totalTimeLeft = nextCheckIn.getTime() - now.getTime();
           const daysLeft = Math.ceil(totalTimeLeft / (1000 * 60 * 60 * 24));
@@ -73,9 +73,9 @@ export const LastWishCountdownWidget: React.FC = () => {
           // Check if we're in the final hour (less than 24 hours remaining)
           const isFinalHour = totalTimeLeft > 0 && totalTimeLeft <= 24 * 60 * 60 * 1000;
           
-          // Calculate final hour time if applicable
+          // Calculate time data for display when less than 24 hours remaining
           let finalHourTimeData = null;
-          if (isFinalHour && totalTimeLeft > 0) {
+          if (totalTimeLeft > 0 && totalTimeLeft <= 24 * 60 * 60 * 1000) {
             const totalHours = Math.floor(totalTimeLeft / (1000 * 60 * 60));
             const totalMinutes = Math.floor((totalTimeLeft % (1000 * 60 * 60)) / (1000 * 60));
             const totalSeconds = Math.floor((totalTimeLeft % (1000 * 60)) / 1000);
@@ -102,7 +102,8 @@ export const LastWishCountdownWidget: React.FC = () => {
           // Calculate progress percentage (0-100)
           const totalDays = data.check_in_frequency;
           const daysElapsed = totalDays - daysLeft;
-          const progressPercentage = Math.max(0, Math.min(100, (daysElapsed / totalDays) * 100));
+          // Show 99% progress when in final 24 hours
+          const progressPercentage = isFinalHour ? 99 : Math.max(0, Math.min(100, (daysElapsed / totalDays) * 100));
           
           setCountdown({
             daysLeft: Math.max(0, daysLeft),
@@ -131,11 +132,11 @@ export const LastWishCountdownWidget: React.FC = () => {
     fetchLastWish();
   }, [user]);
 
-  // Real-time countdown timer for final hour
+  // Real-time countdown timer - updates every second when enabled
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    if (countdown?.isFinalHour && enabled && countdown.timeLeft) {
+    if (enabled && countdown && user?.id) {
       interval = setInterval(() => {
         // Re-fetch to get updated time
         const fetchUpdatedTime = async () => {
@@ -148,28 +149,57 @@ export const LastWishCountdownWidget: React.FC = () => {
           if (!error && data && data.last_check_in) {
             const lastCheckIn = new Date(data.last_check_in);
             const now = new Date();
+            
+            // Handle both 5-minute testing (-5) and normal days
+            // Calculate next check-in time based on frequency (in days)
             const nextCheckIn = new Date(lastCheckIn.getTime() + data.check_in_frequency * 24 * 60 * 60 * 1000);
             const totalTimeLeft = nextCheckIn.getTime() - now.getTime();
+            const isOverdue = totalTimeLeft < 0;
             
-            if (totalTimeLeft > 0 && totalTimeLeft <= 24 * 60 * 60 * 1000) {
-              const totalHours = Math.floor(totalTimeLeft / (1000 * 60 * 60));
-              const totalMinutes = Math.floor((totalTimeLeft % (1000 * 60 * 60)) / (1000 * 60));
-              const totalSeconds = Math.floor((totalTimeLeft % (1000 * 60)) / 1000);
-              
-              
-              // Update countdown state
-              setCountdown(prev => prev ? {
-                ...prev,
-                timeLeft: { hours: totalHours, minutes: totalMinutes, seconds: totalSeconds }
-              } : null);
+            // Calculate time components
+            const totalHours = Math.floor(Math.abs(totalTimeLeft) / (1000 * 60 * 60));
+            const totalMinutes = Math.floor((Math.abs(totalTimeLeft) % (1000 * 60 * 60)) / (1000 * 60));
+            const totalSeconds = Math.floor((Math.abs(totalTimeLeft) % (1000 * 60)) / 1000);
+            
+            // Check if we're in the final hour (less than 24 hours remaining)
+            const isFinalHour = totalTimeLeft > 0 && totalTimeLeft <= 24 * 60 * 60 * 1000;
+            
+            // Calculate urgency level
+            let urgencyLevel: 'safe' | 'warning' | 'critical' | 'overdue' = 'safe';
+            if (isOverdue) {
+              urgencyLevel = 'overdue';
+            } else if (isFinalHour) {
+              urgencyLevel = 'critical';
             } else {
-              // No longer in final hour, clear the timer
-              setCountdown(prev => prev ? {
-                ...prev,
-                isFinalHour: false,
-                timeLeft: undefined
-              } : null);
+              const daysLeft = Math.ceil(totalTimeLeft / (1000 * 60 * 60 * 24));
+              if (daysLeft <= 3) {
+                urgencyLevel = 'critical';
+              } else if (daysLeft <= 7) {
+                urgencyLevel = 'warning';
+              }
             }
+            
+            // Calculate progress percentage
+            const totalDuration = data.check_in_frequency * 24 * 60 * 60 * 1000; // Convert days to milliseconds
+            
+            const elapsed = totalDuration - Math.max(0, totalTimeLeft);
+            // Show 99% progress when less than 24 hours remaining
+            const progressPercentage = (totalTimeLeft > 0 && totalTimeLeft <= 24 * 60 * 60 * 1000) ? 99 : Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
+            
+            // Calculate days left for display
+            const daysLeft = Math.max(0, Math.ceil(totalTimeLeft / (1000 * 60 * 60 * 24)));
+            
+            // Update countdown state
+            setCountdown(prev => prev ? {
+              ...prev,
+              daysLeft,
+              isOverdue,
+              urgencyLevel,
+              progressPercentage,
+              isFinalHour,
+              timeLeft: { hours: totalHours, minutes: totalMinutes, seconds: totalSeconds }
+            } : null);
+
           }
         };
         
@@ -180,7 +210,7 @@ export const LastWishCountdownWidget: React.FC = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [countdown?.isFinalHour, enabled, user?.id]);
+  }, [enabled, user?.id, countdown?.daysLeft]); // Update when enabled state or user changes
   
   // Don't render for free users
   if (!isPremium) {
@@ -261,23 +291,6 @@ export const LastWishCountdownWidget: React.FC = () => {
     }
   };
 
-  const getUrgencyMessage = (level: string, daysLeft: number, isFinalHour: boolean = false, timeLeft?: { hours: number; minutes: number; seconds: number }) => {
-    if (isFinalHour && timeLeft) {
-      const timeStr = `${timeLeft.hours.toString().padStart(2, '0')}:${timeLeft.minutes.toString().padStart(2, '0')}:${timeLeft.seconds.toString().padStart(2, '0')}`;
-      return `Final hour: ${timeStr} remaining - Check in now!`;
-    }
-    
-    switch (level) {
-      case 'overdue':
-        return `OVERDUE! Check in immediately`;
-      case 'critical':
-        return `${daysLeft} days left - Check in soon!`;
-      case 'warning':
-        return `${daysLeft} days left`;
-      default:
-        return `${daysLeft} days left - All good!`;
-    }
-  };
 
   // If not enabled, show a minimal setup prompt
   if (!enabled || !countdown) {
@@ -293,7 +306,7 @@ export const LastWishCountdownWidget: React.FC = () => {
               Set up automatic data sharing for your loved ones
             </p>
             <button
-              onClick={() => navigate('/settings?tab=last-wish')}
+              onClick={() => navigate('/settings?tab=lw')}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium"
             >
               <Settings className="w-4 h-4" />
@@ -312,40 +325,59 @@ export const LastWishCountdownWidget: React.FC = () => {
         countdown.urgencyLevel === 'overdue' ? 'animate-pulse-urgent' : ''
       }`}>
              {/* Header */}
-       <div className="flex items-center justify-between mb-4">
-         <div className="flex items-center gap-3">
-           <div className="relative">
-             {getUrgencyIcon(countdown.urgencyLevel)}
-             {(countdown.urgencyLevel === 'critical' || countdown.urgencyLevel === 'overdue') && (
-               <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-             )}
-           </div>
-           <div>
+       <div className="mb-4">
+         {/* Top row: Icon, Title, and Eye button */}
+         <div className="flex items-center justify-between mb-2">
+           <div className="flex items-center gap-3">
+             <div className="relative">
+               {getUrgencyIcon(countdown.urgencyLevel)}
+               {(countdown.urgencyLevel === 'critical' || countdown.urgencyLevel === 'overdue') && (
+                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+               )}
+             </div>
              <h3 className={`font-bold text-lg ${colors.text}`}>
                Last Wish Check-in
-               {countdown.isFinalHour && (
-                 <span className="ml-2 px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium rounded-full animate-pulse">
-                   FINAL HOUR
-                 </span>
-               )}
              </h3>
-             <p className={`text-sm ${colors.text} opacity-80`}>
-               {getUrgencyMessage(countdown.urgencyLevel, countdown.daysLeft, countdown.isFinalHour, countdown.timeLeft)}
-             </p>
            </div>
-         </div>
-         <div className="flex items-center gap-2">
-           {(countdown.urgencyLevel === 'critical' || countdown.urgencyLevel === 'overdue') && (
-             <div className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium rounded-full animate-pulse">
-               URGENT
-             </div>
-           )}
            <button
              onClick={() => setShowDetails(!showDetails)}
              className="p-2 rounded-lg bg-white/50 dark:bg-gray-800/50 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-colors duration-200"
            >
              <Eye className="w-4 h-4 text-gray-600 dark:text-gray-400" />
            </button>
+         </div>
+         
+         {/* Second row: Status and countdown */}
+         <div className="flex flex-col gap-3">
+           {/* Single status indicator */}
+           <div className="flex items-center justify-center">
+             {(countdown.timeLeft && countdown.daysLeft < 1) && (
+               <span className="px-3 py-1 bg-red-500 text-white text-sm font-bold rounded-full animate-pulse shadow-lg">
+                 FINAL HOUR
+               </span>
+             )}
+             {!(countdown.timeLeft && countdown.daysLeft < 1) && (countdown.urgencyLevel === 'critical' || countdown.urgencyLevel === 'overdue') && (
+               <span className="px-3 py-1 bg-orange-500 text-white text-sm font-bold rounded-full animate-pulse shadow-lg">
+                 URGENT
+               </span>
+             )}
+           </div>
+           
+           {/* Countdown display */}
+           <div className="text-center">
+             <p className={`text-2xl font-bold ${colors.text} mb-1`}>
+               {countdown.timeLeft && countdown.daysLeft < 1
+                 ? `${countdown.timeLeft.hours.toString().padStart(2, '0')}:${countdown.timeLeft.minutes.toString().padStart(2, '0')}:${countdown.timeLeft.seconds.toString().padStart(2, '0')}`
+                 : `${countdown.daysLeft} days`
+               }
+             </p>
+             <p className={`text-sm ${colors.text} opacity-80`}>
+               {countdown.timeLeft && countdown.daysLeft < 1 ? '' : 'until check-in'}
+             </p>
+             <p className={`text-sm font-medium ${colors.text} mt-1`}>
+               {countdown.timeLeft && countdown.daysLeft < 1 ? 'Check in now!' : 'Stay active to keep your data safe'}
+             </p>
+           </div>
          </div>
        </div>
 
@@ -358,7 +390,7 @@ export const LastWishCountdownWidget: React.FC = () => {
         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
           <div 
             className={`h-2 rounded-full transition-all duration-1000 ease-out ${
-              countdown.isFinalHour ? 'bg-red-600 animate-pulse' : colors.progress
+              (countdown.timeLeft && countdown.daysLeft < 1) ? 'bg-red-600 animate-pulse' : colors.progress
             } progress-animate`}
             style={{ 
               width: `${countdown.progressPercentage}%`,
@@ -366,9 +398,9 @@ export const LastWishCountdownWidget: React.FC = () => {
             } as React.CSSProperties}
           />
         </div>
-        {countdown.isFinalHour && (
-          <div className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium animate-pulse">
-            ⚠️ Final hour countdown active - Check in now to prevent Last Wish delivery!
+        {(countdown.timeLeft && countdown.daysLeft < 1) && (
+          <div className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium text-center">
+            ⚠️ Check in now to prevent data delivery
           </div>
         )}
       </div>
@@ -392,12 +424,13 @@ export const LastWishCountdownWidget: React.FC = () => {
           {checkingIn ? 'Checking In...' : 'Check In Now'}
         </button>
         <button
-          onClick={() => navigate('/settings?tab=last-wish')}
+          onClick={() => navigate('/settings?tab=lw')}
           className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
         >
           <Settings className="w-4 h-4" />
         </button>
       </div>
+
 
 
       {/* Details Section */}
@@ -418,7 +451,7 @@ export const LastWishCountdownWidget: React.FC = () => {
             </div>
             <div className="text-right">
               <button
-                onClick={() => navigate('/settings?tab=last-wish')}
+                onClick={() => navigate('/settings?tab=lw')}
                 className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"
               >
                 Manage
@@ -428,7 +461,7 @@ export const LastWishCountdownWidget: React.FC = () => {
           
           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
             <button
-              onClick={() => navigate('/settings?tab=last-wish')}
+              onClick={() => navigate('/settings?tab=lw')}
               className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 text-sm font-medium"
             >
               <ArrowRight className="w-4 h-4" />

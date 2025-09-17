@@ -7,8 +7,8 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabase = createClient(
+// Initialize Supabase client (will be overridden if passed as parameter)
+let supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
@@ -16,14 +16,17 @@ const supabase = createClient(
 /**
  * Send Last Wish email to recipients
  * @param {string} userId - The user ID
+ * @param {object} customSupabase - Optional custom supabase client to avoid multiple instances
  * @returns {Promise<{success: boolean, message: string, results?: Array}>}
  */
-export async function sendLastWishEmail(userId) {
+export async function sendLastWishEmail(userId, customSupabase = null) {
+  // Use provided supabase client or default one
+  const client = customSupabase || supabase;
   try {
     console.log('📧 Starting Last Wish email delivery for user:', userId);
 
     // Get user's Last Wish settings
-    const { data: settings, error: settingsError } = await supabase
+    const { data: settings, error: settingsError } = await client
       .from('last_wish_settings')
       .select('*')
       .eq('user_id', userId)
@@ -45,14 +48,14 @@ export async function sendLastWishEmail(userId) {
 
     // Gather user data
     console.log('📊 Gathering user financial data...');
-    const userData = await gatherUserData(userId);
+    const userData = await gatherUserData(userId, client);
     console.log(`📊 Data gathered: ${Object.keys(userData).map(key => `${key}: ${userData[key].length}`).join(', ')}`);
 
     // Create email content
     const emailContent = createEmailContent(user, settings, userData);
 
     // Check if already delivered to prevent duplicates
-    const { data: existingDelivery } = await supabase
+    const { data: existingDelivery } = await client
       .from('last_wish_deliveries')
       .select('*')
       .eq('user_id', userId)
@@ -87,7 +90,7 @@ export async function sendLastWishEmail(userId) {
     }));
 
     // Mark as delivered
-    await supabase
+    await client
       .from('last_wish_settings')
       .update({ 
         is_active: false,
@@ -119,40 +122,40 @@ export async function sendLastWishEmail(userId) {
 /**
  * Gather user's financial data
  */
-async function gatherUserData(userId) {
+async function gatherUserData(userId, client) {
   const data = {};
 
   try {
     // Gather accounts
-    const { data: accounts } = await supabase
+    const { data: accounts } = await client
       .from('accounts')
       .select('*')
       .eq('user_id', userId);
     data.accounts = accounts || [];
 
     // Gather transactions
-    const { data: transactions } = await supabase
+    const { data: transactions } = await client
       .from('transactions')
       .select('*')
       .eq('user_id', userId);
     data.transactions = transactions || [];
 
     // Gather purchases
-    const { data: purchases } = await supabase
+    const { data: purchases } = await client
       .from('purchases')
       .select('*')
       .eq('user_id', userId);
     data.purchases = purchases || [];
 
     // Gather lend/borrow records
-    const { data: lendBorrow } = await supabase
+    const { data: lendBorrow } = await client
       .from('lend_borrow')
       .select('*')
       .eq('user_id', userId);
     data.lendBorrow = lendBorrow || [];
 
     // Gather donation/savings records
-    const { data: donationSavings } = await supabase
+    const { data: donationSavings } = await client
       .from('donation_saving_records')
       .select('*')
       .eq('user_id', userId);

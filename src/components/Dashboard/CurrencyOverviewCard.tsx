@@ -101,24 +101,6 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
       tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
     ));
     
-    console.log('Dashboard BDT Debug:', {
-      currency,
-      period,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-      totalTransactions: allTransactions.length,
-      filteredTransactionsCount: filteredTransactions.length,
-      filteredExpenses,
-      expenseTransactionsCount: expenseTransactions.length,
-      expenseTransactions: expenseTransactions.map(t => ({ 
-        id: t.id, 
-        transaction_id: t.transaction_id, 
-        amount: t.amount, 
-        date: t.date, 
-        description: t.description,
-        account_currency: accounts.find(a => a.id === t.account_id)?.currency
-      }))
-    });
   }
 
 

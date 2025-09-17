@@ -89,10 +89,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   const transactions = getActiveTransactions();
   const allTransactions = useFinanceStore((state) => state.transactions); // Get all transactions, not just active ones
   
-  // Debug loading state
-  console.log('Dashboard: Store loading state:', storeLoading, 'Dashboard loading state:', dashboardLoading, 'Accounts length:', accounts.length);
-  console.log('Dashboard: User:', user ? 'authenticated' : 'not authenticated');
-  console.log('Dashboard: Stats by currency:', stats.byCurrency.length);
   
   // Debug logging for currency card issue
 
@@ -198,7 +194,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           return;
         }
 
-        console.log('Dashboard: Starting data fetch...');
         setDashboardLoading(true);
         setLoadingMessage('Loading dashboard data...'); // Show loading message for data fetch
 
@@ -210,7 +205,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           fetchDonationSavingRecords()
         ]);
 
-        console.log('Dashboard: Data fetch completed successfully');
         setDashboardLoading(false);
         setLoadingMessage(''); // Clear loading message
 

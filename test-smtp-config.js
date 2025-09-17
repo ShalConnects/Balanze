@@ -1,66 +1,66 @@
 /**
- * SMTP Configuration Test Script
+ * Test SMTP Configuration
  * 
- * This script tests the SMTP configuration for Last Wish email delivery
+ * This script tests your SMTP configuration to ensure email delivery works.
+ * Run with: node test-smtp-config.js
  */
 
+import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
-// Load environment variables from .env.local
+// Load environment variables
 dotenv.config({ path: '.env.local' });
 
-// SMTP Configuration
-const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
-const SMTP_PORT = process.env.SMTP_PORT || 587;
-const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASS = process.env.SMTP_PASS;
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
 
-console.log('🔧 SMTP Configuration Test');
-console.log('=' .repeat(50));
-console.log(`SMTP Host: ${SMTP_HOST}`);
-console.log(`SMTP Port: ${SMTP_PORT}`);
-console.log(`SMTP User: ${SMTP_USER ? '✅ Set' : '❌ Missing'}`);
-console.log(`SMTP Pass: ${SMTP_PASS ? '✅ Set' : '❌ Missing'}`);
-console.log('');
+console.log('🔧 Testing SMTP Configuration...\n');
 
-if (!SMTP_USER || !SMTP_PASS) {
-  console.error('❌ SMTP configuration incomplete!');
-  console.log('');
-  console.log('📋 To fix this:');
-  console.log('1. Copy env.template to .env');
-  console.log('2. Set your SMTP credentials:');
+// Check environment variables
+console.log('📋 Environment Variables:');
+console.log(`   - SMTP_HOST: ${process.env.SMTP_HOST || '❌ Missing'}`);
+console.log(`   - SMTP_PORT: ${process.env.SMTP_PORT || '❌ Missing'}`);
+console.log(`   - SMTP_USER: ${process.env.SMTP_USER || '❌ Missing'}`);
+console.log(`   - SMTP_PASS: ${process.env.SMTP_PASS ? '✅ Set' : '❌ Missing'}`);
+
+if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  console.log('\n❌ SMTP configuration is incomplete!');
+  console.log('   Please set the following in your .env.local file:');
   console.log('   SMTP_HOST=smtp.gmail.com');
   console.log('   SMTP_PORT=587');
   console.log('   SMTP_USER=your-email@gmail.com');
   console.log('   SMTP_PASS=your-app-password');
-  console.log('');
-  console.log('📧 For Gmail:');
-  console.log('1. Enable 2-Factor Authentication');
-  console.log('2. Generate App Password: https://myaccount.google.com/security');
-  console.log('3. Use the 16-character app password');
   process.exit(1);
 }
 
 // Create transporter
-const transporter = nodemailer.createTransport({
-  host: SMTP_HOST,
-  port: SMTP_PORT,
-  secure: false,
-  auth: {
-    user: SMTP_USER,
-    pass: SMTP_PASS,
-  },
-});
+let transporter;
+try {
+  transporter = nodemailer.createTransporter({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT) || 587,
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+  console.log('\n✅ SMTP transporter created successfully');
+} catch (error) {
+  console.error('\n❌ SMTP transporter creation failed:', error.message);
+  process.exit(1);
+}
 
+// Test SMTP connection
 async function testSMTPConnection() {
   try {
-    console.log('🔌 Testing SMTP connection...');
-    
-    // Verify connection
+    console.log('\n🔍 Testing SMTP connection...');
     await transporter.verify();
-    console.log('✅ SMTP connection successful!');
-    
+    console.log('✅ SMTP connection verified successfully');
     return true;
   } catch (error) {
     console.error('❌ SMTP connection failed:', error.message);
@@ -68,80 +68,61 @@ async function testSMTPConnection() {
   }
 }
 
+// Send test email
 async function sendTestEmail() {
   try {
-    console.log('📧 Sending test email...');
+    console.log('\n📧 Sending test email...');
     
-    const testEmail = {
-      from: SMTP_USER,
-      to: SMTP_USER, // Send to yourself for testing
-      subject: 'Last Wish SMTP Test - ' + new Date().toLocaleString(),
+    const mailOptions = {
+      from: process.env.SMTP_USER,
+      to: process.env.SMTP_USER, // Send to yourself for testing
+      subject: '🧪 Test Email - Last Wish System',
       html: `
-        <h2>Last Wish SMTP Test</h2>
-        <p>This is a test email to verify SMTP configuration for the Last Wish system.</p>
+        <h2>🧪 Test Email - Last Wish System</h2>
+        <p>This is a test email to verify your SMTP configuration is working correctly.</p>
         <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
-        <p><strong>SMTP Host:</strong> ${SMTP_HOST}</p>
-        <p><strong>SMTP Port:</strong> ${SMTP_PORT}</p>
-        <hr>
-        <p><em>If you receive this email, your SMTP configuration is working correctly!</em></p>
-      `,
-      text: `
-        Last Wish SMTP Test
-        
-        This is a test email to verify SMTP configuration for the Last Wish system.
-        
-        Timestamp: ${new Date().toISOString()}
-        SMTP Host: ${SMTP_HOST}
-        SMTP Port: ${SMTP_PORT}
-        
-        If you receive this email, your SMTP configuration is working correctly!
+        <p><strong>SMTP Host:</strong> ${process.env.SMTP_HOST || 'smtp.gmail.com'}</p>
+        <p><strong>SMTP Port:</strong> ${process.env.SMTP_PORT || '587'}</p>
+        <p>If you received this email, your SMTP configuration is working! ✅</p>
       `
     };
-    
-    const result = await transporter.sendMail(testEmail);
+
+    const result = await transporter.sendMail(mailOptions);
     console.log('✅ Test email sent successfully!');
-    console.log(`📧 Message ID: ${result.messageId}`);
-    console.log(`📧 Sent to: ${testEmail.to}`);
-    
+    console.log(`   Message ID: ${result.messageId}`);
+    console.log(`   Sent to: ${mailOptions.to}`);
     return true;
   } catch (error) {
-    console.error('❌ Failed to send test email:', error.message);
+    console.error('❌ Test email failed:', error.message);
     return false;
   }
 }
 
+// Run tests
 async function runTest() {
-  console.log('🚀 Starting SMTP configuration test...\n');
+  console.log('\n🚀 Starting SMTP tests...\n');
   
-  // Test connection
+  // Test 1: SMTP Connection
   const connectionOk = await testSMTPConnection();
   if (!connectionOk) {
-    console.log('\n❌ SMTP test failed. Please check your configuration.');
+    console.log('\n❌ SMTP connection failed. Please check your credentials.');
     process.exit(1);
   }
   
-  console.log('');
-  
-  // Send test email
+  // Test 2: Send Test Email
   const emailOk = await sendTestEmail();
   if (!emailOk) {
-    console.log('\n❌ Email sending failed. Please check your SMTP settings.');
+    console.log('\n❌ Test email failed. Please check your SMTP settings.');
     process.exit(1);
   }
   
-  console.log('\n🎉 SMTP configuration test completed successfully!');
-  console.log('✅ Your Last Wish email delivery system is ready to use.');
-  console.log('');
-  console.log('📋 Next steps:');
-  console.log('1. Enable test mode in Last Wish settings');
-  console.log('2. Set 5-minute countdown');
-  console.log('3. Add recipients');
-  console.log('4. Wait for countdown to reach 00:00:00');
-  console.log('5. Watch the automatic email delivery!');
+  console.log('\n🎉 All SMTP tests passed!');
+  console.log('   Your email configuration is working correctly.');
+  console.log('   You can now use the "Test Email Delivery" button in your app.');
 }
 
 // Run the test
 runTest().catch(error => {
-  console.error('❌ Test failed:', error);
+  console.error('\n💥 Test failed with error:', error.message);
   process.exit(1);
 });

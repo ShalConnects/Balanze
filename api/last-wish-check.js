@@ -3,14 +3,14 @@ import nodemailer from 'nodemailer';
 
 // Initialize Supabase client
 const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
 
 // Email transporter - only create if SMTP is configured
 let transporter = null;
 if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-  transporter = nodemailer.createTransporter({
+  transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT) || 587,
     secure: false,
@@ -123,7 +123,7 @@ async function processOverdueUser(user) {
     // Mark as delivered to prevent duplicate processing
     await supabase
       .from('last_wish_settings')
-      .update({ is_active: false })
+      .update({ delivery_triggered: true })
       .eq('user_id', user.user_id);
 
     console.log(`Successfully processed user: ${user.email}`);

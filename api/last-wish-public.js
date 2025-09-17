@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
 const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
 
@@ -84,7 +84,7 @@ export default async function handler(req, res) {
       // Mark as delivered to prevent duplicate processing
       await supabase
         .from('last_wish_settings')
-        .update({ is_active: false })
+        .update({ delivery_triggered: true })
         .eq('user_id', user.user_id);
     }
 

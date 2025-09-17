@@ -106,11 +106,10 @@ export const MotivationalQuote: React.FC = () => {
     
     try {
       // Skip API call and use fallback quotes directly to avoid CORS issues
-      console.log('Using fallback quotes to avoid CORS issues');
       const randomIndex = Math.floor(Math.random() * fallbackQuotes.length);
       setQuote(fallbackQuotes[randomIndex]);
     } catch (err) {
-      console.warn('Failed to fetch quote, using fallback:', err);
+      // Using fallback quotes due to CORS/network issues
       setError(true);
       // Use a random fallback quote
       const randomIndex = Math.floor(Math.random() * fallbackQuotes.length);
