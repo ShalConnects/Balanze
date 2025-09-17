@@ -75,7 +75,7 @@ export const LastWishCountdownWidget: React.FC = () => {
           
           // Calculate time data for display when less than 24 hours remaining
           let finalHourTimeData = null;
-          if (totalTimeLeft > 0 && totalTimeLeft <= 24 * 60 * 60 * 1000) {
+          if (totalTimeLeft >= 0 && totalTimeLeft <= 24 * 60 * 60 * 1000) {
             const totalHours = Math.floor(totalTimeLeft / (1000 * 60 * 60));
             const totalMinutes = Math.floor((totalTimeLeft % (1000 * 60 * 60)) / (1000 * 60));
             const totalSeconds = Math.floor((totalTimeLeft % (1000 * 60)) / 1000);
@@ -105,6 +105,15 @@ export const LastWishCountdownWidget: React.FC = () => {
           // Show 99% progress when in final 24 hours
           const progressPercentage = isFinalHour ? 99 : Math.max(0, Math.min(100, (daysElapsed / totalDays) * 100));
           
+          // Debug logging
+          console.log('Last Wish Debug:', {
+            totalTimeLeft,
+            daysLeft,
+            isOverdue,
+            finalHourTimeData,
+            progressPercentage
+          });
+
           setCountdown({
             daysLeft: Math.max(0, daysLeft),
             nextCheckIn: nextCheckIn.toLocaleDateString(),
@@ -184,7 +193,7 @@ export const LastWishCountdownWidget: React.FC = () => {
             
             const elapsed = totalDuration - Math.max(0, totalTimeLeft);
             // Show 99% progress when less than 24 hours remaining
-            const progressPercentage = (totalTimeLeft > 0 && totalTimeLeft <= 24 * 60 * 60 * 1000) ? 99 : Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
+            const progressPercentage = (totalTimeLeft >= 0 && totalTimeLeft <= 24 * 60 * 60 * 1000) ? 99 : Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
             
             // Calculate days left for display
             const daysLeft = Math.max(0, Math.ceil(totalTimeLeft / (1000 * 60 * 60 * 24)));
