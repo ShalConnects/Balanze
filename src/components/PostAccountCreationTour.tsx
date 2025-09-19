@@ -77,24 +77,34 @@ export default function PostAccountCreationTour({
 }: PostAccountCreationTourProps) {
   const [run, setRun] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const [isStarting, setIsStarting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('PostAccountCreationTour: isOpen changed to:', isOpen);
-    if (isOpen) {
+    console.log('PostAccountCreationTour: isOpen changed to:', isOpen, 'isStarting:', isStarting);
+    
+    if (isOpen && !isStarting && !run) {
+      setIsStarting(true);
+      
       // Small delay to ensure UI is ready
       const timer = setTimeout(() => {
         console.log('PostAccountCreationTour: Starting tour');
         setRun(true);
+        setIsStarting(false);
         track('post_account_tour_started');
       }, 500);
       
-      return () => clearTimeout(timer);
-    } else {
+      return () => {
+        clearTimeout(timer);
+        setIsStarting(false);
+      };
+    } else if (!isOpen) {
       console.log('PostAccountCreationTour: Stopping tour');
       setRun(false);
+      setIsStarting(false);
+      setStepIndex(0); // Reset step index
     }
-  }, [isOpen]);
+  }, [isOpen, isStarting, run]);
 
   const handleJoyrideCallback = (data: CallBackProps) => {
     const { status, action, index, type } = data;

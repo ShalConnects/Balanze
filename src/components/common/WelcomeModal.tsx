@@ -107,8 +107,12 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
         setIsCreating(false);
         setLoading(false); // Clear global loading state
         onClose(); // Close the welcome modal
-        console.log('WelcomeModal: Calling onStartTour()');
-        onStartTour(); // Start the contextual tour
+        
+        // Additional delay to ensure modal is fully closed before starting tour
+        setTimeout(() => {
+          console.log('WelcomeModal: Calling onStartTour()');
+          onStartTour(); // Start the contextual tour
+        }, 300);
       }, 2000);
       
     } catch (error) {
