@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 interface Option {
   label: React.ReactNode;
@@ -26,6 +27,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
   const [dropdownAlign, setDropdownAlign] = useState<'left' | 'right'>('left');
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { isMobile } = useMobileDetection();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -120,42 +122,96 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
         <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
       </button>
       {open && (
-        <div
-          ref={menuRef}
-          className={`absolute ${dropdownAlign === 'left' ? 'left-0' : 'right-0'} w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 shadow-xl rounded-xl z-[99999] max-h-60 overflow-y-auto text-xs p-1 animate-fadein ${dropdownMenuClassName || ''} ${
-            dropdownPosition === 'bottom' ? 'mt-2' : 'mb-2 bottom-full'
-          }`}
-          style={{ 
-            minWidth: 140, 
-            maxWidth: 320,
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 'auto'
-          }}
-          tabIndex={-1}
-        >
-          {options.map(opt => (
-            <button
-              key={opt.value}
-              type="button"
-              className={`w-full flex items-center text-left text-xs rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors px-3 py-2 ${value === opt.value ? 'bg-gradient-primary text-white font-semibold' : 'text-gray-700 dark:text-gray-100'}`}
-              onClick={() => {
-                onChange(opt.value);
-                setOpen(false);
-                if (onBlur) onBlur();
+        <>
+          {/* Mobile: Centered Modal */}
+          {isMobile ? (
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center">
+              {/* Backdrop */}
+              <div 
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={() => {
+                  setOpen(false);
+                  if (onBlur) onBlur();
+                }}
+              />
+              {/* Modal Content */}
+              <div
+                ref={menuRef}
+                className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-h-[70vh] w-[90vw] max-w-sm mx-4 overflow-hidden animate-fadein"
+                tabIndex={-1}
+              >
+                {/* Header */}
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white text-center">
+                    Select Currency
+                  </h3>
+                </div>
+                
+                {/* Options */}
+                <div className="max-h-60 overflow-y-auto p-2">
+                  {options.map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`w-full flex items-center text-left text-base rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors px-4 py-3 mb-1 ${value === opt.value ? 'bg-gradient-primary text-white font-semibold' : 'text-gray-700 dark:text-gray-100'}`}
+                      onClick={() => {
+                        onChange(opt.value);
+                        setOpen(false);
+                        if (onBlur) onBlur();
+                      }}
+                      role="option"
+                      aria-selected={value === opt.value}
+                    >
+                      {opt.icon && <span className="mr-3">{opt.icon}</span>}
+                      <span className="flex-1">{opt.label}</span>
+                      {value === opt.value && (
+                        <svg className="w-5 h-5 text-white ml-2" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Desktop: Traditional Dropdown */
+            <div
+              ref={menuRef}
+              className={`absolute ${dropdownAlign === 'left' ? 'left-0' : 'right-0'} w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 shadow-xl rounded-xl z-[99999] max-h-60 overflow-y-auto text-xs p-1 animate-fadein ${dropdownMenuClassName || ''} ${
+                dropdownPosition === 'bottom' ? 'mt-2' : 'mb-2 bottom-full'
+              }`}
+              style={{ 
+                minWidth: 140, 
+                maxWidth: 320,
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 'auto'
               }}
-              role="option"
-              aria-selected={value === opt.value}
+              tabIndex={-1}
             >
-              {opt.icon && <span className="mr-2">{opt.icon}</span>}
-              <span className="flex-1">{opt.label}</span>
-              {value === opt.value && (
-                <svg className="w-4 h-4 text-white ml-2" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-              )}
-            </button>
-          ))}
-        </div>
+              {options.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`w-full flex items-center text-left text-xs rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors px-3 py-2 ${value === opt.value ? 'bg-gradient-primary text-white font-semibold' : 'text-gray-700 dark:text-gray-100'}`}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setOpen(false);
+                    if (onBlur) onBlur();
+                  }}
+                  role="option"
+                  aria-selected={value === opt.value}
+                >
+                  {opt.icon && <span className="mr-2">{opt.icon}</span>}
+                  <span className="flex-1">{opt.label}</span>
+                  {value === opt.value && (
+                    <svg className="w-4 h-4 text-white ml-2" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
