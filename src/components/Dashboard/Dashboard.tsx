@@ -393,7 +393,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   return (
     <>
       {/* Main Dashboard Content */}
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div data-tour="dashboard" className="flex flex-col lg:flex-row gap-6">
         {/* Main Content - Full width on mobile, flex-1 on desktop */}
         <div className="flex-1 space-y-6">
 

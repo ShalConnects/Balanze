@@ -795,6 +795,7 @@ export const AccountsView: React.FC = () => {
               {/* Action Buttons in filter row */}
               <div className="hidden md:flex items-center gap-2">
                 <button
+                  data-tour="add-account"
                   onClick={() => {
                     setEditingAccount(null);
                     setShowAccountForm(true);

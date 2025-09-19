@@ -199,9 +199,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
           </div>
           
           {/* Navigation */}
-          <nav className={`flex-1 space-y-2 pt-4 pl-2 ${
-            isMobile ? (isOpen ? 'pr-4' : 'pr-2') : (effectiveCollapsed ? 'pr-2' : 'pr-4')
-          }`}>
+          <nav 
+            data-tour="navigation"
+            className={`flex-1 space-y-2 pt-4 pl-2 ${
+              isMobile ? (isOpen ? 'pr-4' : 'pr-2') : (effectiveCollapsed ? 'pr-2' : 'pr-4')
+            }`}
+          >
             {navigation.map((item) => {
               const Icon = item.icon;
               const isActive = currentView === item.id;

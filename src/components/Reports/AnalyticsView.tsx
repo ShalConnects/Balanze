@@ -808,7 +808,7 @@ export const AnalyticsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div data-tour="analytics-overview" className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -847,7 +847,10 @@ export const AnalyticsView: React.FC = () => {
             <Globe className="w-4 h-4" />
             <span>Currency Analytics</span>
           </button>
-          <button className="bg-gradient-primary hover:bg-gradient-primary-hover text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
+          <button 
+            data-tour="export-data"
+            className="bg-gradient-primary hover:bg-gradient-primary-hover text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+          >
             <Download className="w-4 h-4" />
             <span>Export</span>
           </button>
@@ -855,10 +858,10 @@ export const AnalyticsView: React.FC = () => {
       </div>
 
       {/* Monthly Trends Chart - Full Width */}
-      {showTrends && <MonthlyTrendsChart />}
+      {showTrends && <div data-tour="balance-trend"><MonthlyTrendsChart /></div>}
 
       {/* Main Analytics Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div data-tour="spending-chart" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <NetCashFlowGauge />
         <SpendingByCategoryDonut />
         <DebtPayoffProgress />

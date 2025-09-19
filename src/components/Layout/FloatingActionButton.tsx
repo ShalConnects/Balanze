@@ -228,6 +228,7 @@ export const FloatingActionButton: React.FC = () => {
             )}
             {/* Main FAB Button */}
             <button
+              data-tour="quick-actions"
               onClick={() => setIsOpen(!isOpen)}
               className="text-white p-3.5 rounded-full shadow-lg bg-gradient-primary hover:bg-gradient-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus-ring-gradient"
               aria-label={isOpen ? 'Close actions' : 'Open actions'}
