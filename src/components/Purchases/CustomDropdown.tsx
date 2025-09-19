@@ -122,7 +122,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
       {open && (
         <div
           ref={menuRef}
-          className={`absolute ${dropdownAlign === 'left' ? 'left-0' : 'right-0'} w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 shadow-xl rounded-xl z-[9999] max-h-60 overflow-y-auto text-xs p-1 animate-fadein ${dropdownMenuClassName || ''} ${
+          className={`absolute ${dropdownAlign === 'left' ? 'left-0' : 'right-0'} w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 shadow-xl rounded-xl z-[99999] max-h-60 overflow-y-auto text-xs p-1 animate-fadein ${dropdownMenuClassName || ''} ${
             dropdownPosition === 'bottom' ? 'mt-2' : 'mb-2 bottom-full'
           }`}
           style={{ 
