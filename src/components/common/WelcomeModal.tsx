@@ -268,17 +268,17 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
           </>
         )}
       </div>
+      
+      {/* Post-Account Creation Tour */}
+      <PostAccountCreationTour
+        isOpen={showPostAccountTour}
+        onClose={() => setShowPostAccountTour(false)}
+        onComplete={() => {
+          setShowPostAccountTour(false);
+          // Optional: Show a completion message or redirect
+          toast.success('🎉 Welcome to Balanze! You\'re all set to start tracking your finances.');
+        }}
+      />
     </div>
-    
-    {/* Post-Account Creation Tour */}
-    <PostAccountCreationTour
-      isOpen={showPostAccountTour}
-      onClose={() => setShowPostAccountTour(false)}
-      onComplete={() => {
-        setShowPostAccountTour(false);
-        // Optional: Show a completion message or redirect
-        toast.success('🎉 Welcome to Balanze! You\'re all set to start tracking your finances.');
-      }}
-    />
   );
 }; 
