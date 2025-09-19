@@ -34,12 +34,27 @@ const TOUR_STEPS: Step[] = [
         {/* GIF demonstration */}
         <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Watch how to do it:</p>
-          <img 
-            src="/static/placeholders/onboarding-gifs/step1.gif" 
-            alt="How to edit account balance - click pencil icon and update initial balance"
-            className="w-full max-w-xs mx-auto rounded border"
-            style={{ maxHeight: '150px', objectFit: 'contain' }}
-          />
+          <div className="w-full max-w-xs mx-auto">
+            <img 
+              src="/static/placeholders/onboarding-gifs/step1.svg" 
+              alt="How to edit account balance - click pencil icon and update initial balance"
+              className="w-full rounded border"
+              style={{ maxHeight: '150px', objectFit: 'contain' }}
+              onError={(e) => {
+                // Hide the image and show placeholder text if SVG doesn't exist
+                e.currentTarget.style.display = 'none';
+                const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
+                if (placeholder) placeholder.style.display = 'block';
+              }}
+            />
+            <div 
+              className="hidden text-center py-4 text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded border-2 border-dashed border-gray-300 dark:border-gray-600"
+              style={{ display: 'none' }}
+            >
+              📹 GIF placeholder<br />
+              <span className="text-xs">Record a demo of editing account balance</span>
+            </div>
+          </div>
         </div>
       </div>
     ),
@@ -56,12 +71,27 @@ const TOUR_STEPS: Step[] = [
         {/* GIF demonstration */}
         <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">See how easy it is:</p>
-          <img 
-            src="/static/placeholders/onboarding-gifs/step2.gif" 
-            alt="How to add a transaction - click plus button and fill in details"
-            className="w-full max-w-xs mx-auto rounded border"
-            style={{ maxHeight: '150px', objectFit: 'contain' }}
-          />
+          <div className="w-full max-w-xs mx-auto">
+            <img 
+              src="/static/placeholders/onboarding-gifs/step2.svg" 
+              alt="How to add a transaction - click plus button and fill in details"
+              className="w-full rounded border"
+              style={{ maxHeight: '150px', objectFit: 'contain' }}
+              onError={(e) => {
+                // Hide the image and show placeholder text if SVG doesn't exist
+                e.currentTarget.style.display = 'none';
+                const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
+                if (placeholder) placeholder.style.display = 'block';
+              }}
+            />
+            <div 
+              className="hidden text-center py-4 text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded border-2 border-dashed border-gray-300 dark:border-gray-600"
+              style={{ display: 'none' }}
+            >
+              📹 GIF placeholder<br />
+              <span className="text-xs">Record a demo of adding a transaction</span>
+            </div>
+          </div>
         </div>
       </div>
     ),
