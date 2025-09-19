@@ -129,9 +129,20 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
 
   if (!isOpen) return null;
 
+  // Prevent escape key from closing modal during currency selection
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && !isSuccess) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={handleClose} />
+    <div 
+      className="fixed inset-0 flex items-center justify-center z-50"
+      onKeyDown={handleKeyDown}
+    >
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
       <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-md mx-4 z-50 shadow-xl">
         
         {!isSuccess ? (
@@ -142,8 +153,10 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
                 Welcome to Balanze! 🎉
               </h2>
               <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
-                Let's get started by creating your first account. You can navigate to the Accounts tab in the sidebar 
-                to manage your accounts and add initial balances.
+                To get started, please select your preferred currency below. We'll create your first cash account automatically.
+              </p>
+              <p className="text-sm text-orange-600 dark:text-orange-400 mt-2 font-medium">
+                Currency selection is required to continue
               </p>
             </div>
 
