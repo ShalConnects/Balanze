@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Joyride, { STATUS, CallBackProps, Step } from 'react-joyride';
 import { track } from '../lib/analytics';
-import { useFinanceStore } from '../store/useFinanceStore';
 
 
 interface PostAccountCreationTourProps {
@@ -10,6 +9,55 @@ interface PostAccountCreationTourProps {
   onComplete: () => void;
 }
 
+// Simple tour steps that work regardless of current view
+const TOUR_STEPS: Step[] = [
+  {
+    target: '[data-tour="accounts-nav"]',
+    content: (
+      <div>
+        <h3 className="font-semibold mb-2">🎉 Great! Your cash account is ready!</h3>
+        <p>Let's explore your accounts section. Click here to view and manage all your financial accounts.</p>
+      </div>
+    ),
+    disableBeacon: true,
+    placement: 'bottom',
+    spotlightClicks: true,
+  },
+  {
+    target: '[data-tour="accounts-nav"]',
+    content: (
+      <div>
+        <h3 className="font-semibold mb-2">📍 Navigate to Accounts</h3>
+        <p>Click on the "Accounts" button in the sidebar to view your accounts and manage them.</p>
+      </div>
+    ),
+    placement: 'bottom',
+    spotlightClicks: true,
+  },
+  {
+    target: 'body', // Fallback to body if specific elements aren't found
+    content: (
+      <div>
+        <h3 className="font-semibold mb-2">💰 Edit Your Account</h3>
+        <p>Once you're in the accounts view, look for the edit button (pencil icon) to set your initial balance. This helps track your real starting amount.</p>
+      </div>
+    ),
+    placement: 'center',
+    spotlightClicks: true,
+  },
+  {
+    target: 'body', // Fallback to body if specific elements aren't found
+    content: (
+      <div>
+        <h3 className="font-semibold mb-2">📝 Add Transactions</h3>
+        <p>Finally, look for the "+" button to add your first transaction! Record income, expenses, or transfers. This is where the magic happens!</p>
+      </div>
+    ),
+    placement: 'center',
+    spotlightClicks: true,
+  },
+];
+
 export default function PostAccountCreationTour({ 
   isOpen, 
   onClose, 
@@ -17,70 +65,6 @@ export default function PostAccountCreationTour({
 }: PostAccountCreationTourProps) {
   const [run, setRun] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
-  const { currentView } = useFinanceStore();
-
-  // Generate dynamic steps based on current view
-  const getDynamicSteps = (): Step[] => {
-    const baseSteps: Step[] = [
-      {
-        target: '[data-tour="accounts-nav"]',
-        content: (
-          <div>
-            <h3 className="font-semibold mb-2">🎉 Great! Your cash account is ready!</h3>
-            <p>Let's explore your accounts section. Click here to view and manage all your financial accounts.</p>
-          </div>
-        ),
-        disableBeacon: true,
-        placement: 'bottom',
-        spotlightClicks: true,
-      }
-    ];
-
-    // If user is not in accounts view, guide them there first
-    if (currentView !== 'accounts') {
-      baseSteps.push({
-        target: '[data-tour="accounts-nav"]',
-        content: (
-          <div>
-            <h3 className="font-semibold mb-2">📍 Navigate to Accounts</h3>
-            <p>Click on the "Accounts" button in the sidebar to view your accounts. Once you're there, we'll show you the next steps!</p>
-          </div>
-        ),
-        placement: 'bottom',
-        spotlightClicks: true,
-      });
-    }
-
-    // Add account-specific steps if user is in accounts view
-    if (currentView === 'accounts') {
-      baseSteps.push(
-        {
-          target: '[data-tour="edit-account"]',
-          content: (
-            <div>
-              <h3 className="font-semibold mb-2">💰 Set your initial balance</h3>
-              <p>Click the edit button (pencil icon) to add your current cash amount. This helps us track your real starting balance.</p>
-            </div>
-          ),
-          placement: 'left',
-          spotlightClicks: true,
-        },
-        {
-          target: '[data-tour="add-transaction"]',
-          content: (
-            <div>
-              <h3 className="font-semibold mb-2">📝 Add your first transaction</h3>
-              <p>Finally, click the "+" button to add your first transaction! Record income, expenses, or transfers. This is where the magic happens!</p>
-            </div>
-          ),
-          placement: 'top',
-          spotlightClicks: true,
-        }
-      );
-    }
-
-    return baseSteps;
-  };
 
   useEffect(() => {
     if (isOpen) {
@@ -127,7 +111,7 @@ export default function PostAccountCreationTour({
 
   return (
     <Joyride
-      steps={getDynamicSteps()}
+      steps={TOUR_STEPS}
       run={run}
       continuous
       showSkipButton
