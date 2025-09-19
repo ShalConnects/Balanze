@@ -77,7 +77,9 @@ const HelpAndSupport: React.FC = () => {
   const { accounts, transactions } = useFinanceStore();
 
   // Check if user should see onboarding
-  const shouldShowOnboarding = accounts.length < 2 || transactions.length < 3;
+  // Don't show if user has no accounts at all (WelcomeModal handles that)
+  // Show if user has 1 account but hasn't started using the app much
+  const shouldShowOnboarding = accounts.length > 0 && (accounts.length < 2 || transactions.length < 3);
 
   const sections: Section[] = [
     {

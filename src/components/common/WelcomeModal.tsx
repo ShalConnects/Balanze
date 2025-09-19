@@ -46,25 +46,51 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
       const { user } = useAuthStore.getState();
       if (!user) throw new Error('Not authenticated');
       
-      // Use the database function to create cash account safely
-      const { data: result, error: cashError } = await supabase.rpc('create_cash_account', {
-        p_currency: selectedCurrency,
-        p_initial_balance: 0
-      });
+      // Create cash account directly using the same logic as addAccount
+      const { data: newCashAccount, error: cashError } = await supabase
+        .from('accounts')
+        .insert([{
+          name: `Cash Wallet (${selectedCurrency})`,
+          type: 'cash',
+          initial_balance: 0,
+          calculated_balance: 0,
+          currency: selectedCurrency,
+          description: 'Default cash account for tracking physical money',
+          has_dps: false,
+          dps_type: null,
+          dps_amount_type: null,
+          dps_fixed_amount: null,
+          isActive: true,
+          user_id: user.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
 
       if (cashError) {
         console.error('Error creating cash account:', cashError);
-        throw cashError;
+        throw new Error(`Failed to create cash account: ${cashError.message}`);
       }
 
-      if (!result || !result.success) {
-        const errorMessage = result?.error_message || 'Failed to create cash account';
-        console.error('Cash account creation failed:', errorMessage);
-        throw new Error(errorMessage);
-      }
+      console.log('Cash account created successfully:', newCashAccount);
       
-      // Wait a bit for the account to be properly saved
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Add audit log
+      try {
+        await supabase.from('activity_history').insert({
+          user_id: user.id,
+          activity_type: 'ACCOUNT_CREATED',
+          entity_type: 'account',
+          entity_id: newCashAccount.id,
+          description: `Welcome cash account created: ${newCashAccount.name} (${newCashAccount.currency})`,
+          changes: {
+            new: newCashAccount
+          }
+        });
+      } catch (auditError) {
+        console.warn('Failed to create audit log:', auditError);
+        // Don't fail the account creation if audit log fails
+      }
       
       // Fetch accounts to update the store
       await fetchAccounts();
@@ -83,7 +109,8 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
       
     } catch (error) {
       console.error('Error creating cash account:', error);
-      toast.error('Failed to create cash account. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create cash account';
+      toast.error(errorMessage);
       setIsCreating(false);
       setLoading(false); // Clear global loading state on error
     }
