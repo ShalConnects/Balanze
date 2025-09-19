@@ -9,12 +9,21 @@ import { useNavigate } from 'react-router-dom';
 import InteractiveBackground from '../components/InteractiveBackground';
 import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
+import { PaddlePaymentModal } from '../components/common/PaddlePaymentModal';
 
 const LandingPage: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'one-time'>('monthly');
+  const [paymentModal, setPaymentModal] = useState({
+    isOpen: false,
+    planId: '',
+    planName: '',
+    price: 0,
+    billingCycle: 'monthly' as 'monthly' | 'one-time',
+    features: [] as string[]
+  });
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useThemeStore();
   const { user, signOut } = useAuthStore();
@@ -32,6 +41,45 @@ const LandingPage: React.FC = () => {
       document.body.style.fontFamily = '';
     };
   }, []);
+
+  const openPaymentModal = (planId: string, planName: string, price: number, cycle: 'monthly' | 'one-time') => {
+    // Check if user is authenticated
+    if (!user) {
+      // Store premium intent in localStorage
+      localStorage.setItem('premiumIntent', JSON.stringify({
+        planId,
+        planName,
+        price,
+        billingCycle: cycle,
+        timestamp: Date.now()
+      }));
+      
+      // Redirect to auth page
+      navigate('/auth');
+      return;
+    }
+
+    const features = planId.includes('premium') ? [
+      'Unlimited accounts',
+      'Unlimited currencies',
+      'Unlimited transactions',
+      'Advanced analytics',
+      'Priority email support (4-8h response)',
+      'Custom categories',
+      'Lent & borrow tracking',
+      'Data export (PDF/CSV)',
+      'Last Wish - Digital Time Capsule'
+    ] : [];
+
+    setPaymentModal({
+      isOpen: true,
+      planId,
+      planName,
+      price,
+      billingCycle: cycle,
+      features
+    });
+  };
 
   const features = [
     { icon: TrendingUp, title: "Spending Tracker", description: "See exactly where your money goes." },
@@ -753,9 +801,13 @@ const LandingPage: React.FC = () => {
               <div className="mt-auto pt-4 md:pt-6">
                 <button
                   className="w-full rounded-lg px-3 md:px-4 py-2 md:py-3 text-sm font-medium transition-colors bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg"
-                  onClick={() => navigate('/auth')}
+                  onClick={() => {
+                    const planId = billingCycle === 'one-time' ? 'premium_lifetime' : 'premium_monthly';
+                    const price = billingCycle === 'one-time' ? 99.99 : 7.99;
+                    openPaymentModal(planId, 'Premium', price, billingCycle);
+                  }}
                 >
-                  Start Free Trial
+                  {billingCycle === 'one-time' ? 'Get Lifetime Access' : 'Start Free Trial'}
                 </button>
               </div>
             </div>
@@ -940,6 +992,17 @@ const LandingPage: React.FC = () => {
           <ArrowUp className="w-6 h-6" />
         </button>
       )}
+
+      {/* Paddle Payment Modal */}
+      <PaddlePaymentModal
+        isOpen={paymentModal.isOpen}
+        onClose={() => setPaymentModal(prev => ({ ...prev, isOpen: false }))}
+        planId={paymentModal.planId}
+        planName={paymentModal.planName}
+        price={paymentModal.price}
+        billingCycle={paymentModal.billingCycle}
+        features={paymentModal.features}
+      />
       </div>
     </div>
   );

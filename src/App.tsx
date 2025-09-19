@@ -203,6 +203,34 @@ function AppContent() {
     }
   }, [user, loading, initializeDefaultNotifications]);
 
+  // Check for premium intent after authentication
+  useEffect(() => {
+    if (user && !loading && profile) {
+      // Check for premium intent first
+      const premiumIntent = localStorage.getItem('premiumIntent');
+      if (premiumIntent) {
+        try {
+          const intent = JSON.parse(premiumIntent);
+          // Check if intent is recent (within 1 hour)
+          if (Date.now() - intent.timestamp < 3600000) {
+            localStorage.removeItem('premiumIntent');
+            // Navigate to settings with plans tab
+            setTimeout(() => {
+              window.location.href = '/settings?tab=plans-usage';
+            }, 1000);
+            return;
+          } else {
+            // Remove expired intent
+            localStorage.removeItem('premiumIntent');
+          }
+        } catch (error) {
+          console.error('Error parsing premium intent:', error);
+          localStorage.removeItem('premiumIntent');
+        }
+      }
+    }
+  }, [user, loading, profile]);
+
   // Check if user has accounts and show welcome modal if needed
   useEffect(() => {
     if (user && !loading) {
