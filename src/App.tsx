@@ -40,6 +40,7 @@ import { WelcomeModal } from './components/common/WelcomeModal';
 import { Analytics } from '@vercel/analytics/react';
 import { useNotificationStore } from './store/notificationStore';
 import { MobileSidebarProvider } from './context/MobileSidebarContext';
+import KBArticlePage from './pages/KBArticlePage';
 
 function AppContent() {
   const user = useAuthStore((state) => state.user);
@@ -283,6 +284,7 @@ function AppContent() {
         <Route path="/currency-analytics" element={user ? <MainLayout><CurrencyAnalytics /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/settings" element={user ? <MainLayout><Settings /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/help" element={user ? <HelpLayout><HelpAndSupport /></HelpLayout> : <Navigate to="/login" />} />
+        <Route path="/kb/:slug" element={user ? <HelpLayout><KBArticlePage /></HelpLayout> : <Navigate to="/login" />} />
         <Route path="/history" element={user ? <MainLayout><History /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/donations" element={user ? <MainLayout><DonationsSavingsPage /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/favorite-quotes" element={user ? <MainLayout><FavoriteQuotes /></MainLayout> : <Navigate to="/login" />} />

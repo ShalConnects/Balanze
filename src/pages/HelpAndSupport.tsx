@@ -33,6 +33,11 @@ import {
   PiggyBank,
   Gift
 } from 'lucide-react';
+import OnboardingQuickstart from '../components/OnboardingQuickstart';
+import ProductTour from '../components/ProductTour';
+import KBSearch from '../components/KBSearch';
+import { useAuthStore } from '../store/authStore';
+import { useFinanceStore } from '../store/useFinanceStore';
 
 interface Section {
   id: string;
@@ -64,6 +69,15 @@ const HelpAndSupport: React.FC = () => {
   const [activeSection, setActiveSection] = useState<string>('getting-started');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [showTour, setShowTour] = useState(false);
+  const [tourStep, setTourStep] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(true);
+  
+  const { user } = useAuthStore();
+  const { accounts, transactions } = useFinanceStore();
+
+  // Check if user should see onboarding
+  const shouldShowOnboarding = accounts.length < 2 || transactions.length < 3;
 
   const sections: Section[] = [
     {
@@ -531,9 +545,34 @@ Breakpoints:
 
   const activeSectionData = filteredSections.find(s => s.id === activeSection);
 
+  const handleStartTour = (stepId: string) => {
+    setTourStep(stepId);
+    setShowTour(true);
+  };
+
+  const handleCloseTour = () => {
+    setShowTour(false);
+    setTourStep(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Onboarding Quickstart - Show for new users */}
+        {shouldShowOnboarding && showOnboarding && (
+          <div className="mb-8">
+            <OnboardingQuickstart 
+              onStartTour={handleStartTour}
+              onClose={() => setShowOnboarding(false)}
+            />
+          </div>
+        )}
+
+        {/* Enhanced KB Search */}
+        <div className="mb-8">
+          <KBSearch />
+        </div>
+
         {/* Welcome Banner */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 mb-8 text-white">
           <div className="flex items-center justify-between">
@@ -762,6 +801,15 @@ Breakpoints:
             )}
           </div>
         </div>
+
+        {/* Product Tour Component */}
+        {showTour && (
+          <ProductTour
+            stepToStart={tourStep}
+            isOpen={showTour}
+            onClose={handleCloseTour}
+          />
+        )}
       </div>
     </div>
   );
