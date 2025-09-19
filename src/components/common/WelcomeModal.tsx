@@ -60,7 +60,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
           dps_type: null,
           dps_amount_type: null,
           dps_fixed_amount: null,
-          isActive: true,
+          is_active: true,  // Use snake_case to match database schema
           user_id: user.id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
