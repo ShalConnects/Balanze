@@ -218,9 +218,9 @@ export const FloatingActionButton: React.FC = () => {
               ))}
             </div>
           </Transition>
-          {/* Helper Tip - now left of the button, no background */}
+          {/* Helper Tip - now left of the button, no background - only show on desktop */}
           <div className="flex items-center">
-            {!isOpen && showTip && (
+            {!isOpen && showTip && !isMobile && (
               <span className="mr-2 text-xs text-white bg-gray-800/95 border-2 border-blue-400 px-4 py-2 rounded-lg animate-fade-in z-[100] shadow-lg">
                 Tip: Press <b>Ctrl+B</b> (or <b>Cmd+B</b>) to toggle quick actions
                 <button onClick={() => setShowTip(false)} className="ml-2 text-gray-300 hover:text-white p-1 rounded transition-colors" aria-label="Dismiss tip">×</button>

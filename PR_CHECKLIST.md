@@ -6,7 +6,6 @@
 - [x] Grouped commits by functionality
 
 ## Core Components ✅
-- [x] `OnboardingQuickstart.tsx` - 3-step checklist for new users
 - [x] `ProductTour.tsx` - Interactive guided tours with react-joyride
 - [x] `KBSearch.tsx` - Knowledge base search interface
 - [x] `KBArticlePage.tsx` - Individual article display

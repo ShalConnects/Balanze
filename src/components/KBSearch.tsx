@@ -1,8 +1,9 @@
 // src/components/KBSearch.tsx
 import React, { useState, useMemo } from 'react';
-import { Search, BookOpen, ExternalLink, Clock, Tag } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Search, BookOpen, ExternalLink, Clock, Tag, Home, Sun, Moon } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { trackHelpCenter } from '../lib/analytics';
+import { useThemeStore } from '../store/themeStore';
 import clsx from 'clsx';
 
 interface KBArticle {
@@ -110,6 +111,8 @@ export default function KBSearch({ className }: KBSearchProps) {
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showResults, setShowResults] = useState(false);
+  const navigate = useNavigate();
+  const { isDarkMode, toggleTheme } = useThemeStore();
 
   const filteredArticles = useMemo(() => {
     let filtered = MOCK_ARTICLES;
@@ -164,30 +167,94 @@ export default function KBSearch({ className }: KBSearchProps) {
     <div className={clsx('bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700', className)}>
       {/* Header */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-            <BookOpen className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-primary/10 rounded-lg">
+              <BookOpen 
+                className="w-6 h-6" 
+                style={{
+                  background: isDarkMode 
+                    ? 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)'
+                    : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }} 
+              />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gradient-primary">
+                Knowledge Base
+              </h2>
+              <p className="text-sm text-gradient-primary/70">
+                Find answers to common questions and learn how to use Balanze
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-              Knowledge Base
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Find answers to common questions and learn how to use Balanze
-            </p>
+          
+          {/* Action Icons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/')}
+              className="p-2 text-gradient-primary hover:text-gradient-primary transition-colors duration-200 border border-gradient-primary/30 rounded-full hover:bg-gradient-primary/10"
+              title="Go to Home"
+            >
+              <Home 
+                className="w-5 h-5" 
+                style={{
+                  background: isDarkMode 
+                    ? 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)'
+                    : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }} 
+              />
+            </button>
+            <button
+              onClick={toggleTheme}
+              className="p-2 text-gradient-primary hover:text-gradient-primary transition-colors duration-200 border border-gradient-primary/30 rounded-full hover:bg-gradient-primary/10"
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {isDarkMode ? (
+                <Sun 
+                  className="w-5 h-5" 
+                  style={{
+                    background: isDarkMode 
+                      ? 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)'
+                      : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
+                  }} 
+                />
+              ) : (
+                <Moon 
+                  className="w-5 h-5" 
+                  style={{
+                    background: isDarkMode 
+                      ? 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)'
+                      : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
+                  }} 
+                />
+              )}
+            </button>
           </div>
         </div>
 
         {/* Search Input */}
         <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gradient-primary w-5 h-5" />
           <input
             type="text"
             placeholder="Search for help articles, features, or guides..."
             value={query}
             onChange={(e) => handleSearch(e.target.value)}
             onFocus={() => setShowResults(true)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-3 border border-gradient-primary/30 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gradient-primary/50 focus:ring-2 focus:ring-gradient-primary focus:border-gradient-primary"
           />
         </div>
 
@@ -204,7 +271,7 @@ export default function KBSearch({ className }: KBSearchProps) {
               className={clsx(
                 'px-3 py-1 text-sm font-medium rounded-full transition-colors',
                 selectedCategory === category
-                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                  ? 'bg-gradient-primary/10 text-gradient-primary border border-gradient-primary/20'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'
               )}
             >
@@ -219,18 +286,18 @@ export default function KBSearch({ className }: KBSearchProps) {
         <div className="p-6">
           {filteredArticles.length === 0 ? (
             <div className="text-center py-8">
-              <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              <Search className="w-12 h-12 text-gradient-primary mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gradient-primary mb-2">
                 No articles found
               </h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-gradient-primary/70">
                 Try adjusting your search terms or browse different categories.
               </p>
             </div>
           ) : (
             <>
               <div className="mb-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gradient-primary/70">
                   Found {filteredArticles.length} article{filteredArticles.length !== 1 ? 's' : ''}
                   {selectedCategory !== 'All' && ` in ${selectedCategory}`}
                   {query && ` matching "${query}"`}
@@ -243,12 +310,12 @@ export default function KBSearch({ className }: KBSearchProps) {
                     key={article.slug}
                     to={`/kb/${article.slug}`}
                     onClick={() => handleArticleClick(article)}
-                    className="block p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all duration-200 group"
+                    className="block p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-gradient-primary hover:shadow-md transition-all duration-200 group"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-gradient-primary transition-colors">
                             {article.title}
                           </h3>
                           <ExternalLink className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -303,7 +370,7 @@ export default function KBSearch({ className }: KBSearchProps) {
       {/* Quick Links for when no search is active */}
       {!showResults && (
         <div className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          <h3 className="text-lg font-semibold text-gradient-primary mb-4">
             Popular Articles
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -312,12 +379,12 @@ export default function KBSearch({ className }: KBSearchProps) {
                 key={article.slug}
                 to={`/kb/${article.slug}`}
                 onClick={() => handleArticleClick(article)}
-                className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors group"
+                className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-gradient-primary transition-colors group"
               >
-                <h4 className="font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-sm">
+                <h4 className="font-medium text-gray-900 dark:text-white group-hover:text-gradient-primary transition-colors text-sm">
                   {article.title}
                 </h4>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-xs text-gradient-primary/70 mt-1">
                   {article.readTime} • {article.category}
                 </p>
               </Link>

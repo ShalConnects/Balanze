@@ -1,0 +1,236 @@
+import { supabase } from './supabase';
+
+export interface ArticleReadingHistory {
+  id: string;
+  article_slug: string;
+  article_title: string;
+  article_category: string | null;
+  read_at: string;
+  time_spent_seconds: number;
+  feedback: boolean | null;
+  feedback_given_at: string | null;
+}
+
+export interface ArticleFeedbackStats {
+  article_slug: string;
+  article_title: string;
+  article_category: string | null;
+  total_reads: number;
+  helpful_count: number;
+  not_helpful_count: number;
+  no_feedback_count: number;
+  helpful_percentage: number;
+}
+
+export interface TrackArticleReadingParams {
+  article_slug: string;
+  article_title: string;
+  article_category?: string;
+  time_spent_seconds?: number;
+}
+
+export interface TrackArticleFeedbackParams {
+  article_slug: string;
+  article_title: string;
+  article_category?: string;
+  feedback: boolean; // true for helpful, false for needs improvement
+}
+
+/**
+ * Track when a user reads an article
+ */
+export async function trackArticleReading(params: TrackArticleReadingParams): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.warn('No authenticated user found for article tracking');
+      return;
+    }
+
+    const { error } = await supabase.rpc('track_article_reading', {
+      p_user_id: user.id,
+      p_article_slug: params.article_slug,
+      p_article_title: params.article_title,
+      p_article_category: params.article_category || null,
+      p_time_spent_seconds: params.time_spent_seconds || 0
+    });
+
+    if (error) {
+      console.error('Error tracking article reading:', error);
+    }
+  } catch (error) {
+    console.error('Error in trackArticleReading:', error);
+  }
+}
+
+/**
+ * Get user's reading history
+ */
+export async function getUserReadingHistory(limit: number = 10): Promise<ArticleReadingHistory[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.warn('No authenticated user found for reading history');
+      return [];
+    }
+
+    const { data, error } = await supabase.rpc('get_user_reading_history', {
+      p_user_id: user.id,
+      p_limit: limit
+    });
+
+    if (error) {
+      console.error('Error fetching reading history:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getUserReadingHistory:', error);
+    return [];
+  }
+}
+
+/**
+ * Track article feedback (helpful/not helpful)
+ */
+export async function trackArticleFeedback(params: TrackArticleFeedbackParams): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.warn('No authenticated user found for article feedback tracking');
+      return;
+    }
+
+    const { error } = await supabase.rpc('track_article_feedback', {
+      p_user_id: user.id,
+      p_article_slug: params.article_slug,
+      p_article_title: params.article_title,
+      p_feedback: params.feedback,
+      p_article_category: params.article_category || null
+    });
+
+    if (error) {
+      console.error('Error tracking article feedback:', error);
+    }
+  } catch (error) {
+    console.error('Error in trackArticleFeedback:', error);
+  }
+}
+
+/**
+ * Get article feedback statistics
+ */
+export async function getArticleFeedbackStats(): Promise<ArticleFeedbackStats[]> {
+  try {
+    const { data, error } = await supabase.rpc('get_article_feedback_stats');
+
+    if (error) {
+      console.error('Error fetching article feedback stats:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getArticleFeedbackStats:', error);
+    return [];
+  }
+}
+
+/**
+ * Get user-specific article reading statistics
+ */
+export async function getUserArticleStats(): Promise<{
+  totalReads: number;
+  helpfulCount: number;
+  notHelpfulCount: number;
+  noFeedbackCount: number;
+  helpfulRate: number;
+  totalTimeSpent: number;
+}> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.warn('No authenticated user found for article stats');
+      return {
+        totalReads: 0,
+        helpfulCount: 0,
+        notHelpfulCount: 0,
+        noFeedbackCount: 0,
+        helpfulRate: 0,
+        totalTimeSpent: 0
+      };
+    }
+
+    const { data, error } = await supabase.rpc('get_user_article_stats', {
+      p_user_id: user.id
+    });
+
+    if (error) {
+      console.error('Error fetching user article stats:', error);
+      return {
+        totalReads: 0,
+        helpfulCount: 0,
+        notHelpfulCount: 0,
+        noFeedbackCount: 0,
+        helpfulRate: 0,
+        totalTimeSpent: 0
+      };
+    }
+
+    // The function now returns a JSON object, so we need to extract the values
+    if (data) {
+      console.log('Raw article stats data:', data);
+      const stats = {
+        totalReads: Number(data.total_reads) || 0,
+        helpfulCount: Number(data.helpful_count) || 0,
+        notHelpfulCount: Number(data.not_helpful_count) || 0,
+        noFeedbackCount: Number(data.no_feedback_count) || 0,
+        helpfulRate: Number(data.helpful_rate) || 0,
+        totalTimeSpent: Number(data.total_time_spent) || 0
+      };
+      console.log('Processed article stats:', stats);
+      return stats;
+    }
+
+    return {
+      totalReads: 0,
+      helpfulCount: 0,
+      notHelpfulCount: 0,
+      noFeedbackCount: 0,
+      helpfulRate: 0,
+      totalTimeSpent: 0
+    };
+  } catch (error) {
+    console.error('Error in getUserArticleStats:', error);
+    return {
+      totalReads: 0,
+      helpfulCount: 0,
+      notHelpfulCount: 0,
+      noFeedbackCount: 0,
+      helpfulRate: 0,
+      totalTimeSpent: 0
+    };
+  }
+}
+
+/**
+ * Track time spent on article (call this when user leaves the page)
+ */
+export async function trackArticleTimeSpent(
+  article_slug: string, 
+  article_title: string, 
+  article_category: string | undefined,
+  timeSpentSeconds: number
+): Promise<void> {
+  await trackArticleReading({
+    article_slug,
+    article_title,
+    article_category,
+    time_spent_seconds: timeSpentSeconds
+  });
+}

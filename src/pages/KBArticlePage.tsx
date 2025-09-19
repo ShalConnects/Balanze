@@ -13,6 +13,7 @@ import {
   Check
 } from 'lucide-react';
 import { trackHelpCenter } from '../lib/analytics';
+import { trackArticleReading, trackArticleTimeSpent, trackArticleFeedback } from '../lib/articleHistory';
 import { toast } from 'sonner';
 import clsx from 'clsx';
 
@@ -219,6 +220,7 @@ export default function KBArticlePage() {
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<'helpful' | 'not-helpful' | null>(null);
   const [copied, setCopied] = useState(false);
+  const [startTime] = useState(Date.now());
 
   useEffect(() => {
     if (slug) {
@@ -234,18 +236,49 @@ export default function KBArticlePage() {
             title: foundArticle.title,
             category: foundArticle.category
           });
+          
+          // Track article reading in database
+          trackArticleReading({
+            article_slug: slug,
+            article_title: foundArticle.title,
+            article_category: foundArticle.category
+          });
         }
       }, 300);
     }
   }, [slug]);
 
+  // Track time spent when component unmounts or user navigates away
+  useEffect(() => {
+    return () => {
+      if (article && slug) {
+        const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+        if (timeSpent > 5) { // Only track if user spent more than 5 seconds
+          trackArticleTimeSpent(slug, article.title, article.category, timeSpent);
+        }
+      }
+    };
+  }, [article, slug, startTime]);
+
   const handleFeedback = (isHelpful: boolean) => {
     setFeedback(isHelpful ? 'helpful' : 'not-helpful');
+    
+    // Track feedback in analytics
     trackHelpCenter('article_feedback', { 
       slug: slug!, 
       helpful: isHelpful,
       title: article?.title
     });
+    
+    // Track feedback in database
+    if (article && slug) {
+      trackArticleFeedback({
+        article_slug: slug,
+        article_title: article.title,
+        article_category: article.category,
+        feedback: isHelpful
+      });
+    }
     
     toast.success(
       isHelpful 

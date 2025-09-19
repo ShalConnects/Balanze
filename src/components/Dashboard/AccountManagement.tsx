@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, AlertTriangle, Download, UserX, Shield, CheckCircle, XCircle, User, CreditCard, ShoppingBag, TrendingUp, Globe, Heart } from 'lucide-react';
+import { Trash2, AlertTriangle, Download, UserX, Shield, CheckCircle, XCircle, User, CreditCard, ShoppingBag, TrendingUp, Globe, Heart, BookOpen, Clock, Edit3, Settings, Database, Calendar, BarChart3, FileText, LogOut } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { generateTransactionId, createSuccessMessage } from '../../utils/transactionId';
+import { getUserArticleStats } from '../../lib/articleHistory';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { ProfileEditModal } from '../Layout/ProfileEditModal';
 
 interface AccountManagementProps {
   hideTitle?: boolean;
@@ -30,6 +32,16 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
   const [isDeleting, setIsDeleting] = useState(false);
   const [deletionProgress, setDeletionProgress] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [articleStats, setArticleStats] = useState({
+    totalReads: 0,
+    helpfulCount: 0,
+    notHelpfulCount: 0,
+    noFeedbackCount: 0,
+    helpfulRate: 0,
+    totalTimeSpent: 0
+  });
+  const [loadingArticleStats, setLoadingArticleStats] = useState(false);
 
   // Fetch all data on component mount
   useEffect(() => {
@@ -38,6 +50,16 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
       fetchTransactions();
       fetchPurchases();
       fetchDonationSavingRecords();
+      
+      // Fetch article statistics
+      setLoadingArticleStats(true);
+      getUserArticleStats().then(stats => {
+        setArticleStats(stats);
+        setLoadingArticleStats(false);
+      }).catch(error => {
+        console.error('Error loading article stats:', error);
+        setLoadingArticleStats(false);
+      });
     }
   }, [user, fetchAccounts, fetchTransactions, fetchPurchases, fetchDonationSavingRecords]);
 
@@ -70,6 +92,19 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
   };
 
   const registrationDate = user?.created_at ? formatRegistrationDate(user.created_at) : null;
+
+  // Helper function to format total time spent
+  const formatTotalTimeSpent = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    
+    if (hours > 0) {
+      return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+    }
+    return `${minutes}m`;
+  };
 
   const handleStartDeletion = () => {
     setShowDeleteModal(true);
@@ -324,100 +359,207 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
 
   return (
     <div className="space-y-4">
-      {/* Profile & Export Row */}
-      <div className="flex flex-col md:flex-row gap-4">
-        {/* Profile Info Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-md w-full md:w-1/3 flex flex-col items-center justify-center mb-0 md:mb-0">
-          {userPicUrl ? (
-            <img
-              src={userPicUrl}
-              alt="Profile"
-              className="w-20 h-20 rounded-full object-cover border-2 border-blue-500 shadow mb-1"
-              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-          ) : (
-            <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-3xl font-bold text-blue-600 mb-1 shadow">
-              {userName.charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div className="text-base font-bold text-gray-900 dark:text-white mt-0.5">{userName}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-300">{userEmail}</div>
-          {registrationDate && (
-            <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-              Member since {registrationDate}
-            </div>
-          )}
-          <div className="border-t border-gray-200 dark:border-gray-700 my-2 w-full" />
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 w-full">
-            <div className="flex flex-col items-center group transition-transform hover:-translate-y-0.5">
-              <CreditCard className="w-5 h-5 mb-0.5 text-blue-500 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors" />
-              <div className="text-lg font-extrabold text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors">{dataSummary.accounts}</div>
-              <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">Accounts</div>
-            </div>
-            <div className="flex flex-col items-center group transition-transform hover:-translate-y-0.5">
-              <TrendingUp className="w-5 h-5 mb-0.5 text-green-500 group-hover:text-green-700 dark:group-hover:text-green-300 transition-colors" />
-              <div className="text-lg font-extrabold text-green-600 dark:text-green-400 group-hover:text-green-700 dark:group-hover:text-green-300 transition-colors">{dataSummary.transactions}</div>
-              <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">Transactions</div>
-            </div>
-            <div className="flex flex-col items-center group transition-transform hover:-translate-y-0.5">
-              <ShoppingBag className="w-5 h-5 mb-0.5 text-purple-500 group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors" />
-              <div className="text-lg font-extrabold text-purple-600 dark:text-purple-400 group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors">{dataSummary.purchases}</div>
-              <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">Purchases</div>
-            </div>
-            <div className="flex flex-col items-center group transition-transform hover:-translate-y-0.5">
-              <Globe className="w-5 h-5 mb-0.5 text-indigo-500 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors" />
-              <div className="text-lg font-extrabold text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors">{dataSummary.currencies}</div>
-              <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">Currencies</div>
-            </div>
-            <div className="flex flex-col items-center group transition-transform hover:-translate-y-0.5">
-              <Heart className="w-5 h-5 mb-0.5 text-orange-500 group-hover:text-orange-700 dark:group-hover:text-orange-300 transition-colors" />
-              <div className="text-lg font-extrabold text-orange-600 dark:text-orange-400 group-hover:text-orange-700 dark:group-hover:text-orange-300 transition-colors">{dataSummary.donation}</div>
-              <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">Donation</div>
+      {/* Enhanced Profile Card */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-blue-200 dark:border-gray-700 p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            {userPicUrl ? (
+              <img
+                src={userPicUrl}
+                alt="Profile"
+                className="w-16 h-16 rounded-full object-cover border-2 border-white dark:border-gray-600 shadow-md"
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-2xl font-bold text-white shadow-md">
+                {userName.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white truncate">{userName}</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-300 truncate">{userEmail}</p>
+              {registrationDate && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center mt-0.5">
+                  <Calendar className="w-3 h-3 mr-1" />
+                  Member since {registrationDate}
+                </p>
+              )}
             </div>
           </div>
-        </div>
-        {/* Export Data */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Export Your Data</h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Download a copy of all your data before deletion. This includes your accounts, transactions, purchases, and settings.
-          </p>
           <button
-            onClick={handleExportPDF}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={() => setShowProfileEdit(true)}
+            className="flex items-center px-3 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm border border-gray-200 dark:border-gray-600 text-sm"
           >
-            <Download className="w-4 h-4 mr-2" />
-            Export Data
+            <Edit3 className="w-4 h-4 mr-1.5" />
+            <span className="hidden sm:inline">Edit Profile</span>
+            <span className="sm:hidden">Edit</span>
           </button>
         </div>
       </div>
 
-      {/* Account Deletion */}
-      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+      {/* Statistics Dashboard */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Accounts</p>
+              <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{dataSummary.accounts}</p>
+            </div>
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex-shrink-0">
+              <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Transactions</p>
+              <p className="text-xl font-bold text-green-600 dark:text-green-400">{dataSummary.transactions}</p>
+            </div>
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg flex-shrink-0">
+              <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Purchases</p>
+              <p className="text-xl font-bold text-purple-600 dark:text-purple-400">{dataSummary.purchases}</p>
+            </div>
+            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex-shrink-0">
+              <ShoppingBag className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Currencies</p>
+              <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{dataSummary.currencies}</p>
+            </div>
+            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex-shrink-0">
+              <Globe className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions & Data Management */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Quick Actions Card */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+          <div className="space-y-2">
+            <button
+              onClick={handleExportPDF}
+              className="w-full flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors border border-blue-200 dark:border-blue-800"
+            >
+              <div className="flex items-center min-w-0">
+                <Download className="w-4 h-4 text-blue-600 dark:text-blue-400 mr-2 flex-shrink-0" />
+                <div className="text-left min-w-0">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100 truncate">Export Data</p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 truncate">Download as PDF</p>
+                </div>
+              </div>
+              <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+            </button>
+
+            <button
+              onClick={logout}
+              className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-200 dark:border-gray-600"
+            >
+              <div className="flex items-center min-w-0">
+                <LogOut className="w-4 h-4 text-gray-600 dark:text-gray-400 mr-2 flex-shrink-0" />
+                <div className="text-left min-w-0">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">Sign Out</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">Log out of account</p>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Article Reading Statistics */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+          {loadingArticleStats ? (
+            <div className="grid grid-cols-2 gap-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-cyan-50 dark:bg-cyan-900/20 rounded-lg p-3 border border-cyan-200 dark:border-cyan-800">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <BookOpen className="w-3 h-3 text-cyan-600 dark:text-cyan-400" />
+                  <span className="text-xs font-medium text-cyan-700 dark:text-cyan-300">Articles</span>
+                </div>
+                <div className="text-lg font-bold text-cyan-900 dark:text-cyan-100">{articleStats.totalReads}</div>
+              </div>
+              
+              <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 border border-emerald-200 dark:border-emerald-800">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <TrendingUp className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Rate</span>
+                </div>
+                <div className="text-lg font-bold text-emerald-900 dark:text-emerald-100">
+                  {articleStats.helpfulRate > 0 ? `${Math.round(articleStats.helpfulRate)}%` : 'N/A'}
+                </div>
+              </div>
+              
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Heart className="w-3 h-3 text-green-600 dark:text-green-400" />
+                  <span className="text-xs font-medium text-green-700 dark:text-green-300">Helpful</span>
+                </div>
+                <div className="text-lg font-bold text-green-900 dark:text-green-100">{articleStats.helpfulCount}</div>
+              </div>
+              
+              <div className="bg-violet-50 dark:bg-violet-900/20 rounded-lg p-3 border border-violet-200 dark:border-violet-800">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Clock className="w-3 h-3 text-violet-600 dark:text-violet-400" />
+                  <span className="text-xs font-medium text-violet-700 dark:text-violet-300">Time</span>
+                </div>
+                <div className="text-lg font-bold text-violet-900 dark:text-violet-100">
+                  {formatTotalTimeSpent(articleStats.totalTimeSpent)}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Account Management - Danger Zone */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-red-200 dark:border-red-800 p-4 shadow-sm">
         <div className="flex items-start">
-          <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400 mt-1 mr-3 flex-shrink-0" />
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-red-900 dark:text-red-100">Delete Account</h3>
-            <p className="text-red-700 dark:text-red-300 mt-2">
-              This action will permanently delete your account and all associated data including:
+          <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg mr-3 flex-shrink-0">
+            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-semibold text-red-900 dark:text-red-100 mb-2">Danger Zone</h3>
+            <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+              Permanently delete your account and all associated data. This action cannot be undone.
             </p>
-            <ul className="text-red-700 dark:text-red-300 mt-2 list-disc list-inside space-y-1">
-              <li>All accounts and balances</li>
-              <li>All transaction history</li>
-              <li>All purchase records</li>
-              <li>All lend/borrow records</li>
-              <li>All savings goals</li>
-              <li>All settings and preferences</li>
-              <li>Your user profile</li>
-            </ul>
-            <p className="text-red-700 dark:text-red-300 mt-2 font-semibold">
-              This action cannot be undone. Please export your data before proceeding.
-            </p>
+            <div className="bg-red-50 dark:bg-red-900/10 rounded-lg p-3 mb-3">
+              <p className="text-xs font-medium text-red-800 dark:text-red-200 mb-1">This will delete:</p>
+              <ul className="text-xs text-red-700 dark:text-red-300 space-y-0.5">
+                <li>• All accounts and balances</li>
+                <li>• All transaction history</li>
+                <li>• All purchase records</li>
+                <li>• All settings and preferences</li>
+                <li>• Your user profile and data</li>
+              </ul>
+            </div>
             <button
               onClick={handleStartDeletion}
-              className="mt-4 inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              className="inline-flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
             >
-              <UserX className="w-4 h-4 mr-2" />
+              <UserX className="w-4 h-4 mr-1.5" />
               Delete My Account
             </button>
           </div>
@@ -559,6 +701,14 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
             )}
           </div>
         </div>
+      )}
+
+      {/* Profile Edit Modal */}
+      {showProfileEdit && (
+        <ProfileEditModal
+          open={showProfileEdit}
+          onClose={() => setShowProfileEdit(false)}
+        />
       )}
     </div>
   );

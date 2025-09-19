@@ -8,7 +8,8 @@ import {
   Globe, 
   BarChart3, 
   CheckCircle,
-  XCircle
+  XCircle,
+  AlertTriangle
 } from 'lucide-react';
 
 interface UsageStats {
@@ -105,20 +106,20 @@ export const UsageTracker: React.FC = () => {
           Your Usage
         </h3>
         
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Accounts Usage */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-xs font-medium text-gray-900 dark:text-white">Accounts</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Users className="w-4 h-4 text-gray-500 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-gray-900 dark:text-white truncate">Accounts</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                   {getUsageDisplay('accounts').current}/{getUsageDisplay('accounts').limit}
                 </p>
               </div>
             </div>
             {getUsageDisplay('accounts').limit !== '∞' && (
-              <div className={`flex items-center gap-1 ${getUsageColor(getUsageDisplay('accounts').percentage)}`}>
+              <div className={`flex items-center gap-1 ${getUsageColor(getUsageDisplay('accounts').percentage)} flex-shrink-0`}>
                 {getUsageIcon(getUsageDisplay('accounts').percentage)}
                 <span className="text-xs font-medium">{Math.round(getUsageDisplay('accounts').percentage)}%</span>
               </div>
@@ -126,18 +127,18 @@ export const UsageTracker: React.FC = () => {
           </div>
 
           {/* Currencies Usage */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-xs font-medium text-gray-900 dark:text-white">Currencies</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Globe className="w-4 h-4 text-gray-500 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-gray-900 dark:text-white truncate">Currencies</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                   {getUsageDisplay('currencies').current}/{getUsageDisplay('currencies').limit}
                 </p>
               </div>
             </div>
             {getUsageDisplay('currencies').limit !== '∞' && (
-              <div className={`flex items-center gap-1 ${getUsageColor(getUsageDisplay('currencies').percentage)}`}>
+              <div className={`flex items-center gap-1 ${getUsageColor(getUsageDisplay('currencies').percentage)} flex-shrink-0`}>
                 {getUsageIcon(getUsageDisplay('currencies').percentage)}
                 <span className="text-xs font-medium">{Math.round(getUsageDisplay('currencies').percentage)}%</span>
               </div>
@@ -145,18 +146,18 @@ export const UsageTracker: React.FC = () => {
           </div>
 
           {/* Transactions Usage */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-xs font-medium text-gray-900 dark:text-white">Transactions</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg min-w-0 sm:col-span-2 lg:col-span-1">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <BarChart3 className="w-4 h-4 text-gray-500 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-gray-900 dark:text-white truncate">Transactions</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                   {getUsageDisplay('transactions').current}/{getUsageDisplay('transactions').limit}
                 </p>
               </div>
             </div>
             {getUsageDisplay('transactions').limit !== '∞' && (
-              <div className={`flex items-center gap-1 ${getUsageColor(getUsageDisplay('transactions').percentage)}`}>
+              <div className={`flex items-center gap-1 ${getUsageColor(getUsageDisplay('transactions').percentage)} flex-shrink-0`}>
                 {getUsageIcon(getUsageDisplay('transactions').percentage)}
                 <span className="text-xs font-medium">{Math.round(getUsageDisplay('transactions').percentage)}%</span>
               </div>

@@ -350,21 +350,27 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
     try {
       console.log('Starting registration for:', email);
       
-      // First, check if email already exists using our database function
-      try {
-        const { data: emailCheck, error: emailCheckError } = await supabase.rpc('check_email_exists', {
-          email_to_check: email
-        });
-        
-        if (!emailCheckError && emailCheck === true) {
-          const userFriendlyError = 'This email is already registered. Please use a different email or try logging in.';
-          set({ error: userFriendlyError, isLoading: false });
-          return { success: false, message: userFriendlyError };
-        }
-      } catch (emailCheckException) {
-        console.log('Email check failed, proceeding with registration:', emailCheckException);
-        // If email check fails, proceed with registration and let Supabase handle it
+      // CRITICAL: Always check for existing email - NO FALLBACK for security
+      const { data: emailCheck, error: emailCheckError } = await supabase.rpc('check_email_exists', {
+        email_to_check: email
+      });
+      
+      // If the email check function fails, BLOCK registration for security
+      if (emailCheckError) {
+        console.error('Email check failed:', emailCheckError);
+        const errorMessage = 'Unable to verify email availability. Please try again later.';
+        set({ error: errorMessage, isLoading: false });
+        return { success: false, message: errorMessage };
       }
+      
+      // If email exists, block registration
+      if (emailCheck === true) {
+        const userFriendlyError = 'This email is already registered. Please use a different email or try logging in.';
+        set({ error: userFriendlyError, isLoading: false });
+        return { success: false, message: userFriendlyError };
+      }
+      
+      console.log('Email check passed, proceeding with registration');
       
       const { data, error } = await supabase.auth.signUp({
         email,

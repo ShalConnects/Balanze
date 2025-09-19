@@ -5,7 +5,6 @@ This document provides a runbook for managing the help center, onboarding system
 ## Overview
 
 The help center system includes:
-- **3-step onboarding quickstart** for new users
 - **Interactive product tours** using react-joyride
 - **Knowledge base** with search functionality
 - **Article management** system
@@ -15,7 +14,6 @@ The help center system includes:
 
 ### Components
 
-- `OnboardingQuickstart.tsx` - 3-step checklist for new users
 - `ProductTour.tsx` - Interactive guided tours
 - `KBSearch.tsx` - Knowledge base search interface
 - `KBArticlePage.tsx` - Individual article display
@@ -23,25 +21,27 @@ The help center system includes:
 
 ### Routes
 
-- `/help` - Main help center with onboarding and KB search
+- `/help` - Main help center with KB search and product tours
 - `/kb/:slug` - Individual knowledge base articles
 
-## Onboarding Flow
+## Product Tour Flow
 
-### Step 1: Create First Account
+The interactive product tours guide users through key features:
+
+### Account Creation Tour
 - **Tour ID:** `add-account`
 - **Target:** `[data-tour="add-account"]`
-- **Completion Check:** User has at least 1 account
+- **Purpose:** Guide users to create their first account
 
-### Step 2: Add First Transaction  
+### Transaction Tour
 - **Tour ID:** `add-transaction`
 - **Target:** `[data-tour="add-transaction"]`
-- **Completion Check:** User has at least 1 transaction
+- **Purpose:** Show users how to add transactions
 
-### Step 3: View Analytics
+### Analytics Tour
 - **Tour ID:** `view-analytics`
 - **Target:** `[data-tour="analytics-overview"]`
-- **Completion Check:** User has accounts and multiple transactions
+- **Purpose:** Introduce users to financial insights
 
 ## Data-Tour Attributes
 

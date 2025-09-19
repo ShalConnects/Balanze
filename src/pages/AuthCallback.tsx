@@ -22,10 +22,61 @@ const AuthCallback: React.FC = () => {
         }
 
         if (data.session?.user) {
-          console.log('OAuth login successful:', data.session.user.id);
+          const user = data.session.user;
+          console.log('OAuth login successful:', user.id);
+          
+          // CRITICAL: Check for duplicate emails before allowing OAuth login
+          try {
+            const { data: emailCheck, error: emailCheckError } = await supabase.rpc('check_email_exists', {
+              email_to_check: user.email || ''
+            });
+            
+            if (emailCheckError) {
+              console.error('Error checking for duplicate email:', emailCheckError);
+              setError('Authentication verification failed. Please try again.');
+              // Sign out the OAuth user
+              await supabase.auth.signOut();
+              setTimeout(() => navigate('/auth'), 3000);
+              return;
+            }
+            
+            // If email exists, check if it's a different user
+            if (emailCheck === true) {
+              // Get the existing user with this email
+              const { data: existingUsers, error: fetchError } = await supabase
+                .rpc('get_user_by_email', { email_to_check: user.email || '' });
+              
+              if (fetchError) {
+                console.error('Error fetching existing user:', fetchError);
+                setError('Authentication verification failed. Please try again.');
+                await supabase.auth.signOut();
+                setTimeout(() => navigate('/auth'), 3000);
+                return;
+              }
+              
+              // If the existing user has a different ID, this is a duplicate
+              if (existingUsers && existingUsers !== user.id) {
+                console.warn('Duplicate email detected via OAuth:', user.email);
+                setError('This email is already registered with a different account. Please sign in using your original login method (email/password).');
+                
+                // Sign out the OAuth user
+                await supabase.auth.signOut();
+                setTimeout(() => navigate('/auth'), 5000);
+                return;
+              }
+            }
+            
+            console.log('OAuth email check passed, proceeding with login');
+          } catch (emailVerificationError) {
+            console.error('Exception during email verification:', emailVerificationError);
+            setError('Authentication verification failed. Please try again.');
+            await supabase.auth.signOut();
+            setTimeout(() => navigate('/auth'), 3000);
+            return;
+          }
           
           // Set user and profile in auth store
-          await setUserAndProfile(data.session.user, null);
+          await setUserAndProfile(user, null);
           
           // Redirect to dashboard
           navigate('/dashboard');

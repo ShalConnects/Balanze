@@ -34,20 +34,6 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 describe('Help Center Components', () => {
-  it('should render OnboardingQuickstart without crashing', async () => {
-    const { OnboardingQuickstart } = await import('../components/OnboardingQuickstart');
-    
-    render(
-      <TestWrapper>
-        <OnboardingQuickstart 
-          onStartTour={() => {}} 
-          onClose={() => {}}
-        />
-      </TestWrapper>
-    );
-    
-    expect(screen.getByText('Get started with Balanze')).toBeInTheDocument();
-  });
 
   it('should render KBSearch without crashing', async () => {
     const { default: KBSearch } = await import('../components/KBSearch');

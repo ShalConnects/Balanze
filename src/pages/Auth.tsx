@@ -321,8 +321,20 @@ export const Auth: React.FC = () => {
 
   // Inline feedback logic
   const getLoginErrorMessage = () => {
-    if (error && typeof error === 'string' && error.toLowerCase().includes('email not confirmed')) {
-      return 'Please confirm your email before logging in.';
+    if (error && typeof error === 'string') {
+      const errorLower = error.toLowerCase();
+      if (errorLower.includes('email not confirmed')) {
+        return 'Please confirm your email before logging in.';
+      }
+      if (errorLower.includes('duplicate_email') || errorLower.includes('already registered')) {
+        return 'This email is already registered. Please try logging in instead, or use a different email.';
+      }
+      if (errorLower.includes('unable to verify email')) {
+        return 'Unable to verify email availability. Please check your connection and try again.';
+      }
+      if (errorLower.includes('already registered with a different account')) {
+        return 'This email is linked to a different login method. Please use your original sign-in method.';
+      }
     }
     return error;
   };
