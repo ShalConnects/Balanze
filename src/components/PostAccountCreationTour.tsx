@@ -11,7 +11,7 @@ interface PostAccountCreationTourProps {
 }
 
 // Tour steps with navigation and GIF demonstrations
-const TOUR_STEPS: Step[] = [
+const getTourSteps = (): Step[] => [
   {
     target: '[data-tour="accounts-nav"]',
     content: (
@@ -25,7 +25,7 @@ const TOUR_STEPS: Step[] = [
     spotlightClicks: false, // Don't allow clicking during tour
   },
   {
-    target: '[data-tour="edit-account"]',
+    target: 'body', // Use body as fallback until we're sure the elements exist
     content: (
       <div>
         <h3 className="font-semibold mb-2">💰 Edit Your Account Balance</h3>
@@ -58,11 +58,11 @@ const TOUR_STEPS: Step[] = [
         </div>
       </div>
     ),
-    placement: 'left',
+    placement: 'center',
     spotlightClicks: true,
   },
   {
-    target: '[data-tour="add-transaction"]',
+    target: 'body', // Use body as fallback
     content: (
       <div>
         <h3 className="font-semibold mb-2">📝 Add Your First Transaction</h3>
@@ -95,7 +95,7 @@ const TOUR_STEPS: Step[] = [
         </div>
       </div>
     ),
-    placement: 'top',
+    placement: 'center',
     spotlightClicks: true,
   },
 ];
@@ -111,10 +111,21 @@ export default function PostAccountCreationTour({
 
   useEffect(() => {
     if (isOpen) {
-      // Small delay to ensure UI is ready
+      // Small delay to ensure UI is ready and DOM elements exist
       const timer = setTimeout(() => {
-        setRun(true);
-        track('post_account_tour_started');
+        // Check if the target element exists before starting the tour
+        const firstTarget = document.querySelector('[data-tour="accounts-nav"]');
+        if (firstTarget) {
+          setRun(true);
+          track('post_account_tour_started');
+        } else {
+          console.warn('Tour target not found, retrying in 1 second...');
+          // Retry after another second
+          setTimeout(() => {
+            setRun(true);
+            track('post_account_tour_started');
+          }, 1000);
+        }
       }, 500);
       
       return () => clearTimeout(timer);
@@ -131,7 +142,7 @@ export default function PostAccountCreationTour({
       action, 
       index, 
       type,
-      step: TOUR_STEPS[index]?.target 
+      step: getTourSteps()[index]?.target 
     });
 
     // Navigate to accounts page when moving from step 0 to step 1
@@ -165,49 +176,60 @@ export default function PostAccountCreationTour({
 
   if (!isOpen) return null;
 
-  return (
-    <Joyride
-      steps={TOUR_STEPS}
-      run={run}
-      continuous
-      showSkipButton
-      showProgress
-      callback={handleJoyrideCallback}
-      stepIndex={stepIndex}
-      styles={{
-        options: {
-          zIndex: 10000,
-          primaryColor: '#10b981', // Green to match success theme
-        },
-        tooltip: {
-          borderRadius: 12,
-          fontSize: 14,
-        },
-        tooltipContent: {
-          padding: '20px',
-        },
-        buttonNext: {
-          backgroundColor: '#10b981',
-          borderRadius: 8,
-          fontSize: 14,
-          fontWeight: 600,
-        },
-        buttonBack: {
-          color: '#6b7280',
-          fontSize: 14,
-        },
-        buttonSkip: {
-          color: '#6b7280',
-          fontSize: 14,
-        },
-      }}
-      locale={{
-        back: '← Back',
-        close: '✕',
-        last: 'Finish Tour',
-        next: 'Next →',
-        skip: 'Skip Tour',
-      }}
-    />
-  );
+  // Error boundary wrapper
+  try {
+    return (
+      <Joyride
+        steps={getTourSteps()}
+        run={run}
+        continuous
+        showSkipButton
+        showProgress
+        callback={handleJoyrideCallback}
+        stepIndex={stepIndex}
+        disableCloseOnEsc={false}
+        disableOverlayClose={false}
+        hideCloseButton={false}
+        styles={{
+          options: {
+            zIndex: 10000,
+            primaryColor: '#10b981', // Green to match success theme
+          },
+          tooltip: {
+            borderRadius: 12,
+            fontSize: 14,
+          },
+          tooltipContent: {
+            padding: '20px',
+          },
+          buttonNext: {
+            backgroundColor: '#10b981',
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 600,
+          },
+          buttonBack: {
+            color: '#6b7280',
+            fontSize: 14,
+          },
+          buttonSkip: {
+            color: '#6b7280',
+            fontSize: 14,
+          },
+        }}
+        locale={{
+          back: '← Back',
+          close: '✕',
+          last: 'Finish Tour',
+          next: 'Next →',
+          skip: 'Skip Tour',
+        }}
+      />
+    );
+  } catch (error) {
+    console.error('Tour component error:', error);
+    // Fallback UI or close tour
+    onClose();
+    return null;
+  }
 }
