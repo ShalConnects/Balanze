@@ -64,6 +64,7 @@ function AppContent() {
   
   // Function to trigger post-account creation tour
   const handleStartPostAccountTour = () => {
+    console.log('App: handleStartPostAccountTour called - setting showPostAccountTour to true');
     setShowPostAccountTour(true);
   };
   

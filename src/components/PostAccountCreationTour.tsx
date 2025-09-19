@@ -11,7 +11,7 @@ interface PostAccountCreationTourProps {
 }
 
 // Tour steps with navigation and GIF demonstrations
-const getTourSteps = (): Step[] => [
+const TOUR_STEPS: Step[] = [
   {
     target: '[data-tour="accounts-nav"]',
     content: (
@@ -25,7 +25,7 @@ const getTourSteps = (): Step[] => [
     spotlightClicks: false, // Don't allow clicking during tour
   },
   {
-    target: 'body', // Use body as fallback until we're sure the elements exist
+    target: '[data-tour="edit-account"]',
     content: (
       <div>
         <h3 className="font-semibold mb-2">💰 Edit Your Account Balance</h3>
@@ -34,35 +34,20 @@ const getTourSteps = (): Step[] => [
         {/* GIF demonstration */}
         <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Watch how to do it:</p>
-          <div className="w-full max-w-xs mx-auto">
-            <img 
-              src="/static/placeholders/onboarding-gifs/step1.svg" 
-              alt="How to edit account balance - click pencil icon and update initial balance"
-              className="w-full rounded border"
-              style={{ maxHeight: '150px', objectFit: 'contain' }}
-              onError={(e) => {
-                // Hide the image and show placeholder text if SVG doesn't exist
-                e.currentTarget.style.display = 'none';
-                const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
-                if (placeholder) placeholder.style.display = 'block';
-              }}
-            />
-            <div 
-              className="hidden text-center py-4 text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded border-2 border-dashed border-gray-300 dark:border-gray-600"
-              style={{ display: 'none' }}
-            >
-              📹 GIF placeholder<br />
-              <span className="text-xs">Record a demo of editing account balance</span>
-            </div>
-          </div>
+          <img 
+            src="/static/placeholders/onboarding-gifs/step1.gif" 
+            alt="How to edit account balance - click pencil icon and update initial balance"
+            className="w-full max-w-xs mx-auto rounded border"
+            style={{ maxHeight: '150px', objectFit: 'contain' }}
+          />
         </div>
       </div>
     ),
-    placement: 'center',
+    placement: 'left',
     spotlightClicks: true,
   },
   {
-    target: 'body', // Use body as fallback
+    target: '[data-tour="add-transaction"]',
     content: (
       <div>
         <h3 className="font-semibold mb-2">📝 Add Your First Transaction</h3>
@@ -71,31 +56,16 @@ const getTourSteps = (): Step[] => [
         {/* GIF demonstration */}
         <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">See how easy it is:</p>
-          <div className="w-full max-w-xs mx-auto">
-            <img 
-              src="/static/placeholders/onboarding-gifs/step2.svg" 
-              alt="How to add a transaction - click plus button and fill in details"
-              className="w-full rounded border"
-              style={{ maxHeight: '150px', objectFit: 'contain' }}
-              onError={(e) => {
-                // Hide the image and show placeholder text if SVG doesn't exist
-                e.currentTarget.style.display = 'none';
-                const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
-                if (placeholder) placeholder.style.display = 'block';
-              }}
-            />
-            <div 
-              className="hidden text-center py-4 text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded border-2 border-dashed border-gray-300 dark:border-gray-600"
-              style={{ display: 'none' }}
-            >
-              📹 GIF placeholder<br />
-              <span className="text-xs">Record a demo of adding a transaction</span>
-            </div>
-          </div>
+          <img 
+            src="/static/placeholders/onboarding-gifs/step2.gif" 
+            alt="How to add a transaction - click plus button and fill in details"
+            className="w-full max-w-xs mx-auto rounded border"
+            style={{ maxHeight: '150px', objectFit: 'contain' }}
+          />
         </div>
       </div>
     ),
-    placement: 'center',
+    placement: 'top',
     spotlightClicks: true,
   },
 ];
@@ -110,26 +80,18 @@ export default function PostAccountCreationTour({
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('PostAccountCreationTour: isOpen changed to:', isOpen);
     if (isOpen) {
-      // Small delay to ensure UI is ready and DOM elements exist
+      // Small delay to ensure UI is ready
       const timer = setTimeout(() => {
-        // Check if the target element exists before starting the tour
-        const firstTarget = document.querySelector('[data-tour="accounts-nav"]');
-        if (firstTarget) {
-          setRun(true);
-          track('post_account_tour_started');
-        } else {
-          console.warn('Tour target not found, retrying in 1 second...');
-          // Retry after another second
-          setTimeout(() => {
-            setRun(true);
-            track('post_account_tour_started');
-          }, 1000);
-        }
+        console.log('PostAccountCreationTour: Starting tour');
+        setRun(true);
+        track('post_account_tour_started');
       }, 500);
       
       return () => clearTimeout(timer);
     } else {
+      console.log('PostAccountCreationTour: Stopping tour');
       setRun(false);
     }
   }, [isOpen]);
@@ -142,7 +104,7 @@ export default function PostAccountCreationTour({
       action, 
       index, 
       type,
-      step: getTourSteps()[index]?.target 
+      step: TOUR_STEPS[index]?.target 
     });
 
     // Navigate to accounts page when moving from step 0 to step 1
@@ -176,60 +138,49 @@ export default function PostAccountCreationTour({
 
   if (!isOpen) return null;
 
-  // Error boundary wrapper
-  try {
-    return (
-      <Joyride
-        steps={getTourSteps()}
-        run={run}
-        continuous
-        showSkipButton
-        showProgress
-        callback={handleJoyrideCallback}
-        stepIndex={stepIndex}
-        disableCloseOnEsc={false}
-        disableOverlayClose={false}
-        hideCloseButton={false}
-        styles={{
-          options: {
-            zIndex: 10000,
-            primaryColor: '#10b981', // Green to match success theme
-          },
-          tooltip: {
-            borderRadius: 12,
-            fontSize: 14,
-          },
-          tooltipContent: {
-            padding: '20px',
-          },
-          buttonNext: {
-            backgroundColor: '#10b981',
-            borderRadius: 8,
-            fontSize: 14,
-            fontWeight: 600,
-          },
-          buttonBack: {
-            color: '#6b7280',
-            fontSize: 14,
-          },
-          buttonSkip: {
-            color: '#6b7280',
-            fontSize: 14,
-          },
-        }}
-        locale={{
-          back: '← Back',
-          close: '✕',
-          last: 'Finish Tour',
-          next: 'Next →',
-          skip: 'Skip Tour',
-        }}
-      />
-    );
-  } catch (error) {
-    console.error('Tour component error:', error);
-    // Fallback UI or close tour
-    onClose();
-    return null;
-  }
+  return (
+    <Joyride
+      steps={TOUR_STEPS}
+      run={run}
+      continuous
+      showSkipButton
+      showProgress
+      callback={handleJoyrideCallback}
+      stepIndex={stepIndex}
+      styles={{
+        options: {
+          zIndex: 10000,
+          primaryColor: '#10b981', // Green to match success theme
+        },
+        tooltip: {
+          borderRadius: 12,
+          fontSize: 14,
+        },
+        tooltipContent: {
+          padding: '20px',
+        },
+        buttonNext: {
+          backgroundColor: '#10b981',
+          borderRadius: 8,
+          fontSize: 14,
+          fontWeight: 600,
+        },
+        buttonBack: {
+          color: '#6b7280',
+          fontSize: 14,
+        },
+        buttonSkip: {
+          color: '#6b7280',
+          fontSize: 14,
+        },
+      }}
+      locale={{
+        back: '← Back',
+        close: '✕',
+        last: 'Finish Tour',
+        next: 'Next →',
+        skip: 'Skip Tour',
+      }}
+    />
+  );
 }
