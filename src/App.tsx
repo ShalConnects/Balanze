@@ -37,6 +37,7 @@ import { HelpLayout } from './components/Layout/HelpLayout';
 import DonationsSavingsPage from './pages/DonationsSavingsPage';
 import { FavoriteQuotes } from './pages/FavoriteQuotes';
 import { WelcomeModal } from './components/common/WelcomeModal';
+import PostAccountCreationTour from './components/PostAccountCreationTour';
 import { Analytics } from '@vercel/analytics/react';
 import { useNotificationStore } from './store/notificationStore';
 import { MobileSidebarProvider } from './context/MobileSidebarContext';
@@ -55,8 +56,16 @@ function AppContent() {
   // Welcome modal state
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomeModalChecked, setWelcomeModalChecked] = useState(false);
+  
+  // Post-account creation tour state
+  const [showPostAccountTour, setShowPostAccountTour] = useState(false);
   const { accounts, fetchAccounts } = useFinanceStore();
   const { initializeDefaultNotifications } = useNotificationStore();
+  
+  // Function to trigger post-account creation tour
+  const handleStartPostAccountTour = () => {
+    setShowPostAccountTour(true);
+  };
   
 
 
@@ -301,7 +310,19 @@ function AppContent() {
       {/* Welcome Modal for new users without accounts */}
       <WelcomeModal 
         isOpen={showWelcomeModal} 
-        onClose={() => setShowWelcomeModal(false)} 
+        onClose={() => setShowWelcomeModal(false)}
+        onStartTour={handleStartPostAccountTour}
+      />
+      
+      {/* Post-Account Creation Tour */}
+      <PostAccountCreationTour
+        isOpen={showPostAccountTour}
+        onClose={() => setShowPostAccountTour(false)}
+        onComplete={() => {
+          setShowPostAccountTour(false);
+          // Optional: Show a completion message
+          console.log('🎉 Post-account creation tour completed!');
+        }}
       />
     </>
   );

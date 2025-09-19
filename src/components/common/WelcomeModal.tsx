@@ -7,18 +7,17 @@ import { toast } from 'sonner';
 import { getCurrencySymbol } from '../../utils/currency';
 import { supabase } from '../../lib/supabase';
 import { useLoadingContext } from '../../context/LoadingContext';
-import PostAccountCreationTour from '../PostAccountCreationTour';
 
 interface WelcomeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onStartTour: () => void;
 }
 
-export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) => {
+export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onStartTour }) => {
   const { profile } = useAuthStore();
   const { addAccount, fetchAccounts } = useFinanceStore();
   const { setLoading } = useLoadingContext();
-  const [showPostAccountTour, setShowPostAccountTour] = useState(false);
   
   const [selectedCurrency, setSelectedCurrency] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -107,7 +106,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
         setIsCreating(false);
         setLoading(false); // Clear global loading state
         onClose(); // Close the welcome modal
-        setShowPostAccountTour(true); // Start the contextual tour
+        onStartTour(); // Start the contextual tour
       }, 2000);
       
     } catch (error) {
@@ -268,17 +267,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
           </>
         )}
       </div>
-      
-      {/* Post-Account Creation Tour */}
-      <PostAccountCreationTour
-        isOpen={showPostAccountTour}
-        onClose={() => setShowPostAccountTour(false)}
-        onComplete={() => {
-          setShowPostAccountTour(false);
-          // Optional: Show a completion message or redirect
-          toast.success('🎉 Welcome to Balanze! You\'re all set to start tracking your finances.');
-        }}
-      />
     </div>
   );
 }; 
