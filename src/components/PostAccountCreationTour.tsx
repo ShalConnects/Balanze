@@ -88,7 +88,7 @@ export default function PostAccountCreationTour({
       action, 
       index, 
       type,
-      step: POST_ACCOUNT_TOUR_STEPS[index]?.target 
+      step: TOUR_STEPS[index]?.target 
     });
 
     if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
