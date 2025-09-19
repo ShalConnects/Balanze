@@ -64,7 +64,6 @@ function AppContent() {
   
   // Function to trigger post-account creation tour
   const handleStartPostAccountTour = () => {
-    console.log('App: handleStartPostAccountTour called - setting showPostAccountTour to true');
     // Reset first, then set to true to ensure clean state
     setShowPostAccountTour(false);
     setTimeout(() => {
@@ -325,8 +324,6 @@ function AppContent() {
         onClose={() => setShowPostAccountTour(false)}
         onComplete={() => {
           setShowPostAccountTour(false);
-          // Optional: Show a completion message
-          console.log('🎉 Post-account creation tour completed!');
         }}
       />
     </>

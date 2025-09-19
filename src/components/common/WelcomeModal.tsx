@@ -101,7 +101,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
       
       // Show success message briefly, then start the tour
       setTimeout(() => {
-        console.log('WelcomeModal: About to start tour after success');
         setIsSuccess(false);
         setSelectedCurrency('');
         setIsCreating(false);
@@ -110,7 +109,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
         
         // Additional delay to ensure modal is fully closed before starting tour
         setTimeout(() => {
-          console.log('WelcomeModal: Calling onStartTour()');
           onStartTour(); // Start the contextual tour
         }, 300);
       }, 2000);
