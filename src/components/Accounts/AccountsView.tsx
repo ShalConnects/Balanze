@@ -1070,6 +1070,7 @@ export const AccountsView: React.FC = () => {
                               {!isDpsSavingsAccount && (
                                 <button
                                   onClick={() => handleEditAccount(account)}
+                                  data-tour="edit-account"
                                   className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                                   title="Edit"
                                 >
@@ -1079,6 +1080,7 @@ export const AccountsView: React.FC = () => {
                               {!isDpsSavingsAccount && (
                                 <button
                                   onClick={() => handleAddTransaction(account.id)}
+                                  data-tour="add-transaction"
                                   className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                                   title="Add Transaction"
                                 >

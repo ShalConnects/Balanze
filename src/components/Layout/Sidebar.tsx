@@ -218,6 +218,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
                       onViewChange(item.id);
                       if (isMobile) onToggle();
                     }}
+                    data-tour={item.id === 'accounts' ? 'accounts-nav' : undefined}
                     className={`
                       w-full flex items-center rounded-lg sidebar-nav-item
                       ${isMobile ? (isOpen ? 'px-4 py-3 space-x-3' : 'px-2 py-3 justify-center') : (effectiveCollapsed ? 'px-2 py-3 justify-center' : 'px-4 py-3 space-x-3')}

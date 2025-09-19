@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { getCurrencySymbol } from '../../utils/currency';
 import { supabase } from '../../lib/supabase';
 import { useLoadingContext } from '../../context/LoadingContext';
+import PostAccountCreationTour from '../PostAccountCreationTour';
 
 interface WelcomeModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
   const { profile } = useAuthStore();
   const { addAccount, fetchAccounts } = useFinanceStore();
   const { setLoading } = useLoadingContext();
+  const [showPostAccountTour, setShowPostAccountTour] = useState(false);
   
   const [selectedCurrency, setSelectedCurrency] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -98,14 +100,15 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
       setIsSuccess(true);
       toast.success('Cash account created successfully!');
       
-      // Auto close after showing success for a few seconds
+      // Show success message briefly, then start the tour
       setTimeout(() => {
-        onClose();
         setIsSuccess(false);
         setSelectedCurrency('');
         setIsCreating(false);
         setLoading(false); // Clear global loading state
-      }, 5000);
+        onClose(); // Close the welcome modal
+        setShowPostAccountTour(true); // Start the contextual tour
+      }, 2000);
       
     } catch (error) {
       console.error('Error creating cash account:', error);
@@ -266,5 +269,16 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
         )}
       </div>
     </div>
+    
+    {/* Post-Account Creation Tour */}
+    <PostAccountCreationTour
+      isOpen={showPostAccountTour}
+      onClose={() => setShowPostAccountTour(false)}
+      onComplete={() => {
+        setShowPostAccountTour(false);
+        // Optional: Show a completion message or redirect
+        toast.success('🎉 Welcome to Balanze! You\'re all set to start tracking your finances.');
+      }}
+    />
   );
 }; 
