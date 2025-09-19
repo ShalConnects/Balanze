@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Joyride, { STATUS, CallBackProps, Step } from 'react-joyride';
 import { track } from '../lib/analytics';
 import { useNavigate } from 'react-router-dom';
+import { useMobileDetection } from '../hooks/useMobileDetection';
 
 
 interface PostAccountCreationTourProps {
@@ -10,19 +11,31 @@ interface PostAccountCreationTourProps {
   onComplete: () => void;
 }
 
-// Tour steps with navigation and GIF demonstrations
-const TOUR_STEPS: Step[] = [
+// Generate mobile-aware tour steps
+const getTourSteps = (isMobile: boolean): Step[] => [
   {
-    target: '[data-tour="accounts-nav"]',
+    target: isMobile ? 'body' : '[data-tour="accounts-nav"]',
     content: (
       <div>
         <h3 className="font-semibold mb-2">🎉 Great! Your cash account is ready!</h3>
-        <p>Let's explore your accounts section. Click "Next" and we'll take you to the accounts page to set up your initial balance and add your first transaction.</p>
+        <p>
+          {isMobile 
+            ? "Let's explore your accounts section. Click 'Next' and we'll take you to the accounts page. On mobile, you'll need to open the menu first."
+            : "Let's explore your accounts section. Click 'Next' and we'll take you to the accounts page to set up your initial balance and add your first transaction."
+          }
+        </p>
+        {isMobile && (
+          <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              💡 <strong>Mobile tip:</strong> Look for the menu button (☰) in the top-left to open the sidebar
+            </p>
+          </div>
+        )}
       </div>
     ),
     disableBeacon: true,
-    placement: 'bottom',
-    spotlightClicks: false, // Don't allow clicking during tour
+    placement: isMobile ? 'center' : 'bottom',
+    spotlightClicks: false,
   },
   {
     target: '[data-tour="edit-account"]',
@@ -31,19 +44,19 @@ const TOUR_STEPS: Step[] = [
         <h3 className="font-semibold mb-2">💰 Edit Your Account Balance</h3>
         <p>Click the pencil icon to set your initial cash balance. This helps us track your real starting amount accurately.</p>
         
-        {/* GIF demonstration */}
+        {/* GIF demonstration - smaller on mobile */}
         <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Watch how to do it:</p>
           <img 
             src="/static/placeholders/onboarding-gifs/step1.gif" 
             alt="How to edit account balance - click pencil icon and update initial balance"
-            className="w-full max-w-xs mx-auto rounded border"
-            style={{ maxHeight: '150px', objectFit: 'contain' }}
+            className={`w-full mx-auto rounded border ${isMobile ? 'max-w-[200px]' : 'max-w-xs'}`}
+            style={{ maxHeight: isMobile ? '120px' : '150px', objectFit: 'contain' }}
           />
         </div>
       </div>
     ),
-    placement: 'left',
+    placement: isMobile ? 'center' : 'left',
     spotlightClicks: true,
   },
   {
@@ -53,19 +66,19 @@ const TOUR_STEPS: Step[] = [
         <h3 className="font-semibold mb-2">📝 Add Your First Transaction</h3>
         <p>Finally, click the "+" button to add your first transaction! Record income, expenses, or transfers.</p>
         
-        {/* GIF demonstration */}
+        {/* GIF demonstration - smaller on mobile */}
         <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">See how easy it is:</p>
           <img 
             src="/static/placeholders/onboarding-gifs/step2.gif" 
             alt="How to add a transaction - click plus button and fill in details"
-            className="w-full max-w-xs mx-auto rounded border"
-            style={{ maxHeight: '150px', objectFit: 'contain' }}
+            className={`w-full mx-auto rounded border ${isMobile ? 'max-w-[200px]' : 'max-w-xs'}`}
+            style={{ maxHeight: isMobile ? '120px' : '150px', objectFit: 'contain' }}
           />
         </div>
       </div>
     ),
-    placement: 'top',
+    placement: isMobile ? 'center' : 'top',
     spotlightClicks: true,
   },
 ];
@@ -78,6 +91,7 @@ export default function PostAccountCreationTour({
   const [run, setRun] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const navigate = useNavigate();
+  const { isMobile } = useMobileDetection();
 
   useEffect(() => {
     if (isOpen) {
@@ -102,7 +116,7 @@ export default function PostAccountCreationTour({
       action, 
       index, 
       type,
-      step: TOUR_STEPS[index]?.target 
+      step: getTourSteps(isMobile)[index]?.target 
     });
 
     // Navigate to accounts page when moving from step 0 to step 1
@@ -138,7 +152,7 @@ export default function PostAccountCreationTour({
 
   return (
     <Joyride
-      steps={TOUR_STEPS}
+      steps={getTourSteps(isMobile)}
       run={run}
       continuous
       showSkipButton
@@ -152,24 +166,28 @@ export default function PostAccountCreationTour({
         },
         tooltip: {
           borderRadius: 12,
-          fontSize: 14,
+          fontSize: isMobile ? 16 : 14, // Larger text on mobile
+          maxWidth: isMobile ? '90vw' : '400px', // Responsive width
         },
         tooltipContent: {
-          padding: '20px',
+          padding: isMobile ? '16px' : '20px', // Smaller padding on mobile
         },
         buttonNext: {
           backgroundColor: '#10b981',
           borderRadius: 8,
-          fontSize: 14,
+          fontSize: isMobile ? 16 : 14, // Larger buttons on mobile
           fontWeight: 600,
+          padding: isMobile ? '12px 20px' : '8px 16px', // Larger touch targets
         },
         buttonBack: {
           color: '#6b7280',
-          fontSize: 14,
+          fontSize: isMobile ? 16 : 14,
+          padding: isMobile ? '12px 20px' : '8px 16px',
         },
         buttonSkip: {
           color: '#6b7280',
-          fontSize: 14,
+          fontSize: isMobile ? 16 : 14,
+          padding: isMobile ? '12px 20px' : '8px 16px',
         },
       }}
       locale={{
