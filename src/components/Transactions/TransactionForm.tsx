@@ -116,9 +116,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     parseFloat(data.amount) > 0 &&
     data.type &&
     data.category &&
+    data.category.trim().length > 0 &&
     data.date &&
     Object.keys(errors).length === 0,
-    [data.account_id, data.amount, data.type, data.category, data.date, errors]
+    [data.account_id, data.amount, data.type, data.category, data.date, errors, isExpenseType]
   );
 
   const validateForm = React.useCallback(() => {
@@ -161,6 +162,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [data.account_id, data.amount, data.type, data.category, data.description, data.date, isExpenseType]);
+
+  // Auto-validate form when data changes
+  React.useEffect(() => {
+    validateForm();
+  }, [validateForm]);
 
   const getInputClasses = React.useCallback((fieldName: string) => {
     const baseClasses = "w-full px-4 py-2 text-[14px] h-10 rounded-lg border transition-colors duration-200 bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600";

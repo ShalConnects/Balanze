@@ -6,6 +6,7 @@ import { PlansAndUsage } from './PlansAndUsage';
 import { LW } from './LW';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronDown, Settings as SettingsIcon, Filter, Check } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 
 interface TabItem {
   id: string;
@@ -15,13 +16,21 @@ interface TabItem {
 }
 
 export const Settings: React.FC = () => {
+  const { profile } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Check if user has Premium plan for Last Wish
+  const isPremium = profile?.subscription?.plan === 'premium';
   
   // Initialize activeTab from URL parameter or default to general
   const getInitialTab = () => {
     const tabParam = searchParams.get('tab');
     if (tabParam && ['general', 'categories', 'account-management', 'plans-usage', 'lw'].includes(tabParam)) {
+      // If user tries to access Last Wish tab but is not premium, redirect to general
+      if (tabParam === 'lw' && !isPremium) {
+        return 'general';
+      }
       return tabParam;
     }
     return 'general';
@@ -38,18 +47,24 @@ export const Settings: React.FC = () => {
   const tabs: TabItem[] = [
     { id: 'general', label: 'General', icon: null },
     { id: 'categories', label: 'Categories', icon: null },
-    { id: 'account-management', label: 'Account', icon: null },
     { id: 'plans-usage', label: 'Plans & Usage', icon: null },
-    { id: 'lw', label: 'Last wish', icon: null }
+    { id: 'account-management', label: 'Account', icon: null },
+    ...(isPremium ? [{ id: 'lw', label: 'Last wish', icon: null, premium: true }] : [])
   ];
 
   // Handle URL parameters for tab selection
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     if (tabParam && ['general', 'categories', 'account-management', 'plans-usage', 'lw'].includes(tabParam)) {
-      setActiveTab(tabParam);
+      // If user tries to access Last Wish tab but is not premium, redirect to general
+      if (tabParam === 'lw' && !isPremium) {
+        setActiveTab('general');
+        setSearchParams({ tab: 'general' }, { replace: true });
+      } else {
+        setActiveTab(tabParam);
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, isPremium, setSearchParams]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);

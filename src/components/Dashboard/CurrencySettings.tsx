@@ -4,6 +4,7 @@ import { notificationPreferencesService, NotificationPreferences } from '../../l
 import { toast } from 'sonner';
 import { Check, Globe, Star, Save, RotateCcw } from 'lucide-react';
 import { NotificationSettings } from './NotificationSettings';
+import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 
 const currencyOptions = [
   { value: 'USD', label: 'USD - US Dollar', symbol: '$' },
@@ -17,6 +18,7 @@ const currencyOptions = [
 
 export const CurrencySettings: React.FC = () => {
   const { profile, updateProfile } = useAuthStore();
+  const { features, isFreePlan } = usePlanFeatures();
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>(profile?.selected_currencies || (profile?.local_currency ? [profile.local_currency] : ['USD']));
   const [primaryCurrency, setPrimaryCurrency] = useState<string>(profile?.local_currency || 'USD');
   const [loading, setLoading] = useState(false);
@@ -73,6 +75,12 @@ export const CurrencySettings: React.FC = () => {
         setPrimaryCurrency(newSelected[0]);
       }
     } else {
+      // Check currency limit for free users
+      if (isFreePlan && selectedCurrencies.length >= 1) {
+        toast.error('Currency limit reached! Free plan allows only 1 currency. Upgrade to Premium for unlimited currencies.');
+        return;
+      }
+      
       setSelectedCurrencies([...selectedCurrencies, currency]);
     }
     setDirty(true);
@@ -196,7 +204,10 @@ export const CurrencySettings: React.FC = () => {
           💱 Currency Settings
         </h4>
         <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-3 sm:mb-4">
-          Select one or more currencies. Pick a primary currency for forms and default display.
+          {isFreePlan 
+            ? 'Free plan allows 1 currency only. Pick a primary currency for forms and default display.'
+            : 'Select one or more currencies. Pick a primary currency for forms and default display.'
+          }
         </p>
         
         {/* Currency Grid */}
@@ -215,6 +226,10 @@ export const CurrencySettings: React.FC = () => {
                     : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                   }
                   ${isPrimary ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''}
+                  ${isFreePlan && selectedCurrencies.length >= 1 && !selected 
+                    ? 'opacity-50 cursor-not-allowed' 
+                    : ''
+                  }
                 `}
                 onClick={() => toggleCurrency(currency.value)}
               >
@@ -253,6 +268,21 @@ export const CurrencySettings: React.FC = () => {
             );
           })}
         </div>
+        
+        {/* Free Plan Currency Limit Warning */}
+        {isFreePlan && (
+          <div className="mt-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+            <p className="text-xs text-amber-800 dark:text-amber-200">
+              🔒 <strong>Free Plan Limit:</strong> You can select only 1 currency. 
+              <button 
+                onClick={() => window.location.href = '/settings?tab=plans-usage'}
+                className="ml-1 text-blue-600 dark:text-blue-400 underline hover:no-underline"
+              >
+                Upgrade to Premium
+              </button> for unlimited currencies.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Current Selection Summary */}

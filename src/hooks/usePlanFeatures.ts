@@ -62,7 +62,7 @@ export const usePlanFeatures = () => {
       console.error('Error loading plan features:', error);
       // Set default free features
       setFeatures({
-        max_accounts: 5,
+        max_accounts: 3,
         max_transactions: 100,
         max_currencies: 1,
         analytics: false,

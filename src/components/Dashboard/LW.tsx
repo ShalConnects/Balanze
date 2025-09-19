@@ -46,6 +46,9 @@ interface LWSettings {
 export const LW: React.FC<LWProps> = () => {
   const { user, profile } = useAuthStore();
   const { accounts, transactions, purchases, savingsGoals } = useFinanceStore();
+  
+  // Check if user has Premium plan for Last Wish
+  const isPremium = profile?.subscription?.plan === 'premium';
   const [lendBorrowRecords, setLendBorrowRecords] = useState<any[]>([]);
   const [settings, setSettings] = useState<LWSettings>({
     isEnabled: false,
@@ -875,6 +878,35 @@ These memories are my gift to you.`
     }
   };
 
+
+  // Don't render for free users
+  if (!isPremium) {
+    return (
+      <div className="space-y-2 sm:space-y-3 w-full">
+        <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900 dark:to-gray-900 rounded-xl border border-slate-200 dark:border-slate-700 p-6 mb-6 shadow-sm">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-slate-600 to-slate-800 rounded-xl flex items-center justify-center shadow-md">
+              <Shield className="w-8 h-8 text-blue-500" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                Last Wish - Premium Feature
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                This feature is available for Premium users only. Upgrade to access the Last Wish digital time capsule system.
+              </p>
+              <button
+                onClick={() => window.location.href = '/settings?tab=plans-usage'}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                Upgrade to Premium
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2 sm:space-y-3 w-full">

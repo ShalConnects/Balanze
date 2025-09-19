@@ -13,8 +13,8 @@ export const useUpgradeModal = () => {
     // Check for specific error types
     if (errorMessage.includes('ACCOUNT_LIMIT_EXCEEDED')) {
       console.log('✅ ACCOUNT_LIMIT_EXCEEDED detected, opening modal');
-      // Use the actual limit from the error message (5 for free plan)
-      const limit = 5;
+      // Use the actual limit from the error message (3 for free plan)
+      const limit = 3;
       // Get current count from accounts array instead of usageStats
       const { accounts } = useFinanceStore.getState();
       const current = accounts.length;

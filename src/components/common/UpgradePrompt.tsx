@@ -66,7 +66,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
   const content = getPromptContent();
 
   const handleUpgrade = () => {
-    navigate('/settings?tab=plans');
+    navigate('/settings?tab=plans-usage');
   };
 
   return (

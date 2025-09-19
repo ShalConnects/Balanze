@@ -596,7 +596,7 @@ const LandingPage: React.FC = () => {
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
                     <CreditCard className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Transaction management</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">100 transactions limit</span>
                   </div>
                 </li>
                 <li className="flex items-start">
@@ -694,6 +694,12 @@ const LandingPage: React.FC = () => {
                   <div className="flex items-center flex-1">
                     <Globe className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
                     <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Unlimited currencies</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <CreditCard className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Unlimited transactions</span>
                   </div>
                 </li>
                 <li className="flex items-start">

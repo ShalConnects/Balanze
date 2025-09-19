@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { supabase } from '../../lib/supabase';
@@ -7,11 +7,8 @@ import {
   Users, 
   Globe, 
   BarChart3, 
-  AlertTriangle, 
-  ArrowUpRight, 
   CheckCircle,
-  XCircle,
-  TrendingUp
+  XCircle
 } from 'lucide-react';
 
 interface UsageStats {
@@ -44,15 +41,6 @@ export const UsageTracker: React.FC = () => {
     isNearLimit,
     loadUsageStats 
   } = usePlanFeatures();
-  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
-
-  useEffect(() => {
-    if (user && accounts) {
-      // Check if any limits are exceeded
-      const isOverLimit = isAtLimit('accounts') || isAtLimit('currencies') || isAtLimit('transactions');
-      setShowUpgradePrompt(isOverLimit && isFreePlan);
-    }
-  }, [user, accounts, isAtLimit, isFreePlan]);
 
   const getUsageColor = (percentage: number) => {
     if (percentage >= 90) return 'text-red-600 dark:text-red-400';
@@ -111,113 +99,71 @@ export const UsageTracker: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Upgrade Prompt */}
-      {showUpgradePrompt && (
-        <div className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
-            <h3 className="text-lg font-semibold text-red-800 dark:text-red-200">
-              You've reached your Free plan limits!
-            </h3>
-          </div>
-          <p className="text-sm text-red-700 dark:text-red-300 mb-3">
-            Upgrade to Premium to unlock unlimited accounts, currencies, and transactions.
-          </p>
-          <button 
-            onClick={() => window.location.href = '/settings?tab=plans'}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg text-sm font-medium hover:from-red-700 hover:to-orange-700 transition-all"
-          >
-            <TrendingUp className="w-4 h-4" />
-            Upgrade Now
-            <ArrowUpRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
       {/* Usage Stats */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           Your Usage
         </h3>
         
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Accounts Usage */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Users className="w-5 h-5 text-gray-500" />
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-gray-500" />
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">Accounts</p>
+                <p className="text-xs font-medium text-gray-900 dark:text-white">Accounts</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {getUsageDisplay('accounts').current} / {getUsageDisplay('accounts').limit}
+                  {getUsageDisplay('accounts').current}/{getUsageDisplay('accounts').limit}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {getUsageDisplay('accounts').limit !== '∞' && (
-                <div className={`flex items-center gap-1 ${getUsageColor(getUsageDisplay('accounts').percentage)}`}>
-                  {getUsageIcon(getUsageDisplay('accounts').percentage)}
-                  <span className="text-sm font-medium">{Math.round(getUsageDisplay('accounts').percentage)}%</span>
-                </div>
-              )}
-            </div>
+            {getUsageDisplay('accounts').limit !== '∞' && (
+              <div className={`flex items-center gap-1 ${getUsageColor(getUsageDisplay('accounts').percentage)}`}>
+                {getUsageIcon(getUsageDisplay('accounts').percentage)}
+                <span className="text-xs font-medium">{Math.round(getUsageDisplay('accounts').percentage)}%</span>
+              </div>
+            )}
           </div>
 
           {/* Currencies Usage */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Globe className="w-5 h-5 text-gray-500" />
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-gray-500" />
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">Currencies</p>
+                <p className="text-xs font-medium text-gray-900 dark:text-white">Currencies</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {getUsageDisplay('currencies').current} / {getUsageDisplay('currencies').limit}
+                  {getUsageDisplay('currencies').current}/{getUsageDisplay('currencies').limit}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {getUsageDisplay('currencies').limit !== '∞' && (
-                <div className={`flex items-center gap-1 ${getUsageColor(getUsageDisplay('currencies').percentage)}`}>
-                  {getUsageIcon(getUsageDisplay('currencies').percentage)}
-                  <span className="text-sm font-medium">{Math.round(getUsageDisplay('currencies').percentage)}%</span>
-                </div>
-              )}
-            </div>
+            {getUsageDisplay('currencies').limit !== '∞' && (
+              <div className={`flex items-center gap-1 ${getUsageColor(getUsageDisplay('currencies').percentage)}`}>
+                {getUsageIcon(getUsageDisplay('currencies').percentage)}
+                <span className="text-xs font-medium">{Math.round(getUsageDisplay('currencies').percentage)}%</span>
+              </div>
+            )}
           </div>
 
           {/* Transactions Usage */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <BarChart3 className="w-5 h-5 text-gray-500" />
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-gray-500" />
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">Transactions</p>
+                <p className="text-xs font-medium text-gray-900 dark:text-white">Transactions</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {getUsageDisplay('transactions').current} / {getUsageDisplay('transactions').limit}
+                  {getUsageDisplay('transactions').current}/{getUsageDisplay('transactions').limit}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {getUsageDisplay('transactions').limit !== '∞' && (
-                <div className={`flex items-center gap-1 ${getUsageColor(getUsageDisplay('transactions').percentage)}`}>
-                  {getUsageIcon(getUsageDisplay('transactions').percentage)}
-                  <span className="text-sm font-medium">{Math.round(getUsageDisplay('transactions').percentage)}%</span>
-                </div>
-              )}
-            </div>
+            {getUsageDisplay('transactions').limit !== '∞' && (
+              <div className={`flex items-center gap-1 ${getUsageColor(getUsageDisplay('transactions').percentage)}`}>
+                {getUsageIcon(getUsageDisplay('transactions').percentage)}
+                <span className="text-xs font-medium">{Math.round(getUsageDisplay('transactions').percentage)}%</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Upgrade CTA */}
-        {!showUpgradePrompt && (
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <button 
-              onClick={() => window.location.href = '/settings?tab=plans'}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-blue-700 hover:to-purple-700 transition-all"
-            >
-              <TrendingUp className="w-4 h-4" />
-              Upgrade to Premium
-              <ArrowUpRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -712,7 +712,7 @@ export const LendBorrowView: React.FC = () => {
             Track loans and borrowings with detailed analytics. This feature is available for Premium users only.
           </p>
           <button
-            onClick={() => window.location.href = '/settings?tab=plans'}
+            onClick={() => window.location.href = '/settings?tab=plans-usage'}
             className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
           >
             Upgrade to Premium

@@ -698,65 +698,112 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     notes: string;
     attachments: PurchaseAttachment[];
   }) => {
-    set({ loading: true, error: null });
+    const currentState = get();
+    const originalTransaction = currentState.transactions.find(t => t.id === id);
     
-    // First, get the current transaction to find its transaction_id
-    const { data: currentTransaction, error: fetchError } = await supabase
-      .from('transactions')
-      .select('transaction_id')
-      .eq('id', id)
-      .single();
-      
-    if (fetchError) {
-      set({ loading: false, error: fetchError.message });
+    if (!originalTransaction) {
+      set({ error: 'Transaction not found' });
       return;
     }
     
-    const { error } = await supabase
-      .from('transactions')
-      .update(transaction)
-      .eq('id', id);
-      
-    if (error) {
-      set({ loading: false, error: error.message });
-      return;
-    }
+    // OPTIMISTIC UPDATE: Update UI immediately with new data
+    const optimisticTransaction = { ...originalTransaction, ...transaction };
+    const optimisticTransactions = currentState.transactions.map(t => 
+      t.id === id ? optimisticTransaction : t
+    );
     
-    // If this is an expense transaction, also update the linked purchase
-    if ((transaction.type === 'expense' || transaction.amount !== undefined) && currentTransaction?.transaction_id) {
-      const purchaseUpdateData: any = {
-        item_name: transaction.description || 'Purchase',
-        price: transaction.amount,
-        category: transaction.category
-      };
+    // Update UI instantly - no loading state for better UX
+    set({ transactions: optimisticTransactions, error: null });
+    
+    try {
+      // Perform actual database updates in the background
+      const [currentTransactionResult, updateResult] = await Promise.all([
+        supabase
+          .from('transactions')
+          .select('transaction_id, account_id')
+          .eq('id', id)
+          .single(),
+        supabase
+          .from('transactions')
+          .update(transaction)
+          .eq('id', id)
+          .select('*')
+          .single()
+      ]);
       
-      // Update purchase details if provided
-      if (purchaseDetails) {
-        purchaseUpdateData.priority = purchaseDetails.priority;
-        purchaseUpdateData.notes = purchaseDetails.notes;
+      if (currentTransactionResult.error || updateResult.error) {
+        // ROLLBACK: Revert to original state if database update fails
+        set({ 
+          transactions: currentState.transactions,
+          error: currentTransactionResult.error?.message || updateResult.error?.message || 'Update failed'
+        });
+        return;
       }
       
-      // TEMPORARY WORKAROUND: Convert transaction_id to string to handle UUID/VARCHAR mismatch
-      const transactionIdString = String(currentTransaction.transaction_id);
+      const currentTransaction = currentTransactionResult.data;
+      const updatedTransaction = updateResult.data;
       
-      const { error: purchaseError } = await supabase
-        .from('purchases')
-        .update(purchaseUpdateData)
-        .eq('transaction_id', transactionIdString);
+      // Update with actual server response (in case server modified the data)
+      const serverUpdatedTransactions = currentState.transactions.map(t => 
+        t.id === id ? updatedTransaction : t
+      );
+      set({ transactions: serverUpdatedTransactions });
+      
+      // Background operations that don't affect immediate UI
+      const backgroundOperations: Promise<any>[] = [];
+      
+      // Update purchase record if needed
+      if ((transaction.type === 'expense' || transaction.amount !== undefined) && currentTransaction?.transaction_id) {
+        const purchaseUpdateData: any = {
+          item_name: transaction.description || 'Purchase',
+          price: transaction.amount,
+          category: transaction.category
+        };
         
-      if (purchaseError) {
-        console.error('Error updating purchase record:', purchaseError);
-        // Don't fail the transaction update if purchase update fails
+        if (purchaseDetails) {
+          purchaseUpdateData.priority = purchaseDetails.priority;
+          purchaseUpdateData.notes = purchaseDetails.notes;
+        }
+        
+        const transactionIdString = String(currentTransaction.transaction_id);
+        
+        backgroundOperations.push(
+          supabase
+            .from('purchases')
+            .update(purchaseUpdateData)
+            .eq('transaction_id', transactionIdString)
+            .then(({ error }) => {
+              if (error) {
+                console.error('Error updating purchase record:', error);
+              }
+            })
+        );
       }
+      
+      // Only refetch accounts if the transaction amount or account changed (affects balances)
+      if (transaction.amount !== undefined || transaction.account_id !== undefined) {
+        backgroundOperations.push(get().fetchAccounts());
+      }
+      
+      // Only refetch purchases if this was an expense transaction
+      if (transaction.type === 'expense' || originalTransaction.type === 'expense') {
+        backgroundOperations.push(get().fetchPurchases());
+      }
+      
+      // Run background operations without blocking UI
+      Promise.all(backgroundOperations).catch(error => {
+        console.error('Background update operations failed:', error);
+        // Don't show error to user since main update succeeded
+      });
+      
+    } catch (error) {
+      console.error('Error updating transaction:', error);
+      // ROLLBACK: Revert to original state
+      set({ 
+        transactions: currentState.transactions,
+        error: 'Failed to update transaction' 
+      });
     }
-    
-    // Refresh both transactions and accounts to get updated balances
-    await Promise.all([
-      get().fetchTransactions(),
-      get().fetchAccounts(),
-      get().fetchPurchases()
-    ]);
-    set({ loading: false });
   },
   
   deleteTransaction: async (id) => {

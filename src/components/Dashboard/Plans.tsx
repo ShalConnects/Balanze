@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Check, Star, X, Heart, Zap, Shield, Download, BarChart3, Users, Globe, MessageSquare, Settings, CreditCard } from 'lucide-react';
+import { Check, Heart, Zap, Download, BarChart3, Users, Globe, MessageSquare, Settings, CreditCard } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { PayPalPaymentModal } from '../common/PayPalPaymentModal';
+import { PaddlePaymentModal } from '../common/PaddlePaymentModal';
 
 interface Plan {
   id: string;
@@ -33,11 +33,11 @@ const plans: Plan[] = [
       { text: 'Basic financial tracking', included: true, icon: BarChart3 },
       { text: 'Up to 3 accounts', included: true, icon: Users },
       { text: '1 currency only', included: true, icon: Globe },
+      { text: '100 transactions limit', included: true, icon: CreditCard },
       { text: 'Basic reports', included: true, icon: BarChart3 },
       { text: 'Email support (24-48h response)', included: true, icon: MessageSquare },
       { text: 'Basic purchase tracking', included: true, icon: Download },
       { text: 'Basic analytics', included: true, icon: BarChart3 },
-      { text: 'Transaction management', included: true, icon: CreditCard },
       { text: 'Custom categories', included: false, icon: Settings },
       { text: 'Lend & borrow tracking', included: false, icon: Users },
       { text: 'Data export', included: false, icon: Download },
@@ -57,6 +57,7 @@ const plans: Plan[] = [
       { text: 'Everything in Free', included: true, icon: Check },
       { text: 'Unlimited accounts', included: true, icon: Users },
       { text: 'Unlimited currencies', included: true, icon: Globe },
+      { text: 'Unlimited transactions', included: true, icon: CreditCard },
       { text: 'Advanced analytics', included: true, icon: BarChart3 },
       { text: 'Priority email support (4-8h response)', included: true, icon: MessageSquare },
       { text: 'Custom categories', included: true, icon: Settings },
@@ -70,7 +71,7 @@ const plans: Plan[] = [
 ];
 
 export const Plans: React.FC = () => {
-  const { user, profile } = useAuthStore();
+  const { profile } = useAuthStore();
   const currentPlan = profile?.subscription?.plan || 'free';
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'one-time'>('monthly');
   const [paymentModal, setPaymentModal] = useState<{
@@ -101,10 +102,10 @@ export const Plans: React.FC = () => {
         
         {/* Billing Cycle Selector */}
         <div className="mt-6 flex items-center justify-center">
-          <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-1 flex w-full max-w-xs">
+          <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-1 flex w-full max-w-sm">
             <button
               onClick={() => setBillingCycle('monthly')}
-              className={`flex-1 px-3 md:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 px-3 lg:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                 billingCycle === 'monthly'
                   ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -114,7 +115,7 @@ export const Plans: React.FC = () => {
             </button>
             <button
               onClick={() => setBillingCycle('one-time')}
-              className={`flex-1 px-3 md:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 px-3 lg:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                 billingCycle === 'one-time'
                   ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -129,15 +130,16 @@ export const Plans: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 max-w-6xl mx-auto">
         {plans.map((plan) => (
                       <div
               key={plan.id}
+              data-plan={plan.id}
               className={`relative rounded-xl border ${
                 plan.isPopular
                   ? 'border-blue-500 shadow-lg dark:border-blue-400'
                   : 'border-gray-200 dark:border-gray-700 shadow'
-              } p-4 md:p-6 transition-all duration-200 hover:shadow-xl bg-white dark:bg-gray-800 flex flex-col h-full`}
+              } p-4 lg:p-5 transition-all duration-200 hover:shadow-xl bg-white dark:bg-gray-800 flex flex-col h-full`}
             >
                           {plan.isPopular && (
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
@@ -148,8 +150,8 @@ export const Plans: React.FC = () => {
               </div>
             )}
 
-              <div className="text-center mb-6">
-                <h3 className={`text-lg md:text-xl font-semibold mb-2 ${
+              <div className="text-center mb-5">
+                <h3 className={`text-lg lg:text-xl font-semibold mb-2 ${
                   plan.id === 'premium' 
                     ? 'bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent'
                     : 'text-gray-900 dark:text-white'
@@ -162,14 +164,14 @@ export const Plans: React.FC = () => {
                   }`}>{plan.description}</p>
                 )}
                 <div className="flex items-baseline justify-center">
-                  <span className={`text-3xl md:text-4xl font-bold ${
+                  <span className={`text-2xl lg:text-3xl font-bold ${
                     plan.id === 'premium' 
                       ? 'bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent'
                       : 'text-gray-900 dark:text-white'
                   }`}>
                     ${billingCycle === 'one-time' && plan.id === 'premium' ? '99.99' : plan.price}
                   </span>
-                  <span className={`ml-1 text-base md:text-lg ${
+                  <span className={`ml-1 text-sm lg:text-base ${
                     plan.id === 'premium' 
                       ? 'text-purple-600 dark:text-purple-400'
                       : 'text-gray-500 dark:text-gray-400'
@@ -204,7 +206,7 @@ export const Plans: React.FC = () => {
                 )}
               </div>
 
-              <ul className="space-y-2 md:space-y-3 mb-4 md:mb-6 flex-1">
+              <ul className="space-y-2 lg:space-y-2.5 mb-4 lg:mb-5 flex-1">
                 {plan.features.map((feature, index) => (
                   <li key={index} className="flex items-start">
                     <div className="flex items-center flex-1">
@@ -229,17 +231,11 @@ export const Plans: React.FC = () => {
                         {feature.text}
                       </span>
                     </div>
-                    {feature.highlight && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 ml-2">
-                        <Heart className="w-3 h-3 mr-1" />
-                        Premium
-                      </span>
-                    )}
                   </li>
                 ))}
               </ul>
 
-              <div className="mt-auto pt-4 md:pt-6">
+              <div className="mt-auto pt-4 lg:pt-5">
                 <button
                   onClick={() => {
                     if (currentPlan !== plan.id && plan.id !== 'free') {
@@ -259,7 +255,7 @@ export const Plans: React.FC = () => {
                       });
                     }
                   }}
-                  className={`w-full rounded-lg px-3 md:px-4 py-2 md:py-3 text-sm font-medium transition-colors ${
+                  className={`w-full rounded-lg px-3 lg:px-4 py-2 lg:py-2.5 text-sm font-medium transition-colors ${
                     currentPlan === plan.id
                       ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                       : plan.isPopular
@@ -287,8 +283,8 @@ export const Plans: React.FC = () => {
         
       </div>
 
-      {/* PayPal Payment Modal */}
-      <PayPalPaymentModal
+      {/* Paddle Payment Modal */}
+      <PaddlePaymentModal
         isOpen={paymentModal.isOpen}
         onClose={() => setPaymentModal(prev => ({ ...prev, isOpen: false }))}
         planId={paymentModal.planId}
