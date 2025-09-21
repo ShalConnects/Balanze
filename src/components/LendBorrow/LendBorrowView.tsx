@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore';
 import { LendBorrow, LendBorrowInput, LendBorrowAnalytics } from '../../types/index';
 import { LendBorrowForm } from './LendBorrowForm';
 import { LendBorrowList } from './LendBorrowList';
+import { LendBorrowAnalytics as LendBorrowAnalyticsComponent } from './LendBorrowAnalytics';
 import { PartialReturnModal } from './PartialReturnModal';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { LendBorrowCardSkeleton, LendBorrowTableSkeleton, LendBorrowSummaryCardsSkeleton, LendBorrowFiltersSkeleton } from './LendBorrowSkeleton';
@@ -64,6 +65,7 @@ export const LendBorrowView: React.FC = () => {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'records' | 'analytics'>('records');
   const typeMenuRef = useRef<HTMLDivElement>(null);
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const presetDropdownRef = useRef<HTMLDivElement>(null);
@@ -724,8 +726,42 @@ export const LendBorrowView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Unified Table View - New Section */}
-      <div className="space-y-6">
+      {/* Tab Navigation */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-1">
+        <div className="flex space-x-1">
+          <button
+            onClick={() => setActiveTab('records')}
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'records'
+                ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            Records
+          </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'analytics'
+                ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            Analytics
+          </button>
+        </div>
+      </div>
+
+      {/* Analytics Tab Content */}
+      {activeTab === 'analytics' && (
+        <LendBorrowAnalyticsComponent />
+      )}
+
+      {/* Records Tab Content */}
+      {activeTab === 'records' && (
+        <div className="space-y-6">
+          {/* Unified Table View - New Section */}
+          <div className="space-y-6">
 
         {/* Unified Filters and Table */}
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -1321,6 +1357,8 @@ export const LendBorrowView: React.FC = () => {
           onClose={() => setPartialReturnRecord(null)}
           onUpdated={handlePartialReturnUpdated}
         />
+      )}
+        </div>
       )}
     </div>
   );

@@ -67,6 +67,17 @@ const HelpAndSupport: React.FC = () => {
           </div>
         </div>
 
+        {/* Admin Link - Only show in development */}
+        {import.meta.env.DEV && (
+          <div className="mb-6">
+            <a 
+              href="/admin" 
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors text-sm font-medium"
+            >
+              🛠️ Admin Panel (Dev Only)
+            </a>
+          </div>
+        )}
 
         {/* Product Tour Component */}
         {showTour && (

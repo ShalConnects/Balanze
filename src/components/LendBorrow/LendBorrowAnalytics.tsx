@@ -177,14 +177,15 @@ export const LendBorrowAnalytics: React.FC = () => {
     };
   }, [lendBorrowRecords, selectedCurrency]);
   
-  // Calculate KPIs
-  const totalLent = currentCurrencyAnalytics?.total_lent || 5000;
-  const totalBorrowed = currentCurrencyAnalytics?.total_borrowed || 2300;
-  const outstandingLent = currentCurrencyAnalytics?.outstanding_lent || 3200;
-  const outstandingBorrowed = currentCurrencyAnalytics?.outstanding_borrowed || 1500;
-  const overdueCount = analytics?.overdue_count || 1;
-  const activeLentCount = 3; // Dummy value
-  const activeBorrowedCount = 2; // Dummy value
+  // Calculate KPIs from real data
+  const currencyRecords = lendBorrowRecords.filter(r => r.currency === selectedCurrency);
+  const totalLent = currencyRecords.filter(r => r.type === 'lend').reduce((sum, r) => sum + r.amount, 0);
+  const totalBorrowed = currencyRecords.filter(r => r.type === 'borrow').reduce((sum, r) => sum + r.amount, 0);
+  const outstandingLent = currencyRecords.filter(r => r.type === 'lend' && r.status === 'active').reduce((sum, r) => sum + r.amount, 0);
+  const outstandingBorrowed = currencyRecords.filter(r => r.type === 'borrow' && r.status === 'active').reduce((sum, r) => sum + r.amount, 0);
+  const overdueCount = currencyRecords.filter(r => r.status === 'overdue').length;
+  const activeLentCount = currencyRecords.filter(r => r.type === 'lend' && r.status === 'active').length;
+  const activeBorrowedCount = currencyRecords.filter(r => r.type === 'borrow' && r.status === 'active').length;
   
   // Calculate net position and percentages
   const netPosition = totalLent - totalBorrowed;
@@ -229,6 +230,7 @@ export const LendBorrowAnalytics: React.FC = () => {
       {/* Header with Currency Selector and Quick Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Lent & Borrow Analytics</h1>
           <p className="text-gray-600 dark:text-gray-300">Comprehensive insights into your lending and borrowing activity</p>
         </div>
         <div className="flex items-center gap-4">
@@ -248,7 +250,9 @@ export const LendBorrowAnalytics: React.FC = () => {
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Handshake className="w-6 h-6 text-green-600 dark:text-green-400" />
+              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                <Handshake className="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
               <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Lent Out</span>
             </div>
           </div>
@@ -262,7 +266,9 @@ export const LendBorrowAnalytics: React.FC = () => {
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <CreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
               <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Borrowed</span>
             </div>
           </div>
@@ -276,11 +282,13 @@ export const LendBorrowAnalytics: React.FC = () => {
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              {isNetPositive ? (
-                <ThumbsUp className="w-6 h-6 text-green-600 dark:text-green-400" />
-              ) : (
-                <ThumbsDown className="w-6 h-6 text-red-600 dark:text-red-400" />
-              )}
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isNetPositive ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'}`}>
+                {isNetPositive ? (
+                  <ThumbsUp className="w-5 h-5 text-green-600 dark:text-green-400" />
+                ) : (
+                  <ThumbsDown className="w-5 h-5 text-red-600 dark:text-red-400" />
+                )}
+              </div>
               <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Net Position</span>
             </div>
           </div>
@@ -298,7 +306,9 @@ export const LendBorrowAnalytics: React.FC = () => {
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              <div className="w-8 h-8 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
               <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Overdue Loans</span>
             </div>
           </div>

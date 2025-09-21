@@ -72,8 +72,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
   // Create enhanced currency options with symbols and full names
   const enhancedCurrencyOptions = userCurrencyOptions.map(currency => ({
     value: currency,
-    label: `${currencyData[currency as keyof typeof currencyData]?.symbol || currency} ${currency} - ${currencyData[currency as keyof typeof currencyData]?.name || currency}`,
-    icon: currencyData[currency as keyof typeof currencyData]?.symbol || currency
+    label: `${currencyData[currency as keyof typeof currencyData]?.symbol || currency} ${currency} - ${currencyData[currency as keyof typeof currencyData]?.name || currency}`
   }));
 
   const [formData, setFormData] = useState({ ...initialValues });

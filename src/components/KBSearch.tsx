@@ -1,9 +1,12 @@
 // src/components/KBSearch.tsx
-import React, { useState, useMemo } from 'react';
-import { Search, BookOpen, ExternalLink, Clock, Tag, Home, Sun, Moon } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, BookOpen, ExternalLink, Clock, Tag, Home, Sun, Moon, User, X, History, TrendingUp, ThumbsUp, ThumbsDown, Clock as ClockIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { trackHelpCenter } from '../lib/analytics';
 import { useThemeStore } from '../store/themeStore';
+import { useAuthStore } from '../store/authStore';
+import { supabase } from '../lib/supabase';
+import { getUserReadingHistory, getUserArticleStats } from '../lib/articleHistory';
 import clsx from 'clsx';
 
 interface KBArticle {
@@ -21,8 +24,35 @@ interface KBSearchProps {
   className?: string;
 }
 
+interface ArticleReadingHistory {
+  id: string;
+  article_slug: string;
+  article_title: string;
+  article_category: string | null;
+  read_at: string;
+  time_spent_seconds: number;
+  feedback: boolean | null;
+  feedback_given_at: string | null;
+}
+
+interface UserBubbleProps {
+  userName: string;
+  userEmail: string;
+  userPicUrl: string | null;
+}
+
 // Mock KB articles - in production, this would come from your CMS/API
 const MOCK_ARTICLES: KBArticle[] = [
+  {
+    slug: 'settings-page-comprehensive-guide',
+    title: 'Complete Settings Page Guide',
+    description: 'Comprehensive guide to all Settings page tabs and features in Balanze',
+    category: 'Settings & Configuration',
+    tags: ['settings', 'configuration', 'account', 'preferences', 'categories', 'plans', 'last-wish'],
+    difficulty: 'beginner',
+    lastUpdated: '2024-01-15',
+    readTime: '12 min read'
+  },
   {
     slug: 'getting-started-guide',
     title: 'Getting Started with Balanze',
@@ -34,14 +64,44 @@ const MOCK_ARTICLES: KBArticle[] = [
     readTime: '5 min read'
   },
   {
+    slug: 'how-to-create-your-first-transfer',
+    title: 'How to Create Your First Transfer',
+    description: 'Complete guide to understanding and creating transfers between accounts, including Currency Transfer, DPS Transfer, and In-between Transfer',
+    category: 'Transfers',
+    tags: ['transfers', 'currency', 'dps', 'accounts', 'beginner'],
+    difficulty: 'beginner',
+    lastUpdated: '2024-01-15',
+    readTime: '8 min read'
+  },
+  {
     slug: 'create-first-account',
     title: 'How to Create Your First Account',
     description: 'Step-by-step guide to adding bank accounts, credit cards, and cash wallets',
     category: 'Accounts',
     tags: ['accounts', 'setup', 'banking'],
     difficulty: 'beginner',
-    lastUpdated: '2024-01-10',
-    readTime: '3 min read'
+    lastUpdated: new Date().toISOString().split('T')[0], // dynamically set to today
+    readTime: '6 min read' // updated based on content length
+  },
+  {
+    slug: 'create-first-transaction',
+    title: 'How to Create Your First Transaction',
+    description: 'Step-by-step guide to adding your first income and expense transactions',
+    category: 'Transactions',
+    tags: ['transactions', 'income', 'expenses', 'beginner'],
+    difficulty: 'beginner',
+    lastUpdated: '2024-01-15',
+    readTime: '4 min read'
+  },
+  {
+    slug: 'how-to-make-your-first-purchase',
+    title: 'How to Make Your First Purchase',
+    description: 'Learn how to use the Purchase feature to track planned purchases and manage your spending goals',
+    category: 'Transactions',
+    tags: ['purchase', 'spending', 'goals', 'transactions'],
+    difficulty: 'beginner',
+    lastUpdated: '2024-01-15',
+    readTime: '5 min read'
   },
   {
     slug: 'transaction-management',
@@ -64,26 +124,6 @@ const MOCK_ARTICLES: KBArticle[] = [
     readTime: '6 min read'
   },
   {
-    slug: 'analytics-dashboard',
-    title: 'Understanding Your Financial Analytics',
-    description: 'Make sense of your spending patterns, trends, and financial insights',
-    category: 'Analytics',
-    tags: ['analytics', 'reports', 'insights', 'charts'],
-    difficulty: 'intermediate',
-    lastUpdated: '2024-01-14',
-    readTime: '8 min read'
-  },
-  {
-    slug: 'transfer-between-accounts',
-    title: 'Transferring Money Between Accounts',
-    description: 'Move money between your accounts and track internal transfers',
-    category: 'Transfers',
-    tags: ['transfers', 'accounts', 'money-movement'],
-    difficulty: 'beginner',
-    lastUpdated: '2024-01-11',
-    readTime: '4 min read'
-  },
-  {
     slug: 'data-export-import',
     title: 'Exporting and Importing Financial Data',
     description: 'Export your data for tax preparation or import from other financial apps',
@@ -102,10 +142,238 @@ const MOCK_ARTICLES: KBArticle[] = [
     difficulty: 'beginner',
     lastUpdated: '2024-01-13',
     readTime: '5 min read'
+  },
+  {
+    slug: 'how-to-create-lent-borrow-records',
+    title: 'How to Create Lent & Borrow Records',
+    description: 'Learn how to track money you lend to others and money you borrow from others',
+    category: 'Premium Features',
+    tags: ['lent', 'borrow', 'loans', 'transactions', 'debt', 'premium'],
+    difficulty: 'beginner',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '5 min read'
+  },
+  {
+    slug: 'analytics-dashboard',
+    title: 'Understanding Your Financial Analytics Dashboard',
+    description: 'Comprehensive guide to all analytics features including main dashboard, purchase analytics, and lent-borrow analytics',
+    category: 'Analytics',
+    tags: ['analytics', 'dashboard', 'reports', 'insights', 'charts', 'purchases', 'lent-borrow'],
+    difficulty: 'intermediate',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '12 min read'
+  },
+  {
+    slug: 'how-to-create-your-first-income-expense-category',
+    title: 'How to Create Your First Income/Expense Category',
+    description: 'Complete guide to creating, customizing, and managing income and expense categories in Balanze',
+    category: 'Getting Started',
+    tags: ['categories', 'income', 'expense', 'organization', 'setup', 'beginner'],
+    difficulty: 'beginner',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '8 min read'
+  },
+  {
+    slug: 'how-to-use-last-wish',
+    title: 'How to Use Last Wish - Premium Digital Time Capsule',
+    description: 'Complete guide to setting up and using the Last Wish feature - your premium digital time capsule for financial legacy planning',
+    category: 'Premium Features',
+    tags: ['premium', 'last-wish', 'digital-time-capsule', 'legacy', 'financial-planning', 'advanced'],
+    difficulty: 'intermediate',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '8 min read'
   }
 ];
 
-const CATEGORIES = ['All', 'Getting Started', 'Accounts', 'Transactions', 'Analytics', 'Transfers', 'Advanced', 'Mobile'];
+const CATEGORIES = ['All', 'Getting Started', 'Accounts', 'Transactions', 'Analytics', 'Transfers', 'Advanced', 'Mobile', 'Premium Features'];
+
+const UserBubble: React.FC<UserBubbleProps> = ({ userName, userEmail, userPicUrl }) => {
+  const [showModal, setShowModal] = useState(false);
+  const [readingHistory, setReadingHistory] = useState<ArticleReadingHistory[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [articleStats, setArticleStats] = useState({
+    totalReads: 0,
+    helpfulCount: 0,
+    notHelpfulCount: 0,
+    noFeedbackCount: 0,
+    helpfulRate: 0,
+    totalTimeSpent: 0
+  });
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  // Generate initials from user name
+  const getInitials = (name: string) => {
+    const words = name.split(' ');
+    if (words.length >= 2) {
+      return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
+    }
+    return name.charAt(0).toUpperCase();
+  };
+
+  const initials = getInitials(userName);
+
+  // Load reading history and article stats when modal opens
+  useEffect(() => {
+    if (showModal) {
+      setLoadingHistory(true);
+      setLoadingStats(true);
+      
+      // Load reading history
+      getUserReadingHistory(5).then(history => {
+        setReadingHistory(history);
+        setLoadingHistory(false);
+      }).catch(error => {
+        console.error('Error loading reading history:', error);
+        setLoadingHistory(false);
+      });
+      
+      // Load article statistics
+      getUserArticleStats().then(stats => {
+        setArticleStats(stats);
+        setLoadingStats(false);
+      }).catch(error => {
+        console.error('Error loading article stats:', error);
+        setLoadingStats(false);
+      });
+    }
+  }, [showModal]);
+
+  const formatReadDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`;
+    if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  return (
+    <>
+      {/* User Icon Button */}
+      <button
+        onClick={() => setShowModal(true)}
+        className="w-9 h-9 bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center font-bold"
+        title="User Profile"
+      >
+        {userPicUrl ? (
+          <img
+            src={userPicUrl}
+            alt="Profile"
+            className="w-full h-full rounded-full object-cover"
+            onError={e => { 
+              (e.target as HTMLImageElement).style.display = 'none';
+              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+            }}
+          />
+        ) : null}
+        <span className={userPicUrl ? 'hidden' : ''}>{initials}</span>
+      </button>
+
+      {/* User Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                    {userPicUrl ? (
+                      <img
+                        src={userPicUrl}
+                        alt="Profile"
+                        className="w-full h-full rounded-full object-cover"
+                        onError={e => { 
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <span className={userPicUrl ? 'hidden' : ''}>{initials}</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{userName}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{userEmail}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+              {/* Article Statistics */}
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4" />
+                  Your Help Center Activity
+                </h4>
+                {loadingStats ? (
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Loading stats...</div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                      <div className="text-lg font-semibold text-gray-900 dark:text-white">{articleStats.totalReads}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Articles Read</div>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                      <div className="text-lg font-semibold text-gray-900 dark:text-white">{Math.round(articleStats.helpfulRate)}%</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Helpful Rate</div>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                      <div className="text-lg font-semibold text-gray-900 dark:text-white">{articleStats.helpfulCount}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Helpful Votes</div>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                      <div className="text-lg font-semibold text-gray-900 dark:text-white">{Math.round(articleStats.totalTimeSpent / 60)}m</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Time Spent</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Reading History */}
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                  <History className="w-4 h-4" />
+                  Recent Articles
+                </h4>
+                {loadingHistory ? (
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Loading history...</div>
+                ) : readingHistory.length === 0 ? (
+                  <div className="text-sm text-gray-500 dark:text-gray-400">No articles read yet</div>
+                ) : (
+                  <div className="space-y-2">
+                    {readingHistory.map((article) => (
+                      <div key={article.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {article.article_title}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                            <ClockIcon className="w-3 h-3" />
+                            {formatReadDate(article.read_at)} • {Math.round(article.time_spent_seconds / 60)}m read
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
 
 export default function KBSearch({ className }: KBSearchProps) {
   const [query, setQuery] = useState('');
@@ -113,6 +381,12 @@ export default function KBSearch({ className }: KBSearchProps) {
   const [showResults, setShowResults] = useState(false);
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useThemeStore();
+  const { user, profile } = useAuthStore();
+
+  const userName = profile?.fullName || user?.email?.split('@')[0] || 'User';
+  const userEmail = user?.email || '';
+  const userPicUrl = profile?.profilePicture ? 
+    supabase.storage.from('avatars').getPublicUrl(profile.profilePicture).data.publicUrl : null;
 
   const filteredArticles = useMemo(() => {
     let filtered = MOCK_ARTICLES;
@@ -242,6 +516,11 @@ export default function KBSearch({ className }: KBSearchProps) {
                 />
               )}
             </button>
+            <UserBubble 
+              userName={userName}
+              userEmail={userEmail}
+              userPicUrl={userPicUrl}
+            />
           </div>
         </div>
 
