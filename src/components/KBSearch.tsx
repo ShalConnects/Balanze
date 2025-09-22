@@ -144,16 +144,6 @@ const MOCK_ARTICLES: KBArticle[] = [
     readTime: '8 min read'
   },
   {
-    slug: 'mobile-app-features',
-    title: 'Using Balanze on Mobile Devices',
-    description: 'Access all features on your phone with our responsive web app',
-    category: 'Mobile',
-    tags: ['mobile', 'responsive', 'app'],
-    difficulty: 'beginner',
-    lastUpdated: '2024-01-13',
-    readTime: '5 min read'
-  },
-  {
     slug: 'how-to-create-lent-borrow-records',
     title: 'How to Create Lent & Borrow Records',
     description: 'Learn how to track money you lend to others and money you borrow from others',
@@ -212,10 +202,20 @@ const MOCK_ARTICLES: KBArticle[] = [
     difficulty: 'beginner',
     lastUpdated: new Date().toISOString().split('T')[0],
     readTime: '4 min read'
+  },
+  {
+    slug: 'notes-todo-comprehensive-guide',
+    title: 'Notes & To-Do Feature: Complete Guide',
+    description: 'Master the Notes and To-Do features in Balanze - organize your thoughts, track tasks, and boost productivity',
+    category: 'Productivity Features',
+    tags: ['notes', 'todo', 'tasks', 'productivity', 'organization', 'planning'],
+    difficulty: 'beginner',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '5 min read'
   }
 ];
 
-const CATEGORIES = ['All', 'Getting Started', 'Accounts', 'Transactions', 'Analytics', 'Transfers', 'Advanced', 'Mobile', 'Premium Features'];
+const CATEGORIES = ['All', 'Getting Started', 'Accounts', 'Transactions', 'Analytics', 'Transfers', 'Advanced', 'Premium Features', 'Productivity Features'];
 
 const UserBubble: React.FC<UserBubbleProps> = ({ userName, userEmail, userPicUrl }) => {
   const [showModal, setShowModal] = useState(false);
@@ -496,8 +496,8 @@ export default function KBSearch({ className }: KBSearchProps) {
             </div>
           </div>
           
-          {/* Action Icons */}
-          <div className="flex items-center gap-2">
+          {/* Action Icons - Hidden on mobile, shown on desktop */}
+          <div className="hidden sm:flex items-center gap-2">
             <button
               onClick={() => navigate('/')}
               className="p-2 text-gradient-primary hover:text-gradient-primary transition-colors duration-200 border border-gradient-primary/30 rounded-full hover:bg-gradient-primary/10"
@@ -552,6 +552,63 @@ export default function KBSearch({ className }: KBSearchProps) {
               userPicUrl={userPicUrl}
             />
           </div>
+        </div>
+        
+        {/* Mobile Action Icons - Bottom Row */}
+        <div className="flex sm:hidden items-center justify-center gap-4 py-3 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => navigate('/')}
+            className="p-3 text-gradient-primary hover:text-gradient-primary transition-colors duration-200 border border-gradient-primary/30 rounded-full hover:bg-gradient-primary/10"
+            title="Go to Home"
+          >
+            <Home 
+              className="w-6 h-6" 
+              style={{
+                background: isDarkMode 
+                  ? 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)'
+                  : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }} 
+            />
+          </button>
+          <button
+            onClick={toggleTheme}
+            className="p-3 text-gradient-primary hover:text-gradient-primary transition-colors duration-200 border border-gradient-primary/30 rounded-full hover:bg-gradient-primary/10"
+            title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {isDarkMode ? (
+              <Sun 
+                className="w-6 h-6" 
+                style={{
+                  background: isDarkMode 
+                    ? 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)'
+                    : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }} 
+              />
+            ) : (
+              <Moon 
+                className="w-6 h-6" 
+                style={{
+                  background: isDarkMode 
+                    ? 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)'
+                    : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }} 
+              />
+            )}
+          </button>
+          <UserBubble 
+            userName={userName}
+            userEmail={userEmail}
+            userPicUrl={userPicUrl}
+          />
         </div>
 
         {/* Search Input */}
