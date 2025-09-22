@@ -286,16 +286,6 @@ export const History: React.FC = () => {
   return (
     <div className="w-full h-full p-4 bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Activity History</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Track all your financial activities and changes</p>
-          </div>
-          <div className="flex items-center gap-3">
-          </div>
-        </div>
-
         {/* Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
           <StatCard

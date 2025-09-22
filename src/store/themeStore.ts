@@ -12,7 +12,7 @@ interface ThemeStore {
 export const useThemeStore = create<ThemeStore>()(
   persist(
     (set) => ({
-      isDarkMode: false,
+      isDarkMode: true,
       isSidebarCollapsed: false,
       toggleTheme: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
       toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
@@ -23,6 +23,8 @@ export const useThemeStore = create<ThemeStore>()(
       onRehydrateStorage: () => (state) => {
         if (state?.isDarkMode) {
           document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
         }
       },
     }

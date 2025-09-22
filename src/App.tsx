@@ -43,11 +43,13 @@ import { useNotificationStore } from './store/notificationStore';
 import { MobileSidebarProvider } from './context/MobileSidebarContext';
 import KBArticlePage from './pages/KBArticlePage';
 import AdminPage from './pages/AdminPage';
+import { useThemeStore } from './store/themeStore';
 
 function AppContent() {
   const user = useAuthStore((state) => state.user);
   const profile = useAuthStore((state) => state.profile);
   const checkAuthState = useAuthStore((state) => state.checkAuthState);
+  const { isDarkMode } = useThemeStore();
   const handleEmailConfirmation = useAuthStore((state) => state.handleEmailConfirmation);
   const [loading, setLoading] = useState(true);
   const initialized = useRef(false);
@@ -73,6 +75,15 @@ function AppContent() {
   };
   
 
+
+  // Initialize theme on app load
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     if (initialized.current) return;

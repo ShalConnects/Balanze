@@ -3304,6 +3304,1113 @@ const MOCK_ARTICLES: Record<string, KBArticle> = {
 </div>
 
 `
+  },
+  'donation-page-complete-guide': {
+    slug: 'donation-page-complete-guide',
+    title: 'Donation Page - Complete Guide',
+    description: 'Comprehensive guide to understanding and using the Donation page feature for tracking charitable giving and savings goals',
+    category: 'Transactions',
+    tags: ['donations', 'charity', 'savings', 'transactions', 'giving', 'tracking'],
+    difficulty: 'beginner',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '10 min read',
+    author: 'Balanze Team',
+    relatedArticles: ['create-first-transaction', 'transaction-management', 'how-to-make-your-first-purchase'],
+    tableOfContents: [
+      { id: 'overview', title: 'Donation Page Overview', level: 1 },
+      { id: 'accessing-donations', title: 'Accessing the Donation Page', level: 1 },
+      { 
+        id: 'understanding-donations', 
+        title: 'Understanding Donation Records', 
+        level: 1,
+        children: [
+          { id: 'automatic-donations', title: '- Automatic Donations from Income', level: 2 },
+          { id: 'manual-donations', title: '- Manual Donation Entry', level: 2 }
+        ]
+      },
+      { id: 'donation-modes', title: 'Donation Modes Explained', level: 1 },
+      { id: 'tracking-progress', title: 'Tracking Your Donation Progress', level: 1 },
+      { id: 'filters-search', title: 'Using Filters and Search', level: 1 },
+      { id: 'pro-tips', title: 'Pro Tips', level: 1 },
+      { id: 'need-help', title: 'Need Help?', level: 1 }
+    ],
+    content: `<div id="overview" class="mb-12">
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-8 leading-relaxed">
+    The Donation page in Balanze is a powerful feature that helps you track your charitable giving and savings goals. Whether you want to automatically donate a portion of your income or manually record donations, this comprehensive guide will show you how to make the most of this feature.
+  </p>
+
+  <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-6 rounded-r-lg mb-8">
+    <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-300 mb-2">What You'll Learn</h3>
+    <ul class="space-y-2 text-gray-700 dark:text-gray-300">
+      <li class="flex items-start">
+        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+        <span>How to access and navigate the Donation page</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+        <span>Understanding automatic vs manual donations</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+        <span>Setting up donation modes (fixed amount vs percentage)</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+        <span>Using filters, search, and analytics features</span>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div id="accessing-donations" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Accessing the Donation Page</h2>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    The Donation page is easily accessible from the main navigation. Here's how to get there:
+  </p>
+
+  <div class="space-y-4 text-gray-700 dark:text-gray-300">
+    <div class="flex items-start">
+      <span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-0">1</span>
+      <div>
+        <span>Look for the <strong>"Donations"</strong> option in profile card</span>
+        <img 
+          src="/donation_nav.png" 
+          alt='Screenshot showing the "Donations" option in the Balanze sidebar' 
+          class="w-1/2 max-w-md rounded-lg shadow-lg mt-4 ml-0"
+          style={{ marginLeft: 0 }}
+        />
+      </div>
+    </div>
+    <div class="flex items-start">
+      <span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-0">2</span>
+      <span>Click on <strong>"Donations"</strong> to open the Donation page</span>
+    </div>
+    <div class="flex items-start">
+      <span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-0">3</span>
+      <span>You'll see the main Donation dashboard with your donation records and analytics</span>
+    </div>
+  </div>
+</div>
+
+<div id="understanding-donations" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Understanding Donation Records</h2>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    Donation records in Balanze track your charitable giving and savings goals. Each record contains important information about your donation activity.
+  </p>
+
+  <div class="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-xl mb-8">
+    <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Key Components of a Donation Record</h3>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="space-y-4">
+        <div class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+          <div>
+            <strong>Transaction ID:</strong> If started with F(link to the original transaction), if started with M(link to the manual donation)
+          </div>
+        </div>
+        <div class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+          <div>
+            <strong>Original Amount:</strong> The donation amount in your selected currency
+          </div>
+        </div>
+        <div class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+          <div>
+            <strong>Mode:</strong> Fixed amount or percentage-based donation
+          </div>
+        </div>
+      </div>
+      <div class="space-y-4">
+        <div class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <div>
+            <strong>Date:</strong> When the donation was created or scheduled
+          </div>
+        </div>
+        <div class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <div>
+            <strong>Donation Amount:</strong> The amount of the donation
+          </div>
+        </div>
+        <div class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+          <div>
+            <strong>Status:</strong> Pending (planned) or Donated (completed)
+          </div>
+        </div>
+      </div>
+    <div class="col-span-2 flex justify-center mt-6">
+      <img
+        src="/donation_record_example.png"
+        alt="Example of a donation record in Balanze"
+        class="w-full max-w-md rounded-lg shadow-lg border border-gray-200 dark:border-gray-700"
+      />
+    </div>
+    </div>
+  </div>
+</div>
+
+<div id="automatic-donations" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Automatic Donations from Income</h2>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    One of the most powerful features of Balanze's donation system is the ability to automatically create donation records when you receive income. This helps you maintain consistent charitable giving habits.
+  </p>
+
+  <div class="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg mb-6">
+    <h3 class="text-xl font-semibold text-green-900 dark:text-green-300 mb-4">How Automatic Donations Work</h3>
+    <ol class="list-decimal ml-6 text-gray-700 dark:text-gray-300 space-y-2">
+      <li>When you create an <strong>income transaction</strong>, you can set up donation preferences</li>
+      <li>Choose between <strong>fixed amount</strong> or <strong>percentage</strong> donation mode</li>
+      <li>Enter the donation amount or percentage you want to give</li>
+      <li>Balanze automatically creates a donation record linked to that income transaction</li>
+      <li>The donation record starts as "pending" and can be marked as "donated" when you actually make the donation</li>
+    </ol>
+  <div class="mt-6 flex flex-col items-center">
+    <img
+      src="/automatic_donations_example.png"
+      alt="Example of automatic donation setup in income transaction"
+      class="w-full max-w-md rounded-lg shadow-lg border border-green-200 dark:border-green-700"
+    />
+  </div>
+  </div>
+
+</div>
+
+<div id="manual-donations" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Manual Donation Entry</h2>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    Sometimes you want to record donations that aren't tied to specific income transactions. Balanze allows you to manually enter donation records for any charitable giving you do.
+  </p>
+
+  <div class="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-lg mb-6">
+    <h3 class="text-xl font-semibold text-purple-900 dark:text-purple-300 mb-4">When to Use Manual Donations</h3>
+    <ul class="space-y-2 text-gray-700 dark:text-gray-300">
+      <li class="flex items-start">
+        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
+        <span>One-time charitable donations not tied to income</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
+        <span>Donations from savings or other non-income sources</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
+        <span>Retroactive recording of past donations</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
+        <span>Donations made in different currencies</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="space-y-4 text-gray-700 dark:text-gray-300">
+    <div class="flex items-start">
+      <span class="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-0">1</span>
+      <div>
+        <span>On the Donation page, click the <strong>"Quick Donate"</strong> button</span>
+        <img 
+          src="/manual_donation_button.png" 
+          alt='Screenshot showing the "Add Manual Donation" button' 
+          class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0"
+          style={{ marginLeft: 0 }}
+        />
+      </div>
+    </div>
+    <div class="flex items-start">
+      <span class="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-0">2</span>
+      <span>Fill in the donation details:
+        <ul class="mt-2 ml-4 space-y-1">
+          <li class="flex items-start">
+            <span class="text-purple-600 dark:text-purple-400 mr-2">•</span>
+            <span><strong>Amount:</strong> The donation amount</span>
+          </li>
+          <li class="flex items-start">
+            <span class="text-purple-600 dark:text-purple-400 mr-2">•</span>
+            <span><strong>Currency:</strong> Select the appropriate currency</span>
+          </li>
+          <li class="flex items-start">
+            <span class="text-purple-600 dark:text-purple-400 mr-2">•</span>
+            <span><strong>Notes:</strong> Optional description of the donation</span>
+          </li>
+        </ul>
+      </span>
+      <img
+        src="/manual_donation_form.png"
+        alt='Screenshot showing the "Manual Donation" form'
+        class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0"
+        style={{ marginLeft: 0 }}
+      />
+    </div>
+    <div class="flex items-start">
+      <span class="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-0">3</span>
+      <span>Click <strong>"Save"</strong> to create the manual donation record</span>
+    </div>
+  </div>
+</div>
+
+<div id="donation-modes" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Donation Modes Explained</h2>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    Balanze supports two different donation modes, each with its own advantages depending on your giving strategy.
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg">
+      <h3 class="text-xl font-semibold text-blue-900 dark:text-blue-300 mb-4">Fixed Amount Mode</h3>
+      <p class="text-gray-700 dark:text-gray-300 mb-4">
+        Donate a specific amount regardless of your income level. This provides predictable giving amounts.
+      </p>
+      <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+        <div class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-2 mt-1">✓</span>
+          <span>Predictable donation amounts</span>
+        </div>
+        <div class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-2 mt-1">✓</span>
+          <span>Easy to budget for</span>
+        </div>
+        <div class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-2 mt-1">✓</span>
+          <span>Good for consistent giving</span>
+        </div>
+      </div>
+      <div class="mt-4 p-3 bg-blue-100 dark:bg-blue-800/30 rounded">
+        <strong>Example:</strong> Always donate $100 from each paycheck
+      </div>
+    </div>
+
+    <div class="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg">
+      <h3 class="text-xl font-semibold text-green-900 dark:text-green-300 mb-4">Percentage Mode</h3>
+      <p class="text-gray-700 dark:text-gray-300 mb-4">
+        Donate a percentage of your income, so your giving scales with your earnings.
+      </p>
+      <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+        <div class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-2 mt-1">✓</span>
+          <span>Scales with income changes</span>
+        </div>
+        <div class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-2 mt-1">✓</span>
+          <span>Maintains giving ratio</span>
+        </div>
+        <div class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-2 mt-1">✓</span>
+          <span>Flexible for varying income</span>
+        </div>
+      </div>
+      <div class="mt-4 p-3 bg-green-100 dark:bg-green-800/30 rounded">
+        <strong>Example:</strong> Donate 10% of all income received
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tracking-progress" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Tracking Your Donation Progress</h2>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    The Donation page provides comprehensive tracking tools to help you monitor your charitable giving progress and stay on top of your donation goals.
+  </p>
+
+  <div class="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-xl mb-8">
+    <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Key Tracking Features</h3>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="space-y-4">
+        <div class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <div>
+            <strong>Donation Summary Cards:</strong> Quick overview of total donated, pending amounts, and recent activity
+          </div>
+        </div>
+        <div class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <div>
+            <strong>Status Tracking:</strong> Monitor which donations are pending vs. completed
+          </div>
+        </div>
+        <div class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <div>
+            <strong>Currency Breakdown:</strong> See donations by currency for multi-currency users
+          </div>
+        </div>
+      </div>
+      <div class="space-y-4">
+        <div class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+          <div>
+            <strong>Date Range Filtering:</strong> View donations by time periods (1 month, 3 months, etc.)
+          </div>
+        </div>
+        <div class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+          <div>
+            <strong>Mode Filtering:</strong> Filter by fixed amount or percentage donations
+          </div>
+        </div>
+        <div class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+          <div>
+            <strong>Export Options:</strong> Download donation data for tax purposes or record keeping
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mt-8 flex flex-col items-center">
+      <img
+        src="/donation_tracking_dashboard.png"
+        alt="Screenshot of the Donation Tracking Dashboard"
+        class="w-full max-w-2xl rounded-lg shadow-lg border border-gray-200 dark:border-gray-700"
+      />
+    </div>
+  </div>
+</div>
+
+<div id="filters-search" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Using Filters and Search</h2>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    The Donation page includes powerful filtering and search capabilities to help you find specific donation records quickly.
+  </p>
+
+  <div class="space-y-6">
+    <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-sm">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Available Filters</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="space-y-3">
+          <div class="flex items-start">
+            <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+            <div>
+              <strong>Mode Filter:</strong> Show all, fixed amount, or percentage donations
+            </div>
+          </div>
+          <div class="flex items-start">
+            <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+            <div>
+              <strong>Status Filter:</strong> View pending or completed donations
+            </div>
+          </div>
+        </div>
+        <div class="space-y-3">
+          <div class="flex items-start">
+            <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+            <div>
+              <strong>Currency Filter:</strong> Filter by specific currencies
+            </div>
+          </div>
+          <div class="flex items-start">
+            <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+            <div>
+              <strong>Date Range:</strong> 1 month, 3 months, 6 months, 1 year, or all time
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-sm">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Search Functionality</h3>
+      <p class="text-gray-700 dark:text-gray-300 mb-4">
+        Use the search bar to find donations by:
+      </p>
+      <ul class="space-y-2 text-gray-700 dark:text-gray-300">
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span>Transaction ID or custom transaction ID</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span>Donation amount</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span>Notes or descriptions</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span>Date information</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+    <div class="mt-8 flex flex-col items-center">
+      <img
+        src="/donation_filter.png"
+        alt="Screenshot showing the donation list with filters and search"
+        class="w-full max-w-2xl rounded-lg shadow-lg border border-gray-200 dark:border-gray-700"
+      />
+    </div>
+</div>
+
+<div id="pro-tips" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Pro Tips</h2>
+  
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl">
+      <h4 class="font-semibold text-blue-900 dark:text-blue-300 mb-3">Set Up Automatic Donations</h4>
+      <p class="text-gray-700 dark:text-gray-300">Enable donation tracking when creating income transactions to build consistent giving habits</p>
+    </div>
+    <div class="bg-green-50 dark:bg-green-900/20 p-6 rounded-xl">
+      <h4 class="font-semibold text-green-900 dark:text-green-300 mb-3">Use Percentage Mode</h4>
+      <p class="text-gray-700 dark:text-gray-300">Consider using percentage-based donations to maintain consistent giving ratios as your income changes</p>
+    </div>
+    <div class="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-xl">
+      <h4 class="font-semibold text-purple-900 dark:text-purple-300 mb-3">Regular Status Updates</h4>
+      <p class="text-gray-700 dark:text-gray-300">Mark donations as "donated" when you actually make the charitable contribution to keep accurate records</p>
+    </div>
+    <div class="bg-orange-50 dark:bg-orange-900/20 p-6 rounded-xl">
+      <h4 class="font-semibold text-orange-900 dark:text-orange-300 mb-3">Export for Taxes</h4>
+      <p class="text-gray-700 dark:text-gray-300">Use the export feature to download donation records for tax deduction purposes</p>
+    </div>
+    <div class="bg-red-50 dark:bg-red-900/20 p-6 rounded-xl">
+      <h4 class="font-semibold text-red-900 dark:text-red-300 mb-3">Multi-Currency Support</h4>
+      <p class="text-gray-700 dark:text-gray-300">Track donations in different currencies and use filters to view by specific currency</p>
+    </div>
+    <div class="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-xl">
+      <h4 class="font-semibold text-indigo-900 dark:text-indigo-300 mb-3">Add Detailed Notes</h4>
+      <p class="text-gray-700 dark:text-gray-300">Include notes about the charity or cause to maintain detailed records of your giving</p>
+    </div>
+  </div>
+</div>
+
+<div id="need-help" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Need Help?</h2>
+  
+  <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-6 rounded-r-lg">
+    <p class="text-gray-700 dark:text-gray-300 mb-4 font-medium">If you need additional assistance:</p>
+    <ul class="space-y-3 text-gray-700 dark:text-gray-300">
+      <li class="flex items-start">
+        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
+        <span>Use the search function in the help center to find related articles</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
+        <span>Check out our video tutorials for visual guidance</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
+        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
+        <span>Join our community forum for tips and discussions</span>
+      </li>
+    </ul>
+  </div>
+</div>
+
+`
+  },
+  'history-page-complete-guide': {
+    slug: 'history-page-complete-guide',
+    title: 'Activity History - Complete Guide',
+    description: 'Comprehensive guide to understanding and using the Activity History page for tracking all your account activities and changes',
+    category: 'Analytics',
+    tags: ['history', 'activity', 'audit-trail', 'tracking', 'timeline', 'changes'],
+    difficulty: 'beginner',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '4 min read',
+    author: 'Balanze Team',
+    relatedArticles: ['analytics-dashboard', 'getting-started-guide', 'create-first-transaction'],
+    tableOfContents: [
+      { id: 'features', title: 'Key Features', level: 1 },
+      { id: 'activity-timeline', title: 'Activity Timeline', level: 1 },
+      { id: 'filtering-options', title: 'Search & Filtering Options', level: 1 },
+      { id: 'pro-tips', title: 'Pro Tips', level: 1 },
+      { id: 'need-help', title: 'Need Help?', level: 1 }
+    ],
+    content: `<div id="history-overview" class="mb-12">
+
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-8 leading-relaxed">
+    The Activity History page in Balanze is your comprehensive audit trail, tracking every action you take across your financial data. From creating transactions to updating accounts, this powerful feature provides complete visibility into all changes and activities within your Balanze account.
+  </p>
+
+<img src="/activity_history_overview.png" alt="Balanze Activity History Page Overview" class="w-full max-w-3xl mx-auto rounded-lg shadow-lg mb-8" />
+
+</div>
+
+<div id="features" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Key Features</h2>
+  
+  <div class="grid md:grid-cols-2 gap-8 mb-8">
+    <div class="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-xl">
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">📊 Activity Statistics</h3>
+      <ul class="space-y-2 text-gray-700 dark:text-gray-300">
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">✓</span>
+          <span>Total activities counter</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">✓</span>
+          <span>Activity breakdown by type (Transactions, Purchases, Accounts, Transfers)</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">✓</span>
+          <span>Today and This Week activity counts</span>
+        </li>
+      </ul>
+    </div>
+    
+    <div class="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-xl">
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">🔍 Smart Filtering</h3>
+      <ul class="space-y-2 text-gray-700 dark:text-gray-300">
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">✓</span>
+          <span>Filter by entity type (Transaction, Purchase, Account, Transfer)</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">✓</span>
+          <span>Search across activity details and entity IDs</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">✓</span>
+          <span>Date-grouped timeline view</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div id="activity-timeline" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Activity Timeline</h2>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    The activity timeline is organized by date, showing all your actions chronologically. Each activity entry shows what was changed, when, and provides detailed information about the operation.
+  </p>
+
+  <div class="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-xl mb-8">
+    <h4 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Activity Types & Visual Indicators</h4>
+    
+    <div class="space-y-6">
+      <div>
+        <h5 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Activity Operations</h5>
+        <ul class="space-y-2 text-gray-700 dark:text-gray-300">
+          <li class="flex items-start">
+            <span class="text-green-600 dark:text-green-400 mr-3 mt-1">+</span>
+            <span><strong>CREATE</strong>: New items added (green background)</span>
+          </li>
+          <li class="flex items-start">
+            <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">✏</span>
+            <span><strong>UPDATE</strong>: Existing items modified (blue background)</span>
+          </li>
+          <li class="flex items-start">
+            <span class="text-red-600 dark:text-red-400 mr-3 mt-1">🗑</span>
+            <span><strong>DELETE</strong>: Items removed (red background)</span>
+          </li>
+        </ul>
+      </div>
+      
+      <div>
+        <h5 class="text-lg font-medium text-gray-900 dark:text-white mb-3">Entity Types</h5>
+        <ul class="space-y-2 text-gray-700 dark:text-gray-300">
+          <li class="flex items-start">
+            <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">💳</span>
+            <span><strong>Account</strong>: Bank accounts, credit cards, cash wallets</span>
+          </li>
+          <li class="flex items-start">
+            <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">💰</span>
+            <span><strong>Transaction</strong>: Income and expense records</span>
+          </li>
+          <li class="flex items-start">
+            <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">🛍️</span>
+            <span><strong>Purchase</strong>: Planned purchase tracking</span>
+          </li>
+          <li class="flex items-start">
+            <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">📊</span>
+            <span><strong>Transfer</strong>: Money movements between accounts</span>
+          </li>
+          <li class="flex items-start">
+            <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">🎯</span>
+            <span><strong>Savings Goal</strong>: Goal creation and updates</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="filtering-options" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Search & Filtering Options</h2>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    The Activity History page provides powerful search and filtering capabilities to help you find specific activities quickly.
+  </p>
+
+  <div class="grid md:grid-cols-2 gap-8 mb-8">
+    <div class="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-xl">
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Search Functionality</h3>
+      <ul class="space-y-2 text-gray-700 dark:text-gray-300">
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span>Search by entity ID or activity details</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span>Find specific activity types (CREATE, UPDATE, DELETE)</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span>Search within activity summaries and descriptions</span>
+        </li>
+      </ul>
+    </div>
+    
+    <div class="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-xl">
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Filter Options</h3>
+      <ul class="space-y-2 text-gray-700 dark:text-gray-300">
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span><strong>All</strong>: Show all activity types</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span><strong>Transaction</strong>: Only transaction-related activities</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span><strong>Purchase</strong>: Only purchase-related activities</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span><strong>Account</strong>: Only account-related activities</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span><strong>Transfer</strong>: Only transfer-related activities</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 mb-8">
+    <div class="flex items-start">
+      <div class="flex-shrink-0">
+        <svg class="h-6 w-6 text-yellow-600 dark:text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+      </div>
+      <div class="ml-3">
+        <h3 class="text-lg font-medium text-yellow-800 dark:text-yellow-200">Pro Tip</h3>
+        <p class="mt-1 text-yellow-700 dark:text-yellow-300">
+          Use the search function to quickly find activities related to specific transactions or accounts. You can search by entity IDs, descriptions, or activity types to locate exactly what you're looking for.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div id="pro-tips" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Pro Tips</h2>
+  
+  <div class="grid md:grid-cols-2 gap-8">
+    <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl">
+      <h3 class="text-xl font-semibold text-blue-900 dark:text-blue-100 mb-4">💡 Navigation Tips</h3>
+      <ul class="space-y-3 text-blue-800 dark:text-blue-200">
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span>Use the statistics cards at the top to get a quick overview of your activity levels</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span>Click on date headers to expand/collapse activity groups for better organization</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+          <span>Toggle "Show Details" to see entity IDs and copy them for reference</span>
+        </li>
+      </ul>
+    </div>
+    
+    <div class="bg-green-50 dark:bg-green-900/20 p-6 rounded-xl">
+      <h3 class="text-xl font-semibold text-green-900 dark:text-green-100 mb-4">🔍 Search & Filter Tips</h3>
+      <ul class="space-y-3 text-green-800 dark:text-green-200">
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+          <span>Filter by specific entity types to focus on particular activities (transactions, purchases, etc.)</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+          <span>Use the search bar to find activities by entity ID, description, or activity type</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+          <span>Export filtered results to CSV for external analysis or record-keeping</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+<div id="need-help" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Need Help?</h2>
+  
+  <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-6 rounded-r-lg">
+    <p class="text-gray-700 dark:text-gray-300 mb-4 font-medium">If you get stuck:</p>
+    <ul class="space-y-3 text-gray-700 dark:text-gray-300">
+      <li class="flex items-start">
+        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
+        <span>Use the search function in the help center</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
+        <span>Check out our video tutorials</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
+        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+      </li>
+    </ul>
+  </div>
+</div>
+
+`
+  },
+  'quote-feature-comprehensive-guide': {
+    slug: 'quote-feature-comprehensive-guide',
+    title: 'Complete Guide to the Quote Feature',
+    description: 'Comprehensive guide to understanding and using the motivational quote feature in Balanze, including favorites, categories, and customization options',
+    category: 'Features',
+    tags: ['quotes', 'motivation', 'favorites', 'personalization', 'dashboard', 'widgets'],
+    difficulty: 'beginner',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '10 min read',
+    author: 'Balanze Team',
+    relatedArticles: ['getting-started-guide', 'settings-page-comprehensive-guide', 'dashboard-overview'],
+    tableOfContents: [
+      { id: 'quote-overview', title: 'Quote Feature Overview', level: 1 },
+      { id: 'quote-widget', title: 'Motivational Quote Widget', level: 1 },
+
+      { id: 'favorite-quotes', title: 'Favorite Quotes System', level: 1 },
+      { id: 'quote-categories', title: 'Quote Categories', level: 1 },
+     
+      { id: 'customization', title: 'Customization Options', level: 1 },
+    
+      { id: 'pro-tips', title: 'Pro Tips', level: 1 }, 
+      { id: 'need-help', title: 'Need Help?', level: 1 }
+    ],
+    content: `<div id="quote-overview" class="mb-12">
+
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-8 leading-relaxed">
+    The Quote feature in Balanze provides daily motivation and inspiration through carefully curated quotes from successful entrepreneurs, financial experts, and thought leaders. This comprehensive guide will help you understand and make the most of this powerful motivational tool.
+  </p>
+
+  <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-6 mb-8">
+    <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">💡 What You'll Learn</h3>
+    <ul class="text-blue-800 dark:text-blue-200 space-y-1">
+      <li>• How the quote system works and refreshes automatically</li>
+      <li>• How to save and manage your favorite quotes</li>
+      <li>• Understanding quote categories and their purposes</li>
+      <li>• Customization options and widget management</li>
+      <li>• Troubleshooting common issues</li>
+    </ul>
+  </div>
+</div>
+
+<div id="quote-widget">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Motivational Quote Widget</h2>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    The main quote widget appears on your dashboard and provides daily inspiration. It's designed to motivate you on your financial journey with wisdom from successful individuals.
+  </p>
+
+  <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">Widget Features</h3>
+  
+  <div class="grid md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+      <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">🔄 Auto-Refresh</h4>
+      <p class="text-gray-700 dark:text-gray-300">
+        Quotes automatically refresh every 30 minutes to keep your motivation fresh and provide variety throughout the day.
+      </p>
+    </div>
+    
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+      <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">❤️ Favorite System</h4>
+      <p class="text-gray-700 dark:text-gray-300">
+        Save quotes that resonate with you by clicking the heart icon. Your favorites are stored securely and can be accessed anytime.
+      </p>
+    </div>
+    
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+      <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">🔄 Manual Refresh</h4>
+      <p class="text-gray-700 dark:text-gray-300">
+        Click the refresh button to get a new quote instantly without waiting for the automatic refresh cycle.
+      </p>
+    </div>
+    
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+      <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">📱 Responsive Design</h4>
+      <p class="text-gray-700 dark:text-gray-300">
+        The widget adapts beautifully to all screen sizes, ensuring you get inspiration whether you're on desktop or mobile.
+      </p>
+    </div>
+  <div class="flex items-center justify-center mt-4 md:col-span-2">
+    <img
+      src="/quote-widget-example.png"
+      alt="Motivational Quote Widget Example"
+      class="rounded-lg shadow-lg max-w-full h-auto border border-gray-200 dark:border-gray-700"
+    />
+  </div>
+  </div>
+
+  <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">Widget Controls</h3>
+  
+  <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mb-8">
+    <ul class="space-y-3 text-gray-700 dark:text-gray-300">
+      <li class="flex items-start">
+        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-heart w-4 h-4 transition-colors text-gray-400 group-hover:text-red-500 dark:group-hover:text-red-400"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg>
+        </span>
+        <span><strong>Heart Icon</strong>: Add or remove quotes from your favorites</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw w-4 h-4 text-purple-600 dark:text-purple-400 group-hover:rotate-180 transition-transform"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>
+        </span>
+        <span><strong>Refresh Icon</strong>: Get a new quote immediately</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x w-4 h-4"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </span>
+        <span><strong>Close Button</strong>: Hide the quote widget (can be restored in settings)</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-external-link w-4 h-4 text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+        </span>
+        <span>
+          <strong>External Link Icon</strong>: Opens your dedicated Favorite Quotes page, where you can view and manage all your saved quotes.
+        </span>
+      </li>
+    </ul>
+  </div>
+</div>
+<div id="favorite-quotes">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Favorite Quotes System</h2>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    The favorite quotes system allows you to build a personal collection of inspirational quotes that resonate with your financial journey and personal growth goals.
+  </p>
+
+  <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">How to Save Favorites</h3>
+  
+  <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
+    <ol class="space-y-3 text-gray-700 dark:text-gray-300">
+      <li class="flex items-start">
+        <span class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mr-3 mt-0.5">1</span>
+        <span>
+          When you see a quote that inspires you, click the heart icon 
+          <svg class="inline w-5 h-5 text-red-600 dark:text-red-400 mx-1" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"/>
+          </svg>
+          in the quote widget
+        </span>
+      </li>
+      <li class="flex items-start">
+        <span class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mr-3 mt-0.5">2</span>
+        <span>The heart will turn solid purple, indicating the quote has been saved</span>
+      </li>
+      <li class="flex items-start">
+        <span class="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mr-3 mt-0.5">3</span>
+        <span>Your favorite quotes are automatically categorized and stored securely</span>
+      </li>
+    </ol>
+  </div>
+
+  <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">Managing Your Favorites</h3>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    Your favorite quotes are stored in the database and associated with your account. This means:
+  </p>
+
+  <ul class="space-y-3 text-gray-700 dark:text-gray-300 mb-8">
+    <li class="flex items-start">
+      <span class="text-green-600 dark:text-green-400 mr-3 mt-1">✓</span>
+      <span><strong>Persistent Storage</strong>: Your favorites are saved permanently and won't be lost</span>
+    </li>
+    <li class="flex items-start">
+      <span class="text-green-600 dark:text-green-400 mr-3 mt-1">✓</span>
+      <span><strong>Cross-Device Access</strong>: Access your favorites from any device where you're logged in</span>
+    </li>
+    <li class="flex items-start">
+      <span class="text-green-600 dark:text-green-400 mr-3 mt-1">✓</span>
+      <span><strong>Automatic Categorization</strong>: Quotes are automatically sorted into relevant categories</span>
+    </li>
+    <li class="flex items-start">
+      <span class="text-green-600 dark:text-green-400 mr-3 mt-1">✓</span>
+      <span><strong>Duplicate Prevention</strong>: The system prevents saving the same quote multiple times</span>
+    </li>
+  </ul>
+</div>
+
+<div id="quote-categories">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Quote Categories</h2>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    Quotes in Balanze are organized into four main categories, each designed to provide specific types of motivation and inspiration for your financial journey.
+  </p>
+
+  <div class="grid md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-700 rounded-lg p-6">
+      <h3 class="text-xl font-semibold text-green-900 dark:text-green-100 mb-3">💰 Financial</h3>
+      <p class="text-green-800 dark:text-green-200 mb-4">
+        Quotes focused on money management, investment wisdom, and financial success from renowned investors and financial experts.
+      </p>
+      <div class="text-sm text-green-700 dark:text-green-300">
+        <strong>Examples:</strong> Warren Buffett, Robert Kiyosaki, Dave Ramsey
+      </div>
+    </div>
+    
+    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-6">
+      <h3 class="text-xl font-semibold text-blue-900 dark:text-blue-100 mb-3">🚀 Motivation</h3>
+      <p class="text-blue-800 dark:text-blue-200 mb-4">
+        Inspirational quotes to boost your daily motivation and help you stay focused on your goals and aspirations.
+      </p>
+      <div class="text-sm text-blue-700 dark:text-blue-300">
+        <strong>Examples:</strong> Zig Ziglar, Tony Robbins, motivational speakers
+      </div>
+    </div>
+    
+    <div class="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border border-purple-200 dark:border-purple-700 rounded-lg p-6">
+      <h3 class="text-xl font-semibold text-purple-900 dark:text-purple-100 mb-3">🏆 Success</h3>
+      <p class="text-purple-800 dark:text-purple-200 mb-4">
+        Wisdom from successful entrepreneurs and leaders about achieving goals and building lasting success.
+      </p>
+      <div class="text-sm text-purple-700 dark:text-purple-300">
+        <strong>Examples:</strong> Steve Jobs, Elon Musk, successful business leaders
+      </div>
+    </div>
+    
+    <div class="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-6">
+      <h3 class="text-xl font-semibold text-amber-900 dark:text-amber-100 mb-3">🧠 Wisdom</h3>
+      <p class="text-amber-800 dark:text-amber-200 mb-4">
+        Timeless wisdom and life lessons from philosophers, spiritual leaders, and wise individuals throughout history.
+      </p>
+      <div class="text-sm text-amber-700 dark:text-amber-300">
+        <strong>Examples:</strong> Dalai Lama, ancient philosophers, spiritual teachers
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div id="customization">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Customization Options</h2>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    The quote feature offers several customization options to fit your preferences and workflow.
+  </p>
+
+  <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">Widget Visibility</h3>
+  
+  <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
+    <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Hide/Show Quote Widget</h4>
+    <p class="text-gray-700 dark:text-gray-300 mb-4">
+      You can hide the quote widget if you prefer a cleaner dashboard or if you find it distracting.
+    </p>
+    
+    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-2"><strong>To hide the widget:</strong></p>
+      <ol class="text-sm text-gray-700 dark:text-gray-300 space-y-1 ml-4">
+        <li>1. Click the "X" button in the top-right corner of the quote widget</li>
+        <li>2. The widget will be hidden from your dashboard</li>
+        <li>3. Your preference is saved automatically</li>
+      </ol>
+    <img
+      src="/hide-quote-widget.png"
+      alt="Screenshot showing how to hide the quote widget"
+      class="rounded-lg border border-gray-200 dark:border-gray-600 mb-4 w-full max-w-md"
+    />
+    </div>
+    
+    <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mt-4">
+      <p class="text-sm text-blue-800 dark:text-blue-200">
+        <strong>💡 Tip:</strong> You can restore the widget anytime by going to your Settings page and enabling it again.
+      </p><br>
+    <img
+      src="/settings-restore-quote-widget.png"
+      alt="Screenshot showing how to restore the quote widget in settings"
+      class="rounded-lg border border-gray-200 dark:border-gray-600 mb-4 w-1/2 max-w-md"
+    />
+    <img
+      src="/settings-quote-widget-toggle.png"
+      alt="Settings page toggle for quote widget visibility"
+      class="rounded-lg border border-gray-200 dark:border-gray-600 w-full max-w-md"
+    />
+    </div>
+  </div>
+
+</div>
+
+<div id="pro-tips">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Pro Tips</h2>
+  
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    Make the most of the quote feature with these expert tips and best practices.
+  </p>
+
+  <div class="grid md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border border-purple-200 dark:border-purple-700 rounded-lg p-6">
+      <h3 class="text-xl font-semibold text-purple-900 dark:text-purple-100 mb-3">💡 Daily Inspiration</h3>
+      <p class="text-purple-800 dark:text-purple-200">
+        Start your day by checking the quote widget. The 30-minute refresh cycle means you'll see multiple inspiring quotes throughout your workday, keeping your motivation high.
+      </p>
+    </div>
+    
+    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-6">
+      <h3 class="text-xl font-semibold text-blue-900 dark:text-blue-100 mb-3">📚 Build Your Library</h3>
+      <p class="text-blue-800 dark:text-blue-200">
+        Actively save quotes that resonate with you. Over time, you'll build a personal collection of wisdom that reflects your values and goals.
+      </p>
+    </div>
+    
+    <div class="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-700 rounded-lg p-6">
+      <h3 class="text-xl font-semibold text-green-900 dark:text-green-100 mb-3">🎯 Goal Alignment</h3>
+      <p class="text-green-800 dark:text-green-200">
+        Pay attention to quote categories. Financial quotes can reinforce your money management goals, while success quotes can motivate you during challenging times.
+      </p>
+    </div>
+    
+  </div>
+
+</div>
+<div id="need-help" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Need Help?</h2>
+  
+  <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-6 rounded-r-lg">
+    <p class="text-gray-700 dark:text-gray-300 mb-4 font-medium">If you get stuck:</p>
+    <ul class="space-y-3 text-gray-700 dark:text-gray-300">
+      <li class="flex items-start">
+        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
+        <span>Use the search function in the help center</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
+        <span>Check out our video tutorials</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
+        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+      </li>
+    </ul>
+  </div>
+</div>
+
+
+
+`
   }
 };
 

@@ -117,6 +117,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'about': return 'About';
       case 'donations': return 'Donations';
       case 'favorite-quotes': return 'Favorite Quotes';
+      case 'history': return 'Activity History';
       default: return 'Dashboard';
     }
   };
@@ -168,7 +169,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                       ? 'Track and manage all your purchases.'
                       : currentView === 'lent-borrow'
                         ? 'Track and manage all your lending and borrowing activities'
-                        : undefined
+                        : currentView === 'history'
+                          ? 'Track all your financial activities and changes'
+                          : undefined
             )}
           />
           <main className="flex-1 p-1 sm:p-2 lg:p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 max-w-full">

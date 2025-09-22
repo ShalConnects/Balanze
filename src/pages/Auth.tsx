@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
 import { LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-import { Home } from 'lucide-react';
 import InteractiveBackground from '../components/InteractiveBackground';
 
 
@@ -63,13 +61,13 @@ const SocialButton: React.FC<{
   provider: 'google';
   onClick: () => void;
   isLoading?: boolean;
-}> = ({ provider, onClick, isLoading = false }) => {
+}> = ({ onClick, isLoading = false }) => {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={isLoading}
-      className={`flex items-center justify-center w-full px-4 py-3 text-sm font-medium transition-all duration-200 shadow-sm rounded-lg text-gray-700 bg-white/90 backdrop-blur-sm border border-gray-300 hover:bg-white/95 dark:bg-gray-800/90 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800/95 ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-md'}`}
+      className={`flex items-center justify-center w-full px-4 py-3 text-sm font-medium transition-all duration-200 shadow-lg rounded-xl text-gray-700 bg-white/20 backdrop-blur-md border border-white/30 hover:bg-white/30 dark:bg-gray-800/20 dark:border-gray-600/30 dark:text-gray-300 dark:hover:bg-gray-800/30 ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-xl'}`}
     >
       {isLoading ? (
         <div className="flex items-center">
@@ -167,11 +165,6 @@ export const Auth: React.FC = () => {
     return '';
   };
 
-  // Handle email input for signup step 1
-  const handleEmailChange = (value: string) => {
-    setEmail(value);
-    setEmailError(validateEmail(value));
-  };
 
   // Handle continue button for signup step 1
   const handleContinue = () => {
@@ -348,12 +341,12 @@ export const Auth: React.FC = () => {
       
       <div className="relative z-10 w-full max-w-md">
         {/* Tab Switcher */}
-        <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-xl shadow-xl p-6 mb-6 border border-white/20 dark:border-gray-700/50">
+        <div className="relative glassmorphism-container rounded-2xl p-6 mb-6">
           {/* Home Icon - Positioned in center of top border */}
           <div className="absolute -top-6 left-1/2 transform -translate-x-1/2">
             <button
               onClick={() => navigate('/')}
-              className="p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 transition-all duration-200 rounded-full shadow-sm hover:shadow-md"
+              className="p-3 bg-white/20 dark:bg-gray-800/20 backdrop-blur-md border border-white/30 dark:border-gray-700/30 transition-all duration-200 rounded-full shadow-lg hover:shadow-xl hover:bg-white/30 dark:hover:bg-gray-800/30"
               title="Go to Home"
             >
               <div className="w-5 h-5">
@@ -382,7 +375,7 @@ export const Auth: React.FC = () => {
             </div>
             <button
               onClick={() => useThemeStore.getState().toggleTheme()}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 border border-gray-300/50 dark:border-gray-600/50 rounded-full hover:bg-gray-50/50 dark:hover:bg-gray-700/50"
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-200 border border-white/30 dark:border-gray-700/30 rounded-full hover:bg-white/20 dark:hover:bg-gray-800/20 backdrop-blur-sm"
               title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {isDarkMode ? (
@@ -397,7 +390,7 @@ export const Auth: React.FC = () => {
             </button>
           </div>
           
-          <div className="flex bg-gray-100/50 dark:bg-gray-700/50 rounded-lg p-1 mb-6">
+          <div className="flex bg-white/10 dark:bg-gray-800/10 backdrop-blur-sm rounded-lg p-1 mb-6 border border-white/20 dark:border-gray-700/20">
             <button
               onClick={() => {
                 setActiveTab('login');
@@ -413,8 +406,8 @@ export const Auth: React.FC = () => {
               }}
               className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-all duration-200 ${
                 activeTab === 'login'
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-white/30 dark:bg-gray-600/30 backdrop-blur-sm text-gray-900 dark:text-white shadow-sm border border-white/20 dark:border-gray-700/20'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/10 dark:hover:bg-gray-800/10'
               }`}
             >
               Log In
@@ -434,8 +427,8 @@ export const Auth: React.FC = () => {
               }}
               className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-all duration-200 ${
                 activeTab === 'signup'
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-white/30 dark:bg-gray-600/30 backdrop-blur-sm text-gray-900 dark:text-white shadow-sm border border-white/20 dark:border-gray-700/20'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/10 dark:hover:bg-gray-800/10'
               }`}
             >
               Sign Up
@@ -453,10 +446,10 @@ export const Auth: React.FC = () => {
 
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300/50 dark:border-gray-600/50" />
+              <div className="w-full border-t border-white/20 dark:border-gray-600/20" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white/90 dark:bg-gray-800/90 text-gray-500 dark:text-gray-400">
+              <span className="px-4 py-1 glassmorphism-container rounded-full text-gray-600 dark:text-gray-300 text-xs font-medium backdrop-blur-sm">
                 Or continue with email
               </span>
             </div>
@@ -514,10 +507,10 @@ export const Auth: React.FC = () => {
                   }}
                   onKeyDown={e => handleKeyDown(e)}
                   placeholder="Email address"
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm ${
+                  className={`w-full px-4 py-3 glassmorphism-input rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent ${
                     emailError
-                      ? 'border-red-300 dark:border-red-600 bg-red-50/80 dark:bg-red-900/20'
-                      : 'border-gray-300/50 dark:border-gray-600/50'
+                      ? 'border-red-300/50 dark:border-red-600/50 bg-red-50/20 dark:bg-red-900/10'
+                      : ''
                   }`}
                   aria-invalid={!!emailError}
                   aria-describedby={emailError ? 'login-email-error' : undefined}
@@ -545,10 +538,10 @@ export const Auth: React.FC = () => {
                     }}
                     onKeyDown={e => handleKeyDown(e)}
                     placeholder="Password"
-                    className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm ${
+                    className={`w-full px-4 py-3 pr-12 glassmorphism-input rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent ${
                       passwordError
-                        ? 'border-red-300 dark:border-red-600 bg-red-50/80 dark:bg-red-900/20'
-                        : 'border-gray-300/50 dark:border-gray-600/50'
+                        ? 'border-red-300/50 dark:border-red-600/50 bg-red-50/20 dark:bg-red-900/10'
+                        : ''
                     }`}
                     aria-invalid={!!passwordError}
                     aria-describedby={passwordError ? 'login-password-error' : undefined}
@@ -574,16 +567,23 @@ export const Auth: React.FC = () => {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <input
-                    id="remember-me"
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                    Remember me
-                  </label>
+                  <div className="relative flex items-center">
+                    <input
+                      id="remember-me"
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500/50 border-white/30 dark:border-gray-600/30 rounded glassmorphism-input appearance-none checked:bg-gradient-primary checked:border-transparent"
+                    />
+                    {rememberMe && (
+                      <svg className="absolute top-0 left-0 h-4 w-4 text-white pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                    <label htmlFor="remember-me" className="ml-3 text-sm text-gray-700 dark:text-gray-300 font-medium cursor-pointer">
+                      Remember me
+                    </label>
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -599,7 +599,7 @@ export const Auth: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full flex items-center justify-center px-4 py-3 text-sm font-medium text-white bg-gradient-primary border border-transparent rounded-lg hover:bg-gradient-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus-ring-gradient transition-all duration-200 shadow-lg"
+                className="w-full flex items-center justify-center px-4 py-3 text-sm font-medium text-white glassmorphism-button rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus-ring-gradient"
               >
                 <LockClosedIcon className="w-4 h-4 mr-2" />
                 Sign In
@@ -632,10 +632,10 @@ export const Auth: React.FC = () => {
                         }
                       }}
                       placeholder="Enter your email"
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm ${
+                      className={`w-full px-4 py-3 glassmorphism-input rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent ${
                         emailError
-                          ? 'border-red-300 dark:border-red-600 bg-red-50/80 dark:bg-red-900/20'
-                          : 'border-gray-300/50 dark:border-gray-600/50'
+                          ? 'border-red-300/50 dark:border-red-600/50 bg-red-50/20 dark:bg-red-900/10'
+                          : ''
                       }`}
                       aria-invalid={!!emailError}
                       aria-describedby={emailError ? 'signup-email-error' : undefined}
@@ -650,7 +650,7 @@ export const Auth: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleContinue}
-                    className="w-full px-4 py-3 text-sm font-medium text-white bg-gradient-primary border border-transparent rounded-lg hover:bg-gradient-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus-ring-gradient transition-all duration-200 shadow-lg"
+                    className="w-full px-4 py-3 text-sm font-medium text-white glassmorphism-button rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus-ring-gradient"
                   >
                     Continue
                   </button>
@@ -675,10 +675,10 @@ export const Auth: React.FC = () => {
                       }}
                       onKeyDown={e => handleKeyDown(e, passwordRef)}
                       placeholder="Full name"
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm ${
+                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200 bg-white/20 dark:bg-gray-700/20 backdrop-blur-md ${
                         nameError
-                          ? 'border-red-300 dark:border-red-600 bg-red-50/80 dark:bg-red-900/20'
-                          : 'border-gray-300/50 dark:border-gray-600/50'
+                          ? 'border-red-300/50 dark:border-red-600/50 bg-red-50/20 dark:bg-red-900/10'
+                          : 'border-white/30 dark:border-gray-600/30 hover:bg-white/30 dark:hover:bg-gray-700/30'
                       }`}
                       aria-invalid={!!nameError}
                       aria-describedby={nameError ? 'signup-name-error' : undefined}
@@ -706,10 +706,10 @@ export const Auth: React.FC = () => {
                         }}
                         onKeyDown={e => handleKeyDown(e)}
                         placeholder="Create a password"
-                        className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm ${
+                        className={`w-full px-4 py-3 pr-12 border rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200 bg-white/20 dark:bg-gray-700/20 backdrop-blur-md ${
                           passwordError
-                            ? 'border-red-300 dark:border-red-600 bg-red-50/80 dark:bg-red-900/20'
-                            : 'border-gray-300/50 dark:border-gray-600/50'
+                            ? 'border-red-300/50 dark:border-red-600/50 bg-red-50/20 dark:bg-red-900/10'
+                            : 'border-white/30 dark:border-gray-600/30 hover:bg-white/30 dark:hover:bg-gray-700/30'
                         }`}
                         aria-invalid={!!passwordError}
                         aria-describedby={passwordError ? 'signup-password-error' : undefined}
@@ -743,7 +743,7 @@ export const Auth: React.FC = () => {
 
                   <button
                     type="submit"
-                    className="w-full flex items-center justify-center px-4 py-3 text-sm font-medium text-white bg-gradient-primary border border-transparent rounded-lg hover:bg-gradient-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus-ring-gradient transition-all duration-200 shadow-lg"
+                    className="w-full flex items-center justify-center px-4 py-3 text-sm font-medium text-white glassmorphism-button rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus-ring-gradient"
                   >
                     <LockClosedIcon className="w-4 h-4 mr-2" />
                     Create Account
@@ -787,10 +787,10 @@ export const Auth: React.FC = () => {
                     }
                   }}
                   placeholder="Enter your email address"
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm ${
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200 bg-white/20 dark:bg-gray-700/20 backdrop-blur-md ${
                     emailError
-                      ? 'border-red-300 dark:border-red-600 bg-red-50/80 dark:bg-red-900/20'
-                      : 'border-gray-300/50 dark:border-gray-600/50'
+                      ? 'border-red-300/50 dark:border-red-600/50 bg-red-50/20 dark:bg-red-900/10'
+                      : 'border-white/30 dark:border-gray-600/30 hover:bg-white/30 dark:hover:bg-gray-700/30'
                   }`}
                   aria-invalid={!!emailError}
                   aria-describedby={emailError ? 'forgot-email-error' : undefined}
@@ -833,7 +833,7 @@ export const Auth: React.FC = () => {
                 type="button"
                 onClick={handleForgotPassword}
                 disabled={isLoading || !email}
-                className="w-full flex items-center justify-center px-4 py-3 text-sm font-medium text-white bg-gradient-primary border border-transparent rounded-lg hover:bg-gradient-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus-ring-gradient transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center px-4 py-3 text-sm font-medium text-white bg-gradient-primary border border-transparent rounded-xl hover:bg-gradient-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus-ring-gradient transition-all duration-200 shadow-xl backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <>

@@ -134,6 +134,16 @@ const MOCK_ARTICLES: KBArticle[] = [
     readTime: '10 min read'
   },
   {
+    slug: 'quote-feature-comprehensive-guide',
+    title: 'Complete Guide to the Quote Feature',
+    description: 'Comprehensive guide to understanding and using the motivational quote feature in Balanze, including favorites, categories, and customization options',
+    category: 'Features',
+    tags: ['quotes', 'motivation', 'favorites', 'personalization', 'dashboard', 'widgets'],
+    difficulty: 'beginner',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '8 min read'
+  },
+  {
     slug: 'mobile-app-features',
     title: 'Using Balanze on Mobile Devices',
     description: 'Access all features on your phone with our responsive web app',
@@ -182,6 +192,26 @@ const MOCK_ARTICLES: KBArticle[] = [
     difficulty: 'intermediate',
     lastUpdated: new Date().toISOString().split('T')[0],
     readTime: '8 min read'
+  },
+  {
+    slug: 'donation-page-complete-guide',
+    title: 'Donation Page - Complete Guide',
+    description: 'Comprehensive guide to understanding and using the Donation page feature for tracking charitable giving and savings goals',
+    category: 'Transactions',
+    tags: ['donations', 'charity', 'savings', 'transactions', 'giving', 'tracking'],
+    difficulty: 'beginner',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '10 min read'
+  },
+  {
+    slug: 'history-page-complete-guide',
+    title: 'Activity History - Complete Guide',
+    description: 'Comprehensive guide to understanding and using the Activity History page for tracking all your account activities and changes',
+    category: 'Analytics',
+    tags: ['history', 'activity', 'audit-trail', 'tracking', 'timeline', 'changes'],
+    difficulty: 'beginner',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '4 min read'
   }
 ];
 

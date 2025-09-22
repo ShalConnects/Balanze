@@ -67,11 +67,21 @@ const InteractiveBackground: React.FC = () => {
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Create gradient background
+      // Create warm gradient background similar to reference image
       const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      gradient.addColorStop(0, isDarkMode ? '#1e293b' : '#f8fafc');
-      gradient.addColorStop(0.5, isDarkMode ? '#334155' : '#e2e8f0');
-      gradient.addColorStop(1, isDarkMode ? '#475569' : '#cbd5e1');
+      if (isDarkMode) {
+        // Dark mode: deeper, richer colors
+        gradient.addColorStop(0, '#7c2d12'); // Warm orange-red
+        gradient.addColorStop(0.3, '#be185d'); // Pink-magenta
+        gradient.addColorStop(0.7, '#7c3aed'); // Purple
+        gradient.addColorStop(1, '#581c87'); // Deep purple
+      } else {
+        // Light mode: softer, warmer colors
+        gradient.addColorStop(0, '#fed7aa'); // Light peach
+        gradient.addColorStop(0.3, '#f9a8d4'); // Light pink
+        gradient.addColorStop(0.7, '#c084fc'); // Light purple
+        gradient.addColorStop(1, '#a855f7'); // Medium purple
+      }
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -108,13 +118,18 @@ const InteractiveBackground: React.FC = () => {
         ctx.save();
         ctx.globalAlpha = particle.opacity;
         
-        // Use gradient colors for particles
+        // Use warm gradient colors for particles that complement the background
         const particleGradient = ctx.createRadialGradient(
           particle.x, particle.y, 0,
           particle.x, particle.y, particle.size
         );
-        particleGradient.addColorStop(0, '#3b82f6'); // blue-600
-        particleGradient.addColorStop(1, '#9333ea'); // purple-600
+        if (isDarkMode) {
+          particleGradient.addColorStop(0, '#fbbf24'); // Warm amber
+          particleGradient.addColorStop(1, '#ec4899'); // Pink
+        } else {
+          particleGradient.addColorStop(0, '#f59e0b'); // Amber
+          particleGradient.addColorStop(1, '#d946ef'); // Magenta
+        }
         ctx.fillStyle = particleGradient;
 
         if (particle.type === 'circle') {
