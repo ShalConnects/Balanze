@@ -146,9 +146,16 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
     try {
       const priceId = getPaddlePriceId();
       
-      if (paddle && paddle.Checkout) {
+      // For sandbox, directly use URL method due to consistent overlay issues
+      if (PADDLE_ENVIRONMENT === 'sandbox') {
+        console.log('Using direct URL for sandbox environment');
+        const checkoutUrl = `https://sandbox-buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
+        window.open(checkoutUrl, '_blank');
+        setLoading(false);
+        toast.success('Opening checkout in new tab...');
+      } else if (paddle && paddle.Checkout) {
         try {
-          // Use Paddle.js v2 Checkout.open with better error handling
+          // Use Paddle.js v2 Checkout.open for production
           const checkoutResult = paddle.Checkout.open({
             items: [{ priceId, quantity: 1 }],
             customer: {
@@ -166,10 +173,10 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
               locale: 'en',
               allowLogout: false,
               showAddTaxId: false,
-              showAddDiscounts: false,
-              successUrl: window.location.origin + '/settings?tab=plans-usage&payment=success',
-              cancelUrl: window.location.origin + '/settings?tab=plans-usage&payment=cancelled'
-            }
+              showAddDiscounts: false
+            },
+            successUrl: window.location.origin + '/settings?tab=plans-usage&payment=success',
+            cancelUrl: window.location.origin + '/settings?tab=plans-usage&payment=cancelled'
           });
 
           // Handle both Promise and non-Promise returns
@@ -181,9 +188,7 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
             }).catch((checkoutError) => {
               console.error('Paddle checkout error:', checkoutError);
               // Fallback to direct URL on checkout error
-              const checkoutUrl = PADDLE_ENVIRONMENT === 'sandbox' 
-                ? `https://sandbox-buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`
-                : `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
+              const checkoutUrl = `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
               window.open(checkoutUrl, '_blank');
               setLoading(false);
               toast.success('Opening checkout in new tab...');
@@ -197,9 +202,7 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
         } catch (checkoutError) {
           console.error('Paddle checkout error:', checkoutError);
           // Fallback to direct URL on checkout error
-          const checkoutUrl = PADDLE_ENVIRONMENT === 'sandbox' 
-            ? `https://sandbox-buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`
-            : `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
+          const checkoutUrl = `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
           window.open(checkoutUrl, '_blank');
           setLoading(false);
           toast.success('Opening checkout in new tab...');
