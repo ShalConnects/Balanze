@@ -43,6 +43,7 @@ import { useNotificationStore } from './store/notificationStore';
 import { MobileSidebarProvider } from './context/MobileSidebarContext';
 import KBArticlePage from './pages/KBArticlePage';
 import AdminPage from './pages/AdminPage';
+import DashboardDemo from './pages/DashboardDemo';
 import { useThemeStore } from './store/themeStore';
 
 function AppContent() {
@@ -351,6 +352,9 @@ function AppContent() {
         <Route path="/history" element={user ? <MainLayout><History /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/donations" element={user ? <MainLayout><DonationsSavingsPage /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/favorite-quotes" element={user ? <MainLayout><FavoriteQuotes /></MainLayout> : <Navigate to="/login" />} />
+        
+        {/* Demo route - public */}
+        <Route path="/dashboard-demo" element={<DashboardDemo />} />
         
         {/* Public routes */}
         <Route path="/about" element={<About />} />

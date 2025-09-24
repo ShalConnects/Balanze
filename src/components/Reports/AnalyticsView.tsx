@@ -65,6 +65,33 @@ export const AnalyticsView: React.FC = () => {
     return `${value.toFixed(1)}%`;
   };
 
+  // Human-perceivable comparisons for better understanding
+  const getHumanComparison = (amount: number, type: 'expense' | 'income' | 'savings') => {
+    const absAmount = Math.abs(amount);
+    
+    if (type === 'expense') {
+      if (absAmount >= 1000) return `≈ ${Math.round(absAmount / 50)} coffee shop visits`;
+      if (absAmount >= 500) return `≈ ${Math.round(absAmount / 15)} restaurant meals`;
+      if (absAmount >= 100) return `≈ ${Math.round(absAmount / 5)} coffee drinks`;
+      if (absAmount >= 20) return `≈ ${Math.round(absAmount / 4)} fast food meals`;
+      return `≈ ${Math.round(absAmount / 1.5)} snack purchases`;
+    }
+    
+    if (type === 'savings') {
+      if (absAmount >= 10000) return `🏠 Down payment progress`;
+      if (absAmount >= 5000) return `🚗 Car purchase fund`;
+      if (absAmount >= 2000) return `✈️ Dream vacation fund`;
+      if (absAmount >= 1000) return `📱 New device fund`;
+      return `🎯 Emergency fund building`;
+    }
+    
+    // Income comparisons
+    if (absAmount >= 5000) return `💼 Professional salary level`;
+    if (absAmount >= 3000) return `💰 Solid monthly income`;
+    if (absAmount >= 1500) return `📈 Growing income stream`;
+    return `🌱 Starting income level`;
+  };
+
   // Helper: Map account_id to currency
   const accountCurrencyMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -144,8 +171,8 @@ export const AnalyticsView: React.FC = () => {
   const NetCashFlowGauge: React.FC = () => {
     if (!currentCurrencyStats) {
       return (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Net Cash Flow</h3>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Cash Flow Health</h3>
           <div className="text-center text-gray-500 dark:text-gray-400">No data available for {selectedCurrency}</div>
         </div>
       );
@@ -154,81 +181,107 @@ export const AnalyticsView: React.FC = () => {
     const { monthlyIncome, monthlyExpenses } = currentCurrencyStats;
     const surplus = monthlyIncome - monthlyExpenses;
     const isSurplus = surplus >= 0;
+    const savingsRate = monthlyIncome > 0 ? (surplus / monthlyIncome) * 100 : 0;
+    const healthScore = Math.max(0, Math.min(100, savingsRate + 50));
     
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Net Cash Flow ({selectedCurrency})</h3>
-          {trends && (
-            <div className={`flex items-center space-x-1 text-sm ${
-              trends.netChange >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}>
-              {trends.netChange >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-              <span>{Math.abs(trends.netChange).toFixed(1)}%</span>
-            </div>
-          )}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Cash Flow Health</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{selectedCurrency} • This Month</p>
+          </div>
+          <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+            healthScore >= 70 ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300' :
+            healthScore >= 40 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300' :
+            'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
+          }`}>
+            {healthScore >= 70 ? '🟢 Excellent' : healthScore >= 40 ? '🟡 Good' : '🔴 Needs Attention'}
+          </div>
         </div>
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="w-5 h-5 text-green-600" />
-                <span className="text-sm text-gray-600 dark:text-gray-300">Income</span>
-                <span className="font-semibold text-green-600">{formatCurrency(monthlyIncome, selectedCurrency)}</span>
-                {trends && (
-                  <span className={`text-xs ${trends.incomeChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {trends.incomeChange >= 0 ? '+' : ''}{trends.incomeChange.toFixed(1)}%
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center space-x-2">
-                <TrendingDown className="w-5 h-5 text-red-600" />
-                <span className="text-sm text-gray-600 dark:text-gray-300">Expenses</span>
-                <span className="font-semibold text-red-600">{formatCurrency(monthlyExpenses, selectedCurrency)}</span>
-                {trends && (
-                  <span className={`text-xs ${trends.expenseChange <= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {trends.expenseChange >= 0 ? '+' : ''}{trends.expenseChange.toFixed(1)}%
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className={`text-center p-4 rounded-lg ${isSurplus ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700'}`}>
-              <div className={`text-2xl font-bold ${isSurplus ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {isSurplus ? 'Surplus' : 'Deficit'}
-              </div>
-              <div className={`text-xl font-semibold ${isSurplus ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+        
+        {/* Mobile-First Layout */}
+        <div className="space-y-4">
+          {/* Main Flow Display */}
+          <div className={`text-center p-4 rounded-lg ${isSurplus ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700'}`}>
+            <div className="flex items-center justify-center mb-2">
+              {isSurplus ? (
+                <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400 mr-2" />
+              ) : (
+                <TrendingDown className="w-6 h-6 text-red-600 dark:text-red-400 mr-2" />
+              )}
+              <div className={`text-xl sm:text-2xl font-bold ${isSurplus ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                 {formatCurrency(Math.abs(surplus), selectedCurrency)}
               </div>
             </div>
+            <div className={`text-sm font-semibold ${isSurplus ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+              {isSurplus ? '✅ Monthly Surplus' : '⚠️ Monthly Deficit'}
+            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+              {getHumanComparison(Math.abs(surplus), isSurplus ? 'savings' : 'expense')}
+            </p>
           </div>
-          <div className="w-24 h-24 relative">
-            <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
-              <circle
-                cx="50"
-                cy="50"
-                r="40"
-                stroke="#E5E7EB"
-                strokeWidth="8"
-                fill="none"
-              />
-              <circle
-                cx="50"
-                cy="50"
-                r="40"
-                stroke={isSurplus ? "#10B981" : "#EF4444"}
-                strokeWidth="8"
-                fill="none"
-                strokeDasharray={`${Math.min(100, (Math.abs(surplus) / monthlyIncome) * 100)} 100`}
-                strokeDashoffset="0"
-                className="transition-all duration-1000"
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className={`text-sm font-semibold ${isSurplus ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {formatPercentage((Math.abs(surplus) / monthlyIncome) * 100)}
-              </span>
+          
+          {/* Income/Expense Breakdown - Mobile Optimized */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/10 rounded-lg">
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                <span className="text-sm text-gray-600 dark:text-gray-300">Income</span>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold text-green-600 dark:text-green-400 text-sm sm:text-base">
+                  {formatCurrency(monthlyIncome, selectedCurrency)}
+                </div>
+                {trends && (
+                  <div className={`text-xs ${trends.incomeChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {trends.incomeChange >= 0 ? '↗️' : '↘️'} {Math.abs(trends.incomeChange).toFixed(1)}%
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/10 rounded-lg">
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                <span className="text-sm text-gray-600 dark:text-gray-300">Expenses</span>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold text-red-600 dark:text-red-400 text-sm sm:text-base">
+                  {formatCurrency(monthlyExpenses, selectedCurrency)}
+                </div>
+                {trends && (
+                  <div className={`text-xs ${trends.expenseChange <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {trends.expenseChange <= 0 ? '↘️' : '↗️'} {Math.abs(trends.expenseChange).toFixed(1)}%
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+          
+          {/* Savings Rate Visualization */}
+          {monthlyIncome > 0 && (
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Savings Rate</span>
+                <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{savingsRate.toFixed(1)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-1000 ${
+                    savingsRate >= 20 ? 'bg-green-500' : savingsRate >= 10 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${Math.max(5, Math.min(100, Math.abs(savingsRate)))}%` }}
+                ></div>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {savingsRate >= 20 ? '🎯 Excellent! Experts recommend 20%+' : 
+                 savingsRate >= 10 ? '👍 Good progress! Try for 20%' : 
+                 savingsRate >= 0 ? '📈 Building up! Every bit counts' : 
+                 '⚠️ Focus on reducing expenses'}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -318,31 +371,110 @@ export const AnalyticsView: React.FC = () => {
         return acc;
       }, {} as Record<string, number>);
 
-    const data = Object.entries(categorySpending).map(([name, value], index) => ({
-      name,
-      value,
-      color: `hsl(${index * 60}, 70%, 50%)`,
-      current: value,
-      average: value * 0.9 // Dummy average for now
-    }));
+    const totalSpending = Object.values(categorySpending).reduce((sum, value) => sum + value, 0);
+    
+    // Enhanced color palette for better visual distinction
+    const colorPalette = [
+      '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', 
+      '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'
+    ];
+
+    const data = Object.entries(categorySpending)
+      .map(([name, value], index) => ({
+        name,
+        value,
+        percentage: ((value / totalSpending) * 100),
+        color: colorPalette[index % colorPalette.length],
+        current: value,
+        average: value * 0.9 // Dummy average for now
+      }))
+      .sort((a, b) => b.value - a.value); // Sort by spending amount
 
     if (data.length === 0) {
       return (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Spending by Category ({selectedCurrency})</h3>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Spending Breakdown</h3>
           <div className="text-center text-gray-500 dark:text-gray-400">No spending data available</div>
         </div>
       );
     }
 
-    const highestCategory = data.reduce((max, item) => item.value > max.value ? item : max);
+    const highestCategory = data[0]; // Already sorted, so first is highest
+    const getCategoryEmoji = (categoryName: string) => {
+      const name = categoryName.toLowerCase();
+      if (name.includes('food') || name.includes('restaurant') || name.includes('groceries')) return '🍽️';
+      if (name.includes('transport') || name.includes('gas') || name.includes('fuel')) return '🚗';
+      if (name.includes('entertainment') || name.includes('movie') || name.includes('fun')) return '🎬';
+      if (name.includes('shopping') || name.includes('clothes') || name.includes('retail')) return '🛍️';
+      if (name.includes('health') || name.includes('medical') || name.includes('doctor')) return '🏥';
+      if (name.includes('education') || name.includes('school') || name.includes('course')) return '📚';
+      if (name.includes('utilities') || name.includes('electric') || name.includes('water')) return '🏠';
+      if (name.includes('subscription') || name.includes('software') || name.includes('service')) return '📱';
+      return '💰';
+    };
     
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Spending by Category ({selectedCurrency})</h3>
-        <div className="flex items-center space-x-6">
-          <div className="flex-1">
-            <ResponsiveContainer width="100%" height={200}>
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Spending Breakdown</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{selectedCurrency} • This Month</p>
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            Total: <span className="font-semibold">{formatCurrency(totalSpending, selectedCurrency)}</span>
+          </div>
+        </div>
+        
+        {/* Mobile-First Layout */}
+        <div className="flex flex-col lg:flex-row lg:items-start lg:space-x-6 space-y-4 lg:space-y-0">
+          {/* Chart Section - Responsive sizing */}
+          <div className="flex-shrink-0 mx-auto lg:mx-0">
+            <ResponsiveContainer width="100%" height={180} className="sm:hidden">
+              <PieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={30}
+                  outerRadius={60}
+                  paddingAngle={2}
+                  dataKey="value"
+                >
+                  {data.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.color}
+                      stroke={entry.color}
+                      strokeWidth={index === 0 ? 3 : 1}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+                          <p className="font-semibold flex items-center">
+                            {getCategoryEmoji(data.name)} {data.name}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                            {formatCurrency(data.current, selectedCurrency)} ({data.percentage.toFixed(1)}%)
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {getHumanComparison(data.current, 'expense')}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            
+            {/* Larger chart for desktop */}
+            <ResponsiveContainer width={240} height={200} className="hidden sm:block">
               <PieChart>
                 <Pie
                   data={data}
@@ -356,32 +488,26 @@ export const AnalyticsView: React.FC = () => {
                   {data.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={entry.name === highestCategory.name ? '#F59E0B' : entry.color}
-                      stroke={entry.name === highestCategory.name ? '#D97706' : entry.color}
-                      strokeWidth={entry.name === highestCategory.name ? 2 : 1}
+                      fill={entry.color}
+                      stroke={entry.color}
+                      strokeWidth={index === 0 ? 3 : 1}
                     />
                   ))}
                 </Pie>
                 <Tooltip 
-                  formatter={(value: number, name: string) => [
-                    formatCurrency(value, selectedCurrency),
-                    name
-                  ]}
-                  labelFormatter={(label) => `${label} (Current vs Avg)`}
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
                       return (
-                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-                          <p className="font-semibold">{data.name}</p>
-                          <p className="text-sm text-gray-600">
-                            Current: {formatCurrency(data.current, selectedCurrency)}
+                        <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+                          <p className="font-semibold flex items-center">
+                            {getCategoryEmoji(data.name)} {data.name}
                           </p>
-                          <p className="text-sm text-gray-500">
-                            Average: {formatCurrency(data.average, selectedCurrency)}
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                            {formatCurrency(data.current, selectedCurrency)} ({data.percentage.toFixed(1)}%)
                           </p>
-                          <p className={`text-sm ${data.current < data.average ? 'text-green-600' : 'text-red-600'}`}>
-                            {data.current < data.average ? '↓' : '↑'} {Math.abs(((data.current - data.average) / data.average) * 100).toFixed(1)}%
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {getHumanComparison(data.current, 'expense')}
                           </p>
                         </div>
                       );
@@ -392,27 +518,75 @@ export const AnalyticsView: React.FC = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex-1">
-            <div className="space-y-3">
-              {data.map((category, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
+          
+          {/* Categories List - Mobile Optimized */}
+          <div className="flex-1 min-w-0">
+            <div className="space-y-2">
+              {data.slice(0, 6).map((category, index) => (
+                <div key={index} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
                     <div 
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: category.name === highestCategory.name ? '#F59E0B' : category.color }}
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: category.color }}
                     />
-                    <span className={`text-sm ${category.name === highestCategory.name ? 'font-semibold' : ''}`}>
-                      {category.name}
-                    </span>
-                    {category.name === highestCategory.name && (
-                      <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
-                        Highest
-                      </span>
-                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium truncate">
+                          {getCategoryEmoji(category.name)} {category.name}
+                        </span>
+                        {index === 0 && (
+                          <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 px-2 py-0.5 rounded-full flex-shrink-0">
+                            Top
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                          <div 
+                            className="h-1.5 rounded-full transition-all duration-1000"
+                            style={{ 
+                              backgroundColor: category.color, 
+                              width: `${category.percentage}%` 
+                            }}
+                          ></div>
+                        </div>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                          {category.percentage.toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-sm font-medium">{formatCurrency(category.value, selectedCurrency)}</span>
+                  <div className="text-right ml-2">
+                    <div className="text-sm font-semibold">{formatCurrency(category.value, selectedCurrency)}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {category.percentage.toFixed(1)}%
+                    </div>
+                  </div>
                 </div>
               ))}
+              
+              {data.length > 6 && (
+                <div className="text-center pt-2">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    +{data.length - 6} more categories
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            {/* Top Category Insight */}
+            <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700 rounded-lg">
+              <div className="flex items-center space-x-2 mb-1">
+                <Lightbulb className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span className="text-sm font-medium text-amber-800 dark:text-amber-300">Spending Insight</span>
+              </div>
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                Your biggest expense is <strong>{highestCategory.name}</strong> at {highestCategory.percentage.toFixed(1)}% of total spending.
+                <br />
+                <span className="text-amber-600 dark:text-amber-400">
+                  {getHumanComparison(highestCategory.value, 'expense')}
+                </span>
+              </p>
             </div>
           </div>
         </div>
@@ -809,63 +983,61 @@ export const AnalyticsView: React.FC = () => {
 
   return (
     <div data-tour="analytics-overview" className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Financial Analytics</h2>
-          <p className="text-gray-600 dark:text-gray-300">Comprehensive insights into your financial health</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <CustomDropdown
-            options={currencyOptions.map(({ currency }) => ({ value: currency, label: currency }))}
-            value={selectedCurrency}
-            onChange={setSelectedCurrency}
-            fullWidth={false}
-          />
-          <CustomDropdown
-            options={[
-              { value: 'current', label: 'Current Month' },
-              { value: 'last3', label: 'Last 3 Months' },
-              { value: 'last6', label: 'Last 6 Months' },
-              { value: 'last12', label: 'Last 12 Months' },
-            ]}
-            value={selectedPeriod}
-            onChange={val => setSelectedPeriod(val as any)}
-            fullWidth={false}
-          />
-          <button 
-            onClick={() => setShowTrends(!showTrends)}
-            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
-          >
-            <TrendingUpIcon className="w-4 h-4" />
-            <span>{showTrends ? 'Hide' : 'Show'} Trends</span>
-          </button>
-          <button 
-            onClick={() => navigate('/currency-analytics')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
-          >
-            <Globe className="w-4 h-4" />
-            <span>Currency Analytics</span>
-          </button>
-          <button 
-            data-tour="export-data"
-            className="bg-gradient-primary hover:bg-gradient-primary-hover text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
-          >
-            <Download className="w-4 h-4" />
-            <span>Export</span>
-          </button>
-        </div>
+      {/* Controls - Mobile First */}
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
+        <CustomDropdown
+          options={currencyOptions.map(({ currency }) => ({ value: currency, label: `💱 ${currency}` }))}
+          value={selectedCurrency}
+          onChange={setSelectedCurrency}
+          fullWidth={false}
+        />
+        <CustomDropdown
+          options={[
+            { value: 'current', label: '📅 This Month' },
+            { value: 'last3', label: '📊 Last 3M' },
+            { value: 'last6', label: '📈 Last 6M' },
+            { value: 'last12', label: '📉 Last Year' },
+          ]}
+          value={selectedPeriod}
+          onChange={val => setSelectedPeriod(val as any)}
+          fullWidth={false}
+        />
+        <button 
+          onClick={() => setShowTrends(!showTrends)}
+          className={`px-3 py-2 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm ${
+            showTrends 
+              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' 
+              : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+          }`}
+        >
+          <TrendingUpIcon className="w-4 h-4" />
+          <span className="hidden sm:inline">{showTrends ? 'Hide' : 'Show'} Trends</span>
+          <span className="sm:hidden">Trends</span>
+        </button>
+        <button 
+          onClick={() => navigate('/currency-analytics')}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
+        >
+          <Globe className="w-4 h-4" />
+          <span className="hidden sm:inline">Currency Analytics</span>
+          <span className="sm:hidden">Currency</span>
+        </button>
+        <button 
+          data-tour="export-data"
+          className="bg-gradient-primary hover:bg-gradient-primary-hover text-white px-3 py-2 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm col-span-2 sm:col-span-1"
+        >
+          <Download className="w-4 h-4" />
+          <span>Export Data</span>
+        </button>
       </div>
 
       {/* Monthly Trends Chart - Full Width */}
       {showTrends && <div data-tour="balance-trend"><MonthlyTrendsChart /></div>}
 
-      {/* Main Analytics Grid */}
-      <div data-tour="spending-chart" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Main Analytics Grid - Enhanced Mobile Layout */}
+      <div data-tour="spending-chart" className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         <NetCashFlowGauge />
         <SpendingByCategoryDonut />
-        <DebtPayoffProgress />
-        <SavingsGoalThermometer />
       </div>
 
       {/* Smart Recommendations */}
