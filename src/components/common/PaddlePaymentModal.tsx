@@ -47,7 +47,12 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
 
       if (!PADDLE_CLIENT_TOKEN) {
         console.warn('Paddle client token not configured, using fallback method');
-        setError('Paddle client token not configured. Please add VITE_PADDLE_CLIENT_TOKEN to your .env.local file.');
+        console.log('Environment check:', {
+          PADDLE_VENDOR_ID,
+          PADDLE_ENVIRONMENT,
+          PADDLE_CLIENT_TOKEN: PADDLE_CLIENT_TOKEN ? 'Present' : 'Missing'
+        });
+        setError('Paddle client token not configured. Please check environment variables in Vercel dashboard.');
         setLoading(false);
         return;
       }
