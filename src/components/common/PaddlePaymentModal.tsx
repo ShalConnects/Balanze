@@ -140,7 +140,7 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
       const priceId = getPaddlePriceId();
       
       if (paddle) {
-        // Use Paddle.js v2 Checkout.open
+        // Use Paddle.js v2 Checkout.open with better error handling
         paddle.Checkout.open({
           items: [{ priceId, quantity: 1 }],
           customer: {
@@ -155,19 +155,36 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
           settings: {
             displayMode: 'overlay',
             theme: 'light',
-            locale: 'en'
+            locale: 'en',
+            allowLogout: false,
+            showAddTaxId: false,
+            showAddDiscounts: false,
+            successUrl: window.location.origin + '/settings?tab=plans-usage&payment=success',
+            cancelUrl: window.location.origin + '/settings?tab=plans-usage&payment=cancelled'
           }
+        }).then(() => {
+          console.log('Paddle checkout opened successfully');
+          setLoading(false);
+          toast.success('Checkout opened successfully!');
+        }).catch((checkoutError) => {
+          console.error('Paddle checkout error:', checkoutError);
+          // Fallback to direct URL on checkout error
+          const checkoutUrl = PADDLE_ENVIRONMENT === 'sandbox' 
+            ? `https://sandbox-buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`
+            : `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
+          window.open(checkoutUrl, '_blank');
+          setLoading(false);
+          toast.success('Opening checkout in new tab...');
         });
-        
-        setLoading(false);
-        toast.success('Opening Paddle checkout...');
       } else {
         // Fallback to direct URL
         console.log('Paddle not initialized, using direct URL fallback');
-        const checkoutUrl = `https://checkout.paddle.com/checkout/${priceId}?email=${encodeURIComponent(user.email)}&country=US&vendor=${PADDLE_VENDOR_ID}`;
+        const checkoutUrl = PADDLE_ENVIRONMENT === 'sandbox' 
+          ? `https://sandbox-buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`
+          : `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
         window.open(checkoutUrl, '_blank');
         setLoading(false);
-        toast.success('Opening Paddle checkout in new tab...');
+        toast.success('Opening checkout in new tab...');
       }
     } catch (err) {
       console.error('Failed to open Paddle checkout:', err);
@@ -175,10 +192,12 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
       
       // Final fallback to direct URL
       const priceId = getPaddlePriceId();
-      const checkoutUrl = `https://checkout.paddle.com/checkout/${priceId}?email=${encodeURIComponent(user.email)}&country=US&vendor=${PADDLE_VENDOR_ID}`;
+      const checkoutUrl = PADDLE_ENVIRONMENT === 'sandbox' 
+        ? `https://sandbox-buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`
+        : `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
       window.open(checkoutUrl, '_blank');
       setLoading(false);
-      toast.success('Opening Paddle checkout in new tab...');
+      toast.success('Opening checkout in new tab...');
     }
   };
 

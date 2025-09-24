@@ -54,16 +54,21 @@ BEGIN
         DELETE FROM public.accounts WHERE user_id = existing_user_id;
         RAISE NOTICE 'Deleted accounts for user';
         
-        -- 5. Delete other user-related data
+        -- 5. Delete subscription-related data
+        DELETE FROM public.subscription_history WHERE user_id = existing_user_id;
+        DELETE FROM public.user_subscriptions WHERE user_id = existing_user_id;
+        RAISE NOTICE 'Deleted subscription history and user subscriptions';
+        
+        -- 6. Delete other user-related data
         DELETE FROM public.purchases WHERE user_id = existing_user_id;
         DELETE FROM public.purchase_categories WHERE user_id = existing_user_id;
         RAISE NOTICE 'Deleted other user data';
         
-        -- 6. Delete profile (references users)
+        -- 7. Delete profile (references users)
         DELETE FROM public.profiles WHERE id = existing_user_id;
         RAISE NOTICE 'Deleted profile for user';
         
-        -- 7. Finally delete from auth.users
+        -- 8. Finally delete from auth.users
         DELETE FROM auth.users WHERE id = existing_user_id;
         RAISE NOTICE 'Deleted user from auth.users';
         
@@ -156,7 +161,7 @@ BEGIN
     
     RAISE NOTICE 'Created new user with ID: %', new_user_id;
     
-    -- Step 5: Create profile for the new user
+    -- Step 5: Create profile for the new user with FREE subscription
     INSERT INTO public.profiles (
         id,
         full_name,
@@ -170,25 +175,48 @@ BEGIN
         'Test User',
         'USD',
         'user',
-        '{"plan": "free", "status": "active", "validUntil": null}'::jsonb,
+        '{
+            "plan": "free",
+            "status": "active",
+            "validUntil": null,
+            "features": {
+                "max_accounts": 3,
+                "max_transactions": 100,
+                "max_currencies": 1,
+                "analytics": false,
+                "priority_support": false,
+                "export_data": false,
+                "custom_categories": false,
+                "lend_borrow": false,
+                "last_wish": false,
+                "advanced_charts": false,
+                "advanced_reporting": false
+            }
+        }'::jsonb,
         NOW(),
         NOW()
     );
     
     RAISE NOTICE 'Profile created successfully for user: %', new_user_id;
     
-    -- Step 6: Verify the setup
+    -- Step 6: Ensure no premium subscriptions exist for this user
+    DELETE FROM public.subscription_history WHERE user_id = new_user_id;
+    DELETE FROM public.user_subscriptions WHERE user_id = new_user_id;
+    RAISE NOTICE 'Ensured no premium subscriptions exist for user';
+    
+    -- Step 7: Verify the setup
     RAISE NOTICE '=== VERIFICATION ===';
     RAISE NOTICE 'User ID: %', new_user_id;
     RAISE NOTICE 'Email: megmukt@gmail.com';
     RAISE NOTICE 'Password: New12###';
     RAISE NOTICE 'Profile created: Yes';
-    RAISE NOTICE 'Subscription: Free plan';
-    RAISE NOTICE 'Status: Ready for testing';
+    RAISE NOTICE 'Subscription: FREE plan (no premium features)';
+    RAISE NOTICE 'Premium subscriptions: NONE (cleaned up)';
+    RAISE NOTICE 'Status: Ready for testing as FREE user';
     
 END $$;
 
--- Step 7: Final verification queries
+-- Step 8: Final verification queries
 SELECT '=== FINAL VERIFICATION ===' as info;
 
 -- Check auth.users
@@ -234,8 +262,28 @@ WHERE user_id = (
     SELECT id FROM auth.users WHERE email = 'megmukt@gmail.com'
 );
 
+-- Check subscription history (should be empty for free user)
+SELECT 
+    'SUBSCRIPTION HISTORY' as table_name,
+    COUNT(*) as subscription_count
+FROM public.subscription_history 
+WHERE user_id = (
+    SELECT id FROM auth.users WHERE email = 'megmukt@gmail.com'
+);
+
+-- Check user subscriptions (should be empty for free user)
+SELECT 
+    'USER SUBSCRIPTIONS' as table_name,
+    COUNT(*) as user_subscription_count
+FROM public.user_subscriptions 
+WHERE user_id = (
+    SELECT id FROM auth.users WHERE email = 'megmukt@gmail.com'
+);
+
 SELECT '=== TEST ACCOUNT SETUP COMPLETE ===' as info;
 SELECT 'You can now log in with:' as note1;
 SELECT 'Email: megmukt@gmail.com' as note2;
 SELECT 'Password: New12###' as note3;
-SELECT 'This account will show the new user experience with no existing data.' as note4;
+SELECT 'This account is set to FREE plan with no premium features.' as note4;
+SELECT 'All premium subscriptions have been removed/cleaned up.' as note5;
+SELECT 'This account will show the free user experience with no existing data.' as note6;
