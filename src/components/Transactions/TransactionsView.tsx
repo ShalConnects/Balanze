@@ -191,7 +191,7 @@ export const TransactionsView: React.FC = () => {
     return (
       <div className="space-y-6">
         {/* Smooth skeleton for transactions page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
           {/* Filters skeleton */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <TransactionFiltersSkeleton />

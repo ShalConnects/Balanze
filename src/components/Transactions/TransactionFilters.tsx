@@ -181,7 +181,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm" style={{ paddingBottom: '13px' }}>
       {/* Filters Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex flex-wrap md:flex-nowrap justify-between items-center w-full gap-3">

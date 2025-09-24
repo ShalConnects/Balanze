@@ -3,10 +3,9 @@ import { Plus, Filter, Search, TrendingUp, TrendingDown, AlertTriangle, CheckCir
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { LendBorrow, LendBorrowInput, LendBorrowAnalytics } from '../../types/index';
+import { LendBorrow, LendBorrowInput } from '../../types/index';
 import { LendBorrowForm } from './LendBorrowForm';
 import { LendBorrowList } from './LendBorrowList';
-import { LendBorrowAnalytics as LendBorrowAnalyticsComponent } from './LendBorrowAnalytics';
 import { PartialReturnModal } from './PartialReturnModal';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { LendBorrowCardSkeleton, LendBorrowTableSkeleton, LendBorrowSummaryCardsSkeleton, LendBorrowFiltersSkeleton } from './LendBorrowSkeleton';
@@ -36,7 +35,6 @@ export const LendBorrowView: React.FC = () => {
   
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const { accounts, lendBorrowRecords, fetchLendBorrowRecords, fetchAccounts, addLendBorrowRecord, loading: storeLoading } = useFinanceStore();
-  const [analytics, setAnalytics] = useState<LendBorrowAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<LendBorrow | null>(null);
@@ -65,7 +63,6 @@ export const LendBorrowView: React.FC = () => {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'records' | 'analytics'>('records');
   const typeMenuRef = useRef<HTMLDivElement>(null);
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const presetDropdownRef = useRef<HTMLDivElement>(null);
@@ -267,113 +264,7 @@ export const LendBorrowView: React.FC = () => {
     }
   };
 
-  // Calculate analytics
-  const calculateAnalytics = (records: LendBorrow[]): LendBorrowAnalytics => {
-    const totalLent = records
-      .filter(r => r.type === 'lend')
-      .reduce((sum, r) => sum + r.amount, 0);
-    
-    const totalBorrowed = records
-      .filter(r => r.type === 'borrow')
-      .reduce((sum, r) => sum + r.amount, 0);
-    
-    const outstandingLent = records
-      .filter(r => r.type === 'lend' && r.status === 'active')
-      .reduce((sum, r) => sum + r.amount, 0);
-    
-    const outstandingBorrowed = records
-      .filter(r => r.type === 'borrow' && r.status === 'active')
-      .reduce((sum, r) => sum + r.amount, 0);
-    
-    const overdueCount = records.filter(r => r.status === 'overdue').length;
-    const activeCount = records.filter(r => r.status === 'active').length;
-    const settledCount = records.filter(r => r.status === 'settled').length;
-    
-    // Get top person by total amount
-    const personTotals = records.reduce((acc, r) => {
-      acc[r.person_name] = (acc[r.person_name] || 0) + r.amount;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    const topPerson = Object.entries(personTotals)
-      .sort(([,a], [,b]) => (b as number) - (a as number))[0]?.[0];
-    
-    // Currency breakdown
-    const currencyBreakdown = records.reduce((acc, r) => {
-      if (!acc[r.currency]) {
-        acc[r.currency] = {
-          currency: r.currency,
-          total_lent: 0,
-          total_borrowed: 0,
-          outstanding_lent: 0,
-          outstanding_borrowed: 0
-        };
-      }
-      
-      if (r.type === 'lend') {
-        acc[r.currency].total_lent += r.amount;
-        if (r.status === 'active') {
-          acc[r.currency].outstanding_lent += r.amount;
-        }
-      } else {
-        acc[r.currency].total_borrowed += r.amount;
-        if (r.status === 'active') {
-          acc[r.currency].outstanding_borrowed += r.amount;
-        }
-      }
-      
-      return acc;
-    }, {} as Record<string, any>);
-    
-    return {
-      total_lent: totalLent,
-      total_borrowed: totalBorrowed,
-      outstanding_lent: outstandingLent,
-      outstanding_borrowed: outstandingBorrowed,
-      overdue_count: overdueCount,
-      active_count: activeCount,
-      settled_count: settledCount,
-      top_person: topPerson,
-      currency_breakdown: Object.values(currencyBreakdown)
-    };
-  };
 
-  // Calculate analytics for summary cards: overdue count ignores status filter
-  const calculateSummaryAnalytics = (allRecords: LendBorrow[], currency: string, type: string) => {
-    const currencyRecords = allRecords.filter(r => r.currency === currency);
-    const typeRecords = type === 'all' ? currencyRecords : currencyRecords.filter(r => r.type === type);
-    const totalLent = typeRecords.filter(r => r.type === 'lend').reduce((sum, r) => sum + r.amount, 0);
-    const totalBorrowed = typeRecords.filter(r => r.type === 'borrow').reduce((sum, r) => sum + r.amount, 0);
-    const outstandingLent = typeRecords.filter(r => r.type === 'lend' && r.status === 'active').reduce((sum, r) => sum + r.amount, 0);
-    const outstandingBorrowed = typeRecords.filter(r => r.type === 'borrow' && r.status === 'active').reduce((sum, r) => sum + r.amount, 0);
-    // Overdue count: ignore status filter, but respect currency and type
-    const overdueCount = typeRecords.filter(r => r.status === 'overdue').length;
-    return {
-      total_lent: totalLent,
-      total_borrowed: totalBorrowed,
-      outstanding_lent: outstandingLent,
-      outstanding_borrowed: outstandingBorrowed,
-      overdue_count: overdueCount,
-      currency: currency
-    };
-  };
-
-  // Calculate analytics for filtered records (used for summary cards that should reflect all filters)
-  const calculateFilteredAnalytics = (filteredRecords: LendBorrow[], currency: string) => {
-    const totalLent = filteredRecords.filter(r => r.type === 'lend').reduce((sum, r) => sum + r.amount, 0);
-    const totalBorrowed = filteredRecords.filter(r => r.type === 'borrow').reduce((sum, r) => sum + r.amount, 0);
-    const outstandingLent = filteredRecords.filter(r => r.type === 'lend' && r.status === 'active').reduce((sum, r) => sum + r.amount, 0);
-    const outstandingBorrowed = filteredRecords.filter(r => r.type === 'borrow' && r.status === 'active').reduce((sum, r) => sum + r.amount, 0);
-    const overdueCount = filteredRecords.filter(r => r.status === 'overdue').length;
-    return {
-      total_lent: totalLent,
-      total_borrowed: totalBorrowed,
-      outstanding_lent: outstandingLent,
-      outstanding_borrowed: outstandingBorrowed,
-      overdue_count: overdueCount,
-      currency: currency
-    };
-  };
 
   // Filter records for the table (status filter included)
   const filteredRecords = lendBorrowRecords.filter(record => {
@@ -550,9 +441,8 @@ export const LendBorrowView: React.FC = () => {
     setPartialReturnRecord(null);
   };
 
-  // Update analytics when records change
+  // Update loading state when records change
   useEffect(() => {
-    setAnalytics(calculateAnalytics(lendBorrowRecords));
     setLoading(false);
   }, [lendBorrowRecords]);
 
@@ -668,7 +558,7 @@ export const LendBorrowView: React.FC = () => {
     return (
       <div className="space-y-6">
         {/* Smooth skeleton for lend & borrow page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
           {/* Filters skeleton */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <LendBorrowFiltersSkeleton />
@@ -726,45 +616,11 @@ export const LendBorrowView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Tab Navigation */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-1">
-        <div className="flex space-x-1">
-          <button
-            onClick={() => setActiveTab('records')}
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'records'
-                ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            }`}
-          >
-            Records
-          </button>
-          <button
-            onClick={() => setActiveTab('analytics')}
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'analytics'
-                ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            }`}
-          >
-            Analytics
-          </button>
-        </div>
-      </div>
-
-      {/* Analytics Tab Content */}
-      {activeTab === 'analytics' && (
-        <LendBorrowAnalyticsComponent />
-      )}
-
-      {/* Records Tab Content */}
-      {activeTab === 'records' && (
-        <div className="space-y-6">
           {/* Unified Table View - New Section */}
           <div className="space-y-6">
 
         {/* Unified Filters and Table */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
           {/* Filters Section */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-start" style={{ marginBottom: 0 }}>
@@ -1357,8 +1213,6 @@ export const LendBorrowView: React.FC = () => {
           onClose={() => setPartialReturnRecord(null)}
           onUpdated={handlePartialReturnUpdated}
         />
-      )}
-        </div>
       )}
     </div>
   );

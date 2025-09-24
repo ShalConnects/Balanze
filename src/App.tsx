@@ -300,7 +300,7 @@ function AppContent() {
     <>
       <Loader isLoading={globalLoading} message={loadingMessage} />
       <Toaster 
-        position="top-right" 
+        position="top-center" 
         richColors 
         expand={true}
         closeButton={true}
@@ -311,7 +311,16 @@ function AppContent() {
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           fontSize: '14px',
           fontWeight: '500',
-          marginTop: '40px'
+          marginTop: '20px',
+          maxWidth: '90vw',
+          width: 'auto'
+        }}
+        toastOptions={{
+          style: {
+            maxWidth: '90vw',
+            width: 'auto',
+            margin: '0 auto'
+          }
         }}
       />
       <Routes>

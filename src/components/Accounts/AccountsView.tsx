@@ -245,7 +245,7 @@ export const AccountsView: React.FC = () => {
         description: 'You need both income and expense categories to create transactions.',
         action: {
           label: 'Go to Settings',
-          onClick: () => navigate('/settings?tab=income-category')
+          onClick: () => navigate('/settings?tab=categories')
         }
       });
       return false;
@@ -587,7 +587,7 @@ export const AccountsView: React.FC = () => {
     return (
       <div className="space-y-6">
         {/* Smooth skeleton for accounts page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
           {/* Filters skeleton */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <AccountFiltersSkeleton />
@@ -624,7 +624,7 @@ export const AccountsView: React.FC = () => {
       <div className="space-y-6">
 
         {/* Unified Filters and Table */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
           {/* Filters Section */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1" style={{ marginBottom: 0 }}>
@@ -869,7 +869,7 @@ export const AccountsView: React.FC = () => {
                                         {/* Table Section */}
           <div className="overflow-x-auto">
             {/* Desktop Table View */}
-            <div className="hidden xl:block max-h-[500px] overflow-y-auto">
+            <div className="hidden lg:block max-h-[500px] overflow-y-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900 text-[14px]">
                 <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
                 <tr>
@@ -1232,7 +1232,7 @@ export const AccountsView: React.FC = () => {
 
 
             {/* Mobile/Tablet Stacked Table View */}
-            <div className="xl:hidden max-h-[500px] overflow-y-auto">
+            <div className="lg:hidden max-h-[500px] overflow-y-auto">
               <div className="space-y-4 px-2.5">
                 {filteredAccountsForTable.length === 0 ? (
                   <div className="py-16 text-center">
@@ -1339,6 +1339,15 @@ export const AccountsView: React.FC = () => {
                                 >
                                   <InfoIcon className="w-4 h-4" />
                                 </button>
+                                {!isDpsSavingsAccount && (
+                                  <button
+                                    onClick={() => handleEditAccount(account)}
+                                    className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                    title="Edit Account"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                )}
                                 {!isDpsSavingsAccount && (
                                   <button
                                     onClick={() => handleAddTransaction(account.id)}

@@ -94,7 +94,7 @@ export const FloatingActionButton: React.FC = () => {
           description: 'You need both income and expense categories to create transactions.',
           action: {
             label: 'Go to Settings',
-            onClick: () => navigate('/settings?tab=income-category')
+            onClick: () => navigate('/settings?tab=categories')
           }
         });
         return false;
@@ -106,7 +106,7 @@ export const FloatingActionButton: React.FC = () => {
           description: 'You need expense categories to create purchases.',
           action: {
             label: 'Go to Settings',
-            onClick: () => navigate('/settings?tab=expense-category')
+            onClick: () => navigate('/settings?tab=categories')
           }
         });
         return false;

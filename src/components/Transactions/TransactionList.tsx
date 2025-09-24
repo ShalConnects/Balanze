@@ -120,19 +120,27 @@ export const TransactionList: React.FC<{
 
   // Check if categories exist and redirect to settings if needed
   const checkCategoriesAndRedirect = () => {
+    console.log('checkCategoriesAndRedirect called');
     const hasIncomeCategories = categories.filter(cat => cat.type === 'income').length > 0;
     const hasExpenseCategories = purchaseCategories.length > 0; // Use purchaseCategories since transaction form now uses them
     
+    console.log('hasIncomeCategories:', hasIncomeCategories);
+    console.log('hasExpenseCategories:', hasExpenseCategories);
+    console.log('Categories count:', categories.length);
+    console.log('Purchase categories count:', purchaseCategories.length);
+    
     if (!hasIncomeCategories || !hasExpenseCategories) {
+      console.log('Categories check failed - showing error toast');
       toast.error('Please add categories first before creating transactions', {
         description: 'You need both income and expense categories to create transactions.',
         action: {
           label: 'Go to Settings',
-          onClick: () => navigate('/settings?tab=income-category')
+          onClick: () => navigate('/settings?tab=categories')
         }
       });
       return false;
     }
+    console.log('Categories check passed');
     return true;
   };
 
@@ -610,7 +618,7 @@ export const TransactionList: React.FC<{
   return (
     <div className="space-y-6">
       {/* Unified Filters and Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
         {/* Filters Header */}
         <div className="p-3 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -689,8 +697,17 @@ export const TransactionList: React.FC<{
             <div className="md:hidden">
               <button
                 onClick={() => {
-                  setSelectedTransaction(undefined);
-                  setIsFormOpen(true);
+                  console.log('Mobile transaction button clicked');
+                  console.log('Categories:', categories);
+                  console.log('Purchase categories:', purchaseCategories);
+                  
+                  if (checkCategoriesAndRedirect()) {
+                    console.log('Categories check passed, opening form');
+                    setSelectedTransaction(undefined);
+                    setIsFormOpen(true);
+                  } else {
+                    console.log('Categories check failed, toast should show');
+                  }
                 }}
                 className="bg-gradient-primary text-white px-2 py-1.5 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center justify-center text-[13px] h-8 w-8"
                 title="Add Transaction"

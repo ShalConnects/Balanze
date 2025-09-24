@@ -126,7 +126,7 @@ export const PurchaseTracker: React.FC = () => {
         description: 'You need expense categories to create purchases.',
         action: {
           label: 'Go to Settings',
-          onClick: () => navigate('/settings?tab=expense-category')
+          onClick: () => navigate('/settings?tab=categories')
         }
       });
       return false;
@@ -1087,7 +1087,7 @@ export const PurchaseTracker: React.FC = () => {
     return (
       <div className="space-y-6">
         {/* Smooth skeleton for purchases page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
           {/* Filters skeleton */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <PurchaseFiltersSkeleton />
@@ -1195,7 +1195,7 @@ export const PurchaseTracker: React.FC = () => {
     <div className="space-y-6">
 
       {/* Unified Filters and Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
         {/* Filters Header */}
         <div className="p-3 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">

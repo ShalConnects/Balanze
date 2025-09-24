@@ -140,16 +140,9 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
                 className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-h-[70vh] w-[90vw] max-w-sm mx-4 overflow-hidden animate-fadein"
                 tabIndex={-1}
               >
-                {/* Header */}
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white text-center">
-                    Select Currency
-                  </h3>
-                </div>
-                
                 {/* Options */}
-                <div className="max-h-60 overflow-y-auto p-2">
-                  {options.map(opt => (
+                <div className="max-h-60 overflow-y-auto p-4">
+                  {options.filter(opt => opt.value !== '').map(opt => (
                     <button
                       key={opt.value}
                       type="button"
@@ -189,7 +182,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
               }}
               tabIndex={-1}
             >
-              {options.map(opt => (
+              {options.filter(opt => opt.value !== '').map(opt => (
                 <button
                   key={opt.value}
                   type="button"

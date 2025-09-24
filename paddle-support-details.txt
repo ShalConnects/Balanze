@@ -1,0 +1,46 @@
+# Paddle Sandbox Integration Details
+
+## Account Information
+- Sandbox Account: Yes
+- Seller ID/Vendor ID: 38479
+- Domain: https://balanze.cash
+- Testing URL: https://balanze.cash/settings?tab=plans-usage
+
+## Environment Configuration
+- Environment: sandbox
+- Client Token: test_ca902c853e28805f134e43cb27e
+- Monthly Price ID: pri_01k5v9xb3wbsp2mw8khze9g8vw
+- Lifetime Price ID: pri_01k5v9sb7spg3jqcbxkeeb308f
+
+## Checkout URLs Being Generated
+- Monthly Plan: https://sandbox-buy.paddle.com/product/pri_01k5v9xb3wbsp2mw8khze9g8vw?email=shalconnect00%40gmail.com&country=US
+- Lifetime Plan: https://sandbox-buy.paddle.com/product/pri_01k5v9sb7spg3jqcbxkeeb308f?email=shalconnect00%40gmail.com&country=US
+
+## Implementation Method
+Using direct URL method for sandbox due to CSP restrictions:
+- Paddle.js v2 (@paddle/paddle-js package)
+- Direct URL fallback for sandbox environment
+- Overlay method planned for production
+
+## Error Details
+- Issue: "Something went wrong" page appears on checkout
+- Occurs on: Both original and test products
+- Browser: All browsers tested
+- Console: No JavaScript errors (clean implementation)
+
+## Product Configuration Verified
+- Product Status: Active
+- Price Status: Active  
+- Tax Category: Set appropriately
+- Description: Complete
+- Availability: Global/US included
+- Fulfillment Type: Digital
+
+## Domain Approval
+- Domain https://balanze.cash approved in Paddle dashboard
+- Default Payment Link configured: https://balanze.cash/settings?tab=plans-usage
+
+## Technical Stack
+- Frontend: React + TypeScript + Vite
+- Deployment: Vercel
+- Integration: Paddle.js v2 with environment variables
