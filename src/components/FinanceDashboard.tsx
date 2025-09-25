@@ -4,7 +4,8 @@ import BudgetChart from './charts/BudgetChart';
 import SankeyView from './charts/SankeyView';
 import GoalsPanel from './GoalsPanel';
 import { chartColors } from '../styles/colors';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, startOfMonth, endOfMonth } from 'date-fns';
+import { Download, Calendar } from 'lucide-react';
 
 interface KPIData {
   availableCash: number;
@@ -34,6 +35,7 @@ interface FinanceDashboardProps {
   className?: string;
   currency?: string;
   onAnalyticsTrack?: (event: string, properties: Record<string, any>) => void;
+  onExportData?: (format: 'csv' | 'pdf' | 'excel') => void;
 }
 
 // Mock data generators
@@ -298,13 +300,16 @@ const InsightsSection: React.FC<{
 const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
   className = '',
   currency = '₹',
-  onAnalyticsTrack
+  onAnalyticsTrack,
+  onExportData
 }) => {
   const [kpiData] = useState<KPIData>(generateMockKPIs());
   const [alerts, setAlerts] = useState<AlertData[]>(generateMockAlerts());
   const [insight] = useState<InsightData>(generateMockInsights());
   const [showMoneyFlow, setShowMoneyFlow] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [dateFilter, setDateFilter] = useState<'this_month' | 'last_3_months' | 'last_6_months' | 'this_year'>('this_month');
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   // Detect mobile
   useEffect(() => {
@@ -313,6 +318,20 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showExportMenu && !(event.target as Element).closest('.export-menu-container')) {
+        setShowExportMenu(false);
+      }
+    };
+
+    if (showExportMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showExportMenu]);
 
   const formatCurrency = (amount: number) => `${currency}${amount.toLocaleString()}`;
 
@@ -348,6 +367,58 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
   const handleGoalAction = (goalId: string, action: string) => {
     onAnalyticsTrack?.('goal_action', { goal_id: goalId, action });
     // Handle goal actions
+  };
+
+  const handleDateFilterChange = (filter: typeof dateFilter) => {
+    setDateFilter(filter);
+    onAnalyticsTrack?.('date_filter_change', { filter });
+  };
+
+  const handleExportData = (format: 'csv' | 'pdf' | 'excel') => {
+    onExportData?.(format);
+    onAnalyticsTrack?.('export_data', { format, date_filter: dateFilter });
+    setShowExportMenu(false);
+  };
+
+  const getDateFilterLabel = () => {
+    switch (dateFilter) {
+      case 'this_month': return 'This Month';
+      case 'last_3_months': return 'Last 3 Months';
+      case 'last_6_months': return 'Last 6 Months';
+      case 'this_year': return 'This Year';
+      default: return 'This Month';
+    }
+  };
+
+  const getDateRange = () => {
+    const now = new Date();
+    switch (dateFilter) {
+      case 'this_month':
+        return {
+          start: startOfMonth(now),
+          end: endOfMonth(now)
+        };
+      case 'last_3_months':
+        return {
+          start: new Date(now.getFullYear(), now.getMonth() - 3, 1),
+          end: endOfMonth(now)
+        };
+      case 'last_6_months':
+        return {
+          start: new Date(now.getFullYear(), now.getMonth() - 6, 1),
+          end: endOfMonth(now)
+        };
+      case 'this_year':
+        return {
+          start: new Date(now.getFullYear(), 0, 1),
+          end: new Date(now.getFullYear(), 11, 31)
+        };
+      default:
+        return {
+          start: startOfMonth(now),
+          end: endOfMonth(now)
+        };
+    }
   };
 
   return (
@@ -414,6 +485,87 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
             />
           </div>
         )}
+
+        {/* Filter and Export Controls */}
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">Period:</span>
+            <div className="flex flex-wrap gap-1">
+              {(['this_month', 'last_3_months', 'last_6_months', 'this_year'] as const).map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => handleDateFilterChange(filter)}
+                  className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
+                    dateFilter === filter
+                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                  }`}
+                  aria-pressed={dateFilter === filter}
+                >
+                  {filter === 'this_month' ? 'This Month' :
+                   filter === 'last_3_months' ? 'Last 3 Months' :
+                   filter === 'last_6_months' ? 'Last 6 Months' :
+                   'This Year'}
+                </button>
+              ))}
+            </div>
+            <div className="text-xs text-gray-500">
+              {format(getDateRange().start, 'MMM dd')} - {format(getDateRange().end, 'MMM dd, yyyy')}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Export Data Button */}
+            <div className="relative export-menu-container">
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                aria-expanded={showExportMenu}
+                aria-label="Export data options"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export Data</span>
+                <svg className={`w-4 h-4 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {showExportMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                  <div className="py-1">
+                    <button
+                      onClick={() => handleExportData('csv')}
+                      className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Export as CSV
+                    </button>
+                    <button
+                      onClick={() => handleExportData('pdf')}
+                      className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      Export as PDF
+                    </button>
+                    <button
+                      onClick={() => handleExportData('excel')}
+                      className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Export as Excel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </header>
 
       {/* Alerts Section */}

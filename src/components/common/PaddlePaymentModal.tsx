@@ -146,13 +146,24 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
     try {
       const priceId = getPaddlePriceId();
       
-      // For sandbox, directly use URL method due to consistent overlay issues
+      // For sandbox, use Paddle Billing hosted checkout
       if (PADDLE_ENVIRONMENT === 'sandbox') {
-        console.log('Using direct URL for sandbox environment');
-        const checkoutUrl = `https://sandbox-buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
-        window.open(checkoutUrl, '_blank');
-        setLoading(false);
-        toast.success('Opening checkout in new tab...');
+        console.log('Using Paddle Billing hosted checkout for sandbox environment');
+        // You'll need to replace these with your actual hosted checkout URLs from Paddle dashboard
+        const hostedCheckoutUrls: { [key: string]: string } = {
+          'premium_monthly': import.meta.env.VITE_PADDLE_MONTHLY_HOSTED_CHECKOUT_URL || '',
+          'premium_lifetime': import.meta.env.VITE_PADDLE_LIFETIME_HOSTED_CHECKOUT_URL || ''
+        };
+        
+        const checkoutUrl = hostedCheckoutUrls[planId];
+        if (checkoutUrl) {
+          window.open(checkoutUrl, '_blank');
+          setLoading(false);
+          toast.success('Opening checkout in new tab...');
+        } else {
+          setError('Hosted checkout URL not configured. Please set up hosted checkouts in Paddle dashboard.');
+          setLoading(false);
+        }
       } else if (paddle && paddle.Checkout) {
         try {
           // Use Paddle.js v2 Checkout.open for production
@@ -208,14 +219,28 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
           toast.success('Opening checkout in new tab...');
         }
       } else {
-        // Fallback to direct URL
-        console.log('Paddle not initialized, using direct URL fallback');
-        const checkoutUrl = PADDLE_ENVIRONMENT === 'sandbox' 
-          ? `https://sandbox-buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`
-          : `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
-        window.open(checkoutUrl, '_blank');
-        setLoading(false);
-        toast.success('Opening checkout in new tab...');
+        // Fallback to hosted checkout URLs
+        console.log('Paddle not initialized, using hosted checkout fallback');
+        if (PADDLE_ENVIRONMENT === 'sandbox') {
+          const hostedCheckoutUrls: { [key: string]: string } = {
+            'premium_monthly': 'YOUR_MONTHLY_HOSTED_CHECKOUT_URL_HERE',
+            'premium_lifetime': 'YOUR_LIFETIME_HOSTED_CHECKOUT_URL_HERE'
+          };
+          const checkoutUrl = hostedCheckoutUrls[planId];
+          if (checkoutUrl) {
+            window.open(checkoutUrl, '_blank');
+            setLoading(false);
+            toast.success('Opening checkout in new tab...');
+          } else {
+            setError('Hosted checkout URL not configured.');
+            setLoading(false);
+          }
+        } else {
+          const checkoutUrl = `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
+          window.open(checkoutUrl, '_blank');
+          setLoading(false);
+          toast.success('Opening checkout in new tab...');
+        }
       }
     } catch (err) {
       console.error('Failed to open Paddle checkout:', err);

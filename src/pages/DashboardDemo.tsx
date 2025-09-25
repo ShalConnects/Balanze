@@ -59,6 +59,40 @@ const DashboardDemo: React.FC = () => {
     handleAnalyticsTrack('mobile_action', { action });
   };
 
+  const handleExportData = (format: 'csv' | 'pdf' | 'excel') => {
+    console.log(`Exporting data as ${format.toUpperCase()}`);
+    
+    // Simulate export functionality
+    const exportData = {
+      format,
+      dateRange: 'This Month',
+      timestamp: new Date().toISOString(),
+      data: {
+        kpis: mockKPIData,
+        charts: ['trend', 'budget', 'goals'],
+        period: 'current_month'
+      }
+    };
+    
+    // Create downloadable file
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { 
+      type: format === 'csv' ? 'text/csv' : 
+            format === 'pdf' ? 'application/pdf' : 
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `finance-dashboard-export-${format}-${new Date().toISOString().split('T')[0]}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    handleAnalyticsTrack('export_data', { format });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Demo Header */}
@@ -135,6 +169,7 @@ const DashboardDemo: React.FC = () => {
           <FinanceDashboard
             currency={currency}
             onAnalyticsTrack={handleAnalyticsTrack}
+            onExportData={handleExportData}
           />
         )}
       </main>

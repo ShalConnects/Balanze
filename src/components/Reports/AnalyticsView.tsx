@@ -48,11 +48,86 @@ export const AnalyticsView: React.FC = () => {
   const { profile } = useAuthStore();
   const navigate = useNavigate();
   const transactions = getActiveTransactions();
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const accounts = getActiveAccounts();
   const stats = getDashboardStats();
   const [selectedPeriod, setSelectedPeriod] = useState<'current' | 'last3' | 'last6' | 'last12'>('current');
   const [selectedCurrency, setSelectedCurrency] = useState(stats.byCurrency[0]?.currency || 'USD');
   const [showTrends, setShowTrends] = useState(true);
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showExportMenu && !(event.target as Element).closest('.export-menu-container')) {
+        setShowExportMenu(false);
+      }
+    };
+
+    if (showExportMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showExportMenu]);
+
+  // Export functionality
+  const handleExportData = (format: 'csv' | 'pdf' | 'excel') => {
+    console.log(`Exporting analytics data as ${format.toUpperCase()}`);
+    
+    // Create comprehensive export data
+    const exportData = {
+      format,
+      dateRange: selectedPeriod,
+      currency: selectedCurrency,
+      timestamp: new Date().toISOString(),
+      analytics: {
+        summary: {
+          totalTransactions: transactions.length,
+          totalIncome: stats.totalIncome,
+          totalExpenses: stats.totalExpenses,
+          netCashFlow: stats.netCashFlow,
+          currency: selectedCurrency
+        },
+        transactions: transactions.map(t => ({
+          id: t.id,
+          amount: t.amount,
+          type: t.type,
+          category: t.category,
+          description: t.description,
+          date: t.date,
+          account: t.account_name,
+          currency: t.currency
+        })),
+        accounts: accounts.map(a => ({
+          id: a.id,
+          name: a.name,
+          type: a.type,
+          balance: a.balance,
+          currency: a.currency
+        })),
+        stats: stats,
+        period: selectedPeriod,
+        generatedAt: new Date().toISOString()
+      }
+    };
+    
+    // Create downloadable file
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { 
+      type: format === 'csv' ? 'text/csv' : 
+            format === 'pdf' ? 'application/pdf' : 
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics-export-${format}-${new Date().toISOString().split('T')[0]}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    setShowExportMenu(false);
+  };
 
   const formatCurrency = (amount: number, currency: string = 'USD') => {
     return new Intl.NumberFormat('en-US', {
@@ -1022,13 +1097,55 @@ export const AnalyticsView: React.FC = () => {
           <span className="hidden sm:inline">Currency Analytics</span>
           <span className="sm:hidden">Currency</span>
         </button>
-        <button 
-          data-tour="export-data"
-          className="bg-gradient-primary hover:bg-gradient-primary-hover text-white px-3 py-2 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm col-span-2 sm:col-span-1"
-        >
-          <Download className="w-4 h-4" />
-          <span>Export Data</span>
-        </button>
+        <div className="relative col-span-2 sm:col-span-1 export-menu-container">
+          <button 
+            data-tour="export-data"
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            className="bg-gradient-primary hover:bg-gradient-primary-hover text-white px-3 py-2 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm w-full"
+            aria-expanded={showExportMenu}
+            aria-label="Export data options"
+          >
+            <Download className="w-4 h-4" />
+            <span>Export Data</span>
+            <svg className={`w-4 h-4 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showExportMenu && (
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+              <div className="py-1">
+                <button
+                  onClick={() => handleExportData('csv')}
+                  className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Export as CSV
+                </button>
+                <button
+                  onClick={() => handleExportData('pdf')}
+                  className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  Export as PDF
+                </button>
+                <button
+                  onClick={() => handleExportData('excel')}
+                  className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Export as Excel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Monthly Trends Chart - Full Width */}
