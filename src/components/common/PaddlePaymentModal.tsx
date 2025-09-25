@@ -162,6 +162,13 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
         
         const checkoutUrl = hostedCheckoutUrls[planId];
         console.log('Selected checkout URL:', checkoutUrl);
+        console.log('Full checkout details:', {
+          planId,
+          userEmail: user.email,
+          userId: user.id,
+          environment: PADDLE_ENVIRONMENT,
+          vendorId: PADDLE_VENDOR_ID
+        });
         
         if (checkoutUrl) {
           window.open(checkoutUrl, '_blank');
