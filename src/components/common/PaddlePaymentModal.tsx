@@ -149,13 +149,20 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
       // For sandbox, use Paddle Billing hosted checkout
       if (PADDLE_ENVIRONMENT === 'sandbox') {
         console.log('Using Paddle Billing hosted checkout for sandbox environment');
-        // You'll need to replace these with your actual hosted checkout URLs from Paddle dashboard
+        console.log('Environment variables check:', {
+          MONTHLY_URL: import.meta.env.VITE_PADDLE_MONTHLY_HOSTED_CHECKOUT_URL,
+          LIFETIME_URL: import.meta.env.VITE_PADDLE_LIFETIME_HOSTED_CHECKOUT_URL,
+          PLAN_ID: planId
+        });
+        
         const hostedCheckoutUrls: { [key: string]: string } = {
-          'premium_monthly': import.meta.env.VITE_PADDLE_MONTHLY_HOSTED_CHECKOUT_URL || '',
-          'premium_lifetime': import.meta.env.VITE_PADDLE_LIFETIME_HOSTED_CHECKOUT_URL || ''
+          'premium_monthly': import.meta.env.VITE_PADDLE_MONTHLY_HOSTED_CHECKOUT_URL || 'https://pay.paddle.io/hsc_01k5znxqmg3m2y8x86pas1rjn1_dvbtg9ypakfxe17srry4wp42gfdhf2f0',
+          'premium_lifetime': import.meta.env.VITE_PADDLE_LIFETIME_HOSTED_CHECKOUT_URL || 'https://pay.paddle.io/hsc_01k5zp0em4tw34wtef9vhxx7pk_670p0atdnx2a3n970gaw2h7esr4rvtpx'
         };
         
         const checkoutUrl = hostedCheckoutUrls[planId];
+        console.log('Selected checkout URL:', checkoutUrl);
+        
         if (checkoutUrl) {
           window.open(checkoutUrl, '_blank');
           setLoading(false);
@@ -223,8 +230,8 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
         console.log('Paddle not initialized, using hosted checkout fallback');
         if (PADDLE_ENVIRONMENT === 'sandbox') {
           const hostedCheckoutUrls: { [key: string]: string } = {
-            'premium_monthly': 'YOUR_MONTHLY_HOSTED_CHECKOUT_URL_HERE',
-            'premium_lifetime': 'YOUR_LIFETIME_HOSTED_CHECKOUT_URL_HERE'
+            'premium_monthly': import.meta.env.VITE_PADDLE_MONTHLY_HOSTED_CHECKOUT_URL || 'https://pay.paddle.io/hsc_01k5znxqmg3m2y8x86pas1rjn1_dvbtg9ypakfxe17srry4wp42gfdhf2f0',
+            'premium_lifetime': import.meta.env.VITE_PADDLE_LIFETIME_HOSTED_CHECKOUT_URL || 'https://pay.paddle.io/hsc_01k5zp0em4tw34wtef9vhxx7pk_670p0atdnx2a3n970gaw2h7esr4rvtpx'
           };
           const checkoutUrl = hostedCheckoutUrls[planId];
           if (checkoutUrl) {
