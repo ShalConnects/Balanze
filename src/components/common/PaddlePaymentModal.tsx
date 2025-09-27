@@ -171,6 +171,8 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
         });
         
         if (checkoutUrl) {
+          console.log('🚀 Opening checkout URL:', checkoutUrl);
+          console.log('🔍 URL contains sandbox-pay:', checkoutUrl.includes('sandbox-pay'));
           window.open(checkoutUrl, '_blank');
           setLoading(false);
           toast.success('Opening checkout in new tab...');
