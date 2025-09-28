@@ -1,6 +1,6 @@
 import React from 'react';
 import { MainLayout } from '../components/Layout/MainLayout';
-import { FileRenameUtility } from '../components/Admin/FileRenameUtility';
+import { FileRenameUtility } from '../components/admin/FileRenameUtility';
 import { Settings } from 'lucide-react';
 
 export const FileRenameAdmin: React.FC = () => {
