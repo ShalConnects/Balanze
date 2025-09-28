@@ -41,6 +41,8 @@ export const Settings: React.FC = () => {
   // Touch gesture handling for mobile swipe navigation
   const touchStartX = useRef<number>(0);
   const touchEndX = useRef<number>(0);
+  const touchStartY = useRef<number>(0);
+  const touchEndY = useRef<number>(0);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Define tabs array first (needed for handleSwipe)
@@ -73,22 +75,28 @@ export const Settings: React.FC = () => {
     setIsMobileMenuOpen(false);
   };
 
-  // Handle swipe gestures for mobile navigation
+  // Handle swipe gestures for mobile navigation - FIXED for Android
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.changedTouches[0].screenX;
+    touchStartY.current = e.changedTouches[0].screenY;
   }, []);
 
   const handleSwipe = useCallback(() => {
-    const swipeThreshold = 50;
-    const swipeDistance = touchStartX.current - touchEndX.current;
+    const swipeThreshold = 80; // Increased threshold for Android
+    const horizontalDistance = touchStartX.current - touchEndX.current;
+    const verticalDistance = Math.abs(touchStartY.current - touchEndY.current);
     
-    if (Math.abs(swipeDistance) > swipeThreshold) {
+    // Only trigger swipe if horizontal movement is significantly greater than vertical
+    const isHorizontalSwipe = Math.abs(horizontalDistance) > verticalDistance * 2;
+    const isSignificantSwipe = Math.abs(horizontalDistance) > swipeThreshold;
+    
+    if (isHorizontalSwipe && isSignificantSwipe) {
       const currentIndex = tabs.findIndex(tab => tab.id === activeTab);
       
-      if (swipeDistance > 0 && currentIndex < tabs.length - 1) {
+      if (horizontalDistance > 0 && currentIndex < tabs.length - 1) {
         // Swipe left - next tab
         handleTabChange(tabs[currentIndex + 1].id);
-      } else if (swipeDistance < 0 && currentIndex > 0) {
+      } else if (horizontalDistance < 0 && currentIndex > 0) {
         // Swipe right - previous tab
         handleTabChange(tabs[currentIndex - 1].id);
       }
@@ -97,6 +105,7 @@ export const Settings: React.FC = () => {
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     touchEndX.current = e.changedTouches[0].screenX;
+    touchEndY.current = e.changedTouches[0].screenY;
     handleSwipe();
   }, [handleSwipe]);
 
