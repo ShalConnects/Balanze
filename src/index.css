@@ -680,12 +680,31 @@ body.sidebar-open {
 html, body {
   touch-action: manipulation;
   overscroll-behavior: none;
+  /* Disable iOS bounce and Android pull-to-refresh */
+  -webkit-overflow-scrolling: touch;
+  overflow-scrolling: touch;
+}
+
+/* Prevent pull-to-refresh on the entire app container */
+#root {
+  touch-action: pan-y pinch-zoom;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Ensure main content areas allow proper scrolling */
 main {
   touch-action: pan-y;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: none;
+  /* Critical: Prevent browser refresh gestures */
+  overscroll-behavior-x: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Disable pull-to-refresh for all scrollable containers */
+.overflow-y-auto, .overflow-auto {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Custom scrollbar for sidebar */

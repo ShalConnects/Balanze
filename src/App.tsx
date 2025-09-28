@@ -87,6 +87,37 @@ function AppContent() {
     }
   }, [isDarkMode]);
 
+  // CRITICAL: Prevent Android browser pull-to-refresh
+  useEffect(() => {
+    const preventRefresh = (e: TouchEvent) => {
+      // Prevent pull-to-refresh when at the top of the page
+      if (window.scrollY === 0 && e.touches.length === 1) {
+        const touch = e.touches[0];
+        const deltaY = touch.clientY - (touch as any).startY;
+        
+        // If user is pulling down from the top, prevent default
+        if (deltaY > 0) {
+          e.preventDefault();
+        }
+      }
+    };
+
+    const storeTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        (e.touches[0] as any).startY = e.touches[0].clientY;
+      }
+    };
+
+    // Add touch event listeners to prevent pull-to-refresh
+    document.addEventListener('touchstart', storeTouchStart, { passive: false });
+    document.addEventListener('touchmove', preventRefresh, { passive: false });
+
+    return () => {
+      document.removeEventListener('touchstart', storeTouchStart);
+      document.removeEventListener('touchmove', preventRefresh);
+    };
+  }, []);
+
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
