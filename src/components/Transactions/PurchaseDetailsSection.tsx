@@ -33,7 +33,10 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [currentUploadFile, setCurrentUploadFile] = useState<string | null>(null);
   const notesEditorRef = useRef<HTMLDivElement>(null);
+  const quillRef = useRef<any>(null);
 
   // Sync notes prop to contentEditable only when it changes
   useEffect(() => {
@@ -42,21 +45,48 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
     }
   }, [notes]);
 
+  const simulateUploadProgress = (fileName: string) => {
+    setCurrentUploadFile(fileName);
+    setUploadProgress(0);
+    
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setCurrentUploadFile(null);
+          setUploadProgress(0);
+          return 100;
+        }
+        return prev + Math.random() * 15 + 5; // Random progress increment
+      });
+    }, 100);
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
     const file = files[0];
     setUploading(true);
+    
+    // Start upload progress simulation
+    simulateUploadProgress(file.name);
 
     try {
+      // Simulate upload delay
+      await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
+
+      // Generate random file name
+      const originalExtension = '.' + (file.name.split('.').pop() || '');
+      const randomFileName = generateRandomFileName(originalExtension);
+
       // For now, we'll create a temporary attachment object
       // In a real implementation, you'd upload to storage and get the actual attachment
       const tempAttachment: PurchaseAttachment = {
         id: `temp_${Date.now()}`,
         purchase_id: 'temp',
         user_id: 'temp',
-        file_name: file.name,
+        file_name: randomFileName,
         file_path: URL.createObjectURL(file), // for preview only
         file_size: file.size,
         file_type: file.name.split('.').pop()?.toLowerCase() || '',
@@ -68,6 +98,8 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
       onAttachmentsChange([...attachments, tempAttachment]);
     } catch (error) {
       console.error('Error uploading file:', error);
+      setCurrentUploadFile(null);
+      setUploadProgress(0);
     } finally {
       setUploading(false);
     }
@@ -89,6 +121,16 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
     }
     
     onAttachmentsChange(attachments.filter(att => att.id !== attachmentId));
+  };
+
+  const generateRandomFileName = (originalExtension: string) => {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const length = Math.floor(Math.random() * 3) + 5; // Random length between 5-7
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result + originalExtension;
   };
 
   const getFileIcon = (fileType: string) => {
@@ -173,6 +215,7 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
   }
 `}</style>
             <ReactQuill
+              ref={quillRef}
               theme="snow"
               value={notes}
               onChange={onNotesChange}
@@ -216,6 +259,26 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
                   Max 5MB • JPG, PNG, GIF, PDF, DOCX, XLSX, TXT
                 </span>
               </div>
+
+              {/* Upload Progress */}
+              {currentUploadFile && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      Uploading: {currentUploadFile}
+                    </span>
+                    <span className="text-sm text-blue-600 dark:text-blue-400">
+                      {Math.round(uploadProgress)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-primary h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
 
               {/* Hidden file input */}
               <input

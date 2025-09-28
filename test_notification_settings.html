@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Settings Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .test-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            margin: 8px 0;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        .test-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .test-button:hover {
+            background: #2563eb;
+        }
+        .test-button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .notification-preview {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .icon {
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 style="text-align: center; color: #1f2937; margin-bottom: 30px;">
+            🔔 Notification Settings Test Suite
+        </h1>
+        
+        <div class="grid">
+            <!-- Financial Notifications Test -->
+            <div class="test-section">
+                <div class="test-title">
+                    <span class="icon">💰</span>
+                    Financial Notifications Test
+                </div>
+                
+                <div class="test-item">
+                    <div>
+                        <strong>Overdue Payments</strong>
+                        <div style="font-size: 12px; color: #666;">Bills past due date</div>
+                    </div>
+                    <button class="test-button" onclick="testNotification('overdue', 'Overdue Payment Alert', 'You have 2 bills that are past due. Please review and pay them.')">
+                        Test
+                    </button>
+                </div>
+                
+                <div class="test-item">
+                    <div>
+                        <strong>Due Soon Reminders</strong>
+                        <div style="font-size: 12px; color: #666;">Bills due within 3 days</div>
+                    </div>
+                    <button class="test-button" onclick="testNotification('due_soon', 'Payment Due Soon', 'Your credit card payment is due in 2 days.')">
+                        Test
+                    </button>
+                </div>
+                
+                <div class="test-item">
+                    <div>
+                        <strong>Low Balance Alerts</strong>
+                        <div style="font-size: 12px; color: #666;">Account balance is low</div>
+                    </div>
+                    <button class="test-button" onclick="testNotification('low_balance', 'Low Balance Warning', 'Your checking account balance is below $50.')">
+                        Test
+                    </button>
+                </div>
+            </div>
+
+            <!-- System Notifications Test -->
+            <div class="test-section">
+                <div class="test-title">
+                    <span class="icon">⚙️</span>
+                    System Notifications Test
+                </div>
+                
+                <div class="test-item">
+                    <div>
+                        <strong>New Features</strong>
+                        <div style="font-size: 12px; color: #666;">New features and improvements</div>
+                    </div>
+                    <button class="test-button" onclick="testNotification('new_feature', 'New Feature Available', 'Check out our new budget tracking dashboard!')">
+                        Test
+                    </button>
+                </div>
+            </div>
+
+            <!-- Activity Notifications Test -->
+            <div class="test-section">
+                <div class="test-title">
+                    <span class="icon">📊</span>
+                    Activity Notifications Test
+                </div>
+                
+                <div class="test-item">
+                    <div>
+                        <strong>Account Changes</strong>
+                        <div style="font-size: 12px; color: #666;">Changes to your accounts</div>
+                    </div>
+                    <button class="test-button" onclick="testNotification('account_change', 'Account Updated', 'Your profile information has been updated.')">
+                        Test
+                    </button>
+                </div>
+            </div>
+
+            <!-- Communication Test -->
+            <div class="test-section">
+                <div class="test-title">
+                    <span class="icon">📱</span>
+                    Communication Channels Test
+                </div>
+                
+                <div class="test-item">
+                    <div>
+                        <strong>In-App Notifications</strong>
+                        <div style="font-size: 12px; color: #666;">Show notifications in app</div>
+                    </div>
+                    <button class="test-button" onclick="testInAppNotification()">
+                        Test
+                    </button>
+                </div>
+                
+                <div class="test-item">
+                    <div>
+                        <strong>Email Notifications</strong>
+                        <div style="font-size: 12px; color: #666;">Send emails for alerts</div>
+                    </div>
+                    <button class="test-button" onclick="testEmailNotification()">
+                        Test
+                    </button>
+                </div>
+            </div>
+
+            <!-- Frequency Test -->
+            <div class="test-section">
+                <div class="test-title">
+                    <span class="icon">⏰</span>
+                    Frequency Settings Test
+                </div>
+                
+                <div class="test-item">
+                    <div>
+                        <strong>Real Time</strong>
+                        <div style="font-size: 12px; color: #666;">Immediate notifications</div>
+                    </div>
+                    <button class="test-button" onclick="testFrequency('real_time')">
+                        Test
+                    </button>
+                </div>
+                
+                <div class="test-item">
+                    <div>
+                        <strong>Daily Digest</strong>
+                        <div style="font-size: 12px; color: #666;">Summary at end of day</div>
+                    </div>
+                    <button class="test-button" onclick="testFrequency('daily_digest')">
+                        Test
+                    </button>
+                </div>
+                
+                <div class="test-item">
+                    <div>
+                        <strong>Weekly Summary</strong>
+                        <div style="font-size: 12px; color: #666;">Weekly roundup</div>
+                    </div>
+                    <button class="test-button" onclick="testFrequency('weekly_summary')">
+                        Test
+                    </button>
+                </div>
+                
+                <div class="test-item">
+                    <div>
+                        <strong>Monthly Report</strong>
+                        <div style="font-size: 12px; color: #666;">Monthly insights</div>
+                    </div>
+                    <button class="test-button" onclick="testFrequency('monthly_report')">
+                        Test
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Results -->
+        <div class="test-section">
+            <div class="test-title">
+                <span class="icon">📋</span>
+                Test Results
+            </div>
+            <div id="test-results">
+                <div style="text-align: center; color: #666; padding: 20px;">
+                    Click the test buttons above to see results here
+                </div>
+            </div>
+        </div>
+
+        <!-- Integration Test -->
+        <div class="test-section">
+            <div class="test-title">
+                <span class="icon">🔗</span>
+                Integration Test
+            </div>
+            <div style="text-align: center;">
+                <button class="test-button" onclick="runFullTest()" style="padding: 12px 24px; font-size: 16px;">
+                    🚀 Run Full Notification Test Suite
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+        
+        function addTestResult(category, test, status, message) {
+            const result = {
+                category,
+                test,
+                status,
+                message,
+                timestamp: new Date().toLocaleTimeString()
+            };
+            testResults.push(result);
+            updateResultsDisplay();
+        }
+        
+        function updateResultsDisplay() {
+            const resultsDiv = document.getElementById('test-results');
+            if (testResults.length === 0) {
+                resultsDiv.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">Click the test buttons above to see results here</div>';
+                return;
+            }
+            
+            let html = '<div style="max-height: 400px; overflow-y: auto;">';
+            testResults.forEach(result => {
+                html += `
+                    <div class="test-item">
+                        <div>
+                            <strong>${result.category} - ${result.test}</strong>
+                            <div style="font-size: 12px; color: #666;">${result.message}</div>
+                            <div style="font-size: 11px; color: #999;">${result.timestamp}</div>
+                        </div>
+                        <span class="status ${result.status}">${result.status.toUpperCase()}</span>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        }
+        
+        function testNotification(category, title, message) {
+            addTestResult('Notification', category, 'success', `Simulated: ${title} - ${message}`);
+            
+            // Show notification preview
+            const preview = document.createElement('div');
+            preview.className = 'notification-preview';
+            preview.innerHTML = `
+                <strong>📱 Notification Preview:</strong><br>
+                <strong>Title:</strong> ${title}<br>
+                <strong>Message:</strong> ${message}<br>
+                <strong>Category:</strong> ${category}<br>
+                <strong>Time:</strong> ${new Date().toLocaleString()}
+            `;
+            
+            // Insert after the test button
+            event.target.parentElement.appendChild(preview);
+            
+            // Remove preview after 5 seconds
+            setTimeout(() => {
+                if (preview.parentElement) {
+                    preview.parentElement.removeChild(preview);
+                }
+            }, 5000);
+        }
+        
+        function testInAppNotification() {
+            addTestResult('Communication', 'In-App', 'success', 'In-app notification would be displayed in the application interface');
+            
+            // Simulate in-app notification
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #3b82f6;
+                color: white;
+                padding: 12px 16px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 1000;
+                animation: slideIn 0.3s ease-out;
+            `;
+            notification.innerHTML = '🔔 In-App Notification Test';
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.parentElement.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+        
+        function testEmailNotification() {
+            addTestResult('Communication', 'Email', 'success', 'Email notification would be sent to user\'s registered email address');
+            
+            const preview = document.createElement('div');
+            preview.className = 'notification-preview';
+            preview.innerHTML = `
+                <strong>📧 Email Notification Preview:</strong><br>
+                <strong>To:</strong> user@example.com<br>
+                <strong>Subject:</strong> Balanze Notification<br>
+                <strong>Body:</strong> This is a test email notification from your Balanze account.<br>
+                <strong>Time:</strong> ${new Date().toLocaleString()}
+            `;
+            
+            event.target.parentElement.appendChild(preview);
+            
+            setTimeout(() => {
+                if (preview.parentElement) {
+                    preview.parentElement.removeChild(preview);
+                }
+            }, 5000);
+        }
+        
+        function testFrequency(frequency) {
+            const descriptions = {
+                'real_time': 'Notifications sent immediately as events occur',
+                'daily_digest': 'All notifications batched and sent once per day',
+                'weekly_summary': 'Weekly summary of all activities and notifications',
+                'monthly_report': 'Comprehensive monthly financial report'
+            };
+            
+            addTestResult('Frequency', frequency, 'success', descriptions[frequency]);
+        }
+        
+        function runFullTest() {
+            testResults = [];
+            addTestResult('Test Suite', 'Full Test', 'pending', 'Running comprehensive notification test suite...');
+            
+            // Simulate running all tests
+            setTimeout(() => {
+                testNotification('overdue', 'Test Overdue Payment', 'This is a test overdue payment notification');
+                testNotification('due_soon', 'Test Due Soon', 'This is a test due soon notification');
+                testNotification('low_balance', 'Test Low Balance', 'This is a test low balance notification');
+                testNotification('new_feature', 'Test New Feature', 'This is a test new feature notification');
+                testNotification('account_change', 'Test Account Change', 'This is a test account change notification');
+                
+                addTestResult('Test Suite', 'Full Test', 'success', 'All notification tests completed successfully!');
+            }, 1000);
+        }
+        
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

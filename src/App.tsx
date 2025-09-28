@@ -43,6 +43,7 @@ import { useNotificationStore } from './store/notificationStore';
 import { MobileSidebarProvider } from './context/MobileSidebarContext';
 import KBArticlePage from './pages/KBArticlePage';
 import AdminPage from './pages/AdminPage';
+import { FileRenameAdmin } from './pages/FileRenameAdmin';
 import DashboardDemo from './pages/DashboardDemo';
 import { useThemeStore } from './store/themeStore';
 
@@ -301,9 +302,9 @@ function AppContent() {
     <>
       <Loader isLoading={globalLoading} message={loadingMessage} />
       <Toaster 
-        position="top-center" 
+        position="top-right" 
         richColors 
-        expand={true}
+        expand={false}
         closeButton={true}
         duration={4000}
         theme="light"
@@ -312,15 +313,15 @@ function AppContent() {
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           fontSize: '14px',
           fontWeight: '500',
-          marginTop: '20px',
-          maxWidth: '90vw',
-          width: 'auto'
+          marginTop: '20px'
         }}
         toastOptions={{
           style: {
-            maxWidth: '90vw',
-            width: 'auto',
-            margin: '0 auto'
+            maxWidth: '400px',
+            width: 'fit-content',
+            margin: '0 auto',
+            padding: '12px 16px',
+            borderRadius: '8px'
           }
         }}
       />
@@ -349,6 +350,7 @@ function AppContent() {
         <Route path="/help" element={user ? <HelpLayout><HelpAndSupport /></HelpLayout> : <Navigate to="/login" />} />
         <Route path="/kb/:slug" element={user ? <HelpLayout><KBArticlePage /></HelpLayout> : <Navigate to="/login" />} />
         <Route path="/admin" element={user ? <AdminPage /> : <Navigate to="/login" />} />
+        <Route path="/admin/file-rename" element={user ? <FileRenameAdmin /> : <Navigate to="/login" />} />
         <Route path="/history" element={user ? <MainLayout><History /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/donations" element={user ? <MainLayout><DonationsSavingsPage /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/favorite-quotes" element={user ? <MainLayout><FavoriteQuotes /></MainLayout> : <Navigate to="/login" />} />

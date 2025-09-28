@@ -1,96 +1,10 @@
 import { supabase } from './supabase';
-import { toast } from 'sonner';
 import type { NotificationType } from '../types/index';
 import { notificationPreferencesService } from './notificationPreferences';
+import { showToast } from './toast';
 
 // Enhanced notification types
 export type ToastType = 'success' | 'error' | 'warning' | 'info' | 'loading';
-
-// Toast configuration
-const toastConfig = {
-  success: {
-    duration: 4000,
-    style: {
-      background: '#10B981',
-      color: 'white',
-      border: '1px solid #059669'
-    }
-  },
-  error: {
-    duration: 6000,
-    style: {
-      background: '#EF4444',
-      color: 'white',
-      border: '1px solid #DC2626'
-    }
-  },
-  warning: {
-    duration: 5000,
-    style: {
-      background: '#F59E0B',
-      color: 'white',
-      border: '1px solid #D97706'
-    }
-  },
-  info: {
-    duration: 4000,
-    style: {
-      background: '#3B82F6',
-      color: 'white',
-      border: '1px solid #2563EB'
-    }
-  },
-  loading: {
-    duration: Infinity,
-    style: {
-      background: '#6B7280',
-      color: 'white',
-      border: '1px solid #4B5563'
-    }
-  }
-};
-
-// Enhanced toast functions with better styling
-export const showToast = {
-  success: (message: string, options?: { description?: string; action?: { label: string; onClick: () => void } }) => {
-    toast.success(message, {
-      ...toastConfig.success,
-      description: options?.description,
-      action: options?.action
-    });
-  },
-
-  error: (message: string, options?: { description?: string; action?: { label: string; onClick: () => void } }) => {
-    toast.error(message, {
-      ...toastConfig.error,
-      description: options?.description,
-      action: options?.action
-    });
-  },
-
-  warning: (message: string, options?: { description?: string; action?: { label: string; onClick: () => void } }) => {
-    toast.warning(message, {
-      ...toastConfig.warning,
-      description: options?.description,
-      action: options?.action
-    });
-  },
-
-  info: (message: string, options?: { description?: string; action?: { label: string; onClick: () => void } }) => {
-    toast.info(message, {
-      ...toastConfig.info,
-      description: options?.description,
-      action: options?.action
-    });
-  },
-
-  loading: (message: string, options?: { description?: string }) => {
-    return toast.loading(message, {
-      ...toastConfig.loading,
-      description: options?.description
-    });
-  }
-};
 
 // Enhanced notification creation with user preferences integration
 export async function createNotification(
@@ -99,7 +13,8 @@ export async function createNotification(
   type: NotificationType = 'info',
   body?: string,
   shouldShowToast: boolean = true,
-  notificationCategory?: string // New parameter to specify notification category
+  notificationCategory?: string, // New parameter to specify notification category
+  ignoreCriticalQuietHours: boolean = false // For critical alerts that bypass quiet hours
 ) {
   try {
     // Check user preferences before creating notification
@@ -126,7 +41,17 @@ export async function createNotification(
     // Show toast notification if requested and user preferences allow
     if (shouldShowToast) {
       const toastType = type as ToastType;
-      showToast[toastType](title, { description: body });
+      if (toastType === 'success') {
+        showToast.success(title);
+      } else if (toastType === 'error') {
+        showToast.error(title);
+      } else if (toastType === 'warning') {
+        showToast.warning(title);
+      } else if (toastType === 'info') {
+        showToast.info(title);
+      } else if (toastType === 'loading') {
+        showToast.loading(title);
+      }
     }
 
     return { success: true };
@@ -186,6 +111,8 @@ export class SmartNotificationManager {
       await this.scheduleDailyDigest();
     } else if (frequency === 'weekly_summary') {
       await this.scheduleWeeklySummary();
+    } else if (frequency === 'monthly_report') {
+      await this.scheduleMonthlyReport();
     }
   }
 
@@ -200,21 +127,135 @@ export class SmartNotificationManager {
         notification.type,
         notification.body,
         true,
-        notification.category
+        notification.category,
+        ignoreCriticalQuietHours
       );
     }
   }
 
   private async scheduleDailyDigest() {
-    // Implementation for daily digest
-    // This would batch notifications and send them once per day
-    console.log('Daily digest scheduling not yet implemented');
+    // Group notifications by user
+    const notificationsByUser = new Map<string, typeof this.notificationQueue>();
+    
+    for (const notification of this.notificationQueue) {
+      if (!notificationsByUser.has(notification.userId)) {
+        notificationsByUser.set(notification.userId, []);
+      }
+      notificationsByUser.get(notification.userId)!.push(notification);
+    }
+
+    // Clear the queue
+    this.notificationQueue = [];
+
+    // Schedule digest for each user (in a real implementation, this would use a job scheduler)
+    for (const [userId, notifications] of notificationsByUser) {
+      await this.createDailyDigestNotification(userId, notifications);
+    }
   }
 
   private async scheduleWeeklySummary() {
-    // Implementation for weekly summary
-    // This would batch notifications and send them once per week
-    console.log('Weekly summary scheduling not yet implemented');
+    // Group notifications by user
+    const notificationsByUser = new Map<string, typeof this.notificationQueue>();
+    
+    for (const notification of this.notificationQueue) {
+      if (!notificationsByUser.has(notification.userId)) {
+        notificationsByUser.set(notification.userId, []);
+      }
+      notificationsByUser.get(notification.userId)!.push(notification);
+    }
+
+    // Clear the queue
+    this.notificationQueue = [];
+
+    // Schedule summary for each user (in a real implementation, this would use a job scheduler)
+    for (const [userId, notifications] of notificationsByUser) {
+      await this.createWeeklySummaryNotification(userId, notifications);
+    }
+  }
+
+  private async createDailyDigestNotification(userId: string, notifications: typeof this.notificationQueue) {
+    if (notifications.length === 0) return;
+
+    const categoryCounts = this.categorizeNotifications(notifications);
+    const title = `Daily Digest: ${notifications.length} notification${notifications.length > 1 ? 's' : ''}`;
+    
+    let body = 'Summary of today\'s activities:\n';
+    if (categoryCounts.financial > 0) body += `💰 ${categoryCounts.financial} financial alert${categoryCounts.financial > 1 ? 's' : ''}\n`;
+    if (categoryCounts.system > 0) body += `⚙️ ${categoryCounts.system} system update${categoryCounts.system > 1 ? 's' : ''}\n`;
+    if (categoryCounts.activity > 0) body += `📊 ${categoryCounts.activity} activity notification${categoryCounts.activity > 1 ? 's' : ''}\n`;
+
+    await createNotification(userId, title, 'info', body, true);
+  }
+
+  private async createWeeklySummaryNotification(userId: string, notifications: typeof this.notificationQueue) {
+    if (notifications.length === 0) return;
+
+    const categoryCounts = this.categorizeNotifications(notifications);
+    const title = `Weekly Summary: ${notifications.length} notification${notifications.length > 1 ? 's' : ''}`;
+    
+    let body = 'Summary of this week\'s activities:\n';
+    if (categoryCounts.financial > 0) body += `💰 ${categoryCounts.financial} financial alert${categoryCounts.financial > 1 ? 's' : ''}\n`;
+    if (categoryCounts.system > 0) body += `⚙️ ${categoryCounts.system} system update${categoryCounts.system > 1 ? 's' : ''}\n`;
+    if (categoryCounts.activity > 0) body += `📊 ${categoryCounts.activity} activity notification${categoryCounts.activity > 1 ? 's' : ''}\n`;
+
+    await createNotification(userId, title, 'info', body, true);
+  }
+
+  private async scheduleMonthlyReport() {
+    // Group notifications by user
+    const notificationsByUser = new Map<string, typeof this.notificationQueue>();
+    
+    for (const notification of this.notificationQueue) {
+      if (!notificationsByUser.has(notification.userId)) {
+        notificationsByUser.set(notification.userId, []);
+      }
+      notificationsByUser.get(notification.userId)!.push(notification);
+    }
+
+    // Clear the queue
+    this.notificationQueue = [];
+
+    // Schedule monthly report for each user
+    for (const [userId, notifications] of notificationsByUser) {
+      await this.createMonthlyReportNotification(userId, notifications);
+    }
+  }
+
+  private async createMonthlyReportNotification(userId: string, notifications: typeof this.notificationQueue) {
+    if (notifications.length === 0) return;
+
+    const categoryCounts = this.categorizeNotifications(notifications);
+    const title = `Monthly Report: ${notifications.length} notification${notifications.length > 1 ? 's' : ''}`;
+    
+    let body = 'Monthly financial activity summary:\n';
+    if (categoryCounts.financial > 0) body += `💰 ${categoryCounts.financial} financial alert${categoryCounts.financial > 1 ? 's' : ''}\n`;
+    if (categoryCounts.system > 0) body += `⚙️ ${categoryCounts.system} system update${categoryCounts.system > 1 ? 's' : ''}\n`;
+    if (categoryCounts.activity > 0) body += `📊 ${categoryCounts.activity} activity notification${categoryCounts.activity > 1 ? 's' : ''}\n`;
+    body += '\nView your detailed financial report in the app.';
+
+    await createNotification(userId, title, 'info', body, true);
+  }
+
+  private categorizeNotifications(notifications: typeof this.notificationQueue): { financial: number; system: number; activity: number } {
+    const counts = { financial: 0, system: 0, activity: 0 };
+    
+    for (const notification of notifications) {
+      if (!notification.category) continue;
+      
+      const financialCategories = ['overdue', 'due_soon', 'low_balance'];
+      const systemCategories = ['new_feature'];
+      const activityCategories = ['account_change'];
+      
+      if (financialCategories.includes(notification.category)) {
+        counts.financial++;
+      } else if (systemCategories.includes(notification.category)) {
+        counts.system++;
+      } else if (activityCategories.includes(notification.category)) {
+        counts.activity++;
+      }
+    }
+    
+    return counts;
   }
 
   private async getNotificationFrequency(): Promise<string> {
@@ -223,9 +264,11 @@ export class SmartNotificationManager {
     if (this.notificationQueue.length > 0) {
       try {
         const preferences = await notificationPreferencesService.getPreferences(this.notificationQueue[0].userId);
+        // Priority order: real_time > daily > weekly > monthly
         if (preferences.frequency.real_time) return 'real_time';
         if (preferences.frequency.daily_digest) return 'daily_digest';
         if (preferences.frequency.weekly_summary) return 'weekly_summary';
+        if (preferences.frequency.monthly_report) return 'monthly_report';
       } catch (error) {
         console.warn('Could not get notification frequency, defaulting to real_time:', error);
       }
@@ -239,7 +282,7 @@ export class SmartNotificationManager {
     title: string,
     type: NotificationType,
     body?: string,
-    category: 'overdue' | 'due_soon' | 'upcoming' | 'low_balance' | 'budget_exceeded' | 'large_transaction' = 'overdue'
+    category: 'overdue' | 'due_soon' | 'low_balance' = 'overdue'
   ) {
     await this.queueNotification(userId, title, type, body, category);
   }
@@ -249,7 +292,7 @@ export class SmartNotificationManager {
     title: string,
     type: NotificationType,
     body?: string,
-    category: 'new_feature' | 'system_update' | 'tip' | 'security' = 'system_update'
+    category: 'new_feature' = 'new_feature'
   ) {
     await this.queueNotification(userId, title, type, body, category);
   }
@@ -259,7 +302,7 @@ export class SmartNotificationManager {
     title: string,
     type: NotificationType,
     body?: string,
-    category: 'transaction_confirmation' | 'account_change' | 'category_update' | 'backup_reminder' = 'transaction_confirmation'
+    category: 'account_change' = 'account_change'
   ) {
     await this.queueNotification(userId, title, type, body, category);
   }

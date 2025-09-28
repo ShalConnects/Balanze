@@ -7,7 +7,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Transaction, Account, Category } from '../../types/index';
 import { PurchaseAttachment } from '../../types';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
+import { showToast } from '../../lib/toast';
 import { useNotificationsStore } from '../../stores/notificationsStore';
 import { logTransactionEvent } from '../../lib/auditLogging';
 import { PurchaseDetailsSection } from './PurchaseDetailsSection';
@@ -513,7 +513,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     if (submitting) return; // Prevent double submission
     if (!user) return;
     if (!validateForm()) {
-      toast.error('Please fix the errors in the form');
+      showToast.error('Please fix the errors in the form');
       return;
     }
     
@@ -659,11 +659,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             }
             
             // Show success toast
-            toast.success(createSuccessMessage(
-              'Update Transaction',
-              transactionToEdit.transaction_id || 'Unknown',
-              `${data.type === 'expense' ? 'Expense' : 'Income'} of ${data.amount}`
-            ));
+            showToast.success('Transaction updated successfully');
           } else {
             const transactionId = generateTransactionId();
             console.log('Submitting transaction with purchase details:', {
@@ -713,13 +709,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               }
             }
             
-            // Show success toast with the same transaction ID
+            // Show success toast
             console.log('Showing success toast...');
-            toast.success(createSuccessMessage(
-              'Add Transaction',
-              transactionId,
-              `${data.type === 'expense' ? 'Expense' : 'Income'} of ${data.amount}`
-            ));
+            showToast.success('Transaction added successfully');
           }
         }
 
@@ -743,7 +735,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             }).length;
             const limit = 100;
             
-            toast.error(`Transaction limit exceeded! You have ${monthlyTransactions}/${limit} transactions this month. Upgrade to Premium for unlimited transactions.`);
+            showToast.error(`Transaction limit exceeded! You have ${monthlyTransactions}/${limit} transactions this month. Upgrade to Premium for unlimited transactions.`);
             setTimeout(() => {
               window.location.href = '/settings?tab=plans';
             }, 2000);
@@ -753,7 +745,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         }
         
         // Removed transaction error notifications - only show toast for errors
-        toast.error(`Failed to ${isEditMode ? 'update' : 'add'} transaction. Please try again.`);
+        showToast.error(`Failed to ${isEditMode ? 'update' : 'add'} transaction. Please try again.`);
       } finally {
         setSubmitting(false);
       }
@@ -1144,7 +1136,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               onNotesChange={setPurchaseNotes}
               attachments={purchaseAttachments}
               onAttachmentsChange={setPurchaseAttachments}
-              showPriority={false}
+              showPriority={true}
             />
           )}
 

@@ -200,8 +200,8 @@ export const CurrencySettings: React.FC = () => {
 
       {/* Currency Selection */}
       <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 sm:p-4">
-        <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">
-          💱 Currency Settings
+        <h4 className="text-md font-medium text-gray-900 dark:text-white mb-2">
+          Currency Settings
         </h4>
         <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-3 sm:mb-4">
           {isFreePlan 

@@ -3,7 +3,7 @@ import { Account, Transaction, Category, Budget, DashboardStats, SavingsGoal, Pu
 import { DonationSavingRecord, DonationSavingAnalytics } from '../types/index';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
-import { toast } from 'react-hot-toast';
+import { showToast } from '../lib/toast';
 import { createNotification } from '../lib/notifications';
 import { logTransactionEvent, createAuditLog } from '../lib/auditLogging';
 import { generateTransactionId } from '../utils/transactionId';
@@ -557,10 +557,10 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     const { error } = await supabase.from('accounts').delete().eq('id', id);
     if (error) {
       set({ loading: false, error: error.message });
-      if (transaction_id) toast.error(`Account deletion failed (Transaction ID: ${transaction_id.slice(0,8)})`);
+      if (transaction_id) showToast.error(`Account deletion failed (Transaction ID: ${transaction_id.slice(0,8)})`);
       return;
     }
-    if (transaction_id) toast.success(`Account deleted (Transaction ID: ${transaction_id.slice(0,8)})`);
+    if (transaction_id) showToast.success(`Account deleted (Transaction ID: ${transaction_id.slice(0,8)})`);
     await get().fetchAccounts();
     set({ loading: false });
   },
@@ -925,7 +925,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       }));
       
       // Show success toast
-      toast.success(`Category "${categoryData.name}" created successfully`);
+      showToast.success(`Category "${categoryData.name}" created successfully`);
       
       // If this is an expense category, also create a purchase category to unify them
       if (categoryData.type === 'expense') {
@@ -987,7 +987,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     }));
     
     // Show success toast
-    toast.success(`Category updated successfully`);
+    showToast.success(`Category updated successfully`);
   },
   
   deleteCategory: async (id: string) => {
@@ -1010,7 +1010,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     }));
     
     // Show success toast
-    toast.success('Category deleted successfully');
+    showToast.success('Category deleted successfully');
   },
   
   getDashboardStats: () => {

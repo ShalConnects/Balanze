@@ -4,35 +4,23 @@ export interface NotificationPreferences {
   financial: {
     overdue_payments: boolean;
     due_soon_reminders: boolean;
-    upcoming_deadlines: boolean;
     low_balance_alerts: boolean;
-    budget_exceeded: boolean;
-    large_transactions: boolean;
   };
   system: {
     new_features: boolean;
-    system_updates: boolean;
-    tips_guidance: boolean;
-    security_alerts: boolean;
   };
   activity: {
-    transaction_confirmations: boolean;
     account_changes: boolean;
-    category_updates: boolean;
-    backup_reminders: boolean;
   };
   communication: {
     in_app_notifications: boolean;
     email_notifications: boolean;
-    push_notifications: boolean;
-    quiet_hours_enabled: boolean;
-    quiet_hours_start: string;
-    quiet_hours_end: string;
   };
   frequency: {
-    real_time: boolean;
-    daily_digest: boolean;
-    weekly_summary: boolean;
+    real_time: boolean;        // For normal real-time notifications
+    daily_digest: boolean;     // Daily summary
+    weekly_summary: boolean;   // Weekly roundup
+    monthly_report: boolean;   // Monthly insights
   };
 }
 
@@ -40,35 +28,23 @@ const defaultPreferences: NotificationPreferences = {
   financial: {
     overdue_payments: true,
     due_soon_reminders: true,
-    upcoming_deadlines: true,
     low_balance_alerts: true,
-    budget_exceeded: true,
-    large_transactions: true,
   },
   system: {
     new_features: true,
-    system_updates: true,
-    tips_guidance: true,
-    security_alerts: true,
   },
   activity: {
-    transaction_confirmations: true,
     account_changes: true,
-    category_updates: false,
-    backup_reminders: true,
   },
   communication: {
     in_app_notifications: true,
     email_notifications: false,
-    push_notifications: false,
-    quiet_hours_enabled: false,
-    quiet_hours_start: '22:00',
-    quiet_hours_end: '08:00',
   },
   frequency: {
-    real_time: true,
-    daily_digest: false,
-    weekly_summary: false,
+    real_time: true,           // Normal notifications on by default
+    daily_digest: false,       // Digest off by default
+    weekly_summary: false,     // Summary off by default  
+    monthly_report: false,     // Reports off by default
   },
 };
 
@@ -253,39 +229,68 @@ export class NotificationPreferencesService {
     }
   }
 
+  // Overloaded method to accept userId and fetch preferences
+  async shouldSendNotification(userId: string, notificationCategory: string, ignoreCriticalQuietHours?: boolean): Promise<boolean>;
   shouldSendNotification(
     preferences: NotificationPreferences,
     category: keyof NotificationPreferences,
     key: string
-  ): boolean {
-    const categoryPrefs = preferences[category] as any;
-    return categoryPrefs && categoryPrefs[key] === true;
-  }
-
-  isInQuietHours(preferences: NotificationPreferences): boolean {
-    if (!preferences.communication.quiet_hours_enabled) {
-      return false;
-    }
-
-    const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
-    
-    const startTime = this.timeToMinutes(preferences.communication.quiet_hours_start);
-    const endTime = this.timeToMinutes(preferences.communication.quiet_hours_end);
-
-    if (startTime <= endTime) {
-      // Same day quiet hours (e.g., 22:00 to 08:00 next day)
-      return currentTime >= startTime && currentTime <= endTime;
+  ): boolean;
+  async shouldSendNotification(
+    userIdOrPreferences: string | NotificationPreferences,
+    categoryOrKey: string | keyof NotificationPreferences,
+    key?: string
+  ): Promise<boolean> {
+    // If first parameter is string (userId), fetch preferences and determine category/key
+    if (typeof userIdOrPreferences === 'string') {
+      const userId = userIdOrPreferences;
+      const notificationCategory = categoryOrKey as string;
+      
+      try {
+        const preferences = await this.getPreferences(userId);
+        
+        // Map notification categories to preference structure
+        const categoryMapping = this.mapNotificationCategoryToPreference(notificationCategory);
+        if (!categoryMapping) {
+          console.warn(`Unknown notification category: ${notificationCategory}`);
+          return true; // Default to allowing unknown categories
+        }
+        
+        const { category, key: prefKey } = categoryMapping;
+        const categoryPrefs = preferences[category] as any;
+        return categoryPrefs && categoryPrefs[prefKey] === true;
+      } catch (error) {
+        console.error('Error checking notification preferences:', error);
+        return true; // Default to allowing notifications on error
+      }
     } else {
-      // Overnight quiet hours (e.g., 22:00 to 08:00 next day)
-      return currentTime >= startTime || currentTime <= endTime;
+      // Original method signature
+      const preferences = userIdOrPreferences;
+      const category = categoryOrKey as keyof NotificationPreferences;
+      const prefKey = key as string;
+      
+      const categoryPrefs = preferences[category] as any;
+      return categoryPrefs && categoryPrefs[prefKey] === true;
     }
   }
 
-  private timeToMinutes(timeString: string): number {
-    const [hours, minutes] = timeString.split(':').map(Number);
-    return hours * 60 + minutes;
+  private mapNotificationCategoryToPreference(notificationCategory: string): { category: keyof NotificationPreferences; key: string } | null {
+    const mapping: Record<string, { category: keyof NotificationPreferences; key: string }> = {
+      // Financial notifications
+      'overdue': { category: 'financial', key: 'overdue_payments' },
+      'due_soon': { category: 'financial', key: 'due_soon_reminders' },
+      'low_balance': { category: 'financial', key: 'low_balance_alerts' },
+      
+      // System notifications
+      'new_feature': { category: 'system', key: 'new_features' },
+      
+      // Activity notifications
+      'account_change': { category: 'activity', key: 'account_changes' },
+    };
+    
+    return mapping[notificationCategory] || null;
   }
+
 }
 
 export const notificationPreferencesService = NotificationPreferencesService.getInstance();

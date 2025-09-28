@@ -6,7 +6,7 @@ import { generateTransactionId, createSuccessMessage } from '../../utils/transac
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
 import { Loader } from '../common/Loader';
-import { toast } from 'sonner';
+import { showToast } from '../../lib/toast';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { validateAccount, ACCOUNT_TYPES, CURRENCY_OPTIONS, getAccountTypeDisplayName } from '../../utils/accountUtils';
 import { useUpgradeModal } from '../../hooks/useUpgradeModal';
@@ -194,7 +194,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
     });
     
     if (!validateForm()) {
-      toast.error('Please fix the errors in the form');
+      showToast.error('Please fix the errors in the form');
       return;
     }
     
@@ -221,10 +221,10 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
 
       if (account) {
         await updateAccount(account.id, accountData);
-        toast.success('Account updated successfully!');
+        showToast.success('Account updated successfully!');
       } else {
         await addAccount(accountData);
-        toast.success('Account created successfully!');
+        showToast.success('Account created successfully!');
       }
       
       onClose();
@@ -241,7 +241,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
             const current = accounts.length;
             const limit = 5;
             
-                      toast.error(`Account limit exceeded! You have ${current}/${limit} accounts. Upgrade to Premium for unlimited accounts.`);
+                      showToast.error(`Account limit exceeded! You have ${current}/${limit} accounts. Upgrade to Premium for unlimited accounts.`);
           setTimeout(() => {
             window.location.href = '/settings?tab=plans';
           }, 2000);
@@ -255,7 +255,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
             const uniqueCurrencies = new Set(accounts.map(a => a.currency)).size;
             const limit = 1;
             
-            toast.error(`Currency limit exceeded! You have ${uniqueCurrencies}/${limit} currencies. Upgrade to Premium for unlimited currencies.`);
+            showToast.error(`Currency limit exceeded! You have ${uniqueCurrencies}/${limit} currencies. Upgrade to Premium for unlimited currencies.`);
             setTimeout(() => {
               window.location.href = '/settings?tab=plans';
             }, 2000);
@@ -264,7 +264,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
           }
         }
       
-      toast.error('Failed to save account. Please try again.');
+      showToast.error('Failed to save account. Please try again.');
     } finally {
       setSubmitting(false);
     }

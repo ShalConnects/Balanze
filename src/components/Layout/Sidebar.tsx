@@ -52,6 +52,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
   // Swipe-to-close functionality
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  const [touchEndY, setTouchEndY] = useState<number | null>(null);
   
   // Minimum swipe distance (in px)
   const minSwipeDistance = 50;
@@ -106,23 +108,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [dropdownOpen]);
 
-  // Swipe-to-close functionality
+  // Swipe-to-close functionality - only for horizontal swipes
   const onTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
+    setTouchStartY(e.targetTouches[0].clientY);
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
     setTouchEnd(e.targetTouches[0].clientX);
+    setTouchEndY(e.targetTouches[0].clientY);
   };
 
   const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
+    if (!touchStart || !touchEnd || !touchStartY || !touchEndY) return;
     
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
+    const horizontalDistance = touchStart - touchEnd;
+    const verticalDistance = Math.abs(touchStartY - touchEndY);
+    const isLeftSwipe = horizontalDistance > minSwipeDistance;
+    const isHorizontalSwipe = Math.abs(horizontalDistance) > verticalDistance;
     
-    if (isLeftSwipe && isMobile && isOpen) {
+    // Only trigger sidebar close for horizontal left swipes, not vertical scrolls
+    if (isLeftSwipe && isHorizontalSwipe && isMobile && isOpen) {
       triggerHapticFeedback('light');
       onToggle();
     }

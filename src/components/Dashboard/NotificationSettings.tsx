@@ -1,6 +1,7 @@
 import React from 'react';
 import { NotificationPreferences } from '../../lib/notificationPreferences';
-import { Clock, Smartphone, Mail, Monitor } from 'lucide-react';
+import { Mail, Monitor } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 
 interface NotificationSettingsProps {
   preferences: NotificationPreferences | null;
@@ -17,6 +18,8 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
   onPreferenceChange,
   dirty
 }) => {
+  const { user } = useAuthStore();
+
   if (!preferences) {
     return (
       <div className="text-center p-8 text-gray-500 dark:text-gray-400">
@@ -27,156 +30,175 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* First Row: Activity Notifications + System Notifications */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Activity Notifications */}
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-          <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">
-            📊 Activity Notifications
-          </h4>
-          <div className="space-y-3">
-            {Object.entries(preferences.activity).map(([key, value]) => (
-              <label key={key} className="flex items-center justify-between">
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </span>
-                <input
-                  type="checkbox"
-                  checked={value}
-                  onChange={(e) => onPreferenceChange('activity', key, e.target.checked)}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                />
-              </label>
+      {/* All Notification Settings - Unified Block */}
+      <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6 border border-blue-200 dark:border-gray-600">
+        <div className="text-center mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            🔔 Notification Settings
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Configure all your notification preferences in one place
+          </p>
+        </div>
+
+        {/* Financial Notifications */}
+        <div className="mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {Object.entries(preferences.financial).map(([key, value]) => (
+              <div key={key} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white block">
+                      {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {key === 'overdue_payments' && 'Bills past due date'}
+                      {key === 'due_soon_reminders' && 'Bills due within 3 days'}
+                      {key === 'low_balance_alerts' && 'Account balance is low'}
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={value}
+                    onChange={(e) => onPreferenceChange('financial', key, e.target.checked)}
+                    className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                </label>
+              </div>
             ))}
           </div>
         </div>
 
-        {/* System Notifications */}
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-          <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">
-            ⚙️ System Notifications
-          </h4>
-          <div className="space-y-3">
+        {/* System & Activity Notifications */}
+        <div className="mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* System Notifications */}
             {Object.entries(preferences.system).map(([key, value]) => (
-              <label key={key} className="flex items-center justify-between">
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </span>
-                <input
-                  type="checkbox"
-                  checked={value}
-                  onChange={(e) => onPreferenceChange('system', key, e.target.checked)}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                />
-              </label>
+              <div key={key} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white block">
+                      {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      New features and improvements
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={value}
+                    onChange={(e) => onPreferenceChange('system', key, e.target.checked)}
+                    className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                </label>
+              </div>
+            ))}
+
+            {/* Activity Notifications */}
+            {Object.entries(preferences.activity).map(([key, value]) => (
+              <div key={key} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white block">
+                      {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      Changes to your accounts
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={value}
+                    onChange={(e) => onPreferenceChange('activity', key, e.target.checked)}
+                    className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                </label>
+              </div>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Second Row: Communication Preferences + Notification Frequency */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Communication Preferences */}
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-          <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">
-            📱 Communication Preferences
+        <div className="mb-8">
+          <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+            <span className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-2 py-1 rounded-full text-xs mr-2">📱</span>
+            Communication Channels
           </h4>
-          <div className="space-y-3">
-            <label className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Monitor className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-700 dark:text-gray-300">In-App Notifications</span>
-              </div>
-              <input
-                type="checkbox"
-                checked={preferences.communication.in_app_notifications}
-                onChange={(e) => onPreferenceChange('communication', 'in_app_notifications', e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </label>
-
-            <label className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Mail className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Email Notifications</span>
-              </div>
-              <input
-                type="checkbox"
-                checked={preferences.communication.email_notifications}
-                onChange={(e) => onPreferenceChange('communication', 'email_notifications', e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </label>
-
-            <label className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Smartphone className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Push Notifications</span>
-              </div>
-              <input
-                type="checkbox"
-                checked={preferences.communication.push_notifications}
-                onChange={(e) => onPreferenceChange('communication', 'push_notifications', e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </label>
-
-            {/* Quiet Hours */}
-            <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
-              <label className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-2">
-                  <Clock className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Quiet Hours</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center">
+                  <Monitor className="w-4 h-4 mr-3 text-gray-500" />
+                  <div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white block">In-App Notifications</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Show notifications in app</span>
+                  </div>
                 </div>
                 <input
                   type="checkbox"
-                  checked={preferences.communication.quiet_hours_enabled}
-                  onChange={(e) => onPreferenceChange('communication', 'quiet_hours_enabled', e.target.checked)}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                  checked={preferences.communication.in_app_notifications}
+                  onChange={(e) => onPreferenceChange('communication', 'in_app_notifications', e.target.checked)}
+                  className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                 />
               </label>
-              
-              {preferences.communication.quiet_hours_enabled && (
-                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                  <span>From:</span>
-                  <input
-                    type="time"
-                    value={preferences.communication.quiet_hours_start}
-                    onChange={(e) => onPreferenceChange('communication', 'quiet_hours_start', e.target.value)}
-                    className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                  <span>To:</span>
-                  <input
-                    type="time"
-                    value={preferences.communication.quiet_hours_end}
-                    onChange={(e) => onPreferenceChange('communication', 'quiet_hours_end', e.target.value)}
-                    className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center">
+                  <Mail className="w-4 h-4 mr-3 text-gray-500" />
+                  <div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white block">Email Notifications</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Send emails for alerts</span>
+                  </div>
                 </div>
-              )}
+                <input
+                  type="checkbox"
+                  checked={preferences.communication.email_notifications}
+                  onChange={(e) => onPreferenceChange('communication', 'email_notifications', e.target.checked)}
+                  className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                />
+              </label>
             </div>
           </div>
         </div>
 
         {/* Notification Frequency */}
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-          <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">
-            ⏰ Notification Frequency
+        <div>
+          <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+            <span className="bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 px-2 py-1 rounded-full text-xs mr-2">⏰</span>
+            Notification Frequency
           </h4>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {Object.entries(preferences.frequency).map(([key, value]) => (
-              <label key={key} className="flex items-center justify-between">
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </span>
-                <input
-                  type="checkbox"
-                  checked={value}
-                  onChange={(e) => onPreferenceChange('frequency', key, e.target.checked)}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                />
-              </label>
+              <div key={key} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white block">
+                      {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {key === 'real_time' && 'Immediate notifications as they happen'}
+                      {key === 'daily_digest' && 'Summary at end of each day'}
+                      {key === 'weekly_summary' && 'Weekly roundup of activity'}
+                      {key === 'monthly_report' && 'Comprehensive monthly insights'}
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={value}
+                    onChange={(e) => onPreferenceChange('frequency', key, e.target.checked)}
+                    className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                </label>
+              </div>
             ))}
+          </div>
+
+          <div className="mt-4 text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              💡 You can enable multiple frequency options. Higher priority options take precedence.
+            </p>
           </div>
         </div>
       </div>

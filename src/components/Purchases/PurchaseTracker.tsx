@@ -1998,6 +1998,38 @@ export const PurchaseTracker: React.FC = () => {
                       <div className="col-span-2 flex items-center justify-end gap-1">
                         <button
                           onClick={async () => {
+                            setSelectedPurchaseForModal(purchase);
+                            setShowNotesModal(true);
+                            // Fetch existing attachments for this purchase
+                            try {
+                              console.log('Loading modal attachments for purchase:', purchase.id);
+                              const { data: existingAttachments, error: attachmentsError } = await supabase
+                                .from('purchase_attachments')
+                                .select('*')
+                                .eq('purchase_id', purchase.id);
+                              
+                              console.log('Modal attachments query result:', { data: existingAttachments, error: attachmentsError });
+                              
+                              if (!attachmentsError && existingAttachments) {
+                                setModalAttachments(existingAttachments);
+                                console.log('Loaded modal attachments:', existingAttachments);
+                                console.log('Modal attachments count:', existingAttachments.length);
+                              } else {
+                                console.log('No modal attachments found or error:', attachmentsError);
+                                setModalAttachments([]);
+                              }
+                            } catch (err) {
+                              console.error('Error loading attachments:', err);
+                              setModalAttachments([]);
+                            }
+                          }}
+                          className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          title="View Notes and Attachments"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={async () => {
                             setEditingPurchase(purchase);
                             setFormData({
                               item_name: purchase.item_name,

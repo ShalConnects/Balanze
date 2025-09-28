@@ -38,7 +38,7 @@ CREATE TRIGGER update_notification_preferences_updated_at
 -- Grant necessary permissions
 GRANT ALL ON public.notification_preferences TO authenticated;
 
--- Insert default notification preferences for existing users
+-- Insert default notification preferences for existing users (streamlined version)
 INSERT INTO public.notification_preferences (user_id, preference_key, preference_value)
 SELECT 
     u.id,
@@ -47,35 +47,23 @@ SELECT
         "financial": {
             "overdue_payments": true,
             "due_soon_reminders": true,
-            "upcoming_deadlines": true,
-            "low_balance_alerts": true,
-            "budget_exceeded": true,
-            "large_transactions": true
+            "low_balance_alerts": true
         },
         "system": {
-            "new_features": true,
-            "system_updates": true,
-            "tips_guidance": true,
-            "security_alerts": true
+            "new_features": true
         },
         "activity": {
-            "transaction_confirmations": true,
-            "account_changes": true,
-            "category_updates": false,
-            "backup_reminders": true
+            "account_changes": true
         },
         "communication": {
             "in_app_notifications": true,
-            "email_notifications": false,
-            "push_notifications": false,
-            "quiet_hours_enabled": false,
-            "quiet_hours_start": "22:00",
-            "quiet_hours_end": "08:00"
+            "email_notifications": false
         },
         "frequency": {
             "real_time": true,
             "daily_digest": false,
-            "weekly_summary": false
+            "weekly_summary": false,
+            "monthly_report": false
         }
     }'::jsonb
 FROM auth.users u

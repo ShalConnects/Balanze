@@ -676,6 +676,18 @@ body.sidebar-open {
   overflow: hidden;
 }
 
+/* Fix Android scroll issue - prevent pull-to-refresh conflicts */
+html, body {
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+
+/* Ensure main content areas allow proper scrolling */
+main {
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+}
+
 /* Custom scrollbar for sidebar */
 .sidebar-scroll {
   scrollbar-width: thin;
