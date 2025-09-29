@@ -35,7 +35,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     addPurchaseCategory
   } = useFinanceStore();
   const { user, profile } = useAuthStore();
-  const { wrapAsync, setLoadingMessage, loadingMessage } = useLoadingContext();
+  const { wrapAsync, setLoadingMessage, loadingMessage, isLoading } = useLoadingContext();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -54,7 +54,6 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   const [purchaseAttachments, setPurchaseAttachments] = useState<PurchaseAttachment[]>([]);
   const [showPurchaseDetails, setShowPurchaseDetails] = useState(true);
   const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(record || null);
-  const [submitting, setSubmitting] = useState(false);
   const [excludeFromCalculation, setExcludeFromCalculation] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
@@ -212,14 +211,12 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     await handleSubmit();
   };
 
-  const handleSubmit = async () => {
-    if (submitting) return;
+  const handleSubmit = wrapAsync(async () => {
+    if (isLoading) return;
     
-    console.log('PurchaseForm: handleSubmit called, submitting:', submitting);
+    console.log('PurchaseForm: handleSubmit called, isLoading:', isLoading);
     
-    // Set submitting state immediately to show loading
-    console.log('PurchaseForm: Setting submitting to true');
-    setSubmitting(true);
+    // Set loading message
     setLoadingMessage(editingPurchase ? 'Updating purchase...' : 'Saving purchase...');
     console.log('PurchaseForm: Loading message set to:', editingPurchase ? 'Updating purchase...' : 'Saving purchase...');
     
@@ -801,14 +798,9 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
               <button
                 type="submit"
                 className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[80px] shadow-md hover:shadow-lg"
-                disabled={(() => {
-                  const disabled = submitting || !isFormValid();
-                  console.log('Button disabled state:', { submitting, isFormValid: isFormValid(), disabled });
-                  return disabled;
-                })()}
+                disabled={isLoading || !isFormValid()}
               >
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                {submitting ? (editingPurchase ? 'Updating...' : 'Adding...') : (editingPurchase ? 'Update Purchase' : 'Add Purchase')}
+                {editingPurchase ? 'Update Purchase' : 'Add Purchase'}
               </button>
             </div>
           </form>
