@@ -196,9 +196,9 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submitting) return;
+    if (isLoading) return;
     
-    console.log('PurchaseForm: handleFormSubmit called, submitting:', submitting);
+    console.log('PurchaseForm: handleFormSubmit called, isLoading:', isLoading);
     console.log('PurchaseForm: editingPurchase =', editingPurchase);
     
     console.log('PurchaseForm: Form validation result:', validateForm());
@@ -445,20 +445,19 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
         console.error('Error submitting purchase:', error);
         toast.error('Failed to save purchase. Please try again.');
       } finally {
-        setSubmitting(false);
       }
   });
 
   // Don't render if not open
-  // console.log('PurchaseForm: Rendering, isOpen =', isOpen, 'submitting =', submitting);
+  // console.log('PurchaseForm: Rendering, isOpen =', isOpen, 'isLoading =', isLoading);
   if (!isOpen) return null;
 
   return (
     <>
-      <Loader isLoading={submitting} message={loadingMessage} />
+      <Loader isLoading={isLoading} message={loadingMessage} />
       <div className="fixed inset-0 flex items-center justify-center z-50">
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => {
-          if (!submitting) {
+          if (!isLoading) {
             onClose();
             setEditingPurchase(null);
           }
@@ -471,9 +470,9 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                 onClose();
                 setEditingPurchase(null);
               }}
-              className={`p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               aria-label="Close form"
-              disabled={submitting}
+              disabled={isLoading}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
@@ -483,7 +482,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
           {!editingPurchase && (
             <div 
               className="flex items-center space-x-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 mb-6 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-              onClick={() => !submitting && setExcludeFromCalculation(!excludeFromCalculation)}
+              onClick={() => !isLoading && setExcludeFromCalculation(!excludeFromCalculation)}
             >
               <input
                 type="checkbox"
@@ -492,7 +491,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                 onChange={(e) => setExcludeFromCalculation(e.target.checked)}
                 onClick={(e) => e.stopPropagation()}
                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                disabled={submitting}
+                disabled={isLoading}
               />
               <label htmlFor="excludeFromCalculation" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer flex-1">
                 <span className="font-medium">Exclude from account balance calculation</span>
@@ -521,7 +520,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                   className={`w-full px-4 pr-[32px] text-[14px] h-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors bg-gray-100 font-medium ${fieldErrors.item_name && touched.item_name ? 'border-red-500 ring-red-200' : 'border-gray-300'}`}
                   placeholder="Enter item name *"
                   required
-                  disabled={submitting}
+                  disabled={isLoading}
                 />
                 {formData.item_name && (
                   <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onClick={() => handleFormChange('item_name', '')} tabIndex={-1} aria-label="Clear item name">
@@ -559,7 +558,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                     setTouched(t => ({ ...t, status: true }));
                   }}
                   placeholder="Select status *"
-                  disabled={!!(editingPurchase && editingPurchase.status === 'purchased') || submitting}
+                  disabled={!!(editingPurchase && editingPurchase.status === 'purchased') || isLoading}
                   fullWidth={true}
                   summaryMode={true}
                 />
@@ -587,7 +586,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                       }}
                       placeholder="Select Account *"
                       fullWidth={true}
-                      disabled={submitting}
+                      disabled={isLoading}
                     />
                     {fieldErrors.account && touched.account && (
                       <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.account}</span>
@@ -618,7 +617,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                         }}
                         placeholder="Select Currency *"
                         fullWidth={true}
-                        disabled={submitting}
+                        disabled={isLoading}
                       />
                     </div>
                   )}
@@ -657,7 +656,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                       placeholder="Select category *"
                       fullWidth={true}
                       summaryMode={true}
-                      disabled={submitting}
+                      disabled={isLoading}
                     />
                     {fieldErrors.category && touched.category && (
                       <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.category}</span>
@@ -711,7 +710,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                       placeholder="0.00 *"
                       required
                       autoComplete="off"
-                      disabled={submitting}
+                      disabled={isLoading}
                     />
                     {formData.price && (
                       <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onClick={() => handleFormChange('price', '')} tabIndex={-1} aria-label="Clear price">
@@ -751,7 +750,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                       highlightDates={[new Date()]}
                       isClearable
                       autoComplete="off"
-                      disabled={submitting}
+                      disabled={isLoading}
                     />
                     <button
                       type="button"
@@ -791,7 +790,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                   setEditingPurchase(null);
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100 transition-colors"
-                disabled={submitting}
+                disabled={isLoading}
               >
                 Cancel
               </button>
