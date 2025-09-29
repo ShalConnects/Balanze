@@ -10,7 +10,7 @@ const supabase = createClient(
 // Email transporter - only create if SMTP is configured
 let transporter = null;
 if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-  transporter = nodemailer.createTransporter({
+  transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT) || 587,
     secure: false,
