@@ -30,6 +30,15 @@ interface CountdownData {
   isFinalHour?: boolean;
 }
 
+interface DeliveryData {
+  deliveredAt: string;
+  recipients: Array<{
+    email: string;
+    status: string;
+  }>;
+  deliveryCount: number;
+}
+
 export const LastWishCountdownWidget: React.FC = () => {
   const { user, profile } = useAuthStore();
   const navigate = useNavigate();
@@ -42,6 +51,8 @@ export const LastWishCountdownWidget: React.FC = () => {
   const [enabled, setEnabled] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [deliveryData, setDeliveryData] = useState<DeliveryData | null>(null);
+  const [isDelivered, setIsDelivered] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -59,6 +70,31 @@ export const LastWishCountdownWidget: React.FC = () => {
       
       if (!error && data && data.is_enabled && data.check_in_frequency) {
         setEnabled(true);
+        
+        // Check if delivery has been triggered
+        if (data.delivery_triggered) {
+          setIsDelivered(true);
+          
+          // Fetch delivery details
+          const { data: deliveries, error: deliveryError } = await supabase
+            .from('last_wish_deliveries')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('delivery_status', 'sent')
+            .order('sent_at', { ascending: false });
+          
+          if (!deliveryError && deliveries && deliveries.length > 0) {
+            setDeliveryData({
+              deliveredAt: deliveries[0].sent_at,
+              recipients: deliveries.map(d => ({
+                email: d.recipient_email,
+                status: d.delivery_status
+              })),
+              deliveryCount: deliveries.length
+            });
+          }
+          return; // Don't process countdown if delivered
+        }
         
         if (data.last_check_in) {
           const lastCheckIn = new Date(data.last_check_in);
@@ -300,6 +336,87 @@ export const LastWishCountdownWidget: React.FC = () => {
     }
   };
 
+
+  // If delivered, show delivery status
+  if (isDelivered && deliveryData) {
+    return (
+      <div className="mb-5 bg-gradient-to-br from-green-50 via-white to-blue-100 dark:from-green-900/40 dark:via-gray-900 dark:to-blue-900/20 rounded-2xl p-5 border-2 border-green-400 dark:border-green-600 shadow-xl transition-all duration-300 hover:shadow-2xl">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
+            <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-lg text-green-900 dark:text-green-100 mb-1">Last Wish Delivered</h3>
+            <p className="text-sm text-green-700 dark:text-green-300 mb-3">
+              Your financial data has been successfully delivered to {deliveryData.deliveryCount} recipient{deliveryData.deliveryCount !== 1 ? 's' : ''}
+            </p>
+            
+            {/* Delivery Details */}
+            <div className="bg-white/70 dark:bg-gray-800/50 rounded-lg p-3 mb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-4 h-4 text-gray-500" />
+                <span className="text-xs text-gray-600 dark:text-gray-400">
+                  Delivered on {new Date(deliveryData.deliveredAt).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-gray-500" />
+                <span className="text-xs text-gray-600 dark:text-gray-400">
+                  Recipients: {deliveryData.recipients.map(r => r.email).join(', ')}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate('/settings?tab=lw')}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium"
+              >
+                <Settings className="w-4 h-4" />
+                Manage Settings
+              </button>
+              <button
+                onClick={() => setShowDetails(!showDetails)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 text-sm font-medium"
+              >
+                <Eye className="w-4 h-4" />
+                {showDetails ? 'Hide' : 'Show'} Details
+              </button>
+            </div>
+
+            {/* Details Section */}
+            {showDetails && (
+              <div className="mt-4 pt-4 border-t border-green-200 dark:border-green-700">
+                <h4 className="font-medium text-green-900 dark:text-green-100 mb-2">Delivery Details</h4>
+                <div className="space-y-2">
+                  {deliveryData.recipients.map((recipient, index) => (
+                    <div key={index} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700 dark:text-gray-300">{recipient.email}</span>
+                      <span className="px-2 py-1 bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-300 rounded text-xs font-medium">
+                        ✅ {recipient.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    💡 Your Last Wish system has completed its mission. You can reactivate it anytime in settings if needed.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // If not enabled, show a minimal setup prompt
   if (!enabled || !countdown) {
