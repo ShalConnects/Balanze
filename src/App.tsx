@@ -87,6 +87,41 @@ function AppContent() {
     }
   }, [isDarkMode]);
 
+  // FINAL FIX: Prevent Android browser back navigation on upward scroll
+  useEffect(() => {
+    const preventBackNavigation = (e: TouchEvent) => {
+      // Only act on single finger touches at the very top of the page
+      if (e.touches.length === 1 && window.pageYOffset === 0) {
+        const touch = e.touches[0];
+        const startY = (touch as any).startY || 0;
+        const currentY = touch.clientY;
+        const deltaY = currentY - startY;
+        
+        // If pulling down more than 10px from the absolute top, prevent it
+        if (deltaY > 10) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      }
+    };
+
+    const storeTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        (e.touches[0] as any).startY = e.touches[0].clientY;
+      }
+    };
+
+    // Only prevent on touchmove, not touchstart
+    document.addEventListener('touchstart', storeTouchStart, { passive: true });
+    document.addEventListener('touchmove', preventBackNavigation, { passive: false });
+
+    return () => {
+      document.removeEventListener('touchstart', storeTouchStart);
+      document.removeEventListener('touchmove', preventBackNavigation);
+    };
+  }, []);
+
 
   useEffect(() => {
     if (initialized.current) return;
