@@ -447,7 +447,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
       } finally {
         setSubmitting(false);
       }
-  };
+  });
 
   // Don't render if not open
   // console.log('PurchaseForm: Rendering, isOpen =', isOpen, 'submitting =', submitting);
