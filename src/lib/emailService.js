@@ -74,40 +74,69 @@ export async function sendLastWishEmail(userId, customSupabase = null) {
       };
     }
 
-    // For now, we'll simulate the email sending and log the details
-    // In a production environment, this would call the email-sender.js script
-    console.log('📧 Last Wish Email Delivery Simulation:');
-    console.log('Recipients:', settings.recipients.map(r => r.email));
-    console.log('Email Content:', emailContent);
-    console.log('User Data:', userData);
-    console.log('');
-    console.log('🚀 To send real emails, run: node email-sender.js ' + userId);
+    // Call the API endpoint to send real emails
+    console.log('📧 Calling email API to send real emails...');
+    
+    try {
+      const response = await fetch('/api/send-last-wish-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          testMode: false
+        })
+      });
 
-    const results = settings.recipients.map(recipient => ({
-      recipient: recipient.email,
-      success: true,
-      messageId: `sim-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    }));
+      const apiResult = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(apiResult.error || 'Email API call failed');
+      }
 
-    // Mark as delivered
-    await client
-      .from('last_wish_settings')
-      .update({ 
-        is_active: false,
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', userId);
+      console.log('✅ Email API call successful:', apiResult);
+      
+      const results = apiResult.results || settings.recipients.map(recipient => ({
+        recipient: recipient.email,
+        success: apiResult.success,
+        messageId: apiResult.messageId || `api-${Date.now()}`
+      }));
 
-    console.log(`✅ Last Wish delivery completed: ${results.length} successful`);
+      return {
+        success: true,
+        message: apiResult.message || `Last Wish delivered to ${results.length} recipient(s)`,
+        results: results,
+        deliveredAt: new Date().toISOString(),
+        successCount: apiResult.successful || results.filter(r => r.success).length,
+        failCount: apiResult.failed || results.filter(r => !r.success).length
+      };
 
-    return {
-      success: true,
-      message: `Last Wish delivered to ${results.length} recipient(s)`,
-      results: results,
-      deliveredAt: new Date().toISOString(),
-      successCount: results.length,
-      failCount: 0
-    };
+    } catch (apiError) {
+      console.error('❌ Email API call failed, falling back to logging:', apiError);
+      
+      // Fallback: just log the attempt
+      console.log('📧 Last Wish Email Delivery (API Failed):');
+      console.log('Recipients:', settings.recipients.map(r => r.email));
+      console.log('Error:', apiError.message);
+      
+      const results = settings.recipients.map(recipient => ({
+        recipient: recipient.email,
+        success: false,
+        error: apiError.message,
+        messageId: `fallback-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      }));
+
+      return {
+        success: false,
+        message: `Email delivery failed: ${apiError.message}`,
+        results: results,
+        deliveredAt: new Date().toISOString(),
+        successCount: 0,
+        failCount: results.length,
+        error: apiError.message
+      };
+    }
 
   } catch (error) {
     console.error('❌ Last Wish delivery failed:', error);

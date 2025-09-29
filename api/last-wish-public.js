@@ -49,10 +49,12 @@ export default async function handler(req, res) {
         .select(`
           user_id,
           check_in_frequency,
-          last_check_in
+          last_check_in,
+          delivery_triggered
         `)
         .eq('is_enabled', true)
         .eq('is_active', true)
+        .eq('delivery_triggered', false)
         .not('last_check_in', 'is', null);
       
       if (directError) {
@@ -76,26 +78,85 @@ export default async function handler(req, res) {
 
     console.log(`Found ${overdueUsers.length} overdue users`);
 
-    // For now, just log the overdue users
-    // In a real implementation, you would process them and send emails
+    // Process overdue users and send emails
+    const emailResults = [];
+    
     for (const user of overdueUsers) {
-      console.log(`Overdue user: ${user.email} (${user.days_overdue} days overdue)`);
+      console.log(`Processing overdue user: ${user.email} (${user.days_overdue} days overdue)`);
       
-      // Mark as delivered to prevent duplicate processing
-      await supabase
-        .from('last_wish_settings')
-        .update({ delivery_triggered: true })
-        .eq('user_id', user.user_id);
+      try {
+        // Import the email sending function from the API
+        const { default: sendLastWishEmailHandler } = await import('./send-last-wish-email.js');
+        
+        // Create a mock request/response for the email handler
+        const mockReq = {
+          method: 'POST',
+          body: {
+            userId: user.user_id,
+            testMode: false
+          }
+        };
+        
+        let emailResult = null;
+        const mockRes = {
+          status: (code) => ({
+            json: (data) => {
+              emailResult = { statusCode: code, ...data };
+            }
+          }),
+          setHeader: () => {},
+          end: () => {}
+        };
+        
+        // Call the email handler
+        await sendLastWishEmailHandler(mockReq, mockRes);
+        
+        if (emailResult && emailResult.success) {
+          console.log(`✅ Email sent successfully for user ${user.user_id}`);
+          emailResults.push({
+            user_id: user.user_id,
+            success: true,
+            message: emailResult.message
+          });
+          
+          // Mark as delivered to prevent duplicate processing
+          await supabase
+            .from('last_wish_settings')
+            .update({ delivery_triggered: true })
+            .eq('user_id', user.user_id);
+        } else {
+          console.error(`❌ Email failed for user ${user.user_id}:`, emailResult?.error);
+          emailResults.push({
+            user_id: user.user_id,
+            success: false,
+            error: emailResult?.error || 'Unknown error'
+          });
+        }
+        
+      } catch (emailError) {
+        console.error(`❌ Error sending email for user ${user.user_id}:`, emailError);
+        emailResults.push({
+          user_id: user.user_id,
+          success: false,
+          error: emailError.message
+        });
+      }
     }
 
-    console.log(`Service completed. Processed ${overdueUsers.length} users.`);
+    const successfulEmails = emailResults.filter(r => r.success).length;
+    const failedEmails = emailResults.filter(r => !r.success).length;
+    
+    console.log(`Service completed. Processed ${overdueUsers.length} users. Emails: ${successfulEmails} successful, ${failedEmails} failed.`);
     
     res.status(200).json({ 
       success: true, 
       processedCount: overdueUsers.length,
-      message: `Found ${overdueUsers.length} overdue users`,
+      emailsSent: successfulEmails,
+      emailsFailed: failedEmails,
+      message: `Processed ${overdueUsers.length} overdue users, sent ${successfulEmails} emails`,
       timestamp: new Date().toISOString(),
-      overdueUsers: overdueUsers.map(u => ({ user_id: u.user_id, days_overdue: u.days_overdue }))
+      overdueUsers: overdueUsers.map(u => ({ user_id: u.user_id, days_overdue: u.days_overdue })),
+      emailResults: emailResults
     });
   } catch (error) {
     console.error(`Service failed: ${error.message}`);
