@@ -1664,7 +1664,7 @@ export const AccountsView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-start justify-center p-2 sm:p-4 pt-16">
           <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setModalOpen(false)} />
           <div className="relative bg-white w-full max-w-6xl rounded-lg shadow-2xl" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
-            <div className="p-3 sm:p-4 pt-8 pb-6 overflow-y-auto overscroll-contain -webkit-overflow-scrolling-touch" style={{ maxHeight: 'calc(100vh - 10rem)' }}>
+            <div className="p-3 sm:p-4 pt-8 pb-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 10rem)', touchAction: 'auto', overscrollBehaviorY: 'none', WebkitOverflowScrolling: 'touch' }}>
               {/* Close Button - Absolute positioned */}
               <button 
                 className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 p-1 z-10" 

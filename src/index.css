@@ -676,35 +676,73 @@ body.sidebar-open {
   overflow: hidden;
 }
 
-/* Fix Android scroll issue - prevent pull-to-refresh conflicts */
+/* Android scroll fix - completely unrestricted scrolling */
 html, body {
-  touch-action: manipulation;
-  overscroll-behavior: none;
-  /* Disable iOS bounce and Android pull-to-refresh */
   -webkit-overflow-scrolling: touch;
-  overflow-scrolling: touch;
-}
-
-/* Prevent pull-to-refresh on the entire app container */
-#root {
-  touch-action: pan-y pinch-zoom;
+  /* Prevent pull-to-refresh on Android */
   overscroll-behavior: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Ensure main content areas allow proper scrolling */
-main {
-  touch-action: pan-y;
   overscroll-behavior-y: none;
-  /* Critical: Prevent browser refresh gestures */
-  overscroll-behavior-x: none;
+  /* Prevent rubber band scrolling on iOS */
   -webkit-overflow-scrolling: touch;
+}
+
+#root {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+
+main {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+
+.overflow-y-auto, .overflow-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 }
 
 /* Disable pull-to-refresh for all scrollable containers */
-.overflow-y-auto, .overflow-auto {
+* {
   overscroll-behavior: none;
-  -webkit-overflow-scrolling: touch;
+}
+
+/* Specific fix for mobile browsers */
+@media (max-width: 768px) {
+  html, body {
+    touch-action: pan-y;
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
+    /* Prevent zoom on double tap */
+    touch-action: manipulation;
+  }
+  
+  /* Prevent pull-to-refresh on the main content area */
+  .main-content, main, #root {
+    overscroll-behavior-y: none;
+    touch-action: pan-y;
+  }
+  
+  /* Improve touch targets for mobile */
+  button, a, input, select, textarea {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better scrolling for lists and containers */
+  .scrollable-container {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scroll-behavior: smooth;
+  }
+  
+  /* Fix for Android Chrome address bar hiding */
+  .full-height-mobile {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
 }
 
 /* Custom scrollbar for sidebar */

@@ -44,7 +44,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
 
   const { user } = useAuthStore();
   const { fetchNotifications } = useNotificationsStore();
-  const { wrapAsync, setLoadingMessage } = useLoadingContext();
+  const { wrapAsync, setLoadingMessage, isLoading } = useLoadingContext();
   const isEditMode = !!transactionToEdit;
 
   const [data, setData] = useState({
@@ -73,7 +73,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     category_color: '#10B981'
   });
 
-  const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [formSubmitted, setFormSubmitted] = useState(false);
@@ -191,7 +190,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         setErrors({});
         setTouched({});
         setFormSubmitted(false);
-        setSubmitting(false);
         setShowCategoryModal(false);
         setShowPurchaseDetails(false);
         setPurchaseAttachments([]);
@@ -322,7 +320,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       setErrors({});
       setTouched({});
       setFormSubmitted(false);
-      setSubmitting(false);
       setShowCategoryModal(false);
       setShowPurchaseDetails(false);
       setPurchaseAttachments([]);
@@ -510,7 +507,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormSubmitted(true);
-    if (submitting) return; // Prevent double submission
+    if (isLoading) return; // Prevent double submission
     if (!user) return;
     if (!validateForm()) {
       showToast.error('Please fix the errors in the form');
@@ -520,7 +517,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     // Wrap the entire submit process with loading state
     const wrappedSubmit = wrapAsync(async () => {
       setLoadingMessage(isEditMode ? 'Updating transaction...' : 'Saving transaction...'); // Show loading message for form submission
-      setSubmitting(true);
       try {
         let donation_amount: number | undefined = undefined;
         console.log('[DEBUG] handleSubmit - data.type:', data.type, 'donationValue:', donationValue, 'donationType:', donationType);
@@ -747,7 +743,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         // Removed transaction error notifications - only show toast for errors
         showToast.error(`Failed to ${isEditMode ? 'update' : 'add'} transaction. Please try again.`);
       } finally {
-        setSubmitting(false);
       }
     });
     
@@ -777,7 +772,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       {/* Overlay */}
       <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-        onClick={submitting ? undefined : onClose}
+        onClick={isLoading ? undefined : onClose}
       />
       {/* Modal Container */}
       <div
@@ -790,10 +785,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             {isEditMode ? 'Edit Transaction' : 'Add Transaction'}
           </h2>
           <button 
-            onClick={submitting ? undefined : onClose} 
-            className={`p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+            onClick={isLoading ? undefined : onClose} 
+            className={`p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             aria-label="Close form"
-            disabled={submitting}
+            disabled={isLoading}
           >
             <X className="w-5 h-5" />
           </button>
@@ -1159,17 +1154,16 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 type="button"
                 onClick={onClose}
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={submitting}
+                disabled={isLoading}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="px-6 py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[80px]"
-                disabled={submitting || !isFormValid}
+                disabled={isLoading || !isFormValid}
               >
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                {submitting ? 'Saving...' : (isEditMode ? 'Update' : 'Make Transaction')}
+                {isEditMode ? 'Update' : 'Make Transaction'}
               </button>
             </div>
           </div>

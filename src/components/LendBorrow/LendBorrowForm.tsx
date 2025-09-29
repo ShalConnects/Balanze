@@ -10,6 +10,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { parseISO } from 'date-fns';
 import { useAuthStore } from '../../store/authStore';
 import { Loader } from '../../components/common/Loader';
+import { useLoadingContext } from '../../context/LoadingContext';
 
 interface LendBorrowFormProps {
   record?: LendBorrow;
@@ -21,6 +22,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
   const { t } = useTranslation();
   const { accounts } = useFinanceStore();
   const { profile } = useAuthStore();
+  const { isLoading } = useLoadingContext();
   const [form, setForm] = useState<LendBorrowInput>({
     type: record?.type || '',
     person_name: record?.person_name || '',
@@ -32,7 +34,6 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
     partial_return_amount: record?.partial_return_amount || 0,
     partial_return_date: record?.partial_return_date || '',
   });
-  const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const typeRef = useRef<HTMLInputElement | null>(null);
@@ -115,7 +116,6 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
       toast.error('Please fix the errors in the form');
       return;
     }
-    setSubmitting(true);
     try {
       // Add a small delay to ensure loading animation is visible
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -141,8 +141,6 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
       }
       
       toast.error('Failed to save record. Please try again.');
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -167,7 +165,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
 
   return (
     <>
-      <Loader isLoading={submitting} message="Saving lend/borrow..." />
+      <Loader isLoading={isLoading} message="Saving lend/borrow..." />
       <div className="fixed inset-0 flex items-center justify-center z-50">
         {/* Overlay */}
         <div
@@ -367,17 +365,17 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                 type="button"
                 onClick={onClose}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                disabled={submitting}
+                disabled={isLoading}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="px-4 py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[80px]"
-                disabled={submitting || !isFormValid}
+                disabled={isLoading || !isFormValid}
               >
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                {submitting ? 'Saving...' : (record ? 'Update' : 'Add')}
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                {record ? 'Update' : 'Add'}
               </button>
             </div>
           </form>

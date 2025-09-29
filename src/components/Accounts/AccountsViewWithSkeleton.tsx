@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFinanceStore } from '../../store/useFinanceStore';
-import { useLoadingState } from '../../hooks/useLoadingState';
+import { useLoadingContext } from '../../context/LoadingContext';
 import { AccountsPageSkeleton, AccountFormSkeleton } from './AccountsPageSkeleton';
 import { AccountFilters } from './AccountFilters';
 import { AccountSummaryCards } from './AccountSummaryCards';
@@ -26,29 +26,7 @@ export const AccountsViewWithSkeleton: React.FC = () => {
   const isMobile = useMediaQuery('(max-width: 768px)');
   
   // Enhanced loading state management
-  const {
-    isLoading: isPageLoading,
-    loadingType,
-    startLoading,
-    stopLoading,
-    loadingMessage,
-    setLoadingMessage
-  } = useLoadingState({
-    initialLoading: true,
-    loadingType: 'skeleton',
-    delay: 800, // Minimum loading time
-    timeout: 15000 // Maximum loading time
-  });
-
-  // Form loading state
-  const {
-    isLoading: isFormLoading,
-    startLoading: startFormLoading,
-    stopLoading: stopFormLoading
-  } = useLoadingState({
-    loadingType: 'overlay',
-    delay: 300
-  });
+  const { isLoading: isPageLoading, setLoadingMessage } = useLoadingContext();
 
   // State for filters
   const [filters, setFilters] = useState({

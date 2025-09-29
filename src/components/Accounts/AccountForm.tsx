@@ -25,6 +25,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
   const { addAccount, updateAccount, loading, error } = useFinanceStore();
   const { profile } = useAuthStore();
   const { modalState, closeModal, handleDatabaseError } = useUpgradeModal();
+  const { setLoading, setLoadingMessage } = useLoadingContext();
   
   console.log('🔧 AccountForm render - modalState:', modalState);
 
@@ -52,7 +53,6 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
   const [dpsTransferAmount, setDpsTransferAmount] = useState('');
   const [pendingDpsEnable, setPendingDpsEnable] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
@@ -175,7 +175,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submitting) return;
+    if (loading) return;
     
     console.log('🚀 Form submitted, preventing default');
     
@@ -198,7 +198,8 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
       return;
     }
     
-    setSubmitting(true);
+    setLoading(true);
+    setLoadingMessage(account ? 'Updating Account...' : 'Creating Account...');
     
     try {
       const accountData = {
@@ -266,7 +267,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
       
       showToast.error('Failed to save account. Please try again.');
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
@@ -289,7 +290,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
   };
 
   const handleClose = () => {
-    if (submitting) return;
+    if (loading) return;
     
     // Reset form state
     setFormData({
@@ -328,7 +329,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
           <button
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-            disabled={submitting}
+            disabled={loading}
             aria-label="Close form"
           >
             <X className="w-6 h-6" />
@@ -350,7 +351,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
               onBlur={() => handleBlur('name')}
               className={getInputClasses('name')}
               placeholder="e.g., Main Checking Account"
-              disabled={submitting}
+              disabled={loading}
               aria-describedby={errors.name ? 'name-error' : undefined}
               aria-invalid={!!errors.name}
             />
@@ -375,7 +376,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
               value={formData.type}
               onChange={(value) => handleFieldChange('type', value)}
               placeholder="Select account type"
-              disabled={submitting}
+              disabled={loading}
             />
           </div>
 
@@ -395,7 +396,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
                 onBlur={() => handleBlur('balance')}
                 className={getInputClasses('balance')}
                 placeholder="0.00"
-                disabled={submitting}
+                disabled={loading}
                 aria-describedby={errors.balance ? 'balance-error' : undefined}
                 aria-invalid={!!errors.balance}
               />
@@ -418,7 +419,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
               value={formData.currency}
               onChange={(e) => handleFieldChange('currency', e.target.value)}
               className={getInputClasses('currency')}
-              disabled={submitting}
+              disabled={loading}
             >
               {CURRENCY_OPTIONS.map(currency => (
                 <option key={currency} value={currency}>
@@ -440,7 +441,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
               className={getInputClasses('description')}
               placeholder="Optional description for this account"
               rows={3}
-              disabled={submitting}
+              disabled={loading}
               maxLength={200}
             />
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -457,7 +458,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
                 checked={formData.has_dps}
                 onChange={handleDpsCheckbox}
                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                disabled={submitting}
+                disabled={loading}
               />
               <label htmlFor="dps-enabled" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Enable DPS (Daily Profit Sharing)
@@ -491,7 +492,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
                     value={formData.dps_type}
                     onChange={(e) => handleFieldChange('dps_type', e.target.value)}
                     className={getInputClasses('dps_type')}
-                    disabled={submitting}
+                    disabled={loading}
                   >
                     <option value="monthly">Monthly</option>
                     <option value="flexible">Flexible</option>
@@ -507,7 +508,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
                     value={formData.dps_amount_type}
                     onChange={(e) => handleFieldChange('dps_amount_type', e.target.value)}
                     className={getInputClasses('dps_amount_type')}
-                    disabled={submitting}
+                    disabled={loading}
                   >
                     <option value="fixed">Fixed Amount</option>
                     <option value="custom">Custom Amount</option>
@@ -529,7 +530,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
                       onBlur={() => handleBlur('dps_fixed_amount')}
                       className={getInputClasses('dps_fixed_amount')}
                       placeholder="0.00"
-                      disabled={submitting}
+                      disabled={loading}
                     />
                     {touched.dps_fixed_amount && errors.dps_fixed_amount && (
                       <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
@@ -553,7 +554,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
                     onChange={(e) => handleFieldChange('dps_initial_balance', e.target.value)}
                     className={getInputClasses('dps_initial_balance')}
                     placeholder="0.00"
-                    disabled={submitting}
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -576,23 +577,16 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
               type="button"
               onClick={handleClose}
               className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
-              disabled={submitting}
+              disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="flex-1 px-4 py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              disabled={submitting || Object.keys(errors).length > 0}
+              disabled={loading || Object.keys(errors).length > 0}
             >
-                             {submitting ? (
-                 <>
-                   <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                   {account ? 'Updating...' : 'Creating...'}
-                 </>
-               ) : (
-                account ? 'Update Account' : 'Create Account'
-              )}
+              {account ? 'Update Account' : 'Create Account'}
             </button>
           </div>
         </form>

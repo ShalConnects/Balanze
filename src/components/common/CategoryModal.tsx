@@ -3,6 +3,7 @@ import { X, DollarSign, Loader2, AlertCircle } from 'lucide-react';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
+import { useLoadingContext } from '../../context/LoadingContext';
 
 export interface CategoryModalProps {
   open: boolean;
@@ -57,6 +58,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
   isIncomeCategory = false,
 }) => {
   const { profile } = useAuthStore();
+  const { isLoading } = useLoadingContext();
   
   // Use user's selected currencies, fallback to default options if none selected
   // When editing, also include the category's current currency if it's not in user's selection
@@ -76,7 +78,6 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
   }));
 
   const [formData, setFormData] = useState({ ...initialValues });
-  const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
   const [formSubmitted, setFormSubmitted] = useState(false);
@@ -131,7 +132,6 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
       return;
     }
 
-    setSubmitting(true);
     try {
       await onSave(formData);
     } catch (error) {
@@ -150,8 +150,6 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
           return;
         }
       }
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -327,18 +325,18 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
               type="button"
               onClick={onClose}
               className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={submitting}
+              disabled={isLoading}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px] shadow-lg hover:shadow-xl transform hover:scale-105"
-              disabled={submitting || !isFormValid}
-              aria-busy={submitting}
+              disabled={isLoading || !isFormValid}
+              aria-busy={isLoading}
             >
-              {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              {submitting ? 'Saving...' : (isEdit ? 'Update Category' : 'Add Category')}
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {isEdit ? 'Update Category' : 'Add Category'}
             </button>
           </div>
         </form>

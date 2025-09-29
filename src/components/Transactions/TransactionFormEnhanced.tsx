@@ -23,7 +23,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
   accountId 
 }) => {
   const { addTransaction, updateTransaction, loading, error, accounts, categories } = useFinanceStore();
-  const { wrapAsync, setLoadingMessage } = useLoadingContext();
+  const { wrapAsync, setLoadingMessage, isLoading } = useLoadingContext();
 
   const [formData, setFormData] = useState({
     description: transaction?.description || '',
@@ -41,7 +41,6 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [submitting, setSubmitting] = useState(false);
   const [newTag, setNewTag] = useState('');
 
   // Update form data when transaction prop changes
@@ -166,7 +165,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submitting) return;
+    if (isLoading) return;
     
     // Mark all fields as touched
     setTouched({
@@ -190,7 +189,6 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
     
     const wrappedSubmit = wrapAsync(async () => {
       setLoadingMessage(transaction ? 'Updating transaction...' : 'Saving transaction...');
-      setSubmitting(true);
       
       try {
         const transactionData = {
@@ -239,7 +237,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
   };
 
   const handleClose = () => {
-    if (submitting) return;
+    if (isLoading) return;
     
     // Reset form state
     setFormData({
@@ -278,7 +276,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
           <button
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-            disabled={submitting}
+            disabled={isLoading}
             aria-label="Close form"
           >
             <X className="w-6 h-6" />
@@ -302,7 +300,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
                 onBlur={() => handleBlur('description')}
                 className={getInputClasses('description')}
                 placeholder="e.g., Grocery shopping, Salary payment"
-                disabled={submitting}
+                disabled={isLoading}
                 aria-describedby={errors.description ? 'description-error' : undefined}
                 aria-invalid={!!errors.description}
               />
@@ -324,7 +322,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
                 value={formData.type}
                 onChange={(e) => handleFieldChange('type', e.target.value)}
                 className={getInputClasses('type')}
-                disabled={submitting}
+                disabled={isLoading}
               >
                 {TRANSACTION_TYPES.map(type => (
                   <option key={type} value={type}>
@@ -350,7 +348,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
                   onBlur={() => handleBlur('amount')}
                   className={getInputClasses('amount')}
                   placeholder="0.00"
-                  disabled={submitting}
+                  disabled={isLoading}
                   aria-describedby={errors.amount ? 'amount-error' : undefined}
                   aria-invalid={!!errors.amount}
                 />
@@ -379,7 +377,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
                 onChange={(e) => handleFieldChange('category', e.target.value)}
                 onBlur={() => handleBlur('category')}
                 className={getInputClasses('category')}
-                disabled={submitting}
+                disabled={isLoading}
               >
                 <option value="">Select category</option>
                 {availableCategories.map(category => (
@@ -412,7 +410,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
                 onChange={(e) => handleFieldChange('account_id', e.target.value)}
                 onBlur={() => handleBlur('account_id')}
                 className={getInputClasses('account_id')}
-                disabled={submitting}
+                disabled={isLoading}
               >
                 <option value="">Select account</option>
                 {accounts.map(account => (
@@ -439,7 +437,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
                   selected={formData.date}
                   onChange={(date) => handleFieldChange('date', date)}
                   className={getInputClasses('date')}
-                  disabled={submitting}
+                  disabled={isLoading}
                   maxDate={new Date()}
                 />
                 <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -508,7 +506,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
                 checked={formData.is_recurring}
                 onChange={(e) => handleFieldChange('is_recurring', e.target.checked)}
                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                disabled={submitting}
+                disabled={isLoading}
               />
               <label htmlFor="recurring-enabled" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Recurring Transaction
@@ -527,7 +525,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
                   value={formData.recurring_frequency}
                   onChange={(e) => handleFieldChange('recurring_frequency', e.target.value)}
                   className={getInputClasses('recurring_frequency')}
-                  disabled={submitting}
+                  disabled={isLoading}
                 >
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>
@@ -555,7 +553,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
                   onChange={(e) => handleFieldChange('saving_amount', e.target.value)}
                   className={getInputClasses('saving_amount')}
                   placeholder="0.00"
-                  disabled={submitting}
+                  disabled={isLoading}
                 />
               </div>
 
@@ -572,7 +570,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
                   onChange={(e) => handleFieldChange('donation_amount', e.target.value)}
                   className={getInputClasses('donation_amount')}
                   placeholder="0.00"
-                  disabled={submitting}
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -594,23 +592,16 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
               type="button"
               onClick={handleClose}
               className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
-              disabled={submitting}
+              disabled={isLoading}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              disabled={submitting || Object.keys(errors).length > 0}
+              disabled={isLoading || Object.keys(errors).length > 0}
             >
-              {submitting ? (
-                <>
-                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  {transaction ? 'Updating...' : 'Creating...'}
-                </>
-              ) : (
-                transaction ? 'Update Transaction' : 'Create Transaction'
-              )}
+              {transaction ? 'Update Transaction' : 'Create Transaction'}
             </button>
           </div>
         </form>

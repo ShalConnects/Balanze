@@ -46,6 +46,7 @@ import AdminPage from './pages/AdminPage';
 import { FileRenameAdmin } from './pages/FileRenameAdmin';
 import DashboardDemo from './pages/DashboardDemo';
 import { useThemeStore } from './store/themeStore';
+import { initMobileScrollFix } from './utils/mobileScrollFix';
 
 function AppContent() {
   const user = useAuthStore((state) => state.user);
@@ -87,40 +88,15 @@ function AppContent() {
     }
   }, [isDarkMode]);
 
-  // FINAL FIX: Prevent Android browser back navigation on upward scroll
+  // Initialize mobile scroll fix
   useEffect(() => {
-    const preventBackNavigation = (e: TouchEvent) => {
-      // Only act on single finger touches at the very top of the page
-      if (e.touches.length === 1 && window.pageYOffset === 0) {
-        const touch = e.touches[0];
-        const startY = (touch as any).startY || 0;
-        const currentY = touch.clientY;
-        const deltaY = currentY - startY;
-        
-        // If pulling down more than 10px from the absolute top, prevent it
-        if (deltaY > 10) {
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        }
-      }
-    };
-
-    const storeTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        (e.touches[0] as any).startY = e.touches[0].clientY;
-      }
-    };
-
-    // Only prevent on touchmove, not touchstart
-    document.addEventListener('touchstart', storeTouchStart, { passive: true });
-    document.addEventListener('touchmove', preventBackNavigation, { passive: false });
-
+    const mobileScrollFix = initMobileScrollFix();
+    
     return () => {
-      document.removeEventListener('touchstart', storeTouchStart);
-      document.removeEventListener('touchmove', preventBackNavigation);
+      mobileScrollFix.destroy();
     };
   }, []);
+
 
 
   useEffect(() => {
@@ -325,13 +301,7 @@ function AppContent() {
   }, [user, loading, profile, fetchAccounts]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="text-lg font-medium text-gray-700 dark:text-gray-300">
-          Loading Balanze...
-        </div>
-      </div>
-    );
+    return <Loader isLoading={true} message="Loading Balanze..." />;
   }
 
   return (

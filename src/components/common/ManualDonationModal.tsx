@@ -8,6 +8,7 @@ import { CustomDropdown } from '../Purchases/CustomDropdown';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { parseISO, format } from 'date-fns';
+import { useLoadingContext } from '../../context/LoadingContext';
 
 interface ManualDonationModalProps {
   isOpen: boolean;
@@ -20,12 +21,12 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
 }) => {
   const { user } = useAuthStore();
   const { fetchDonationSavingRecords } = useFinanceStore();
+  const { isLoading } = useLoadingContext();
   
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState('USD');
   const [note, setNote] = useState('');
   const [date, setDate] = useState<Date | null>(new Date());
-  const [submitting, setSubmitting] = useState(false);
 
   // Get user profile for selected currencies
   const [profile, setProfile] = useState<any>(null);
@@ -76,11 +77,11 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
     console.log('=== MANUAL DONATION SUBMIT START ===');
     console.log('User authenticated:', !!user);
     console.log('User ID:', user?.id);
-    console.log('Submitting state:', submitting);
+    console.log('Loading state:', isLoading);
     console.log('Form values:', { amount, currency, note, date });
     
-    if (!user || submitting) {
-      console.log('❌ Early return: No user or already submitting');
+    if (!user || isLoading) {
+      console.log('❌ Early return: No user or already loading');
       return;
     }
 
@@ -94,8 +95,7 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
     }
 
     console.log('✅ Amount validation passed');
-    setSubmitting(true);
-    console.log('🔄 Set submitting to true');
+    console.log('🔄 Starting donation creation process...');
     try {
       console.log('🔄 Starting donation creation process...');
       
@@ -218,9 +218,6 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
       } else {
         toast.error(`Failed to record manual donation: ${error.message || 'Unknown error'}`);
       }
-    } finally {
-      console.log('🔄 Setting submitting to false');
-      setSubmitting(false);
     }
   };
 
@@ -336,10 +333,10 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={isLoading}
               className="flex-1 py-2 px-4 bg-green-700 hover:bg-green-800 disabled:bg-green-600 text-white rounded-md text-sm font-medium transition-colors flex items-center justify-center"
             >
-              {submitting ? (
+              {isLoading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
               ) : (
                 <Heart className="w-4 h-4 mr-2" />
