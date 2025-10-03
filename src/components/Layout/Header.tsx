@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, ReactNode } from 'react';
-import { Menu, Bell, Search, Sun, Moon, User, Settings, LogOut, ArrowLeftRight, LifeBuoy, Globe, Heart, Quote, X, BookOpen, Sparkles } from 'lucide-react';
+import { Menu, Bell, Search, Sun, Moon, User, Settings, LogOut, ArrowLeftRight, LifeBuoy, Globe, Heart, Quote, X, BookOpen, Sparkles, RefreshCw } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useThemeStore } from '../../store/themeStore';
 import { useAuthStore } from '../../store/authStore';
@@ -29,7 +29,7 @@ const navigation = [
 ];
 
 export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle }) => {
-  const { setGlobalSearchTerm, globalSearchTerm } = useFinanceStore();
+  const { setGlobalSearchTerm, globalSearchTerm, fetchTransactions, fetchAccounts, fetchCategories, fetchPurchaseCategories, fetchDonationSavingRecords, fetchPurchases } = useFinanceStore();
   const { isDarkMode, toggleTheme } = useThemeStore();
   const { user, profile, signOut, isLoading } = useAuthStore();
   const { unreadCount } = useNotificationStore();
@@ -41,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearchOverlay, setShowSearchOverlay] = useState(false);
   const [showHelpBanner, setShowHelpBanner] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const navigate = useNavigate();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -49,6 +50,37 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
   const userMenuRef = useRef<HTMLDivElement>(null);
   const languageBtnRef = useRef<HTMLButtonElement>(null);
   const languageMenuRef = useRef<HTMLDivElement>(null);
+
+  // Refresh handler
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
+    triggerHapticFeedback('medium');
+    
+    try {
+      await Promise.all([
+        fetchTransactions(),
+        fetchAccounts(),
+        fetchCategories(),
+        fetchPurchaseCategories(),
+        fetchDonationSavingRecords(),
+        fetchPurchases()
+      ]);
+      
+      // Dispatch custom event to notify components that need to refresh
+      window.dispatchEvent(new CustomEvent('dataRefreshed'));
+      
+      toast.success('Data refreshed successfully');
+      triggerHapticFeedback('success');
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast.error('Failed to refresh data');
+      triggerHapticFeedback('error');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const languages = [
     { code: 'en', name: 'English', flag: '🇺🇸' },
@@ -280,6 +312,16 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
             
             {/* Theme Toggle & Notifications */}
             <div className="flex items-center gap-1 sm:gap-2">
+              {/* Refresh Button - Option 1 */}
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all flex items-center justify-center ${isRefreshing ? 'cursor-not-allowed opacity-50' : ''}`}
+                title="Refresh data"
+              >
+                <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-gray-300 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+
               <button
                 onClick={toggleTheme}
                 className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"

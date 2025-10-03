@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
-import { ArrowRight, Plus, Search, Copy, ChevronDown, Filter } from 'lucide-react';
+import { ArrowRight, Plus, Search, Copy, ChevronDown, Filter, RefreshCw } from 'lucide-react';
 import { formatCurrency } from '../../utils/currency';
 import { supabase } from '../../lib/supabase';
 import { TransferModal } from './TransferModal';
@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { Dialog } from '@headlessui/react';
 import { DPSTransferModal } from './DPSTransferModal';
 import { useSearchParams } from 'react-router-dom';
+import { TransfersSkeleton, TransfersMobileSkeleton, TransfersShimmerSkeleton } from './TransfersSkeleton';
+import PullToRefresh from '../PullToRefresh';
 
 const TABS = [
   { key: 'all', label: 'All Transfers' },
@@ -39,6 +41,7 @@ export const TransfersView: React.FC = () => {
   const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState('all');
   const [showTransferTypeModal, setShowTransferTypeModal] = useState(false);
@@ -49,6 +52,7 @@ export const TransfersView: React.FC = () => {
   // New state for improvements
   const [searchTerm, setSearchTerm] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Selected transfer parameter handling
   const [searchParams, setSearchParams] = useSearchParams();
@@ -78,6 +82,18 @@ export const TransfersView: React.FC = () => {
     fetchTransferHistory();
   }, []);
 
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Close mobile menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -95,9 +111,13 @@ export const TransfersView: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMobileMenuOpen]);
 
-  const fetchTransferHistory = async () => {
+  const fetchTransferHistory = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
 
       // Fetch regular transfers
@@ -143,7 +163,12 @@ export const TransfersView: React.FC = () => {
       setError(err.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    await fetchTransferHistory(true);
   };
 
   // Group transfer transactions by transferId (tags[1])
@@ -285,11 +310,7 @@ export const TransfersView: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-[300px] flex items-center justify-center">
-        <div className="text-xl text-gray-600 dark:text-gray-300">Loading transfers...</div>
-      </div>
-    );
+    return isMobile ? <TransfersMobileSkeleton /> : <TransfersSkeleton />;
   }
 
   if (error) {
@@ -302,6 +323,18 @@ export const TransfersView: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <PullToRefresh onRefresh={handleRefresh} />
+      
+      {/* Refresh indicator */}
+      {refreshing && (
+        <div className="flex items-center justify-center py-2">
+          <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            <span className="text-sm font-medium">Refreshing transfers...</span>
+          </div>
+        </div>
+      )}
+      
       {/* Unified Transfers Container */}
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
         {/* Header Section with Search and New Transfer Button */}
@@ -414,7 +447,7 @@ export const TransfersView: React.FC = () => {
         </div>
 
         {/* Content Area */}
-        <div className="p-4 max-h-96 overflow-y-auto bg-white dark:bg-gray-900">
+        <div className="p-4 max-h-[calc(100vh-200px)] sm:max-h-96 overflow-y-auto bg-white dark:bg-gray-900 transfers-content-area">
           {filteredTransfers.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-400 dark:text-gray-500 mb-2">

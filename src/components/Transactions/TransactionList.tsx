@@ -153,11 +153,11 @@ export const TransactionList: React.FC<{
     dateRange: getThisMonthDateRange()
   });
   
-  // Add sorting state
+  // Add sorting state - default to most recent first
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: 'asc' | 'desc';
-  } | null>(null);
+  } | null>({ key: 'date', direction: 'desc' });
   
   const [showTypeMenu, setShowTypeMenu] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
@@ -203,8 +203,8 @@ export const TransactionList: React.FC<{
 
       switch (sortConfig.key) {
         case 'date':
-          aValue = new Date(a.date).getTime();
-          bValue = new Date(b.date).getTime();
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
           break;
         case 'description':
           aValue = a.description.toLowerCase();
@@ -1111,7 +1111,10 @@ export const TransactionList: React.FC<{
                         className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${isSelected ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
                       >
                         <td className="px-6 py-2 text-left">
-                          <span className="text-gray-900 dark:text-white" style={{ fontSize: '14px' }}>{format(new Date(transaction.date), 'MMM dd, yyyy')}</span>
+                          <div className="text-gray-900 dark:text-white" style={{ fontSize: '14px' }}>
+                            <div>{format(new Date(transaction.date), 'MMM dd, yyyy')}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{format(new Date(transaction.created_at), 'h:mm a')}</div>
+                          </div>
                         </td>
                         <td className="px-6 py-2">
                           <div>
@@ -1198,7 +1201,8 @@ export const TransactionList: React.FC<{
                     {/* Card Header - Date and Type Badge */}
                     <div className="flex items-center justify-between p-3 pb-2">
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {format(new Date(transaction.date), 'MMM dd, yyyy')}
+                        <div>{format(new Date(transaction.date), 'MMM dd, yyyy')}</div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500">{format(new Date(transaction.created_at), 'h:mm a')}</div>
                       </div>
                       <div>
                         {transaction.type === 'income' ? (
@@ -1290,6 +1294,7 @@ export const TransactionList: React.FC<{
                       <div className="col-span-3">
                         <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</div>
                         <div className="text-sm text-gray-900 dark:text-white">{format(new Date(transaction.date), 'MMM dd, yyyy')}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{format(new Date(transaction.created_at), 'h:mm a')}</div>
                       </div>
                       <div className="col-span-6">
                         <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</div>

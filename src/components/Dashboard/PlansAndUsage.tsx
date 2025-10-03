@@ -205,41 +205,6 @@ export const PlansAndUsage: React.FC<PlansAndUsageProps> = ({ hideTitle = false 
           {expandedSections.usage && (
             <div className="border-t border-gray-100 dark:border-gray-700">
               <div className="p-4 bg-blue-50/30 dark:bg-blue-900/10 space-y-6">
-                {/* Upgrade Recommendations - Only show for free users */}
-                {isFreeUser && (
-                  <div>
-                    <div className="space-y-4">
-                      {/* Sample recommendations - you can make this dynamic based on actual usage */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                          <div className="flex items-center gap-2 mb-2">
-                            <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Account Limit</h4>
-                          </div>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                            You're using 3/3 accounts. Consider upgrading for unlimited accounts.
-                          </p>
-                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                            <div className="bg-yellow-500 h-2 rounded-full" style={{ width: '100%' }}></div>
-                          </div>
-                        </div>
-
-                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                          <div className="flex items-center gap-2 mb-2">
-                            <CheckCircle className="w-4 h-4 text-green-500" />
-                            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Transactions</h4>
-                          </div>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                            You have plenty of transaction capacity remaining.
-                          </p>
-                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                            <div className="bg-green-500 h-2 rounded-full" style={{ width: '25%' }}></div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Current Usage */}
                 <div>

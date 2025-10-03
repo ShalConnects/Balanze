@@ -5,6 +5,7 @@ import { PurchaseAttachment } from '../../types';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
 
 interface PurchaseDetailsSectionProps {
   isExpanded: boolean;
@@ -149,6 +150,37 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Handle attachment download
+  const handleDownloadAttachment = async (filePath: string, fileName: string) => {
+    try {
+      // Fetch the file from the URL
+      const response = await fetch(filePath);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file: ${response.statusText}`);
+      }
+      
+      // Get the blob data
+      const blob = await response.blob();
+      
+      // Create a temporary URL for the blob
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a temporary anchor element and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast.error('Failed to download file. Please try again.');
+    }
   };
 
   const RichTextToolbar: React.FC<{ editorRef: React.RefObject<HTMLDivElement> }> = ({ editorRef }) => (
@@ -307,14 +339,22 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
                             {formatFileSize(attachment.file_size)}
                           </p>
                         </div>
-                        <a
-                          href={attachment.file_path}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="ml-2 text-blue-600 dark:text-blue-400 underline text-xs hover:text-blue-700 dark:hover:text-blue-300"
-                        >
-                          View / Download
-                        </a>
+                        <div className="ml-2 flex gap-2">
+                          <a
+                            href={attachment.file_path}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 dark:text-blue-400 underline text-xs hover:text-blue-700 dark:hover:text-blue-300"
+                          >
+                            View
+                          </a>
+                          <button
+                            onClick={() => handleDownloadAttachment(attachment.file_path, attachment.file_name)}
+                            className="text-blue-600 dark:text-blue-400 underline text-xs hover:text-blue-700 dark:hover:text-blue-300"
+                          >
+                            Download
+                          </button>
+                        </div>
                       </div>
                       <button
                         type="button"

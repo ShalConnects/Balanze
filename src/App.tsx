@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/authStore';
 import { useFinanceStore } from './store/useFinanceStore';
@@ -17,7 +18,6 @@ import TermsOfService from './pages/TermsOfService';
 import RefundPolicy from './pages/RefundPolicy';
 import { LoadingProvider, useLoadingContext } from './context/LoadingContext';
 import { Loader } from './components/common/Loader';
-import TestAuthPanel from './components/TestAuthPanel';
 import { MainLayout } from './components/Layout/MainLayout';
 import { AccountsView } from './components/Accounts/AccountsView';
 import { TransactionsView } from './components/Transactions/TransactionsView';
@@ -34,6 +34,11 @@ import { Settings } from './components/Dashboard/Settings';
 import HelpAndSupport from './pages/HelpAndSupport';
 import { History } from './pages/History';
 import { HelpLayout } from './components/Layout/HelpLayout';
+import { PublicHelpLayout } from './components/Layout/PublicHelpLayout';
+import PublicHelpCenter from './pages/PublicHelpCenter';
+import PublicArticlePage from './pages/PublicArticlePage';
+import SitemapPage from './pages/SitemapPage';
+import RobotsTxtPage from './pages/RobotsTxtPage';
 import DonationsSavingsPage from './pages/DonationsSavingsPage';
 import { FavoriteQuotes } from './pages/FavoriteQuotes';
 import { WelcomeModal } from './components/common/WelcomeModal';
@@ -45,8 +50,10 @@ import KBArticlePage from './pages/KBArticlePage';
 import AdminPage from './pages/AdminPage';
 import { FileRenameAdmin } from './pages/FileRenameAdmin';
 import DashboardDemo from './pages/DashboardDemo';
+import ShortUrlRedirect from './pages/ShortUrlRedirect';
 import { useThemeStore } from './store/themeStore';
-import { initMobileScrollFix } from './utils/mobileScrollFix';
+import { AppInstallBanner } from './components/AppInstallBanner';
+import { PullToRefresh } from './components/PullToRefresh';
 
 function AppContent() {
   const user = useAuthStore((state) => state.user);
@@ -65,7 +72,7 @@ function AppContent() {
   
   // Post-account creation tour state
   const [showPostAccountTour, setShowPostAccountTour] = useState(false);
-  const { accounts, fetchAccounts } = useFinanceStore();
+  const { accounts, fetchAccounts, fetchAllData } = useFinanceStore();
   const { initializeDefaultNotifications } = useNotificationStore();
   
   // Function to trigger post-account creation tour
@@ -88,13 +95,99 @@ function AppContent() {
     }
   }, [isDarkMode]);
 
-  // Initialize mobile scroll fix
+  // Detect Capacitor/Android and add class for status bar padding
   useEffect(() => {
-    const mobileScrollFix = initMobileScrollFix();
+    const isCapacitor = window.Capacitor !== undefined;
+    const isAndroid = /Android/i.test(navigator.userAgent);
     
-    return () => {
-      mobileScrollFix.destroy();
-    };
+    if (isCapacitor && isAndroid) {
+      document.body.classList.add('capacitor-android');
+    }
+  }, []);
+
+  // SMART Pull-to-Refresh: Refresh at top, scroll everywhere else
+  useEffect(() => {
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    
+    if (isAndroid) {
+      // Setup body constraints for proper scrolling
+      const setBodyHeight = () => {
+        document.body.style.height = '100vh';
+        document.body.style.position = 'fixed';
+        document.body.style.overflow = 'hidden';
+        document.body.style.width = '100%';
+        
+        const rootElement = document.getElementById('root');
+        if (rootElement) {
+          rootElement.style.height = '100vh';
+          rootElement.style.overflowY = 'auto';
+          rootElement.style.overflowX = 'hidden';
+          rootElement.style.WebkitOverflowScrolling = 'touch';
+          rootElement.style.overscrollBehavior = 'auto'; // Allow overscroll for refresh
+        }
+      };
+      
+      setBodyHeight();
+      window.addEventListener('resize', setBodyHeight);
+      
+      // SMART REFRESH LOGIC
+      let startY = 0;
+      let isPulling = false;
+      const rootElement = document.getElementById('root');
+      
+      const handleTouchStart = (e: TouchEvent) => {
+        if (!rootElement) return;
+        startY = e.touches[0].clientY;
+        isPulling = rootElement.scrollTop === 0; // Only allow refresh at top
+      };
+      
+      const handleTouchMove = (e: TouchEvent) => {
+        if (!rootElement || !isPulling) return;
+        
+        const currentY = e.touches[0].clientY;
+        const deltaY = currentY - startY;
+        const isAtTop = rootElement.scrollTop === 0;
+        
+        // Smart behavior:
+        // - At top + pulling down (deltaY > 0) → Allow refresh
+        // - Not at top → Normal scroll (no refresh)
+        if (isAtTop && deltaY > 80) {
+          // User pulled down more than 80px at top
+          // Allow the overscroll to trigger browser refresh
+          // Don't preventDefault - let it happen naturally
+        }
+      };
+      
+      const handleTouchEnd = () => {
+        isPulling = false;
+      };
+      
+      if (rootElement) {
+        rootElement.addEventListener('touchstart', handleTouchStart, { passive: true });
+        rootElement.addEventListener('touchmove', handleTouchMove, { passive: true });
+        rootElement.addEventListener('touchend', handleTouchEnd, { passive: true });
+      }
+      
+      return () => {
+        window.removeEventListener('resize', setBodyHeight);
+        if (rootElement) {
+          rootElement.removeEventListener('touchstart', handleTouchStart);
+          rootElement.removeEventListener('touchmove', handleTouchMove);
+          rootElement.removeEventListener('touchend', handleTouchEnd);
+          rootElement.style.height = '';
+          rootElement.style.overflowY = '';
+          rootElement.style.overflowX = '';
+          rootElement.style.WebkitOverflowScrolling = '';
+          rootElement.style.overscrollBehavior = '';
+        }
+        document.body.style.height = '';
+        document.body.style.position = '';
+        document.body.style.overflow = '';
+        document.body.style.width = '';
+      };
+    }
+    
+    return () => {};
   }, []);
 
 
@@ -300,12 +393,26 @@ function AppContent() {
     }
   }, [user, loading, profile, fetchAccounts]);
 
+  // Pull-to-refresh handler
+  const handleRefresh = async () => {
+    if (user) {
+      await fetchAllData();
+    }
+  };
+
   if (loading) {
     return <Loader isLoading={true} message="Loading Balanze..." />;
   }
 
   return (
     <>
+      {/* Pull-to-Refresh Component - Only for logged-in users */}
+      {user && <PullToRefresh onRefresh={handleRefresh} />}
+      
+      {/* App Install Banner - Bottom Banner (Option B) */}
+      {/* Only shows on Android mobile browsers, not in app or desktop */}
+      <AppInstallBanner position="bottom" />
+
       <Loader isLoading={globalLoading} message={loadingMessage} />
       <Toaster 
         position="top-right" 
@@ -364,6 +471,9 @@ function AppContent() {
         {/* Demo route - public */}
         <Route path="/dashboard-demo" element={<DashboardDemo />} />
         
+        {/* Short URL redirect - public */}
+        <Route path="/f/:shortCode" element={<ShortUrlRedirect />} />
+        
         {/* Public routes */}
         <Route path="/about" element={<About />} />
         <Route path="/blog" element={<Blog />} />
@@ -371,6 +481,14 @@ function AppContent() {
         <Route path="/privacypolicy" element={<PrivacyPolicy />} />
         <Route path="/termsofservice" element={<TermsOfService />} />
         <Route path="/refundpolicy" element={<RefundPolicy />} />
+        
+        {/* Public Help Center Routes - SEO Optimized */}
+        <Route path="/help-center" element={<PublicHelpCenter />} />
+        <Route path="/help-center/:slug" element={<PublicArticlePage />} />
+        
+        {/* SEO Routes */}
+        <Route path="/sitemap.xml" element={<SitemapPage />} />
+        <Route path="/robots.txt" element={<RobotsTxtPage />} />
       </Routes>
       
       {/* Welcome Modal for new users without accounts */}
@@ -394,20 +512,17 @@ function AppContent() {
 
 function App() {
   return (
-    <LoadingProvider>
-      <MobileSidebarProvider>
-        <Router>
-          <AppContent />
-        </Router>
-        {/* Test Panels - Only show in development */}
-        {import.meta.env.DEV && (
-          <>
-            <TestAuthPanel />
-          </>
-        )}
-        <Analytics />
-      </MobileSidebarProvider>
-    </LoadingProvider>
+    <HelmetProvider>
+      <LoadingProvider>
+        <MobileSidebarProvider>
+          <Router>
+            <AppContent />
+          </Router>
+          {/* Test Panels removed for production */}
+          <Analytics />
+        </MobileSidebarProvider>
+      </LoadingProvider>
+    </HelmetProvider>
   );
 }
 

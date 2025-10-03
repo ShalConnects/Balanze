@@ -664,6 +664,35 @@ export const AccountsView: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Mobile Add Account Button */}
+                <div className="md:hidden">
+                  <button
+                    onClick={() => {
+                      setEditingAccount(null);
+                      setShowAccountForm(true);
+                    }}
+                    className="bg-gradient-primary text-white px-2 py-1.5 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center justify-center text-[13px] h-8 w-8"
+                    title="Add Account"
+                    aria-label="Add Account"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Mobile Clear Filters Button */}
+                <div className="md:hidden">
+                  {(tableFilters.search || tableFilters.currency || tableFilters.type !== 'all' || tableFilters.status !== 'active') && (
+                    <button
+                      onClick={() => setTableFilters({ search: '', currency: '', type: 'all', status: 'active' })}
+                      className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
+                      title="Clear all filters"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
 
                 {/* Desktop Filters */}
                 <div className="hidden md:flex items-center gap-x-2">
@@ -804,20 +833,6 @@ export const AccountsView: React.FC = () => {
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Account</span>
-                </button>
-              </div>
-              
-              {/* Mobile Add Account Button */}
-              <div className="md:hidden flex items-center">
-                <button
-                  onClick={() => {
-                    setEditingAccount(null);
-                    setShowAccountForm(true);
-                  }}
-                  className="bg-gradient-primary text-white px-2 py-1.5 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center justify-center text-[13px] h-8 w-8"
-                  title="Add Account"
-                >
-                  <Plus className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -981,7 +996,6 @@ export const AccountsView: React.FC = () => {
                               <div className="flex-1">
                                 <div 
                                   className="text-sm font-medium text-gray-900 dark:text-white relative group"
-                                  title={account.description || undefined}
                                 >
                                   {account.name.charAt(0).toUpperCase() + account.name.slice(1)}
                                   {account.description && (
@@ -1664,7 +1678,7 @@ export const AccountsView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-start justify-center p-2 sm:p-4 pt-16">
           <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setModalOpen(false)} />
           <div className="relative bg-white w-full max-w-6xl rounded-lg shadow-2xl" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
-            <div className="p-3 sm:p-4 pt-8 pb-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 10rem)', touchAction: 'auto', overscrollBehaviorY: 'none', WebkitOverflowScrolling: 'touch' }}>
+            <div className="p-3 sm:p-4 pt-8 pb-6 overflow-y-auto scrollable-container" style={{ maxHeight: 'calc(100vh - 10rem)' }}>
               {/* Close Button - Absolute positioned */}
               <button 
                 className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 p-1 z-10" 

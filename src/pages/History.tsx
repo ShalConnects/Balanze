@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
 import { useAuthStore } from '../store/authStore';
+import { HistorySkeleton, HistoryMobileSkeleton, HistoryShimmerSkeleton } from '../components/History/HistorySkeleton';
+import PullToRefresh from '../components/PullToRefresh';
 import {
   DollarSign,
   CreditCard,
@@ -58,6 +60,7 @@ export const History: React.FC = () => {
   const { user } = useAuthStore();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [openDate, setOpenDate] = useState<string | null>(null);
@@ -76,11 +79,16 @@ export const History: React.FC = () => {
   const matchType = (log: ActivityLog, type: string) =>
     log.entity_type && log.entity_type.toLowerCase().includes(type);
 
-  useEffect(() => {
-    const fetchLogs = async () => {
-      if (!user) return;
-      
+  const fetchLogs = async (isRefresh = false) => {
+    if (!user) return;
+    
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
       setLoading(true);
+    }
+    
+    try {
       const { data, error } = await supabase
         .from('activity_history')
         .select('*')
@@ -130,11 +138,21 @@ export const History: React.FC = () => {
         setLogs(uniqueLogs);
         calculateStatistics(uniqueLogs);
       }
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+    } finally {
       setLoading(false);
-    };
-    
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
     fetchLogs();
   }, [user]);
+
+  const handleRefresh = async () => {
+    await fetchLogs(true);
+  };
 
   const calculateStatistics = (logs: ActivityLog[]) => {
     const now = new Date();
@@ -268,24 +286,38 @@ export const History: React.FC = () => {
     </div>
   );
 
+  // Detect mobile view with proper state management
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   if (loading) {
-    return (
-      <div className="w-full h-full p-4 bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600 dark:text-gray-400">Loading activity history...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return isMobile ? <HistoryMobileSkeleton /> : <HistorySkeleton />;
   }
 
   return (
     <div className="w-full h-full p-4 bg-gray-50 dark:bg-gray-900">
+      <PullToRefresh onRefresh={handleRefresh} />
       <div className="max-w-7xl mx-auto space-y-6">
+        {/* Refresh indicator */}
+        {refreshing && (
+          <div className="flex items-center justify-center py-2">
+            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              <span className="text-sm font-medium">Refreshing...</span>
+            </div>
+          </div>
+        )}
+        
         {/* Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
           <StatCard

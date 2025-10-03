@@ -265,7 +265,7 @@ export const ARTICLE_SECTIONS = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:shalconnect00@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnect00@gmail.com</a></span>
       </li>
     </ul>
   </div>

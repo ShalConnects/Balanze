@@ -143,14 +143,20 @@ export const Auth: React.FC = () => {
   // Email validation
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email) return 'Email is required';
+    if (!email || email.trim() === '') return 'Email is required';
     if (!emailRegex.test(email)) return 'Please enter a valid email address';
     return '';
   };
 
-  // Password validation
+  // Password validation - simplified for login
   const validatePassword = (password: string) => {
-    if (!password) return 'Password is required';
+    if (!password || password.trim() === '') return 'Password is required';
+    return '';
+  };
+
+  // Password validation for signup (more strict)
+  const validatePasswordSignup = (password: string) => {
+    if (!password || password.trim() === '') return 'Password is required';
     if (password.length < 8) return 'Password must be at least 8 characters';
     if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
     if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter';
@@ -204,7 +210,7 @@ export const Auth: React.FC = () => {
     e.preventDefault();
     
     const emailErr = validateEmail(email);
-    const passwordErr = validatePassword(password);
+    const passwordErr = validatePasswordSignup(password);
     const nameErr = validateName(fullName);
     
     setEmailError(emailErr);
@@ -240,22 +246,40 @@ export const Auth: React.FC = () => {
   const handleLogIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const emailErr = validateEmail(email);
-    const passwordErr = validatePassword(password);
+    // Get current values directly from the input fields as fallback for Android
+    const currentEmail = emailRef.current?.value || email;
+    const currentPassword = passwordRef.current?.value || password;
+    
+    console.log('Login attempt - Email state:', email, 'Input value:', emailRef.current?.value);
+    console.log('Login attempt - Password state:', password ? '***' : 'empty', 'Input value:', passwordRef.current?.value ? '***' : 'empty');
+    
+    // Update state if there's a mismatch (Android issue)
+    if (currentEmail !== email) {
+      setEmail(currentEmail);
+    }
+    if (currentPassword !== password) {
+      setPassword(currentPassword);
+    }
+    
+    const emailErr = validateEmail(currentEmail);
+    const passwordErr = validatePassword(currentPassword);
+    
+    console.log('Validation results - Email:', emailErr || 'valid', 'Password:', passwordErr || 'valid');
     
     setEmailError(emailErr);
     setPasswordError(passwordErr);
     
     if (emailErr || passwordErr) {
+      console.log('Validation failed, stopping submission');
       if (emailErr) emailRef.current?.focus();
       else if (passwordErr) passwordRef.current?.focus();
       return;
     }
 
     try {
-      console.log('Attempting login for:', email);
+      console.log('Attempting login for:', currentEmail);
       // Use the auth store's signIn method
-      const result = await signIn(email, password);
+      const result = await signIn(currentEmail, currentPassword);
       
       if (result.success) {
         console.log('Login successful');
@@ -457,7 +481,7 @@ export const Auth: React.FC = () => {
 
           {/* Feedback Messages */}
           {activeTab === 'signup' && (success || error) && (
-            <div className={`rounded-md p-4 mb-4 border ${success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+            <div className={`rounded-md p-4 mb-4 border ${success ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'}`}>
               <div className="flex">
                 <div className="flex-shrink-0">
                   {success ? (
@@ -471,13 +495,13 @@ export const Auth: React.FC = () => {
                   )}
                 </div>
                 <div className="ml-3">
-                  <p className={`text-sm font-medium ${success ? 'text-green-800' : 'text-red-800'}`}>{success || error}</p>
+                  <p className={`text-sm font-medium ${success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>{success || error}</p>
                 </div>
               </div>
             </div>
           )}
           {activeTab === 'login' && error && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4">
               <div className="flex">
                 <div className="flex-shrink-0">
                   <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -485,7 +509,7 @@ export const Auth: React.FC = () => {
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm font-medium text-red-800">{getLoginErrorMessage()}</p>
+                  <p className="text-sm font-medium text-red-800 dark:text-red-200">{getLoginErrorMessage()}</p>
                 </div>
               </div>
             </div>
@@ -499,10 +523,15 @@ export const Auth: React.FC = () => {
                 <input
                   ref={emailRef}
                   id="login-email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
+                    if (emailError) setEmailError(validateEmail(e.target.value));
+                  }}
+                  onBlur={(e) => {
                     setEmailError(validateEmail(e.target.value));
                   }}
                   onKeyDown={e => handleKeyDown(e)}
@@ -530,10 +559,15 @@ export const Auth: React.FC = () => {
                   <input
                     ref={passwordRef}
                     id="login-password"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
+                      if (passwordError) setPasswordError(validatePassword(e.target.value));
+                    }}
+                    onBlur={(e) => {
                       setPasswordError(validatePassword(e.target.value));
                     }}
                     onKeyDown={e => handleKeyDown(e)}
@@ -552,9 +586,9 @@ export const Auth: React.FC = () => {
                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   >
                     {showPassword ? (
-                      <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                      <EyeSlashIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                     ) : (
-                      <EyeIcon className="h-5 w-5 text-gray-400" />
+                      <EyeIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                     )}
                   </button>
                 </div>
@@ -702,7 +736,7 @@ export const Auth: React.FC = () => {
                         value={password}
                         onChange={(e) => {
                           setPassword(e.target.value);
-                          setPasswordError(validatePassword(e.target.value));
+                          setPasswordError(validatePasswordSignup(e.target.value));
                         }}
                         onKeyDown={e => handleKeyDown(e)}
                         placeholder="Create a password"
@@ -719,11 +753,11 @@ export const Auth: React.FC = () => {
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute inset-y-0 right-0 pr-3 flex items-center"
                       >
-                        {showPassword ? (
-                          <EyeSlashIcon className="h-5 w-5 text-gray-400" />
-                        ) : (
-                          <EyeIcon className="h-5 w-5 text-gray-400" />
-                        )}
+                          {showPassword ? (
+                            <EyeSlashIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                          ) : (
+                            <EyeIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                          )}
                       </button>
                     </div>
                     {passwordError && (

@@ -6,6 +6,7 @@ interface PlanFeatures {
   max_accounts: number;
   max_transactions: number;
   max_currencies: number;
+  max_purchases: number;
   analytics: boolean;
   priority_support: boolean;
   export_data: boolean;
@@ -28,6 +29,11 @@ interface UsageStats {
     percentage: number;
   };
   transactions: {
+    current: number;
+    limit: number;
+    percentage: number;
+  };
+  purchases: {
     current: number;
     limit: number;
     percentage: number;
@@ -65,6 +71,7 @@ export const usePlanFeatures = () => {
         max_accounts: 3,
         max_transactions: 100,
         max_currencies: 1,
+        max_purchases: 50,
         analytics: false,
         priority_support: false,
         export_data: false,
@@ -115,13 +122,18 @@ export const usePlanFeatures = () => {
     return usageStats.transactions.limit === -1 || usageStats.transactions.current < usageStats.transactions.limit;
   };
 
-  const isNearLimit = (type: 'accounts' | 'currencies' | 'transactions'): boolean => {
+  const canCreatePurchase = (): boolean => {
+    if (!usageStats) return true;
+    return usageStats.purchases.limit === -1 || usageStats.purchases.current < usageStats.purchases.limit;
+  };
+
+  const isNearLimit = (type: 'accounts' | 'currencies' | 'transactions' | 'purchases'): boolean => {
     if (!usageStats) return false;
     const stats = usageStats[type];
     return stats.percentage >= 80 && stats.percentage < 100;
   };
 
-  const isAtLimit = (type: 'accounts' | 'currencies' | 'transactions'): boolean => {
+  const isAtLimit = (type: 'accounts' | 'currencies' | 'transactions' | 'purchases'): boolean => {
     if (!usageStats) return false;
     const stats = usageStats[type];
     return stats.percentage >= 100;
@@ -137,6 +149,7 @@ export const usePlanFeatures = () => {
       unlimited_accounts: 'You\'ve reached your account limit. Upgrade to Premium for unlimited accounts.',
       unlimited_currencies: 'You\'ve reached your currency limit. Upgrade to Premium for unlimited currencies.',
       unlimited_transactions: 'You\'ve reached your transaction limit. Upgrade to Premium for unlimited transactions.',
+      unlimited_purchases: 'You\'ve reached your purchase limit. Upgrade to Premium for unlimited purchases.',
     };
     return messages[feature] || 'This feature requires a Premium plan.';
   };
@@ -157,6 +170,7 @@ export const usePlanFeatures = () => {
     canCreateAccount,
     canAddCurrency,
     canCreateTransaction,
+    canCreatePurchase,
     isNearLimit,
     isAtLimit,
     

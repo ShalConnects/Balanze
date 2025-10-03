@@ -717,7 +717,7 @@ export const LendBorrowView: React.FC = () => {
                       }`}
                       style={filters.type !== 'all' ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                     >
-                      <span>{filters.type === 'all' ? 'All Types' : capitalize(filters.type)}</span>
+                      <span>{filters.type === 'all' ? 'All Types' : (filters.type === 'lend' ? t('lendBorrow.lend') : t('lendBorrow.borrow'))}</span>
                       <svg className="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                       </svg>

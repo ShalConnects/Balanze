@@ -50,7 +50,7 @@ const HelpAndSupport: React.FC = () => {
                 <p className="text-blue-100">
                   Discover guides, tutorials, and tips to master Balanze. Can't find what you're looking for? 
                   <button 
-                    onClick={() => window.open('mailto:support@balanze.com', '_blank')}
+                    onClick={() => window.open('mailto:shalconnect00@gmail.com', '_blank')}
                     className="underline hover:text-white ml-1"
                   >
                     Contact our support team

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
+import PDFDocument from 'pdfkit';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -91,10 +92,16 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
   const totalLendBorrow = data.lendBorrow?.length || 0;
   const totalSavings = data.donationSavings?.length || 0;
 
+  // Get recipient name from the recipient object
+  const recipientName = recipient.name || recipient.email || 'Recipient';
+  
+  // Get user's display name (from metadata or email)
+  const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Account holder';
+
   const testModeIndicator = isTestMode ? `
-    <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-      <h3 style="color: #155724; margin: 0 0 10px 0;">🧪 TEST MODE</h3>
-      <p style="color: #155724; margin: 0;">This is a test email from the Last Wish system. No real financial data is being delivered.</p>
+    <div style="background: #d1fae5; border: 2px solid #6ee7b7; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+      <h3 style="color: #047857; margin: 0 0 10px 0; font-size: 18px;">🧪 TEST MODE</h3>
+      <p style="color: #065f46; margin: 0;">This is a test email from the Last Wish system. No real financial data is being delivered.</p>
     </div>
   ` : '';
 
@@ -103,62 +110,425 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
     <html>
     <head>
       <meta charset="utf-8">
-      <title>${isTestMode ? 'Test Email - ' : ''}Last Wish - Digital Time Capsule</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${isTestMode ? 'Test Email - ' : ''}Last Wish Delivery - Important Financial Information</title>
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        .data-summary { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #6c757d; }
+        body { 
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6; 
+          color: #333;
+          margin: 0;
+          padding: 0;
+          background: #f5f5f5;
+        }
+        .email-wrapper {
+          background: #f5f5f5;
+          padding: 40px 20px;
+        }
+        .email-container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: white;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .email-header {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: white;
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .email-header h1 {
+          margin: 0 0 10px 0;
+          font-size: 28px;
+          font-weight: 600;
+        }
+        .email-header p {
+          margin: 0;
+          opacity: 0.95;
+          font-size: 16px;
+        }
+        .email-body {
+          padding: 30px;
+        }
+        .greeting {
+          margin-bottom: 25px;
+        }
+        .greeting h2 {
+          color: #1f2937;
+          font-size: 20px;
+          margin: 0 0 10px 0;
+          font-weight: 600;
+        }
+        .greeting p {
+          color: #6b7280;
+          margin: 0;
+          line-height: 1.7;
+        }
+        .context-box {
+          background: #fef3c7;
+          border-left: 4px solid #f59e0b;
+          padding: 20px;
+          border-radius: 8px;
+          margin-bottom: 25px;
+        }
+        .context-box p {
+          margin: 0;
+          color: #92400e;
+          line-height: 1.7;
+        }
+        .context-box strong {
+          display: block;
+          margin-bottom: 8px;
+          color: #78350f;
+          font-size: 15px;
+        }
+        .personal-message {
+          background: #f0f9ff;
+          border-left: 4px solid #3b82f6;
+          padding: 20px;
+          border-radius: 8px;
+          margin-bottom: 25px;
+        }
+        .personal-message h3 {
+          color: #1e40af;
+          margin: 0 0 12px 0;
+          font-size: 16px;
+          font-weight: 600;
+        }
+        .personal-message p {
+          color: #1e3a8a;
+          margin: 0;
+          line-height: 1.7;
+          font-style: italic;
+        }
+        .data-summary {
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 25px;
+          margin-bottom: 25px;
+        }
+        .data-summary h3 {
+          color: #111827;
+          margin: 0 0 15px 0;
+          font-size: 18px;
+          font-weight: 600;
+        }
+        .data-summary ul {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+        }
+        .data-summary li {
+          padding: 10px 0;
+          border-bottom: 1px solid #e5e7eb;
+          display: flex;
+          justify-content: space-between;
+          color: #4b5563;
+        }
+        .data-summary li:last-child {
+          border-bottom: none;
+        }
+        .data-summary li strong {
+          color: #111827;
+        }
+        .attachment-info {
+          background: #ecfdf5;
+          border: 1px solid #a7f3d0;
+          border-radius: 8px;
+          padding: 20px;
+          margin-bottom: 25px;
+          text-align: center;
+        }
+        .attachment-info p {
+          margin: 0 0 12px 0;
+          color: #065f46;
+          font-weight: 500;
+        }
+        .attachment-info .filename {
+          font-family: 'Courier New', monospace;
+          background: white;
+          padding: 8px 12px;
+          border-radius: 4px;
+          display: inline-block;
+          font-size: 14px;
+          color: #047857;
+          margin: 4px;
+        }
+        .privacy-notice {
+          background: #f3f4f6;
+          padding: 20px;
+          border-radius: 8px;
+          margin-bottom: 25px;
+        }
+        .privacy-notice h4 {
+          color: #374151;
+          margin: 0 0 10px 0;
+          font-size: 15px;
+          font-weight: 600;
+        }
+        .privacy-notice p {
+          color: #6b7280;
+          margin: 0;
+          line-height: 1.7;
+          font-size: 14px;
+        }
+        .email-footer {
+          background: #f9fafb;
+          padding: 25px 30px;
+          border-top: 1px solid #e5e7eb;
+          text-align: center;
+        }
+        .email-footer p {
+          margin: 5px 0;
+          color: #6b7280;
+          font-size: 13px;
+        }
+        .email-footer .date {
+          color: #9ca3af;
+          font-size: 12px;
+        }
+        .test-indicator {
+          background: #d1fae5;
+          border: 2px solid #6ee7b7;
+          padding: 20px;
+          border-radius: 8px;
+          margin: 20px 30px;
+          text-align: center;
+        }
+        .test-indicator h3 {
+          color: #047857;
+          margin: 0 0 8px 0;
+          font-size: 18px;
+        }
+        .test-indicator p {
+          color: #065f46;
+          margin: 0;
+          font-size: 14px;
+        }
       </style>
     </head>
     <body>
-      <div class="container">
-        ${testModeIndicator}
-        
-        <div class="header">
-          <h2>${isTestMode ? '🧪 Test Email - ' : ''}Last Wish - Digital Time Capsule</h2>
-          <p>This email contains important financial data that was requested to be delivered to you.</p>
-        </div>
-
-        <div class="warning">
-          <strong>⚠️ Important Notice:</strong>
-          <p>This data has been automatically delivered because ${user.email} has not checked in with their financial management system for an extended period.</p>
-        </div>
-
-        ${settings.message ? `
-          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h3>Personal Message from ${user.email}:</h3>
-            <div>${settings.message}</div>
+      <div class="email-wrapper">
+        <div class="email-container">
+          ${testModeIndicator}
+          
+          <!-- Email Header -->
+          <div class="email-header">
+            <h1>💚 Last Wish Delivery</h1>
+            <p>Important Financial Information</p>
           </div>
-        ` : ''}
 
-        <div class="data-summary">
-          <h3>Financial Data Summary:</h3>
-          <ul>
-            ${totalAccounts > 0 ? `<li>Accounts: ${totalAccounts}</li>` : ''}
-            ${totalTransactions > 0 ? `<li>Transactions: ${totalTransactions}</li>` : ''}
-            ${totalPurchases > 0 ? `<li>Purchases: ${totalPurchases}</li>` : ''}
-            ${totalLendBorrow > 0 ? `<li>Lend/Borrow Records: ${totalLendBorrow}</li>` : ''}
-            ${totalSavings > 0 ? `<li>Savings Records: ${totalSavings}</li>` : ''}
-          </ul>
-        </div>
+          <!-- Email Body -->
+          <div class="email-body">
+            <!-- Greeting -->
+            <div class="greeting">
+              <h2>Dear ${recipientName},</h2>
+              <p>
+                You are receiving this email because someone who trusted you has chosen to share their important financial information with you.
+              </p>
+            </div>
 
-        <p>A detailed JSON file containing all the financial data has been attached to this email.</p>
+            <!-- Context Box -->
+            <div class="context-box">
+              <strong>Why are you receiving this?</strong>
+              <p>
+                <strong>${userName}</strong> set up a Last Wish system to ensure their financial records would be safely delivered to trusted individuals if they were unable to check in for an extended period. This delivery has been automatically triggered as part of that plan.
+              </p>
+            </div>
 
-        <div class="footer">
-          <p>This is an automated delivery from the Last Wish system. Please handle this information with care and respect for ${user.email}'s privacy.</p>
-          <p>Delivery Date: ${new Date().toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}</p>
+            ${settings.message ? `
+              <!-- Personal Message -->
+              <div class="personal-message">
+                <h3>💌 Personal Message from ${userName}</h3>
+                <p>${settings.message}</p>
+              </div>
+            ` : ''}
+
+            <!-- Data Summary -->
+            <div class="data-summary">
+              <h3>Financial Records Summary</h3>
+              <ul>
+                ${totalAccounts > 0 ? `<li><span>Bank Accounts</span> <strong>${totalAccounts}</strong></li>` : ''}
+                ${totalTransactions > 0 ? `<li><span>Transactions</span> <strong>${totalTransactions}</strong></li>` : ''}
+                ${totalPurchases > 0 ? `<li><span>Purchases</span> <strong>${totalPurchases}</strong></li>` : ''}
+                ${totalLendBorrow > 0 ? `<li><span>Lend/Borrow Records</span> <strong>${totalLendBorrow}</strong></li>` : ''}
+                ${totalSavings > 0 ? `<li><span>Savings Records</span> <strong>${totalSavings}</strong></li>` : ''}
+              </ul>
+            </div>
+
+            <!-- Attachment Info -->
+            <div class="attachment-info">
+              <p>📎 Complete financial data is attached to this email</p>
+              <div class="filename">financial-data-backup.json</div>
+              <div class="filename">financial-data-backup.pdf</div>
+            </div>
+
+            <!-- Privacy Notice -->
+            <div class="privacy-notice">
+              <h4>🔒 Please Handle With Care</h4>
+              <p>
+                This information contains sensitive financial data. Please store it securely, respect the privacy of the account holder, and only use it as intended. If you have any concerns about receiving this information, please disregard this email.
+              </p>
+            </div>
+          </div>
+
+          <!-- Email Footer -->
+          <div class="email-footer">
+            <p><strong>Last Wish System - FinTrack</strong></p>
+            <p>Automated delivery • Sent with care and respect</p>
+            <p class="date">Delivery Date: ${new Date().toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}</p>
+          </div>
         </div>
       </div>
     </body>
     </html>
   `;
+}
+
+function createPDFBuffer(user, recipient, data, settings) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 50 });
+      const buffers = [];
+      
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+
+      // Get names
+      const recipientName = recipient.name || recipient.email;
+      const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Account holder';
+
+      // Header
+      doc.fontSize(24).fillColor('#10b981').text('💚 Last Wish Delivery', { align: 'center' });
+      doc.fontSize(14).fillColor('#6b7280').text('Financial Records Backup', { align: 'center' });
+      doc.moveDown(2);
+
+      // Recipient Info
+      doc.fontSize(16).fillColor('#111827').text(`Dear ${recipientName},`);
+      doc.moveDown();
+      doc.fontSize(11).fillColor('#4b5563').text(
+        `This document contains the financial records from ${userName}, delivered through the Last Wish system.`,
+        { align: 'justify' }
+      );
+      doc.moveDown(2);
+
+      // Personal Message (if exists)
+      if (settings.message) {
+        doc.fontSize(14).fillColor('#1e40af').text('Personal Message');
+        doc.moveDown(0.5);
+        doc.fontSize(10).fillColor('#4b5563').text(settings.message, {
+          align: 'justify',
+          italic: true
+        });
+        doc.moveDown(2);
+      }
+
+      // Data Summary
+      doc.fontSize(14).fillColor('#111827').text('Financial Records Summary');
+      doc.moveDown(0.5);
+      
+      const totalAccounts = data.accounts?.length || 0;
+      const totalTransactions = data.transactions?.length || 0;
+      const totalPurchases = data.purchases?.length || 0;
+      const totalLendBorrow = data.lendBorrow?.length || 0;
+      const totalSavings = data.donationSavings?.length || 0;
+
+      if (totalAccounts > 0) {
+        doc.fontSize(11).fillColor('#4b5563').text(`• Bank Accounts: ${totalAccounts}`);
+      }
+      if (totalTransactions > 0) {
+        doc.text(`• Transactions: ${totalTransactions}`);
+      }
+      if (totalPurchases > 0) {
+        doc.text(`• Purchases: ${totalPurchases}`);
+      }
+      if (totalLendBorrow > 0) {
+        doc.text(`• Lend/Borrow Records: ${totalLendBorrow}`);
+      }
+      if (totalSavings > 0) {
+        doc.text(`• Savings Records: ${totalSavings}`);
+      }
+      doc.moveDown(2);
+
+      // Accounts Section
+      if (data.accounts && data.accounts.length > 0) {
+        doc.addPage();
+        doc.fontSize(16).fillColor('#111827').text('Bank Accounts', { underline: true });
+        doc.moveDown();
+        
+        data.accounts.forEach((account, index) => {
+          doc.fontSize(12).fillColor('#10b981').text(`Account ${index + 1}`);
+          doc.fontSize(10).fillColor('#4b5563');
+          doc.text(`Name: ${account.name || 'N/A'}`);
+          doc.text(`Type: ${account.type || 'N/A'}`);
+          doc.text(`Balance: ${account.balance || 0}`);
+          doc.text(`Currency: ${account.currency || 'USD'}`);
+          doc.moveDown();
+        });
+      }
+
+      // Transactions Section (show recent)
+      if (data.transactions && data.transactions.length > 0) {
+        doc.addPage();
+        doc.fontSize(16).fillColor('#111827').text('Recent Transactions', { underline: true });
+        doc.moveDown();
+        
+        const recentTransactions = data.transactions.slice(0, 20); // First 20
+        recentTransactions.forEach((tx, index) => {
+          doc.fontSize(10).fillColor('#4b5563');
+          doc.text(`${new Date(tx.date).toLocaleDateString()}: ${tx.description || 'N/A'} - ${tx.amount || 0} ${tx.currency || 'USD'}`);
+        });
+        
+        if (data.transactions.length > 20) {
+          doc.moveDown();
+          doc.fontSize(9).fillColor('#9ca3af').text(
+            `... and ${data.transactions.length - 20} more transactions (see JSON file for complete data)`
+          );
+        }
+      }
+
+      // Purchases Section
+      if (data.purchases && data.purchases.length > 0) {
+        doc.addPage();
+        doc.fontSize(16).fillColor('#111827').text('Purchases', { underline: true });
+        doc.moveDown();
+        
+        data.purchases.forEach((purchase, index) => {
+          doc.fontSize(11).fillColor('#6b21a8').text(`${purchase.name || 'Purchase ' + (index + 1)}`);
+          doc.fontSize(10).fillColor('#4b5563');
+          doc.text(`Amount: ${purchase.amount || 0}`);
+          doc.text(`Status: ${purchase.status || 'N/A'}`);
+          if (purchase.target_date) {
+            doc.text(`Target Date: ${new Date(purchase.target_date).toLocaleDateString()}`);
+          }
+          doc.moveDown();
+        });
+      }
+
+      // Footer on last page
+      doc.moveDown(2);
+      doc.fontSize(9).fillColor('#9ca3af').text(
+        'This document was automatically generated by the Last Wish System - FinTrack',
+        { align: 'center' }
+      );
+      doc.text(
+        `Generated on: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
+        { align: 'center' }
+      );
+      
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
 async function sendDataToRecipient(user, recipient, userData, settings, isTestMode = false) {
@@ -169,17 +539,30 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
     // Create email content
     const emailContent = createEmailContent(user, recipient, filteredData, settings, isTestMode);
 
+    // Generate PDF
+    console.log('📄 Generating PDF...');
+    const pdfBuffer = await createPDFBuffer(user, recipient, filteredData, settings);
+    console.log('✅ PDF generated successfully');
+
+    // Get user's display name for subject
+    const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || user.email;
+
     // Send email
     const mailOptions = {
       from: process.env.SMTP_USER,
       to: recipient.email,
-      subject: `${isTestMode ? '🧪 Test Email - ' : ''}Important: Financial Data from ${user.email} - Last Wish`,
+      subject: `${isTestMode ? '🧪 Test - ' : ''}Last Wish Delivery from ${userName}`,
       html: emailContent,
       attachments: [
         {
-          filename: `${isTestMode ? 'test-' : ''}financial-data-${user.email}-${new Date().toISOString().split('T')[0]}.json`,
+          filename: `${isTestMode ? 'test-' : ''}financial-data-backup.json`,
           content: JSON.stringify(filteredData, null, 2),
           contentType: 'application/json'
+        },
+        {
+          filename: `${isTestMode ? 'test-' : ''}financial-data-backup.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
         }
       ]
     };

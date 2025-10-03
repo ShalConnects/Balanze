@@ -200,7 +200,10 @@ export const FloatingActionButton: React.FC = () => {
 
   return (
     <>
-      <div className={`fixed bottom-6 right-6 z-50 flex flex-col items-end ${isMobile && isMobileSidebarOpen ? 'hidden' : ''}`}>
+      <div 
+        className={`fixed right-6 z-50 flex flex-col items-end ${isMobile && isMobileSidebarOpen ? 'hidden' : ''}`}
+        style={{ bottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)))' }}
+      >
         <div className="relative flex flex-col items-end">
           {/* Animated Menu Items - now absolutely positioned above the FAB */}
           <Transition

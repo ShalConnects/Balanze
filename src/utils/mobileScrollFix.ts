@@ -22,11 +22,9 @@ export class MobileScrollFix {
   }
 
   private init(): void {
-    // Only initialize on mobile devices
-    if (this.isMobileDevice()) {
-      this.setupEventListeners();
-      this.setupCSS();
-    }
+    // DISABLED: This utility was causing touch scroll conflicts
+    // All scroll handling is now done via pure CSS approach in App.tsx and index.css
+    console.log('MobileScrollFix: Disabled to prevent touch scroll conflicts');
   }
 
   private isMobileDevice(): boolean {

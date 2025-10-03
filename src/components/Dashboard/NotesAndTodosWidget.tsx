@@ -68,6 +68,37 @@ export const NotesAndTodosWidget: React.FC = () => {
     };
   }, [user?.id]); // Only depend on user.id, not the entire user object
 
+  // Listen for global refresh events
+  useEffect(() => {
+    const handleDataRefresh = async () => {
+      if (!user?.id) return;
+      
+      try {
+        // Refresh notes
+        const { data: notesData, error: notesError } = await supabase
+          .from('notes')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('pinned', { ascending: false })
+          .order('updated_at', { ascending: false });
+        if (!notesError && notesData) setNotes(notesData);
+
+        // Refresh tasks
+        const { data: tasksData, error: tasksError } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        if (!tasksError && tasksData) setTasks(tasksData);
+      } catch (error) {
+        console.error('Error refreshing notes and tasks:', error);
+      }
+    };
+
+    window.addEventListener('dataRefreshed', handleDataRefresh);
+    return () => window.removeEventListener('dataRefreshed', handleDataRefresh);
+  }, [user?.id]);
+
   // Add note
   const addNote = async () => {
     if (!noteInput.trim() || !user) return;

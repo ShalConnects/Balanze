@@ -1835,6 +1835,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         get().fetchTransactions(),
         get().fetchPurchases(),
         get().fetchPurchaseCategories(),
+        get().fetchDonationSavingRecords(),
       ]);
       // Sync existing expense categories with purchase categories
       await get().syncExpenseCategoriesWithPurchaseCategories();
@@ -1901,7 +1902,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   },
 
   // Purchase Attachments
-  uploadPurchaseAttachment: async (purchaseId: string, file: File) => {
+  uploadPurchaseAttachment: async (purchaseId: string, file: File, purchase?: any) => {
     set({ loading: true, error: null });
     
     const { user } = useAuthStore.getState();
@@ -1920,25 +1921,48 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         throw new Error('File type not allowed. Allowed types: jpg, jpeg, png, gif, pdf, docx, xlsx, txt');
       }
       
+      // Generate friendly file name and storage path
+      let fileName: string;
+      let storagePath: string;
+      
+      if (purchase) {
+        // Use friendly naming if purchase data is available
+        const { generateFriendlyStoragePath } = await import('../utils/urlShortener');
+        storagePath = generateFriendlyStoragePath(purchase, file);
+        fileName = storagePath.split('/').pop() || file.name;
+      } else {
+        // Fallback to original naming
+        fileName = `${purchaseId}/${Date.now()}_${file.name}`;
+        storagePath = fileName;
+      }
+      
       // Upload file to Supabase Storage
-      const fileName = `${purchaseId}/${Date.now()}_${file.name}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('purchase-attachments')
-        .upload(fileName, file);
+        .from('attachments')
+        .upload(storagePath, file);
         
       if (uploadError) throw uploadError;
       
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from('purchase-attachments')
-        .getPublicUrl(fileName);
+        .from('attachments')
+        .getPublicUrl(storagePath);
+      
+      // Create short URL for better UX
+      let shortUrl = urlData.publicUrl;
+      try {
+        const { createShortUrl } = await import('../utils/urlShortener');
+        shortUrl = await createShortUrl(urlData.publicUrl, file.name, purchaseId);
+      } catch (shortUrlError) {
+        console.warn('Failed to create short URL, using original URL:', shortUrlError);
+      }
       
       // Create attachment record in database
       const { error: dbError } = await supabase.from('purchase_attachments').insert({
         purchase_id: purchaseId,
         user_id: user.id,
         file_name: file.name,
-        file_path: fileName,
+        file_path: shortUrl, // Store the short URL instead of storage path
         file_size: file.size,
         file_type: fileExtension,
         mime_type: file.type

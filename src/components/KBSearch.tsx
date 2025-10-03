@@ -412,6 +412,9 @@ export default function KBSearch({ className }: KBSearchProps) {
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useThemeStore();
   const { user, profile } = useAuthStore();
+  
+  // Detect if we're on the public help center or authenticated help page
+  const isPublicHelpCenter = typeof window !== 'undefined' && window.location.pathname.startsWith('/help-center');
 
   const userName = profile?.fullName || user?.email?.split('@')[0] || 'User';
   const userEmail = user?.email || '';
@@ -674,7 +677,7 @@ export default function KBSearch({ className }: KBSearchProps) {
                 {filteredArticles.map((article) => (
                   <Link
                     key={article.slug}
-                    to={`/kb/${article.slug}`}
+                    to={isPublicHelpCenter ? `/help-center/${article.slug}` : `/kb/${article.slug}`}
                     onClick={() => handleArticleClick(article)}
                     className="block p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-gradient-primary hover:shadow-md transition-all duration-200 group"
                   >
@@ -743,7 +746,7 @@ export default function KBSearch({ className }: KBSearchProps) {
             {MOCK_ARTICLES.slice(0, 4).map((article) => (
               <Link
                 key={article.slug}
-                to={`/kb/${article.slug}`}
+                to={isPublicHelpCenter ? `/help-center/${article.slug}` : `/kb/${article.slug}`}
                 onClick={() => handleArticleClick(article)}
                 className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-gradient-primary transition-colors group"
               >

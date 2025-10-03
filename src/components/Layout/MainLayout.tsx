@@ -13,6 +13,7 @@ import { HeaderQuote } from '../Dashboard/HeaderQuote';
 import { useThemeStore } from '../../store/themeStore';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useMobileSidebar } from '../../context/MobileSidebarContext';
+import { HomeButton } from './HomeButton';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -179,6 +180,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </main>
         </div>
       </div>
+      
+      {/* Home Button - Only show on mobile and not on dashboard */}
+      {isMobile && currentView !== 'dashboard' && location.pathname !== '/' && <HomeButton />}
       {/* Mobile sidebar overlay rendered outside the main flex container */}
       {isMobile && isSidebarOpen && (
         <div className="fixed inset-0 z-[99999] flex">

@@ -1,6 +1,7 @@
 // src/pages/KBArticlePage.tsx
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, 
   Clock, 
@@ -13,12 +14,13 @@ import {
   Check,
   Menu,
   X,
-  ChevronUp
+  ArrowUp
 } from 'lucide-react';
 import { trackHelpCenter } from '../lib/analytics';
-import { trackArticleReading, trackArticleTimeSpent, trackArticleFeedback } from '../lib/articleHistory';
+import { trackArticleReadingUniversal, trackArticleTimeSpent, trackArticleFeedback } from '../lib/articleHistory';
 import { toast } from 'sonner';
 import clsx from 'clsx';
+import { useThemeStore } from '../store/themeStore';
 
 interface KBArticle {
   slug: string;
@@ -43,7 +45,7 @@ interface TableOfContentsItem {
 }
 
 // Mock article data - in production, this would come from your CMS/API
-const MOCK_ARTICLES: Record<string, KBArticle> = {
+export const MOCK_ARTICLES: Record<string, KBArticle> = {
   'settings-page-comprehensive-guide': {
     slug: 'settings-page-comprehensive-guide',
     title: 'Complete Settings Page Guide',
@@ -4782,6 +4784,7 @@ const MOCK_ARTICLES: Record<string, KBArticle> = {
 export default function KBArticlePage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const { } = useThemeStore();
   const [article, setArticle] = useState<KBArticle | null>(null);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<'helpful' | 'not-helpful' | null>(null);
@@ -4791,6 +4794,9 @@ export default function KBArticlePage() {
   const [isTocOpen, setIsTocOpen] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [tocMaxHeight, setTocMaxHeight] = useState<string>('calc(100vh - 4rem)');
+  const [isFooterVisible, setIsFooterVisible] = useState(false);
+  const [tocPosition, setTocPosition] = useState<'fixed' | 'absolute'>('fixed');
 
   useEffect(() => {
     if (slug) {
@@ -4807,8 +4813,8 @@ export default function KBArticlePage() {
             category: foundArticle.category
           });
           
-          // Track article reading in database
-          trackArticleReading({
+          // Track article reading (works for both authenticated and anonymous users)
+          trackArticleReadingUniversal({
             article_slug: slug,
             article_title: foundArticle.title,
             article_category: foundArticle.category
@@ -4830,6 +4836,50 @@ export default function KBArticlePage() {
     };
   }, [article, slug, startTime]);
 
+  // Footer-aware positioning using Intersection Observer
+  useEffect(() => {
+    
+    const footer = document.querySelector('footer');
+    if (!footer) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Footer is visible - switch to absolute positioning
+            setIsFooterVisible(true);
+            setTocPosition('absolute');
+            
+            // Calculate available space above footer
+            const footerRect = entry.boundingClientRect;
+            const tocTop = 80; // top-20 = 5rem = 80px
+            const availableHeight = footerRect.top - tocTop;
+            const minHeight = 200;
+            const maxHeight = Math.max(minHeight, availableHeight);
+            
+            setTocMaxHeight(`${maxHeight}px`);
+          } else {
+            // Footer is not visible - use fixed positioning
+            setIsFooterVisible(false);
+            setTocPosition('fixed');
+            setTocMaxHeight('calc(100vh - 4rem)');
+          }
+        });
+      },
+      {
+        root: null, // Use viewport as root
+        rootMargin: '-10% 0px -10% 0px', // Trigger when footer is 10% visible
+        threshold: 0.1 // Trigger when 10% of footer is visible
+      }
+    );
+
+    observer.observe(footer);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [article]); // Re-observe when article changes
+
   // Track active section on scroll with improved performance
   useEffect(() => {
     let ticking = false;
@@ -4837,8 +4887,19 @@ export default function KBArticlePage() {
     const handleScroll = () => {
       if (!ticking) {
         requestAnimationFrame(() => {
-          // Handle back to top button visibility
-          const scrollY = window.scrollY;
+          // Handle back to top button visibility - works for both window and #root scrolling
+          const isAndroid = /Android/i.test(navigator.userAgent);
+          let scrollY = 0;
+          
+          if (isAndroid) {
+            // On Android, scroll happens on #root element
+            const rootElement = document.getElementById('root');
+            scrollY = rootElement ? rootElement.scrollTop : 0;
+          } else {
+            // On other platforms, use window scroll
+            scrollY = window.scrollY;
+          }
+          
           setShowBackToTop(scrollY > 300);
 
           if (!article?.tableOfContents) {
@@ -4852,11 +4913,11 @@ export default function KBArticlePage() {
             ...(item.children?.flatMap(child => child.children || []) || [])
           ]);
 
-          const scrollPosition = window.scrollY + 150; // Increased offset for better visibility
+          const scrollPosition = scrollY + 150; // Increased offset for better visibility
 
           // Calculate reading progress
           const documentHeight = document.documentElement.scrollHeight - window.innerHeight;
-          const progress = Math.min(100, Math.max(0, (window.scrollY / documentHeight) * 100));
+          const progress = Math.min(100, Math.max(0, (scrollY / documentHeight) * 100));
           setReadingProgress(progress);
 
           for (let i = sections.length - 1; i >= 0; i--) {
@@ -4875,8 +4936,19 @@ export default function KBArticlePage() {
     // Initial call to set active section
     handleScroll();
     
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    // Listen to the appropriate scroll event
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const rootElement = document.getElementById('root');
+    
+    if (isAndroid && rootElement) {
+      // On Android, listen to #root scroll
+      rootElement.addEventListener('scroll', handleScroll, { passive: true });
+      return () => rootElement.removeEventListener('scroll', handleScroll);
+    } else {
+      // On other platforms, listen to window scroll
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
   }, [article]);
 
   const scrollToSection = (sectionId: string) => {
@@ -4894,10 +4966,17 @@ export default function KBArticlePage() {
   };
 
   const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    if (isAndroid) {
+      // On Android, scroll the #root element
+      const rootElement = document.getElementById('root');
+      if (rootElement) {
+        rootElement.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } else {
+      // On other platforms, scroll the window
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleFeedback = (isHelpful: boolean) => {
@@ -5066,7 +5145,61 @@ export default function KBArticlePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
+    <>
+      <Helmet>
+        <title>{article?.title || 'Help Article - Balanze'}</title>
+        <meta name="description" content={article?.description || 'Get help with Balanze financial tracking'} />
+        <meta name="keywords" content={`Balanze help, ${article?.tags?.join(', ') || 'financial tracking'}, ${article?.category || 'support'}`} />
+        <meta name="robots" content="index, follow" />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="article" />
+        <meta property="og:title" content={article?.title || 'Help Article - Balanze'} />
+        <meta property="og:description" content={article?.description || 'Get help with Balanze financial tracking'} />
+        <meta property="og:url" content={window.location.href} />
+        <meta property="og:site_name" content="Balanze Help Center" />
+        
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:title" content={article?.title || 'Help Article - Balanze'} />
+        <meta property="twitter:description" content={article?.description || 'Get help with Balanze financial tracking'} />
+        
+        {/* Article structured data */}
+        {article && (
+          <script type="application/ld+json">
+            {JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Article",
+              "headline": article.title,
+              "description": article.description,
+              "author": {
+                "@type": "Organization",
+                "name": "Balanze"
+              },
+              "publisher": {
+                "@type": "Organization",
+                "name": "Balanze",
+                "logo": {
+                  "@type": "ImageObject",
+                  "url": window.location.origin + "/logo.png"
+                }
+              },
+              "datePublished": article.lastUpdated,
+              "dateModified": article.lastUpdated,
+              "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": window.location.href
+              },
+              "articleSection": article.category,
+              "keywords": article.tags?.join(', '),
+              "wordCount": article.content?.length || 0,
+              "timeRequired": article.readTime
+            })}
+          </script>
+        )}
+      </Helmet>
+      
+      <div className="min-h-screen overflow-x-hidden">
       {/* Mobile TOC Toggle Button */}
       {article?.tableOfContents && (
         <button
@@ -5098,8 +5231,14 @@ export default function KBArticlePage() {
           {article?.tableOfContents && (
             <div className="hidden lg:block w-80 flex-shrink-0">
               <div 
-                className="fixed top-8 w-80 max-h-[calc(100vh-4rem)] z-10"
-                style={{ left: 'calc((100vw - 80rem) / 2 + 1rem)' }}
+                className={`${tocPosition} top-20 w-80 z-10 overflow-y-auto transition-all duration-300 ease-in-out`}
+                style={{ 
+                  left: tocPosition === 'fixed' ? 'calc((100vw - 80rem) / 2 + 1rem)' : '1rem',
+                  maxHeight: tocMaxHeight,
+                  // Visual indicator when footer-aware mode is active
+                  borderLeft: isFooterVisible ? '3px solid #3b82f6' : 'none',
+                  boxShadow: isFooterVisible ? '0 4px 12px rgba(59, 130, 246, 0.15)' : 'none'
+                }}
               >
                 <TableOfContents />
               </div>
@@ -5110,7 +5249,11 @@ export default function KBArticlePage() {
           <div className="flex-1 min-w-0">
             {/* Back Button */}
             <button
-              onClick={() => navigate('/help')}
+              onClick={() => {
+                // Detect if we're on public help center or authenticated help
+                const isPublicHelpCenter = window.location.pathname.startsWith('/help-center');
+                navigate(isPublicHelpCenter ? '/help-center' : '/help');
+              }}
               className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors mb-6"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -5309,16 +5452,19 @@ export default function KBArticlePage() {
         </div>
       </div>
 
-      {/* Back to Top Button */}
+
+      {/* Back to Top Button - Only visible when scrolling */}
       {showBackToTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-6 right-6 z-50 bg-gradient-primary hover:bg-gradient-primary-hover text-white p-3 rounded-full shadow-lg transition-all duration-300 ease-in-out hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gradient-primary focus:ring-offset-2"
+          className="fixed right-8 z-50 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 rounded-full shadow-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
+          style={{ bottom: 'max(env(safe-area-inset-bottom, 0px), 100px)' }}
           aria-label="Back to top"
         >
-          <ChevronUp className="w-6 h-6" />
+          <ArrowUp className="w-6 h-6" />
         </button>
       )}
     </div>
+    </>
   );
 }

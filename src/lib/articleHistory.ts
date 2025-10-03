@@ -65,6 +65,35 @@ export async function trackArticleReading(params: TrackArticleReadingParams): Pr
 }
 
 /**
+ * Track article reading for both authenticated and anonymous users
+ * Falls back to client-side analytics for anonymous users
+ */
+export async function trackArticleReadingUniversal(params: TrackArticleReadingParams): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+      // Track in database for authenticated users
+      await trackArticleReading(params);
+    } else {
+      // Track in client-side analytics for anonymous users
+      console.log('Tracking article reading for anonymous user:', params);
+      // You can integrate with Google Analytics, Mixpanel, or other analytics here
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'article_view', {
+          article_slug: params.article_slug,
+          article_title: params.article_title,
+          article_category: params.article_category,
+          user_type: 'anonymous'
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error in trackArticleReadingUniversal:', error);
+  }
+}
+
+/**
  * Get user's reading history
  */
 export async function getUserReadingHistory(limit: number = 10): Promise<ArticleReadingHistory[]> {

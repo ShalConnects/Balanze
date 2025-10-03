@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Last Wish Email - Final Implementation Preview</title>
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6; 
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background: #f5f5f5;
+    }
+    .preview-info {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .preview-info h1 {
+      margin: 0 0 10px 0;
+      color: #111827;
+      font-size: 24px;
+    }
+    .preview-info p {
+      margin: 0;
+      color: #6b7280;
+    }
+    .email-wrapper {
+      background: #f5f5f5;
+      padding: 40px 20px;
+    }
+    .email-container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .email-header {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 40px 30px;
+      text-align: center;
+    }
+    .email-header h1 {
+      margin: 0 0 10px 0;
+      font-size: 28px;
+      font-weight: 600;
+    }
+    .email-header p {
+      margin: 0;
+      opacity: 0.95;
+      font-size: 16px;
+    }
+    .email-body {
+      padding: 30px;
+    }
+    .greeting {
+      margin-bottom: 25px;
+    }
+    .greeting h2 {
+      color: #1f2937;
+      font-size: 20px;
+      margin: 0 0 10px 0;
+      font-weight: 600;
+    }
+    .greeting p {
+      color: #6b7280;
+      margin: 0;
+      line-height: 1.7;
+    }
+    .context-box {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 25px;
+    }
+    .context-box p {
+      margin: 0;
+      color: #92400e;
+      line-height: 1.7;
+    }
+    .context-box strong {
+      display: block;
+      margin-bottom: 8px;
+      color: #78350f;
+      font-size: 15px;
+    }
+    .personal-message {
+      background: #f0f9ff;
+      border-left: 4px solid #3b82f6;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 25px;
+    }
+    .personal-message h3 {
+      color: #1e40af;
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .personal-message p {
+      color: #1e3a8a;
+      margin: 0;
+      line-height: 1.7;
+      font-style: italic;
+    }
+    .data-summary {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 25px;
+      margin-bottom: 25px;
+    }
+    .data-summary h3 {
+      color: #111827;
+      margin: 0 0 15px 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .data-summary ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .data-summary li {
+      padding: 10px 0;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      color: #4b5563;
+    }
+    .data-summary li:last-child {
+      border-bottom: none;
+    }
+    .data-summary li strong {
+      color: #111827;
+    }
+    .attachment-info {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 25px;
+      text-align: center;
+    }
+    .attachment-info p {
+      margin: 0 0 12px 0;
+      color: #065f46;
+      font-weight: 500;
+    }
+    .attachment-info .filename {
+      font-family: 'Courier New', monospace;
+      background: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      display: inline-block;
+      font-size: 14px;
+      color: #047857;
+      margin: 4px;
+    }
+    .privacy-notice {
+      background: #f3f4f6;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 25px;
+    }
+    .privacy-notice h4 {
+      color: #374151;
+      margin: 0 0 10px 0;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .privacy-notice p {
+      color: #6b7280;
+      margin: 0;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+    .email-footer {
+      background: #f9fafb;
+      padding: 25px 30px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+    }
+    .email-footer p {
+      margin: 5px 0;
+      color: #6b7280;
+      font-size: 13px;
+    }
+    .email-footer .date {
+      color: #9ca3af;
+      font-size: 12px;
+    }
+    .highlight {
+      background: #fef3c7;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+      color: #92400e;
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-info">
+    <h1>✅ Final Implementation Preview</h1>
+    <p>
+      This is what your Last Wish email will look like with the new Option 1 design. 
+      Notice the personalized recipient name and user display name (not email addresses).
+    </p>
+    <ul style="margin: 15px 0; padding-left: 20px; color: #6b7280; font-size: 14px;">
+      <li><span class="highlight">Dear [Recipient Name]</span> - Uses name from Authorized Beneficiaries</li>
+      <li><span class="highlight">[User's Name]</span> - Uses registered name instead of email</li>
+      <li><span class="highlight">PDF + JSON</span> - Both files attached</li>
+    </ul>
+  </div>
+
+  <div class="email-wrapper">
+    <div class="email-container">
+      <!-- Email Header -->
+      <div class="email-header">
+        <h1>💚 Last Wish Delivery</h1>
+        <p>Important Financial Information</p>
+      </div>
+
+      <!-- Email Body -->
+      <div class="email-body">
+        <!-- Greeting -->
+        <div class="greeting">
+          <h2>Dear John Smith,</h2>
+          <p>
+            You are receiving this email because someone who trusted you has chosen to share their important financial information with you.
+          </p>
+        </div>
+
+        <!-- Context Box -->
+        <div class="context-box">
+          <strong>Why are you receiving this?</strong>
+          <p>
+            <strong>Salauddin Kader</strong> set up a Last Wish system to ensure their financial records would be safely delivered to trusted individuals if they were unable to check in for an extended period. This delivery has been automatically triggered as part of that plan.
+          </p>
+        </div>
+
+        <!-- Personal Message -->
+        <div class="personal-message">
+          <h3>💌 Personal Message from Salauddin Kader</h3>
+          <p>If you're reading this, it means I haven't been able to check in for a while. Thank you for being someone I trust with this important information. Please use this data responsibly and with care. I hope you're doing well, and I appreciate your support throughout the years.</p>
+        </div>
+
+        <!-- Data Summary -->
+        <div class="data-summary">
+          <h3>Financial Records Summary</h3>
+          <ul>
+            <li><span>Bank Accounts</span> <strong>9</strong></li>
+            <li><span>Transactions</span> <strong>234</strong></li>
+            <li><span>Purchases</span> <strong>25</strong></li>
+            <li><span>Lend/Borrow Records</span> <strong>16</strong></li>
+            <li><span>Savings Records</span> <strong>12</strong></li>
+          </ul>
+        </div>
+
+        <!-- Attachment Info -->
+        <div class="attachment-info">
+          <p>📎 Complete financial data is attached to this email</p>
+          <div class="filename">financial-data-backup.json</div>
+          <div class="filename">financial-data-backup.pdf</div>
+        </div>
+
+        <!-- Privacy Notice -->
+        <div class="privacy-notice">
+          <h4>🔒 Please Handle With Care</h4>
+          <p>
+            This information contains sensitive financial data. Please store it securely, respect the privacy of the account holder, and only use it as intended. If you have any concerns about receiving this information, please disregard this email.
+          </p>
+        </div>
+      </div>
+
+      <!-- Email Footer -->
+      <div class="email-footer">
+        <p><strong>Last Wish System - FinTrack</strong></p>
+        <p>Automated delivery • Sent with care and respect</p>
+        <p class="date">Delivery Date: September 29, 2025</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="preview-info" style="margin-top: 20px;">
+    <h2 style="font-size: 18px; margin: 0 0 10px 0; color: #111827;">📧 Email Subject Line</h2>
+    <div style="background: #f9fafb; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 14px; color: #374151;">
+      Last Wish Delivery from Salauddin Kader
+    </div>
+    
+    <h2 style="font-size: 18px; margin: 20px 0 10px 0; color: #111827;">📎 Attachments</h2>
+    <ul style="margin: 10px 0; padding-left: 20px; color: #6b7280; font-size: 14px;">
+      <li><code>financial-data-backup.json</code> - Complete data in JSON format</li>
+      <li><code>financial-data-backup.pdf</code> - Human-readable PDF document</li>
+    </ul>
+
+    <h2 style="font-size: 18px; margin: 20px 0 10px 0; color: #111827;">✨ Key Features</h2>
+    <ul style="margin: 10px 0; padding-left: 20px; color: #6b7280; font-size: 14px;">
+      <li>✅ Personal greeting with recipient's actual name</li>
+      <li>✅ User's display name used instead of email</li>
+      <li>✅ Beautiful green gradient design</li>
+      <li>✅ Compassionate, warm tone</li>
+      <li>✅ Clear context and explanation</li>
+      <li>✅ Personal message highlighted</li>
+      <li>✅ Both JSON and PDF attachments</li>
+      <li>✅ Privacy-focused messaging</li>
+    </ul>
+
+    <div style="margin-top: 20px; padding: 15px; background: #d1fae5; border-radius: 6px; border-left: 4px solid #10b981;">
+      <p style="margin: 0; color: #065f46; font-weight: 500;">
+        🎉 Your Last Wish email is now ready with Option 1 design, personalized names, and PDF generation!
+      </p>
+    </div>
+  </div>
+</body>
+</html>

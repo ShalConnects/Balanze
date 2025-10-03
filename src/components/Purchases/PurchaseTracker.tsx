@@ -68,6 +68,23 @@ function formatFileSize(bytes: number) {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
 }
 
+// Helper function to determine tooltip text based on notes and attachments
+const getTooltipText = (hasNotes: boolean, hasAttachments: boolean): string => {
+  if (hasNotes && hasAttachments) {
+    return 'Has both notes and attachments';
+  } else if (hasNotes) {
+    return 'Has note';
+  } else if (hasAttachments) {
+    return 'Has attachment';
+  }
+  return '';
+};
+
+// Helper function to determine if eye icon should be shown
+const shouldShowEyeIcon = (hasNotes: boolean, hasAttachments: boolean): boolean => {
+  return hasNotes || hasAttachments;
+};
+
 export const PurchaseTracker: React.FC = () => {
   const {
     purchases,
@@ -116,6 +133,33 @@ export const PurchaseTracker: React.FC = () => {
       fetchAccountsCallback();
     }
   }, [user, fetchPurchasesCallback, fetchPurchaseCategoriesCallback, fetchAccountsCallback]);
+
+  // Fetch attachment counts for all purchases
+  useEffect(() => {
+    const fetchAttachmentCounts = async () => {
+      if (purchases.length === 0) return;
+      
+      try {
+        const purchaseIds = purchases.map(p => p.id);
+        const { data: attachmentCounts, error } = await supabase
+          .from('purchase_attachments')
+          .select('purchase_id')
+          .in('purchase_id', purchaseIds);
+        
+        if (!error && attachmentCounts) {
+          const counts: Record<string, number> = {};
+          attachmentCounts.forEach(att => {
+            counts[att.purchase_id] = (counts[att.purchase_id] || 0) + 1;
+          });
+          setPurchaseAttachmentCounts(counts);
+        }
+      } catch (err) {
+        console.error('Error fetching attachment counts:', err);
+      }
+    };
+
+    fetchAttachmentCounts();
+  }, [purchases]);
 
   // Check if categories exist and redirect to settings if needed
   const checkCategoriesAndRedirect = () => {
@@ -263,6 +307,13 @@ export const PurchaseTracker: React.FC = () => {
 
   // Add state for modal attachments
   const [modalAttachments, setModalAttachments] = useState<PurchaseAttachment[]>([]);
+
+  // Add state for inline file viewer
+  const [viewingFile, setViewingFile] = useState<PurchaseAttachment | null>(null);
+  const [imageZoom, setImageZoom] = useState(100);
+
+  // Add state to track attachment counts for each purchase
+  const [purchaseAttachmentCounts, setPurchaseAttachmentCounts] = useState<Record<string, number>>({});
 
   // Add submitting state to prevent double submissions
   const [submitting, setSubmitting] = useState(false);
@@ -965,6 +1016,142 @@ export const PurchaseTracker: React.FC = () => {
     }
   };
 
+  // Handle attachment download
+  const handleDownloadAttachment = async (filePath: string, fileName: string) => {
+    try {
+      // Check if we're in a Capacitor app (Android/iOS)
+      const isCapacitor = !!(window as any).Capacitor;
+      
+      if (isCapacitor) {
+        // For Android/iOS apps, use system browser for downloads
+        try {
+          // Check if Capacitor Browser is available in the global scope
+          const capacitorBrowser = (window as any).Capacitor?.Plugins?.Browser;
+          
+          if (capacitorBrowser && typeof capacitorBrowser.open === 'function') {
+            // Use Capacitor Browser plugin to open in system browser
+            await capacitorBrowser.open({ url: filePath });
+            toast.success('File opened in browser for download');
+          } else {
+            // For Android WebView, open in system browser using window.open
+            const newWindow = window.open(filePath, '_blank', 'noopener,noreferrer');
+            if (newWindow) {
+              toast.info('File opened in browser. You can download it from there.');
+            } else {
+              // For Android WebView, try multiple approaches
+              try {
+                // Method 1: Try to fetch and create blob (works better in Android WebView)
+                const response = await fetch(filePath, {
+                  method: 'GET',
+                  mode: 'cors',
+                  credentials: 'omit'
+                });
+                
+                if (response.ok) {
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = fileName;
+                  link.style.display = 'none';
+                  document.body.appendChild(link);
+                  link.click();
+                  
+                  // Clean up
+                  document.body.removeChild(link);
+                  window.URL.revokeObjectURL(url);
+                  
+                  toast.success('Download completed!');
+                } else {
+                  throw new Error('Failed to fetch file');
+                }
+              } catch (fetchError) {
+                console.log('Fetch method failed, trying direct link:', fetchError);
+                
+                // Method 2: Direct link approach
+                const link = document.createElement('a');
+                link.href = filePath;
+                link.download = fileName;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                
+                // Try to trigger the download
+                link.click();
+                
+                // Clean up
+                setTimeout(() => {
+                  document.body.removeChild(link);
+                }, 100);
+                
+                toast.info('Download initiated. Check your Downloads folder or browser downloads.');
+              }
+            }
+          }
+        } catch (capacitorError) {
+          console.log('Capacitor download failed, trying fallback:', capacitorError);
+          
+          // Fallback: Open in system browser
+          const newWindow = window.open(filePath, '_blank', 'noopener,noreferrer');
+          if (newWindow) {
+            toast.info('File opened in browser. You can download it from there.');
+          } else {
+            throw new Error('Unable to open file. Please check your app settings.');
+          }
+        }
+      } else {
+        // For regular browsers, use the standard download method
+        try {
+          // First try: Direct download link (works for same-origin files)
+          const link = document.createElement('a');
+          link.href = filePath;
+          link.download = fileName;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          toast.success('Download started!');
+        } catch (directError) {
+          console.log('Direct download failed, trying fetch method:', directError);
+          
+          // Second try: Fetch and blob method (for CORS-enabled files)
+          const response = await fetch(filePath, {
+            method: 'GET',
+            mode: 'cors',
+            credentials: 'omit'
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          
+          // Clean up
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+          
+          toast.success('Download completed!');
+        }
+      }
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast.error(`Download failed: ${error.message}. Please try opening the file in a new tab.`);
+    }
+  };
+
   // Add at the top, after useState:
   const plannedCountAll = purchases.filter(p => p.status === 'planned').length;
 
@@ -1645,38 +1832,54 @@ export const PurchaseTracker: React.FC = () => {
                       </td>
                       <td className="px-6 py-2 text-center">
                         <div className="flex justify-center gap-2 items-center">
-                          <button
-                            onClick={async () => {
-                              setSelectedPurchaseForModal(purchase);
-                              setShowNotesModal(true);
-                              // Fetch existing attachments for this purchase
-                              try {
-                                console.log('Loading modal attachments for purchase:', purchase.id);
-                                const { data: existingAttachments, error: attachmentsError } = await supabase
-                                  .from('purchase_attachments')
-                                  .select('*')
-                                  .eq('purchase_id', purchase.id);
-                                
-                                console.log('Modal attachments query result:', { data: existingAttachments, error: attachmentsError });
-                                
-                                if (!attachmentsError && existingAttachments) {
-                                  setModalAttachments(existingAttachments);
-                                  console.log('Loaded modal attachments:', existingAttachments);
-                                  console.log('Modal attachments count:', existingAttachments.length);
-                                } else {
-                                  console.log('No modal attachments found or error:', attachmentsError);
-                                  setModalAttachments([]);
-                                }
-                              } catch (err) {
-                                console.error('Error loading attachments:', err);
-                                setModalAttachments([]);
-                              }
-                            }}
-                            className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                            title="View Notes and Attachments"
-                          >
-                            <Eye className="w-4 h-4 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400" />
-                          </button>
+                          {(() => {
+                            const hasNotes = purchase.notes && purchase.notes.trim().length > 0;
+                            const hasAttachments = purchaseAttachmentCounts[purchase.id] > 0;
+                            const shouldShow = shouldShowEyeIcon(hasNotes, hasAttachments);
+                            const tooltipText = getTooltipText(hasNotes, hasAttachments);
+                            
+                            if (!shouldShow) return null;
+                            
+                            return (
+                              <div className="relative group">
+                                <button
+                                  onClick={async () => {
+                                    setSelectedPurchaseForModal(purchase);
+                                    setShowNotesModal(true);
+                                    // Fetch existing attachments for this purchase
+                                    try {
+                                      console.log('Loading modal attachments for purchase:', purchase.id);
+                                      const { data: existingAttachments, error: attachmentsError } = await supabase
+                                        .from('purchase_attachments')
+                                        .select('*')
+                                        .eq('purchase_id', purchase.id);
+                                      
+                                      console.log('Modal attachments query result:', { data: existingAttachments, error: attachmentsError });
+                                      
+                                      if (!attachmentsError && existingAttachments) {
+                                        setModalAttachments(existingAttachments);
+                                        console.log('Loaded modal attachments:', existingAttachments);
+                                        console.log('Modal attachments count:', existingAttachments.length);
+                                      } else {
+                                        console.log('No modal attachments found or error:', attachmentsError);
+                                        setModalAttachments([]);
+                                      }
+                                    } catch (err) {
+                                      console.error('Error loading attachments:', err);
+                                      setModalAttachments([]);
+                                    }
+                                  }}
+                                  className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                >
+                                  <Eye className="w-4 h-4 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400" />
+                                </button>
+                                <div className="absolute right-[-15px] bottom-full mb-2 w-64 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50 shadow-xl border border-gray-700">
+                                  {tooltipText}
+                                  <div className="absolute bottom-0 right-4 transform translate-y-1/2 w-2 h-2 bg-gray-800 rotate-45 border-r border-b border-gray-700"></div>
+                                </div>
+                              </div>
+                            );
+                          })()}
                           <button
                             onClick={async () => {
                               setEditingPurchase(purchase);
@@ -1826,43 +2029,60 @@ export const PurchaseTracker: React.FC = () => {
 
                     {/* Card Footer - Actions */}
                     <div className="flex items-center justify-between px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800">
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
-                        {purchase.notes && purchase.notes.length > 0 ? 'Has notes' : 'No notes'}
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={async () => {
-                            setSelectedPurchaseForModal(purchase);
-                            setShowNotesModal(true);
-                            // Fetch existing attachments for this purchase
-                            try {
-                              console.log('Loading modal attachments for purchase:', purchase.id);
-                              const { data: existingAttachments, error: attachmentsError } = await supabase
-                                .from('purchase_attachments')
-                                .select('*')
-                                .eq('purchase_id', purchase.id);
-                              
-                              console.log('Modal attachments query result:', { data: existingAttachments, error: attachmentsError });
-                              
-                              if (!attachmentsError && existingAttachments) {
-                                setModalAttachments(existingAttachments);
-                                console.log('Loaded modal attachments:', existingAttachments);
-                                console.log('Modal attachments count:', existingAttachments.length);
-                              } else {
-                                console.log('No modal attachments found or error:', attachmentsError);
-                                setModalAttachments([]);
-                              }
-                            } catch (err) {
-                              console.error('Error loading attachments:', err);
-                              setModalAttachments([]);
-                            }
-                          }}
-                          className="p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors"
-                          title="View Notes and Attachments"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        <button
+                      {(() => {
+                        const hasNotes = purchase.notes && purchase.notes.trim().length > 0;
+                        const hasAttachments = purchaseAttachmentCounts[purchase.id] > 0;
+                        const shouldShow = shouldShowEyeIcon(hasNotes, hasAttachments);
+                        const tooltipText = getTooltipText(hasNotes, hasAttachments);
+                        
+                        return (
+                          <>
+                            {shouldShow && (
+                              <div className="text-xs text-gray-600 dark:text-gray-400">
+                                {tooltipText}
+                              </div>
+                            )}
+                            <div className="flex gap-2">
+                              {shouldShow && (
+                                <div className="relative group">
+                                  <button
+                                    onClick={async () => {
+                                      setSelectedPurchaseForModal(purchase);
+                                      setShowNotesModal(true);
+                                      // Fetch existing attachments for this purchase
+                                      try {
+                                        console.log('Loading modal attachments for purchase:', purchase.id);
+                                        const { data: existingAttachments, error: attachmentsError } = await supabase
+                                          .from('purchase_attachments')
+                                          .select('*')
+                                          .eq('purchase_id', purchase.id);
+                                        
+                                        console.log('Modal attachments query result:', { data: existingAttachments, error: attachmentsError });
+                                        
+                                        if (!attachmentsError && existingAttachments) {
+                                          setModalAttachments(existingAttachments);
+                                          console.log('Loaded modal attachments:', existingAttachments);
+                                          console.log('Modal attachments count:', existingAttachments.length);
+                                        } else {
+                                          console.log('No modal attachments found or error:', attachmentsError);
+                                          setModalAttachments([]);
+                                        }
+                                      } catch (err) {
+                                        console.error('Error loading attachments:', err);
+                                        setModalAttachments([]);
+                                      }
+                                    }}
+                                    className="p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </button>
+                                  <div className="absolute right-[-15px] bottom-full mb-2 w-64 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50 shadow-xl border border-gray-700">
+                                    {tooltipText}
+                                    <div className="absolute bottom-0 right-4 transform translate-y-1/2 w-2 h-2 bg-gray-800 rotate-45 border-r border-b border-gray-700"></div>
+                                  </div>
+                                </div>
+                              )}
+                              <button
                           onClick={async () => {
                             setEditingPurchase(purchase);
                             setFormData({
@@ -1944,7 +2164,10 @@ export const PurchaseTracker: React.FC = () => {
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      </div>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
@@ -2441,67 +2664,242 @@ export const PurchaseTracker: React.FC = () => {
         </>
       )}
 
-      {/* Notes Modal */}
+      {/* Combined Purchase Details & File Viewer Modal */}
       {showNotesModal && selectedPurchaseForModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black bg-opacity-40" onClick={() => { setShowNotesModal(false); setSelectedPurchaseForModal(null); setModalAttachments([]); }} />
-          <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg p-6 max-w-[35rem] w-full z-50 border border-gray-200 dark:border-gray-700">
+          <div className="fixed inset-0 bg-black bg-opacity-40" onClick={() => { setShowNotesModal(false); setSelectedPurchaseForModal(null); setModalAttachments([]); setViewingFile(null); setImageZoom(100); }} />
+          <div className={`relative bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-300 ease-out ${
+            viewingFile 
+              ? 'w-[80vw] h-[80vh] animate-in zoom-in-95' 
+              : 'p-6 max-w-[35rem] w-full animate-in zoom-in-95'
+          }`}>
             {/* Cross icon at top right */}
             <button
-              onClick={() => { setShowNotesModal(false); setSelectedPurchaseForModal(null); setModalAttachments([]); }}
-              className="absolute top-3 right-3 text-gray-400 hover:text-red-500 dark:hover:text-red-400 focus:outline-none"
+              onClick={() => { setShowNotesModal(false); setSelectedPurchaseForModal(null); setModalAttachments([]); setViewingFile(null); setImageZoom(100); }}
+              className="absolute top-3 right-3 text-gray-400 hover:text-red-500 dark:hover:text-red-400 focus:outline-none z-20"
               aria-label="Close"
               type="button"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
-            <h2 className="text-lg font-bold mb-2 text-gray-900 dark:text-white">Purchase Details</h2>
-            <div className="mb-4 whitespace-pre-line text-gray-800 dark:text-gray-200 text-sm max-h-40 overflow-y-auto">
-              <strong>Notes:</strong>
-              <div className="ql-editor dark:text-gray-200" dangerouslySetInnerHTML={{ __html: selectedPurchaseForModal.notes || 'No notes for this purchase.' }} />
-            </div>
-            {modalAttachments.length > 0 &&
-              <div className="mb-4">
-                <strong className="text-gray-900 dark:text-gray-100">Attachments:</strong>
-                <div className="grid grid-cols-1 gap-3">
-                  {modalAttachments.map((att, idx) => (
-                    <div
-                      key={att.id || idx}
-                      className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
-                    >
-                      {/* Thumbnail or Icon */}
-                      {att.mime_type?.startsWith('image/') ? (
-                        <a href={att.file_path} target="_blank" rel="noopener noreferrer">
-                          <img src={att.file_path} alt={att.file_name} className="w-12 h-12 object-cover rounded border border-gray-200 dark:border-gray-600" />
-                        </a>
-                      ) : (
-                        <div className="w-12 h-12 flex items-center justify-center bg-gray-200 dark:bg-gray-700 rounded">
-                          {getFileIcon(att.file_type)}
+
+            {!viewingFile ? (
+              /* Purchase Details View */
+              <div className="animate-in fade-in duration-300">
+                <h2 className="text-lg font-bold mb-2 text-gray-900 dark:text-white">Purchase Details</h2>
+                {selectedPurchaseForModal.notes && selectedPurchaseForModal.notes.trim().length > 0 && (
+                  <div className="mb-4 whitespace-pre-line text-gray-800 dark:text-gray-200 text-sm max-h-40 overflow-y-auto">
+                    <strong>Notes:</strong>
+                    <div className="ql-editor dark:text-gray-200" dangerouslySetInnerHTML={{ __html: selectedPurchaseForModal.notes }} />
+                  </div>
+                )}
+                {modalAttachments.length > 0 &&
+                  <div className="mb-4">
+                    <strong className="text-gray-900 dark:text-gray-100">Attachments:</strong>
+                    <div className="grid grid-cols-1 gap-3">
+                      {modalAttachments.map((att, idx) => (
+                        <div
+                          key={att.id || idx}
+                          className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
+                        >
+                          {/* Thumbnail or Icon */}
+                          {att.mime_type?.startsWith('image/') ? (
+                            <a href={att.file_path} target="_blank" rel="noopener noreferrer">
+                              <img src={att.file_path} alt={att.file_name} className="w-12 h-12 object-cover rounded border border-gray-200 dark:border-gray-600" />
+                            </a>
+                          ) : (
+                            <div className="w-12 h-12 flex items-center justify-center bg-gray-200 dark:bg-gray-700 rounded">
+                              {getFileIcon(att.file_type)}
+                            </div>
+                          )}
+
+                          {/* File Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate" title={att.file_name}>
+                              {att.file_name}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{att.mime_type || att.file_type}{att.file_size ? ` • ${formatFileSize(att.file_size)}` : ''}</p>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => setViewingFile(att)}
+                              className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400" 
+                              title="View"
+                            >
+                              <Eye className="w-5 h-5" />
+                            </button>
+                            <button 
+                              onClick={() => handleDownloadAttachment(att.file_path, att.file_name)}
+                              className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400" 
+                              title="Download"
+                            >
+                              <Download className="w-5 h-5" />
+                            </button>
+                          </div>
                         </div>
-                      )}
-
-                      {/* File Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate" title={att.file_name}>
-                          {att.file_name}
+                      ))}
+                    </div>
+                  </div>
+                }
+              </div>
+            ) : (
+              /* File Viewer View */
+              <div className="h-full flex flex-col animate-in fade-in duration-300">
+                {/* Header */}
+                <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                  {/* Left side - Back button */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setViewingFile(null)}
+                      className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 focus:outline-none p-1"
+                      aria-label="Back to attachments"
+                      type="button"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                      </svg>
+                    </button>
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">
+                      {viewingFile.file_name}
+                    </h3>
+                  </div>
+                  
+                  {/* Right side - Empty for now */}
+                  <div></div>
+                </div>
+                
+                {/* File Content */}
+                <div className="p-4 h-[calc(80vh-120px)] overflow-auto bg-gray-100 dark:bg-gray-800">
+                  {viewingFile.mime_type?.startsWith('image/') ? (
+                    <div className="flex justify-center overflow-auto">
+                      <img 
+                        src={viewingFile.file_path} 
+                        alt={viewingFile.file_name}
+                        className="max-w-full object-contain rounded-lg shadow-lg transition-transform duration-200"
+                        style={{ transform: `scale(${imageZoom / 100})` }}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="flex flex-col items-center justify-center p-8 text-center">
+                                <div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                                  <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                  </svg>
+                                </div>
+                                <p class="text-gray-500 dark:text-gray-400">Unable to load image</p>
+                                <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">The image may be corrupted or the file path is invalid</p>
+                              </div>
+                            `;
+                          }
+                        }}
+                      />
+                    </div>
+                  ) : viewingFile.file_type === 'pdf' || viewingFile.mime_type === 'application/pdf' ? (
+                    <div className="w-full h-[calc(80vh-160px)] bg-white dark:bg-gray-700 rounded-lg overflow-auto">
+                      {/* PDF Fallback - Show custom message instead of iframe */}
+                      <div className="flex flex-col items-center justify-center p-8 text-center h-full">
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                          </svg>
+                        </div>
+                        <p className="text-gray-500 dark:text-gray-400 mb-2">PDF Preview Not Available</p>
+                        <p className="text-sm text-gray-400 dark:text-gray-500 mb-4">
+                          PDFs cannot be displayed inline due to browser security restrictions
                         </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{att.mime_type || att.file_type}{att.file_size ? ` • ${formatFileSize(att.file_size)}` : ''}</p>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex gap-2">
-                        <a href={att.file_path} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400" title="View">
-                          <Eye className="w-5 h-5" />
-                        </a>
-                        <a href={att.file_path} download className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400" title="Download">
-                          <Download className="w-5 h-5" />
-                        </a>
+                        <div className="flex gap-3">
+                          <a 
+                            href={viewingFile.file_path} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                            </svg>
+                            Open in New Tab
+                          </a>
+                          <button 
+                            onClick={() => handleDownloadAttachment(viewingFile.file_path, viewingFile.file_name)}
+                            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Download
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-8 text-center bg-white dark:bg-gray-900 rounded-lg">
+                      <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                        {getFileIcon(viewingFile.file_type)}
+                      </div>
+                      <p className="text-gray-500 dark:text-gray-400 mb-2">Preview not available for this file type</p>
+                      <p className="text-sm text-gray-400 dark:text-gray-500 mb-4">
+                        {viewingFile.file_name} ({formatFileSize(viewingFile.file_size || 0)})
+                      </p>
+                      <div className="flex gap-3">
+                        <a 
+                          href={viewingFile.file_path} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Open in New Tab
+                        </a>
+                        <button 
+                          onClick={() => handleDownloadAttachment(viewingFile.file_path, viewingFile.file_name)}
+                          className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm"
+                        >
+                          <Download className="w-4 h-4" />
+                          Download
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+                {/* Zoom Controls - Bottom Center */}
+                {(viewingFile.mime_type?.startsWith('image/') || viewingFile.file_type === 'pdf' || viewingFile.mime_type === 'application/pdf') && (
+                  <div className="flex justify-center items-center p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setImageZoom(Math.max(25, imageZoom - 25))}
+                        className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                        title="Zoom Out"
+                      >
+                        -
+                      </button>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[4rem] text-center font-medium">
+                        {imageZoom}%
+                      </span>
+                      <button
+                        onClick={() => setImageZoom(Math.min(300, imageZoom + 25))}
+                        className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                        title="Zoom In"
+                      >
+                        +
+                      </button>
+                      <button
+                        onClick={() => setImageZoom(100)}
+                        className="px-3 py-2 text-sm bg-blue-200 dark:bg-blue-700 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-300 dark:hover:bg-blue-600"
+                        title="Reset Zoom"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            }
+            )}
           </div>
         </div>
       )}

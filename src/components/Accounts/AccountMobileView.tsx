@@ -47,19 +47,6 @@ export const AccountMobileView: React.FC<AccountMobileViewProps> = React.memo(({
 
   return (
     <div className="space-y-4 p-4">
-      {/* Quick Actions Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Your Accounts ({accounts.length})
-        </h2>
-        <button
-          onClick={onAddAccount}
-          className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors"
-          aria-label="Add new account"
-        >
-          <Plus className="w-5 h-5" />
-        </button>
-      </div>
 
       {/* Account Cards */}
       <div className="space-y-3">

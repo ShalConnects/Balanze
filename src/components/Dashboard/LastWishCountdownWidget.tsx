@@ -341,86 +341,36 @@ export const LastWishCountdownWidget: React.FC = () => {
   if (isDelivered && deliveryData) {
     return (
       <div className="mb-5 bg-gradient-to-br from-green-50 via-white to-blue-100 dark:from-green-900/40 dark:via-gray-900 dark:to-blue-900/20 rounded-2xl p-4 sm:p-5 border-2 border-green-400 dark:border-green-600 shadow-xl transition-all duration-300 hover:shadow-2xl">
-        <div className="flex flex-col sm:flex-row items-start gap-4">
-          <div className="w-12 h-12 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center flex-shrink-0">
+        {/* Icon at the top */}
+        <div className="flex justify-center mb-4">
+          <div className="w-12 h-12 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
             <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
           </div>
-          <div className="flex-1 w-full sm:w-auto">
-            <h3 className="font-bold text-lg sm:text-xl text-green-900 dark:text-green-100 mb-1">Last Wish Delivered</h3>
-            <p className="text-sm text-green-700 dark:text-green-300 mb-3">
-              Your financial data has been successfully delivered to {deliveryData.deliveryCount} recipient{deliveryData.deliveryCount !== 1 ? 's' : ''}
-            </p>
-            
-            {/* Delivery Details */}
-            <div className="bg-white/70 dark:bg-gray-800/50 rounded-lg p-3 mb-3">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                  <span className="text-xs text-gray-600 dark:text-gray-400">
-                    Delivered on {new Date(deliveryData.deliveredAt).toLocaleDateString('en-US', { 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                  <span className="text-xs text-gray-600 dark:text-gray-400">Recipients:</span>
-                </div>
-                <span className="text-xs text-gray-600 dark:text-gray-400 break-all">
-                  {deliveryData.recipients.map(r => r.email).join(', ')}
-                </span>
-              </div>
-            </div>
+        </div>
+        
+        {/* Content below icon */}
+        <div className="text-center">
+          <h3 className="font-bold text-lg sm:text-xl text-green-900 dark:text-green-100 mb-2">Last Wish Delivered</h3>
+          <p className="text-sm text-green-700 dark:text-green-300 mb-3">
+            Delivered <span className="font-bold">{new Date(deliveryData.deliveredAt).toLocaleDateString('en-US', { 
+              month: 'short', 
+              day: 'numeric',
+              year: 'numeric'
+            })}</span> to <span className="font-bold">{deliveryData.deliveryCount}</span> recipient{deliveryData.deliveryCount !== 1 ? 's' : ''}
+          </p>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button
-                onClick={() => navigate('/settings?tab=lw')}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium"
-              >
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline">Manage Settings</span>
-                <span className="sm:hidden">Settings</span>
-              </button>
-              <button
-                onClick={() => setShowDetails(!showDetails)}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 text-sm font-medium"
-              >
-                <Eye className="w-4 h-4" />
-                {showDetails ? 'Hide' : 'Show'} Details
-              </button>
-            </div>
+          {/* Action Button */}
+          <button
+            onClick={() => navigate('/settings?tab=lw')}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm font-medium shadow-sm"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">Manage Settings</span>
+            <span className="sm:hidden">Settings</span>
+          </button>
 
-            {/* Details Section */}
-            {showDetails && (
-              <div className="mt-4 pt-4 border-t border-green-200 dark:border-green-700">
-                <h4 className="font-medium text-green-900 dark:text-green-100 mb-2">Delivery Details</h4>
-                <div className="space-y-2">
-                  {deliveryData.recipients.map((recipient, index) => (
-                    <div key={index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm">
-                      <span className="text-gray-700 dark:text-gray-300 break-all">{recipient.email}</span>
-                      <span className="px-2 py-1 bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-300 rounded text-xs font-medium self-start sm:self-auto">
-                        ✅ {recipient.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                  <p className="text-xs text-blue-700 dark:text-blue-300">
-                    💡 Your Last Wish system has completed its mission. You can reactivate it anytime in settings if needed.
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
-      </div>
     );
   }
 

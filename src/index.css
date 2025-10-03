@@ -38,6 +38,8 @@
 @layer base {
   :root {
     --transition-duration: 0.3s;
+    --safe-area-inset-top: env(safe-area-inset-top, 0px);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   /* Set default font family */
@@ -630,6 +632,40 @@
   /* Mobile sidebar improvements */
   .sidebar-mobile {
     @apply fixed left-0 top-0 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 z-[99999] transform transition-all duration-300 ease-in-out;
+    /* Android safe area support */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  /* Landing page mobile fixes */
+  .landing-page-mobile {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+  }
+  
+  /* Safe area support for landing page */
+  .landing-page-safe-top {
+    padding-top: max(env(safe-area-inset-top, 0px), 80px);
+  }
+  
+  .landing-page-safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 64px);
+  }
+  
+  /* Bottom floating elements safe positioning */
+  .floating-bottom-safe {
+    bottom: max(env(safe-area-inset-bottom, 0px), 100px) !important;
+  }
+  
+  .floating-bottom-safe-secondary {
+    bottom: max(env(safe-area-inset-bottom, 0px), 160px) !important;
+  }
+  
+  /* Additional padding for Capacitor Android */
+  .capacitor-android .sidebar-mobile {
+    padding-top: max(env(safe-area-inset-top, 0px), 24px);
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
   }
   
   .sidebar-mobile-open {
@@ -676,72 +712,97 @@ body.sidebar-open {
   overflow: hidden;
 }
 
-/* Android scroll fix - completely unrestricted scrolling */
+/* Android Safe Area Fixes for Capacitor */
+@media (max-width: 768px) {
+  /* Add safe area padding to the main app container */
+  .capacitor-android #root {
+    padding-top: max(env(safe-area-inset-top, 0px), 24px);
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
+  }
+  
+  /* Ensure main content respects safe areas */
+  .capacitor-android main {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+  }
+}
+
+/* Critical Android scroll fix - Pure CSS approach */
 html, body {
-  -webkit-overflow-scrolling: touch;
-  /* Prevent pull-to-refresh on Android */
-  overscroll-behavior: none;
-  overscroll-behavior-y: none;
-  /* Prevent rubber band scrolling on iOS */
-  -webkit-overflow-scrolling: touch;
+  -webkit-overflow-scrolling: touch !important;
+  scroll-behavior: smooth;
 }
 
 #root {
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: none;
-  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch !important;
 }
 
 main {
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: none;
-  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch !important;
 }
 
-.overflow-y-auto, .overflow-auto {
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: none;
-  overscroll-behavior-y: none;
+/* Enable smooth scrolling for all scrollable containers */
+.overflow-y-auto, .overflow-auto, .scrollable-container {
+  -webkit-overflow-scrolling: touch !important;
+  scroll-behavior: smooth;
 }
 
-/* Disable pull-to-refresh for all scrollable containers */
-* {
-  overscroll-behavior: none;
-}
-
-/* Specific fix for mobile browsers */
+/* SMART SCROLL: Enable pull-to-refresh at top, scroll everywhere else */
 @media (max-width: 768px) {
-  html, body {
-    touch-action: pan-y;
+  html {
+    height: 100vh;
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
+  
+  body {
+    height: 100vh;
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
     overscroll-behavior-y: none;
+  }
+  
+  /* Make ONLY #root scrollable with smart refresh */
+  #root {
+    height: 100vh;
+    overflow-y: scroll;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
-    /* Prevent zoom on double tap */
-    touch-action: manipulation;
+    /* Allow overscroll at top for native pull-to-refresh */
+    overscroll-behavior-y: auto;
+    overscroll-behavior-x: none;
   }
   
-  /* Prevent pull-to-refresh on the main content area */
-  .main-content, main, #root {
-    overscroll-behavior-y: none;
-    touch-action: pan-y;
+  /* Smooth scrolling for main content */
+  .main-content, main {
+    -webkit-overflow-scrolling: touch !important;
   }
   
-  /* Improve touch targets for mobile */
-  button, a, input, select, textarea {
-    min-height: 44px;
-    min-width: 44px;
-  }
-  
-  /* Better scrolling for lists and containers */
+  /* All scrollable containers with smart behavior */
   .scrollable-container {
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
   }
   
   /* Fix for Android Chrome address bar hiding */
   .full-height-mobile {
     min-height: 100vh;
     min-height: -webkit-fill-available;
+  }
+  
+  /* Mobile transfers page specific fixes */
+  .transfers-mobile-container {
+    min-height: calc(100vh - 120px);
+    max-height: calc(100vh - 120px);
+  }
+  
+  /* Ensure proper mobile viewport for transfers */
+  @media (max-width: 768px) {
+    .transfers-content-area {
+      max-height: calc(100vh - 200px) !important;
+      min-height: calc(100vh - 200px) !important;
+    }
   }
 }
 

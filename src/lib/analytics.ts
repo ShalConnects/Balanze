@@ -1,6 +1,6 @@
-// src/lib/analytics.js
+// src/lib/analytics.ts
 // Lightweight analytics shim. Replace `track` with your real analytics call (Amplitude/GA).
-export function track(eventName, payload = {}) {
+export function track(eventName: string, payload: Record<string, any> = {}) {
   // TODO: wire this to Amplitude / Segment / GA
   // For now, using Vercel Analytics if available
   if (window && window.va && window.va.track) {
@@ -19,7 +19,7 @@ export function track(eventName, payload = {}) {
 }
 
 // Track onboarding progress
-export function trackOnboardingStep(step, action = 'view') {
+export function trackOnboardingStep(step: string, action: string = 'view') {
   track('onboarding_step', {
     step,
     action,
@@ -28,7 +28,7 @@ export function trackOnboardingStep(step, action = 'view') {
 }
 
 // Track help center interactions
-export function trackHelpCenter(action, data = {}) {
+export function trackHelpCenter(action: string, data: Record<string, any> = {}) {
   track('help_center', {
     action,
     ...data,
@@ -37,7 +37,7 @@ export function trackHelpCenter(action, data = {}) {
 }
 
 // Track feature usage for onboarding completion
-export function trackFeatureUsage(feature, action = 'use') {
+export function trackFeatureUsage(feature: string, action: string = 'use') {
   track('feature_usage', {
     feature,
     action,

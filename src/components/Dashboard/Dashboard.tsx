@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, Wallet, CreditCard, Banknote, ArrowRight, Plus, ShoppingCart, Clock, CheckCircle, XCircle, PieChart, LineChart, RefreshCw, X } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, Banknote, ArrowRight, ShoppingCart, Clock, CheckCircle, XCircle, PieChart, LineChart, X } from 'lucide-react';
 import { PieChart as RechartsPieChart, Pie, Cell, LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
@@ -56,7 +56,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   } = useFinanceStore();
   
   // Use local loading state for dashboard instead of global store loading
+  // Initialize with true to prevent flash of empty state
   const [dashboardLoading, setDashboardLoading] = useState(true);
+  // Track if initial data fetch has completed
+  const [initialDataFetched, setInitialDataFetched] = useState(false);
   
 
 
@@ -191,9 +194,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         // Wait for user to be authenticated
         if (!user) {
           console.log('User not authenticated yet, skipping data fetch');
+          setDashboardLoading(false);
+          setInitialDataFetched(true);
           return;
         }
 
+        // Keep loading true while fetching
         setDashboardLoading(true);
         setLoadingMessage('Loading dashboard data...'); // Show loading message for data fetch
 
@@ -206,21 +212,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         ]);
 
         setDashboardLoading(false);
+        setInitialDataFetched(true);
         setLoadingMessage(''); // Clear loading message
 
       } catch (error) {
         console.error('Error refreshing dashboard data:', error);
         setDashboardLoading(false);
+        setInitialDataFetched(true);
         setLoadingMessage(''); // Clear loading message even on error
         // Don't let errors break the dashboard
       }
     };
     
-    // Only fetch data when user is authenticated
-    if (user) {
+    // Only fetch data when user is authenticated and data hasn't been fetched yet
+    if (user && !initialDataFetched) {
       refreshData();
     }
-  }, [user, setLoadingMessage]);
+  }, [user, initialDataFetched, setLoadingMessage]);
 
   // Force loading state to false after a timeout to prevent infinite loading
   useEffect(() => {
@@ -236,31 +244,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
   // Auto refresh removed - data will only be fetched on component mount
 
-  // Manual refresh function - wrapped with loading state
-  const handleManualRefresh = wrapAsync(async () => {
-    if (!user) {
-      console.log('User not authenticated, cannot refresh data');
-      return;
-    }
-    
-    setDashboardLoading(true);
-    setLoadingMessage('Refreshing data...'); // Show loading message for manual refresh
-    try {
-    await Promise.all([
-      fetchTransactions(),
-      fetchAccounts(),
-      fetchCategories(),
-      fetchPurchaseCategories(),
-      fetchDonationSavingRecords()
-    ]);
-      setDashboardLoading(false);
-      setLoadingMessage(''); // Clear loading message
-    } catch (error) {
-      console.error('Error in manual refresh:', error);
-      setDashboardLoading(false);
-      setLoadingMessage(''); // Clear loading message even on error
-    }
-  });
+  // Manual refresh is handled by the Header component's refresh button
 
   // Calculate total income and expenses
   const totalIncome = transactions
@@ -345,47 +329,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     }
   };
 
-  // Show loading skeleton while data is being fetched
-  if (dashboardLoading) {
+  // Show loading skeleton while data is being fetched or until initial fetch completes
+  if (dashboardLoading || !initialDataFetched) {
     return (
       <>
         <DashboardSkeleton />
         <FloatingActionButton />
-      </>
-    );
-  }
-
-  // If no accounts, show empty state instead of blurred content
-  if (accounts.length === 0 && !dashboardLoading) {
-    return (
-      <>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center p-8">
-            <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-              <Wallet className="w-12 h-12 text-gray-400" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              Welcome to FinTrack!
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-              Get started by creating your first account. You can add accounts, track transactions, and manage your finances all in one place.
-            </p>
-            <button
-              onClick={() => setShowAccountForm(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 mx-auto"
-            >
-              <Plus className="w-5 h-5" />
-              Create Your First Account
-            </button>
-          </div>
-        </div>
-        
-        <FloatingActionButton />
-        
-        {/* Account Form Modal */}
-        {showAccountForm && (
-          <AccountForm isOpen={showAccountForm} onClose={() => setShowAccountForm(false)} />
-        )}
       </>
     );
   }

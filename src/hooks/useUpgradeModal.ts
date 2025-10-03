@@ -43,6 +43,13 @@ export const useUpgradeModal = () => {
       return true;
     }
     
+    if (errorMessage.includes('PURCHASE_LIMIT_EXCEEDED')) {
+      const current = usageStats?.purchases?.current || 50;
+      const limit = usageStats?.purchases?.limit || 50;
+      openUpgradeModal('limit', undefined, { current, limit, type: 'purchases' });
+      return true;
+    }
+    
     if (errorMessage.includes('FEATURE_NOT_AVAILABLE')) {
       // Extract feature name from error message
       let feature = 'Premium feature';
@@ -79,6 +86,12 @@ export const useUpgradeModal = () => {
     openUpgradeModal('limit', undefined, { current, limit, type: 'transactions' });
   }, [usageStats, openUpgradeModal]);
 
+  const showPurchaseLimitModal = useCallback(() => {
+    const current = usageStats?.purchases?.current || 50;
+    const limit = usageStats?.purchases?.limit || 50;
+    openUpgradeModal('limit', undefined, { current, limit, type: 'purchases' });
+  }, [usageStats, openUpgradeModal]);
+
   const showFeatureUpgradeModal = useCallback((feature: string) => {
     openUpgradeModal('feature', feature);
   }, [openUpgradeModal]);
@@ -94,6 +107,7 @@ export const useUpgradeModal = () => {
     showAccountLimitModal,
     showCurrencyLimitModal,
     showTransactionLimitModal,
+    showPurchaseLimitModal,
     showFeatureUpgradeModal
   };
 }; 

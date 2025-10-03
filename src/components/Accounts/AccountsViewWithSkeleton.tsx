@@ -26,7 +26,16 @@ export const AccountsViewWithSkeleton: React.FC = () => {
   const isMobile = useMediaQuery('(max-width: 768px)');
   
   // Enhanced loading state management
-  const { isLoading: isPageLoading, setLoadingMessage } = useLoadingContext();
+  const { 
+    isLoading: isPageLoading, 
+    setLoadingMessage,
+    startLoading,
+    stopLoading,
+    startFormLoading,
+    stopFormLoading,
+    isFormLoading,
+    loadingMessage
+  } = useLoadingContext();
 
   // State for filters
   const [filters, setFilters] = useState({

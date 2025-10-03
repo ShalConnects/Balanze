@@ -14,6 +14,7 @@ import { UpgradeModal } from '../common/UpgradeModal';
 import { getAccountIcon } from '../../utils/accountIcons';
 import { Tooltip } from '../common/Tooltip';
 import { CreditCard, Wallet, PiggyBank, Building } from 'lucide-react';
+import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 interface AccountFormProps {
   isOpen: boolean;
@@ -26,12 +27,11 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
   const { profile } = useAuthStore();
   const { modalState, closeModal, handleDatabaseError } = useUpgradeModal();
   const { setLoading, setLoadingMessage } = useLoadingContext();
+  const { isMobile } = useMobileDetection();
   
-  console.log('🔧 AccountForm render - modalState:', modalState);
-
   // Watch for modal state changes
   useEffect(() => {
-    console.log('🔧 Modal state changed:', modalState);
+    // Modal state changed
   }, [modalState]);
 
 
@@ -55,6 +55,8 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [showDpsTooltip, setShowDpsTooltip] = useState(false);
+  const [showDpsMobileModal, setShowDpsMobileModal] = useState(false);
 
   // Update form data when account prop changes
   useEffect(() => {
@@ -177,7 +179,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
     e.preventDefault();
     if (loading) return;
     
-    console.log('🚀 Form submitted, preventing default');
+    // Form submitted, preventing default
     
     // Mark all fields as touched
     setTouched({
@@ -218,7 +220,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
         dps_initial_balance: formData.has_dps ? parseFloat(formData.dps_initial_balance) || 0 : 0
       };
 
-      console.log('🚀 Attempting to create account...');
+      // Attempting to create account
 
       if (account) {
         await updateAccount(account.id, accountData);
@@ -307,7 +309,6 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
     });
     setErrors({});
     setTouched({});
-    setSubmitting(false);
     onClose();
   };
 
@@ -463,22 +464,41 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
               <label htmlFor="dps-enabled" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Enable DPS (Daily Profit Sharing)
               </label>
-              <Tooltip content={
-                <div className="space-y-2">
-                  <p className="font-medium">Daily Profit Sharing (DPS)</p>
-                  <p className="text-xs">Automatically transfer a portion of your daily income to a savings account to build wealth over time.</p>
-                  <ul className="text-xs space-y-1">
-                    <li>• <strong>Monthly:</strong> Fixed amount transferred monthly</li>
-                    <li>• <strong>Flexible:</strong> Percentage of daily income</li>
-                    <li>• <strong>Fixed Amount:</strong> Set a specific amount to transfer</li>
-                    <li>• <strong>Custom Amount:</strong> Choose amount each time</li>
-                  </ul>
+              <button
+                type="button"
+                onMouseEnter={() => !isMobile && setShowDpsTooltip(true)}
+                onMouseLeave={() => !isMobile && setShowDpsTooltip(false)}
+                onFocus={() => !isMobile && setShowDpsTooltip(true)}
+                onBlur={() => !isMobile && setShowDpsTooltip(false)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (isMobile) {
+                    setShowDpsMobileModal(true);
+                  } else {
+                    setShowDpsTooltip(v => !v);
+                  }
+                }}
+                tabIndex={0}
+                aria-label="Show DPS information"
+                className="ml-2"
+              >
+                <Info className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer transition-colors duration-200" />
+              </button>
+              {showDpsTooltip && !isMobile && (
+                <div className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
+                  <div className="space-y-2">
+                    <p className="font-medium">Daily Profit Sharing (DPS)</p>
+                    <p className="text-xs">Automatically transfer a portion of your daily income to a savings account to build wealth over time.</p>
+                    <ul className="text-xs space-y-1">
+                      <li>• <strong>Monthly:</strong> Fixed amount transferred monthly</li>
+                      <li>• <strong>Flexible:</strong> Percentage of daily income</li>
+                      <li>• <strong>Fixed Amount:</strong> Set a specific amount to transfer</li>
+                      <li>• <strong>Custom Amount:</strong> Choose amount each time</li>
+                    </ul>
+                  </div>
                 </div>
-              }>
-                <div className="ml-2">
-                  <Info className="w-4 h-4 text-gray-400 cursor-pointer" />
-                </div>
-              </Tooltip>
+              )}
             </div>
 
             {formData.has_dps && (
@@ -586,28 +606,42 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
               className="flex-1 px-4 py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               disabled={loading || Object.keys(errors).length > 0}
             >
-              {account ? 'Update Account' : 'Create Account'}
+              {account ? 'Update Account' : 'Create'}
             </button>
           </div>
         </form>
       </div>
     </div>
       
-      {/* Upgrade Modal */}
-      {console.log('🔧 AccountForm modalState:', modalState)}
-      {modalState.isOpen && console.log('🔧 Modal should be visible!')}
-      
-      {/* Test div to see if this section renders */}
-      {modalState.isOpen && (
-        <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'red', color: 'white', padding: '20px', zIndex: 10000 }}>
-          TEST MODAL - If you see this, the modal section is rendering
+      {/* Mobile Modal for DPS Info */}
+      {showDpsMobileModal && isMobile && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setShowDpsMobileModal(false)} />
+          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-64 animate-fadein">
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-semibold text-gray-700 dark:text-gray-200">Daily Profit Sharing (DPS)</div>
+              <button
+                onClick={() => setShowDpsMobileModal(false)}
+                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+            <div className="space-y-2 text-xs text-gray-700 dark:text-gray-200">
+              <p>Automatically transfer a portion of your daily income to a savings account to build wealth over time.</p>
+              <ul className="space-y-1">
+                <li>• <strong>Monthly:</strong> Fixed amount transferred monthly</li>
+                <li>• <strong>Flexible:</strong> Percentage of daily income</li>
+                <li>• <strong>Fixed Amount:</strong> Set a specific amount to transfer</li>
+                <li>• <strong>Custom Amount:</strong> Choose amount each time</li>
+              </ul>
+            </div>
+          </div>
         </div>
       )}
-      
-      {/* Test button to manually trigger modal */}
 
-      
-              <UpgradeModal
+      {/* Upgrade Modal */}
+      <UpgradeModal
           isOpen={modalState.isOpen}
           onClose={closeModal}
           type={modalState.type}

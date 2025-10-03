@@ -70,7 +70,7 @@ export const StatCard: React.FC<StatCardProps> = ({
       // Extract numeric value from currency string
       const numericValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
       if (!isNaN(numericValue)) {
-        const duration = 2000; // 2 seconds
+        const duration = 1000; // 1 second
         const steps = 60;
         const increment = numericValue / steps;
         let current = 0;

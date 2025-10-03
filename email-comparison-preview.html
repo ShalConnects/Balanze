@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Last Wish Email - All Options Comparison</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+      margin: 0;
+    }
+    .page-header {
+      max-width: 1800px;
+      margin: 0 auto 30px;
+      text-align: center;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .page-header h1 {
+      margin: 0 0 10px 0;
+      color: #111827;
+    }
+    .page-header p {
+      margin: 0;
+      color: #6b7280;
+    }
+    
+    .options-grid {
+      max-width: 1800px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .email-column {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .email-column:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    }
+    
+    .column-label {
+      padding: 15px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    .current-label {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    
+    .option1-label {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    
+    .option2-label {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    
+    .option3-label {
+      background: #e9d5ff;
+      color: #6b21a8;
+    }
+    
+    .option4-label {
+      background: #fed7aa;
+      color: #92400e;
+    }
+    
+    .option5-label {
+      background: #fce7f3;
+      color: #9f1239;
+    }
+    
+    .email-content {
+      padding: 20px;
+      font-size: 13px;
+      line-height: 1.5;
+      max-height: 800px;
+      overflow-y: auto;
+    }
+    
+    /* Current Email Styles */
+    .current-email .header {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+    }
+    .current-email .header h2 {
+      margin: 0 0 8px 0;
+      font-size: 18px;
+    }
+    .current-email .warning {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      font-size: 12px;
+    }
+    .current-email .data-summary {
+      background: #e9ecef;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+    }
+    .current-email .data-summary ul {
+      margin: 8px 0 0 0;
+      padding-left: 20px;
+    }
+    .current-email .footer {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #dee2e6;
+      font-size: 11px;
+      color: #6c757d;
+    }
+    
+    /* Option 1: Personal & Compassionate */
+    .option1-email .email-header {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+      margin: -20px -20px 15px -20px;
+    }
+    .option1-email .email-header h1 {
+      margin: 0 0 5px 0;
+      font-size: 20px;
+    }
+    .option1-email .greeting {
+      margin-bottom: 15px;
+    }
+    .option1-email .greeting h2 {
+      font-size: 16px;
+      margin: 0 0 8px 0;
+      color: #1f2937;
+    }
+    .option1-email .context-box {
+      background: #fef3c7;
+      border-left: 3px solid #f59e0b;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      font-size: 12px;
+    }
+    .option1-email .personal-message {
+      background: #f0f9ff;
+      border-left: 3px solid #3b82f6;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      font-size: 12px;
+    }
+    .option1-email .data-summary {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+    }
+    .option1-email .data-summary ul {
+      list-style: none;
+      padding: 0;
+      margin: 8px 0 0 0;
+    }
+    .option1-email .data-summary li {
+      padding: 6px 0;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+    .option1-email .privacy-notice {
+      background: #f3f4f6;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+    
+    /* Option 2: Compact & Clear */
+    .option2-email .email-header {
+      background: #1e40af;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      margin: -20px -20px 15px -20px;
+    }
+    .option2-email .email-header h1 {
+      margin: 0;
+      font-size: 18px;
+    }
+    .option2-email .summary-line {
+      background: #f0f9ff;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      text-align: center;
+      font-weight: 500;
+      font-size: 13px;
+      color: #1e40af;
+    }
+    .option2-email .data-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+    .option2-email .data-card {
+      background: #f9fafb;
+      padding: 10px;
+      border-radius: 4px;
+      text-align: center;
+      font-size: 12px;
+    }
+    .option2-email .data-card .number {
+      font-size: 20px;
+      font-weight: bold;
+      color: #1e40af;
+      display: block;
+    }
+    
+    /* Option 3: Minimal & Direct */
+    .option3-email {
+      text-align: center;
+    }
+    .option3-email .icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+    }
+    .option3-email h1 {
+      font-size: 20px;
+      margin: 0 0 8px 0;
+      color: #6b21a8;
+    }
+    .option3-email .one-liner {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 15px;
+    }
+    .option3-email .simple-list {
+      background: #faf5ff;
+      padding: 15px;
+      border-radius: 6px;
+      text-align: left;
+      margin-bottom: 15px;
+    }
+    .option3-email .simple-list div {
+      padding: 5px 0;
+      font-size: 12px;
+    }
+    .option3-email .download-btn {
+      background: #6b21a8;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 13px;
+      margin-bottom: 15px;
+    }
+    
+    /* Option 4: Detailed & Informative */
+    .option4-email .banner {
+      background: linear-gradient(to right, #f97316, #ea580c);
+      color: white;
+      padding: 15px;
+      margin: -20px -20px 15px -20px;
+      text-align: center;
+    }
+    .option4-email .info-section {
+      border-left: 3px solid #f97316;
+      padding-left: 12px;
+      margin-bottom: 15px;
+      font-size: 12px;
+    }
+    .option4-email .info-section h3 {
+      margin: 0 0 5px 0;
+      font-size: 14px;
+      color: #92400e;
+    }
+    .option4-email .next-steps {
+      background: #fff7ed;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+    }
+    .option4-email .next-steps ol {
+      margin: 8px 0 0 0;
+      padding-left: 20px;
+      font-size: 12px;
+    }
+    
+    /* Option 5: Modern HTML Card */
+    .option5-email {
+      background: linear-gradient(to bottom, #fce7f3, #ffffff);
+      padding: 0 !important;
+    }
+    .option5-email .hero {
+      background: linear-gradient(135deg, #ec4899, #db2777);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+    }
+    .option5-email .hero h1 {
+      margin: 0 0 5px 0;
+      font-size: 22px;
+    }
+    .option5-email .card-body {
+      padding: 20px;
+    }
+    .option5-email .stat-card {
+      background: white;
+      border: 1px solid #fce7f3;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+    .option5-email .stat-card .value {
+      font-size: 18px;
+      font-weight: bold;
+      color: #db2777;
+    }
+    .option5-email .cta-button {
+      background: #ec4899;
+      color: white;
+      padding: 12px;
+      text-align: center;
+      border-radius: 6px;
+      font-weight: 600;
+      margin-top: 15px;
+      font-size: 13px;
+    }
+    
+    .comparison-footer {
+      max-width: 1800px;
+      margin: 0 auto;
+      padding: 25px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .comparison-footer h2 {
+      color: #111827;
+      margin-bottom: 15px;
+    }
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .comparison-table th,
+    .comparison-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .comparison-table th {
+      background: #f9fafb;
+      font-weight: 600;
+      color: #374151;
+    }
+    .comparison-table td {
+      color: #6b7280;
+    }
+    .check {
+      color: #10b981;
+      font-weight: bold;
+    }
+    
+    @media (max-width: 1200px) {
+      .options-grid {
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <h1>📧 Last Wish Email Design Options</h1>
+    <p>Compare all 5 email design options side-by-side to choose the best one for your users</p>
+  </div>
+
+  <div class="options-grid">
+    <!-- Current Email -->
+    <div class="email-column">
+      <div class="column-label current-label">❌ Current Version</div>
+      <div class="email-content current-email">
+        <div class="header">
+          <h2>Last Wish - Digital Time Capsule</h2>
+          <p>This email contains important financial data that was requested to be delivered to you.</p>
+        </div>
+
+        <div class="warning">
+          <strong>⚠️ Important Notice:</strong>
+          <p>This data has been automatically delivered because salauddin.kader406@gmail.com has not checked in with their financial management system for an extended period.</p>
+        </div>
+
+        <div class="data-summary">
+          <h3>Financial Data Summary:</h3>
+          <ul>
+            <li>Accounts: 9</li>
+            <li>Transactions: 234</li>
+            <li>Purchases: 25</li>
+            <li>Lend/Borrow Records: 16</li>
+            <li>Savings Records: 12</li>
+          </ul>
+        </div>
+
+        <p>A detailed JSON file containing all the financial data has been attached to this email.</p>
+
+        <div class="footer">
+          <p>This is an automated delivery from the Last Wish system. Please handle this information with care and respect for salauddin.kader406@gmail.com's privacy.</p>
+          <p>Delivery Date: September 29, 2025</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 1: Personal & Compassionate -->
+    <div class="email-column">
+      <div class="column-label option1-label">✅ Option 1: Personal & Compassionate</div>
+      <div class="email-content option1-email">
+        <div class="email-header">
+          <h1>💚 Last Wish Delivery</h1>
+          <p>Important Financial Information</p>
+        </div>
+
+        <div class="greeting">
+          <h2>Dear [Recipient Name],</h2>
+          <p>You are receiving this email because someone who trusted you has chosen to share their important financial information with you.</p>
+        </div>
+
+        <div class="context-box">
+          <strong>Why are you receiving this?</strong>
+          <p><strong>salauddin.kader406@gmail.com</strong> set up a Last Wish system to ensure their financial records would be safely delivered to trusted individuals if they were unable to check in for an extended period.</p>
+        </div>
+
+        <div class="personal-message">
+          <h3>💌 Personal Message</h3>
+          <p><em>"If you're reading this, it means I haven't been able to check in for a while. Thank you for being someone I trust with this important information."</em></p>
+        </div>
+
+        <div class="data-summary">
+          <h3>Financial Records Summary</h3>
+          <ul>
+            <li><span>Bank Accounts</span> <strong>9</strong></li>
+            <li><span>Transactions</span> <strong>234</strong></li>
+            <li><span>Purchases</span> <strong>25</strong></li>
+            <li><span>Lend/Borrow</span> <strong>16</strong></li>
+            <li><span>Savings</span> <strong>12</strong></li>
+          </ul>
+        </div>
+
+        <div style="text-align: center; font-size: 12px; color: #059669; margin-bottom: 15px;">
+          📎 Complete financial data attached: <code>financial-data-backup.json</code>
+        </div>
+
+        <div class="privacy-notice">
+          <h4 style="margin: 0 0 6px 0;">🔒 Please Handle With Care</h4>
+          <p style="margin: 0;">This information contains sensitive financial data. Please store it securely and respect the privacy of the account holder.</p>
+        </div>
+
+        <div style="text-align: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #6b7280;">
+          <p style="margin: 0;"><strong>Last Wish System - FinTrack</strong></p>
+          <p style="margin: 3px 0 0 0;">September 29, 2025</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 2: Compact Information -->
+    <div class="email-column">
+      <div class="column-label option2-label">✅ Option 2: Compact & Clear</div>
+      <div class="email-content option2-email">
+        <div class="email-header">
+          <h1>📋 Last Wish - Financial Data Delivery</h1>
+        </div>
+
+        <div class="summary-line">
+          Delivered Sep 29, 2025 from <strong>salauddin.kader406@gmail.com</strong>
+        </div>
+
+        <p style="font-size: 13px; color: #4b5563; margin-bottom: 15px;">
+          This automated delivery contains financial records that were prepared for you as a trusted recipient.
+        </p>
+
+        <div class="data-grid">
+          <div class="data-card">
+            <span class="number">9</span>
+            <div>Accounts</div>
+          </div>
+          <div class="data-card">
+            <span class="number">234</span>
+            <div>Transactions</div>
+          </div>
+          <div class="data-card">
+            <span class="number">25</span>
+            <div>Purchases</div>
+          </div>
+          <div class="data-card">
+            <span class="number">28</span>
+            <div>Other Records</div>
+          </div>
+        </div>
+
+        <div style="background: #eff6ff; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 12px; text-align: center;">
+          <strong>📎 Attachment:</strong> financial-data-backup.json
+        </div>
+
+        <div style="background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px; border-radius: 4px; font-size: 11px; margin-bottom: 15px;">
+          <strong>⚠️ Privacy Reminder:</strong> Handle this sensitive information with care and respect.
+        </div>
+
+        <div style="text-align: center; font-size: 11px; color: #6b7280; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+          Last Wish System • FinTrack
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 3: Minimal & Direct -->
+    <div class="email-column">
+      <div class="column-label option3-label">✅ Option 3: Minimal & Direct</div>
+      <div class="email-content option3-email">
+        <div class="icon">💚</div>
+        <h1>Last Wish Delivery</h1>
+        <p class="one-liner">
+          Financial records from <strong>salauddin.kader406@gmail.com</strong>
+        </p>
+
+        <div class="simple-list">
+          <div><strong>What:</strong> Complete financial data backup</div>
+          <div><strong>When:</strong> September 29, 2025</div>
+          <div><strong>Why:</strong> Automated delivery triggered</div>
+          <div><strong>File:</strong> financial-data-backup.json (attached)</div>
+        </div>
+
+        <div style="background: #fef3c7; padding: 12px; border-radius: 6px; text-align: left; margin-bottom: 15px; font-size: 12px;">
+          <strong>📊 Data includes:</strong>
+          <div style="margin-top: 8px;">
+            9 Accounts • 234 Transactions • 25 Purchases<br>
+            16 Lend/Borrow • 12 Savings Records
+          </div>
+        </div>
+
+        <a href="#" class="download-btn">📥 Download JSON File</a>
+
+        <p style="font-size: 11px; color: #9ca3af; margin-top: 15px;">
+          Handle this data securely and with respect for privacy.
+        </p>
+      </div>
+    </div>
+
+    <!-- Option 4: Detailed & Informative -->
+    <div class="email-column">
+      <div class="column-label option4-label">✅ Option 4: Detailed & Informative</div>
+      <div class="email-content option4-email">
+        <div class="banner">
+          <h1 style="margin: 0 0 5px 0;">Last Wish System</h1>
+          <p style="margin: 0; font-size: 13px;">Financial Data Delivery</p>
+        </div>
+
+        <div class="info-section">
+          <h3>What is this?</h3>
+          <p style="margin: 0; font-size: 12px;">This is an automated delivery from the Last Wish system - a digital time capsule for financial records.</p>
+        </div>
+
+        <div class="info-section">
+          <h3>Why did I receive this?</h3>
+          <p style="margin: 0; font-size: 12px;"><strong>salauddin.kader406@gmail.com</strong> added you as a trusted recipient. This delivery was triggered because they haven't checked in for an extended period.</p>
+        </div>
+
+        <div class="info-section">
+          <h3>What's included?</h3>
+          <ul style="margin: 5px 0 0 0; padding-left: 20px; font-size: 12px;">
+            <li>9 Bank Accounts</li>
+            <li>234 Transaction Records</li>
+            <li>25 Purchase Records</li>
+            <li>16 Lend/Borrow Records</li>
+            <li>12 Savings Records</li>
+          </ul>
+        </div>
+
+        <div class="next-steps">
+          <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;">Next Steps:</h3>
+          <ol>
+            <li>Download the attached JSON file</li>
+            <li>Store it in a secure location</li>
+            <li>Review the contents when appropriate</li>
+            <li>Respect the privacy of this information</li>
+          </ol>
+        </div>
+
+        <div style="text-align: center; font-size: 11px; color: #6b7280; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+          <p style="margin: 0;">Last Wish System by FinTrack</p>
+          <p style="margin: 3px 0 0 0;">Delivery Date: September 29, 2025</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 5: Modern HTML Card -->
+    <div class="email-column">
+      <div class="column-label option5-label">✅ Option 5: Modern Card Design</div>
+      <div class="email-content option5-email">
+        <div class="hero">
+          <div style="font-size: 32px; margin-bottom: 8px;">💚</div>
+          <h1>Last Wish Delivery</h1>
+          <p style="margin: 0; font-size: 13px; opacity: 0.95;">Financial Records Transfer</p>
+        </div>
+
+        <div class="card-body">
+          <p style="font-size: 13px; color: #4b5563; margin-bottom: 15px; text-align: center;">
+            <strong>salauddin.kader406@gmail.com</strong> has entrusted you with their financial records.
+          </p>
+
+          <div class="stat-card">
+            <span>Bank Accounts</span>
+            <span class="value">9</span>
+          </div>
+          <div class="stat-card">
+            <span>Transactions</span>
+            <span class="value">234</span>
+          </div>
+          <div class="stat-card">
+            <span>Purchases</span>
+            <span class="value">25</span>
+          </div>
+          <div class="stat-card">
+            <span>Lend/Borrow</span>
+            <span class="value">16</span>
+          </div>
+          <div class="stat-card">
+            <span>Savings</span>
+            <span class="value">12</span>
+          </div>
+
+          <div style="background: #fef3c7; border-radius: 6px; padding: 12px; margin-top: 15px; font-size: 12px; text-align: center;">
+            <strong>📎 Attached File:</strong><br>
+            <code style="font-size: 11px;">financial-data-backup.json</code>
+          </div>
+
+          <div class="cta-button">
+            🔒 Secure & Confidential Information
+          </div>
+
+          <p style="font-size: 11px; color: #9ca3af; text-align: center; margin-top: 15px;">
+            Delivered: September 29, 2025<br>
+            Last Wish System • FinTrack
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="comparison-footer">
+    <h2>📊 Comparison Summary</h2>
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Current</th>
+          <th>Option 1</th>
+          <th>Option 2</th>
+          <th>Option 3</th>
+          <th>Option 4</th>
+          <th>Option 5</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Tone</strong></td>
+          <td>Robotic</td>
+          <td><span class="check">✓</span> Warm & Personal</td>
+          <td><span class="check">✓</span> Professional</td>
+          <td>Direct</td>
+          <td><span class="check">✓</span> Informative</td>
+          <td>Modern</td>
+        </tr>
+        <tr>
+          <td><strong>Visual Appeal</strong></td>
+          <td>Basic</td>
+          <td><span class="check">✓</span> Good</td>
+          <td><span class="check">✓</span> Clean</td>
+          <td>Minimal</td>
+          <td>Good</td>
+          <td><span class="check">✓</span> Excellent</td>
+        </tr>
+        <tr>
+          <td><strong>Context/Explanation</strong></td>
+          <td>Brief</td>
+          <td><span class="check">✓</span> Detailed</td>
+          <td>Moderate</td>
+          <td>Minimal</td>
+          <td><span class="check">✓</span> Very Detailed</td>
+          <td>Moderate</td>
+        </tr>
+        <tr>
+          <td><strong>Data Display</strong></td>
+          <td>List</td>
+          <td>Formatted List</td>
+          <td><span class="check">✓</span> Card Grid</td>
+          <td>Compact</td>
+          <td>List</td>
+          <td><span class="check">✓</span> Stat Cards</td>
+        </tr>
+        <tr>
+          <td><strong>Personal Message</strong></td>
+          <td>Optional</td>
+          <td><span class="check">✓</span> Highlighted</td>
+          <td>No</td>
+          <td>No</td>
+          <td><span class="check">✓</span> Yes</td>
+          <td>Optional</td>
+        </tr>
+        <tr>
+          <td><strong>Best For</strong></td>
+          <td>-</td>
+          <td><span class="check">✓</span> Empathy & Trust</td>
+          <td><span class="check">✓</span> Quick Scanning</td>
+          <td>Simplicity</td>
+          <td>First-timers</td>
+          <td><span class="check">✓</span> Modern Apps</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="margin-top: 20px; padding: 20px; background: #f9fafb; border-radius: 8px;">
+      <h3 style="margin: 0 0 10px 0; color: #111827;">💡 Recommendation:</h3>
+      <p style="margin: 0; color: #4b5563; line-height: 1.7;">
+        <strong>Option 1 (Personal & Compassionate)</strong> is recommended for most use cases. It strikes the perfect balance between professionalism and empathy, making recipients feel respected and trusted. The warm tone and clear explanations help reduce confusion about why they're receiving this sensitive information.
+      </p>
+      <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 14px;">
+        <strong>Alternative:</strong> If you prefer a more modern, visual approach, <strong>Option 5</strong> provides excellent aesthetics while maintaining clarity.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

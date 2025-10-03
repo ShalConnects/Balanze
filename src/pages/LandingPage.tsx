@@ -31,15 +31,136 @@ const LandingPage: React.FC = () => {
   useEffect(() => {
     // Set Manrope font for the whole page
     document.body.style.fontFamily = 'Manrope, sans-serif';
-    // Back to top button visibility
+    
+    // Detect Capacitor/Android and add class for status bar padding
+    const isCapacitor = window.Capacitor !== undefined;
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    
+    if (isCapacitor && isAndroid) {
+      document.body.classList.add('capacitor-android');
+    }
+    
+    // Back to top button visibility - works for both window and #root scrolling
     const handleScroll = () => {
-      setShowBackToTop(window.scrollY > 300);
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      let scrollY = 0;
+      
+      if (isAndroid) {
+        // On Android, scroll happens on #root element
+        const rootElement = document.getElementById('root');
+        scrollY = rootElement ? rootElement.scrollTop : 0;
+      } else {
+        // On other platforms, use window scroll
+        scrollY = window.scrollY;
+      }
+      
+      setShowBackToTop(scrollY > 300);
     };
-    window.addEventListener('scroll', handleScroll);
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      document.body.style.fontFamily = '';
-    };
+    
+    // Listen to the appropriate scroll event
+    const isAndroidScroll = /Android/i.test(navigator.userAgent);
+    const rootElement = document.getElementById('root');
+    
+    if (isAndroidScroll && rootElement) {
+      // On Android, listen to #root scroll
+      rootElement.addEventListener('scroll', handleScroll);
+      return () => {
+        rootElement.removeEventListener('scroll', handleScroll);
+        document.body.style.fontFamily = '';
+      };
+    } else {
+      // On other platforms, listen to window scroll
+      window.addEventListener('scroll', handleScroll);
+      return () => {
+        window.removeEventListener('scroll', handleScroll);
+        document.body.style.fontFamily = '';
+      };
+    }
+  }, []);
+
+  // Mobile scroll fix for Android devices
+  useEffect(() => {
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    
+    if (isAndroid) {
+      // Setup body constraints for proper scrolling
+      const setBodyHeight = () => {
+        document.body.style.height = '100vh';
+        document.body.style.position = 'fixed';
+        document.body.style.overflow = 'hidden';
+        document.body.style.width = '100%';
+        
+        const rootElement = document.getElementById('root');
+        if (rootElement) {
+          rootElement.style.height = '100vh';
+          rootElement.style.overflowY = 'auto';
+          rootElement.style.overflowX = 'hidden';
+          rootElement.style.WebkitOverflowScrolling = 'touch';
+          rootElement.style.overscrollBehavior = 'auto'; // Allow overscroll for refresh
+        }
+      };
+      
+      setBodyHeight();
+      window.addEventListener('resize', setBodyHeight);
+      
+      // SMART REFRESH LOGIC
+      let startY = 0;
+      let isPulling = false;
+      const rootElement = document.getElementById('root');
+      
+      const handleTouchStart = (e: TouchEvent) => {
+        if (!rootElement) return;
+        startY = e.touches[0].clientY;
+        isPulling = rootElement.scrollTop === 0; // Only allow refresh at top
+      };
+      
+      const handleTouchMove = (e: TouchEvent) => {
+        if (!rootElement || !isPulling) return;
+        
+        const currentY = e.touches[0].clientY;
+        const deltaY = currentY - startY;
+        const isAtTop = rootElement.scrollTop === 0;
+        
+        // Smart behavior:
+        // - At top + pulling down (deltaY > 0) → Allow refresh
+        // - Not at top → Normal scroll (no refresh)
+        if (isAtTop && deltaY > 80) {
+          // User pulled down more than 80px at top
+          // Allow the overscroll to trigger browser refresh
+          // Don't preventDefault - let it happen naturally
+        }
+      };
+      
+      const handleTouchEnd = () => {
+        isPulling = false;
+      };
+      
+      if (rootElement) {
+        rootElement.addEventListener('touchstart', handleTouchStart, { passive: true });
+        rootElement.addEventListener('touchmove', handleTouchMove, { passive: true });
+        rootElement.addEventListener('touchend', handleTouchEnd, { passive: true });
+      }
+      
+      return () => {
+        window.removeEventListener('resize', setBodyHeight);
+        if (rootElement) {
+          rootElement.removeEventListener('touchstart', handleTouchStart);
+          rootElement.removeEventListener('touchmove', handleTouchMove);
+          rootElement.removeEventListener('touchend', handleTouchEnd);
+          rootElement.style.height = '';
+          rootElement.style.overflowY = '';
+          rootElement.style.overflowX = '';
+          rootElement.style.WebkitOverflowScrolling = '';
+          rootElement.style.overscrollBehavior = '';
+        }
+        document.body.style.height = '';
+        document.body.style.position = '';
+        document.body.style.overflow = '';
+        document.body.style.width = '';
+      };
+    }
+    
+    return () => {};
   }, []);
 
   const openPaymentModal = (planId: string, planName: string, price: number, cycle: 'monthly' | 'one-time') => {
@@ -118,12 +239,12 @@ const LandingPage: React.FC = () => {
   ];
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="relative min-h-screen overflow-hidden full-height-mobile landing-page-mobile">
       <InteractiveBackground />
       
       <div className="relative z-10">
         {/* Navigation Header */}
-        <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
+        <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center space-x-2">
@@ -154,6 +275,12 @@ const LandingPage: React.FC = () => {
                   onClick={() => document.getElementById('testimonials')?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   Testimonials
+                </button>
+                <button
+                  className="bg-transparent text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
+                  onClick={() => navigate('/help-center')}
+                >
+                  Help Center
                 </button>
                 {user ? (
                   <div className="flex items-center space-x-4">
@@ -240,6 +367,15 @@ const LandingPage: React.FC = () => {
                   >
                     Testimonials
                   </button>
+                  <button
+                    className="block w-full text-left px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
+                    onClick={() => {
+                      navigate('/help-center');
+                      setIsMobileMenuOpen(false);
+                    }}
+                  >
+                    Help Center
+                  </button>
                 </div>
               </div>
             )}
@@ -247,16 +383,10 @@ const LandingPage: React.FC = () => {
         </nav>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 overflow-hidden">
+      <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 overflow-hidden landing-page-safe-top">
         
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-4xl mx-auto">
-            <div className="mb-8">
-              <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-sm font-medium mb-6">
-                <span className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></span>
-                New: Last Wish Planning Feature
-              </div>
-            </div>
             
             <h1 className="text-5xl md:text-7xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
               Take Control of Your{' '}
@@ -551,10 +681,10 @@ const LandingPage: React.FC = () => {
             
             {/* Billing Cycle Selector */}
             <div className="mt-6 flex items-center justify-center">
-              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-1 flex w-full max-w-xs">
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-1 flex w-full max-w-sm">
                 <button
                   onClick={() => setBillingCycle('monthly')}
-                  className={`flex-1 px-3 md:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  className={`flex-1 px-3 lg:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     billingCycle === 'monthly'
                       ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -564,7 +694,7 @@ const LandingPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setBillingCycle('one-time')}
-                  className={`flex-1 px-3 md:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  className={`flex-1 px-3 lg:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     billingCycle === 'one-time'
                       ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -579,15 +709,15 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 max-w-6xl mx-auto">
             {/* Free Plan */}
-            <div className="relative rounded-xl border border-gray-200 dark:border-gray-700 shadow p-4 md:p-6 transition-all duration-200 hover:shadow-xl bg-white dark:bg-gray-800 flex flex-col h-full">
-              <div className="text-center mb-6">
-                <h3 className="text-lg md:text-xl font-semibold mb-2 text-gray-900 dark:text-white">Free</h3>
+            <div className="relative rounded-xl border border-gray-200 dark:border-gray-700 shadow p-4 lg:p-5 transition-all duration-200 hover:shadow-xl bg-white dark:bg-gray-800 flex flex-col h-full">
+              <div className="text-center mb-5">
+                <h3 className="text-lg lg:text-xl font-semibold mb-2 text-gray-900 dark:text-white">Free</h3>
                 <p className="text-sm mb-4 text-gray-600 dark:text-gray-400">Perfect for getting started with basic financial tracking</p>
                 <div className="flex items-baseline justify-center">
-                  <span className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">$0</span>
-                  <span className="ml-1 text-base md:text-lg text-gray-500 dark:text-gray-400">/{billingCycle === 'one-time' ? 'lifetime' : 'month'}</span>
+                  <span className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">$0</span>
+                  <span className="ml-1 text-sm lg:text-base text-gray-500 dark:text-gray-400">/{billingCycle === 'one-time' ? 'lifetime' : 'month'}</span>
                 </div>
                 
                 {/* Free plan promotional badge */}
@@ -598,7 +728,7 @@ const LandingPage: React.FC = () => {
                 </div>
               </div>
 
-              <ul className="space-y-2 md:space-y-3 mb-4 md:mb-6 flex-1">
+              <ul className="space-y-2 lg:space-y-2.5 mb-4 lg:mb-5 flex-1">
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
                     <BarChart3 className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
@@ -619,6 +749,18 @@ const LandingPage: React.FC = () => {
                 </li>
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
+                    <CreditCard className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">100 transactions limit</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Download className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">50 purchases limit</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
                     <BarChart3 className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">Basic reports</span>
                   </div>
@@ -631,20 +773,8 @@ const LandingPage: React.FC = () => {
                 </li>
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
-                    <Download className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Basic purchase tracking</span>
-                  </div>
-                </li>
-                <li className="flex items-start">
-                  <div className="flex items-center flex-1">
                     <BarChart3 className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">Basic analytics</span>
-                  </div>
-                </li>
-                <li className="flex items-start">
-                  <div className="flex items-center flex-1">
-                    <CreditCard className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">100 transactions limit</span>
                   </div>
                 </li>
                 <li className="flex items-start">
@@ -656,7 +786,7 @@ const LandingPage: React.FC = () => {
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
                     <Users className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
-                    <span className="text-sm text-gray-500 dark:text-gray-500 line-through">Lent & borrow tracking</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-500 line-through">Lend & borrow tracking</span>
                   </div>
                 </li>
                 <li className="flex items-start">
@@ -677,9 +807,9 @@ const LandingPage: React.FC = () => {
                 </li>
               </ul>
 
-              <div className="mt-auto pt-4 md:pt-6">
+              <div className="mt-auto pt-4 lg:pt-5">
                 <button
-                  className="w-full rounded-lg px-3 md:px-4 py-2 md:py-3 text-sm font-medium transition-colors bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-800 dark:hover:bg-gray-600"
+                  className="w-full rounded-lg px-3 lg:px-4 py-2 lg:py-2.5 text-sm font-medium transition-colors bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-800 dark:hover:bg-gray-600"
                   onClick={() => navigate('/auth')}
                 >
                   Get Started Free
@@ -688,7 +818,7 @@ const LandingPage: React.FC = () => {
             </div>
 
             {/* Premium Plan */}
-            <div className="relative rounded-xl border border-blue-500 shadow-lg dark:border-blue-400 p-4 md:p-6 transition-all duration-200 hover:shadow-xl bg-white dark:bg-gray-800 flex flex-col h-full transform scale-105">
+            <div className="relative rounded-xl border border-blue-500 shadow-lg dark:border-blue-400 p-4 lg:p-5 transition-all duration-200 hover:shadow-xl bg-white dark:bg-gray-800 flex flex-col h-full">
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                 <span className="inline-flex items-center px-4 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-purple-100 to-blue-100 text-purple-800 dark:from-purple-900/50 dark:to-blue-900/50 dark:text-purple-300 border border-purple-200 dark:border-purple-700">
                   <Zap className="w-4 h-4 mr-1" />
@@ -696,14 +826,14 @@ const LandingPage: React.FC = () => {
                 </span>
               </div>
 
-              <div className="text-center mb-6">
-                <h3 className="text-lg md:text-xl font-semibold mb-2 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Premium</h3>
+              <div className="text-center mb-5">
+                <h3 className="text-lg lg:text-xl font-semibold mb-2 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Premium</h3>
                 <p className="text-sm mb-4 text-purple-700 dark:text-purple-300 font-medium">Unlock unlimited features and advanced financial insights</p>
                 <div className="flex items-baseline justify-center">
-                  <span className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  <span className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                     ${billingCycle === 'one-time' ? '99.99' : '7.99'}
                   </span>
-                  <span className="ml-1 text-base md:text-lg text-purple-600 dark:text-purple-400">/{billingCycle === 'one-time' ? 'lifetime' : 'month'}</span>
+                  <span className="ml-1 text-sm lg:text-base text-purple-600 dark:text-purple-400">/{billingCycle === 'one-time' ? 'lifetime' : 'month'}</span>
                 </div>
                 
                 {/* Show lifetime access benefit for one-time Premium */}
@@ -725,7 +855,7 @@ const LandingPage: React.FC = () => {
                 )}
               </div>
 
-              <ul className="space-y-2 md:space-y-3 mb-4 md:mb-6 flex-1">
+              <ul className="space-y-2 lg:space-y-2.5 mb-4 lg:mb-5 flex-1">
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
                     <Check className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
@@ -752,6 +882,12 @@ const LandingPage: React.FC = () => {
                 </li>
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
+                    <Download className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Unlimited purchases</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
                     <BarChart3 className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
                     <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Advanced analytics</span>
                   </div>
@@ -771,7 +907,7 @@ const LandingPage: React.FC = () => {
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
                     <Users className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
-                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Lent & borrow tracking</span>
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Lend & borrow tracking</span>
                   </div>
                 </li>
                 <li className="flex items-start">
@@ -798,9 +934,9 @@ const LandingPage: React.FC = () => {
                 </li>
               </ul>
 
-              <div className="mt-auto pt-4 md:pt-6">
+              <div className="mt-auto pt-4 lg:pt-5">
                 <button
-                  className="w-full rounded-lg px-3 md:px-4 py-2 md:py-3 text-sm font-medium transition-colors bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg"
+                  className="w-full rounded-lg px-3 lg:px-4 py-2 lg:py-2.5 text-sm font-medium transition-colors bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg"
                   onClick={() => {
                     const planId = billingCycle === 'one-time' ? 'premium_lifetime' : 'premium_monthly';
                     const price = billingCycle === 'one-time' ? 99.99 : 7.99;
@@ -909,7 +1045,7 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-16">
+      <footer className="bg-gray-900 text-white py-16 landing-page-safe-bottom">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2">
@@ -946,6 +1082,7 @@ const LandingPage: React.FC = () => {
               <ul className="space-y-2">
                 <li><a href="/about" className="text-gray-400 hover:text-white transition-colors">About</a></li>
                 <li><a href="/blog" className="text-gray-400 hover:text-white transition-colors">Blog</a></li>
+                <li><a href="/help-center" className="text-gray-400 hover:text-white transition-colors">Help Center</a></li>
                 <li><a href="/privacypolicy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a></li>
                 <li><a href="/refundpolicy" className="text-gray-400 hover:text-white transition-colors">Refund Policy</a></li>
                 <li><a href="/termsofservice" className="text-gray-400 hover:text-white transition-colors">Terms of Service</a></li>
@@ -972,7 +1109,7 @@ const LandingPage: React.FC = () => {
       {/* Dark Mode Toggle Button - Always Visible */}
       <button
         onClick={toggleTheme}
-        className="fixed bottom-8 right-8 z-50 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-600"
+        className="fixed right-8 z-50 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-600 floating-bottom-safe"
         aria-label="Toggle dark mode"
       >
         {isDarkMode ? (
@@ -985,8 +1122,20 @@ const LandingPage: React.FC = () => {
       {/* Back to Top Button - Only visible when scrolling */}
       {showBackToTop && (
         <button
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-24 right-8 z-50 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 rounded-full shadow-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
+          onClick={() => {
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            if (isAndroid) {
+              // On Android, scroll the #root element
+              const rootElement = document.getElementById('root');
+              if (rootElement) {
+                rootElement.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            } else {
+              // On other platforms, scroll the window
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }}
+          className="fixed right-8 z-50 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 rounded-full shadow-lg hover:from-blue-700 hover:to-purple-700 transition-colors floating-bottom-safe-secondary"
           aria-label="Back to top"
         >
           <ArrowUp className="w-6 h-6" />

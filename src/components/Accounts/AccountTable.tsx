@@ -133,7 +133,6 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
                     <div className="flex-1">
                       <div 
                         className="text-sm font-medium text-gray-900 dark:text-white relative group"
-                        title={account.description || undefined}
                       >
                         {account.name.charAt(0).toUpperCase() + account.name.slice(1)}
                         {account.description && (

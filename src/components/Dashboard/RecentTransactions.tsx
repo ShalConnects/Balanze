@@ -52,7 +52,7 @@ export const RecentTransactions: React.FC = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">{transaction.description}</p>
                   <p className="text-xs text-gray-500">
-                    {format(new Date(transaction.date), 'MMM d, h:mm a')}
+                    {format(new Date(transaction.created_at), 'MMM d, h:mm a')}
                   </p>
                 </div>
               </div>
