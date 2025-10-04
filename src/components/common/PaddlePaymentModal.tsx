@@ -134,7 +134,7 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
     }
   };
 
-  const openPaddleCheckout = () => {
+  const openPaddleCheckout = async () => {
     if (!user?.email) {
       setError('User email not found');
       return;
@@ -145,45 +145,21 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
 
     try {
       const priceId = getPaddlePriceId();
-      
-      // Use Paddle Billing hosted checkout for both sandbox and production
-      if (PADDLE_ENVIRONMENT === 'sandbox' || PADDLE_ENVIRONMENT === 'production') {
-        console.log(`Using Paddle Billing hosted checkout for ${PADDLE_ENVIRONMENT} environment`);
-        console.log('Environment variables check:', {
-          MONTHLY_URL: import.meta.env.VITE_PADDLE_MONTHLY_HOSTED_CHECKOUT_URL,
-          LIFETIME_URL: import.meta.env.VITE_PADDLE_LIFETIME_HOSTED_CHECKOUT_URL,
-          PLAN_ID: planId
-        });
-        
-        const hostedCheckoutUrls: { [key: string]: string } = {
-          'premium_monthly': import.meta.env.VITE_PADDLE_MONTHLY_HOSTED_CHECKOUT_URL || '',
-          'premium_lifetime': import.meta.env.VITE_PADDLE_LIFETIME_HOSTED_CHECKOUT_URL || ''
-        };
-        
-        const checkoutUrl = hostedCheckoutUrls[planId];
-        console.log('Selected checkout URL:', checkoutUrl);
-        console.log('Full checkout details:', {
-          planId,
-          userEmail: user.email,
-          userId: user.id,
-          environment: PADDLE_ENVIRONMENT,
-          vendorId: PADDLE_VENDOR_ID
-        });
-        
-        if (checkoutUrl) {
-          console.log('🚀 Opening checkout URL:', checkoutUrl);
-          console.log('🔍 URL contains sandbox-pay:', checkoutUrl.includes('sandbox-pay'));
-          window.open(checkoutUrl, '_blank');
-          setLoading(false);
-          toast.success('Opening checkout in new tab...');
-        } else {
-          setError('Hosted checkout URL not configured. Please set up hosted checkouts in Paddle dashboard.');
-          setLoading(false);
-        }
-      } else if (paddle && paddle.Checkout) {
+      const hostedCheckoutUrls: { [key: string]: string } = {
+        'premium_monthly': import.meta.env.VITE_PADDLE_MONTHLY_HOSTED_CHECKOUT_URL || '',
+        'premium_lifetime': import.meta.env.VITE_PADDLE_LIFETIME_HOSTED_CHECKOUT_URL || ''
+      };
+      const hostedCheckoutUrl = hostedCheckoutUrls[planId];
+
+      console.log(`🚀 Starting ${PADDLE_ENVIRONMENT} checkout for plan: ${planId}`);
+      console.log('User details:', { email: user.email, id: user.id });
+
+      // Strategy 1: Try Paddle.js overlay checkout first (best UX)
+      if (paddle && paddle.Checkout) {
         try {
-          // Use Paddle.js v2 Checkout.open for production
-          const checkoutResult = paddle.Checkout.open({
+          console.log('🎯 Attempting overlay checkout...');
+          
+          const checkoutPromise = paddle.Checkout.open({
             items: [{ priceId, quantity: 1 }],
             customer: {
               email: user.email,
@@ -206,70 +182,50 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
             cancelUrl: window.location.origin + '/settings?tab=plans-usage&payment=cancelled'
           });
 
-          // Handle both Promise and non-Promise returns
-          if (checkoutResult && typeof checkoutResult.then === 'function') {
-            checkoutResult.then(() => {
-              console.log('Paddle checkout opened successfully');
-              setLoading(false);
-              toast.success('Checkout opened successfully!');
-            }).catch((checkoutError) => {
-              console.error('Paddle checkout error:', checkoutError);
-              // Fallback to direct URL on checkout error
-              const checkoutUrl = `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
-              window.open(checkoutUrl, '_blank');
-              setLoading(false);
-              toast.success('Opening checkout in new tab...');
-            });
+          // Handle the checkout promise
+          if (checkoutPromise && typeof checkoutPromise.then === 'function') {
+            await checkoutPromise;
+            console.log('✅ Overlay checkout opened successfully');
+            setLoading(false);
+            toast.success('Checkout opened!');
+            return; // Success - exit early
           } else {
-            // Non-promise return, assume success
-            console.log('Paddle checkout opened (non-promise)');
+            console.log('✅ Overlay checkout opened (non-promise)');
             setLoading(false);
-            toast.success('Checkout opened successfully!');
+            toast.success('Checkout opened!');
+            return; // Success - exit early
           }
-        } catch (checkoutError) {
-          console.error('Paddle checkout error:', checkoutError);
-          // Fallback to direct URL on checkout error
-          const checkoutUrl = `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
-          window.open(checkoutUrl, '_blank');
-          setLoading(false);
-          toast.success('Opening checkout in new tab...');
-        }
-      } else {
-        // Fallback to hosted checkout URLs
-        console.log('Paddle not initialized, using hosted checkout fallback');
-        if (PADDLE_ENVIRONMENT === 'sandbox' || PADDLE_ENVIRONMENT === 'production') {
-          const hostedCheckoutUrls: { [key: string]: string } = {
-            'premium_monthly': import.meta.env.VITE_PADDLE_MONTHLY_HOSTED_CHECKOUT_URL || '',
-            'premium_lifetime': import.meta.env.VITE_PADDLE_LIFETIME_HOSTED_CHECKOUT_URL || ''
-          };
-          const checkoutUrl = hostedCheckoutUrls[planId];
-          if (checkoutUrl) {
-            window.open(checkoutUrl, '_blank');
-            setLoading(false);
-            toast.success('Opening checkout in new tab...');
-          } else {
-            setError('Hosted checkout URL not configured.');
-            setLoading(false);
-          }
-        } else {
-          const checkoutUrl = `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
-          window.open(checkoutUrl, '_blank');
-          setLoading(false);
-          toast.success('Opening checkout in new tab...');
+        } catch (overlayError) {
+          console.warn('⚠️ Overlay checkout failed, trying fallback:', overlayError);
+          // Continue to fallback strategy
         }
       }
-    } catch (err) {
-      console.error('Failed to open Paddle checkout:', err);
-      console.log('Falling back to direct URL method');
-      
-      // Final fallback to direct URL
-      const priceId = getPaddlePriceId();
-      const checkoutUrl = PADDLE_ENVIRONMENT === 'sandbox' 
+
+      // Strategy 2: Fallback to hosted checkout URL in new tab
+      if (hostedCheckoutUrl) {
+        console.log('🔄 Falling back to hosted checkout URL...');
+        console.log('Opening URL:', hostedCheckoutUrl);
+        
+        window.open(hostedCheckoutUrl, '_blank', 'noopener,noreferrer');
+        setLoading(false);
+        toast.success('Opening secure checkout...');
+        return; // Success - exit early
+      }
+
+      // Strategy 3: Final fallback - construct URL manually
+      console.log('🔄 Using final fallback method...');
+      const fallbackUrl = PADDLE_ENVIRONMENT === 'sandbox' 
         ? `https://sandbox-buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`
         : `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
-      window.open(checkoutUrl, '_blank');
+      
+      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
       setLoading(false);
-      toast.success('Opening checkout in new tab...');
+      toast.success('Opening checkout...');
+
+    } catch (err) {
+      console.error('❌ All checkout methods failed:', err);
+      setError('Unable to open checkout. Please try again or contact support.');
+      setLoading(false);
     }
   };
 
@@ -359,12 +315,12 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
         )}
 
         {/* Loading State */}
-        {loading && !paddle && (
+        {loading && (
           <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
             <div className="flex items-center gap-3">
               <Loader2 className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" />
               <span className="text-sm text-blue-700 dark:text-blue-300">
-                Loading payment system...
+                {!paddle ? 'Loading payment system...' : 'Opening secure checkout...'}
               </span>
             </div>
           </div>
@@ -375,35 +331,26 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
           <button
             onClick={openPaddleCheckout}
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:transform-none disabled:hover:scale-100"
           >
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Processing...
+                Opening checkout...
               </>
             ) : (
               <>
                 <CreditCard className="w-5 h-5" />
-                Pay with Paddle
+                Continue to Payment
               </>
             )}
           </button>
           
-          {/* Alternative Direct Link */}
+          {/* Payment Method Info */}
           <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-              Having trouble? Try the direct link:
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Secure checkout • Credit cards accepted • Instant activation
             </p>
-            <a
-              href={`https://checkout.paddle.com/checkout/${getPaddlePriceId()}?email=${encodeURIComponent(user?.email || '')}&country=US&vendor=${PADDLE_VENDOR_ID}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-            >
-              <CreditCard className="w-4 h-4" />
-              Open Paddle Checkout Directly
-            </a>
           </div>
 
           {/* Security Notice */}
