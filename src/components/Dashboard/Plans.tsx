@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Check, Heart, Zap, Download, BarChart3, Users, Globe, MessageSquare, Settings, CreditCard } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Check, Heart, Zap, Download, BarChart3, Users, Globe, MessageSquare, Settings, CreditCard, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { PaddlePaymentModal } from '../common/PaddlePaymentModal';
+import { initializePaddle, Paddle } from '@paddle/paddle-js';
+import { toast } from 'react-hot-toast';
 
 interface Plan {
   id: string;
@@ -72,24 +73,140 @@ const plans: Plan[] = [
 ];
 
 export const Plans: React.FC = () => {
-  const { profile } = useAuthStore();
+  const { profile, user } = useAuthStore();
   const currentPlan = profile?.subscription?.plan || 'free';
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'one-time'>('monthly');
-  const [paymentModal, setPaymentModal] = useState<{
-    isOpen: boolean;
-    planId: string;
-    planName: string;
-    price: number;
-    billingCycle: 'monthly' | 'one-time';
-    features: string[];
-  }>({
-    isOpen: false,
-    planId: '',
-    planName: '',
-    price: 0,
-    billingCycle: 'monthly',
-    features: [],
-  });
+  const [loading, setLoading] = useState<string | null>(null); // Track which button is loading
+  const [paddle, setPaddle] = useState<Paddle | null>(null);
+
+  // Paddle configuration
+  const PADDLE_VENDOR_ID = import.meta.env.VITE_PADDLE_VENDOR_ID;
+  const PADDLE_ENVIRONMENT = import.meta.env.VITE_PADDLE_ENVIRONMENT || 'production';
+  const PADDLE_CLIENT_TOKEN = import.meta.env.VITE_PADDLE_CLIENT_TOKEN;
+
+  useEffect(() => {
+    loadPaddle();
+  }, []);
+
+  const loadPaddle = async () => {
+    try {
+      if (!PADDLE_CLIENT_TOKEN) {
+        console.warn('Paddle client token not configured');
+        return;
+      }
+
+      const paddleInstance = await initializePaddle({
+        environment: PADDLE_ENVIRONMENT as 'sandbox' | 'production',
+        token: PADDLE_CLIENT_TOKEN,
+        eventCallback: (data) => {
+          console.log('Paddle event:', data);
+        }
+      });
+
+      if (paddleInstance && paddleInstance.Checkout) {
+        console.log('Paddle initialized successfully');
+        setPaddle(paddleInstance);
+      }
+    } catch (err) {
+      console.error('Failed to load Paddle:', err);
+    }
+  };
+
+  const openDirectCheckout = async (planId: string, planName: string) => {
+    if (!user?.email) {
+      toast.error('Please log in to continue');
+      return;
+    }
+
+    setLoading(planId);
+
+    try {
+      const priceMapping: { [key: string]: string } = {
+        'premium_monthly': import.meta.env.VITE_PADDLE_MONTHLY_PRICE_ID,
+        'premium_lifetime': import.meta.env.VITE_PADDLE_LIFETIME_PRICE_ID
+      };
+      
+      const hostedCheckoutUrls: { [key: string]: string } = {
+        'premium_monthly': import.meta.env.VITE_PADDLE_MONTHLY_HOSTED_CHECKOUT_URL || '',
+        'premium_lifetime': import.meta.env.VITE_PADDLE_LIFETIME_HOSTED_CHECKOUT_URL || ''
+      };
+
+      const priceId = priceMapping[planId];
+      const hostedCheckoutUrl = hostedCheckoutUrls[planId];
+
+      console.log(`🚀 Starting direct checkout for ${planName} (${planId})`);
+
+      // Strategy 1: Try Paddle.js overlay checkout first
+      if (paddle && paddle.Checkout) {
+        try {
+          console.log('🎯 Attempting overlay checkout...');
+          
+          const checkoutPromise = paddle.Checkout.open({
+            items: [{ priceId, quantity: 1 }],
+            customer: {
+              email: user.email,
+              country: 'US'
+            },
+            customData: {
+              user_id: user.id,
+              plan_id: planId,
+              billing_cycle: billingCycle
+            },
+            settings: {
+              displayMode: 'overlay',
+              theme: 'light',
+              locale: 'en'
+            },
+            successUrl: window.location.origin + '/settings?tab=plans-usage&payment=success',
+            cancelUrl: window.location.origin + '/settings?tab=plans-usage&payment=cancelled'
+          });
+
+          // Handle with timeout
+          if (checkoutPromise && typeof checkoutPromise.then === 'function') {
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Checkout timeout')), 5000)
+            );
+            
+            await Promise.race([checkoutPromise, timeoutPromise]);
+            console.log('✅ Overlay checkout opened successfully');
+            setLoading(null);
+            toast.success('Checkout opened!');
+            return;
+          } else if (checkoutPromise === undefined || checkoutPromise === null) {
+            throw new Error('Checkout returned null/undefined');
+          } else {
+            console.log('✅ Overlay checkout opened (non-promise)');
+            setLoading(null);
+            toast.success('Checkout opened!');
+            return;
+          }
+        } catch (overlayError) {
+          console.warn('⚠️ Overlay checkout failed, trying fallback:', overlayError);
+        }
+      }
+
+      // Strategy 2: Fallback to hosted checkout URL in new tab
+      if (hostedCheckoutUrl) {
+        console.log('🔄 Opening hosted checkout URL...');
+        window.open(hostedCheckoutUrl, '_blank', 'noopener,noreferrer');
+        setLoading(null);
+        toast.success('Opening secure checkout...');
+        return;
+      }
+
+      // Strategy 3: Final fallback
+      console.log('🔄 Using final fallback method...');
+      const fallbackUrl = `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
+      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+      setLoading(null);
+      toast.success('Opening checkout...');
+
+    } catch (err) {
+      console.error('❌ Checkout failed:', err);
+      toast.error('Unable to open checkout. Please try again.');
+      setLoading(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -241,31 +358,31 @@ export const Plans: React.FC = () => {
                   onClick={() => {
                     if (currentPlan !== plan.id && plan.id !== 'free') {
                       const planId = billingCycle === 'one-time' ? 'premium_lifetime' : 'premium_monthly';
-                      const price = billingCycle === 'one-time' ? 99.99 : 7.99;
-                      const features = plan.features
-                        .filter(f => f.included)
-                        .map(f => f.text);
-                      
-                      setPaymentModal({
-                        isOpen: true,
-                        planId,
-                        planName: plan.name,
-                        price,
-                        billingCycle,
-                        features,
-                      });
+                      openDirectCheckout(planId, plan.name);
                     }
                   }}
-                  className={`w-full rounded-lg px-3 lg:px-4 py-2 lg:py-2.5 text-sm font-medium transition-colors ${
+                  className={`w-full rounded-lg px-3 lg:px-4 py-2 lg:py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
                     currentPlan === plan.id
                       ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                       : plan.isPopular
                       ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg'
                       : 'bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-800 dark:hover:bg-gray-600'
                   }`}
-                  disabled={currentPlan === plan.id}
+                  disabled={currentPlan === plan.id || loading === (billingCycle === 'one-time' ? 'premium_lifetime' : 'premium_monthly')}
                 >
-                  {currentPlan === plan.id ? 'Current Plan' : 'Get Started'}
+                  {loading === (billingCycle === 'one-time' ? 'premium_lifetime' : 'premium_monthly') ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Opening...
+                    </>
+                  ) : currentPlan === plan.id ? (
+                    'Current Plan'
+                  ) : (
+                    <>
+                      <CreditCard className="w-4 h-4" />
+                      Get Started
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -284,16 +401,6 @@ export const Plans: React.FC = () => {
         
       </div>
 
-      {/* Paddle Payment Modal */}
-      <PaddlePaymentModal
-        isOpen={paymentModal.isOpen}
-        onClose={() => setPaymentModal(prev => ({ ...prev, isOpen: false }))}
-        planId={paymentModal.planId}
-        planName={paymentModal.planName}
-        price={paymentModal.price}
-        billingCycle={paymentModal.billingCycle}
-        features={paymentModal.features}
-      />
     </div>
   );
 }; 
