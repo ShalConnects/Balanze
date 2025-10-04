@@ -359,7 +359,11 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
               <Calendar className="w-4 h-4" />
               <span>
                 {profile?.subscription?.plan === 'premium' 
-                  ? 'Monthly billing on the 15th' 
+                  ? (profile?.subscription?.billing_cycle === 'lifetime' 
+                      ? 'No billing - Lifetime access' 
+                      : profile?.subscription?.next_billing_date 
+                        ? `Next billing: ${new Date(profile.subscription.next_billing_date).toLocaleDateString()}`
+                        : 'Monthly billing on the 15th')
                   : 'No active subscription'
                 }
               </span>
@@ -371,7 +375,12 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
             <div className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-gray-600 dark:text-gray-400" />
               <span className="text-gray-600 dark:text-gray-400">
-                {profile?.subscription?.plan === 'premium' ? 'Premium - $7.99/month' : 'Free Plan'}
+                {profile?.subscription?.plan === 'premium' 
+                  ? (profile?.subscription?.billing_cycle === 'lifetime' 
+                      ? `Premium - Lifetime ($${profile?.subscription?.purchase_details?.amount_paid || '99.99'})` 
+                      : `Premium - $${profile?.subscription?.purchase_details?.amount_paid || '7.99'}/month`)
+                  : 'Free Plan'
+                }
               </span>
             </div>
           </div>

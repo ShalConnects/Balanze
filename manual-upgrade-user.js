@@ -10,7 +10,7 @@ const supabase = createClient(
 
 async function upgradeUser() {
   try {
-    // Replace with your actual user ID
+    // Use the email from the successful payment
     const userEmail = 'shalconnect00@gmail.com'; // Your email from the payment
     
     // Find user by email - try different column names
@@ -24,17 +24,23 @@ async function upgradeUser() {
     
     console.log('Sample profiles data:', userData1);
     
-    // Find user by the email you used for payment
+    // Find user by the email from the payment URL
     const { data: userData2, error: error2 } = await supabase
       .from('profiles')
       .select('*')
-      .ilike('full_name', '%shal%')
-      .limit(5);
+      .or('full_name.ilike.%shal%,id.eq.a64955e1-c71e-4151-976f-8f0f68681022')
+      .limit(10);
     
-    console.log('Users with "shal" in name:', userData2);
+    console.log('Found users:', userData2);
     
-    if (userData2 && userData2.length > 0) {
-      user = userData2[0]; // Use the first match
+    // Look for user with email shalconnect00@gmail.com or similar
+    const targetUser = userData2?.find(u => 
+      u.full_name?.toLowerCase().includes('shal') || 
+      u.id === 'a64955e1-c71e-4151-976f-8f0f68681022'
+    );
+    
+    if (targetUser) {
+      user = targetUser;
       userError = null;
     } else {
       userError = error2 || 'No user found';
@@ -47,14 +53,18 @@ async function upgradeUser() {
     
     console.log('Found user:', user);
     
-    // Upgrade to Premium Lifetime
+    // Upgrade to Premium Lifetime with actual transaction details
     const subscriptionData = {
       plan: 'premium',
       status: 'active',
       billing_cycle: 'lifetime',
-      paddle_transaction_id: 'manual_upgrade_' + Date.now(),
+      paddle_transaction_id: 'txn_01k6pse8b6ceqza6f2dy37h02b', // Actual transaction ID
+      paddle_customer_id: 'ctm_01k6m4mptk702b2cdc5h700n56', // Actual customer ID
       expires_at: null, // Lifetime never expires
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      payment_method: 'paddle',
+      amount_paid: 0.99,
+      currency: 'USD'
     };
     
     const { error: updateError } = await supabase
