@@ -182,13 +182,21 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
             cancelUrl: window.location.origin + '/settings?tab=plans-usage&payment=cancelled'
           });
 
-          // Handle the checkout promise
+          // Handle the checkout promise with timeout
           if (checkoutPromise && typeof checkoutPromise.then === 'function') {
-            await checkoutPromise;
+            // Add a timeout to catch hanging promises
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Checkout timeout')), 5000)
+            );
+            
+            await Promise.race([checkoutPromise, timeoutPromise]);
             console.log('✅ Overlay checkout opened successfully');
             setLoading(false);
             toast.success('Checkout opened!');
             return; // Success - exit early
+          } else if (checkoutPromise === undefined || checkoutPromise === null) {
+            // If checkout returns undefined/null, it might have failed silently
+            throw new Error('Checkout returned null/undefined');
           } else {
             console.log('✅ Overlay checkout opened (non-promise)');
             setLoading(false);
