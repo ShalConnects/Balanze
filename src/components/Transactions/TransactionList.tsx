@@ -203,8 +203,11 @@ export const TransactionList: React.FC<{
 
       switch (sortConfig.key) {
         case 'date':
-          aValue = new Date(a.created_at).getTime();
-          bValue = new Date(b.created_at).getTime();
+          // Sort by created_at, but if updated_at is more recent, use that for priority
+          const aLatestTime = a.updated_at ? Math.max(new Date(a.created_at).getTime(), new Date(a.updated_at).getTime()) : new Date(a.created_at).getTime();
+          const bLatestTime = b.updated_at ? Math.max(new Date(b.created_at).getTime(), new Date(b.updated_at).getTime()) : new Date(b.created_at).getTime();
+          aValue = aLatestTime;
+          bValue = bLatestTime;
           break;
         case 'last_modified':
           aValue = new Date(a.updated_at || a.created_at).getTime();
@@ -1239,6 +1242,11 @@ export const TransactionList: React.FC<{
                             </span>
                           )}
                         </div>
+                        {transaction.updated_at && transaction.updated_at !== transaction.created_at && (
+                          <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                            Modified: {format(new Date(transaction.updated_at), 'MMM dd, h:mm a')}
+                          </div>
+                        )}
                       </div>
                       <div>
                         {transaction.type === 'income' ? (

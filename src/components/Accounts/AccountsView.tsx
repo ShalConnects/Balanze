@@ -1679,9 +1679,128 @@ export const AccountsView: React.FC = () => {
       )}
 
       {modalOpen && selectedAccount && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-2 sm:p-4 pt-16">
+        <>
+          {/* Mobile Full Screen Modal */}
+          <div className="fixed inset-0 z-50 lg:hidden">
           <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setModalOpen(false)} />
-          <div className="relative bg-white w-full max-w-6xl rounded-lg shadow-2xl flex flex-col" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
+            <div className="relative bg-white w-full h-full flex flex-col overflow-hidden">
+              {/* Mobile Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+                <h2 className="text-lg font-semibold text-gray-900">Account Details</h2>
+                <button 
+                  className="text-gray-500 hover:text-gray-700 p-1" 
+                  onClick={() => setModalOpen(false)}
+                >
+                  ✕
+                </button>
+              </div>
+              
+              {/* Mobile Scrollable Content */}
+              <div className="flex-1 overflow-y-auto overscroll-contain -webkit-overflow-scrolling-touch" style={{ height: 'calc(100vh - 60px)' }}>
+                <div className="p-4 space-y-4">
+                  {/* Mobile Transactions Section */}
+                  <div>
+                    <h3 className="text-base font-bold mb-3">Transactions</h3>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div className="max-h-96 overflow-y-auto overscroll-contain -webkit-overflow-scrolling-touch">
+                        <table className="w-full border-collapse">
+                          <thead className="bg-gray-50 sticky top-0">
+                            <tr>
+                              <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                              <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                              <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {(() => {
+                              const accountTransactions = transactions
+                                .filter(t => t.account_id === selectedAccount.id)
+                                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+                              if (accountTransactions.length === 0) {
+                                return (
+                                  <tr>
+                                    <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                                      No transactions found
+                                    </td>
+                                  </tr>
+                                );
+                              }
+
+                              return accountTransactions.map((t) => (
+                                <tr key={t.id} className="hover:bg-gray-50">
+                                  <td className="px-2 py-2 text-xs text-gray-900">
+                                    {new Date(t.date).toLocaleDateString()}
+                                  </td>
+                                  <td className="px-2 py-2 text-xs">
+                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                      t.type === 'income' 
+                                        ? 'bg-green-100 text-green-800' 
+                                        : 'bg-red-100 text-red-800'
+                                    }`}>
+                                      {t.type}
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-2 text-xs text-right font-medium">
+                                    <span className={t.type === 'income' ? 'text-green-600' : 'text-red-600'}>
+                                      {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount, selectedAccount.currency)}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ));
+                            })()}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mobile Account Info Section */}
+                  <div>
+                    <h3 className="text-base font-bold mb-3">Account Info</h3>
+                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="space-y-2 text-sm">
+                        <div><b>Name:</b> {selectedAccount.name.charAt(0).toUpperCase() + selectedAccount.name.slice(1)}</div>
+                        <div><b>Type:</b> <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getAccountColor(selectedAccount.type)} ml-1`}>
+                          {selectedAccount.type === 'cash' ? 'Cash Wallet' : selectedAccount.type.charAt(0).toUpperCase() + selectedAccount.type.slice(1)}
+                        </span></div>
+                        <div><b>Initial Balance:</b> {formatCurrency(Number(selectedAccount.initial_balance), selectedAccount.currency)}</div>
+                        <div><b>Currency:</b> {selectedAccount.currency}</div>
+                        <div><b>Description:</b> {selectedAccount.description || 'N/A'}</div>
+                        <div><b>Transactions:</b> {transactions.filter(t => t.account_id === selectedAccount.id).length}</div>
+                        <div><b>Total Saved:</b> {formatCurrency(0, selectedAccount.currency)}</div>
+                        <div><b>Total Donated:</b> {formatCurrency(0, selectedAccount.currency)}</div>
+                        <div><b>Donation Preference:</b> None</div>
+                        
+                        {/* Current Balance Section */}
+                        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="text-sm font-semibold text-blue-900 mb-1">Current Balance</div>
+                          <div className="text-lg font-bold text-blue-600">
+                            {formatCurrency(selectedAccount.calculated_balance || 0, selectedAccount.currency)}
+                          </div>
+                        </div>
+                        
+                        {/* Print Statement Button */}
+                        <div className="mt-4">
+                          <button 
+                            onClick={() => window.print()}
+                            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                          >
+                            Print Statement
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop Modal */}
+          <div className="hidden lg:flex fixed inset-0 z-50 items-start justify-center p-4 pt-16">
+            <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setModalOpen(false)} />
+            <div className="relative bg-white w-full max-w-6xl rounded-lg shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
             {/* Close Button - Absolute positioned */}
             <button 
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 p-1 z-10" 
@@ -1690,13 +1809,13 @@ export const AccountsView: React.FC = () => {
               ✕
             </button>
 
-            {/* Main Content: Transactions and Account Info */}
-            <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 p-3 sm:p-4 pt-8 pb-6 flex-1 min-h-0">
+              {/* Main Content: Transactions and Account Info - Full height scrollable container */}
+              <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 p-3 sm:p-4 pt-8 pb-6 flex-1 min-h-0" style={{ maxHeight: 'calc(100vh - 12rem)', overflow: 'hidden' }}>
               {/* Left: Transactions List (100% on mobile, 80% on desktop) - Scrollable */}
               <div className="w-full lg:w-4/5 flex flex-col min-h-0">
                 <h3 className="text-sm sm:text-base font-bold mb-2">Transactions</h3>
                 <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden">
-                  <div className="h-full overflow-y-auto">
+                  <div className="h-full overflow-y-auto overscroll-contain -webkit-overflow-scrolling-touch">
                     <table className="w-full border-collapse">
                       <thead className="bg-gray-50 sticky top-0">
                         <tr>
@@ -1787,10 +1906,10 @@ export const AccountsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Right: Account Info (100% on mobile, 20% on desktop) - Fixed */}
+              {/* Right: Account Info (100% on mobile, 20% on desktop) - Scrollable on mobile */}
               <div className="w-full lg:w-1/5 flex flex-col mt-3 lg:mt-0">
                 <h3 className="text-sm sm:text-base font-bold mb-2">Account Info</h3>
-                <div className="flex-1 p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex-1 p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-y-auto overscroll-contain -webkit-overflow-scrolling-touch">
                   <div className="space-y-1.5 sm:space-y-2 text-xs">
                     <div><b>Name:</b> {selectedAccount.name.charAt(0).toUpperCase() + selectedAccount.name.slice(1)}</div>
                     <div><b>Type:</b> <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getAccountColor(selectedAccount.type)} ml-1`}>
@@ -1827,6 +1946,7 @@ export const AccountsView: React.FC = () => {
             </div>
           </div>
         </div>
+        </>
       )}
 
       {/* Mobile Filter Modal */}

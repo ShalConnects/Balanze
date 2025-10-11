@@ -2352,7 +2352,7 @@ export const PurchaseTracker: React.FC = () => {
                       <div className="col-span-4">
                         <div className="text-xs text-gray-500 dark:text-gray-400">Priority</div>
                         <div className="text-sm text-gray-900 dark:text-white">
-                          {purchase.priority}
+                          {purchase.priority.charAt(0).toUpperCase() + purchase.priority.slice(1)}
                         </div>
                       </div>
                       <div className="col-span-4">

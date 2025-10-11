@@ -875,3 +875,45 @@ main {
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background-color: rgba(156, 163, 175, 0.7);
 }
+
+/* Mobile Modal Scroll Fixes */
+@media (max-width: 1024px) {
+  /* Account info modal mobile optimizations */
+  .account-modal-mobile {
+    max-height: calc(100vh - 2rem) !important;
+    max-height: calc(100dvh - 2rem) !important;
+    overflow: hidden;
+  }
+  
+  .account-modal-content {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    max-height: calc(100vh - 4rem);
+    max-height: calc(100dvh - 4rem);
+  }
+  
+  /* Ensure modal content is scrollable on mobile */
+  .modal-scrollable {
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+    scroll-behavior: smooth;
+  }
+  
+  /* Fix for iOS Safari modal scrolling */
+  .ios-modal-fix {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+  }
+  
+  .ios-modal-content {
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
