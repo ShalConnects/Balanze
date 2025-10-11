@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Filter, Search, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, Handshake } from 'lucide-react';
+import { Plus, Filter, Search, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, Handshake, Eye } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
@@ -11,6 +11,7 @@ import { useFinanceStore } from '../../store/useFinanceStore';
 import { LendBorrowCardSkeleton, LendBorrowTableSkeleton, LendBorrowSummaryCardsSkeleton, LendBorrowFiltersSkeleton } from './LendBorrowSkeleton';
 import { toast } from 'sonner';
 import { useLoadingContext } from '../../context/LoadingContext';
+import { getPreference, setPreference } from '../../lib/userPreferences';
 
 const currencySymbols: Record<string, string> = {
   USD: '$',
@@ -67,6 +68,55 @@ export const LendBorrowView: React.FC = () => {
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const presetDropdownRef = useRef<HTMLDivElement>(null);
   const { wrapAsync, setLoadingMessage } = useLoadingContext();
+
+  // Widget visibility state - hybrid approach (localStorage + database)
+  const [showLendBorrowWidget, setShowLendBorrowWidget] = useState(() => {
+    const saved = localStorage.getItem('showLendBorrowWidget');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  // Load user preferences for Lend & Borrow widget visibility
+  useEffect(() => {
+    if (user?.id) {
+      const loadPreferences = async () => {
+        try {
+          const showWidget = await getPreference(user.id, 'showLendBorrowWidget', true);
+          setShowLendBorrowWidget(showWidget);
+          localStorage.setItem('showLendBorrowWidget', JSON.stringify(showWidget));
+        } catch (error) {
+          console.error('Error loading Lend & Borrow widget preferences:', error);
+          // Keep current localStorage value if database fails
+        }
+      };
+      loadPreferences();
+    }
+  }, [user?.id]);
+
+  // Show Lend & Borrow widget on dashboard
+  const handleShowLendBorrowWidget = async () => {
+    // Update localStorage immediately for instant UI response
+    localStorage.setItem('showLendBorrowWidget', JSON.stringify(true));
+    setShowLendBorrowWidget(true);
+    
+    // Save to database if user is authenticated
+    if (user?.id) {
+      try {
+        await setPreference(user.id, 'showLendBorrowWidget', true);
+        toast.success('Lend & Borrow widget will be shown on dashboard!', {
+          description: 'You can hide it again from the dashboard'
+        });
+      } catch (error) {
+        console.error('Error saving Lend & Borrow widget preferences:', error);
+        toast.error('Failed to save preference', {
+          description: 'Your preference will be saved locally only'
+        });
+      }
+    } else {
+      toast.info('Preference saved locally', {
+        description: 'Sign in to sync preferences across devices'
+      });
+    }
+  };
 
   // Date filter functions
   const getThisMonthDateRange = () => {
@@ -521,7 +571,7 @@ export const LendBorrowView: React.FC = () => {
   const handleCloseModal = () => {
     setTempFilters({
       type: 'all',
-      status: 'all',
+      status: 'active',
       search: '',
       currency: '',
       dateRange: { start: '', end: '' }
@@ -616,6 +666,30 @@ export const LendBorrowView: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Show on Dashboard Button */}
+      {!showLendBorrowWidget && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                Lend & Borrow Widget Hidden
+              </h3>
+              <p className="text-blue-700 dark:text-blue-300 text-sm">
+                The Lend & Borrow widget is currently hidden on your dashboard.
+              </p>
+            </div>
+            <button
+              onClick={handleShowLendBorrowWidget}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+              title="Show Lend & Borrow Widget on Dashboard"
+            >
+              <Eye className="w-4 h-4" />
+              <span>Show on Dashboard</span>
+            </button>
+          </div>
+        </div>
+      )}
+
           {/* Unified Table View - New Section */}
           <div className="space-y-6">
 
@@ -867,10 +941,10 @@ export const LendBorrowView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Clear Filters */}
-                {(filters.search || filters.type !== 'all' || filters.status !== 'all' || (filters.currency && filters.currency !== getDefaultCurrency()) || (filters.dateRange.start && filters.dateRange.end)) && (
+                {/* Clear Filters - Only show cross icon for non-default filters */}
+                {(filters.search || filters.type !== 'all' || filters.status !== 'active' || (filters.currency && filters.currency !== getDefaultCurrency()) || (filters.dateRange.start && filters.dateRange.end)) && (
                   <button
-                    onClick={() => setFilters({ search: '', type: 'all', status: 'all', currency: '', dateRange: { start: '', end: '' } })}
+                    onClick={() => setFilters({ search: '', type: 'all', status: 'active', currency: '', dateRange: { start: '', end: '' } })}
                     className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
                     title="Clear all filters"
                   >
@@ -985,7 +1059,7 @@ export const LendBorrowView: React.FC = () => {
                     setShowMobileFilterMenu(false);
                   }}
                   className={`p-1 rounded-full transition-colors ${
-                    (tempFilters.type !== 'all' || tempFilters.status !== 'all' || tempFilters.currency || tempFilters.dateRange.start || tempFilters.dateRange.end)
+                    (tempFilters.type !== 'all' || tempFilters.status !== 'active' || tempFilters.currency || tempFilters.dateRange.start || tempFilters.dateRange.end)
                       ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
                       : 'text-gray-400'
                   }`}

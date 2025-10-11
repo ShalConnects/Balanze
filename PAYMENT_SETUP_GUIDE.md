@@ -26,7 +26,7 @@ Your Balanze application now has a complete payment integration system that allo
    - Create a product called "Balanze Premium"
    - Add two prices:
      - **Monthly**: $7.99/month
-     - **Lifetime**: $99.99 one-time (save 23%)
+     - **Lifetime**: $199.99 one-time (save 23%)
 
 ### 2. Environment Variables
 

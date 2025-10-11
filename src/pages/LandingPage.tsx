@@ -24,6 +24,13 @@ const LandingPage: React.FC = () => {
     billingCycle: 'monthly' as 'monthly' | 'one-time',
     features: [] as string[]
   });
+  
+  // Animated counter states
+  const [userCount, setUserCount] = useState(0);
+  const [transactionCount, setTransactionCount] = useState(0);
+  const [savingsCount, setSavingsCount] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+  
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useThemeStore();
   const { user, signOut } = useAuthStore();
@@ -162,6 +169,40 @@ const LandingPage: React.FC = () => {
     
     return () => {};
   }, []);
+
+  // Animated counter effect
+  useEffect(() => {
+    setIsVisible(true);
+    
+    const animateCount = (target: number, setter: (value: number) => void, duration: number = 2000) => {
+      let startTime: number | null = null;
+      const startValue = 0;
+      
+      const animate = (currentTime: number) => {
+        if (!startTime) startTime = currentTime;
+        const progress = Math.min((currentTime - startTime) / duration, 1);
+        
+        const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+        const currentValue = Math.floor(startValue + (target - startValue) * easeOutQuart);
+        
+        setter(currentValue);
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+      
+      requestAnimationFrame(animate);
+    };
+
+    if (isVisible) {
+      setTimeout(() => {
+        animateCount(12500, setUserCount, 2500);
+        animateCount(2500000, setTransactionCount, 3000);
+        animateCount(15, setSavingsCount, 2000);
+      }, 500);
+    }
+  }, [isVisible]);
 
   const openPaymentModal = (planId: string, planName: string, price: number, cycle: 'monthly' | 'one-time') => {
     // Check if user is authenticated
@@ -444,38 +485,103 @@ const LandingPage: React.FC = () => {
               )}
             </div>
             
-            {/* Trust indicators */}
-            <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-8 text-sm text-gray-500 dark:text-gray-400">
-              <div className="flex items-center">
-                <Shield className="w-4 h-4 mr-2" />
-                <span>Bank-level security</span>
+            {/* Trust indicators - Enhanced with animated counters */}
+            <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
+              <div className="flex flex-col items-center p-4 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:scale-105 hover:shadow-lg">
+                <Users className="w-8 h-8 mb-2 text-blue-600 dark:text-blue-400" />
+                <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  {userCount.toLocaleString()}+
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Happy Users</div>
               </div>
-              <div className="flex items-center">
-                <Users className="w-4 h-4 mr-2" />
-                <span>10,000+ users trust us</span>
+              <div className="flex flex-col items-center p-4 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:scale-105 hover:shadow-lg">
+                <TrendingUp className="w-8 h-8 mb-2 text-green-600 dark:text-green-400" />
+                <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+                  {transactionCount.toLocaleString()}+
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Transactions Tracked</div>
               </div>
-              <div className="flex items-center">
-                <Globe className="w-4 h-4 mr-2" />
-                <span>Available worldwide</span>
+              <div className="flex flex-col items-center p-4 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:scale-105 hover:shadow-lg">
+                <Shield className="w-8 h-8 mb-2 text-purple-600 dark:text-purple-400" />
+                <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  ${savingsCount}M+
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Money Saved</div>
               </div>
             </div>
           </div>
           
           <div className="mt-16 flex justify-center">
-            <div className="relative">
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-4 transform rotate-3 hover:rotate-0 transition-transform duration-500">
+            <div className="relative group">
+              {/* Floating background decoration */}
+              <div className="absolute -inset-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl blur-2xl opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
+              
+              <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-4 transform rotate-3 hover:rotate-0 transition-all duration-500 group-hover:shadow-3xl">
                 <img 
                   src="/main-dashboard.png" 
                   alt="Balanze Dashboard"
                   className="w-full max-w-4xl rounded-xl"
                 />
               </div>
-              <div className="absolute -top-4 -right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3">
+              
+              {/* Live Demo Badge */}
+              <div className="absolute -top-4 -right-4 bg-gradient-to-r from-green-400 to-green-600 rounded-lg shadow-lg p-3 animate-bounce">
                 <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Live Demo</span>
+                  <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                  <span className="text-sm font-bold text-white">Live Demo</span>
                 </div>
               </div>
+              
+              {/* Floating info cards */}
+              <div className="absolute -left-8 top-1/4 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 transform -rotate-6 hover:rotate-0 transition-transform duration-300 hidden lg:block">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-green-600 rounded-full flex items-center justify-center">
+                    <TrendingUp className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Savings This Month</div>
+                    <div className="text-lg font-bold text-green-600 dark:text-green-400">+$1,250</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="absolute -right-8 bottom-1/4 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 transform rotate-6 hover:rotate-0 transition-transform duration-300 hidden lg:block">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-600 rounded-full flex items-center justify-center">
+                    <Target className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Goal Progress</div>
+                    <div className="text-lg font-bold text-blue-600 dark:text-blue-400">78%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Social Proof - Real-time Activity */}
+      <section className="py-8 md:py-12 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 relative overflow-hidden">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-center gap-4 md:gap-8 flex-wrap">
+            <div className="flex items-center gap-2 md:gap-3 bg-white dark:bg-gray-800 px-4 md:px-6 py-2 md:py-3 rounded-full shadow-lg animate-pulse">
+              <div className="w-2 h-2 md:w-3 md:h-3 bg-green-500 rounded-full animate-ping"></div>
+              <span className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span className="font-bold text-blue-600 dark:text-blue-400">Sarah</span> just saved <span className="font-bold text-green-600">$500</span> <span className="hidden sm:inline">this month</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2 md:gap-3 bg-white dark:bg-gray-800 px-4 md:px-6 py-2 md:py-3 rounded-full shadow-lg">
+              <Star className="w-4 h-4 text-yellow-500 fill-current flex-shrink-0" />
+              <span className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span className="font-bold">4.9/5</span> <span className="hidden sm:inline">rating from</span> <span className="font-bold">2,500+</span> <span className="hidden sm:inline">reviews</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2 md:gap-3 bg-white dark:bg-gray-800 px-4 md:px-6 py-2 md:py-3 rounded-full shadow-lg">
+              <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+              <span className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span className="font-bold">Bank-level</span> <span className="hidden sm:inline">encryption</span>
+              </span>
             </div>
           </div>
         </div>
@@ -496,17 +602,25 @@ const LandingPage: React.FC = () => {
             {features.filter(f => f.title !== 'Last Wish').map((feature, index) => (
               <div 
                 key={index}
-                className="bg-white dark:bg-gray-700 rounded-xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col items-center text-center w-72"
+                className="group bg-white dark:bg-gray-700 rounded-xl p-8 shadow-lg hover:shadow-2xl transition-all duration-500 flex flex-col items-center text-center w-72 transform hover:-translate-y-2 hover:scale-105 cursor-pointer border border-transparent hover:border-blue-500/50 dark:hover:border-purple-500/50 relative overflow-hidden"
               >
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center mb-6">
-                  <feature.icon className="w-8 h-8 text-white" />
+                {/* Animated background gradient on hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/10 dark:to-purple-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-xl"></div>
+                
+                <div className="relative z-10 w-full">
+                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center mb-6 mx-auto transform group-hover:rotate-12 group-hover:scale-110 transition-transform duration-500 shadow-lg group-hover:shadow-xl">
+                    <feature.icon className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 group-hover:text-blue-600 dark:group-hover:text-purple-400 transition-colors duration-300">
+                    {feature.title}
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-300 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors duration-300">
+                    {feature.description}
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-300">
-                  {feature.description}
-                </p>
+                
+                {/* Decorative corner accent */}
+                <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               </div>
             ))}
           </div>
@@ -664,6 +778,134 @@ const LandingPage: React.FC = () => {
             <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold shadow-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300">
               Unlock Last Wish with Premium
             </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Comparison Section - Why Choose Balanze */}
+      <section className="py-20 bg-white dark:bg-gray-900 relative">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              Why Choose <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Balanze</span>?
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+              See how we compare to other financial tracking solutions
+            </p>
+          </div>
+          
+          <div className="max-w-5xl mx-auto">
+            {/* Mobile-friendly comparison */}
+            <div className="md:hidden space-y-4">
+              {[
+                { feature: 'Multi-currency support', balanze: true, others: false },
+                { feature: 'Lend & borrow tracking', balanze: true, others: false },
+                { feature: 'Unlimited accounts', balanze: true, others: false },
+                { feature: 'Last Wish feature', balanze: true, others: false },
+                { feature: 'Bank-level security', balanze: true, others: true },
+                { feature: 'Mobile app', balanze: true, others: true },
+                { feature: 'Dark mode', balanze: true, others: false },
+                { feature: 'Data export', balanze: true, others: 'Limited' },
+              ].map((row, index) => (
+                <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+                  <div className="p-4 font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700">
+                    {row.feature}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 p-4">
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Balanze</div>
+                      <div className="flex justify-center">
+                        {typeof row.balanze === 'boolean' ? (
+                          row.balanze ? (
+                            <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
+                          ) : (
+                            <X className="w-6 h-6 text-red-600 dark:text-red-400" />
+                          )
+                        ) : (
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{row.balanze}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Others</div>
+                      <div className="flex justify-center">
+                        {typeof row.others === 'boolean' ? (
+                          row.others ? (
+                            <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
+                          ) : (
+                            <X className="w-6 h-6 text-red-600 dark:text-red-400" />
+                          )
+                        ) : (
+                          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{row.others}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop comparison table */}
+            <div className="hidden md:grid md:grid-cols-3 gap-4">
+              {/* Header Row */}
+              <div className="hidden md:block"></div>
+              <div className="text-center p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-xl">
+                <h3 className="text-xl font-bold text-white">Balanze</h3>
+              </div>
+              <div className="text-center p-4 bg-gray-100 dark:bg-gray-800 rounded-t-xl">
+                <h3 className="text-xl font-bold text-gray-600 dark:text-gray-400">Others</h3>
+              </div>
+
+              {/* Comparison Rows */}
+              {[
+                { feature: 'Multi-currency support', balanze: true, others: false },
+                { feature: 'Lend & borrow tracking', balanze: true, others: false },
+                { feature: 'Unlimited accounts', balanze: true, others: false },
+                { feature: 'Last Wish feature', balanze: true, others: false },
+                { feature: 'Bank-level security', balanze: true, others: true },
+                { feature: 'Mobile app', balanze: true, others: true },
+                { feature: 'Dark mode', balanze: true, others: false },
+                { feature: 'Data export', balanze: true, others: 'Limited' },
+              ].map((row, index) => (
+                <React.Fragment key={index}>
+                  <div className="flex items-center p-4 font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+                    {row.feature}
+                  </div>
+                  <div className="flex items-center justify-center p-4 bg-blue-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+                    {typeof row.balanze === 'boolean' ? (
+                      row.balanze ? (
+                        <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
+                      ) : (
+                        <X className="w-6 h-6 text-red-600 dark:text-red-400" />
+                      )
+                    ) : (
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{row.balanze}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                    {typeof row.others === 'boolean' ? (
+                      row.others ? (
+                        <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
+                      ) : (
+                        <X className="w-6 h-6 text-red-600 dark:text-red-400" />
+                      )
+                    ) : (
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{row.others}</span>
+                    )}
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
+            
+            <div className="mt-8 text-center">
+              <button
+                onClick={() => navigate('/auth')}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg inline-flex items-center"
+              >
+                Start Your Free Trial
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -831,7 +1073,7 @@ const LandingPage: React.FC = () => {
                 <p className="text-sm mb-4 text-purple-700 dark:text-purple-300 font-medium">Unlock unlimited features and advanced financial insights</p>
                 <div className="flex items-baseline justify-center">
                   <span className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    ${billingCycle === 'one-time' ? '99.99' : '7.99'}
+                    ${billingCycle === 'one-time' ? '199.99' : '7.99'}
                   </span>
                   <span className="ml-1 text-sm lg:text-base text-purple-600 dark:text-purple-400">/{billingCycle === 'one-time' ? 'lifetime' : 'month'}</span>
                 </div>
@@ -939,7 +1181,7 @@ const LandingPage: React.FC = () => {
                   className="w-full rounded-lg px-3 lg:px-4 py-2 lg:py-2.5 text-sm font-medium transition-colors bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg"
                   onClick={() => {
                     const planId = billingCycle === 'one-time' ? 'premium_lifetime' : 'premium_monthly';
-                    const price = billingCycle === 'one-time' ? 99.99 : 7.99;
+                    const price = billingCycle === 'one-time' ? 199.99 : 7.99;
                     openPaymentModal(planId, 'Premium', price, billingCycle);
                   }}
                 >
@@ -1040,6 +1282,76 @@ const LandingPage: React.FC = () => {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA Section */}
+      <section className="py-20 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 relative overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-1/2 -left-1/2 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-1/2 -right-1/2 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        </div>
+        
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              Ready to Transform Your Financial Life?
+            </h2>
+            <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+              Join thousands of users who are already taking control of their finances. Start your free trial today—no credit card required.
+            </p>
+            
+            {/* Value propositions */}
+            <div className="flex flex-wrap items-center justify-center gap-6 mb-10">
+              <div className="flex items-center gap-2 text-white">
+                <Check className="w-5 h-5" />
+                <span className="font-medium">14-day free trial</span>
+              </div>
+              <div className="flex items-center gap-2 text-white">
+                <Check className="w-5 h-5" />
+                <span className="font-medium">No credit card required</span>
+              </div>
+              <div className="flex items-center gap-2 text-white">
+                <Check className="w-5 h-5" />
+                <span className="font-medium">Cancel anytime</span>
+              </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <button
+                onClick={() => navigate('/auth')}
+                className="bg-white text-purple-600 px-10 py-5 rounded-lg text-lg font-bold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-2xl inline-flex items-center"
+              >
+                Start Free Trial Now
+                <ArrowRight className="w-6 h-6 ml-2" />
+              </button>
+              <button
+                onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                className="bg-transparent border-2 border-white text-white px-10 py-5 rounded-lg text-lg font-bold hover:bg-white/10 transition-all duration-300 inline-flex items-center"
+              >
+                View Pricing
+              </button>
+            </div>
+            
+            {/* Trust indicators */}
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-3 md:gap-4 text-white/80 text-xs md:text-sm">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 flex-shrink-0" />
+                <span>SSL Secured</span>
+              </div>
+              <div className="hidden sm:block w-1 h-1 bg-white/40 rounded-full"></div>
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 flex-shrink-0" />
+                <span className="whitespace-nowrap">12,500+ Users</span>
+              </div>
+              <div className="hidden sm:block w-1 h-1 bg-white/40 rounded-full"></div>
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 fill-current flex-shrink-0" />
+                <span className="whitespace-nowrap">4.9/5 Rating</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>

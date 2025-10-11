@@ -497,8 +497,8 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
             </div>
           </div>
 
-          {/* Recurring Section */}
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+          {/* Recurring Section (hidden for now) */}
+          {/* <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
             <div className="flex items-center mb-3">
               <input
                 id="recurring-enabled"
@@ -534,7 +534,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
                 </select>
               </div>
             )}
-          </div>
+          </div> */}
 
           {/* Additional Amounts Section */}
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4">

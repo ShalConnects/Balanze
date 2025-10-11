@@ -4,7 +4,7 @@ import { useFinanceStore } from '../../store/useFinanceStore';
 import { useThemeStore } from '../../store/themeStore';
 import { useAuthStore } from '../../store/authStore';
 import { NotificationDropdown } from './NotificationDropdown';
-import { useNotificationStore } from '../../store/notificationStore';
+import { useNotificationsStore } from '../../stores/notificationsStore';
 import { ProfileEditModal } from './ProfileEditModal';
 import { useNavigate, Link } from 'react-router-dom';
 import { GlobalSearchDropdown } from './GlobalSearchDropdown';
@@ -32,7 +32,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
   const { setGlobalSearchTerm, globalSearchTerm, fetchTransactions, fetchAccounts, fetchCategories, fetchPurchaseCategories, fetchDonationSavingRecords, fetchPurchases } = useFinanceStore();
   const { isDarkMode, toggleTheme } = useThemeStore();
   const { user, profile, signOut, isLoading } = useAuthStore();
-  const { unreadCount } = useNotificationStore();
+  const { unreadCount } = useNotificationsStore();
   const { i18n, t } = useTranslation();
   const { isMobile } = useMobileDetection();
   const [showUserMenu, setShowUserMenu] = useState(false);

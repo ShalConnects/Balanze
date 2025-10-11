@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { SavingsGoal } from '../types';
+import { useFinanceStore } from './useFinanceStore';
 
 interface SavingsStore {
   savingsGoals: SavingsGoal[];
@@ -37,14 +38,19 @@ export const useSavingsStore = create<SavingsStore>((set, get) => ({
     try {
       set({ loading: true, error: null });
       
+      // Get accounts from the main finance store
+      const accounts = useFinanceStore.getState().accounts;
+      const sourceAccount = accounts.find(a => a.id === goal.source_account_id);
+      
       // First create a new savings account
       const { data: accountData, error: accountError } = await supabase
         .from('accounts')
         .insert([{
           name: `${goal.name} (Savings)`,
           type: 'savings',
-          balance: 0,
-          currency: (await get().accounts.find(a => a.id === goal.source_account_id))?.currency || 'USD',
+          calculated_balance: 0,
+          initial_balance: 0,
+          currency: sourceAccount?.currency || 'USD',
           description: goal.description
         }])
         .select()
@@ -52,12 +58,21 @@ export const useSavingsStore = create<SavingsStore>((set, get) => ({
 
       if (accountError) throw accountError;
 
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       // Then create the savings goal
       const { error: goalError } = await supabase
         .from('savings_goals')
         .insert([{
-          ...goal,
+          name: goal.name,
+          target_amount: goal.target_amount,
+          target_date: goal.target_date,
+          source_account_id: goal.source_account_id,
           savings_account_id: accountData.id,
+          user_id: user.id,
+          description: goal.description,
           current_amount: 0
         }]);
 

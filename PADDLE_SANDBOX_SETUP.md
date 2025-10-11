@@ -31,7 +31,7 @@ Based on the Paddle documentation you provided, here's your step-by-step setup:
 1. Go to **Catalog** → **Products**
 2. Create these products:
    - **Premium Monthly** - $7.99/month (recurring)
-   - **Premium Lifetime** - $99.99 one-time
+   - **Premium Lifetime** - $199.99 one-time
 3. Copy the **Price IDs** (start with `pri_`)
 
 ### **Step 4: Create .env.local File**

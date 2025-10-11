@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Account, Transaction, Category, Budget, DashboardStats, SavingsGoal, Purchase, PurchaseCategory, PurchaseAnalytics, MultiCurrencyPurchaseAnalytics, PurchaseAttachment, LendBorrowAnalytics, LendBorrow } from '../types';
-import { DonationSavingRecord, DonationSavingAnalytics } from '../types/index';
+import { DonationSavingRecord, DonationSavingAnalytics, PaymentTransaction, PaymentHistoryStats } from '../types/index';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
 import { showToast } from '../lib/toast';
@@ -29,6 +29,10 @@ interface FinanceStore {
   showPurchaseForm: boolean;
   donationSavingRecords: DonationSavingRecord[];
   setDonationSavingRecords: (records: DonationSavingRecord[] | ((prev: DonationSavingRecord[]) => DonationSavingRecord[])) => void;
+  
+  // Payment History
+  paymentTransactions: PaymentTransaction[];
+  setPaymentTransactions: (transactions: PaymentTransaction[] | ((prev: PaymentTransaction[]) => PaymentTransaction[])) => void;
 
   // Upgrade Modal State
   upgradeModal: {
@@ -135,6 +139,7 @@ interface FinanceStore {
   getDonationSavingAnalytics: () => DonationSavingAnalytics;
   getDonationSavingRecordsByType: (type: 'saving' | 'donation') => DonationSavingRecord[];
   getDonationSavingRecordsByMonth: (month: string) => DonationSavingRecord[];
+  deleteDonationSavingRecord: (id: string) => Promise<{ success: boolean; error?: string }>;
   
   // Lend & Borrow Analytics
   getLendBorrowAnalytics: () => LendBorrowAnalytics;
@@ -144,6 +149,10 @@ interface FinanceStore {
   addLendBorrowRecord: (record: any) => Promise<void>;
   updateLendBorrowRecord: (id: string, updates: Partial<LendBorrow>) => Promise<void>;
   deleteLendBorrowRecord: (id: string) => Promise<void>;
+  
+  // Payment History Management
+  fetchPaymentTransactions: () => Promise<void>;
+  getPaymentHistoryStats: () => PaymentHistoryStats;
 }
 
 const defaultCategories: Category[] = [
@@ -187,6 +196,14 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   setDonationSavingRecords: (records) => {
     set((state) => ({
       donationSavingRecords: typeof records === 'function' ? records(state.donationSavingRecords) : records
+    }));
+  },
+  
+  // Payment History
+  paymentTransactions: [],
+  setPaymentTransactions: (transactions) => {
+    set((state) => ({
+      paymentTransactions: typeof transactions === 'function' ? transactions(state.paymentTransactions) : transactions
     }));
   },
 
@@ -2155,6 +2172,54 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     });
   },
 
+  deleteDonationSavingRecord: async (id: string) => {
+    try {
+      set({ loading: true, error: null });
+      
+      const { user } = useAuthStore.getState();
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+
+      // First, get the record to check if it's a manual donation
+      const { data: record, error: fetchError } = await supabase
+        .from('donation_saving_records')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (fetchError) {
+        throw new Error('Record not found or access denied');
+      }
+
+      // Only allow deletion of manual donations (those with custom_transaction_id and no transaction_id)
+      if (record.transaction_id !== null) {
+        throw new Error('Cannot delete donations linked to transactions. Only manual donations can be deleted.');
+      }
+
+      // Delete the record
+      const { error: deleteError } = await supabase
+        .from('donation_saving_records')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      // Refresh the records
+      await get().fetchDonationSavingRecords();
+      set({ loading: false });
+      
+      return { success: true };
+    } catch (err: any) {
+      set({ error: err.message || 'Failed to delete donation record', loading: false });
+      return { success: false, error: err.message };
+    }
+  },
+
   // Lend & Borrow Analytics
   getLendBorrowAnalytics: () => {
     // For now, return dummy data since we don't have lend/borrow data in the store yet
@@ -2271,5 +2336,85 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     } catch (err: any) {
       set({ error: err.message || 'Failed to delete lend/borrow record', loading: false });
     }
+  },
+
+  // Payment History Management
+  fetchPaymentTransactions: async () => {
+    try {
+      set({ loading: true, error: null });
+      const { user } = useAuthStore.getState();
+      
+      if (!user) {
+        set({ loading: false });
+        return;
+      }
+
+      // Fetch from subscription_history table (the REAL table)
+      const { data: historyData, error: historyError } = await supabase
+        .from('subscription_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (historyError) {
+        console.error('Error fetching subscription history:', historyError);
+        set({ 
+          error: historyError.message, 
+          paymentTransactions: [],
+          loading: false 
+        });
+        return;
+      }
+
+      // Transform subscription_history data to payment transaction format
+      const transformedTransactions = historyData?.map(sub => ({
+        id: sub.id,
+        user_id: sub.user_id,
+        plan_id: sub.plan_id,
+        amount: sub.amount_paid || 0,
+        currency: sub.currency || 'USD',
+        payment_provider: 'stripe' as const, // Default to stripe
+        provider_transaction_id: sub.id, // Use subscription history ID
+        status: sub.status === 'active' ? 'completed' as const : 
+                sub.status === 'cancelled' ? 'cancelled' as const : 
+                sub.status === 'expired' ? 'failed' as const :
+                'pending' as const,
+        payment_method: sub.payment_method || 'N/A',
+        billing_cycle: 'monthly' as const, // Default billing cycle
+        transaction_type: 'payment' as const,
+        metadata: { 
+          source: 'subscription_history',
+          start_date: sub.start_date,
+          end_date: sub.end_date 
+        },
+        created_at: sub.created_at,
+        plan_name: sub.plan_name || 'Unknown Plan'
+      })) || [];
+
+      set({ 
+        paymentTransactions: transformedTransactions,
+        loading: false 
+      });
+    } catch (err: any) {
+      console.error('Error fetching payment transactions:', err);
+      set({ 
+        error: err.message || 'Failed to fetch payment transactions', 
+        paymentTransactions: [],
+        loading: false 
+      });
+    }
+  },
+
+  getPaymentHistoryStats: (): PaymentHistoryStats => {
+    const { paymentTransactions } = get();
+    
+    return {
+      totalTransactions: paymentTransactions.length,
+      totalAmount: paymentTransactions.reduce((sum, tx) => sum + tx.amount, 0),
+      completedTransactions: paymentTransactions.filter(tx => tx.status === 'completed').length,
+      pendingTransactions: paymentTransactions.filter(tx => tx.status === 'pending').length,
+      failedTransactions: paymentTransactions.filter(tx => tx.status === 'failed').length,
+      refundedTransactions: paymentTransactions.filter(tx => tx.status === 'refunded').length
+    };
   },
 }));

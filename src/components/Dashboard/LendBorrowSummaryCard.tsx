@@ -8,6 +8,8 @@ import { StatCard } from './StatCard';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { formatCurrency } from '../../utils/currency';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { getPreference, setPreference } from '../../lib/userPreferences';
+import { toast } from 'sonner';
 
 export const LendBorrowSummaryCard: React.FC = () => {
   const { user, profile } = useAuthStore();
@@ -23,6 +25,12 @@ export const LendBorrowSummaryCard: React.FC = () => {
   const [filterCurrency, setFilterCurrency] = useState('');
   const [tooltipPosition, setTooltipPosition] = useState<'center' | 'right'>('center');
   const { isMobile } = useMobileDetection();
+  
+  // Widget visibility state - hybrid approach (localStorage + database)
+  const [showLendBorrowWidget, setShowLendBorrowWidget] = useState(() => {
+    const saved = localStorage.getItem('showLendBorrowWidget');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
   
   // Refs for responsive positioning
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -48,6 +56,49 @@ export const LendBorrowSummaryCard: React.FC = () => {
       setFilterCurrency(filteredCurrencies[0]);
     }
   }, [filteredCurrencies, filterCurrency]);
+
+  // Load user preferences for Lend & Borrow widget visibility
+  useEffect(() => {
+    if (user?.id) {
+      const loadPreferences = async () => {
+        try {
+          const showWidget = await getPreference(user.id, 'showLendBorrowWidget', true);
+          setShowLendBorrowWidget(showWidget);
+          localStorage.setItem('showLendBorrowWidget', JSON.stringify(showWidget));
+        } catch (error) {
+          console.error('Error loading Lend & Borrow widget preferences:', error);
+          // Keep current localStorage value if database fails
+        }
+      };
+      loadPreferences();
+    }
+  }, [user?.id]);
+
+  // Save Lend & Borrow widget visibility preference (hybrid approach)
+  const handleLendBorrowWidgetToggle = async (show: boolean) => {
+    // Update localStorage immediately for instant UI response
+    localStorage.setItem('showLendBorrowWidget', JSON.stringify(show));
+    setShowLendBorrowWidget(show);
+    
+    // Save to database if user is authenticated
+    if (user?.id) {
+      try {
+        await setPreference(user.id, 'showLendBorrowWidget', show);
+        toast.success('Preference saved!', {
+          description: show ? 'Lend & Borrow widget will be shown' : 'Lend & Borrow widget hidden'
+        });
+      } catch (error) {
+        console.error('Error saving Lend & Borrow widget preferences:', error);
+        toast.error('Failed to save preference', {
+          description: 'Your preference will be saved locally only'
+        });
+      }
+    } else {
+      toast.info('Preference saved locally', {
+        description: 'Sign in to sync preferences across devices'
+      });
+    }
+  };
 
   // Function to calculate tooltip position
   const calculateTooltipPosition = () => {
@@ -126,9 +177,24 @@ export const LendBorrowSummaryCard: React.FC = () => {
     return null;
   }
 
+  // Don't render if widget is hidden
+  if (!showLendBorrowWidget) {
+    return null;
+  }
+
   return (
-    <div ref={cardRef} className="bg-white dark:bg-gray-800 rounded-xl p-6">
-      <div className="flex items-center justify-between mb-4">
+    <div ref={cardRef} className="bg-white dark:bg-gray-800 rounded-xl p-6 relative">
+      {/* Hide button */}
+      <button
+        onClick={() => handleLendBorrowWidgetToggle(false)}
+        className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+        aria-label="Hide Lend & Borrow widget"
+        title="Hide Lend & Borrow widget"
+      >
+        <X className="w-4 h-4" />
+      </button>
+      
+      <div className="flex items-center justify-between mb-4 pr-8">
         <div className="flex items-center gap-2 flex-1">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Lent & Borrow</h2>
           <div className="relative flex items-center">

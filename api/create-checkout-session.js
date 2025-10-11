@@ -21,7 +21,7 @@ export default async function handler(req, res) {
         interval: 'month',
       },
       premium_lifetime: {
-        price: 9999, // $99.99 in cents
+        price: 19999, // $199.99 in cents
         currency: 'usd',
         interval: 'one-time',
       },

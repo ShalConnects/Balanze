@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useFinanceStore } from '../../store/useFinanceStore';
-import { PlusIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, StarIcon, CalendarDaysIcon, ArrowTrendingUpIcon, CheckIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { SavingsGoal } from '../../types';
 import { formatCurrency } from '../../utils/currency';
 import { SavingsGoalForm } from './SavingsGoalForm';
 import { Dialog } from '@headlessui/react';
+import { format } from 'date-fns';
 
 export const SavingsView: React.FC = () => {
   const { accounts, savingsGoals, fetchSavingsGoals, saveSavingsGoal, loading, error } = useFinanceStore();
@@ -25,6 +26,49 @@ export const SavingsView: React.FC = () => {
     setShowSaveForm(false);
     setSaveAmount('');
     setSelectedGoal(null);
+  };
+
+  const getGoalStatus = (goal: SavingsGoal) => {
+    const progress = (goal.current_amount / goal.target_amount) * 100;
+    const targetDate = new Date(goal.target_date);
+    const today = new Date();
+    const daysLeft = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (progress >= 100) return 'completed';
+    if (daysLeft < 0) return 'overdue';
+    if (daysLeft <= 7) return 'urgent';
+    if (progress >= 75) return 'almost-there';
+    return 'on-track';
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'text-green-600 bg-green-50 border-green-200';
+      case 'overdue': return 'text-red-600 bg-red-50 border-red-200';
+      case 'urgent': return 'text-orange-600 bg-orange-50 border-orange-200';
+      case 'almost-there': return 'text-blue-600 bg-blue-50 border-blue-200';
+      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed': return <CheckIcon className="w-5 h-5" />;
+      case 'overdue': return <ExclamationTriangleIcon className="w-5 h-5" />;
+      case 'urgent': return <ClockIcon className="w-5 h-5" />;
+      case 'almost-there': return <ArrowTrendingUpIcon className="w-5 h-5" />;
+      default: return <StarIcon className="w-5 h-5" />;
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'completed': return 'Completed!';
+      case 'overdue': return 'Overdue';
+      case 'urgent': return 'Due Soon';
+      case 'almost-there': return 'Almost There';
+      default: return 'On Track';
+    }
   };
 
   return (
@@ -51,53 +95,119 @@ export const SavingsView: React.FC = () => {
           const sourceAccount = accounts.find(a => a.id === goal.source_account_id);
           const savingsAccount = accounts.find(a => a.id === goal.savings_account_id);
           const progress = (goal.current_amount / goal.target_amount) * 100;
+          const status = getGoalStatus(goal);
+          const targetDate = new Date(goal.target_date);
+          const today = new Date();
+          const daysLeft = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          const remainingAmount = goal.target_amount - goal.current_amount;
           
           return (
-            <div key={goal.id} className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900">{goal.name}</h3>
-              {goal.description && (
-                <p className="mt-1 text-sm text-gray-500">{goal.description}</p>
-              )}
-              
-              <div className="mt-4">
-                <div className="flex justify-between text-sm text-gray-500">
-                  <span>Progress</span>
-                  <span>{Math.round(progress)}%</span>
+            <div key={goal.id} className={`bg-white rounded-xl shadow-lg border-2 p-6 transition-all duration-200 hover:shadow-xl ${getStatusColor(status)}`}>
+              {/* Header with status */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{goal.name}</h3>
+                  {goal.description && (
+                    <p className="text-sm text-gray-600">{goal.description}</p>
+                  )}
                 </div>
-                <div className="mt-1 h-2 bg-gray-200 rounded-full">
+                <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                  {getStatusIcon(status)}
+                  <span>{getStatusText(status)}</span>
+                </div>
+              </div>
+              
+              {/* Progress Section */}
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-gray-700">Progress</span>
+                  <span className="text-sm font-bold text-gray-900">{Math.round(progress)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
                   <div
-                    className="h-2 bg-blue-600 rounded-full"
+                    className={`h-3 rounded-full transition-all duration-500 ${
+                      status === 'completed' ? 'bg-green-500' :
+                      status === 'overdue' ? 'bg-red-500' :
+                      status === 'urgent' ? 'bg-orange-500' :
+                      status === 'almost-there' ? 'bg-blue-500' :
+                      'bg-gray-500'
+                    }`}
                     style={{ width: `${Math.min(progress, 100)}%` }}
                   />
                 </div>
-                <div className="mt-2 flex justify-between text-sm">
-                  <span className="text-gray-500">
-                    {formatCurrency(goal.current_amount, sourceAccount?.currency || 'USD')}
+                
+                {/* Amount Display */}
+                <div className="flex justify-between items-center">
+                  <div className="text-left">
+                    <p className="text-sm text-gray-500">Saved</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {formatCurrency(goal.current_amount, sourceAccount?.currency || 'USD')}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-500">Target</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {formatCurrency(goal.target_amount, sourceAccount?.currency || 'USD')}
+                    </p>
+                  </div>
+                </div>
+                
+                {remainingAmount > 0 && (
+                  <div className="mt-2 text-center">
+                    <p className="text-sm text-gray-600">
+                      {formatCurrency(remainingAmount, sourceAccount?.currency || 'USD')} to go
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Timeline and Account Info */}
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <CalendarDaysIcon className="w-4 h-4" />
+                  <span>
+                    Due {format(targetDate, 'MMM dd, yyyy')}
+                    {daysLeft > 0 && ` (${daysLeft} days left)`}
+                    {daysLeft <= 0 && ` (${Math.abs(daysLeft)} days overdue)`}
                   </span>
-                  <span className="font-medium text-gray-900">
-                    {formatCurrency(goal.target_amount, sourceAccount?.currency || 'USD')}
-                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center space-x-2 text-gray-600">
+                    <span>From: {sourceAccount?.name || 'Unknown Account'}</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-gray-600">
+                    <span>To: {savingsAccount?.name || 'Unknown Account'}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-500">
-                  From: {sourceAccount?.name || 'Unknown Account'}
-                </p>
-                <p className="text-sm text-gray-500">
-                  To: {savingsAccount?.name || 'Unknown Account'}
-                </p>
-              </div>
-
+              {/* Action Button */}
               <button
                 onClick={() => {
                   setSelectedGoal(goal);
                   setShowSaveForm(true);
                 }}
-                disabled={loading}
-                className="mt-4 w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || status === 'completed'}
+                className={`w-full inline-flex justify-center items-center px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  status === 'completed' 
+                    ? 'bg-green-100 text-green-700 cursor-not-allowed' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}
               >
-                {loading ? 'Processing...' : 'Save Now'}
+                {status === 'completed' ? (
+                  <>
+                    <CheckIcon className="w-4 h-4 mr-2" />
+                    Goal Completed!
+                  </>
+                ) : loading ? (
+                  'Processing...'
+                ) : (
+                  <>
+                    <ArrowTrendingUpIcon className="w-4 h-4 mr-2" />
+                    Add Money
+                  </>
+                )}
               </button>
             </div>
           );

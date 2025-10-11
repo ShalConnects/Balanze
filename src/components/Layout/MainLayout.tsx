@@ -175,7 +175,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                           : undefined
             )}
           />
-          <main className="flex-1 p-1 sm:p-2 lg:p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 max-w-full">
+          <main className="flex-1 p-1 sm:p-2 lg:p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 max-w-full pb-safe-bottom">
             {children}
           </main>
         </div>

@@ -156,7 +156,7 @@ INSERT INTO subscription_plans (name, description, price, currency, billing_cycl
 VALUES (
     'premium_lifetime',
     'Premium plan with lifetime access',
-    99.99,
+    199.99,
     'USD',
     'one-time',
     '{
@@ -330,19 +330,23 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Apply triggers to all tables
+-- Apply triggers to all tables (safe version - drops existing triggers first)
+DROP TRIGGER IF EXISTS update_subscription_plans_updated_at ON subscription_plans;
 CREATE TRIGGER update_subscription_plans_updated_at
     BEFORE UPDATE ON subscription_plans
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_user_subscriptions_updated_at ON user_subscriptions;
 CREATE TRIGGER update_user_subscriptions_updated_at
     BEFORE UPDATE ON user_subscriptions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_payment_transactions_updated_at ON payment_transactions;
 CREATE TRIGGER update_payment_transactions_updated_at
     BEFORE UPDATE ON payment_transactions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_refund_requests_updated_at ON refund_requests;
 CREATE TRIGGER update_refund_requests_updated_at
     BEFORE UPDATE ON refund_requests
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -389,19 +393,23 @@ ALTER TABLE user_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payment_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE refund_requests ENABLE ROW LEVEL SECURITY;
 
--- Users can only see their own subscriptions
+-- Users can only see their own subscriptions (safe version - drops existing policy first)
+DROP POLICY IF EXISTS "Users can view own subscriptions" ON user_subscriptions;
 CREATE POLICY "Users can view own subscriptions" ON user_subscriptions
     FOR SELECT USING (auth.uid() = user_id);
 
--- Users can only see their own payment transactions
+-- Users can only see their own payment transactions (safe version - drops existing policy first)
+DROP POLICY IF EXISTS "Users can view own transactions" ON payment_transactions;
 CREATE POLICY "Users can view own transactions" ON payment_transactions
     FOR SELECT USING (auth.uid() = user_id);
 
--- Users can only see their own refund requests
+-- Users can only see their own refund requests (safe version - drops existing policy first)
+DROP POLICY IF EXISTS "Users can view own refund requests" ON refund_requests;
 CREATE POLICY "Users can view own refund requests" ON refund_requests
     FOR SELECT USING (auth.uid() = user_id);
 
--- Users can create their own refund requests
+-- Users can create their own refund requests (safe version - drops existing policy first)
+DROP POLICY IF EXISTS "Users can create refund requests" ON refund_requests;
 CREATE POLICY "Users can create refund requests" ON refund_requests
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 

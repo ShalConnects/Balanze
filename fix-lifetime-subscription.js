@@ -30,7 +30,7 @@ async function fixLifetimeSubscription() {
       purchase_details: {
         amount_paid: 0.99,
         currency: 'USD',
-        original_price: 99.99,
+        original_price: 199.99,
         discount_applied: 99.00,
         purchase_date: new Date().toISOString(),
         plan_type: 'lifetime'
@@ -62,7 +62,7 @@ async function fixLifetimeSubscription() {
     
     console.log('✅ Successfully updated to LIFETIME subscription!');
     console.log('Plan: Premium Lifetime');
-    console.log('Amount: $0.99 (discounted from $99.99)');
+    console.log('Amount: $0.99 (discounted from $199.99)');
     console.log('Billing: No recurring billing');
     console.log('Payment Method: Visa ending in 4242');
     

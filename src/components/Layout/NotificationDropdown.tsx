@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, X, Check, ExternalLink, Sparkles, Zap, Bug, Megaphone, Lightbulb } from 'lucide-react';
-import { useNotificationStore, Notification } from '../../store/notificationStore';
+import { useNotificationsStore } from '../../stores/notificationsStore';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -66,18 +66,26 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
     unreadCount,
     markAsRead,
     markAllAsRead,
-    dismissNotification,
-    clearAll,
-  } = useNotificationStore();
+    deleteNotification,
+    clearAllNotifications,
+    fetchNotifications,
+  } = useNotificationsStore();
+
+  // Fetch notifications when component mounts
+  useEffect(() => {
+    if (isOpen) {
+      fetchNotifications();
+    }
+  }, [isOpen, fetchNotifications]);
 
   const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
 
   // Filter notifications based on active tab
   const filteredNotifications = notifications.filter((notification) => {
     if (activeTab === 'unread') {
-      return !notification.read && !notification.dismissed;
+      return !notification.is_read;
     }
-    return !notification.dismissed;
+    return true; // Show all notifications for 'all' tab
   });
 
   // Handle click outside to close dropdown
@@ -95,20 +103,20 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose]);
 
-  const handleNotificationClick = (notification: Notification) => {
-    if (!notification.read) {
+  const handleNotificationClick = (notification: any) => {
+    if (!notification.is_read) {
       markAsRead(notification.id);
     }
     
-    if (notification.actionUrl) {
-      navigate(notification.actionUrl);
+    if (notification.action_url) {
+      navigate(notification.action_url);
       onClose();
     }
   };
 
   const handleDismiss = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    dismissNotification(id);
+    deleteNotification(id);
   };
 
   if (!isOpen) return null;
@@ -202,8 +210,8 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
                   <div
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
-                    className={`p-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 border-l-4 ${getNotificationColor(notification.type)} ${
-                      !notification.read ? 'bg-blue-50 dark:bg-blue-900/10' : ''
+                    className={`p-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 border-l-4 ${
+                      !notification.is_read ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-500' : 'border-gray-200 dark:border-gray-700'
                     }`}
                   >
                     <div className="flex items-start space-x-3">
@@ -218,7 +226,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between">
                           <h4 className={`text-sm font-medium ${
-                            !notification.read 
+                            !notification.is_read 
                               ? 'text-gray-900 dark:text-white' 
                               : 'text-gray-700 dark:text-gray-300'
                           }`}>
@@ -233,18 +241,18 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
                         </div>
                         
                         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          {notification.message}
+                          {notification.body}
                         </p>
                         
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-xs text-gray-500 dark:text-gray-500">
-                            {formatTimeAgo(notification.createdAt)}
+                            {formatTimeAgo(new Date(notification.created_at))}
                           </span>
                           
-                          {notification.actionText && (
+                          {notification.action_text && (
                             <div className="flex items-center space-x-2">
                               <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                                {notification.actionText}
+                                {notification.action_text}
                               </span>
                               <ExternalLink className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                             </div>
@@ -262,7 +270,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
           {filteredNotifications.length > 0 && (
             <div className="p-3 border-t border-gray-200 dark:border-gray-700">
               <button
-                onClick={clearAll}
+                onClick={clearAllNotifications}
                 className="w-full text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
               >
                 {t('notifications.clearAll', 'Clear all notifications')}

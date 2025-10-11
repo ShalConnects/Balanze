@@ -20,7 +20,7 @@ export const PLAN_PRICING = {
   },
   premium_lifetime: {
     priceId: 'price_premium_lifetime', // You'll need to create this in Stripe
-    amount: 9999, // $99.99 in cents
+    amount: 19999, // $199.99 in cents
     currency: 'usd',
     interval: 'one-time',
   },

@@ -77,11 +77,38 @@
   .delay-100 { animation-delay: 0.1s; }
   .delay-200 { animation-delay: 0.2s; }
   .delay-300 { animation-delay: 0.3s; }
+  .delay-500 { animation-delay: 0.5s; }
+  .delay-1000 { animation-delay: 1s; }
+  
+  /* Enhanced shadow utilities */
+  .shadow-3xl {
+    box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Floating animation for cards */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  /* Scale pulse animation */
+  .animate-scale-pulse {
+    animation: scale-pulse 2s ease-in-out infinite;
+  }
 }
 
 @keyframes fadein {
   from { opacity: 0; transform: translateY(24px); }
   to { opacity: 1; transform: none; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes scale-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
 /* Last Wish Widget Animations */
@@ -723,6 +750,26 @@ body.sidebar-open {
   /* Ensure main content respects safe areas */
   .capacitor-android main {
     padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+  }
+  
+  /* Safe bottom padding for all mobile devices */
+  .pb-safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 20px) !important;
+  }
+  
+  /* Additional bottom spacing for Android devices */
+  .capacitor-android .pb-safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 40px) !important;
+  }
+  
+  /* Dashboard specific mobile fixes */
+  .dashboard-mobile-container {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 60px) !important;
+  }
+  
+  /* Ensure transaction lists have proper bottom spacing */
+  .transaction-list-mobile {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 20px) !important;
   }
 }
 

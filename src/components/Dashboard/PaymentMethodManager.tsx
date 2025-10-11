@@ -19,6 +19,7 @@ import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { PaymentMethodSetupModal } from '../common/PaymentMethodSetupModal';
+import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 
 interface PaymentMethod {
   id: string;
@@ -43,6 +44,15 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
   const [loading, setLoading] = useState(true);
   const [showAddMethod, setShowAddMethod] = useState(false);
   const [showCardDetails, setShowCardDetails] = useState<{ [key: string]: boolean }>({});
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    methodId: string;
+    methodDetails: string;
+  }>({
+    isOpen: false,
+    methodId: '',
+    methodDetails: ''
+  });
 
   useEffect(() => {
     if (user) {
@@ -54,30 +64,37 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
     try {
       setLoading(true);
       
-      // For now, we'll simulate payment methods since we don't have a full payment method storage system
-      // In a real implementation, you'd fetch from your payment provider's API
-      const mockPaymentMethods: PaymentMethod[] = [
-        {
-          id: 'pm_1',
-          type: 'card',
-          provider: 'stripe',
-          last4: '4242',
-          brand: 'visa',
-          expiry_month: 12,
-          expiry_year: 2025,
-          is_default: true,
-          created_at: new Date().toISOString(),
-        },
-        {
-          id: 'pm_2',
-          type: 'paypal',
-          provider: 'paypal',
-          is_default: false,
-          created_at: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-        }
-      ];
+      if (!user?.id) {
+        console.error('No user ID available');
+        return;
+      }
 
-      setPaymentMethods(mockPaymentMethods);
+      // Fetch payment methods from database
+      const { data, error } = await supabase.rpc('get_user_payment_methods', {
+        p_user_id: user.id
+      });
+
+      if (error) {
+        console.error('Error fetching payment methods:', error);
+        toast.error('Failed to load payment methods');
+        return;
+      }
+
+      // Transform database data to component format
+      const transformedMethods: PaymentMethod[] = (data || []).map((method: any) => ({
+        id: method.id,
+        type: method.type,
+        provider: method.payment_provider,
+        last4: method.last4,
+        brand: method.brand,
+        expiry_month: method.expiry_month,
+        expiry_year: method.expiry_year,
+        is_default: method.is_default,
+        created_at: method.created_at,
+        metadata: method.metadata
+      }));
+
+      setPaymentMethods(transformedMethods);
     } catch (error) {
       console.error('Error loading payment methods:', error);
       toast.error('Failed to load payment methods');
@@ -87,39 +104,117 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
   };
 
   const handleAddPaymentMethod = () => {
+    console.log('Add payment method button clicked');
     setShowAddMethod(true);
   };
 
-  const handlePaymentMethodAdded = (newPaymentMethod: any) => {
-    // Add the new payment method to the list
-    setPaymentMethods(prev => [newPaymentMethod, ...prev]);
-    setShowAddMethod(false);
+  const handlePaymentMethodAdded = async (newPaymentMethod: any) => {
+    try {
+      if (!user?.id) {
+        console.error('No user ID available');
+        return;
+      }
+
+      // Save to database using the add_payment_method function
+      const { data, error } = await supabase.rpc('add_payment_method', {
+        p_user_id: user.id,
+        p_payment_provider: newPaymentMethod.provider,
+        p_provider_payment_method_id: newPaymentMethod.id,
+        p_type: newPaymentMethod.type,
+        p_brand: newPaymentMethod.brand,
+        p_last4: newPaymentMethod.last4,
+        p_expiry_month: newPaymentMethod.expiry_month,
+        p_expiry_year: newPaymentMethod.expiry_year,
+        p_is_default: newPaymentMethod.is_default,
+        p_metadata: newPaymentMethod.metadata
+      });
+
+      if (error) {
+        console.error('Error adding payment method:', error);
+        toast.error('Failed to add payment method');
+        return;
+      }
+
+      // Reload payment methods to get the updated list
+      await loadPaymentMethods();
+      setShowAddMethod(false);
+      toast.success('Payment method added successfully!');
+    } catch (error) {
+      console.error('Error adding payment method:', error);
+      toast.error('Failed to add payment method');
+    }
   };
 
-  const handleDeletePaymentMethod = async (methodId: string) => {
-    if (!confirm('Are you sure you want to delete this payment method?')) {
-      return;
-    }
+  const handleDeletePaymentMethod = (methodId: string) => {
+    const method = paymentMethods.find(m => m.id === methodId);
+    const methodDetails = method ? 
+      (method.type === 'card' 
+        ? `${method.brand?.charAt(0).toUpperCase()}${method.brand?.slice(1)} •••• ${method.last4}`
+        : method.type.charAt(0).toUpperCase() + method.type.slice(1)
+      ) : 'this payment method';
+    
+    setDeleteModal({
+      isOpen: true,
+      methodId,
+      methodDetails
+    });
+  };
 
+  const confirmDeletePaymentMethod = async () => {
     try {
-      // In a real implementation, you'd call your payment provider's API to delete the method
-      setPaymentMethods(prev => prev.filter(method => method.id !== methodId));
+      if (!user?.id) {
+        console.error('No user ID available');
+        return;
+      }
+
+      // Delete from database using the delete_payment_method function
+      const { error } = await supabase.rpc('delete_payment_method', {
+        p_user_id: user.id,
+        p_payment_method_id: deleteModal.methodId
+      });
+
+      if (error) {
+        console.error('Error deleting payment method:', error);
+        toast.error('Failed to delete payment method');
+        return;
+      }
+
+      // Reload payment methods to get the updated list
+      await loadPaymentMethods();
       toast.success('Payment method deleted successfully');
     } catch (error) {
       console.error('Error deleting payment method:', error);
       toast.error('Failed to delete payment method');
+    } finally {
+      setDeleteModal({
+        isOpen: false,
+        methodId: '',
+        methodDetails: ''
+      });
     }
   };
 
   const handleSetDefault = async (methodId: string) => {
     try {
-      // In a real implementation, you'd call your payment provider's API to set default
-      setPaymentMethods(prev => 
-        prev.map(method => ({
-          ...method,
-          is_default: method.id === methodId
-        }))
-      );
+      if (!user?.id) {
+        console.error('No user ID available');
+        return;
+      }
+
+      // Set default using the set_default_payment_method function
+      const { error } = await supabase.rpc('set_default_payment_method', {
+        p_user_id: user.id,
+        p_payment_method_id: methodId
+      });
+
+      if (error) {
+        console.error('Error setting default payment method:', error);
+        toast.error('Failed to update default payment method');
+        return;
+      }
+
+      // Reload payment methods to get the updated list
+      await loadPaymentMethods();
       toast.success('Default payment method updated');
     } catch (error) {
       console.error('Error setting default payment method:', error);
@@ -377,7 +472,7 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
               <span className="text-gray-600 dark:text-gray-400">
                 {profile?.subscription?.plan === 'premium' 
                   ? (profile?.subscription?.billing_cycle === 'lifetime' 
-                      ? `Premium - Lifetime ($${profile?.subscription?.purchase_details?.amount_paid || '99.99'})` 
+                      ? `Premium - Lifetime ($${profile?.subscription?.purchase_details?.amount_paid || '199.99'})` 
                       : `Premium - $${profile?.subscription?.purchase_details?.amount_paid || '7.99'}/month`)
                   : 'Free Plan'
                 }
@@ -392,6 +487,26 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
         isOpen={showAddMethod}
         onClose={() => setShowAddMethod(false)}
         onSuccess={handlePaymentMethodAdded}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({
+          isOpen: false,
+          methodId: '',
+          methodDetails: ''
+        })}
+        onConfirm={confirmDeletePaymentMethod}
+        title="Delete Payment Method"
+        message="Are you sure you want to delete this payment method? This action cannot be undone."
+        recordDetails={
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            <strong>Payment Method:</strong> {deleteModal.methodDetails}
+          </div>
+        }
+        confirmLabel="Delete Payment Method"
+        cancelLabel="Cancel"
       />
     </div>
   );

@@ -128,7 +128,7 @@ export class SmartNotificationManager {
         notification.body,
         true,
         notification.category,
-        ignoreCriticalQuietHours
+        true // ignoreCriticalQuietHours - allow urgent notifications to bypass quiet hours
       );
     }
   }

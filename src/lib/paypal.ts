@@ -29,7 +29,7 @@ export const PLAN_PRICING: Record<string, {
     description: 'Balanze Premium - Monthly Plan',
   },
   premium_lifetime: {
-    amount: 99.99,
+    amount: 199.99,
     currency: 'USD',
     interval: 'one-time',
     description: 'Balanze Premium - Lifetime Access',

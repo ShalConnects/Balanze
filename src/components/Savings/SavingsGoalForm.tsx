@@ -17,6 +17,7 @@ export const SavingsGoalForm: React.FC<SavingsGoalFormProps> = ({ isOpen, onClos
     name: '',
     description: '',
     target_amount: '',
+    target_date: '',
     source_account_id: ''
   });
 
@@ -28,6 +29,7 @@ export const SavingsGoalForm: React.FC<SavingsGoalFormProps> = ({ isOpen, onClos
       name: formData.name,
       description: formData.description,
       target_amount: parseFloat(formData.target_amount),
+      target_date: formData.target_date,
       source_account_id: formData.source_account_id
     });
 
@@ -36,6 +38,7 @@ export const SavingsGoalForm: React.FC<SavingsGoalFormProps> = ({ isOpen, onClos
       name: '',
       description: '',
       target_amount: '',
+      target_date: '',
       source_account_id: ''
     });
     onClose();
@@ -118,6 +121,22 @@ export const SavingsGoalForm: React.FC<SavingsGoalFormProps> = ({ isOpen, onClos
                   </span>
                 </div>
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="target_date" className="block text-sm font-medium text-gray-700">
+                Target Date
+              </label>
+              <input
+                type="date"
+                id="target_date"
+                value={formData.target_date}
+                onChange={(e) => setFormData(prev => ({ ...prev, target_date: e.target.value }))}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                required
+                min={new Date().toISOString().split('T')[0]}
+                disabled={loading}
+              />
             </div>
 
             <div>

@@ -31,6 +31,7 @@ import { LendBorrowAnalytics } from './components/LendBorrow/LendBorrowAnalytics
 import { AnalyticsView } from './components/Reports/AnalyticsView';
 import { CurrencyAnalytics } from './components/Reports/CurrencyAnalytics';
 import { Settings } from './components/Dashboard/Settings';
+import { PaymentHistoryPage } from './pages/PaymentHistoryPage';
 import HelpAndSupport from './pages/HelpAndSupport';
 import { History } from './pages/History';
 import { HelpLayout } from './components/Layout/HelpLayout';
@@ -45,6 +46,8 @@ import { WelcomeModal } from './components/common/WelcomeModal';
 import PostAccountCreationTour from './components/PostAccountCreationTour';
 import { Analytics } from '@vercel/analytics/react';
 import { useNotificationStore } from './store/notificationStore';
+import { useNotificationsStore } from './stores/notificationsStore';
+import { urgentNotificationService } from './lib/urgentNotifications';
 import { MobileSidebarProvider } from './context/MobileSidebarContext';
 import KBArticlePage from './pages/KBArticlePage';
 import AdminPage from './pages/AdminPage';
@@ -74,6 +77,7 @@ function AppContent() {
   const [showPostAccountTour, setShowPostAccountTour] = useState(false);
   const { accounts, fetchAccounts, fetchAllData } = useFinanceStore();
   const { initializeDefaultNotifications } = useNotificationStore();
+  const { fetchNotifications } = useNotificationsStore();
   
   // Function to trigger post-account creation tour
   const handleStartPostAccountTour = () => {
@@ -319,6 +323,15 @@ function AppContent() {
       // Add help center notification for existing users
       const { addHelpCenterNotification } = useNotificationStore.getState();
       addHelpCenterNotification();
+      
+      // Check for urgent notifications (overdue lent/borrow records)
+      urgentNotificationService.checkAndCreateUrgentNotifications(user.id);
+      
+      // Force check urgent notifications immediately (bypasses time interval)
+      urgentNotificationService.forceCheckUrgentNotifications(user.id);
+      
+      // Fetch notifications from database
+      fetchNotifications();
     }
   }, [user, loading, initializeDefaultNotifications]);
 
@@ -460,6 +473,7 @@ function AppContent() {
         <Route path="/analytics" element={user ? <MainLayout><AnalyticsView /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/currency-analytics" element={user ? <MainLayout><CurrencyAnalytics /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/settings" element={user ? <MainLayout><Settings /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/payment-history" element={user ? <PaymentHistoryPage /> : <Navigate to="/login" />} />
         <Route path="/help" element={user ? <HelpLayout><HelpAndSupport /></HelpLayout> : <Navigate to="/login" />} />
         <Route path="/kb/:slug" element={user ? <HelpLayout><KBArticlePage /></HelpLayout> : <Navigate to="/login" />} />
         <Route path="/admin" element={user ? <AdminPage /> : <Navigate to="/login" />} />

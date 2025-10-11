@@ -162,20 +162,20 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
     <>
       <Loader isLoading={loading} message="Recording partial return..." />
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Record Partial Return</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Record Partial Return</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Record Info */}
-        <div className="mb-4 p-3 bg-gray-50 rounded">
-          <div className="text-sm text-gray-600">
+        <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded">
+          <div className="text-sm text-gray-600 dark:text-gray-300">
             <div><span className="font-medium">Person:</span> {record.person_name}</div>
             <div><span className="font-medium">Original Amount:</span> {formatCurrency(record.amount, record.currency)}</div>
             <div><span className="font-medium">Total Returned:</span> {formatCurrency(totalReturned, record.currency)}</div>
@@ -186,10 +186,10 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
         {/* Return History */}
         {returnHistory.length > 0 && (
           <div className="mb-4">
-            <h3 className="text-sm font-medium mb-2">Return History</h3>
+            <h3 className="text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">Return History</h3>
             <div className="max-h-32 overflow-y-auto space-y-1">
               {returnHistory.map((ret) => (
-                <div key={ret.id} className="text-xs text-gray-600 flex justify-between">
+                <div key={ret.id} className="text-xs text-gray-600 dark:text-gray-300 flex justify-between">
                   <span>{formatCurrency(ret.amount, record.currency)}</span>
                   <span>{formatDate(ret.return_date)}</span>
                 </div>
@@ -201,11 +201,11 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 flex flex-col">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Return Amount ({record.currency})
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm font-medium">
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 text-sm font-medium">
                   {getCurrencySymbol(record.currency)}
                 </span>
                 <input
@@ -217,7 +217,7 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
                   value={amount || ''}
                   onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
                   onBlur={() => handleBlur('amount')}
-                  className={`w-full pl-10 pr-10 py-2 border rounded-md focus:outline-none focus:ring-2 ${error && touched.amount ? 'border-red-500 ring-red-200' : 'border-gray-300 focus:ring-blue-500'} transition-colors`}
+                  className={`w-full pl-10 pr-10 py-2 border rounded-md focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 ${error && touched.amount ? 'border-red-500 ring-red-200' : 'focus:ring-blue-500'} transition-colors`}
                   placeholder={`Max: ${remainingAmount.toFixed(2)}`}
                   required
                   autoFocus
@@ -225,7 +225,7 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
                 {amount > 0 && (
                   <button
                     type="button"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
                     onClick={handleClearAmount}
                     tabIndex={-1}
                     aria-label="Clear amount"
@@ -244,17 +244,17 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
               </div>
             </div>
             <div className="flex-1 flex flex-col">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Return Date</label>
-              <div className="flex items-center bg-gray-100 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full">
-                <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Return Date</label>
+              <div className="flex items-center bg-gray-100 dark:bg-gray-700 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full">
+                <Calendar className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-500" />
                 <DatePicker
                   selected={returnDate}
                   onChange={(date: Date | null) => setReturnDate(date || new Date())}
                   onBlur={() => handleBlur('returnDate')}
                   placeholderText="Return date"
                   dateFormat="yyyy-MM-dd"
-                  className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px]"
-                  calendarClassName="z-50 shadow-lg border border-gray-200 rounded-lg !font-sans"
+                  className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100"
+                  calendarClassName="z-50 shadow-lg border border-gray-200 dark:border-gray-600 rounded-lg !font-sans"
                   popperPlacement="bottom-start"
                   showPopperArrow={false}
                   wrapperClassName="w-full"
@@ -265,7 +265,7 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
                 />
                 <button
                   type="button"
-                  className="ml-2 text-xs text-blue-600 hover:underline"
+                  className="ml-2 text-xs text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
                   onClick={() => setReturnDate(today)}
                   tabIndex={-1}
                 >
@@ -277,11 +277,11 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
               </div>
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-600">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
               disabled={loading}
             >
               Cancel

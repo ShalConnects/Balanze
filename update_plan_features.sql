@@ -50,7 +50,7 @@ INSERT INTO subscription_plans (name, description, price, currency, billing_cycl
 VALUES (
     'premium_lifetime',
     'Premium plan with lifetime access',
-    99.99,
+    199.99,
     'USD',
     'one-time',
     '{

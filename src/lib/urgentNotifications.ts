@@ -34,9 +34,7 @@ export class UrgentNotificationService {
   }
 
   async checkAndCreateUrgentNotifications(userId: string): Promise<void> {
-    // Temporarily disable urgent notifications to prevent 404 errors
-    console.log('Urgent notifications service temporarily disabled');
-    return;
+    // Re-enabled urgent notifications service
     
     const now = new Date();
     
@@ -58,8 +56,9 @@ export class UrgentNotificationService {
       for (const item of urgentItems) {
         await this.createUrgentNotification(userId, item);
       }
+      
     } catch (error) {
-      console.error('Error checking urgent notifications:', error);
+      console.error('❌ Error checking urgent notifications:', error);
     }
   }
 
@@ -76,7 +75,7 @@ export class UrgentNotificationService {
         .from('notifications')
         .update({ deleted: true })
         .eq('user_id', userId)
-        .contains('body', '[ID:');
+        .in('category', ['overdue', 'due_soon', 'upcoming']);
     } catch (error) {
       console.error('Error clearing all urgent notifications:', error);
     }
@@ -119,7 +118,7 @@ export class UrgentNotificationService {
             .from('notifications')
             .update({ deleted: true })
             .eq('user_id', userId)
-            .contains('body', `[ID:${id}]`);
+            .eq('category', 'overdue');
         }
       }
     } catch (error) {
@@ -131,6 +130,9 @@ export class UrgentNotificationService {
     const urgentItems: UrgentItem[] = [];
 
     try {
+      // First, update overdue status for all active records
+      await this.updateOverdueStatus(userId);
+      
       // Get overdue and due soon lend/borrow records
       const { data: lendBorrowRecords, error: lbError } = await supabase
         .from('lend_borrow')
@@ -139,7 +141,7 @@ export class UrgentNotificationService {
         .in('status', ['active', 'overdue']);
 
       if (lbError) {
-        console.error('Error fetching lend/borrow records:', lbError);
+        console.error('❌ Error fetching lend/borrow records:', lbError);
       } else if (lendBorrowRecords) {
         for (const record of lendBorrowRecords) {
           const dueDate = new Date(record.due_date);
@@ -251,7 +253,7 @@ export class UrgentNotificationService {
     }
 
     // Find if any notification contains the unique identifier in the body
-    const alreadyExists = (existingNotifications || []).some((n) => n.body?.includes(`[ID:${uniqueIdentifier}]`));
+    const alreadyExists = (existingNotifications || []).some((n) => n.title === title && n.body === body);
     if (alreadyExists) {
       // Don't create duplicate notifications - one already exists
       return;
@@ -276,14 +278,15 @@ export class UrgentNotificationService {
     }
 
     const title = `${urgencyPrefix}${item.title}`;
-    const body = `${item.message} - ${this.getTimeDescription(item.daysUntil)} [ID:${uniqueIdentifier}]`;
+    const body = `${item.message} - ${this.getTimeDescription(item.daysUntil)}`;
 
-    // Create the notification using the new system with preferences
-    await createFinancialNotification(
+    // Create the notification directly in the database
+    await createNotification(
       userId,
       title,
       notificationType,
       body,
+      true, // isUrgent
       category
     );
   }
@@ -297,6 +300,45 @@ export class UrgentNotificationService {
       return 'Due tomorrow';
     } else {
       return `Due in ${daysUntil} days`;
+    }
+  }
+
+  private async updateOverdueStatus(userId: string): Promise<void> {
+    try {
+      const today = new Date();
+      const todayString = today.toISOString().split('T')[0];
+      
+      // Find all active records that are overdue
+      const { data: overdueRecords, error: fetchError } = await supabase
+        .from('lend_borrow')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .lt('due_date', todayString);
+
+      if (fetchError) {
+        console.error('Error fetching overdue records:', fetchError);
+        return;
+      }
+
+      if (overdueRecords && overdueRecords.length > 0) {
+        // Update all overdue records to 'overdue' status
+        const updates = overdueRecords.map(record => ({
+          id: record.id,
+          status: 'overdue'
+        }));
+
+        const { error: updateError } = await supabase
+          .from('lend_borrow')
+          .upsert(updates, { onConflict: 'id' });
+
+        if (updateError) {
+          console.error('Error updating overdue status:', updateError);
+        } else {
+        }
+      }
+    } catch (error) {
+      console.error('Error in updateOverdueStatus:', error);
     }
   }
 }

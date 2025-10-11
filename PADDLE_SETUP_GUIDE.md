@@ -19,7 +19,7 @@ This guide will help you set up Paddle.com payment integration to replace the Pa
 1. Go to **Catalog** → **Products**
 2. Create two products:
    - **Premium Monthly** - $7.99/month
-   - **Premium Lifetime** - $99.99 one-time
+   - **Premium Lifetime** - $199.99 one-time
 3. For each product, create a price and copy the **Price ID** (starts with `pri_`)
 
 ## 🔧 Step 2: Environment Variables Setup

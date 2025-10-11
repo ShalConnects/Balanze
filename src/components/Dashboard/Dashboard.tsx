@@ -398,6 +398,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                 formatCurrency={formatCurrency}
               />
             </div>
+            
           </div>
 
           {/* Separator */}
@@ -466,12 +467,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         </div>
 
         {/* Mobile Bottom Section - Notes/Todos and Recent Transactions */}
-        <div className="lg:hidden space-y-6">
+        <div className="lg:hidden space-y-6 dashboard-mobile-container">
           <LastWishCountdownWidget />
           <NotesAndTodosWidget />
           
           {/* Recent Transactions - Mobile version */}
-          <div className="w-full bg-white dark:bg-gray-800 rounded-xl p-4 lg:p-6">
+          <div className="w-full bg-white dark:bg-gray-800 rounded-xl p-4 lg:p-6 transaction-list-mobile">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('dashboard.recentTransactions')}</h2>
               <Link 

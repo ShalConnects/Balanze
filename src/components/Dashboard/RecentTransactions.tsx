@@ -32,7 +32,7 @@ export const RecentTransactions: React.FC = () => {
 
   return (
     <div className="max-h-[400px] overflow-y-auto">
-      <div className="space-y-2">
+      <div className="space-y-2 pb-4">
         {recentTransactions.map((transaction) => {
           const account = accounts.find(a => a.id === transaction.account_id);
           const currency = account?.currency || 'USD';

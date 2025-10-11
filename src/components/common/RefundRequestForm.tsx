@@ -129,7 +129,7 @@ export const RefundRequestForm: React.FC<RefundRequestFormProps> = ({ isOpen, on
                 >
                   <option value="">Select your plan</option>
                   <option value="monthly">Monthly Premium ($7.99/month)</option>
-                  <option value="lifetime">Lifetime Premium ($99.99)</option>
+                  <option value="lifetime">Lifetime Premium ($199.99)</option>
                 </select>
               </div>
 

@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 
 export interface UserPreferences {
   showMultiCurrencyAnalytics?: boolean;
+  showLendBorrowWidget?: boolean;
   dismissedBanners?: string[];
   theme?: 'light' | 'dark' | 'auto';
   language?: string;
@@ -157,6 +158,7 @@ export class UserPreferencesManager {
   private getDefaultPreferences(): UserPreferences {
     return {
       showMultiCurrencyAnalytics: true,
+      showLendBorrowWidget: true,
       dismissedBanners: [],
       theme: 'auto',
       language: 'en'

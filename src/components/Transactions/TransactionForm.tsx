@@ -1135,8 +1135,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             />
           )}
 
-          {/* Recurring Transaction (full width) */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-[1.40rem] mt-[20px]">
+          {/* Recurring Transaction (hidden for now) */}
+          {/* <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-[1.40rem] mt-[20px]">
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -1148,7 +1148,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               <label htmlFor="recurring" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Recurring Transaction
               </label>
-            </div>
+            </div> */}
             <div className="flex justify-end gap-3">
               <button
                 type="button"
@@ -1166,7 +1166,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 {isEditMode ? 'Update' : 'Make Transaction'}
               </button>
             </div>
-          </div>
+          {/* </div> */}
         </form>
         
         {/* Floating Purchase Note Notification */}

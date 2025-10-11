@@ -206,6 +206,10 @@ export const TransactionList: React.FC<{
           aValue = new Date(a.created_at).getTime();
           bValue = new Date(b.created_at).getTime();
           break;
+        case 'last_modified':
+          aValue = new Date(a.updated_at || a.created_at).getTime();
+          bValue = new Date(b.updated_at || b.created_at).getTime();
+          break;
         case 'description':
           aValue = a.description.toLowerCase();
           bValue = b.description.toLowerCase();
@@ -1049,6 +1053,15 @@ export const TransactionList: React.FC<{
                   </th>
                   <th 
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    onClick={() => handleSort('last_modified')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Modified</span>
+                      {getSortIcon('last_modified')}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                     onClick={() => handleSort('description')}
                   >
                     <div className="flex items-center space-x-1">
@@ -1113,7 +1126,23 @@ export const TransactionList: React.FC<{
                         <td className="px-6 py-2 text-left">
                           <div className="text-gray-900 dark:text-white" style={{ fontSize: '14px' }}>
                             <div>{format(new Date(transaction.date), 'MMM dd, yyyy')}</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">{format(new Date(transaction.created_at), 'h:mm a')}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {format(new Date(transaction.created_at), 'h:mm a')}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-2 text-left">
+                          <div className="text-gray-900 dark:text-white" style={{ fontSize: '14px' }}>
+                            {transaction.updated_at && transaction.updated_at !== transaction.created_at ? (
+                              <>
+                                <div>{format(new Date(transaction.updated_at), 'MMM dd, yyyy')}</div>
+                                <div className="text-xs text-blue-500 dark:text-blue-400">
+                                  {format(new Date(transaction.updated_at), 'h:mm a')} ✏️
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-xs text-gray-400 dark:text-gray-500">Never</div>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-2">
@@ -1202,7 +1231,14 @@ export const TransactionList: React.FC<{
                     <div className="flex items-center justify-between p-3 pb-2">
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         <div>{format(new Date(transaction.date), 'MMM dd, yyyy')}</div>
-                        <div className="text-xs text-gray-400 dark:text-gray-500">{format(new Date(transaction.created_at), 'h:mm a')}</div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500 flex items-center">
+                          {format(new Date(transaction.created_at), 'h:mm a')}
+                          {transaction.updated_at && transaction.updated_at !== transaction.created_at && (
+                            <span className="ml-2 text-blue-500" title={`Last modified: ${format(new Date(transaction.updated_at), 'MMM dd, h:mm a')}`}>
+                              ✏️
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div>
                         {transaction.type === 'income' ? (
@@ -1294,7 +1330,14 @@ export const TransactionList: React.FC<{
                       <div className="col-span-3">
                         <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</div>
                         <div className="text-sm text-gray-900 dark:text-white">{format(new Date(transaction.date), 'MMM dd, yyyy')}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{format(new Date(transaction.created_at), 'h:mm a')}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                          {format(new Date(transaction.created_at), 'h:mm a')}
+                          {transaction.updated_at && transaction.updated_at !== transaction.created_at && (
+                            <span className="ml-2 text-blue-500" title={`Last modified: ${format(new Date(transaction.updated_at), 'MMM dd, h:mm a')}`}>
+                              ✏️
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="col-span-6">
                         <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</div>

@@ -210,7 +210,7 @@ const RefundPolicy: React.FC = () => {
                 <div className="flex items-start">
                   <Check className="w-5 h-5 text-green-600 mt-1 mr-3 flex-shrink-0" />
                   <p className="text-gray-700 dark:text-gray-300">
-                    <strong>Both Plans:</strong> Refunds are available for both monthly ($7.99) and lifetime ($99.99) Premium plans.
+                    <strong>Both Plans:</strong> Refunds are available for both monthly ($7.99) and lifetime ($199.99) Premium plans.
                   </p>
                 </div>
                 <div className="flex items-start">

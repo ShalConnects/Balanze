@@ -5,6 +5,7 @@ import { Account } from '../../types';
 import { generateTransactionId, createSuccessMessage } from '../../utils/transactionId';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
+import { supabase } from '../../lib/supabase';
 import { Loader } from '../common/Loader';
 import { showToast } from '../../lib/toast';
 import { useLoadingContext } from '../../context/LoadingContext';
@@ -29,13 +30,6 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
   const { setLoading, setLoadingMessage } = useLoadingContext();
   const { isMobile } = useMobileDetection();
   
-  // Watch for modal state changes
-  useEffect(() => {
-    // Modal state changed
-  }, [modalState]);
-
-
-
   const [formData, setFormData] = useState({
     name: account?.name || '',
     type: account?.type || 'checking',
@@ -49,14 +43,63 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
     dps_initial_balance: ''
   });
 
-  const [showDpsModal, setShowDpsModal] = useState(false);
-  const [dpsTransferAmount, setDpsTransferAmount] = useState('');
-  const [pendingDpsEnable, setPendingDpsEnable] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [showDpsTooltip, setShowDpsTooltip] = useState(false);
   const [showDpsMobileModal, setShowDpsMobileModal] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [availableCurrencies, setAvailableCurrencies] = useState<Array<{label: string, value: string}>>(
+    CURRENCY_OPTIONS.map(currency => ({ label: currency, value: currency }))
+  );
+
+  // Fetch user profile and set up available currencies
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (profile?.id) {
+        try {
+          const { data } = await supabase
+            .from('profiles')
+            .select('selected_currencies, local_currency')
+            .eq('id', profile.id)
+            .single();
+          
+          if (data) {
+            setUserProfile(data);
+            
+            // Set up available currencies based on user's selected currencies
+            const allCurrencyOptions = CURRENCY_OPTIONS.map(currency => ({
+              label: currency,
+              value: currency
+            }));
+            
+            const userCurrencies = data.selected_currencies && data.selected_currencies.length > 0
+              ? allCurrencyOptions.filter(opt => data.selected_currencies?.includes(opt.value))
+              : allCurrencyOptions;
+            
+            setAvailableCurrencies(userCurrencies);
+            
+            // Set default currency if not already set
+            if (!formData.currency || formData.currency === 'USD') {
+              if (data.local_currency && data.selected_currencies?.includes(data.local_currency)) {
+                setFormData(prev => ({ ...prev, currency: data.local_currency }));
+              } else if (data.selected_currencies && data.selected_currencies.length > 0) {
+                setFormData(prev => ({ ...prev, currency: data.selected_currencies[0] }));
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+          // Fallback to all currencies if profile fetch fails
+          setAvailableCurrencies(CURRENCY_OPTIONS.map(currency => ({
+            label: currency,
+            value: currency
+          })));
+        }
+      }
+    };
+    
+    fetchUserProfile();
+  }, [profile?.id]);
 
   // Update form data when account prop changes
   useEffect(() => {
@@ -244,10 +287,10 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
             const current = accounts.length;
             const limit = 5;
             
-                      showToast.error(`Account limit exceeded! You have ${current}/${limit} accounts. Upgrade to Premium for unlimited accounts.`);
-          setTimeout(() => {
-            window.location.href = '/settings?tab=plans';
-          }, 2000);
+            showToast.error(`Account limit exceeded! You have ${current}/${limit} accounts. Upgrade to Premium for unlimited accounts.`);
+            setTimeout(() => {
+              window.location.href = '/settings?tab=plans';
+            }, 2000);
             
             return;
           }
@@ -267,7 +310,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
           }
         }
       
-      showToast.error('Failed to save account. Please try again.');
+      showToast.error(account ? 'Failed to update account. Please check your data and try again.' : 'Failed to create account. Please check your data and try again.');
     } finally {
       setLoading(false);
     }
@@ -277,9 +320,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
     const checked = e.target.checked;
     handleFieldChange('has_dps', checked);
     
-    if (checked) {
-      setPendingDpsEnable(true);
-    } else {
+    if (!checked) {
       // Clear DPS-related fields when disabling
       setFormData(prev => ({
         ...prev,
@@ -294,21 +335,23 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
   const handleClose = () => {
     if (loading) return;
     
-    // Reset form state
-    setFormData({
-      name: '',
-      type: 'checking',
-      balance: '',
-      currency: 'USD',
-      description: '',
-      has_dps: false,
-      dps_type: 'monthly',
-      dps_amount_type: 'fixed',
-      dps_fixed_amount: '',
-      dps_initial_balance: ''
-    });
-    setErrors({});
-    setTouched({});
+    // Reset form state only if not editing
+    if (!account) {
+      setFormData({
+        name: '',
+        type: 'checking',
+        balance: '',
+        currency: 'USD',
+        description: '',
+        has_dps: false,
+        dps_type: 'monthly',
+        dps_amount_type: 'fixed',
+        dps_fixed_amount: '',
+        dps_initial_balance: ''
+      });
+      setErrors({});
+      setTouched({});
+    }
     onClose();
   };
 
@@ -415,19 +458,13 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
             <label htmlFor="account-currency" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Currency *
             </label>
-            <select
-              id="account-currency"
+            <CustomDropdown
+              options={availableCurrencies}
               value={formData.currency}
-              onChange={(e) => handleFieldChange('currency', e.target.value)}
-              className={getInputClasses('currency')}
+              onChange={(value) => handleFieldChange('currency', value)}
+              placeholder="Select currency"
               disabled={loading}
-            >
-              {CURRENCY_OPTIONS.map(currency => (
-                <option key={currency} value={currency}>
-                  {currency}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* Description */}

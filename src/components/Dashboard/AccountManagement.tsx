@@ -534,6 +534,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
         </div>
       </div>
 
+
       {/* Account Management - Danger Zone */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-red-200 dark:border-red-800 p-4 shadow-sm">
         <div className="flex items-start">

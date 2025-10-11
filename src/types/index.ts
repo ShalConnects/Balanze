@@ -106,11 +106,14 @@ export interface SavingsGoal {
   id: string;
   name: string;
   target_amount: number;
+  current_amount: number;
+  target_date: string;
   source_account_id: string;
   savings_account_id: string;
-  created_at: string;
   description?: string;
-  current_amount: number;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
 }
 
 export interface Task {
@@ -284,4 +287,39 @@ export interface DonationSavingAnalytics {
     count: number;
     percentage: number;
   }>;
+}
+
+// Payment History Types
+export interface PaymentTransaction {
+  id: string;
+  user_id: string;
+  subscription_id?: string;
+  plan_id: string;
+  amount: number;
+  currency: string;
+  payment_provider: 'stripe' | 'paypal';
+  provider_transaction_id: string;
+  status: 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled';
+  payment_method?: string;
+  billing_cycle: 'monthly' | 'one-time';
+  transaction_type: 'payment' | 'refund' | 'chargeback';
+  metadata?: any;
+  created_at: string;
+  updated_at?: string;
+  plan_name?: string;
+}
+
+export interface PaymentHistoryFilters {
+  searchTerm: string;
+  statusFilter: string;
+  dateFilter: string;
+}
+
+export interface PaymentHistoryStats {
+  totalTransactions: number;
+  totalAmount: number;
+  completedTransactions: number;
+  pendingTransactions: number;
+  failedTransactions: number;
+  refundedTransactions: number;
 }

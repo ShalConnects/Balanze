@@ -12,6 +12,7 @@ interface NotificationsState {
   markAllAsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
   clearAllNotifications: () => Promise<void>;
+  recalculateUnreadCount: () => void;
 }
 
 export const useNotificationsStore = create<NotificationsState>((set, get) => ({
@@ -45,8 +46,9 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         return;
       }
 
-      const unreadCount = data.filter(n => !n.is_read).length;
-      set({ notifications: data, unreadCount, isLoading: false });
+      set({ notifications: data, isLoading: false });
+      // Recalculate unread count to ensure consistency
+      get().recalculateUnreadCount();
     } catch (error) {
       console.error('Error in fetchNotifications:', error);
       set({ notifications: [], unreadCount: 0, error: (error as Error).message, isLoading: false });
@@ -65,12 +67,16 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         return;
       }
 
-      set(state => ({
-        notifications: state.notifications.map(n =>
-          n.id === id ? { ...n, is_read: true } : n
-        ),
-        unreadCount: state.unreadCount - 1
-      }));
+      set(state => {
+        const notification = state.notifications.find(n => n.id === id);
+        const wasUnread = notification && !notification.is_read;
+        return {
+          notifications: state.notifications.map(n =>
+            n.id === id ? { ...n, is_read: true } : n
+          ),
+          unreadCount: wasUnread ? state.unreadCount - 1 : state.unreadCount
+        };
+      });
     } catch (error) {
       console.error('Error in markAsRead:', error);
       set({ error: (error as Error).message });
@@ -120,12 +126,14 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         return;
       }
 
-      set(state => ({
-        notifications: state.notifications.filter(n => n.id !== id),
-        unreadCount: state.notifications.find(n => n.id === id)?.is_read
-          ? state.unreadCount
-          : state.unreadCount - 1
-      }));
+      set(state => {
+        const notificationToDelete = state.notifications.find(n => n.id === id);
+        const wasUnread = notificationToDelete && !notificationToDelete.is_read;
+        return {
+          notifications: state.notifications.filter(n => n.id !== id),
+          unreadCount: wasUnread ? state.unreadCount - 1 : state.unreadCount
+        };
+      });
     } catch (error) {
       console.error('Error in deleteNotification:', error);
       set({ error: (error as Error).message });
@@ -157,5 +165,11 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       console.error('Error in clearAllNotifications:', error);
       set({ error: (error as Error).message });
     }
+  },
+
+  recalculateUnreadCount: () => {
+    set(state => ({
+      unreadCount: state.notifications.filter(n => !n.is_read).length
+    }));
   }
 })); 

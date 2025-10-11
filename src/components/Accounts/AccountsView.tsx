@@ -960,7 +960,9 @@ export const AccountsView: React.FC = () => {
                   </tr>
                 ) : (
                   filteredAccountsForTable.map((account) => {
-                    const accountTransactions = transactions.filter(t => t.account_id === account.id);
+                    const accountTransactions = transactions
+                      .filter(t => t.account_id === account.id)
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
                     const incomeTransactions = accountTransactions.filter(t => t.type === 'income');
                     const expenseTransactions = accountTransactions.filter(t => t.type === 'expense');
                     
@@ -1211,7 +1213,7 @@ export const AccountsView: React.FC = () => {
                                 <div className="space-y-2">
                                   <h4 className="text-sm font-medium text-gray-900 dark:text-white">Recent History</h4>
                                   <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                    {accountTransactions.slice(-3).reverse().map((transaction, index) => (
+                                    {accountTransactions.slice(0, 3).map((transaction, index) => (
                                       <div key={transaction.id} className="flex justify-between items-center">
                                         <div className="flex-1 min-w-0">
                                           <div className="truncate">
@@ -1260,7 +1262,9 @@ export const AccountsView: React.FC = () => {
                   </div>
                 ) : (
                   filteredAccountsForTable.map((account) => {
-                    const accountTransactions = transactions.filter(t => t.account_id === account.id);
+                    const accountTransactions = transactions
+                      .filter(t => t.account_id === account.id)
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
                     const incomeTransactions = accountTransactions.filter(t => t.type === 'income');
                     const expenseTransactions = accountTransactions.filter(t => t.type === 'expense');
                     
@@ -1508,7 +1512,7 @@ export const AccountsView: React.FC = () => {
                               <div className="space-y-2">
                                 <h4 className="text-sm font-medium text-gray-900 dark:text-white">Recent History</h4>
                                 <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                  {accountTransactions.slice(-3).reverse().map((transaction, index) => (
+                                  {accountTransactions.slice(0, 3).map((transaction, index) => (
                                     <div key={transaction.id} className="flex justify-between items-center">
                                       <div className="flex-1 min-w-0">
                                         <div className="truncate">
@@ -1677,22 +1681,22 @@ export const AccountsView: React.FC = () => {
       {modalOpen && selectedAccount && (
         <div className="fixed inset-0 z-50 flex items-start justify-center p-2 sm:p-4 pt-16">
           <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setModalOpen(false)} />
-          <div className="relative bg-white w-full max-w-6xl rounded-lg shadow-2xl" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
-            <div className="p-3 sm:p-4 pt-8 pb-6 overflow-y-auto scrollable-container" style={{ maxHeight: 'calc(100vh - 10rem)' }}>
-              {/* Close Button - Absolute positioned */}
-              <button 
-                className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 p-1 z-10" 
-                onClick={() => setModalOpen(false)}
-              >
-                ✕
-              </button>
+          <div className="relative bg-white w-full max-w-6xl rounded-lg shadow-2xl flex flex-col" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
+            {/* Close Button - Absolute positioned */}
+            <button 
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 p-1 z-10" 
+              onClick={() => setModalOpen(false)}
+            >
+              ✕
+            </button>
 
-              {/* Main Content: Transactions and Account Info */}
-              <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
-                {/* Left: Transactions List (100% on mobile, 80% on desktop) */}
-                <div className="w-full lg:w-4/5 flex flex-col">
-                  <h3 className="text-sm sm:text-base font-bold mb-2">Transactions</h3>
-                  <div className="flex-1 border border-gray-200 rounded-lg">
+            {/* Main Content: Transactions and Account Info */}
+            <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 p-3 sm:p-4 pt-8 pb-6 flex-1 min-h-0">
+              {/* Left: Transactions List (100% on mobile, 80% on desktop) - Scrollable */}
+              <div className="w-full lg:w-4/5 flex flex-col min-h-0">
+                <h3 className="text-sm sm:text-base font-bold mb-2">Transactions</h3>
+                <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="h-full overflow-y-auto">
                     <table className="w-full border-collapse">
                       <thead className="bg-gray-50 sticky top-0">
                         <tr>
@@ -1720,7 +1724,7 @@ export const AccountsView: React.FC = () => {
                         {(() => {
                           const accountTransactions = transactions
                             .filter(t => t.account_id === selectedAccount.id)
-                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by date, newest first
+                            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); // Sort by created_at, newest first
 
                           if (accountTransactions.length === 0) {
                             return (
@@ -1781,41 +1785,41 @@ export const AccountsView: React.FC = () => {
                     </table>
                   </div>
                 </div>
+              </div>
 
-                {/* Right: Account Info (100% on mobile, 20% on desktop) */}
-                <div className="w-full lg:w-1/5 flex flex-col mt-3 lg:mt-0">
-                  <h3 className="text-sm sm:text-base font-bold mb-2">Account Info</h3>
-                  <div className="flex-1 p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="space-y-1.5 sm:space-y-2 text-xs">
-                      <div><b>Name:</b> {selectedAccount.name.charAt(0).toUpperCase() + selectedAccount.name.slice(1)}</div>
-                      <div><b>Type:</b> <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getAccountColor(selectedAccount.type)} ml-1`}>
-                        {selectedAccount.type === 'cash' ? 'Cash Wallet' : selectedAccount.type.charAt(0).toUpperCase() + selectedAccount.type.slice(1)}
-                      </span></div>
-                      <div><b>Initial Balance:</b> {formatCurrency(Number(selectedAccount.initial_balance), selectedAccount.currency)}</div>
-                      <div><b>Currency:</b> {selectedAccount.currency}</div>
-                      <div><b>Description:</b> {selectedAccount.description || 'N/A'}</div>
-                      <div><b>Transactions:</b> {transactions.filter(t => t.account_id === selectedAccount.id).length}</div>
-                      <div><b>Total Saved:</b> {formatCurrency(0, selectedAccount.currency)}</div>
-                      <div><b>Total Donated:</b> {formatCurrency(0, selectedAccount.currency)}</div>
-                      <div><b>Donation Preference:</b> None</div>
-                      
-                      {/* Current Balance Section */}
-                      <div className="mt-3 sm:mt-4 p-2 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="text-xs font-semibold text-blue-900 mb-1">Current Balance</div>
-                        <div className="text-sm sm:text-base font-bold text-blue-600">
-                          {formatCurrency(selectedAccount.calculated_balance || 0, selectedAccount.currency)}
-                        </div>
+              {/* Right: Account Info (100% on mobile, 20% on desktop) - Fixed */}
+              <div className="w-full lg:w-1/5 flex flex-col mt-3 lg:mt-0">
+                <h3 className="text-sm sm:text-base font-bold mb-2">Account Info</h3>
+                <div className="flex-1 p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="space-y-1.5 sm:space-y-2 text-xs">
+                    <div><b>Name:</b> {selectedAccount.name.charAt(0).toUpperCase() + selectedAccount.name.slice(1)}</div>
+                    <div><b>Type:</b> <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getAccountColor(selectedAccount.type)} ml-1`}>
+                      {selectedAccount.type === 'cash' ? 'Cash Wallet' : selectedAccount.type.charAt(0).toUpperCase() + selectedAccount.type.slice(1)}
+                    </span></div>
+                    <div><b>Initial Balance:</b> {formatCurrency(Number(selectedAccount.initial_balance), selectedAccount.currency)}</div>
+                    <div><b>Currency:</b> {selectedAccount.currency}</div>
+                    <div><b>Description:</b> {selectedAccount.description || 'N/A'}</div>
+                    <div><b>Transactions:</b> {transactions.filter(t => t.account_id === selectedAccount.id).length}</div>
+                    <div><b>Total Saved:</b> {formatCurrency(0, selectedAccount.currency)}</div>
+                    <div><b>Total Donated:</b> {formatCurrency(0, selectedAccount.currency)}</div>
+                    <div><b>Donation Preference:</b> None</div>
+                    
+                    {/* Current Balance Section */}
+                    <div className="mt-3 sm:mt-4 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="text-xs font-semibold text-blue-900 mb-1">Current Balance</div>
+                      <div className="text-sm sm:text-base font-bold text-blue-600">
+                        {formatCurrency(selectedAccount.calculated_balance || 0, selectedAccount.currency)}
                       </div>
-                      
-                      {/* Print Statement Button */}
-                      <div className="mt-2 sm:mt-3">
-                        <button 
-                          onClick={() => window.print()}
-                          className="w-full px-2 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs"
-                        >
-                          Print Statement
-                        </button>
-                      </div>
+                    </div>
+                    
+                    {/* Print Statement Button */}
+                    <div className="mt-2 sm:mt-3">
+                      <button 
+                        onClick={() => window.print()}
+                        className="w-full px-2 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs"
+                      >
+                        Print Statement
+                      </button>
                     </div>
                   </div>
                 </div>

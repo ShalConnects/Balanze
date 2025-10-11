@@ -12,6 +12,8 @@ import {
   Banknote
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
 
 interface PaymentMethodSetupModalProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ export const PaymentMethodSetupModal: React.FC<PaymentMethodSetupModalProps> = (
   onClose,
   onSuccess
 }) => {
+  const { user } = useAuthStore();
   const [step, setStep] = useState<'method' | 'details' | 'verification'>('method');
   const [selectedMethod, setSelectedMethod] = useState<'card' | 'paypal' | 'bank'>('card');
   const [loading, setLoading] = useState(false);
@@ -105,26 +108,66 @@ export const PaymentMethodSetupModal: React.FC<PaymentMethodSetupModalProps> = (
     setLoading(true);
     
     try {
-      // Simulate API call to add payment method
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // In a real implementation, you would:
-      // 1. Create payment method with your payment provider (Stripe, PayPal, etc.)
-      // 2. Store the payment method in your database
-      // 3. Handle any verification steps
-      
-      const mockPaymentMethod = {
-        id: `pm_${Date.now()}`,
+      if (!user?.id) {
+        toast.error('User not authenticated');
+        return;
+      }
+
+      // Prepare payment method data
+      const paymentMethodData = {
         type: selectedMethod,
         provider: selectedMethod === 'paypal' ? 'paypal' : 'stripe',
-        last4: selectedMethod === 'card' ? formData.cardNumber.slice(-4) : undefined,
-        brand: selectedMethod === 'card' ? 'visa' : undefined,
+        last4: selectedMethod === 'card' ? formData.cardNumber.replace(/\s/g, '').slice(-4) : undefined,
+        brand: selectedMethod === 'card' ? getCardBrand(formData.cardNumber) : undefined,
+        expiry_month: selectedMethod === 'card' ? parseInt(formData.expiryDate.split('/')[0]) : undefined,
+        expiry_year: selectedMethod === 'card' ? parseInt('20' + formData.expiryDate.split('/')[1]) : undefined,
         is_default: true,
-        created_at: new Date().toISOString()
+        metadata: {
+          cardholder_name: formData.cardholderName,
+          email: formData.email,
+          phone: formData.phone
+        }
       };
-      
+
+      // Generate a unique provider payment method ID
+      const providerPaymentMethodId = `pm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Save to database using the add_payment_method function
+      const { data, error } = await supabase.rpc('add_payment_method', {
+        p_user_id: user.id,
+        p_payment_provider: paymentMethodData.provider,
+        p_provider_payment_method_id: providerPaymentMethodId,
+        p_type: paymentMethodData.type,
+        p_brand: paymentMethodData.brand,
+        p_last4: paymentMethodData.last4,
+        p_expiry_month: paymentMethodData.expiry_month,
+        p_expiry_year: paymentMethodData.expiry_year,
+        p_is_default: paymentMethodData.is_default,
+        p_metadata: paymentMethodData.metadata
+      });
+
+      if (error) {
+        console.error('Error adding payment method:', error);
+        toast.error('Failed to add payment method. Please try again.');
+        return;
+      }
+
+      // Create the payment method object for the parent component
+      const newPaymentMethod = {
+        id: data, // Use the database-generated ID
+        type: paymentMethodData.type,
+        provider: paymentMethodData.provider,
+        last4: paymentMethodData.last4,
+        brand: paymentMethodData.brand,
+        expiry_month: paymentMethodData.expiry_month,
+        expiry_year: paymentMethodData.expiry_year,
+        is_default: paymentMethodData.is_default,
+        created_at: new Date().toISOString(),
+        metadata: paymentMethodData.metadata
+      };
+
       toast.success('Payment method added successfully!');
-      onSuccess?.(mockPaymentMethod);
+      onSuccess?.(newPaymentMethod);
       onClose();
       
     } catch (error) {
@@ -133,6 +176,15 @@ export const PaymentMethodSetupModal: React.FC<PaymentMethodSetupModalProps> = (
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper function to determine card brand
+  const getCardBrand = (cardNumber: string) => {
+    const number = cardNumber.replace(/\s/g, '');
+    if (number.startsWith('4')) return 'visa';
+    if (number.startsWith('5') || number.startsWith('2')) return 'mastercard';
+    if (number.startsWith('3')) return 'amex';
+    return 'unknown';
   };
 
   const resetModal = () => {

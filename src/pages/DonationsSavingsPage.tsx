@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { format } from 'date-fns';
-import { Search, Filter, Download, TrendingUp, Heart, PiggyBank, CheckCircle, HelpCircle, Clock, Plus, Copy, ChevronUp, ChevronDown, Calendar } from 'lucide-react';
+import { Search, Filter, Download, TrendingUp, Heart, PiggyBank, CheckCircle, HelpCircle, Clock, Plus, Copy, ChevronUp, ChevronDown, Calendar, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Tooltip } from '../components/common/Tooltip';
 import { useAuthStore } from '../store/authStore';
@@ -14,6 +14,7 @@ const DonationsSavingsPage: React.FC = () => {
     donationSavingRecords, 
     fetchDonationSavingRecords, 
     getDonationSavingAnalytics,
+    deleteDonationSavingRecord,
     transactions,
     accounts,
     loading,
@@ -38,6 +39,9 @@ const DonationsSavingsPage: React.FC = () => {
 
   // Manual donation modal state
   const [showManualDonationModal, setShowManualDonationModal] = useState(false);
+  
+  // Delete confirmation state
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Add sorting state
   const [sortConfig, setSortConfig] = useState<{
@@ -248,6 +252,20 @@ const DonationsSavingsPage: React.FC = () => {
       .eq('id', record.id);
     // Optionally: re-fetch in the background for consistency
     // fetchDonationSavingRecords();
+  };
+
+  const handleDeleteDonation = async (recordId: string) => {
+    try {
+      const result = await deleteDonationSavingRecord(recordId);
+      if (result.success) {
+        toast.success('Manual donation deleted successfully');
+        setDeleteConfirmId(null);
+      } else {
+        toast.error(result.error || 'Failed to delete donation');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete donation');
+    }
   };
 
   // Currency symbol map
@@ -1067,12 +1085,15 @@ const DonationsSavingsPage: React.FC = () => {
                         {getSortIcon('status')}
                       </div>
                     </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Actions
+                    </th>
                 </tr>
               </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredRecords.length === 0 ? (
                   <tr>
-                      <td colSpan={6} className="py-16 text-center">
+                      <td colSpan={7} className="py-16 text-center">
                     <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
                       <Heart className="w-12 h-12 text-gray-400" />
                     </div>
@@ -1195,6 +1216,36 @@ const DonationsSavingsPage: React.FC = () => {
                                   </>
                                 )}
                               </button>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            {!record.transaction_id && (
+                              <div className="flex items-center justify-center">
+                                {deleteConfirmId === record.id ? (
+                                  <div className="flex items-center space-x-2">
+                                    <button
+                                      onClick={() => handleDeleteDonation(record.id)}
+                                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-md transition-colors"
+                                    >
+                                      Confirm
+                                    </button>
+                                    <button
+                                      onClick={() => setDeleteConfirmId(null)}
+                                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setDeleteConfirmId(record.id)}
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                                    title="Delete manual donation"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -1355,6 +1406,39 @@ const DonationsSavingsPage: React.FC = () => {
                           )}
                         </div>
                       </div>
+                      
+                      {/* Delete Button for Manual Donations */}
+                      {!record.transaction_id && (
+                        <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+                          <div className="flex items-center justify-end">
+                            {deleteConfirmId === record.id ? (
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => handleDeleteDonation(record.id)}
+                                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-md transition-colors"
+                                >
+                                  Confirm Delete
+                                </button>
+                                <button
+                                  onClick={() => setDeleteConfirmId(null)}
+                                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setDeleteConfirmId(record.id)}
+                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                                title="Delete manual donation"
+                              >
+                                <Trash2 className="w-4 h-4 mr-1" />
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })
@@ -1515,6 +1599,39 @@ const DonationsSavingsPage: React.FC = () => {
                           )}
                         </div>
                       </div>
+                      
+                      {/* Delete Button for Manual Donations */}
+                      {!record.transaction_id && (
+                        <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+                          <div className="flex items-center justify-end">
+                            {deleteConfirmId === record.id ? (
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => handleDeleteDonation(record.id)}
+                                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-md transition-colors"
+                                >
+                                  Confirm Delete
+                                </button>
+                                <button
+                                  onClick={() => setDeleteConfirmId(null)}
+                                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setDeleteConfirmId(record.id)}
+                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                                title="Delete manual donation"
+                              >
+                                <Trash2 className="w-4 h-4 mr-1" />
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

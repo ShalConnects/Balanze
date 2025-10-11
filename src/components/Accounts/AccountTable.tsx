@@ -31,7 +31,9 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
   // Memoize expensive calculations
   const accountData = useMemo(() => {
     return accounts.map(account => {
-      const accountTransactions = transactions.filter(t => t.account_id === account.id);
+      const accountTransactions = transactions
+        .filter(t => t.account_id === account.id)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       const incomeTransactions = accountTransactions.filter(t => t.type === 'income');
       const expenseTransactions = accountTransactions.filter(t => t.type === 'expense');
       
@@ -292,7 +294,7 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
                       <div className="space-y-2">
                         <h4 className="text-sm font-medium text-gray-900">Recent Activity</h4>
                         <div className="text-xs text-gray-600 space-y-1">
-                          {accountTransactions.slice(-3).reverse().map((transaction) => (
+                          {accountTransactions.slice(0, 3).map((transaction) => (
                             <div key={transaction.id} className="flex justify-between">
                               <span className="truncate">{transaction.description}</span>
                               <span className={`font-medium ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>

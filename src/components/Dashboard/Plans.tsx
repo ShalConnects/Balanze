@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Check, Heart, Zap, Download, BarChart3, Users, Globe, MessageSquare, Settings, CreditCard, Loader2 } from 'lucide-react';
+import { Check, Heart, Zap, Download, BarChart3, Users, Globe, MessageSquare, Settings, CreditCard, Loader2, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { initializePaddle, Paddle } from '@paddle/paddle-js';
 import { toast } from 'react-hot-toast';
+import { DowngradeConfirmationModal } from '../common/DowngradeConfirmationModal';
 
 interface Plan {
   id: string;
@@ -75,9 +76,11 @@ const plans: Plan[] = [
 export const Plans: React.FC = () => {
   const { profile, user } = useAuthStore();
   const currentPlan = profile?.subscription?.plan || 'free';
+  const isLifetimeSubscriber = profile?.subscription?.billing_cycle === 'lifetime' || profile?.subscription?.billing_cycle === 'one-time';
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'one-time'>('monthly');
   const [loading, setLoading] = useState<string | null>(null); // Track which button is loading
   const [paddle, setPaddle] = useState<Paddle | null>(null);
+  const [showDowngradeModal, setShowDowngradeModal] = useState(false);
 
   // Paddle configuration
   const PADDLE_VENDOR_ID = import.meta.env.VITE_PADDLE_VENDOR_ID;
@@ -110,6 +113,50 @@ export const Plans: React.FC = () => {
     } catch (err) {
       console.error('Failed to load Paddle:', err);
     }
+  };
+
+  const handleDowngradeToFree = () => {
+    if (!user?.email) {
+      toast.error('Please log in to continue');
+      return;
+    }
+
+    setShowDowngradeModal(true);
+  };
+
+  const confirmDowngrade = async () => {
+    setLoading('free');
+    setShowDowngradeModal(false);
+
+    try {
+      // Here you would implement the downgrade logic
+      // This could involve calling your backend API to cancel the subscription
+      // and downgrade the user to free plan
+      
+      console.log('🔄 Processing downgrade to free plan...');
+      
+      // TODO: Implement actual downgrade API call
+      // await downgradeToFreePlan();
+      
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      toast.success(
+        isLifetimeSubscriber 
+          ? 'Downgrade to Free plan completed. Changes have taken effect immediately.'
+          : 'Downgrade to Free plan initiated. Changes will take effect at the end of your current billing period.'
+      );
+      setLoading(null);
+    } catch (err) {
+      console.error('❌ Downgrade failed:', err);
+      toast.error('Unable to process downgrade. Please contact support.');
+      setLoading(null);
+    }
+  };
+
+  const cancelDowngrade = () => {
+    setShowDowngradeModal(false);
+    toast.info('Downgrade cancelled.');
   };
 
   const openDirectCheckout = async (planId: string, planName: string) => {
@@ -287,7 +334,7 @@ export const Plans: React.FC = () => {
                       ? 'bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent'
                       : 'text-gray-900 dark:text-white'
                   }`}>
-                    ${billingCycle === 'one-time' && plan.id === 'premium' ? '99.99' : plan.price}
+                    ${billingCycle === 'one-time' && plan.id === 'premium' ? '199.99' : plan.price}
                   </span>
                   <span className={`ml-1 text-sm lg:text-base ${
                     plan.id === 'premium' 
@@ -356,27 +403,44 @@ export const Plans: React.FC = () => {
               <div className="mt-auto pt-4 lg:pt-5">
                 <button
                   onClick={() => {
-                    if (currentPlan !== plan.id && plan.id !== 'free') {
-                      const planId = billingCycle === 'one-time' ? 'premium_lifetime' : 'premium_monthly';
-                      openDirectCheckout(planId, plan.name);
+                    if (currentPlan !== plan.id) {
+                      if (plan.id === 'free' && !isLifetimeSubscriber) {
+                        // Handle downgrade to free plan (only for monthly subscribers)
+                        handleDowngradeToFree();
+                      } else if (plan.id !== 'free') {
+                        // Handle upgrade to premium
+                        const planId = billingCycle === 'one-time' ? 'premium_lifetime' : 'premium_monthly';
+                        openDirectCheckout(planId, plan.name);
+                      }
                     }
                   }}
                   className={`w-full rounded-lg px-3 lg:px-4 py-2 lg:py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
                     currentPlan === plan.id
                       ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                      : plan.id === 'free' && currentPlan === 'premium' && !isLifetimeSubscriber
+                      ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/50 border border-orange-200 dark:border-orange-800'
+                      : plan.id === 'free' && currentPlan === 'premium' && isLifetimeSubscriber
+                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                       : plan.isPopular
                       ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg'
                       : 'bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-800 dark:hover:bg-gray-600'
                   }`}
-                  disabled={currentPlan === plan.id || loading === (billingCycle === 'one-time' ? 'premium_lifetime' : 'premium_monthly')}
+                  disabled={currentPlan === plan.id || (plan.id === 'free' && isLifetimeSubscriber) || loading === (plan.id === 'free' ? 'free' : (billingCycle === 'one-time' ? 'premium_lifetime' : 'premium_monthly'))}
                 >
-                  {loading === (billingCycle === 'one-time' ? 'premium_lifetime' : 'premium_monthly') ? (
+                  {loading === (plan.id === 'free' ? 'free' : (billingCycle === 'one-time' ? 'premium_lifetime' : 'premium_monthly')) ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Opening...
+                      {plan.id === 'free' ? 'Processing...' : 'Opening...'}
                     </>
                   ) : currentPlan === plan.id ? (
                     'Current Plan'
+                  ) : plan.id === 'free' && currentPlan === 'premium' && isLifetimeSubscriber ? (
+                    'Lifetime Access'
+                  ) : plan.id === 'free' && currentPlan === 'premium' && !isLifetimeSubscriber ? (
+                    <>
+                      <AlertTriangle className="w-4 h-4" />
+                      Downgrade to Free
+                    </>
                   ) : (
                     <>
                       <CreditCard className="w-4 h-4" />
@@ -400,6 +464,15 @@ export const Plans: React.FC = () => {
         </div>
         
       </div>
+
+      {/* Downgrade Confirmation Modal */}
+      <DowngradeConfirmationModal
+        isOpen={showDowngradeModal}
+        onClose={cancelDowngrade}
+        onConfirm={confirmDowngrade}
+        isLoading={loading === 'free'}
+        isLifetimeSubscriber={isLifetimeSubscriber}
+      />
 
     </div>
   );

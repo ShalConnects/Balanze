@@ -96,7 +96,12 @@ export const NotesAndTodosWidget: React.FC = () => {
     };
 
     window.addEventListener('dataRefreshed', handleDataRefresh);
-    return () => window.removeEventListener('dataRefreshed', handleDataRefresh);
+    return () => {
+      window.removeEventListener('dataRefreshed', handleDataRefresh);
+      // Cleanup timeouts on unmount
+      if (editNote.timeoutId) clearTimeout(editNote.timeoutId);
+      if (editTask.timeoutId) clearTimeout(editTask.timeoutId);
+    };
   }, [user?.id]);
 
   // Add note
@@ -120,18 +125,23 @@ export const NotesAndTodosWidget: React.FC = () => {
     }
   };
 
-  // Edit note
-  const editNote = async (id: string, text: string) => {
-    setSaving(true);
-    const { data: updated, error } = await supabase
-      .from('notes')
-      .update({ text })
-      .eq('id', id)
-      .select();
-    setSaving(false);
-    if (!error && updated && updated[0]) {
-      setNotes(notes.map(n => n.id === id ? { ...n, text } : n));
-    }
+  // Edit note with debounced auto-save
+  const editNote = (id: string, text: string) => {
+    // Update local state immediately for responsive UI
+    setNotes(notes.map(n => n.id === id ? { ...n, text } : n));
+    
+    // Debounced save to database
+    clearTimeout(editNote.timeoutId);
+    editNote.timeoutId = setTimeout(async () => {
+      try {
+        await supabase
+          .from('notes')
+          .update({ text })
+          .eq('id', id);
+      } catch (error) {
+        console.error('Error auto-saving note:', error);
+      }
+    }, 1000); // Save after 1 second of no typing
   };
 
   // Delete note
@@ -226,18 +236,23 @@ export const NotesAndTodosWidget: React.FC = () => {
     }
   };
 
-  // Edit task
-  const editTask = async (id: string, text: string) => {
-    setSaving(true);
-    const { data: updated, error } = await supabase
-      .from('tasks')
-      .update({ text })
-      .eq('id', id)
-      .select();
-    setSaving(false);
-    if (!error && updated && updated[0]) {
-      setTasks(tasks.map(t => t.id === id ? { ...t, text } : t));
-    }
+  // Edit task with debounced auto-save
+  const editTask = (id: string, text: string) => {
+    // Update local state immediately for responsive UI
+    setTasks(tasks.map(t => t.id === id ? { ...t, text } : t));
+    
+    // Debounced save to database
+    clearTimeout(editTask.timeoutId);
+    editTask.timeoutId = setTimeout(async () => {
+      try {
+        await supabase
+          .from('tasks')
+          .update({ text })
+          .eq('id', id);
+      } catch (error) {
+        console.error('Error auto-saving task:', error);
+      }
+    }, 1000); // Save after 1 second of no typing
   };
 
   // Toggle task completed
