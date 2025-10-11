@@ -97,6 +97,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
   const [selectedCurrency, setSelectedCurrency] = useState(stats.byCurrency[0]?.currency || 'USD');
   const [showMultiCurrencyAnalytics, setShowMultiCurrencyAnalytics] = useState(true);
+  const [showPurchasesWidget, setShowPurchasesWidget] = useState(true);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -110,6 +111,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         } catch (error) {
           console.error('Error loading user preferences:', error);
           setShowMultiCurrencyAnalytics(true); // Default to showing
+        }
+      };
+      loadPreferences();
+    }
+  }, [user?.id]);
+
+  // Load user preferences for purchases widget
+  useEffect(() => {
+    if (user?.id) {
+      const loadPreferences = async () => {
+        try {
+          const showWidget = await getPreference(user.id, 'showPurchasesWidget', true);
+          setShowPurchasesWidget(showWidget);
+        } catch (error) {
+          console.error('Error loading purchases widget preferences:', error);
+          setShowPurchasesWidget(true); // Default to showing
         }
       };
       loadPreferences();
@@ -136,6 +153,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     } else {
       // Fallback to localStorage if no user
       setShowMultiCurrencyAnalytics(show);
+      toast.info('Preference saved locally', {
+        description: 'Sign in to sync preferences across devices'
+      });
+    }
+  };
+
+  // Save Purchases widget visibility preference to database
+  const handlePurchasesWidgetToggle = async (show: boolean) => {
+    if (user?.id) {
+      try {
+        await setPreference(user.id, 'showPurchasesWidget', show);
+        setShowPurchasesWidget(show);
+        toast.success('Preference saved!', {
+          description: show ? 'Purchases widget will be shown' : 'Purchases widget hidden'
+        });
+      } catch (error) {
+        console.error('Error saving purchases widget preferences:', error);
+        // Still update local state even if database save fails
+        setShowPurchasesWidget(show);
+        toast.error('Failed to save preference', {
+          description: 'Your preference will be saved locally only'
+        });
+      }
+    } else {
+      // Fallback to localStorage if no user
+      setShowPurchasesWidget(show);
       toast.info('Preference saved locally', {
         description: 'Sign in to sync preferences across devices'
       });
@@ -401,15 +444,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
             
           </div>
 
-          {/* Separator */}
-          <div className="border-t border-gray-200 dark:border-gray-700 my-6"></div>
 
           {/* Purchase Overview & Lend & Borrow Summary Row - Responsive grid */}
           <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6">
             {/* Purchase Overview */}
-            {purchases.length > 0 && (
-              <div className="w-full bg-white dark:bg-gray-800 rounded-xl p-4 lg:p-6">
-                <div className="flex items-center justify-between mb-4">
+            {purchases.length > 0 && showPurchasesWidget && (
+              <div className="w-full bg-white dark:bg-gray-800 rounded-xl p-4 lg:p-6 relative">
+                {/* Hide button */}
+                <button
+                  onClick={() => handlePurchasesWidgetToggle(false)}
+                  className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  aria-label="Hide Purchases widget"
+                  title="Hide Purchases widget"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                
+                <div className="flex items-center justify-between mb-4 pr-8">
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">Purchases</h2>
                   <Link 
                     to="/purchases" 

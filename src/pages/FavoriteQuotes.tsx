@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { CustomDropdown } from '../components/Purchases/CustomDropdown';
+import { ShowOnDashboardBanner } from '../components/common/ShowOnDashboardBanner';
 
 export const FavoriteQuotes: React.FC = () => {
   const { t } = useTranslation();
@@ -110,19 +111,15 @@ export const FavoriteQuotes: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Show Quote Widget Button */}
-          <div className="flex justify-end mb-6">
-            {!showQuoteWidget && (
-              <button
-                onClick={handleShowQuoteWidget}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 text-sm"
-                title="Show Quote Widget on Dashboard"
-              >
-                <Quote className="w-4 h-4" />
-                <span className="hidden sm:inline">Show on Dashboard</span>
-              </button>
-            )}
-          </div>
+          <ShowOnDashboardBanner
+            isVisible={!showQuoteWidget}
+            onShow={handleShowQuoteWidget}
+            title="Quote Widget Hidden"
+            description="The Quote widget is currently hidden on your dashboard."
+            buttonText="Show on Dashboard"
+            icon={Quote}
+            className="mb-6"
+          />
 
           <div className="text-center">
             <div className="mx-auto w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-4">
@@ -185,17 +182,15 @@ export const FavoriteQuotes: React.FC = () => {
             </div>
             
             <div className="flex items-center gap-2">
-              {/* Show Quote Widget Button */}
-              {!showQuoteWidget && (
-                <button
-                  onClick={handleShowQuoteWidget}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 text-sm"
-                  title="Show Quote Widget on Dashboard"
-                >
-                  <Quote className="w-4 h-4" />
-                  <span className="hidden sm:inline">Show on Dashboard</span>
-                </button>
-              )}
+              <ShowOnDashboardBanner
+                isVisible={!showQuoteWidget}
+                onShow={handleShowQuoteWidget}
+                title="Quote Widget Hidden"
+                description="The Quote widget is currently hidden on your dashboard."
+                buttonText="Show on Dashboard"
+                icon={Quote}
+                className="!mb-0 !p-3"
+              />
             </div>
           </div>
           

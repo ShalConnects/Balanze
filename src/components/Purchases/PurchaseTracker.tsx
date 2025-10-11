@@ -28,6 +28,9 @@ import {
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Purchase, PurchaseCategory } from '../../types';
 import { format, parseISO } from 'date-fns';
+import { getPreference, setPreference } from '../../lib/userPreferences';
+import { toast } from 'sonner';
+import { ShowOnDashboardBanner } from '../common/ShowOnDashboardBanner';
 import { PurchaseDetailsSection } from '../Transactions/PurchaseDetailsSection';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
@@ -36,7 +39,6 @@ import { useTranslation } from 'react-i18next';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { CustomDropdown } from './CustomDropdown';
-import { toast } from 'sonner';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { Loader } from '../common/Loader';
@@ -112,6 +114,12 @@ export const PurchaseTracker: React.FC = () => {
   const { showPurchaseForm, setShowPurchaseForm } = useFinanceStore();
   const navigate = useNavigate();
 
+  // Widget visibility state - hybrid approach (localStorage + database)
+  const [showPurchasesWidget, setShowPurchasesWidget] = useState(() => {
+    const saved = localStorage.getItem('showPurchasesWidget');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
   // Memoize fetch functions to prevent infinite loops
   const fetchPurchasesCallback = useCallback(() => {
     useFinanceStore.getState().fetchPurchases();
@@ -133,6 +141,49 @@ export const PurchaseTracker: React.FC = () => {
       fetchAccountsCallback();
     }
   }, [user, fetchPurchasesCallback, fetchPurchaseCategoriesCallback, fetchAccountsCallback]);
+
+  // Load user preferences for Purchases widget visibility
+  useEffect(() => {
+    if (user?.id) {
+      const loadPreferences = async () => {
+        try {
+          const showWidget = await getPreference(user.id, 'showPurchasesWidget', true);
+          setShowPurchasesWidget(showWidget);
+          localStorage.setItem('showPurchasesWidget', JSON.stringify(showWidget));
+        } catch (error) {
+          console.error('Error loading Purchases widget preferences:', error);
+          // Keep current localStorage value if database fails
+        }
+      };
+      loadPreferences();
+    }
+  }, [user?.id]);
+
+  // Show Purchases widget on dashboard
+  const handleShowPurchasesWidget = async () => {
+    // Update localStorage immediately for instant UI response
+    localStorage.setItem('showPurchasesWidget', JSON.stringify(true));
+    setShowPurchasesWidget(true);
+    
+    // Save to database if user is authenticated
+    if (user?.id) {
+      try {
+        await setPreference(user.id, 'showPurchasesWidget', true);
+        toast.success('Purchases widget will be shown on dashboard!', {
+          description: 'You can hide it again from the dashboard'
+        });
+      } catch (error) {
+        console.error('Error saving Purchases widget preferences:', error);
+        toast.error('Failed to save preference', {
+          description: 'Your preference will be saved locally only'
+        });
+      }
+    } else {
+      toast.info('Preference saved locally', {
+        description: 'Sign in to sync preferences across devices'
+      });
+    }
+  };
 
   // Fetch attachment counts for all purchases
   useEffect(() => {
@@ -1380,6 +1431,14 @@ export const PurchaseTracker: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <ShowOnDashboardBanner
+        isVisible={!showPurchasesWidget}
+        onShow={handleShowPurchasesWidget}
+        title="Purchases Widget Hidden"
+        description="The Purchases widget is currently hidden on your dashboard."
+        buttonText="Show on Dashboard"
+        icon={Eye}
+      />
 
       {/* Unified Filters and Table */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>

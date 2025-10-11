@@ -12,6 +12,7 @@ import { LendBorrowCardSkeleton, LendBorrowTableSkeleton, LendBorrowSummaryCards
 import { toast } from 'sonner';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getPreference, setPreference } from '../../lib/userPreferences';
+import { ShowOnDashboardBanner } from '../common/ShowOnDashboardBanner';
 
 const currencySymbols: Record<string, string> = {
   USD: '$',
@@ -666,29 +667,14 @@ export const LendBorrowView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Show on Dashboard Button */}
-      {!showLendBorrowWidget && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
-                Lend & Borrow Widget Hidden
-              </h3>
-              <p className="text-blue-700 dark:text-blue-300 text-sm">
-                The Lend & Borrow widget is currently hidden on your dashboard.
-              </p>
-            </div>
-            <button
-              onClick={handleShowLendBorrowWidget}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
-              title="Show Lend & Borrow Widget on Dashboard"
-            >
-              <Eye className="w-4 h-4" />
-              <span>Show on Dashboard</span>
-            </button>
-          </div>
-        </div>
-      )}
+      <ShowOnDashboardBanner
+        isVisible={!showLendBorrowWidget}
+        onShow={handleShowLendBorrowWidget}
+        title="Lend & Borrow Widget Hidden"
+        description="The Lend & Borrow widget is currently hidden on your dashboard."
+        buttonText="Show on Dashboard"
+        icon={Eye}
+      />
 
           {/* Unified Table View - New Section */}
           <div className="space-y-6">

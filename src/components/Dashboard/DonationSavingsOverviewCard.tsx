@@ -6,6 +6,8 @@ import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { StatCard } from './StatCard';
 import { Link } from 'react-router-dom';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { getPreference, setPreference } from '../../lib/userPreferences';
+import { toast } from 'sonner';
 
 interface DonationSavingsOverviewCardProps {
   t: (key: string, options?: any) => string;
@@ -19,12 +21,18 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
   const accounts = useFinanceStore(state => state.accounts);
   const transactions = useFinanceStore(state => state.transactions);
   const donationSavingRecords = useFinanceStore(state => state.donationSavingRecords);
-  const { profile } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const [filterCurrency, setFilterCurrency] = useState('');
   const [loading, setLoading] = useState(true);
   const [showTooltip, setShowTooltip] = useState(false);
   const [showMobileModal, setShowMobileModal] = useState(false);
   const { isMobile } = useMobileDetection();
+
+  // Widget visibility state - hybrid approach (localStorage + database)
+  const [showDonationsSavingsWidget, setShowDonationsSavingsWidget] = useState(() => {
+    const saved = localStorage.getItem('showDonationsSavingsWidget');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
 
   // Get all unique currencies from accounts
   const recordCurrencies = useMemo(() => {
@@ -59,6 +67,49 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
       setLoading(false);
     }
   }, [donationSavingRecords]);
+
+  // Load user preferences for Donations & Savings widget visibility
+  useEffect(() => {
+    if (user?.id) {
+      const loadPreferences = async () => {
+        try {
+          const showWidget = await getPreference(user.id, 'showDonationsSavingsWidget', true);
+          setShowDonationsSavingsWidget(showWidget);
+          localStorage.setItem('showDonationsSavingsWidget', JSON.stringify(showWidget));
+        } catch (error) {
+          console.error('Error loading Donations & Savings widget preferences:', error);
+          // Keep current localStorage value if database fails
+        }
+      };
+      loadPreferences();
+    }
+  }, [user?.id]);
+
+  // Save Donations & Savings widget visibility preference (hybrid approach)
+  const handleDonationsSavingsWidgetToggle = async (show: boolean) => {
+    // Update localStorage immediately for instant UI response
+    localStorage.setItem('showDonationsSavingsWidget', JSON.stringify(show));
+    setShowDonationsSavingsWidget(show);
+    
+    // Save to database if user is authenticated
+    if (user?.id) {
+      try {
+        await setPreference(user.id, 'showDonationsSavingsWidget', show);
+        toast.success('Preference saved!', {
+          description: show ? 'Donations & Savings widget will be shown' : 'Donations & Savings widget hidden'
+        });
+      } catch (error) {
+        console.error('Error saving Donations & Savings widget preferences:', error);
+        toast.error('Failed to save preference', {
+          description: 'Your preference will be saved locally only'
+        });
+      }
+    } else {
+      toast.info('Preference saved locally', {
+        description: 'Sign in to sync preferences across devices'
+      });
+    }
+  };
 
   // Calculate totalDonated using the same logic as Donations page
   const totalDonated = useMemo(() => {
@@ -222,9 +273,24 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
     return null;
   }
 
+  // Don't render if widget is hidden
+  if (!showDonationsSavingsWidget) {
+    return null;
+  }
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 relative">
+      {/* Hide button */}
+      <button
+        onClick={() => handleDonationsSavingsWidgetToggle(false)}
+        className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+        aria-label="Hide Donations & Savings widget"
+        title="Hide Donations & Savings widget"
+      >
+        <X className="w-4 h-4" />
+      </button>
+      
+      <div className="flex items-center justify-between mb-3 pr-8">
         <div className="flex items-center gap-2 flex-1">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Donations & Savings</h2>
           <div className="relative flex items-center">

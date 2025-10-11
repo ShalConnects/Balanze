@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { format } from 'date-fns';
-import { Search, Filter, Download, TrendingUp, Heart, PiggyBank, CheckCircle, HelpCircle, Clock, Plus, Copy, ChevronUp, ChevronDown, Calendar, Trash2 } from 'lucide-react';
+import { Search, Filter, Download, TrendingUp, Heart, PiggyBank, CheckCircle, HelpCircle, Clock, Plus, Copy, ChevronUp, ChevronDown, Calendar, Trash2, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Tooltip } from '../components/common/Tooltip';
 import { useAuthStore } from '../store/authStore';
 import { DonationCardSkeleton, DonationTableSkeleton, DonationSummaryCardsSkeleton, DonationFiltersSkeleton } from '../components/Donations/DonationSkeleton';
 import { ManualDonationModal } from '../components/common/ManualDonationModal';
 import { toast } from 'sonner';
+import { getPreference, setPreference } from '../lib/userPreferences';
+import { ShowOnDashboardBanner } from '../components/common/ShowOnDashboardBanner';
 
 const DonationsSavingsPage: React.FC = () => {
   const { 
@@ -48,6 +50,12 @@ const DonationsSavingsPage: React.FC = () => {
     key: string;
     direction: 'asc' | 'desc';
   } | null>(null);
+
+  // Widget visibility state - hybrid approach (localStorage + database)
+  const [showDonationsSavingsWidget, setShowDonationsSavingsWidget] = useState(() => {
+    const saved = localStorage.getItem('showDonationsSavingsWidget');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
 
   // Refs for dropdown menus
   const modeMenuRef = useRef<HTMLDivElement>(null);
@@ -170,6 +178,49 @@ const DonationsSavingsPage: React.FC = () => {
       fetchDonationSavingRecordsCallback();
     }
   }, [user, fetchDonationSavingRecordsCallback]);
+
+  // Load user preferences for Donations & Savings widget visibility
+  useEffect(() => {
+    if (user?.id) {
+      const loadPreferences = async () => {
+        try {
+          const showWidget = await getPreference(user.id, 'showDonationsSavingsWidget', true);
+          setShowDonationsSavingsWidget(showWidget);
+          localStorage.setItem('showDonationsSavingsWidget', JSON.stringify(showWidget));
+        } catch (error) {
+          console.error('Error loading Donations & Savings widget preferences:', error);
+          // Keep current localStorage value if database fails
+        }
+      };
+      loadPreferences();
+    }
+  }, [user?.id]);
+
+  // Show Donations & Savings widget on dashboard
+  const handleShowDonationsSavingsWidget = async () => {
+    // Update localStorage immediately for instant UI response
+    localStorage.setItem('showDonationsSavingsWidget', JSON.stringify(true));
+    setShowDonationsSavingsWidget(true);
+    
+    // Save to database if user is authenticated
+    if (user?.id) {
+      try {
+        await setPreference(user.id, 'showDonationsSavingsWidget', true);
+        toast.success('Donations & Savings widget will be shown on dashboard!', {
+          description: 'You can hide it again from the dashboard'
+        });
+      } catch (error) {
+        console.error('Error saving Donations & Savings widget preferences:', error);
+        toast.error('Failed to save preference', {
+          description: 'Your preference will be saved locally only'
+        });
+      }
+    } else {
+      toast.info('Preference saved locally', {
+        description: 'Sign in to sync preferences across devices'
+      });
+    }
+  };
 
   // Click outside handlers for dropdowns
   useEffect(() => {
@@ -517,6 +568,15 @@ const DonationsSavingsPage: React.FC = () => {
 
   return (
     <div className="dark:bg-gray-900">
+      <ShowOnDashboardBanner
+        isVisible={!showDonationsSavingsWidget}
+        onShow={handleShowDonationsSavingsWidget}
+        title="Donations & Savings Widget Hidden"
+        description="The Donations & Savings widget is currently hidden on your dashboard."
+        buttonText="Show on Dashboard"
+        icon={Eye}
+      />
+
       {/* Unified Table View */}
       <div className="space-y-6">
 

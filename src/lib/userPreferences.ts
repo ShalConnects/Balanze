@@ -3,6 +3,8 @@ import { supabase } from './supabase';
 export interface UserPreferences {
   showMultiCurrencyAnalytics?: boolean;
   showLendBorrowWidget?: boolean;
+  showPurchasesWidget?: boolean;
+  showDonationsSavingsWidget?: boolean;
   dismissedBanners?: string[];
   theme?: 'light' | 'dark' | 'auto';
   language?: string;
@@ -68,13 +70,15 @@ export class UserPreferencesManager {
       // Merge with updates
       const newPreferences = { ...currentPreferences, ...updates };
 
-      // Update in database
+      // Update in database - use proper upsert with conflict resolution
       const { error } = await supabase
         .from('user_preferences')
         .upsert({
           user_id: userId,
           preference_key: 'ui_preferences',
           preference_value: newPreferences
+        }, {
+          onConflict: 'user_id,preference_key'
         });
 
       if (error) {
@@ -159,6 +163,8 @@ export class UserPreferencesManager {
     return {
       showMultiCurrencyAnalytics: true,
       showLendBorrowWidget: true,
+      showPurchasesWidget: true,
+      showDonationsSavingsWidget: true,
       dismissedBanners: [],
       theme: 'auto',
       language: 'en'
