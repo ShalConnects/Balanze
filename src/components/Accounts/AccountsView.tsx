@@ -17,7 +17,7 @@ import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
 
 export const AccountsView: React.FC = () => {
-  const { accounts, deleteAccount, getTransactionsByAccount, transactions, loading, error, updateAccount, fetchAccounts, showTransactionForm, setShowTransactionForm, categories, purchaseCategories } = useFinanceStore();
+  const { accounts, deleteAccount, getTransactionsByAccount, transactions, loading, error, updateAccount, updateAccountPosition, fetchAccounts, showTransactionForm, setShowTransactionForm, categories, purchaseCategories } = useFinanceStore();
   const { wrapAsync, setLoadingMessage } = useLoadingContext();
   const { user } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -67,6 +67,9 @@ export const AccountsView: React.FC = () => {
   const [showTypeMenu, setShowTypeMenu] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
+  
+  // Re-arrange mode state
+  const [isRearrangeMode, setIsRearrangeMode] = useState(false);
   
   // Temporary filter state for mobile modal
   const [tempFilters, setTempFilters] = useState(tableFilters);
@@ -119,7 +122,17 @@ export const AccountsView: React.FC = () => {
 
   // Sort function
   const sortData = (data: Account[]) => {
-    if (!sortConfig) return data;
+    if (!sortConfig) {
+      // When no sort is active, respect manual position order
+      return [...data].sort((a, b) => {
+        // First sort by position (lower numbers first)
+        if (a.position !== b.position) {
+          return (a.position || 0) - (b.position || 0);
+        }
+        // If positions are equal, fall back to created_at (newest first)
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    }
 
     return [...data].sort((a, b) => {
       let aValue: any;
@@ -436,6 +449,22 @@ export const AccountsView: React.FC = () => {
     setShowDpsDeleteModal(true);
   };
 
+  const handleReorderAccounts = async (draggedId: string, targetId: string) => {
+    try {
+      const draggedIndex = accounts.findIndex(acc => acc.id === draggedId);
+      const targetIndex = accounts.findIndex(acc => acc.id === targetId);
+      
+      if (draggedIndex === -1 || targetIndex === -1) return;
+      
+      // Calculate new position for the dragged account
+      const newPosition = targetIndex + 1; // Position after the target
+      
+      await updateAccountPosition(draggedId, newPosition);
+    } catch (error) {
+      console.error('Failed to reorder accounts:', error);
+    }
+  };
+
   const confirmDeleteDPS = async (moveToMainAccount: boolean) => {
     if (!dpsDeleteContext) return;
     
@@ -673,6 +702,7 @@ export const AccountsView: React.FC = () => {
                   </button>
                 </div>
 
+
                 {/* Mobile Clear Filters Button */}
                 <div className="md:hidden">
                   {(tableFilters.search || tableFilters.currency || tableFilters.type !== 'all' || tableFilters.status !== 'active') && (
@@ -827,6 +857,21 @@ export const AccountsView: React.FC = () => {
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Account</span>
+                </button>
+                
+                <button
+                  onClick={() => setIsRearrangeMode(!isRearrangeMode)}
+                  className={`hidden md:flex px-3 py-1.5 h-8 rounded-md transition-colors items-center space-x-1.5 text-[13px] ${
+                    isRearrangeMode 
+                      ? 'bg-gradient-primary text-white hover:bg-gradient-primary-hover' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                  title={isRearrangeMode ? 'Exit Re-arrange Mode' : 'Re-arrange Accounts'}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                  </svg>
+                  <span>{isRearrangeMode ? 'Done' : 'Re-arrange'}</span>
                 </button>
               </div>
             </div>
@@ -995,10 +1040,37 @@ export const AccountsView: React.FC = () => {
                                 : 'ring-2 ring-blue-500 ring-opacity-50'
                               : ''
                           }`} 
+                          draggable={isRearrangeMode}
+                          onDragStart={isRearrangeMode ? (e) => {
+                            e.dataTransfer.effectAllowed = 'move';
+                            e.dataTransfer.setData('text/html', account.id);
+                          } : undefined}
+                          onDragOver={isRearrangeMode ? (e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                          } : undefined}
+                          onDrop={isRearrangeMode ? async (e) => {
+                            e.preventDefault();
+                            const draggedId = e.dataTransfer.getData('text/html');
+                            if (draggedId && draggedId !== account.id) {
+                              await handleReorderAccounts(draggedId, account.id);
+                            }
+                          } : undefined}
                           onClick={() => toggleRowExpansion(account.id)}
                         >
                           <td className="px-6 py-[0.7rem]">
                             <div className="flex items-center">
+                              {isRearrangeMode && (
+                                <div 
+                                  className="mr-2 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                                  </svg>
+                                </div>
+                              )}
                               <div className="flex-1">
                                 <div 
                                   className="text-sm font-medium text-gray-900 dark:text-white relative group"
@@ -1025,8 +1097,8 @@ export const AccountsView: React.FC = () => {
                             </div>
                           </td>
                           <td className="px-6 py-[0.7rem]">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAccountColor(account.type)}`}>
-                              {account.type === 'cash' ? 'Cash Account' : account.type.charAt(0).toUpperCase() + account.type.slice(1)}
+                            <span className={`inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAccountColor(account.type)}`}>
+                              {account.type === 'cash' ? 'Cash' : account.type.charAt(0).toUpperCase() + account.type.slice(1)}
                             </span>
                           </td>
                           <td className="px-6 py-[0.7rem] text-center">
@@ -1322,8 +1394,8 @@ export const AccountsView: React.FC = () => {
                             <div>
                               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Type</div>
                               <div>
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAccountColor(account.type)}`}>
-                                  {account.type === 'cash' ? 'Cash Account' : account.type.charAt(0).toUpperCase() + account.type.slice(1)}
+                                <span className={`inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAccountColor(account.type)}`}>
+                                  {account.type === 'cash' ? 'Cash' : account.type.charAt(0).toUpperCase() + account.type.slice(1)}
                                 </span>
                               </div>
                             </div>

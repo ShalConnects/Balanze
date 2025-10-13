@@ -144,19 +144,173 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 ALTER TABLE subscription_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscription_history ENABLE ROW LEVEL SECURITY;
 
--- Allow users to view active subscription plans
-CREATE POLICY "Users can view active subscription plans" ON subscription_plans
-    FOR SELECT USING (is_active = true);
+-- Allow users to view active subscription plans (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' 
+      AND tablename = 'subscription_plans' 
+      AND policyname = 'Users can view active subscription plans'
+  ) THEN
+    CREATE POLICY "Users can view active subscription plans" ON subscription_plans
+      FOR SELECT USING (is_active = true);
+  END IF;
+END $$;
 
--- Allow users to view their own subscription history
-CREATE POLICY "Users can view their own subscription history" ON subscription_history
-    FOR SELECT USING (auth.uid() = user_id);
+-- Allow users to view their own subscription history (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' 
+      AND tablename = 'subscription_history' 
+      AND policyname = 'Users can view their own subscription history'
+  ) THEN
+    CREATE POLICY "Users can view their own subscription history" ON subscription_history
+      FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+END $$;
 
--- Allow users to insert their own subscription history (for upgrades)
-CREATE POLICY "Users can insert their own subscription history" ON subscription_history
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- Allow users to insert their own subscription history (for upgrades) (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' 
+      AND tablename = 'subscription_history' 
+      AND policyname = 'Users can insert their own subscription history'
+  ) THEN
+    CREATE POLICY "Users can insert their own subscription history" ON subscription_history
+      FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_subscription_history_user_id ON subscription_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscription_history_status ON subscription_history(status);
 CREATE INDEX IF NOT EXISTS idx_subscription_history_plan_name ON subscription_history(plan_name); 
+
+-- Downgrade user subscription to Free plan (immediate for lifetime, scheduled for monthly)
+CREATE OR REPLACE FUNCTION downgrade_user_subscription(
+    user_uuid UUID,
+    is_lifetime BOOLEAN DEFAULT FALSE
+)
+RETURNS JSONB AS $$
+DECLARE
+    current_subscription JSONB;
+    free_plan RECORD;
+    result JSONB;
+    current_valid_until TIMESTAMP WITH TIME ZONE;
+BEGIN
+    -- Load current subscription
+    SELECT subscription INTO current_subscription FROM profiles WHERE id = user_uuid;
+
+    -- Load Free plan details
+    SELECT * INTO free_plan FROM subscription_plans WHERE name = 'free' AND is_active = true;
+
+    IF current_subscription IS NULL OR (current_subscription->>'plan') IS NULL THEN
+        -- Treat as already free
+        UPDATE profiles
+        SET subscription = jsonb_build_object(
+            'plan', 'free',
+            'status', 'active',
+            'validUntil', NULL,
+            'features', free_plan.features
+        ),
+        updated_at = NOW()
+        WHERE id = user_uuid;
+
+        result := jsonb_build_object('status', 'immediate', 'message', 'Set to free');
+        RETURN result;
+    END IF;
+
+    -- Parse current validUntil if present
+    IF (current_subscription->>'validUntil') IS NOT NULL THEN
+        current_valid_until := (current_subscription->>'validUntil')::timestamp;
+    ELSE
+        current_valid_until := NULL;
+    END IF;
+
+    -- Immediate downgrade for all users (both lifetime and monthly)
+    IF is_lifetime = TRUE OR lower(coalesce(current_subscription->>'billing_cycle','')) IN ('lifetime','one-time') OR TRUE THEN
+        UPDATE profiles 
+        SET subscription = jsonb_build_object(
+            'plan', 'free',
+            'status', 'active',
+            'validUntil', NULL,
+            'features', free_plan.features
+        ),
+        updated_at = NOW()
+        WHERE id = user_uuid;
+
+        -- Record history
+        INSERT INTO subscription_history (
+            user_id,
+            plan_id,
+            plan_name,
+            status,
+            start_date,
+            end_date,
+            amount_paid,
+            currency,
+            payment_method
+        ) VALUES (
+            user_uuid,
+            free_plan.id,
+            'free',
+            'active',
+            NOW(),
+            NULL,
+            0,
+            free_plan.currency,
+            'system'
+        );
+
+        result := jsonb_build_object('status', 'immediate', 'message', 'Downgraded to free');
+        RETURN result;
+    END IF;
+
+    -- For monthly/recurring subscriptions: schedule at period end
+    UPDATE profiles
+    SET subscription = coalesce(current_subscription, '{}'::jsonb) || jsonb_build_object(
+        'cancel_at_period_end', TRUE
+    ),
+    updated_at = NOW()
+    WHERE id = user_uuid;
+
+    -- Record cancellation intent in history
+    INSERT INTO subscription_history (
+        user_id,
+        plan_id,
+        plan_name,
+        status,
+        start_date,
+        end_date,
+        amount_paid,
+        currency,
+        payment_method
+    ) VALUES (
+        user_uuid,
+        free_plan.id,
+        'premium',
+        'cancelled',
+        NOW(),
+        current_valid_until,
+        NULL,
+        free_plan.currency,
+        'system'
+    );
+
+    result := jsonb_build_object(
+        'status', 'scheduled',
+        'cancel_at_period_end', TRUE,
+        'effective_date', to_char(coalesce(current_valid_until, NOW()), 'YYYY-MM-DD"T"HH24:MI:SSOF')
+    );
+    RETURN result;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE LOG 'Error downgrading subscription for user %: %', user_uuid, SQLERRM;
+        RETURN jsonb_build_object('status', 'error', 'message', SQLERRM);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

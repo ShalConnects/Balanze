@@ -19,7 +19,12 @@ export const RecentTransactions: React.FC = () => {
   // Get the 10 most recent transactions
   const recentTransactions = allTransactions
     .filter(t => !t.tags?.some(tag => tag.includes('transfer') || tag.includes('dps_transfer')))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a, b) => {
+      // Sort by created_at, but if updated_at is more recent, use that for priority
+      const aLatestTime = a.updated_at ? Math.max(new Date(a.created_at).getTime(), new Date(a.updated_at).getTime()) : new Date(a.created_at).getTime();
+      const bLatestTime = b.updated_at ? Math.max(new Date(b.created_at).getTime(), new Date(b.updated_at).getTime()) : new Date(b.created_at).getTime();
+      return bLatestTime - aLatestTime;
+    })
     .slice(0, 5);
 
   if (recentTransactions.length === 0) {
@@ -39,7 +44,7 @@ export const RecentTransactions: React.FC = () => {
           return (
             <div
               key={transaction.id}
-              className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="flex items-center justify-between p-2 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <div className="flex items-center space-x-2">
                 <div className={`p-1.5 rounded-full ${transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>

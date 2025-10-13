@@ -1058,7 +1058,7 @@ const MockLastWishCountdownWidget: React.FC = () => {
   };
 
   return (
-    <div className="mb-5 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 dark:border-gray-700 relative">
+    <div className="mb-5 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative">
       {/* Premium Badge */}
       <div className="absolute top-2 right-2">
         <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
@@ -1263,7 +1263,7 @@ const MockRecentTransactions: React.FC = () => {
           return (
             <div
               key={transaction.id}
-              className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="flex items-center justify-between p-2 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <div className="flex items-center space-x-2">
                 <div className={`p-1.5 rounded-full ${transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
@@ -1371,7 +1371,7 @@ const MockLendBorrowSummaryCard: React.FC<{ t: any; formatCurrency: any }> = ({ 
   ];
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 relative">
+    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative">
       {/* Premium Badge */}
       <div className="absolute top-2 right-2">
         <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
@@ -1920,93 +1920,12 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
 
   return (
     <>
-      {/* Enhanced Demo Banner */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 mb-6 rounded-lg shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center animate-pulse">
-              <span className="text-lg">🎯</span>
-            </div>
-            <div>
-              <h3 className="font-bold text-xl">Live Demo Dashboard</h3>
-              <p className="text-blue-100 text-sm">Experience Balanze with real sample data. No signup required!</p>
-              <div className="flex items-center space-x-4 mt-2">
-                <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-xs">Live Data</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                  <span className="text-xs">Interactive</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                  <span className="text-xs">Multi-Currency</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col space-y-2">
-            <button
-              onClick={() => window.location.href = '/register'}
-              className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors flex items-center space-x-2"
-            >
-              <span>Get Started</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => window.location.href = '/'}
-              className="bg-transparent border border-white/30 text-white px-6 py-2 rounded-lg font-semibold hover:bg-white/10 transition-colors text-sm"
-            >
-              Back to Landing
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Main Dashboard Content */}
       <div data-tour="dashboard" className="flex flex-col lg:flex-row gap-6">
         {/* Main Content - Full width on mobile, flex-1 on desktop */}
         <div className="flex-1 space-y-6">
 
-          {/* Demo Feature Highlights */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg p-4 border border-green-200 dark:border-green-700">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-green-900 dark:text-green-100">Real-time Analytics</h4>
-                  <p className="text-green-700 dark:text-green-300 text-sm">Live spending insights</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-700">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                  <Globe className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-blue-900 dark:text-blue-100">Multi-Currency</h4>
-                  <p className="text-blue-700 dark:text-blue-300 text-sm">USD, BDT & more</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-700">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
-                  <Heart className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-purple-900 dark:text-purple-100">Last Wish</h4>
-                  <p className="text-purple-700 dark:text-purple-300 text-sm">Digital legacy planning</p>
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Multi-Currency Quick Access */}
           {stats.byCurrency.length > 1 && showMultiCurrencyAnalytics && (
@@ -2065,7 +1984,7 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
           <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6">
             {/* Purchase Overview */}
             {purchases.length > 0 && showPurchasesWidget && (
-              <div className="w-full bg-white dark:bg-gray-800 rounded-xl p-4 lg:p-6 relative">
+              <div className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative">
                 {/* Hide button */}
                 <button
                   onClick={() => handlePurchasesWidgetToggle(false)}
@@ -2112,7 +2031,7 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
           <MotivationalQuote />
 
           {/* Recent Transactions - Hidden on mobile, shown on desktop */}
-          <div className="hidden lg:block w-full bg-white dark:bg-gray-800 rounded-xl p-4 lg:p-6">
+          <div className="hidden lg:block w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('dashboard.recentTransactions')}</h2>
               <div className="text-sm font-medium flex items-center space-x-1 text-gray-400 cursor-not-allowed">
@@ -2136,7 +2055,7 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
           <NotesAndTodosWidget />
           
           {/* Recent Transactions - Mobile version */}
-          <div className="w-full bg-white dark:bg-gray-800 rounded-xl p-4 lg:p-6 transaction-list-mobile">
+          <div className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 transaction-list-mobile">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('dashboard.recentTransactions')}</h2>
               <div className="text-sm font-medium flex items-center space-x-1 text-gray-400 cursor-not-allowed">
@@ -2189,6 +2108,45 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
             <div className="flex items-center space-x-2">
               <Check className="w-4 h-4 text-green-500" />
               <span>Cancel anytime</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Demo Feature Highlights */}
+      <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg p-4 border border-green-200 dark:border-green-700">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-green-900 dark:text-green-100">Real-time Analytics</h4>
+              <p className="text-green-700 dark:text-green-300 text-sm">Live spending insights</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-700">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+              <Globe className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-blue-900 dark:text-blue-100">Multi-Currency</h4>
+              <p className="text-blue-700 dark:text-blue-300 text-sm">USD, BDT & more</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-700">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+              <Heart className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-purple-900 dark:text-purple-100">Last Wish</h4>
+              <p className="text-purple-700 dark:text-purple-300 text-sm">Digital legacy planning</p>
             </div>
           </div>
         </div>

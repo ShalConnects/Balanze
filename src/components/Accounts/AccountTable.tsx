@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Edit2, Trash2, InfoIcon, PlusCircle, Wallet } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Edit2, Trash2, InfoIcon, PlusCircle, Wallet, GripVertical } from 'lucide-react';
 import { Account, Transaction } from '../../types';
 import { getAccountColor } from '../../utils/accountIcons';
 
@@ -13,6 +13,7 @@ interface AccountTableProps {
   onAddTransaction: (accountId: string) => void;
   onShowInfo: (account: Account) => void;
   onUpdateAccount: (accountId: string, updates: any) => Promise<void>;
+  onReorderAccounts: (draggedId: string, targetId: string) => Promise<void>;
   formatCurrency: (amount: number, currency: string) => string;
 }
 
@@ -26,8 +27,35 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
   onAddTransaction,
   onShowInfo,
   onUpdateAccount,
+  onReorderAccounts,
   formatCurrency
 }) => {
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, accountId: string) => {
+    setDraggedId(accountId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', accountId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetAccountId: string) => {
+    e.preventDefault();
+    if (draggedId && draggedId !== targetAccountId) {
+      await onReorderAccounts(draggedId, targetAccountId);
+    }
+    setDraggedId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+  };
+
   // Memoize expensive calculations
   const accountData = useMemo(() => {
     return accounts.map(account => {
@@ -127,11 +155,24 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
                   ${isEven ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}
                   hover:bg-blue-50 dark:hover:bg-blue-900/20 
                   hover:shadow-sm
+                  ${draggedId === account.id ? 'opacity-50' : ''}
                 `} 
+                draggable
+                onDragStart={(e) => handleDragStart(e, account.id)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, account.id)}
+                onDragEnd={handleDragEnd}
                 onClick={() => onToggleRow(account.id)}
               >
                 <td className="px-6 py-[0.7rem]">
                   <div className="flex items-center">
+                    <div 
+                      className="mr-2 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <GripVertical className="w-4 h-4" />
+                    </div>
                     <div className="flex-1">
                       <div 
                         className="text-sm font-medium text-gray-900 dark:text-white relative group"
@@ -158,8 +199,8 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
                   </div>
                 </td>
                 <td className="px-6 py-[0.7rem]">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAccountColor(account.type)}`}>
-                    {account.type === 'cash' ? 'Cash Account' : account.type.charAt(0).toUpperCase() + account.type.slice(1)}
+                  <span className={`inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAccountColor(account.type)}`}>
+                    {account.type === 'cash' ? 'Cash' : account.type.charAt(0).toUpperCase() + account.type.slice(1)}
                   </span>
                 </td>
                 <td className="px-6 py-[0.7rem] text-center">

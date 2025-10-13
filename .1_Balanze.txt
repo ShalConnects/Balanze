@@ -24,11 +24,11 @@ yu&&5jvM6oNck#L^
 Future feature:
 Dashboard card, selection / hide
 Split transaction for mobile view
-Dashboard demo for landing page
-
-Downgrade to free version doesn't work
-25 transaction / per month
+about Android  on landing page
 Account re-arrange
+
+
+
 
 
 

@@ -102,26 +102,30 @@ export class NotificationPreferencesService {
 
   async savePreferences(userId: string, preferences: NotificationPreferences): Promise<boolean> {
     try {
-      console.log('Saving preferences for user:', userId, preferences);
+      console.log('💾 [NotificationPreferencesService] Saving preferences for user:', userId);
+      console.log('💾 [NotificationPreferencesService] Preferences to save:', preferences);
       
       // Check if user is authenticated
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('🔐 [NotificationPreferencesService] Session check:', { session: !!session, error: sessionError });
+      
       if (sessionError) {
-        console.error('Session error:', sessionError);
+        console.error('❌ [NotificationPreferencesService] Session error:', sessionError);
         return false;
       }
       
       if (!session) {
-        console.error('No active session. User must be logged in to save preferences.');
+        console.error('❌ [NotificationPreferencesService] No active session. User must be logged in to save preferences.');
         return false;
       }
       
       if (session.user.id !== userId) {
-        console.error('User ID mismatch. Session user:', session.user.id, 'Requested user:', userId);
+        console.error('❌ [NotificationPreferencesService] User ID mismatch. Session user:', session.user.id, 'Requested user:', userId);
         return false;
       }
       
       // Try to save preferences with proper upsert configuration
+      console.log('💾 [NotificationPreferencesService] Attempting database upsert...');
       const { error } = await supabase
         .from('notification_preferences')
         .upsert({
@@ -132,8 +136,10 @@ export class NotificationPreferencesService {
           onConflict: 'user_id,preference_key'
         });
 
+      console.log('💾 [NotificationPreferencesService] Database upsert result:', { error });
+
       if (error) {
-        console.error('Error saving notification preferences:', error);
+        console.error('❌ [NotificationPreferencesService] Error saving notification preferences:', error);
         if (error.code === '42P01') {
           console.error('Table notification_preferences does not exist. Please run the database migration.');
         } else if (error.code === '42501') {
@@ -198,7 +204,7 @@ export class NotificationPreferencesService {
         return false;
       }
 
-      console.log('Preferences saved successfully');
+      console.log('✅ [NotificationPreferencesService] Preferences saved successfully');
       return true;
     } catch (error) {
       console.error('Error saving notification preferences:', error);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, CreditCard, Banknote, ArrowRight, ShoppingCart, Clock, CheckCircle, XCircle, PieChart, LineChart, X } from 'lucide-react';
 import { PieChart as RechartsPieChart, Pie, Cell, LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useFinanceStore } from '../../store/useFinanceStore';
@@ -30,6 +30,7 @@ import { LastWishCountdownWidget } from './LastWishCountdownWidget';
 import { MotivationalQuote } from './MotivationalQuote';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { toast } from 'sonner';
+import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 
 interface DashboardProps {
@@ -98,6 +99,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   const [selectedCurrency, setSelectedCurrency] = useState(stats.byCurrency[0]?.currency || 'USD');
   const [showMultiCurrencyAnalytics, setShowMultiCurrencyAnalytics] = useState(true);
   const [showPurchasesWidget, setShowPurchasesWidget] = useState(true);
+  const [isPurchaseWidgetHovered, setIsPurchaseWidgetHovered] = useState(false);
+  const [showPurchaseCrossTooltip, setShowPurchaseCrossTooltip] = useState(false);
+  const purchaseTooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -159,6 +163,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     }
   };
 
+  // Handle hover events for purchase widget cross icon (desktop only)
+  const handlePurchaseWidgetMouseEnter = () => {
+    if (!isMobile) {
+      setIsPurchaseWidgetHovered(true);
+      setShowPurchaseCrossTooltip(true);
+      
+      // Clear any existing timeout
+      if (purchaseTooltipTimeoutRef.current) {
+        clearTimeout(purchaseTooltipTimeoutRef.current);
+      }
+      
+      // Hide tooltip after 3 seconds
+      purchaseTooltipTimeoutRef.current = setTimeout(() => {
+        setShowPurchaseCrossTooltip(false);
+      }, 3000);
+    }
+  };
+
+  const handlePurchaseWidgetMouseLeave = () => {
+    if (!isMobile) {
+      setIsPurchaseWidgetHovered(false);
+      setShowPurchaseCrossTooltip(false);
+      
+      // Clear timeout when mouse leaves
+      if (purchaseTooltipTimeoutRef.current) {
+        clearTimeout(purchaseTooltipTimeoutRef.current);
+        purchaseTooltipTimeoutRef.current = null;
+      }
+    }
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (purchaseTooltipTimeoutRef.current) {
+        clearTimeout(purchaseTooltipTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Save Purchases widget visibility preference to database
   const handlePurchasesWidgetToggle = async (show: boolean) => {
     if (user?.id) {
@@ -201,22 +245,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     .sort((a, b) => new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime())
     .slice(0, 5);
 
-  // Responsive state detection
-  const [isMobile, setIsMobile] = useState(false);
-  const [isTablet, setIsTablet] = useState(false);
-
-  useEffect(() => {
-    const checkScreenSize = () => {
-      const width = window.innerWidth;
-      setIsMobile(width <= 767);
-      setIsTablet(width > 767 && width <= 1024);
-    };
-    
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
+  // Responsive state detection - using hook instead of local state
+  const { isMobile: isMobileFromHook, isVerySmall } = useMobileDetection();
+  const isMobile = isMobileFromHook;
 
   // Fetch purchases data when dashboard loads
   useEffect(() => {
@@ -449,16 +480,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6">
             {/* Purchase Overview */}
             {purchases.length > 0 && showPurchasesWidget && (
-              <div className="w-full bg-white dark:bg-gray-800 rounded-xl p-4 lg:p-6 relative">
-                {/* Hide button */}
-                <button
-                  onClick={() => handlePurchasesWidgetToggle(false)}
-                  className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                  aria-label="Hide Purchases widget"
-                  title="Hide Purchases widget"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+              <div 
+                className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative"
+                onMouseEnter={handlePurchaseWidgetMouseEnter}
+                onMouseLeave={handlePurchaseWidgetMouseLeave}
+              >
+                {/* Hide button - hover on desktop, always visible on mobile */}
+                {(isPurchaseWidgetHovered || isMobile) && (
+                  <button
+                    onClick={() => handlePurchasesWidgetToggle(false)}
+                    className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors z-10"
+                    aria-label="Hide Purchases widget"
+                  >
+                    <X className="w-4 h-4" />
+                    {/* Tooltip - only on desktop */}
+                    {showPurchaseCrossTooltip && !isMobile && (
+                      <div className="absolute top-full right-0 mt-1 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded shadow-lg whitespace-nowrap z-20">
+                        Click to hide this widget
+                        <div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 dark:bg-gray-100 rotate-45"></div>
+                      </div>
+                    )}
+                  </button>
+                )}
                 
                 <div className="flex items-center justify-between mb-4 pr-8">
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">Purchases</h2>
@@ -496,7 +539,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           <MotivationalQuote />
 
           {/* Recent Transactions - Hidden on mobile, shown on desktop */}
-          <div className="hidden lg:block w-full bg-white dark:bg-gray-800 rounded-xl p-4 lg:p-6">
+          <div className="hidden lg:block w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('dashboard.recentTransactions')}</h2>
               <Link 
@@ -523,7 +566,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           <NotesAndTodosWidget />
           
           {/* Recent Transactions - Mobile version */}
-          <div className="w-full bg-white dark:bg-gray-800 rounded-xl p-4 lg:p-6 transaction-list-mobile">
+          <div className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 transaction-list-mobile">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('dashboard.recentTransactions')}</h2>
               <Link 

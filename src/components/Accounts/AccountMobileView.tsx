@@ -73,7 +73,7 @@ export const AccountMobileView: React.FC<AccountMobileViewProps> = React.memo(({
                       {account.name}
                     </div>
                     <div className="text-xs">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getAccountColor(account.type)}`}>
+                      <span className={`inline-flex items-center justify-center text-center px-2 py-0.5 rounded-full text-xs font-medium ${getAccountColor(account.type)}`}>
                         {account.type === 'cash' ? 'Cash Wallet' : account.type.charAt(0).toUpperCase() + account.type.slice(1)}
                       </span>
                     </div>

@@ -934,7 +934,7 @@ const LandingPage: React.FC = () => {
               <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
                 Securely record your final wishes, messages, and important information for your loved ones. 
                 <span className="font-semibold text-purple-600 dark:text-purple-400"> Balanze's Last Wish</span> feature lets you create a digital legacy, 
-                ensuring your voice and intentions are preserved and delivered when it matters most.
+                ensuring your intentions are preserved and delivered when it matters most.
               </p>
 
               {/* Key Features */}
@@ -945,7 +945,7 @@ const LandingPage: React.FC = () => {
                   </div>
                   <div>
                     <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Personal Messages</h4>
-                    <p className="text-gray-600 dark:text-gray-400">Record heartfelt video messages, voice notes, and written letters for your family and friends.</p>
+                    <p className="text-gray-600 dark:text-gray-400">Record heartfelt messages and written letters for your family and friends.</p>
                   </div>
                 </div>
 
@@ -1005,7 +1005,7 @@ const LandingPage: React.FC = () => {
                 </div>
                 <blockquote className="text-lg text-gray-700 dark:text-gray-300 italic mb-6 leading-relaxed">
                   "Last Wish gave me peace of mind knowing my children will have everything they need. 
-                  I recorded video messages for each of them, and stored all our important documents. 
+                  I recorded personal messages for each of them, and stored all our important documents. 
                   It's like having a conversation with my future self."
                 </blockquote>
                 <div className="flex items-center gap-2">
@@ -1051,7 +1051,7 @@ const LandingPage: React.FC = () => {
                   </div>
                   <p className="text-gray-600 dark:text-gray-400 text-sm italic mb-3">
                     "I love being able to leave personal messages for my grandchildren. 
-                    They'll hear my voice and stories even when I'm gone."
+                    They'll read my stories and memories even when I'm gone."
                   </p>
                   <div className="flex items-center gap-1">
                     {[...Array(5)].map((_, i) => (
@@ -1063,101 +1063,20 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Social Proof Section */}
-          <div className="bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 rounded-3xl p-12 mb-16">
-            <div className="text-center mb-12">
-              <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-                Trusted by Families Worldwide
-              </h3>
-              <p className="text-lg text-gray-600 dark:text-gray-400">
-                Join thousands of families who have found peace of mind with Last Wish
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Trust Stats */}
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Users className="w-8 h-8 text-white" />
-                </div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">12,500+</div>
-                <div className="text-gray-600 dark:text-gray-400">Families Protected</div>
-              </div>
-
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Shield className="w-8 h-8 text-white" />
-                </div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">99.9%</div>
-                <div className="text-gray-600 dark:text-gray-400">Uptime Guarantee</div>
-              </div>
-
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Star className="w-8 h-8 text-white" />
-                </div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">4.9/5</div>
-                <div className="text-gray-600 dark:text-gray-400">User Rating</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Security & Trust Indicators */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Security Features */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-100 dark:border-gray-700">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-white" />
-                </div>
-                <h4 className="text-xl font-bold text-gray-900 dark:text-white">Bank-Level Security</h4>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-green-500" />
-                  <span className="text-gray-700 dark:text-gray-300">256-bit encryption</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-green-500" />
-                  <span className="text-gray-700 dark:text-gray-300">Zero-knowledge architecture</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-green-500" />
-                  <span className="text-gray-700 dark:text-gray-300">SOC 2 Type II certified</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-green-500" />
-                  <span className="text-gray-700 dark:text-gray-300">Regular security audits</span>
-                </div>
-              </div>
-            </div>
-
-            {/* User Stories */}
-            <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl p-8 border border-purple-200 dark:border-purple-800">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                  <Heart className="w-6 h-6 text-white" />
-                </div>
-                <h4 className="text-xl font-bold text-gray-900 dark:text-white">Real Stories</h4>
-              </div>
-              <div className="space-y-4">
-                <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-4">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 italic mb-2">
-                    "My father passed away suddenly, but thanks to Last Wish, we had all his important documents and a beautiful video message he left for us."
-                  </p>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">- Jennifer L., Daughter</div>
-                </div>
-                <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-4">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 italic mb-2">
-                    "I travel frequently for work. Last Wish gives me peace of mind knowing my family is protected no matter what happens."
-                  </p>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">- David K., Executive</div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
+
+      {/* Divider */}
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+          <div className="w-full border-t border-gray-200 dark:border-gray-700" />
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-white dark:bg-gray-900 px-6 text-sm text-gray-500 dark:text-gray-400">
+            <Heart className="w-5 h-5 mx-auto" />
+          </span>
+        </div>
+      </div>
 
       {/* Comparison Section - Why Choose Balanze */}
       <section className="py-20 bg-white dark:bg-gray-900 relative">
@@ -1369,7 +1288,7 @@ const LandingPage: React.FC = () => {
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
                     <CreditCard className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">100 transactions limit</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">25 transactions per month</span>
                   </div>
                 </li>
                 <li className="flex items-start">
@@ -1582,48 +1501,6 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section id="testimonials" className="py-20 relative">
-        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Loved by Thousands of Users
-            </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-              See what our users are saying about Balanze
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-8 shadow-lg">
-                <div className="flex items-center mb-6">
-                  <img 
-                    src={testimonial.avatar} 
-                    alt={testimonial.name}
-                    className="w-12 h-12 rounded-full mr-4"
-                  />
-                  <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white">
-                      {testimonial.name}
-                    </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {testimonial.title}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-gray-600 dark:text-gray-300 mb-4">
-                  "{testimonial.quote}"
-                </p>
-                <div className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* FAQ */}
       <section className="py-20 bg-gray-50 dark:bg-gray-800 relative">

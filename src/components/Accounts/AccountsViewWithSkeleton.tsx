@@ -17,6 +17,7 @@ export const AccountsViewWithSkeleton: React.FC = () => {
     error, 
     fetchAccounts, 
     fetchTransactions,
+    updateAccountPosition,
     showAccountForm,
     setShowAccountForm,
     selectedAccount,
@@ -131,6 +132,22 @@ export const AccountsViewWithSkeleton: React.FC = () => {
       newExpandedRows.add(accountId);
     }
     setExpandedRows(newExpandedRows);
+  };
+
+  const handleReorderAccounts = async (draggedId: string, targetId: string) => {
+    try {
+      const draggedIndex = sortedAccounts.findIndex(acc => acc.id === draggedId);
+      const targetIndex = sortedAccounts.findIndex(acc => acc.id === targetId);
+      
+      if (draggedIndex === -1 || targetIndex === -1) return;
+      
+      // Calculate new position for the dragged account
+      const newPosition = targetIndex + 1; // Position after the target
+      
+      await updateAccountPosition(draggedId, newPosition);
+    } catch (error) {
+      console.error('Failed to reorder accounts:', error);
+    }
   };
 
   // Show loading skeleton if page is loading
@@ -301,8 +318,22 @@ export const AccountsViewWithSkeleton: React.FC = () => {
               onToggleRow={handleToggleRow}
               onEditAccount={handleEditAccount}
               onDeleteAccount={handleDeleteAccount}
-              sortConfig={sortConfig}
-              onSort={setSortConfig}
+              onAddTransaction={(accountId) => console.log('Add transaction:', accountId)}
+              onShowInfo={(account) => console.log('Show info:', account)}
+              onUpdateAccount={async (accountId, updates) => {
+                // This would need to be implemented based on your store methods
+                console.log('Update account:', accountId, updates);
+              }}
+              onReorderAccounts={handleReorderAccounts}
+              formatCurrency={(amount, currency) => {
+                if (currency === 'BDT') {
+                  return `৳${amount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                }
+                return new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency,
+                }).format(amount);
+              }}
             />
           )}
         </div>

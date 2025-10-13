@@ -6,7 +6,7 @@
 **File**: `src/components/Dashboard/Plans.tsx`
 
 **Free Plan Changes**:
-- ✅ Added: `'100 transactions limit'` with CreditCard icon
+- ✅ Added: `'25 transactions per month'` with CreditCard icon
 - ✅ Removed: `'Transaction management'` (replaced with specific limit)
 
 **Premium Plan Changes**:
@@ -17,7 +17,7 @@
 **File**: `src/pages/LandingPage.tsx`
 
 **Free Plan Changes**:
-- ✅ Updated: `'Transaction management'` → `'100 transactions limit'`
+- ✅ Updated: `'Transaction management'` → `'25 transactions per month'`
 - ✅ Same icon: CreditCard
 - ✅ Same styling: Gray text for included features
 
@@ -32,7 +32,7 @@
 - ✅ Basic financial tracking
 - ✅ Up to 3 accounts  
 - ✅ 1 currency only
-- ✅ **100 transactions limit** ← NEW
+- ✅ **25 transactions per month** ← NEW
 - ✅ Basic reports
 - ✅ Email support (24-48h response)
 - ✅ Basic purchase tracking
@@ -71,13 +71,13 @@
 ## 🧪 **Testing Checklist**
 
 ### **Settings Page** (`/settings?tab=plans-usage`)
-- [ ] Free plan shows "100 transactions limit" 
+- [ ] Free plan shows "25 transactions per month" 
 - [ ] Premium plan shows "Unlimited transactions"
 - [ ] CreditCard icons display correctly
 - [ ] Feature order is logical
 
 ### **Landing Page** (`/`)
-- [ ] Free plan shows "100 transactions limit"
+- [ ] Free plan shows "25 transactions per month"
 - [ ] Premium plan shows "Unlimited transactions" 
 - [ ] Styling matches other features
 - [ ] Responsive design works on mobile
@@ -86,11 +86,11 @@
 
 ### **Before**:
 ❌ Users couldn't see transaction limits in plan comparisons  
-❌ Had to discover 100-transaction limit by hitting it  
+❌ Had to discover 25-transaction limit by hitting it  
 ❌ No clear upgrade incentive for unlimited transactions  
 
 ### **After**:
-✅ **Transparent Limits**: Users see 100-transaction limit upfront  
+✅ **Transparent Limits**: Users see 25-transaction limit upfront  
 ✅ **Clear Value Prop**: Premium shows "Unlimited transactions"  
 ✅ **Informed Decisions**: Users can choose based on transaction volume needs  
 ✅ **Reduced Surprises**: No unexpected limit discoveries  

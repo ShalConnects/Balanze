@@ -36,9 +36,9 @@ export const useUpgradeModal = () => {
       return true;
     }
     
-    if (errorMessage.includes('TRANSACTION_LIMIT_EXCEEDED')) {
-      const current = usageStats?.transactions.current || 100;
-      const limit = usageStats?.transactions.limit || 100;
+    if (errorMessage.includes('MONTHLY_TRANSACTION_LIMIT_EXCEEDED')) {
+      const current = usageStats?.current_month_transactions || 0;
+      const limit = usageStats?.max_transactions_per_month || 25;
       openUpgradeModal('limit', undefined, { current, limit, type: 'transactions' });
       return true;
     }
@@ -81,8 +81,8 @@ export const useUpgradeModal = () => {
   }, [usageStats, openUpgradeModal]);
 
   const showTransactionLimitModal = useCallback(() => {
-    const current = usageStats?.transactions.current || 100;
-    const limit = usageStats?.transactions.limit || 100;
+    const current = usageStats?.current_month_transactions || 0;
+    const limit = usageStats?.max_transactions_per_month || 25;
     openUpgradeModal('limit', undefined, { current, limit, type: 'transactions' });
   }, [usageStats, openUpgradeModal]);
 

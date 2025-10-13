@@ -181,8 +181,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </div>
       </div>
       
-      {/* Home Button - Only show on mobile and not on dashboard */}
-      {isMobile && currentView !== 'dashboard' && location.pathname !== '/' && <HomeButton />}
+      {/* Home Button - Show on both mobile and desktop when not on dashboard */}
+      {currentView !== 'dashboard' && location.pathname !== '/' && <HomeButton />}
       {/* Mobile sidebar overlay rendered outside the main flex container */}
       {isMobile && isSidebarOpen && (
         <div className="fixed inset-0 z-[99999] flex">

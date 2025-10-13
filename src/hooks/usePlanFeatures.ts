@@ -69,7 +69,7 @@ export const usePlanFeatures = () => {
       // Set default free features
       setFeatures({
         max_accounts: 3,
-        max_transactions: 100,
+        max_transactions_per_month: 25,
         max_currencies: 1,
         max_purchases: 50,
         analytics: false,
@@ -86,11 +86,31 @@ export const usePlanFeatures = () => {
 
   const loadUsageStats = async () => {
     try {
-      const { data, error } = await supabase
+      // Get monthly transaction stats
+      const { data: monthlyStats, error: monthlyError } = await supabase
+        .rpc('get_monthly_usage_stats', { user_uuid: user?.id });
+
+      if (monthlyError) throw monthlyError;
+
+      // Get other usage stats (accounts, currencies, purchases)
+      const { data: otherStats, error: otherError } = await supabase
         .rpc('get_user_usage_stats', { user_uuid: user?.id });
 
-      if (error) throw error;
-      setUsageStats(data);
+      if (otherError) throw otherError;
+
+      // Combine the stats
+      const combinedStats = {
+        ...otherStats,
+        // Override transactions with monthly data
+        current_month_transactions: monthlyStats?.current_month_transactions || 0,
+        max_transactions_per_month: monthlyStats?.max_transactions_per_month || 25,
+        percentage_used: monthlyStats?.percentage_used || 0,
+        transactions_remaining: monthlyStats?.transactions_remaining || 25,
+        days_remaining_in_month: monthlyStats?.days_remaining_in_month || 30,
+        reset_date: monthlyStats?.reset_date
+      };
+
+      setUsageStats(combinedStats);
     } catch (error) {
       console.error('Error loading usage stats:', error);
     } finally {
@@ -148,7 +168,7 @@ export const usePlanFeatures = () => {
       advanced_analytics: 'Advanced analytics are a Premium feature. Upgrade for detailed insights and forecasting.',
       unlimited_accounts: 'You\'ve reached your account limit. Upgrade to Premium for unlimited accounts.',
       unlimited_currencies: 'You\'ve reached your currency limit. Upgrade to Premium for unlimited currencies.',
-      unlimited_transactions: 'You\'ve reached your transaction limit. Upgrade to Premium for unlimited transactions.',
+      unlimited_transactions: 'You\'ve reached your monthly transaction limit. Upgrade to Premium for unlimited transactions.',
       unlimited_purchases: 'You\'ve reached your purchase limit. Upgrade to Premium for unlimited purchases.',
     };
     return messages[feature] || 'This feature requires a Premium plan.';

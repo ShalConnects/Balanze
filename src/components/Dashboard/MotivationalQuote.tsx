@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Quote, RefreshCw, Heart, Bookmark, ExternalLink, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNotificationStore } from '../../store/notificationStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { MotivationalQuoteSkeleton } from './MotivationalQuoteSkeleton';
+import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 interface QuoteData {
   q: string;
@@ -32,6 +33,52 @@ export const MotivationalQuote: React.FC = () => {
     const saved = localStorage.getItem('showQuoteWidget');
     return saved !== null ? JSON.parse(saved) : true;
   });
+
+  // Hover state for cross icon
+  const [isHovered, setIsHovered] = useState(false);
+  const [showCrossTooltip, setShowCrossTooltip] = useState(false);
+  const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { isMobile } = useMobileDetection();
+
+  // Handle hover events for cross icon (desktop only)
+  const handleMouseEnter = () => {
+    if (!isMobile) {
+      setIsHovered(true);
+      setShowCrossTooltip(true);
+      
+      // Clear any existing timeout
+      if (tooltipTimeoutRef.current) {
+        clearTimeout(tooltipTimeoutRef.current);
+      }
+      
+      // Hide tooltip after 3 seconds
+      tooltipTimeoutRef.current = setTimeout(() => {
+        setShowCrossTooltip(false);
+      }, 3000);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (!isMobile) {
+      setIsHovered(false);
+      setShowCrossTooltip(false);
+      
+      // Clear timeout when mouse leaves
+      if (tooltipTimeoutRef.current) {
+        clearTimeout(tooltipTimeoutRef.current);
+        tooltipTimeoutRef.current = null;
+      }
+    }
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (tooltipTimeoutRef.current) {
+        clearTimeout(tooltipTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Save quote widget visibility preference to localStorage
   useEffect(() => {
@@ -153,15 +200,28 @@ export const MotivationalQuote: React.FC = () => {
   }
 
   return (
-    <div className="bg-gradient-to-r from-purple-50 via-pink-50 to-purple-50 dark:from-purple-900/20 dark:via-pink-900/20 dark:to-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-700 relative overflow-hidden">
-      {/* Close button */}
-      <button
-        onClick={() => setShowQuoteWidget(false)}
-        className="absolute top-2 right-2 p-1 text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-200 transition-colors z-20"
-        aria-label="Close Quote Widget"
-      >
-        <X className="w-4 h-4" />
-      </button>
+    <div 
+      className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-lg p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative overflow-hidden"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Close button - hover on desktop, always visible on mobile */}
+      {(isHovered || isMobile) && (
+        <button
+          onClick={() => setShowQuoteWidget(false)}
+          className="absolute top-2 right-2 p-1 text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-200 transition-colors z-20"
+          aria-label="Close Quote Widget"
+        >
+          <X className="w-4 h-4" />
+          {/* Tooltip - only on desktop */}
+          {showCrossTooltip && !isMobile && (
+            <div className="absolute top-full right-0 mt-1 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded shadow-lg whitespace-nowrap z-30">
+              Click to hide this widget
+              <div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 dark:bg-gray-100 rotate-45"></div>
+            </div>
+          )}
+        </button>
+      )}
       {/* Background decoration */}
       <div className="absolute top-0 right-0 w-16 h-16 opacity-10">
         <Quote className="w-full h-full text-purple-600 dark:text-purple-400" />

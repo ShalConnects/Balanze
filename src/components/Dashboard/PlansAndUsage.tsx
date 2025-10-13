@@ -47,9 +47,6 @@ export const PlansAndUsage: React.FC<PlansAndUsageProps> = ({ hideTitle = false 
       {!hideTitle && (
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Plans & Usage</h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Monitor your current usage and explore available plans to optimize your experience
-          </p>
         </div>
       )}
 
@@ -126,9 +123,6 @@ export const PlansAndUsage: React.FC<PlansAndUsageProps> = ({ hideTitle = false 
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors">
                   Available Plans
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Explore and upgrade to premium plans
-                </p>
               </div>
             </div>
             
@@ -177,9 +171,6 @@ export const PlansAndUsage: React.FC<PlansAndUsageProps> = ({ hideTitle = false 
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors">
                     Usage & Recommendations
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Monitor your current usage and get personalized recommendations
-                  </p>
                 </div>
               </div>
               
@@ -230,9 +221,6 @@ export const PlansAndUsage: React.FC<PlansAndUsageProps> = ({ hideTitle = false 
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-green-700 dark:group-hover:text-green-300 transition-colors">
                     Payment Methods
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Manage your payment methods and billing information
-                  </p>
                 </div>
               </div>
               

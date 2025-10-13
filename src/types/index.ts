@@ -16,6 +16,7 @@ export interface Account {
   dps_savings_account_id: string | null;
   donation_preference?: number | null;
   transaction_id?: string;
+  position?: number;
 }
 
 export interface AccountInput {
@@ -35,6 +36,7 @@ export interface AccountInput {
   dps_fixed_amount: number | null;
   dps_savings_account_id: string | null;
   dps_initial_balance?: number;
+  position?: number;
 }
 
 export interface Transaction {

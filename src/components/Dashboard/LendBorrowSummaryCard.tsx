@@ -24,7 +24,10 @@ export const LendBorrowSummaryCard: React.FC = () => {
   const [showLentMobileModal, setShowLentMobileModal] = useState(false);
   const [filterCurrency, setFilterCurrency] = useState('');
   const [tooltipPosition, setTooltipPosition] = useState<'center' | 'right'>('center');
+  const [isHovered, setIsHovered] = useState(false);
+  const [showCrossTooltip, setShowCrossTooltip] = useState(false);
   const { isMobile } = useMobileDetection();
+  const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Widget visibility state - hybrid approach (localStorage + database)
   const [showLendBorrowWidget, setShowLendBorrowWidget] = useState(() => {
@@ -73,6 +76,46 @@ export const LendBorrowSummaryCard: React.FC = () => {
       loadPreferences();
     }
   }, [user?.id]);
+
+  // Handle hover events for cross icon (desktop only)
+  const handleMouseEnter = () => {
+    if (!isMobile) {
+      setIsHovered(true);
+      setShowCrossTooltip(true);
+      
+      // Clear any existing timeout
+      if (tooltipTimeoutRef.current) {
+        clearTimeout(tooltipTimeoutRef.current);
+      }
+      
+      // Hide tooltip after 3 seconds
+      tooltipTimeoutRef.current = setTimeout(() => {
+        setShowCrossTooltip(false);
+      }, 3000);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (!isMobile) {
+      setIsHovered(false);
+      setShowCrossTooltip(false);
+      
+      // Clear timeout when mouse leaves
+      if (tooltipTimeoutRef.current) {
+        clearTimeout(tooltipTimeoutRef.current);
+        tooltipTimeoutRef.current = null;
+      }
+    }
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (tooltipTimeoutRef.current) {
+        clearTimeout(tooltipTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Save Lend & Borrow widget visibility preference (hybrid approach)
   const handleLendBorrowWidgetToggle = async (show: boolean) => {
@@ -183,16 +226,29 @@ export const LendBorrowSummaryCard: React.FC = () => {
   }
 
   return (
-    <div ref={cardRef} className="bg-white dark:bg-gray-800 rounded-xl p-6 relative">
-      {/* Hide button */}
-      <button
-        onClick={() => handleLendBorrowWidgetToggle(false)}
-        className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-        aria-label="Hide Lend & Borrow widget"
-        title="Hide Lend & Borrow widget"
-      >
-        <X className="w-4 h-4" />
-      </button>
+    <div 
+      ref={cardRef} 
+      className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Hide button - hover on desktop, always visible on mobile */}
+      {(isHovered || isMobile) && (
+        <button
+          onClick={() => handleLendBorrowWidgetToggle(false)}
+          className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors z-10"
+          aria-label="Hide Lend & Borrow widget"
+        >
+          <X className="w-4 h-4" />
+          {/* Tooltip - only on desktop */}
+          {showCrossTooltip && !isMobile && (
+            <div className="absolute top-full right-0 mt-1 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded shadow-lg whitespace-nowrap z-20">
+              Click to hide this widget
+              <div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 dark:bg-gray-100 rotate-45"></div>
+            </div>
+          )}
+        </button>
+      )}
       
       <div className="flex items-center justify-between mb-4 pr-8">
         <div className="flex items-center gap-2 flex-1">

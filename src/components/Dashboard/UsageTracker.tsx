@@ -62,12 +62,27 @@ export const UsageTracker: React.FC = () => {
   };
 
   const getUsageDisplay = (type: 'accounts' | 'currencies' | 'transactions' | 'purchases') => {
-    if (!usageStats) return { current: 0, limit: '∞', percentage: 0 };
-    const stats = usageStats[type];
+    // Handle monthly usage stats structure for transactions
+    if (type === 'transactions' && usageStats && 'current_month_transactions' in usageStats) {
+      const current = (usageStats as any).current_month_transactions || 0;
+      const limitNum = (usageStats as any).max_transactions_per_month || -1;
+      const percentage = (usageStats as any).percentage_used || 0;
+      return {
+        current,
+        limit: limitNum === -1 ? '∞' : String(limitNum),
+        percentage
+      };
+    }
+    
+    // Handle other types with combined stats structure
+    const stats: any = usageStats ? (usageStats as any)[type] : null;
+    const current = typeof stats?.current === 'number' ? stats.current : 0;
+    const limitNum = typeof stats?.limit === 'number' ? stats.limit : -1;
+    const percentage = typeof stats?.percentage === 'number' ? stats.percentage : 0;
     return {
-      current: stats.current,
-      limit: stats.limit === -1 ? '∞' : stats.limit.toString(),
-      percentage: stats.percentage
+      current,
+      limit: limitNum === -1 ? '∞' : String(limitNum),
+      percentage
     };
   };
 
@@ -109,10 +124,19 @@ export const UsageTracker: React.FC = () => {
     const percentage = stats.percentage;
     
     if (percentage >= 100) {
+      if (type === 'transactions') {
+        return `You've reached your monthly transaction limit. Consider upgrading for unlimited transactions.`;
+      }
       return `You've reached your ${type} limit. Consider upgrading for unlimited ${type}.`;
     } else if (percentage >= 80) {
+      if (type === 'transactions') {
+        return `You're using ${stats.current}/${stats.limit} transactions this month. Consider upgrading soon.`;
+      }
       return `You're using ${stats.current}/${stats.limit} ${type}. Consider upgrading soon.`;
     } else {
+      if (type === 'transactions') {
+        return `You have plenty of transaction capacity remaining this month.`;
+      }
       return `You have plenty of ${type} capacity remaining.`;
     }
   };
@@ -209,10 +233,17 @@ export const UsageTracker: React.FC = () => {
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
               {getRecommendationIcon('transactions')}
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Transactions</h4>
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                Transactions {isFreePlan && <span className="text-xs text-gray-500">(per month)</span>}
+              </h4>
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
               {getRecommendationMessage('transactions')}
+              {isFreePlan && usageStats && 'reset_date' in usageStats && (
+                <span className="block mt-1 text-gray-500">
+                  Resets on {(usageStats as any).reset_date}
+                </span>
+              )}
             </p>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">

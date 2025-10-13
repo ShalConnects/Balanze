@@ -76,6 +76,47 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   }
   const totalBalance = currencyAccounts.reduce((sum, acc) => sum + getAccountBalanceAtDate(acc, endDate), 0);
 
+  // Minimal header (Option 1): compute last updated timestamp for this currency
+  const lastCurrencyActivityDate = useMemo(() => {
+    const relevant = allTransactions
+      .filter(t => accountCurrencyMap[t.account_id] === currency)
+      .map(t => new Date(t.date).getTime());
+    if (relevant.length === 0) return null;
+    const maxTs = Math.max(...relevant);
+    return new Date(maxTs);
+  }, [allTransactions, accountCurrencyMap, currency]);
+
+  function getRelativeTimeString(date: Date | null) {
+    if (!date) return 'No recent activity';
+    const now = new Date().getTime();
+    const diffSec = Math.max(1, Math.floor((now - date.getTime()) / 1000));
+    if (diffSec < 60) return 'Updated just now';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `Updated ${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `Updated ${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `Updated ${diffDay}d ago`;
+  }
+
+  // Option 2: Calculate balance change from previous period (moved after prevStartDate is defined)
+
+  function formatBalanceChange(change: number | null) {
+    if (change === null) return null;
+    if (change === 0) return { text: '0%', color: 'text-gray-500', arrow: '' };
+    
+    const isPositive = change > 0;
+    const color = isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+    const arrow = isPositive ? '▲' : '▼';
+    const sign = change > 0 ? '+' : '';
+    
+    return {
+      text: `${sign}${Math.round(change)}%`,
+      color,
+      arrow
+    };
+  }
+
   // Filter transactions for this currency and period
   const filteredTransactions = allTransactions.filter(t => {
     const accCurrency = accountCurrencyMap[t.account_id];
@@ -142,6 +183,17 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
       tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
     ))
     .reduce((sum, t) => sum + t.amount, 0);
+
+  // Option 2: Calculate balance change from previous period
+  const balanceChange = useMemo(() => {
+    const prevTotalBalance = currencyAccounts.reduce((sum, acc) => sum + getAccountBalanceAtDate(acc, prevStartDate), 0);
+    const currentTotalBalance = currencyAccounts.reduce((sum, acc) => sum + getAccountBalanceAtDate(acc, endDate), 0);
+    
+    if (prevTotalBalance === 0 && currentTotalBalance === 0) return null;
+    if (prevTotalBalance === 0) return 100; // New data, show 100% increase
+    
+    return ((currentTotalBalance - prevTotalBalance) / Math.abs(prevTotalBalance)) * 100;
+  }, [currencyAccounts, prevStartDate, endDate]);
 
   // Calculate percent change
   function getPercentChange(current: number, prev: number) {
@@ -217,46 +269,96 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2 flex-1">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('dashboard.currencyOverview', { currencyCode: currency })}</h2>
-          <div className="relative flex items-center">
-            <button
-              type="button"
-              className="ml-1 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-110 active:scale-95"
-              onMouseEnter={() => !isMobile && setShowTooltip(true)}
-              onMouseLeave={() => !isMobile && setShowTooltip(false)}
-              onFocus={() => !isMobile && setShowTooltip(true)}
-              onBlur={() => !isMobile && setShowTooltip(false)}
-              onClick={() => {
-                if (isMobile) {
-                  setShowMobileModal(true);
-                } else {
-                  setShowTooltip(v => !v);
-                }
-              }}
-              tabIndex={0}
-              aria-label="Show account info"
-            >
-              <Info className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200" />
-            </button>
-            {showTooltip && !isMobile && (
-              <div className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
-                <div className="font-semibold mb-2">Total: {formatCurrency(totalBalance, currency)}</div>
-                <div className="font-medium mb-1">Accounts ({currencyAccounts.length}):</div>
-                <ul className="space-y-1">
-                  {currencyAccounts.map(acc => (
-                    <li key={acc.id} className="flex justify-between">
-                      <span className="truncate max-w-[120px]" title={acc.name}>{acc.name}</span>
-                      <span className="ml-2 tabular-nums">{formatCurrency(acc.calculated_balance || 0, currency)}</span>
-                    </li>
-                  ))}
-                </ul>
+    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 sm:p-4 lg:p-5 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700">
+      {/* Mobile-optimized header */}
+      <div className="mb-4">
+        {/* Amount row */}
+        <div className="flex items-center justify-between mb-1">
+          <div className="text-lg sm:text-lg lg:text-xl font-bold tabular-nums text-gray-900 dark:text-white">
+            {formatCurrency(totalBalance, currency)}
+          </div>
+          
+          {/* Right side: Delta, sparkline, and info button - all on same row */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            {/* Delta - compact for mobile */}
+            {formatBalanceChange(balanceChange) && (
+              <span className={`text-xs font-medium flex items-center gap-0.5 ${formatBalanceChange(balanceChange)!.color}`}>
+                <span className="text-xs">{formatBalanceChange(balanceChange)!.arrow}</span>
+                <span>{formatBalanceChange(balanceChange)!.text}</span>
+              </span>
+            )}
+            
+            {/* Sparkline - compact for mobile */}
+            {sparkData.length > 1 && (
+              <div className="w-8 h-4 sm:w-10 sm:h-5 lg:w-12 lg:h-6 flex items-center">
+                <LineChart 
+                  width={32} 
+                  height={16} 
+                  data={sparkData} 
+                  margin={{ top: 1, right: 1, left: 1, bottom: 1 }}
+                >
+                  <Line 
+                    type="monotone" 
+                    dataKey="income" 
+                    stroke={incomeColor} 
+                    strokeWidth={1} 
+                    dot={false} 
+                    isAnimationActive={false}
+                  />
+                </LineChart>
               </div>
             )}
+            
+            {/* Info button - compact for mobile */}
+            <div className="relative">
+              <button
+                type="button"
+                className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-110 active:scale-95"
+                onMouseEnter={() => !isMobile && setShowTooltip(true)}
+                onMouseLeave={() => !isMobile && setShowTooltip(false)}
+                onFocus={() => !isMobile && setShowTooltip(true)}
+                onBlur={() => !isMobile && setShowTooltip(false)}
+                onClick={() => {
+                  if (isMobile) {
+                    setShowMobileModal(true);
+                  } else {
+                    setShowTooltip(v => !v);
+                  }
+                }}
+                tabIndex={0}
+                aria-label="Show account info"
+              >
+                <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200" />
+              </button>
+              {showTooltip && !isMobile && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-56 sm:w-64 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-2 sm:p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
+                  <div className="font-semibold mb-2">Total: {formatCurrency(totalBalance, currency)}</div>
+                  <div className="font-medium mb-1">Accounts ({currencyAccounts.length}):</div>
+                  <ul className="space-y-1">
+                    {currencyAccounts.map(acc => (
+                      <li key={acc.id} className="flex justify-between">
+                        <span className="truncate max-w-[100px] sm:max-w-[120px]" title={acc.name}>{acc.name}</span>
+                        <span className="ml-2 tabular-nums text-xs">{formatCurrency(acc.calculated_balance || 0, currency)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         </div>
+        
+        {/* Timestamp row */}
+        <div className="text-xs text-gray-500 dark:text-gray-400">
+          {getRelativeTimeString(lastCurrencyActivityDate)}
+        </div>
+      </div>
+      
+      {/* Compact period selector */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+          {t('dashboard.currencyOverview', { currencyCode: currency })}
+        </h2>
         <CustomDropdown
           options={[
             { value: '1m', label: '1 Month' },
@@ -267,42 +369,30 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
           value={period}
           onChange={val => setPeriod(val as '1m' | '3m' | '6m' | '1y')}
           fullWidth={false}
-          className="bg-transparent border shadow-none text-gray-500 text-xs h-7 min-h-0 hover:bg-gray-100 focus:ring-0 focus:outline-none"
-          style={{ padding: '10px', paddingRight: '5px', border: '1px solid rgb(229 231 235 / var(--tw-bg-opacity, 1))' }}
-          dropdownMenuClassName="!bg-[#d3d3d3bf] !top-[20px] !right-0 !left-auto"
+          className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-xs h-7 min-h-0 hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg px-3 py-1"
+          style={{ padding: '6px 12px', minWidth: '100px' }}
+          dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
         />
       </div>
-      <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
+      
+      {/* Mobile-optimized stats grid */}
+      <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-3">
         <div className="w-full">
           <StatCard
             title={<span className="text-[13px]">{t('dashboard.monthlyIncome')}</span>}
             value={formatCurrency(filteredIncome, currency)}
-            trend="up"
             color="green"
-            gradient={true}
+            gradient={false}
             animated={true}
-            insight={renderInsight(incomeChange, compareLabel)}
-            trendGraph={
-              <LineChart width={60} height={24} data={sparkData} margin={{ top: 6, right: 0, left: 0, bottom: 0 }}>
-                <Line type="monotone" dataKey="income" stroke={incomeColor} strokeWidth={2} dot={false} isAnimationActive={false} />
-              </LineChart>
-            }
           />
         </div>
         <div className="w-full">
           <StatCard
             title={<span className="text-[13px]">{t('dashboard.monthlyExpenses')}</span>}
             value={formatCurrency(filteredExpenses, currency)}
-            trend="down"
             color="red"
-            gradient={true}
+            gradient={false}
             animated={true}
-            insight={renderInsight(expensesChange, compareLabel, true)}
-            trendGraph={
-              <LineChart width={60} height={24} data={sparkData} margin={{ top: 6, right: 0, left: 0, bottom: 0 }}>
-                <Line type="monotone" dataKey="expense" stroke={expenseColor} strokeWidth={2} dot={false} isAnimationActive={false} />
-              </LineChart>
-            }
           />
         </div>
       </div>

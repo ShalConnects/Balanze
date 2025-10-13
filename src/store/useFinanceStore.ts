@@ -51,6 +51,7 @@ interface FinanceStore {
   fetchAccounts: () => Promise<void>;
   addAccount: (account: Omit<AccountInput, 'id' | 'user_id' | 'created_at'> & { dps_initial_balance?: number, transaction_id?: string }) => Promise<void>;
   updateAccount: (id: string, updates: Partial<AccountInput> & { dps_initial_balance?: number }) => Promise<void>;
+  updateAccountPosition: (accountId: string, newPosition: number) => Promise<void>;
   deleteAccount: (id: string, transaction_id?: string) => Promise<void>;
   
   fetchTransactions: () => Promise<void>;
@@ -237,6 +238,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       .from('account_balances')
       .select('*')
       .eq('user_id', user.id)
+      .order('position', { ascending: true })
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -259,6 +261,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       dps_fixed_amount: account.dps_fixed_amount ? Number(account.dps_fixed_amount) : null,
       dps_savings_account_id: account.dps_savings_account_id,
       donation_preference: account.donation_preference ? Number(account.donation_preference) : null,
+      position: account.position || 0,
     }));
 
 
@@ -560,6 +563,37 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       set({ loading: false });
     } catch (err: any) {
       set({ error: err.message || 'Failed to update account', loading: false });
+      throw err;
+    }
+  },
+
+  updateAccountPosition: async (accountId: string, newPosition: number) => {
+    try {
+      set({ loading: true, error: null });
+      const { user } = useAuthStore.getState();
+      if (!user) throw new Error('Not authenticated');
+
+      // Update the account position in the database
+      const { error } = await supabase
+        .from('accounts')
+        .update({ position: newPosition })
+        .eq('id', accountId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // Update local state immediately for better UX
+      set((state) => ({
+        accounts: state.accounts.map(account => 
+          account.id === accountId 
+            ? { ...account, position: newPosition }
+            : account
+        ),
+        loading: false
+      }));
+
+    } catch (err: any) {
+      set({ error: err.message || 'Failed to update account position', loading: false });
       throw err;
     }
   },

@@ -89,6 +89,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
               profilePicture: existingProfile.profile_picture,
               local_currency: existingProfile.local_currency,
               selected_currencies: existingProfile.selected_currencies,
+              default_account_id: existingProfile.default_account_id,
               subscription: existingProfile.subscription
             };
             set({ user, profile: profileData, isLoading: false });
@@ -102,6 +103,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
               fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
               local_currency: 'USD',
               selected_currencies: ['USD'],
+              default_account_id: undefined,
               subscription: { plan: 'free', status: 'active', validUntil: null }
             };
             
@@ -134,6 +136,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
               fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
               local_currency: 'USD',
               selected_currencies: ['USD'],
+              default_account_id: undefined,
               subscription: { plan: 'free', status: 'active', validUntil: null }
             };
             
@@ -167,6 +170,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
             local_currency: 'USD',
             selected_currencies: ['USD'],
+            default_account_id: undefined,
             subscription: { plan: 'free', status: 'active', validUntil: null }
           };
           

@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import { initializePaddle, Paddle } from '@paddle/paddle-js';
 import { toast } from 'react-hot-toast';
 import { DowngradeConfirmationModal } from '../common/DowngradeConfirmationModal';
+import { supabase } from '../../lib/supabase';
 
 interface Plan {
   id: string;
@@ -35,7 +36,7 @@ const plans: Plan[] = [
       { text: 'Basic financial tracking', included: true, icon: BarChart3 },
       { text: 'Up to 3 accounts', included: true, icon: Users },
       { text: '1 currency only', included: true, icon: Globe },
-      { text: '100 transactions limit', included: true, icon: CreditCard },
+      { text: '25 transactions per month', included: true, icon: CreditCard },
       { text: '50 purchases limit', included: true, icon: Download },
       { text: 'Basic reports', included: true, icon: BarChart3 },
       { text: 'Email support (24-48h response)', included: true, icon: MessageSquare },
@@ -129,23 +130,49 @@ export const Plans: React.FC = () => {
     setShowDowngradeModal(false);
 
     try {
-      // Here you would implement the downgrade logic
-      // This could involve calling your backend API to cancel the subscription
-      // and downgrade the user to free plan
-      
       console.log('🔄 Processing downgrade to free plan...');
+
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
+      // For lifetime subscribers, request immediate downgrade
+      console.log('Calling RPC with params:', { user_uuid: user.id, is_lifetime: isLifetimeSubscriber });
       
-      // TODO: Implement actual downgrade API call
-      // await downgradeToFreePlan();
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast.success(
-        isLifetimeSubscriber 
-          ? 'Downgrade to Free plan completed. Changes have taken effect immediately.'
-          : 'Downgrade to Free plan initiated. Changes will take effect at the end of your current billing period.'
-      );
+      const { data, error } = await supabase.rpc('downgrade_user_subscription', {
+        user_uuid: user.id,
+        is_lifetime: isLifetimeSubscriber
+      });
+
+      console.log('RPC response:', { data, error });
+
+      if (error) {
+        console.error('RPC error:', error);
+        throw error;
+      }
+
+      const status = data?.status as 'immediate' | 'scheduled' | 'error' | undefined;
+      console.log('Status from response:', status, 'Type:', typeof status);
+
+      if (status === 'immediate') {
+        toast.success('Downgrade to Free plan completed. Changes have taken effect immediately.');
+        // Reload to refresh profile state
+        setLoading(null);
+        window.location.reload();
+        return;
+      }
+
+      if (status === 'scheduled') {
+        console.log('Entering scheduled block');
+        const effective = data?.effective_date ? new Date(data.effective_date) : null;
+        const when = effective ? effective.toLocaleString() : 'the end of your current billing period';
+        console.log('Showing toast for scheduled downgrade');
+        toast.success(`Downgrade to Free plan initiated. Changes will take effect at ${when}.`);
+        setLoading(null);
+        return;
+      }
+
+      toast.success('Downgrade request submitted.');
       setLoading(null);
     } catch (err) {
       console.error('❌ Downgrade failed:', err);
