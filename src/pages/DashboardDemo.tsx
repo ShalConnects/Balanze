@@ -39,7 +39,6 @@ const DashboardDemo: React.FC = () => {
 
   const handleAnalyticsTrack = (event: string, properties: Record<string, any>) => {
     analytics.track(event, properties);
-    console.log('Analytics Event:', event, properties);
   };
 
   const mockKPIData = {
@@ -50,18 +49,14 @@ const DashboardDemo: React.FC = () => {
   };
 
   const handleKPIClick = (kpiType: string) => {
-    console.log('KPI clicked:', kpiType);
     handleAnalyticsTrack('kpi_click', { kpi_type: kpiType });
   };
 
   const handleActionClick = (action: string) => {
-    console.log('Action clicked:', action);
     handleAnalyticsTrack('mobile_action', { action });
   };
 
   const handleExportData = (format: 'csv' | 'pdf' | 'excel') => {
-    console.log(`Exporting data as ${format.toUpperCase()}`);
-    
     // Simulate export functionality
     const exportData = {
       format,

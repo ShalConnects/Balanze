@@ -71,7 +71,7 @@ export const AnalyticsView: React.FC = () => {
 
   // Export functionality
   const handleExportData = (format: 'csv' | 'pdf' | 'excel') => {
-    console.log(`Exporting analytics data as ${format.toUpperCase()}`);
+    // Exporting analytics data
     
     // Create comprehensive export data
     const exportData = {

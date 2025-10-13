@@ -42,6 +42,8 @@ import { CustomDropdown } from './CustomDropdown';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { Loader } from '../common/Loader';
+import { useRecordSelection } from '../../hooks/useRecordSelection';
+import { SelectionFilter } from '../common/SelectionFilter';
 
 import { useNotificationsStore } from '../../stores/notificationsStore';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
@@ -132,6 +134,23 @@ export const PurchaseTracker: React.FC = () => {
   const fetchAccountsCallback = useCallback(() => {
     useFinanceStore.getState().fetchAccounts();
   }, []);
+
+  // Record selection functionality
+  const {
+    selectedRecord,
+    selectedId,
+    isFromSearch,
+    selectedRecordRef,
+    clearSelection,
+    hasSelection
+  } = useRecordSelection({
+    records: purchases,
+    recordIdField: 'id',
+    scrollToRecord: true
+  });
+
+  // Debug logging for purchases data - removed for production
+
 
   // Fetch data when component mounts
   useEffect(() => {
@@ -468,23 +487,30 @@ export const PurchaseTracker: React.FC = () => {
   const currentAnalytics = getAnalyticsForCurrency(selectedCurrency);
 
   // Filter purchases
-  const filteredPurchases = purchases.filter(purchase => {
-    const matchesSearch = purchase.item_name.toLowerCase().includes(filters.search.toLowerCase()) ||
-                         purchase.notes?.toLowerCase().includes(filters.search.toLowerCase());
-    const matchesCategory = filters.category === 'all' || purchase.category === filters.category;
-    const matchesPriority = filters.priority === 'all' || purchase.priority === filters.priority;
-    const matchesCurrency = filters.currency === '' || purchase.currency === filters.currency;
-    
-    let matchesDate = true;
-    if (filters.dateRange.start && filters.dateRange.end) {
-      const purchaseDate = new Date(purchase.purchase_date);
-      const startDate = new Date(filters.dateRange.start);
-      const endDate = new Date(filters.dateRange.end);
-      matchesDate = purchaseDate >= startDate && purchaseDate <= endDate;
+  const filteredPurchases = useMemo(() => {
+    // If a record is selected via deep link, prioritize showing only that record
+    if (hasSelection && isFromSearch && selectedRecord) {
+      return [selectedRecord];
     }
 
-    return matchesSearch && matchesCategory && matchesPriority && matchesCurrency && matchesDate;
-  });
+    return purchases.filter(purchase => {
+      const matchesSearch = purchase.item_name.toLowerCase().includes(filters.search.toLowerCase()) ||
+                           purchase.notes?.toLowerCase().includes(filters.search.toLowerCase());
+      const matchesCategory = filters.category === 'all' || purchase.category === filters.category;
+      const matchesPriority = filters.priority === 'all' || purchase.priority === filters.priority;
+      const matchesCurrency = filters.currency === '' || purchase.currency === filters.currency;
+      
+      let matchesDate = true;
+      if (filters.dateRange.start && filters.dateRange.end) {
+        const purchaseDate = new Date(purchase.purchase_date);
+        const startDate = new Date(filters.dateRange.start);
+        const endDate = new Date(filters.dateRange.end);
+        matchesDate = purchaseDate >= startDate && purchaseDate <= endDate;
+      }
+
+      return matchesSearch && matchesCategory && matchesPriority && matchesCurrency && matchesDate;
+    });
+  }, [purchases, filters, hasSelection, isFromSearch, selectedRecord]);
 
   const formatCurrency = (amount: number, currency: string) => {
     if (currency === 'BDT') {
@@ -558,7 +584,7 @@ export const PurchaseTracker: React.FC = () => {
   };
 
   const handleFormChange = (name: string, value: string) => {
-    console.log('handleFormChange', name, value);
+    // handleFormChange - removed for production
     setFormData(f => {
       const next = { ...f, [name]: value };
       // Validate with the next value immediately
@@ -611,16 +637,14 @@ export const PurchaseTracker: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('PurchaseTracker: handleSubmit called, submitting =', submitting);
+    // handleSubmit called - removed for production
     if (submitting) return; // Prevent double submission
     
-    console.log('PurchaseTracker: Form data for validation:', formData);
-    console.log('PurchaseTracker: Selected account ID:', selectedAccountId);
-    console.log('PurchaseTracker: Editing purchase:', editingPurchase);
+    // Form validation data - removed for production
     
     // Basic validation for all purchases
     if (!formData.item_name || !formData.category || !formData.purchase_date) {
-      console.log('PurchaseTracker: Basic validation failed');
+      // Basic validation failed - removed for production
       alert('Please fill all required fields.');
       return;
     }
@@ -628,20 +652,20 @@ export const PurchaseTracker: React.FC = () => {
     // Additional validation for non-planned purchases
     if (formData.status !== 'planned' && formData.status !== 'cancelled') {
       if (!formData.price) {
-        console.log('PurchaseTracker: Price validation failed');
+        // Price validation failed - removed for production
         alert('Please fill all required fields (Price is required for non-planned purchases).');
         return;
       }
       
       // Only require account if not excluding from calculation
       if (!excludeFromCalculation && !selectedAccountId) {
-        console.log('PurchaseTracker: Account validation failed - status:', formData.status, 'price:', formData.price, 'accountId:', selectedAccountId, 'excludeFromCalculation:', excludeFromCalculation);
+        // Account validation failed - removed for production
         alert('Please fill all required fields (Account is required for non-planned purchases).');
         return;
       }
     }
     
-    console.log('PurchaseTracker: All validation passed, proceeding with submission');
+    // All validation passed - removed for production
     
     setSubmitting(true);
     setLoadingMessage(editingPurchase ? 'Updating purchase...' : 'Saving purchase...');
@@ -676,26 +700,12 @@ export const PurchaseTracker: React.FC = () => {
             // Skip if attachment already exists (has a real ID, not temp_)
             if (!att.id.startsWith('temp_')) continue;
             
-            console.log('Checking attachment for upload:', {
-              fileName: att.file_name,
-              hasFile: !!att.file,
-              filePath: att.file_path,
-              startsWithBlob: att.file_path.startsWith('blob:'),
-              id: att.id,
-              startsWithTemp: att.id.startsWith('temp_')
-            });
+            // Checking attachment for upload - removed for production
             
-            console.log('Checking attachment for upload (exclude flow):', {
-              fileName: att.file_name,
-              hasFile: !!att.file,
-              filePath: att.file_path,
-              startsWithBlob: att.file_path.startsWith('blob:'),
-              id: att.id,
-              startsWithTemp: att.id.startsWith('temp_')
-            });
+            // Checking attachment for upload (exclude flow) - removed for production
             
             if (att.file && (att.file_path.startsWith('blob:') || att.id.startsWith('temp_'))) {
-              console.log('Uploading attachment:', att.file_name);
+              // Uploading attachment - removed for production
               const { data: uploadData, error: uploadError } = await supabase.storage
                 .from('attachments')
                 .upload(`purchases/${editingPurchase.id}/${att.file_name}`, att.file, { upsert: true });
@@ -721,7 +731,7 @@ export const PurchaseTracker: React.FC = () => {
                 if (insertError) {
                   console.error('Attachment insert error:', insertError);
                 } else {
-                  console.log('Attachment uploaded successfully:', att.file_name);
+                  // Attachment uploaded successfully - removed for production
                 }
               }
             }
@@ -816,7 +826,7 @@ export const PurchaseTracker: React.FC = () => {
             if (newPurchase && purchaseAttachments.length > 0) {
               for (const att of purchaseAttachments) {
                 if (att.file && (att.file_path.startsWith('blob:') || att.id.startsWith('temp_'))) {
-                  console.log('Uploading attachment:', att.file_name);
+                  // Uploading attachment - removed for production
                   const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('attachments')
                     .upload(`purchases/${newPurchase.id}/${att.file_name}`, att.file, { upsert: true });
@@ -842,7 +852,7 @@ export const PurchaseTracker: React.FC = () => {
                     if (insertError) {
                       console.error('Attachment insert error:', insertError);
                     } else {
-                      console.log('Attachment uploaded successfully:', att.file_name);
+                      // Attachment uploaded successfully - removed for production
                     }
                   }
                 }
@@ -873,7 +883,7 @@ export const PurchaseTracker: React.FC = () => {
             });
             if (transactionId) {
               // Attachments are handled automatically by addTransaction
-              console.log('Transaction created successfully with ID:', transactionId);
+              // Transaction created successfully - removed for production
             }
             toast.success('Purchase added successfully!');
           }
@@ -1118,7 +1128,7 @@ export const PurchaseTracker: React.FC = () => {
                   throw new Error('Failed to fetch file');
                 }
               } catch (fetchError) {
-                console.log('Fetch method failed, trying direct link:', fetchError);
+                // Fetch method failed, trying direct link - removed for production
                 
                 // Method 2: Direct link approach
                 const link = document.createElement('a');
@@ -1142,7 +1152,7 @@ export const PurchaseTracker: React.FC = () => {
             }
           }
         } catch (capacitorError) {
-          console.log('Capacitor download failed, trying fallback:', capacitorError);
+          // Capacitor download failed, trying fallback - removed for production
           
           // Fallback: Open in system browser
           const newWindow = window.open(filePath, '_blank', 'noopener,noreferrer');
@@ -1167,7 +1177,7 @@ export const PurchaseTracker: React.FC = () => {
           
           toast.success('Download started!');
         } catch (directError) {
-          console.log('Direct download failed, trying fetch method:', directError);
+          // Direct download failed, trying fetch method - removed for production
           
           // Second try: Fetch and blob method (for CORS-enabled files)
           const response = await fetch(filePath, {
@@ -1325,7 +1335,7 @@ export const PurchaseTracker: React.FC = () => {
     return (
       <div className="space-y-6">
         {/* Smooth skeleton for purchases page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700" style={{ paddingBottom: '13px' }}>
           {/* Filters skeleton */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <PurchaseFiltersSkeleton />
@@ -1464,6 +1474,15 @@ export const PurchaseTracker: React.FC = () => {
             </div>
           </div>
 
+          {/* Selection Filter */}
+          {hasSelection && selectedRecord && (
+            <SelectionFilter
+              label="Selected"
+              value={selectedRecord.item_name || 'Purchase'}
+              onClear={clearSelection}
+            />
+          )}
+
           {/* Mobile Filter and Add Purchase Buttons */}
           <div className="md:hidden flex items-center gap-2">
             <button
@@ -1480,7 +1499,7 @@ export const PurchaseTracker: React.FC = () => {
             </button>
             <button
               onClick={() => {
-                console.log('Purchase form button clicked');
+                // Purchase form button clicked - removed for production
                 if (checkCategoriesAndRedirect()) {
                   setShowPurchaseForm(true);
                 }
@@ -1714,7 +1733,7 @@ export const PurchaseTracker: React.FC = () => {
               {/* Desktop Add Purchase Button */}
               <button
                 onClick={() => {
-                  console.log('Purchase form button clicked');
+                  // Purchase form button clicked - removed for production
                   if (checkCategoriesAndRedirect()) {
                     setShowPurchaseForm(true);
                   }
@@ -1848,12 +1867,21 @@ export const PurchaseTracker: React.FC = () => {
                 </tr>
               ) : (
                 sortData(filteredPurchases).map((purchase) => {
-                  const isSelected = selectedPurchaseId === purchase.id;
+                  const isSelected = selectedId === purchase.id;
+                  const isFromSearchSelection = isFromSearch && isSelected;
+                  
                   return (
                     <tr 
                       key={purchase.id} 
                       id={`purchase-${purchase.id}`}
-                      className={`hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${isSelected ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
+                      ref={isSelected ? selectedRecordRef : null}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
+                        isSelected 
+                          ? isFromSearchSelection 
+                            ? 'ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20' 
+                            : 'ring-2 ring-blue-500 ring-opacity-50'
+                          : ''
+                      }`}
                     >
                       <td className="px-6 py-2">
                         <div className="flex items-center">
@@ -1907,20 +1935,19 @@ export const PurchaseTracker: React.FC = () => {
                                     setShowNotesModal(true);
                                     // Fetch existing attachments for this purchase
                                     try {
-                                      console.log('Loading modal attachments for purchase:', purchase.id);
+                                      // Loading modal attachments for purchase - removed for production
                                       const { data: existingAttachments, error: attachmentsError } = await supabase
                                         .from('purchase_attachments')
                                         .select('*')
                                         .eq('purchase_id', purchase.id);
                                       
-                                      console.log('Modal attachments query result:', { data: existingAttachments, error: attachmentsError });
+                                      // Modal attachments query result - removed for production
                                       
                                       if (!attachmentsError && existingAttachments) {
                                         setModalAttachments(existingAttachments);
-                                        console.log('Loaded modal attachments:', existingAttachments);
-                                        console.log('Modal attachments count:', existingAttachments.length);
+                                        // Loaded modal attachments - removed for production
                                       } else {
-                                        console.log('No modal attachments found or error:', attachmentsError);
+                                        // No modal attachments found or error - removed for production
                                         setModalAttachments([]);
                                       }
                                     } catch (err) {
@@ -1958,19 +1985,19 @@ export const PurchaseTracker: React.FC = () => {
                               
                               // Load existing attachments for this purchase
                               try {
-                                console.log('Loading attachments for purchase:', purchase.id);
+                                // Loading attachments for purchase - removed for production
                                 const { data: existingAttachments, error: attachmentsError } = await supabase
                                   .from('purchase_attachments')
                                   .select('*')
                                   .eq('purchase_id', purchase.id);
                                 
-                                console.log('Attachments query result:', { data: existingAttachments, error: attachmentsError });
+                                // Attachments query result - removed for production
                                 
                                 if (!attachmentsError && existingAttachments) {
                                   setPurchaseAttachments(existingAttachments);
-                                  console.log('Loaded existing attachments:', existingAttachments);
+                                  // Loaded existing attachments - removed for production
                                 } else {
-                                  console.log('No attachments found or error:', attachmentsError);
+                                  // No attachments found or error - removed for production
                                   setPurchaseAttachments([]);
                                 }
                               } catch (err) {
@@ -1982,7 +2009,7 @@ export const PurchaseTracker: React.FC = () => {
                               if (purchase.account_id) {
                                 // For excluded purchases, use the account_id stored in the purchase record
                                 setSelectedAccountId(purchase.account_id);
-                                console.log('Loaded account from purchase record:', purchase.account_id);
+                                // Loaded account from purchase record - removed for production
                               } else if (purchase.transaction_id) {
                                 // For normal purchases, load from linked transaction
                                 try {
@@ -1994,9 +2021,9 @@ export const PurchaseTracker: React.FC = () => {
                                   
                                   if (linkedTransaction && !error) {
                                     setSelectedAccountId(linkedTransaction.account_id);
-                                    console.log('Loaded account from linked transaction:', linkedTransaction.account_id);
+                                    // Loaded account from linked transaction - removed for production
                                   } else {
-                                    console.log('No linked transaction found for purchase:', purchase.transaction_id);
+                                    // No linked transaction found for purchase - removed for production
                                     setSelectedAccountId('');
                                   }
                                 } catch (err) {
@@ -2110,20 +2137,19 @@ export const PurchaseTracker: React.FC = () => {
                                       setShowNotesModal(true);
                                       // Fetch existing attachments for this purchase
                                       try {
-                                        console.log('Loading modal attachments for purchase:', purchase.id);
+                                        // Loading modal attachments for purchase - removed for production
                                         const { data: existingAttachments, error: attachmentsError } = await supabase
                                           .from('purchase_attachments')
                                           .select('*')
                                           .eq('purchase_id', purchase.id);
                                         
-                                        console.log('Modal attachments query result:', { data: existingAttachments, error: attachmentsError });
+                                        // Modal attachments query result - removed for production
                                         
                                         if (!attachmentsError && existingAttachments) {
                                           setModalAttachments(existingAttachments);
-                                          console.log('Loaded modal attachments:', existingAttachments);
-                                          console.log('Modal attachments count:', existingAttachments.length);
+                                          // Loaded modal attachments - removed for production
                                         } else {
-                                          console.log('No modal attachments found or error:', attachmentsError);
+                                          // No modal attachments found or error - removed for production
                                           setModalAttachments([]);
                                         }
                                       } catch (err) {
@@ -2160,19 +2186,19 @@ export const PurchaseTracker: React.FC = () => {
                             
                             // Load existing attachments for this purchase
                             try {
-                              console.log('Loading attachments for purchase:', purchase.id);
+                              // Loading attachments for purchase - removed for production
                               const { data: existingAttachments, error: attachmentsError } = await supabase
                                 .from('purchase_attachments')
                                 .select('*')
                                 .eq('purchase_id', purchase.id);
                               
-                              console.log('Attachments query result:', { data: existingAttachments, error: attachmentsError });
+                              // Attachments query result - removed for production
                               
                               if (!attachmentsError && existingAttachments) {
                                 setPurchaseAttachments(existingAttachments);
-                                console.log('Loaded existing attachments:', existingAttachments);
+                                // Loaded existing attachments - removed for production
                               } else {
-                                console.log('No attachments found or error:', attachmentsError);
+                                // No attachments found or error - removed for production
                                 setPurchaseAttachments([]);
                               }
                             } catch (err) {
@@ -2184,7 +2210,7 @@ export const PurchaseTracker: React.FC = () => {
                             if (purchase.account_id) {
                               // For excluded purchases, use the account_id stored in the purchase record
                               setSelectedAccountId(purchase.account_id);
-                              console.log('Loaded account from purchase record:', purchase.account_id);
+                              // Loaded account from purchase record - removed for production
                             } else if (purchase.transaction_id) {
                               // For normal purchases, load from linked transaction
                               try {
@@ -2196,9 +2222,9 @@ export const PurchaseTracker: React.FC = () => {
                                 
                                 if (linkedTransaction && !error) {
                                   setSelectedAccountId(linkedTransaction.account_id);
-                                  console.log('Loaded account from linked transaction:', linkedTransaction.account_id);
+                                  // Loaded account from linked transaction - removed for production
                                 } else {
-                                  console.log('No linked transaction found for purchase:', purchase.transaction_id);
+                                  // No linked transaction found for purchase - removed for production
                                   setSelectedAccountId('');
                                 }
                               } catch (err) {
@@ -2251,11 +2277,22 @@ export const PurchaseTracker: React.FC = () => {
             ) : (
               filteredPurchases.map((purchase) => {
                 const category = purchaseCategories.find(c => c.category_name === purchase.category);
+                const isSelected = selectedId === purchase.id;
+                const isFromSearchSelection = isFromSearch && isSelected;
+                
                 
                 return (
                   <div
                     key={purchase.id}
-                    className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                    id={`purchase-${purchase.id}`}
+                    ref={isSelected ? selectedRecordRef : null}
+                    className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow ${
+                      isSelected 
+                        ? isFromSearchSelection 
+                          ? 'ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20' 
+                          : 'ring-2 ring-blue-500 ring-opacity-50'
+                        : ''
+                    }`}
                   >
                     {/* Row 1: Item Name, Date, Price, Actions */}
                     <div className="grid grid-cols-12 gap-2 p-3 border-b border-gray-100 dark:border-gray-800">
@@ -2284,20 +2321,19 @@ export const PurchaseTracker: React.FC = () => {
                             setShowNotesModal(true);
                             // Fetch existing attachments for this purchase
                             try {
-                              console.log('Loading modal attachments for purchase:', purchase.id);
+                              // Loading modal attachments for purchase - removed for production
                               const { data: existingAttachments, error: attachmentsError } = await supabase
                                 .from('purchase_attachments')
                                 .select('*')
                                 .eq('purchase_id', purchase.id);
                               
-                              console.log('Modal attachments query result:', { data: existingAttachments, error: attachmentsError });
+                              // Modal attachments query result - removed for production
                               
                               if (!attachmentsError && existingAttachments) {
                                 setModalAttachments(existingAttachments);
-                                console.log('Loaded modal attachments:', existingAttachments);
-                                console.log('Modal attachments count:', existingAttachments.length);
+                                // Loaded modal attachments - removed for production
                               } else {
-                                console.log('No modal attachments found or error:', attachmentsError);
+                                // No modal attachments found or error - removed for production
                                 setModalAttachments([]);
                               }
                             } catch (err) {

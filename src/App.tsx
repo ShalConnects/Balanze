@@ -50,9 +50,12 @@ import { useNotificationsStore } from './stores/notificationsStore';
 import { urgentNotificationService } from './lib/urgentNotifications';
 import { MobileSidebarProvider } from './context/MobileSidebarContext';
 import KBArticlePage from './pages/KBArticlePage';
+import KBSitemapPage from './pages/KBSitemapPage';
+import KBRobotsPage from './pages/KBRobotsPage';
 import AdminPage from './pages/AdminPage';
 import { FileRenameAdmin } from './pages/FileRenameAdmin';
 import DashboardDemo from './pages/DashboardDemo';
+import DashboardDemoOnly from './pages/DashboardDemoOnly';
 import ShortUrlRedirect from './pages/ShortUrlRedirect';
 import { useThemeStore } from './store/themeStore';
 import { AppInstallBanner } from './components/AppInstallBanner';
@@ -476,14 +479,17 @@ function AppContent() {
         <Route path="/payment-history" element={user ? <PaymentHistoryPage /> : <Navigate to="/login" />} />
         <Route path="/help" element={user ? <HelpLayout><HelpAndSupport /></HelpLayout> : <Navigate to="/login" />} />
         <Route path="/kb/:slug" element={user ? <HelpLayout><KBArticlePage /></HelpLayout> : <Navigate to="/login" />} />
+        <Route path="/kb-sitemap.xml" element={user ? <KBSitemapPage /> : <Navigate to="/login" />} />
+        <Route path="/kb-robots.txt" element={user ? <KBRobotsPage /> : <Navigate to="/login" />} />
         <Route path="/admin" element={user ? <AdminPage /> : <Navigate to="/login" />} />
         <Route path="/admin/file-rename" element={user ? <FileRenameAdmin /> : <Navigate to="/login" />} />
         <Route path="/history" element={user ? <MainLayout><History /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/donations" element={user ? <MainLayout><DonationsSavingsPage /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/favorite-quotes" element={user ? <MainLayout><FavoriteQuotes /></MainLayout> : <Navigate to="/login" />} />
         
-        {/* Demo route - public */}
+        {/* Demo routes - public */}
         <Route path="/dashboard-demo" element={<DashboardDemo />} />
+        <Route path="/dashboard-demo-only" element={<DashboardDemoOnly />} />
         
         {/* Short URL redirect - public */}
         <Route path="/f/:shortCode" element={<ShortUrlRedirect />} />

@@ -126,7 +126,7 @@ export const PurchaseCategories: React.FC<PurchaseCategoriesProps> = ({ hideTitl
         <div className="flex gap-2">
           <button
             onClick={async () => {
-              console.log('Manual sync triggered');
+              // Manual sync triggered
               await useFinanceStore.getState().syncExpenseCategoriesWithPurchaseCategories();
               await fetchPurchaseCategories();
             }}

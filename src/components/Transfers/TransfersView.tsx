@@ -148,12 +148,7 @@ export const TransfersView: React.FC = () => {
         .order('date', { ascending: true }); // ascending for before/after logic
       if (allTxError) throw allTxError;
 
-      // Debug: Log what data we're getting
-      console.log('=== TRANSFER DATA DEBUG ===');
-      console.log('Regular transfers:', transferData?.slice(0, 2));
-      console.log('DPS transfers:', dpsData?.slice(0, 2));
-      console.log('Sample transfer date field:', transferData?.[0]?.date);
-      console.log('Sample transfer created_at field:', transferData?.[0]?.created_at);
+      // Debug: Transfer data logging removed for production
       
       setTransfers(transferData || []);
       setDpsTransfers(dpsData || []);
@@ -188,9 +183,7 @@ export const TransfersView: React.FC = () => {
     const grouped = groupTransfersByTransferId(transfers);
     const combined: any[] = [];
     
-    // Debug: Log the first few transfers
-    console.log('=== COMBINED TRANSFERS DEBUG ===');
-    console.log('First few transfers:', transfers.slice(0, 3));
+    // Debug: Combined transfers logging removed for production
     
     for (const group of Object.values(grouped)) {
       if (group.length < 2) continue; // skip incomplete pairs
@@ -198,13 +191,7 @@ export const TransfersView: React.FC = () => {
       const income = group.find((t: any) => t.type === 'income');
       if (!expense || !income) continue;
       
-      // Debug: Log expense transaction details
-      console.log('Expense transaction:', {
-        id: expense.id,
-        date: expense.date,
-        created_at: expense.created_at,
-        type: expense.type
-      });
+      // Debug: Expense transaction logging removed for production
       
       const fromAccount = accounts.find(a => a.id === expense.account_id);
       const toAccount = accounts.find(a => a.id === income.account_id);
@@ -225,7 +212,7 @@ export const TransfersView: React.FC = () => {
       });
     }
     
-    console.log('Combined transfers result:', combined.slice(0, 2));
+    // Combined transfers result logging removed for production
     return combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 

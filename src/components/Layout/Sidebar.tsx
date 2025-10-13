@@ -14,7 +14,7 @@ import {
   ChevronsRight
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useThemeStore } from '../../store/themeStore';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
@@ -45,7 +45,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
   const userSectionRef = useRef<HTMLDivElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{top: number, left: number, direction: 'down' | 'up'} | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const { isSidebarCollapsed, toggleSidebar, isDarkMode } = useThemeStore();
+  
+  // Check if we're on a demo page
+  const isDemoPage = location.pathname.includes('/dashboard-demo');
   
   const { isMobile, isVerySmall } = useMobileDetection();
   
@@ -220,10 +224,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
               return (
                 <div key={item.id}>
                   <button
-                    onClick={() => {
-                      triggerHapticFeedback('light');
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // Only disable navigation for demo pages
+                      if (isDemoPage) {
+                        return;
+                      }
                       onViewChange(item.id);
-                      if (isMobile) onToggle();
                     }}
                     data-tour={item.id === 'accounts' ? 'accounts-nav' : undefined}
                     className={`
@@ -301,24 +309,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
             isMobile ? (isOpen ? 'px-4 py-4' : 'p-2') : (effectiveCollapsed ? 'px-2 py-4' : 'px-4 py-4')
           }`}>
             <div className="flex items-center space-x-2">
-              <Link
-                to="/help"
+              <button
                 onClick={() => {
-                  if (isMobile) {
-                    triggerHapticFeedback('light');
-                    onToggle();
+                  if (isDemoPage) {
+                    return; // Disable for demo pages
                   }
+                  navigate('/help');
                 }}
-                className={`flex-1 flex items-center px-3 py-2 mt-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-colors ${
+                className={`flex-1 flex items-center px-3 py-2 mt-2 rounded-lg transition-colors ${
+                  isDemoPage 
+                    ? 'text-gray-400 cursor-not-allowed' 
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
+                } ${
                   isMobile ? (isOpen ? 'space-x-3' : 'justify-center px-2') : (effectiveCollapsed ? 'justify-center px-2' : 'space-x-3')
                 }`}
-                title={isMobile || effectiveCollapsed ? 'Help & Support' : undefined}
+                title={isDemoPage ? "Demo mode - feature disabled" : "Help & Support"}
+                disabled={isDemoPage}
               >
                 <HelpCircle className="w-4 h-4" />
                 {(!isMobile && !effectiveCollapsed) || (isMobile && isOpen) ? (
                   <span className="text-[13px]">Help & Support</span>
                 ) : null}
-              </Link>
+              </button>
               {/* Only show toggle button on desktop (>767px) */}
               {!isMobile && (
                 <button 

@@ -10,6 +10,8 @@ import { ManualDonationModal } from '../components/common/ManualDonationModal';
 import { toast } from 'sonner';
 import { getPreference, setPreference } from '../lib/userPreferences';
 import { ShowOnDashboardBanner } from '../components/common/ShowOnDashboardBanner';
+import { useRecordSelection } from '../hooks/useRecordSelection';
+import { SelectionFilter } from '../components/common/SelectionFilter';
 
 const DonationsSavingsPage: React.FC = () => {
   const { 
@@ -55,6 +57,20 @@ const DonationsSavingsPage: React.FC = () => {
   const [showDonationsSavingsWidget, setShowDonationsSavingsWidget] = useState(() => {
     const saved = localStorage.getItem('showDonationsSavingsWidget');
     return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  // Record selection functionality
+  const {
+    selectedRecord,
+    selectedId,
+    isFromSearch,
+    selectedRecordRef,
+    clearSelection,
+    hasSelection
+  } = useRecordSelection({
+    records: donationSavingRecords,
+    recordIdField: 'id',
+    scrollToRecord: true
   });
 
   // Refs for dropdown menus
@@ -412,6 +428,11 @@ const DonationsSavingsPage: React.FC = () => {
   };
 
   const filteredRecords = React.useMemo(() => {
+    // If a record is selected via deep link, prioritize showing only that record
+    if (hasSelection && isFromSearch && selectedRecord) {
+      return [selectedRecord];
+    }
+
     const filtered = sortedRecords.filter(record => {
       const displayTransactionId = transactions.find(t => t.id === record.transaction_id)?.transaction_id || '';
       const manualTransactionId = record.custom_transaction_id || '';
@@ -429,7 +450,7 @@ const DonationsSavingsPage: React.FC = () => {
     });
     
     return sortData(filtered);
-  }, [sortedRecords, searchTerm, filterMode, filterStatus, sortConfig, transactions]);
+  }, [sortedRecords, searchTerm, filterMode, filterStatus, sortConfig, transactions, hasSelection, isFromSearch, selectedRecord]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -541,7 +562,7 @@ const DonationsSavingsPage: React.FC = () => {
     return (
       <div className="space-y-6">
         {/* Smooth skeleton for donations page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
           {/* Filters skeleton */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <DonationFiltersSkeleton />
@@ -581,7 +602,7 @@ const DonationsSavingsPage: React.FC = () => {
       <div className="space-y-6">
 
         {/* Unified Filters and Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700" style={{ paddingBottom: '13px' }}>
           {/* Filters Section */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex flex-wrap md:flex-nowrap justify-between items-center w-full" style={{ marginBottom: 0 }}>
@@ -603,6 +624,15 @@ const DonationsSavingsPage: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {/* Selection Filter */}
+                {hasSelection && selectedRecord && (
+                  <SelectionFilter
+                    label="Selected"
+                    value={selectedRecord.type === 'donation' ? 'Donation' : 'Saving'}
+                    onClear={clearSelection}
+                  />
+                )}
 
                 {/* Mobile Filter and Export Buttons */}
                 <div className="md:hidden flex items-center gap-2">
@@ -1177,8 +1207,21 @@ const DonationsSavingsPage: React.FC = () => {
                       currency = account ? account.currency : 'USD';
                     }
                     
+                    const isSelected = selectedId === record.id;
+                    const isFromSearchSelection = isFromSearch && isSelected;
+                    
                     return (
-                        <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <tr 
+                          key={record.id} 
+                          ref={isSelected ? selectedRecordRef : null}
+                          className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                            isSelected 
+                              ? isFromSearchSelection 
+                                ? 'ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20' 
+                                : 'ring-2 ring-blue-500 ring-opacity-50'
+                              : ''
+                          }`}
+                        >
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           {formatDate(record.created_at)}
                         </td>

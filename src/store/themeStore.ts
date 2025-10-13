@@ -12,7 +12,7 @@ interface ThemeStore {
 export const useThemeStore = create<ThemeStore>()(
   persist(
     (set) => ({
-      isDarkMode: true,
+      isDarkMode: false,
       isSidebarCollapsed: false,
       toggleTheme: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
       toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),

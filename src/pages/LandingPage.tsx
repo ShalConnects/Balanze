@@ -10,6 +10,7 @@ import InteractiveBackground from '../components/InteractiveBackground';
 import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
 import { PaddlePaymentModal } from '../components/common/PaddlePaymentModal';
+import { DemoModal } from '../components/common/DemoModal';
 
 const LandingPage: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -24,6 +25,7 @@ const LandingPage: React.FC = () => {
     billingCycle: 'monthly' as 'monthly' | 'one-time',
     features: [] as string[]
   });
+  const [showDemoModal, setShowDemoModal] = useState(false);
   
   // Animated counter states
   const [userCount, setUserCount] = useState(0);
@@ -524,13 +526,22 @@ const LandingPage: React.FC = () => {
                 />
               </div>
               
-              {/* Live Demo Badge */}
-              <div className="absolute -top-4 -right-4 bg-gradient-to-r from-green-400 to-green-600 rounded-lg shadow-lg p-3 animate-bounce">
+              {/* Enhanced Live Demo Badge */}
+              <button
+                onClick={() => setShowDemoModal(true)}
+                className="absolute -top-4 -right-4 bg-gradient-to-r from-green-400 to-green-600 rounded-lg shadow-lg p-3 animate-bounce hover:from-green-500 hover:to-green-700 transition-all duration-300 cursor-pointer group"
+              >
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
                   <span className="text-sm font-bold text-white">Live Demo</span>
+                  <ArrowRight className="w-4 h-4 text-white group-hover:translate-x-1 transition-transform duration-200" />
                 </div>
-              </div>
+                {/* Tooltip */}
+                <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+                  Try Balanze with sample data
+                  <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                </div>
+              </button>
               
               {/* Floating info cards */}
               <div className="absolute -left-8 top-1/4 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 transform -rotate-6 hover:rotate-0 transition-transform duration-300 hidden lg:block">
@@ -556,6 +567,131 @@ const LandingPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Demo Preview Section */}
+      <section className="pt-20 pb-0 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 relative overflow-hidden">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              Experience Balanze in Action
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
+              See how our dashboard works with real sample data. No signup required!
+            </p>
+            
+            {/* Demo Preview Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-12">
+              {/* Multi-Currency Card */}
+              <button
+                onClick={() => setShowDemoModal(true)}
+                className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 cursor-pointer group text-left w-full"
+              >
+                <div className="flex items-center mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center mr-4 group-hover:scale-110 transition-transform duration-300">
+                    <Globe className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Multi-Currency</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">USD & BDT Support</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">USD Balance</span>
+                    <span className="font-semibold text-green-600 dark:text-green-400">$54,420.50</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">BDT Balance</span>
+                    <span className="font-semibold text-blue-600 dark:text-blue-400">৳175,000</span>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center text-blue-600 dark:text-blue-400 text-sm font-medium group-hover:translate-x-1 transition-transform duration-200">
+                  <span>Click to explore</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </div>
+              </button>
+
+              {/* Recent Transactions Card */}
+              <button
+                onClick={() => setShowDemoModal(true)}
+                className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600 cursor-pointer group text-left w-full"
+              >
+                <div className="flex items-center mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-blue-500 rounded-lg flex items-center justify-center mr-4 group-hover:scale-110 transition-transform duration-300">
+                    <TrendingUp className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">Recent Activity</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Last 5 transactions</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Salary Payment</span>
+                    <span className="font-semibold text-green-600 dark:text-green-400">+$3,500</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Grocery Shopping</span>
+                    <span className="font-semibold text-red-600 dark:text-red-400">-$120.50</span>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center text-green-600 dark:text-green-400 text-sm font-medium group-hover:translate-x-1 transition-transform duration-200">
+                  <span>Click to explore</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </div>
+              </button>
+
+              {/* Analytics Card */}
+              <button
+                onClick={() => setShowDemoModal(true)}
+                className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 cursor-pointer group text-left w-full"
+              >
+                <div className="flex items-center mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mr-4 group-hover:scale-110 transition-transform duration-300">
+                    <BarChart3 className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Analytics</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Spending insights</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">This Month</span>
+                    <span className="font-semibold text-purple-600 dark:text-purple-400">$2,450</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Savings Rate</span>
+                    <span className="font-semibold text-green-600 dark:text-green-400">23%</span>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center text-purple-600 dark:text-purple-400 text-sm font-medium group-hover:translate-x-1 transition-transform duration-200">
+                  <span>Click to explore</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </div>
+              </button>
+            </div>
+
+            {/* Enhanced Demo CTA */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <button
+                onClick={() => setShowDemoModal(true)}
+                className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center space-x-2 w-full sm:w-auto"
+              >
+                <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                <span>Try Live Demo</span>
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+              <button
+                onClick={() => navigate('/auth')}
+                className="bg-transparent border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 w-full sm:w-auto"
+              >
+                Start Free Trial
+              </button>
             </div>
           </div>
         </div>
@@ -589,7 +725,7 @@ const LandingPage: React.FC = () => {
 
       {/* Features Grid */}
       <section id="features" className="py-20 relative">
-        <div className="w-4/5 mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Everything You Need to Master Your Finances
@@ -629,7 +765,7 @@ const LandingPage: React.FC = () => {
 
       {/* Key Features Showcase */}
       <section className="py-20 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 relative">
-        <div className="w-4/5 mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Experience the Power of Balanze
@@ -695,7 +831,7 @@ const LandingPage: React.FC = () => {
 
       {/* Analytics Showcase */}
       <section className="py-20 relative">
-        <div className="w-4/5 mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Powerful Analytics at Your Fingertips
@@ -757,27 +893,268 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Last Wish Feature Section */}
-      <section className="py-20 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 relative">
-        <div className="w-4/5 mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-center gap-12">
-          <div className="flex-shrink-0 flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 shadow-lg mb-8 md:mb-0">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 48 48" className="w-16 h-16 text-white"><path fill="currentColor" d="M24 44c-7.732 0-14-6.268-14-14 0-5.25 3.02-9.77 7.5-12.06V14a6.5 6.5 0 1 1 13 0v3.94C34.98 20.23 38 24.75 38 30c0 7.732-6.268 14-14 14Zm-2-30a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/></svg>
+      {/* Last Wish Feature Section - Testimonial Integration */}
+      <section className="py-20 bg-white dark:bg-gray-900 relative overflow-hidden">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Section Header */}
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/50 dark:to-blue-900/50 text-purple-800 dark:text-purple-300 px-6 py-3 rounded-full text-sm font-bold mb-6 shadow-lg">
+              <Heart className="w-4 h-4" />
+              <span>PREMIUM FEATURE</span>
           </div>
-          <div className="flex-1 text-center md:text-left">
-            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Last Wish</span> — Your Digital Time Capsule
+            
+            <h2 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
+              <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Last Wish</span>
+              <br />
+              <span className="text-2xl md:text-4xl text-gray-700 dark:text-gray-300 font-light">Your Digital Time Capsule</span>
             </h2>
-            <p className="text-xl text-gray-700 dark:text-gray-300 mb-6 max-w-2xl mx-auto md:mx-0">
-              Securely record your final wishes, messages, and important information for your loved ones. Balanze's <b>Last Wish</b> feature lets you create a digital legacy, ensuring your voice and intentions are preserved and delivered when it matters most.
+            
+            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">
+              Trusted by thousands of families to preserve their most important messages and documents. 
+              See how Last Wish has brought peace of mind to families worldwide.
             </p>
-            <ul className="text-left text-gray-700 dark:text-gray-300 mb-6 max-w-2xl mx-auto md:mx-0 space-y-2">
-              <li className="flex items-center"><span className="inline-block w-2 h-2 bg-blue-500 rounded-full mr-3"></span> Leave personal messages for family and friends</li>
-              <li className="flex items-center"><span className="inline-block w-2 h-2 bg-blue-500 rounded-full mr-3"></span> Store important documents and instructions</li>
-              <li className="flex items-center"><span className="inline-block w-2 h-2 bg-blue-500 rounded-full mr-3"></span> 100% private, encrypted, and only shared when you choose</li>
-            </ul>
-            <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold shadow-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300">
+          </div>
+
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-20">
+            {/* Left Side - Feature Description */}
+            <div>
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 48 48" className="w-10 h-10 text-white">
+                    <path fill="currentColor" d="M24 44c-7.732 0-14-6.268-14-14 0-5.25 3.02-9.77 7.5-12.06V14a6.5 6.5 0 1 1 13 0v3.94C34.98 20.23 38 24.75 38 30c0 7.732-6.268 14-14 14Zm-2-30a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-3xl font-bold text-gray-900 dark:text-white">Secure Digital Legacy</h3>
+                  <p className="text-gray-600 dark:text-gray-400">Preserve what matters most</p>
+                </div>
+              </div>
+
+              <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
+                Securely record your final wishes, messages, and important information for your loved ones. 
+                <span className="font-semibold text-purple-600 dark:text-purple-400"> Balanze's Last Wish</span> feature lets you create a digital legacy, 
+                ensuring your voice and intentions are preserved and delivered when it matters most.
+              </p>
+
+              {/* Key Features */}
+              <div className="space-y-6 mb-10">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <MessageSquare className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Personal Messages</h4>
+                    <p className="text-gray-600 dark:text-gray-400">Record heartfelt video messages, voice notes, and written letters for your family and friends.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Download className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Important Documents</h4>
+                    <p className="text-gray-600 dark:text-gray-400">Securely store wills, insurance policies, passwords, and other critical documents.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Shield className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">100% Private & Secure</h4>
+                    <p className="text-gray-600 dark:text-gray-400">Bank-level encryption protects your most sensitive information. You control exactly when and how your legacy is shared.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button 
+                  onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-xl font-bold hover:from-purple-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center justify-center gap-3"
+                >
+                  <Heart className="w-5 h-5" />
               Unlock Last Wish with Premium
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setShowDemoModal(true)}
+                  className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-8 py-4 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300 border border-gray-300 dark:border-gray-600 flex items-center justify-center gap-3"
+                >
+                  <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                  Try Live Demo
             </button>
+              </div>
+            </div>
+
+            {/* Right Side - Testimonials */}
+            <div className="space-y-8">
+              {/* Featured Testimonial */}
+              <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-2xl p-8 border border-purple-200 dark:border-purple-800 shadow-lg">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-16 h-16 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xl font-bold">S</span>
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-gray-900 dark:text-white">Sarah Mitchell</h4>
+                    <p className="text-gray-600 dark:text-gray-400">Mother of 3, Premium User</p>
+                  </div>
+                </div>
+                <blockquote className="text-lg text-gray-700 dark:text-gray-300 italic mb-6 leading-relaxed">
+                  "Last Wish gave me peace of mind knowing my children will have everything they need. 
+                  I recorded video messages for each of them, and stored all our important documents. 
+                  It's like having a conversation with my future self."
+                </blockquote>
+                <div className="flex items-center gap-2">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                  ))}
+                  <span className="text-sm text-gray-600 dark:text-gray-400 ml-2">5.0 rating</span>
+                </div>
+              </div>
+
+              {/* Additional Testimonials */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-bold">M</span>
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-gray-900 dark:text-white">Michael Chen</h5>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Business Owner</p>
+                    </div>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm italic mb-3">
+                    "As a business owner, I needed to ensure my family had access to all my accounts and passwords. 
+                    Last Wish made this so easy and secure."
+                  </p>
+                  <div className="flex items-center gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-bold">E</span>
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-gray-900 dark:text-white">Emily Rodriguez</h5>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Retired Teacher</p>
+                    </div>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm italic mb-3">
+                    "I love being able to leave personal messages for my grandchildren. 
+                    They'll hear my voice and stories even when I'm gone."
+                  </p>
+                  <div className="flex items-center gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Social Proof Section */}
+          <div className="bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 rounded-3xl p-12 mb-16">
+            <div className="text-center mb-12">
+              <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+                Trusted by Families Worldwide
+              </h3>
+              <p className="text-lg text-gray-600 dark:text-gray-400">
+                Join thousands of families who have found peace of mind with Last Wish
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* Trust Stats */}
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-8 h-8 text-white" />
+                </div>
+                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">12,500+</div>
+                <div className="text-gray-600 dark:text-gray-400">Families Protected</div>
+              </div>
+
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Shield className="w-8 h-8 text-white" />
+                </div>
+                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">99.9%</div>
+                <div className="text-gray-600 dark:text-gray-400">Uptime Guarantee</div>
+              </div>
+
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Star className="w-8 h-8 text-white" />
+                </div>
+                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">4.9/5</div>
+                <div className="text-gray-600 dark:text-gray-400">User Rating</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Security & Trust Indicators */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Security Features */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-white" />
+                </div>
+                <h4 className="text-xl font-bold text-gray-900 dark:text-white">Bank-Level Security</h4>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-gray-700 dark:text-gray-300">256-bit encryption</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-gray-700 dark:text-gray-300">Zero-knowledge architecture</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-gray-700 dark:text-gray-300">SOC 2 Type II certified</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-gray-700 dark:text-gray-300">Regular security audits</span>
+                </div>
+              </div>
+            </div>
+
+            {/* User Stories */}
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl p-8 border border-purple-200 dark:border-purple-800">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                  <Heart className="w-6 h-6 text-white" />
+                </div>
+                <h4 className="text-xl font-bold text-gray-900 dark:text-white">Real Stories</h4>
+              </div>
+              <div className="space-y-4">
+                <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-4">
+                  <p className="text-sm text-gray-700 dark:text-gray-300 italic mb-2">
+                    "My father passed away suddenly, but thanks to Last Wish, we had all his important documents and a beautiful video message he left for us."
+                  </p>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">- Jennifer L., Daughter</div>
+                </div>
+                <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-4">
+                  <p className="text-sm text-gray-700 dark:text-gray-300 italic mb-2">
+                    "I travel frequently for work. Last Wish gives me peace of mind knowing my family is protected no matter what happens."
+                  </p>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">- David K., Executive</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -1207,7 +1584,7 @@ const LandingPage: React.FC = () => {
 
       {/* Testimonials */}
       <section id="testimonials" className="py-20 relative">
-        <div className="w-4/5 mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Loved by Thousands of Users
@@ -1414,6 +1791,19 @@ const LandingPage: React.FC = () => {
                 </a>
               </div>
             </div>
+            <div className="text-center mt-4">
+              <p className="text-gray-400 text-sm">
+                Made with <Heart className="w-4 h-4 inline text-red-500" /> by{' '}
+                <a 
+                  href="https://shalconnects.com/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  ShalConnects
+                </a>
+              </p>
+            </div>
           </div>
         </div>
       </footer>
@@ -1463,6 +1853,12 @@ const LandingPage: React.FC = () => {
         price={paymentModal.price}
         billingCycle={paymentModal.billingCycle}
         features={paymentModal.features}
+      />
+
+      {/* Demo Modal */}
+      <DemoModal
+        isOpen={showDemoModal}
+        onClose={() => setShowDemoModal(false)}
       />
       </div>
     </div>

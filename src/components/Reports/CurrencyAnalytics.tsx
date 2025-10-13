@@ -57,7 +57,7 @@ export const CurrencyAnalytics: React.FC = () => {
 
   const handleExport = () => {
     // TODO: Implement export functionality
-    console.log('Export currency analytics data');
+    // Export currency analytics data
   };
 
   const handleRefresh = () => {

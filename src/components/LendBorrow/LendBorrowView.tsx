@@ -13,6 +13,8 @@ import { toast } from 'sonner';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { ShowOnDashboardBanner } from '../common/ShowOnDashboardBanner';
+import { useRecordSelection } from '../../hooks/useRecordSelection';
+import { SelectionFilter } from '../common/SelectionFilter';
 
 const currencySymbols: Record<string, string> = {
   USD: '$',
@@ -69,6 +71,20 @@ export const LendBorrowView: React.FC = () => {
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const presetDropdownRef = useRef<HTMLDivElement>(null);
   const { wrapAsync, setLoadingMessage } = useLoadingContext();
+
+  // Record selection functionality
+  const {
+    selectedRecord,
+    selectedId,
+    isFromSearch,
+    selectedRecordRef,
+    clearSelection,
+    hasSelection
+  } = useRecordSelection({
+    records: lendBorrowRecords,
+    recordIdField: 'id',
+    scrollToRecord: true
+  });
 
   // Widget visibility state - hybrid approach (localStorage + database)
   const [showLendBorrowWidget, setShowLendBorrowWidget] = useState(() => {
@@ -318,25 +334,32 @@ export const LendBorrowView: React.FC = () => {
 
 
   // Filter records for the table (status filter included)
-  const filteredRecords = lendBorrowRecords.filter(record => {
-    if (filters.type !== 'all' && record.type !== filters.type) return false;
-    if (filters.status !== 'all' && record.status !== filters.status) return false;
-    if (filters.search && !record.person_name.toLowerCase().includes(filters.search.toLowerCase()) && 
-        !record.notes?.toLowerCase().includes(filters.search.toLowerCase())) return false;
-    if (filters.currency && record.currency !== filters.currency) return false;
-    
-    // Date range filtering
-    if (filters.dateRange.start && filters.dateRange.end) {
-      const recordDate = record.created_at ? new Date(record.created_at) : new Date();
-      const startDate = new Date(filters.dateRange.start);
-      const endDate = new Date(filters.dateRange.end);
-      endDate.setHours(23, 59, 59, 999); // Include the entire end date
-      
-      if (recordDate < startDate || recordDate > endDate) return false;
+  const filteredRecords = React.useMemo(() => {
+    // If a record is selected via deep link, prioritize showing only that record
+    if (hasSelection && isFromSearch && selectedRecord) {
+      return [selectedRecord];
     }
-    
-    return true;
-  });
+
+    return lendBorrowRecords.filter(record => {
+      if (filters.type !== 'all' && record.type !== filters.type) return false;
+      if (filters.status !== 'all' && record.status !== filters.status) return false;
+      if (filters.search && !record.person_name.toLowerCase().includes(filters.search.toLowerCase()) && 
+          !record.notes?.toLowerCase().includes(filters.search.toLowerCase())) return false;
+      if (filters.currency && record.currency !== filters.currency) return false;
+      
+      // Date range filtering
+      if (filters.dateRange.start && filters.dateRange.end) {
+        const recordDate = record.created_at ? new Date(record.created_at) : new Date();
+        const startDate = new Date(filters.dateRange.start);
+        const endDate = new Date(filters.dateRange.end);
+        endDate.setHours(23, 59, 59, 999); // Include the entire end date
+        
+        if (recordDate < startDate || recordDate > endDate) return false;
+      }
+      
+      return true;
+    });
+  }, [lendBorrowRecords, filters, hasSelection, isFromSearch, selectedRecord]);
 
   // Calculate overdue count directly from filtered records
   const overdueCount = filteredRecords.filter(r => r.status === 'overdue').length;
@@ -370,14 +393,14 @@ export const LendBorrowView: React.FC = () => {
     if (!user) return;
 
     try {
-      console.log('Attempting to add record:', record);
+      // Attempting to add record
 
       // Add a small delay to ensure loading animation is visible
       await new Promise(resolve => setTimeout(resolve, 300));
 
       await addLendBorrowRecord(record);
 
-      console.log('Successfully added record');
+      // Successfully added record
       setShowForm(false);
       toast.success('Record added successfully!');
     } catch (error) {
@@ -398,7 +421,7 @@ export const LendBorrowView: React.FC = () => {
     };
 
     try {
-      console.log('Attempting to update record:', { id, updates: cleanUpdates });
+      // Attempting to update record
 
       // Add a small delay to ensure loading animation is visible
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -423,7 +446,7 @@ export const LendBorrowView: React.FC = () => {
         return;
       }
 
-      console.log('Successfully updated record:', data);
+      // Successfully updated record
       // setLendBorrowRecords(prev => 
       //   prev.map(r => r.id === id ? data : r)
       // ); // This line is removed as lendBorrowRecords is now managed by useFinanceStore
@@ -442,7 +465,7 @@ export const LendBorrowView: React.FC = () => {
     const wrappedDelete = wrapAsync(async () => {
       setLoadingMessage('Deleting record...');
       try {
-        console.log('Attempting to delete record:', id);
+        // Attempting to delete record
 
         const { error } = await supabase
           .from('lend_borrow')
@@ -456,7 +479,7 @@ export const LendBorrowView: React.FC = () => {
           throw error;
         }
 
-        console.log('Successfully deleted record:', id);
+        // Successfully deleted record
         // setLendBorrowRecords(prev => prev.filter(r => r.id !== id)); // This line is removed as lendBorrowRecords is now managed by useFinanceStore
         toast.success('Record deleted successfully!');
       } catch (error) {
@@ -481,7 +504,7 @@ export const LendBorrowView: React.FC = () => {
   };
 
   const handlePartialReturn = (record: LendBorrow) => {
-    console.log('Partial return clicked:', record);
+    // Partial return clicked
     setPartialReturnRecord(record);
   };
 
@@ -609,7 +632,7 @@ export const LendBorrowView: React.FC = () => {
     return (
       <div className="space-y-6">
         {/* Smooth skeleton for lend & borrow page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700" style={{ paddingBottom: '13px' }}>
           {/* Filters skeleton */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <LendBorrowFiltersSkeleton />
@@ -680,7 +703,7 @@ export const LendBorrowView: React.FC = () => {
           <div className="space-y-6">
 
         {/* Unified Filters and Table */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700" style={{ paddingBottom: '13px' }}>
           {/* Filters Section */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-start" style={{ marginBottom: 0 }}>
@@ -702,6 +725,15 @@ export const LendBorrowView: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {/* Selection Filter */}
+                {hasSelection && selectedRecord && (
+                  <SelectionFilter
+                    label="Selected"
+                    value={selectedRecord.person_name || 'Lend/Borrow Record'}
+                    onClear={clearSelection}
+                  />
+                )}
 
                 {/* Mobile Filter and Add Buttons */}
                 <div className="md:hidden flex items-center gap-2">
@@ -999,6 +1031,9 @@ export const LendBorrowView: React.FC = () => {
                 onDelete={handleDeleteRecord}
                 onUpdateStatus={handleUpdateStatus}
                 onPartialReturn={handlePartialReturn}
+                selectedId={selectedId}
+                isFromSearch={isFromSearch}
+                selectedRecordRef={selectedRecordRef}
               />
             </div>
           </div>
@@ -1266,7 +1301,7 @@ export const LendBorrowView: React.FC = () => {
 
       {/* Partial Return Modal */}
       {partialReturnRecord && (
-        console.log('Rendering PartialReturnModal for:', partialReturnRecord),
+        // Rendering PartialReturnModal
         <PartialReturnModal
           isOpen={!!partialReturnRecord}
           record={partialReturnRecord}

@@ -1,246 +1,175 @@
 import React, { useState, useEffect } from 'react';
+import { Check, Star, AlertCircle, CreditCard, Wallet, PiggyBank, Building, Info, Monitor, Mail } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { notificationPreferencesService, NotificationPreferences } from '../../lib/notificationPreferences';
-import { toast } from 'sonner';
-import { Check, Globe, Star, Save, RotateCcw } from 'lucide-react';
-import { NotificationSettings } from './NotificationSettings';
+import { useFinanceStore } from '../../store/useFinanceStore';
+import { getCurrencySymbol } from '../../utils/currency';
+import { setDefaultAccount, getDefaultAccount, isDefaultAccount } from '../../utils/defaultAccount';
+import { showToast } from '../../lib/toast';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
+import { useNavigate } from 'react-router-dom';
+import { CustomDropdown } from '../Purchases/CustomDropdown';
 
-const currencyOptions = [
-  { value: 'USD', label: 'USD - US Dollar', symbol: '$' },
-  { value: 'BDT', label: 'BDT - Bangladeshi Taka', symbol: '৳' },
-  { value: 'EUR', label: 'EUR - Euro', symbol: '€' },
-  { value: 'GBP', label: 'GBP - British Pound', symbol: '£' },
-  { value: 'JPY', label: 'JPY - Japanese Yen', symbol: '¥' },
-  { value: 'CAD', label: 'CAD - Canadian Dollar', symbol: 'C$' },
-  { value: 'AUD', label: 'AUD - Australian Dollar', symbol: 'A$' },
-];
+interface CurrencySettingsProps {
+  hideTitle?: boolean;
+}
 
-export const CurrencySettings: React.FC = () => {
+export const CurrencySettings: React.FC<CurrencySettingsProps> = ({ hideTitle = false }) => {
   const { profile, updateProfile } = useAuthStore();
-  const { features, isFreePlan } = usePlanFeatures();
-  const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>(profile?.selected_currencies || (profile?.local_currency ? [profile.local_currency] : ['USD']));
-  const [primaryCurrency, setPrimaryCurrency] = useState<string>(profile?.local_currency || 'USD');
-  const [loading, setLoading] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  const { accounts, fetchAccounts } = useFinanceStore();
+  const { isPremium } = usePlanFeatures();
+  const navigate = useNavigate();
+  
+  const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
+  const [localCurrency, setLocalCurrency] = useState<string>('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedDefaultAccount, setSelectedDefaultAccount] = useState<string>('');
 
-  // Notification preferences state
-  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences | null>(null);
-  const [notificationDirty, setNotificationDirty] = useState(false);
+  // Available currencies (matching your existing list)
+  const availableCurrencies = ['USD', 'BDT', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'];
 
-  // --- Fix: Sync state with profile after refresh/profile update ---
+  // Load current settings
   useEffect(() => {
-    if (profile?.selected_currencies && profile.selected_currencies.length > 0) {
-      setSelectedCurrencies(profile.selected_currencies);
-      // Use profile.local_currency as primary if it's in the selection, otherwise first selected
-      if (profile.local_currency && profile.selected_currencies.includes(profile.local_currency)) {
-        setPrimaryCurrency(profile.local_currency);
-      } else {
-        setPrimaryCurrency(profile.selected_currencies[0]);
-      }
-    } else if (profile?.local_currency) {
-      setSelectedCurrencies([profile.local_currency]);
-      setPrimaryCurrency(profile.local_currency);
-    } else {
-      setSelectedCurrencies(['USD']);
-      setPrimaryCurrency('USD');
+    if (profile) {
+      setSelectedCurrencies(profile.selected_currencies || []);
+      setLocalCurrency(profile.local_currency || 'USD');
+      setSelectedDefaultAccount(profile.default_account_id || '');
     }
-  }, [profile?.selected_currencies, profile?.local_currency]);
+  }, [profile]);
 
-  // Load notification preferences
+  // Fetch accounts when component mounts
   useEffect(() => {
-    if (profile?.id) {
-      loadNotificationPreferences();
-    }
-  }, [profile?.id]);
+    fetchAccounts();
+  }, [fetchAccounts]);
 
-  const loadNotificationPreferences = async () => {
-    if (!profile?.id) return;
-    
-    try {
-      const prefs = await notificationPreferencesService.getPreferences(profile.id);
-      setNotificationPreferences(prefs);
-    } catch (error) {
-      console.error('Error loading notification preferences:', error);
-    }
-  };
+  const toggleCurrency = async (currency: string) => {
+    if (isUpdating) return;
 
-  const toggleCurrency = (currency: string) => {
-    if (selectedCurrencies.includes(currency)) {
-      const newSelected = selectedCurrencies.filter(c => c !== currency);
-      setSelectedCurrencies(newSelected);
+    // Check plan limits for free users
+    if (!isPremium) {
+      const currentCount = selectedCurrencies.length;
+      const isCurrentlySelected = selectedCurrencies.includes(currency);
       
-      // If we removed the primary currency, set a new primary
-      if (primaryCurrency === currency && newSelected.length > 0) {
-        setPrimaryCurrency(newSelected[0]);
-      }
-    } else {
-      // Check currency limit for free users
-      if (isFreePlan && selectedCurrencies.length >= 1) {
-        toast.error('Currency limit reached! Free plan allows only 1 currency. Upgrade to Premium for unlimited currencies.');
+      if (!isCurrentlySelected && currentCount >= 1) {
+        showToast.error('Currency limit reached! Free plan allows only 1 currency. Upgrade to Premium for unlimited currencies.');
         return;
       }
-      
-      setSelectedCurrencies([...selectedCurrencies, currency]);
     }
-    setDirty(true);
-  };
 
-  const setAsPrimary = (currency: string) => {
-    setPrimaryCurrency(currency);
-    setDirty(true);
-  };
-
-  const handleNotificationPreferenceChange = (
-    category: keyof NotificationPreferences,
-    key: string,
-    value: boolean | string
-  ) => {
-    if (!notificationPreferences) return;
-
-    setNotificationPreferences({
-      ...notificationPreferences,
-      [category]: {
-        ...notificationPreferences[category],
-        [key]: value,
-      },
-    });
-    setNotificationDirty(true);
-  };
-
-  const handleSave = async () => {
-    if (!profile) return;
+    setIsUpdating(true);
     
-    setLoading(true);
     try {
-      // Save currency settings
-      if (dirty) {
-        await updateProfile({
-          selected_currencies: selectedCurrencies,
-          local_currency: primaryCurrency
-        });
-        setDirty(false);
+      const newCurrencies = selectedCurrencies.includes(currency)
+        ? selectedCurrencies.filter(c => c !== currency)
+        : [...selectedCurrencies, currency];
+
+      setSelectedCurrencies(newCurrencies);
+      
+      const result = await updateProfile({
+        selected_currencies: newCurrencies
+      });
+
+      if (result.error) {
+        throw result.error;
       }
 
-      // Save notification settings
-      if (notificationDirty && notificationPreferences) {
-        console.log('Attempting to save notification preferences for user:', profile.id);
-        const success = await notificationPreferencesService.savePreferences(profile.id, notificationPreferences);
-        if (success) {
-          setNotificationDirty(false);
-          console.log('Notification preferences saved successfully');
-        } else {
-          console.error('Failed to save notification preferences');
-          toast.error('Failed to save notification settings. Please check your login status and try again.');
-          setLoading(false);
-          return;
-        }
-      }
-
-      toast.success('Settings saved successfully');
+      showToast.success('Currency preferences updated');
     } catch (error) {
-      console.error('Error saving settings:', error);
-      toast.error('Failed to save settings');
+      console.error('Error updating currencies:', error);
+      showToast.error('Failed to update currency preferences');
+      // Revert the state
+      setSelectedCurrencies(profile?.selected_currencies || []);
     } finally {
-      setLoading(false);
+      setIsUpdating(false);
     }
   };
 
-  const handleReset = () => {
-    // Reset currency settings
-    if (profile?.selected_currencies && profile.selected_currencies.length > 0) {
-      setSelectedCurrencies(profile.selected_currencies);
-      if (profile.local_currency && profile.selected_currencies.includes(profile.local_currency)) {
-        setPrimaryCurrency(profile.local_currency);
-      } else {
-        setPrimaryCurrency(profile.selected_currencies[0]);
+  const updateLocalCurrency = async (currency: string) => {
+    if (isUpdating) return;
+    
+    setIsUpdating(true);
+    
+    try {
+      const result = await updateProfile({
+        local_currency: currency
+      });
+
+      if (result.error) {
+        throw result.error;
       }
-    } else if (profile?.local_currency) {
-      setSelectedCurrencies([profile.local_currency]);
-      setPrimaryCurrency(profile.local_currency);
-    } else {
-      setSelectedCurrencies(['USD']);
-      setPrimaryCurrency('USD');
-    }
-    setDirty(false);
 
-    // Reset notification settings
-    if (profile?.id) {
-      loadNotificationPreferences();
-      setNotificationDirty(false);
+      setLocalCurrency(currency);
+      showToast.success('Local currency updated');
+    } catch (error) {
+      console.error('Error updating local currency:', error);
+      showToast.error('Failed to update local currency');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
-  const hasChanges = dirty || notificationDirty;
+  const handleSetDefaultAccount = async (accountId: string) => {
+    try {
+      setSelectedDefaultAccount(accountId);
+      const success = await setDefaultAccount(accountId);
+      if (success) {
+        showToast.success('Default account updated');
+      } else {
+        showToast.error('Failed to update default account');
+        // Revert on failure
+        setSelectedDefaultAccount(profile?.default_account_id || '');
+      }
+    } catch (error) {
+      console.error('Error setting default account:', error);
+      showToast.error('Failed to update default account');
+      // Revert on failure
+      setSelectedDefaultAccount(profile?.default_account_id || '');
+    }
+  };
+
+  const getAccountIcon = (type: string) => {
+    switch (type) {
+      case 'checking': return <CreditCard className="w-4 h-4" />;
+      case 'savings': return <PiggyBank className="w-4 h-4" />;
+      case 'cash': return <Wallet className="w-4 h-4" />;
+      case 'investment': return <Building className="w-4 h-4" />;
+      default: return <Wallet className="w-4 h-4" />;
+    }
+  };
+
+  const activeAccounts = accounts.filter(account => account.isActive);
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header with only save/reset buttons when changes exist */}
-      {hasChanges && (
-        <div className="flex justify-end">
-          <div className="flex space-x-2">
-            <button
-              onClick={handleReset}
-              className="flex items-center space-x-1 px-2 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>Reset</span>
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={loading}
-              className="flex items-center space-x-1 px-2 py-1.5 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Save className="w-3 h-3" />
-              <span>{loading ? 'Saving...' : 'Save'}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Currency Selection */}
+      {/* Currency Settings - matching your existing design */}
       <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 sm:p-4">
-        <h4 className="text-md font-medium text-gray-900 dark:text-white mb-2">
-          Currency Settings
-        </h4>
+        <h4 className="text-md font-medium text-gray-900 dark:text-white mb-2">Currency Settings</h4>
         <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-3 sm:mb-4">
-          {isFreePlan 
-            ? 'Free plan allows 1 currency only. Pick a primary currency for forms and default display.'
-            : 'Select one or more currencies. Pick a primary currency for forms and default display.'
-          }
+          Select one or more currencies. Pick a primary currency for forms and default display.
         </p>
-        
-        {/* Currency Grid */}
         <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-3">
-          {currencyOptions.map((currency) => {
-            const selected = selectedCurrencies.includes(currency.value);
-            const isPrimary = primaryCurrency === currency.value;
+          {availableCurrencies.map((currency) => {
+            const isSelected = selectedCurrencies.includes(currency);
+            const isPrimary = localCurrency === currency;
+            const isDisabled = !isPremium && !isSelected && selectedCurrencies.length >= 1;
             
             return (
               <div
-                key={currency.value}
-                className={`
-                  relative p-2 sm:p-3 rounded-lg border-2 cursor-pointer transition-all duration-200
-                  ${selected 
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                key={currency}
+                className={`relative p-2 sm:p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                  isSelected
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                     : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-                  }
-                  ${isPrimary ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''}
-                  ${isFreePlan && selectedCurrencies.length >= 1 && !selected 
-                    ? 'opacity-50 cursor-not-allowed' 
-                    : ''
-                  }
-                `}
-                onClick={() => toggleCurrency(currency.value)}
+                } ${isPrimary ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''} ${
+                  isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                onClick={() => !isDisabled && toggleCurrency(currency)}
               >
                 <div className="text-center">
                   <div className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-1">
-                    {currency.symbol}
+                    {getCurrencySymbol(currency)}
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                    {currency.value}
-                  </div>
-                  {selected && (
+                  <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">{currency}</div>
+                  {isSelected && (
                     <div className="absolute top-1 right-1">
                       <Check className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                     </div>
@@ -251,15 +180,13 @@ export const CurrencySettings: React.FC = () => {
                     </div>
                   )}
                 </div>
-                
-                {/* Set as Primary Button */}
-                {selected && !isPrimary && (
+                {isSelected && !isPrimary && (
                   <button
+                    className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full hover:bg-blue-700 transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setAsPrimary(currency.value);
+                      updateLocalCurrency(currency);
                     }}
-                    className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full hover:bg-blue-700 transition-colors"
                   >
                     Set
                   </button>
@@ -268,52 +195,198 @@ export const CurrencySettings: React.FC = () => {
             );
           })}
         </div>
-        
-        {/* Free Plan Currency Limit Warning */}
-        {isFreePlan && (
-          <div className="mt-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-            <p className="text-xs text-amber-800 dark:text-amber-200">
-              🔒 <strong>Free Plan Limit:</strong> You can select only 1 currency. 
-              <button 
-                onClick={() => window.location.href = '/settings?tab=plans-usage'}
-                className="ml-1 text-blue-600 dark:text-blue-400 underline hover:no-underline"
-              >
-                Upgrade to Premium
-              </button> for unlimited currencies.
-            </p>
+      </div>
+
+      {/* Default Account and Current Selection - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Default Account Section - Compact Dropdown */}
+        {activeAccounts.length > 0 && (
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 rounded-xl p-4 border border-green-200 dark:border-gray-600">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">🏦 Default Account</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Choose which account is pre-selected when creating new transactions</p>
+            </div>
+            
+            <div className="relative">
+              <CustomDropdown
+                options={activeAccounts.map(account => ({
+                  value: account.id,
+                  label: `${account.name} (${account.type}) • ${getCurrencySymbol(account.currency)}${Number(account.calculated_balance).toLocaleString()}`,
+                  icon: getAccountIcon(account.type)
+                }))}
+                value={selectedDefaultAccount}
+                onChange={handleSetDefaultAccount}
+                placeholder="Select default account"
+                fullWidth={true}
+              />
+            </div>
           </div>
         )}
+
+        {/* Current Selection Summary */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4">
+          <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">Current Selection</h4>
+          <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+            <li><strong>Primary Currency:</strong> {localCurrency} ({getCurrencySymbol(localCurrency)})</li>
+            <li><strong>Selected Currencies:</strong> {selectedCurrencies.join(', ')}</li>
+            <li><strong>Default Account:</strong> {
+              selectedDefaultAccount && activeAccounts.find(acc => acc.id === selectedDefaultAccount) 
+                ? `${activeAccounts.find(acc => acc.id === selectedDefaultAccount)?.name} (${activeAccounts.find(acc => acc.id === selectedDefaultAccount)?.type})`
+                : 'None selected'
+            }</li>
+          </ul>
+        </div>
       </div>
 
-      {/* Current Selection Summary */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4">
-        <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-          Current Selection
-        </h4>
-        <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-          <li>
-            <strong>Primary Currency:</strong> {primaryCurrency} ({currencyOptions.find(c => c.value === primaryCurrency)?.symbol})
-          </li>
-          <li>
-            <strong>Selected Currencies:</strong> {selectedCurrencies.join(', ')}
-          </li>
-        </ul>
-      </div>
-
-      {/* Mobile Optimization Note */}
+      {/* Mobile Tip */}
       <div className="block sm:hidden bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
         <p className="text-xs text-yellow-800 dark:text-yellow-200">
           💡 <strong>Tip:</strong> Tap a currency to select/deselect. Tap "Set" to make it primary.
         </p>
       </div>
 
-      {/* Notification Settings Section */}
-      <div className="mt-8">
-        <NotificationSettings 
-          preferences={notificationPreferences}
-          onPreferenceChange={handleNotificationPreferenceChange}
-          dirty={notificationDirty}
-        />
+      {/* Notification Settings - keeping your existing structure */}
+      <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6 border border-blue-200 dark:border-gray-600">
+        <div className="text-center mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">🔔 Notification Settings</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300">Configure all your notification preferences in one place</p>
+        </div>
+        
+        <div className="mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white block">Overdue Payments</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Bills past due date</span>
+                </div>
+                <input type="checkbox" className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" defaultChecked />
+              </label>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white block">Due Soon Reminders</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Bills due within 3 days</span>
+                </div>
+                <input type="checkbox" className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" defaultChecked />
+              </label>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white block">Low Balance Alerts</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Account balance is low</span>
+                </div>
+                <input type="checkbox" className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" defaultChecked />
+              </label>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white block">New Features</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">New features and improvements</span>
+                </div>
+                <input type="checkbox" className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" defaultChecked />
+              </label>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white block">Account Changes</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Changes to your accounts</span>
+                </div>
+                <input type="checkbox" className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" defaultChecked />
+              </label>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mb-8">
+          <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+            <span className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-2 py-1 rounded-full text-xs mr-2">📱</span>
+            Communication Channels
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center">
+                  <Monitor className="w-4 h-4 mr-3 text-gray-500" />
+                  <div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white block">In-App Notifications</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Show notifications in app</span>
+                  </div>
+                </div>
+                <input type="checkbox" className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" defaultChecked />
+              </label>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center">
+                  <Mail className="w-4 h-4 mr-3 text-gray-500" />
+                  <div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white block">Email Notifications</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Send emails for alerts</span>
+                  </div>
+                </div>
+                <input type="checkbox" className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" />
+              </label>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+            <span className="bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 px-2 py-1 rounded-full text-xs mr-2">⏰</span>
+            Notification Frequency
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white block">Real Time</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Immediate notifications as they happen</span>
+                </div>
+                <input type="checkbox" className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" defaultChecked />
+              </label>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white block">Daily Digest</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Summary at end of each day</span>
+                </div>
+                <input type="checkbox" className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" defaultChecked />
+              </label>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white block">Monthly Report</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Comprehensive monthly insights</span>
+                </div>
+                <input type="checkbox" className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" />
+              </label>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white block">Weekly Summary</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Weekly roundup of activity</span>
+                </div>
+                <input type="checkbox" className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" />
+              </label>
+            </div>
+          </div>
+          <div className="mt-4 text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400">💡 You can enable multiple frequency options. Higher priority options take precedence.</p>
+          </div>
+        </div>
       </div>
     </div>
   );

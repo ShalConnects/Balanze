@@ -12,6 +12,7 @@ export type AppUser = {
   profilePicture?: string;
   local_currency?: string;
   selected_currencies?: string[];
+  default_account_id?: string;
   subscription?: {
     plan: 'free' | 'premium';
     status: 'active' | 'inactive' | 'cancelled';
@@ -217,6 +218,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       if (updates.local_currency !== undefined) dbPayload.local_currency = updates.local_currency;
       if (updates.profilePicture !== undefined) dbPayload.profile_picture = updates.profilePicture;
       if (updates.selected_currencies !== undefined) dbPayload.selected_currencies = updates.selected_currencies;
+      if (updates.default_account_id !== undefined) dbPayload.default_account_id = updates.default_account_id;
 
       const { data, error } = await supabase
         .from('profiles')
@@ -239,6 +241,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         profilePicture: data.profile_picture,
         local_currency: data.local_currency,
         selected_currencies: data.selected_currencies,
+        default_account_id: data.default_account_id,
       };
       
       set({ profile: profileData });

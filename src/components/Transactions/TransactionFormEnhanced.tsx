@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, AlertCircle, Calendar, Tag, Repeat, Info } from 'lucide-react';
+import { X, AlertCircle, Calendar, Tag } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
-import { Transaction, Account, Category } from '../../types';
+import { Transaction } from '../../types';
 import { toast } from 'sonner';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { validateTransaction, TRANSACTION_TYPES, COMMON_CATEGORIES, getTransactionTypeDisplayName } from '../../utils/transactionUtils';
-import { formatCurrency } from '../../utils/accountUtils';
+import { getDefaultAccountId } from '../../utils/defaultAccount';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
@@ -22,7 +22,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
   transaction, 
   accountId 
 }) => {
-  const { addTransaction, updateTransaction, loading, error, accounts, categories } = useFinanceStore();
+  const { addTransaction, updateTransaction, error, accounts, categories } = useFinanceStore();
   const { wrapAsync, setLoadingMessage, isLoading } = useLoadingContext();
 
   const [formData, setFormData] = useState({
@@ -30,13 +30,13 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
     type: transaction?.type || 'expense',
     amount: transaction?.amount?.toString() || '',
     category: transaction?.category || '',
-    account_id: transaction?.account_id || accountId || '',
+    account_id: transaction?.account_id || accountId || getDefaultAccountId(),
     date: transaction?.date ? new Date(transaction.date) : new Date(),
     tags: transaction?.tags || [],
-    is_recurring: transaction?.is_recurring || false,
-    recurring_frequency: transaction?.recurring_frequency || 'monthly',
+    is_recurring: false,
+    recurring_frequency: 'monthly',
     saving_amount: transaction?.saving_amount?.toString() || '',
-    donation_amount: transaction?.donation_amount?.toString() || ''
+    donation_amount: ''
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -54,10 +54,10 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
         account_id: transaction.account_id,
         date: new Date(transaction.date),
         tags: transaction.tags || [],
-        is_recurring: transaction.is_recurring || false,
-        recurring_frequency: transaction.recurring_frequency || 'monthly',
+        is_recurring: false,
+        recurring_frequency: 'monthly',
         saving_amount: transaction.saving_amount?.toString() || '',
-        donation_amount: transaction.donation_amount?.toString() || ''
+        donation_amount: ''
       });
     }
   }, [transaction]);
@@ -199,10 +199,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
           account_id: formData.account_id,
           date: formData.date.toISOString(),
           tags: formData.tags,
-          is_recurring: formData.is_recurring,
-          recurring_frequency: formData.is_recurring ? formData.recurring_frequency : undefined,
-          saving_amount: formData.saving_amount ? parseFloat(formData.saving_amount) : undefined,
-          donation_amount: formData.donation_amount ? parseFloat(formData.donation_amount) : undefined
+          saving_amount: formData.saving_amount ? parseFloat(formData.saving_amount) : undefined
         };
 
         if (transaction) {
@@ -218,7 +215,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
         console.error('Error saving transaction:', error);
         toast.error('Failed to save transaction. Please try again.');
       } finally {
-        setSubmitting(false);
+        // Loading handled by context
       }
     });
     
@@ -245,7 +242,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
       type: 'expense',
       amount: '',
       category: '',
-      account_id: accountId || '',
+      account_id: accountId || getDefaultAccountId(),
       date: new Date(),
       tags: [],
       is_recurring: false,
@@ -255,7 +252,6 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
     });
     setErrors({});
     setTouched({});
-    setSubmitting(false);
     onClose();
   };
 

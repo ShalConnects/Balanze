@@ -195,15 +195,102 @@
   background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
 }
 
+/* Enhanced dark mode gradient text with better contrast */
 .dark .text-gradient-primary {
-  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+  background: linear-gradient(135deg, #93c5fd 0%, #c4b5fd 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  color: #93c5fd; /* Fallback color for better visibility in dark mode */
+}
+
+/* Enhanced dark mode text visibility */
+.dark .text-gradient-primary\/70 {
+  color: #bfdbfe; /* Light blue for better contrast in dark mode */
+}
+
+.dark .text-gradient-primary\/50 {
+  color: #dbeafe; /* Even lighter blue for subtle text */
 }
 
 .dark .focus-ring-gradient {
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1), 0 0 0 1px rgba(167, 139, 250, 0.2);
+}
+
+/* Enhanced dark mode borders and contrast */
+.dark .border-gradient-primary\/30 {
+  border-color: rgba(147, 197, 253, 0.3) !important;
+}
+
+.dark .border-gradient-primary\/20 {
+  border-color: rgba(147, 197, 253, 0.2) !important;
+}
+
+.dark .hover\:border-gradient-primary:hover {
+  border-color: #93c5fd !important;
+}
+
+.dark .hover\:border-blue-400:hover {
+  border-color: #60a5fa !important;
+}
+
+/* Better dark mode input focus states */
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1) !important;
+}
+
+/* Enhanced dark mode button hover states */
+.dark .hover\:bg-gradient-primary\/10:hover {
+  background-color: rgba(96, 165, 250, 0.1) !important;
+}
+
+/* Enhanced dark mode for knowledge base */
+.dark .prose {
+  color: #d1d5db; /* gray-300 */
+}
+
+.dark .prose h1,
+.dark .prose h2,
+.dark .prose h3,
+.dark .prose h4,
+.dark .prose h5,
+.dark .prose h6 {
+  color: #ffffff; /* white */
+}
+
+.dark .prose a {
+  color: #60a5fa; /* blue-400 */
+}
+
+.dark .prose a:hover {
+  color: #93c5fd; /* blue-300 */
+}
+
+.dark .prose strong {
+  color: #ffffff; /* white */
+}
+
+.dark .prose code {
+  background-color: #374151; /* gray-700 */
+  color: #f3f4f6; /* gray-100 */
+}
+
+.dark .prose blockquote {
+  background-color: #374151; /* gray-700 */
+  border-left-color: #4b5563; /* gray-600 */
+  color: #d1d5db; /* gray-300 */
+}
+
+/* Better contrast for dark mode buttons */
+.dark .bg-gradient-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+}
+
+.dark .bg-gradient-primary:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
 }
 
 /* Option 1: Enhanced Gradient Background for Sidebar Active Menu */

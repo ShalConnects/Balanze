@@ -13,6 +13,7 @@ import { logTransactionEvent } from '../../lib/auditLogging';
 import { PurchaseDetailsSection } from './PurchaseDetailsSection';
 import { generateTransactionId, createSuccessMessage } from '../../utils/transactionId';
 import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
+import { getDefaultAccountId } from '../../utils/defaultAccount';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -48,7 +49,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const isEditMode = !!transactionToEdit;
 
   const [data, setData] = useState({
-    account_id: accountId || '',
+    account_id: accountId || getDefaultAccountId(),
     amount: '',
     type: '' as 'income' | 'expense' | '',
     category: '',

@@ -14,9 +14,12 @@ interface LendBorrowListProps {
   onPartialReturn: (record: LendBorrow) => void;
   analytics?: any;
   formatCurrency?: (amount: number, currency: string) => string;
+  selectedId?: string | null;
+  isFromSearch?: boolean;
+  selectedRecordRef?: React.RefObject<HTMLDivElement>;
 }
 
-export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading, onEdit, onDelete, onUpdateStatus, onPartialReturn, analytics, formatCurrency }) => {
+export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading, onEdit, onDelete, onUpdateStatus, onPartialReturn, analytics, formatCurrency, selectedId, isFromSearch, selectedRecordRef }) => {
   const { t } = useTranslation();
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [returnHistory, setReturnHistory] = useState<Record<string, LendBorrowReturn[]>>({});
@@ -515,15 +518,25 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
             const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0);
             const isEven = index % 2 === 0;
             
+            const isSelected = selectedId === record.id;
+            const isFromSearchSelection = isFromSearch && isSelected;
+            
             return (
               <React.Fragment key={record.id}>
                 <tr 
                   id={`lendborrow-${record.id}`}
+                  ref={isSelected ? selectedRecordRef : null}
                   className={`
                     transition-all duration-200 ease-in-out cursor-pointer
                     ${isEven ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}
                     hover:bg-blue-50 dark:hover:bg-blue-900/20 
                     hover:shadow-sm
+                    ${isSelected 
+                      ? isFromSearchSelection 
+                        ? 'ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20' 
+                        : 'ring-2 ring-blue-500 ring-opacity-50'
+                      : ''
+                    }
                   `} 
                   onClick={() => toggleRowExpansion(record.id)}
                 >

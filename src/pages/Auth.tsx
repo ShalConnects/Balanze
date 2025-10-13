@@ -120,7 +120,7 @@ export const Auth: React.FC = () => {
 
   // Debug: Log auth store state changes
   useEffect(() => {
-    console.log('Auth store state:', { error, success, isLoading });
+    // Auth store state monitoring removed for production
   }, [error, success, isLoading]);
 
   // Auto-focus first input on tab switch and clear messages
@@ -195,7 +195,6 @@ export const Auth: React.FC = () => {
       if (!result.success) {
         console.error('Social login failed:', result.message);
       } else {
-        console.log('Social login initiated successfully');
         // The user will be redirected to the OAuth provider
       }
     } catch (error) {
@@ -250,8 +249,7 @@ export const Auth: React.FC = () => {
     const currentEmail = emailRef.current?.value || email;
     const currentPassword = passwordRef.current?.value || password;
     
-    console.log('Login attempt - Email state:', email, 'Input value:', emailRef.current?.value);
-    console.log('Login attempt - Password state:', password ? '***' : 'empty', 'Input value:', passwordRef.current?.value ? '***' : 'empty');
+    // Login attempt debugging removed for production
     
     // Update state if there's a mismatch (Android issue)
     if (currentEmail !== email) {
@@ -264,25 +262,22 @@ export const Auth: React.FC = () => {
     const emailErr = validateEmail(currentEmail);
     const passwordErr = validatePassword(currentPassword);
     
-    console.log('Validation results - Email:', emailErr || 'valid', 'Password:', passwordErr || 'valid');
+    // Validation results debugging removed for production
     
     setEmailError(emailErr);
     setPasswordError(passwordErr);
     
     if (emailErr || passwordErr) {
-      console.log('Validation failed, stopping submission');
       if (emailErr) emailRef.current?.focus();
       else if (passwordErr) passwordRef.current?.focus();
       return;
     }
 
     try {
-      console.log('Attempting login for:', currentEmail);
       // Use the auth store's signIn method
       const result = await signIn(currentEmail, currentPassword);
       
       if (result.success) {
-        console.log('Login successful');
         // The auth store will handle navigation
       }
     } catch (error) {

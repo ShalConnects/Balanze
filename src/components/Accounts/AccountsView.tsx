@@ -13,6 +13,8 @@ import { useAuthStore } from '../../store/authStore';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { AccountCardSkeleton, AccountTableSkeleton, AccountSummaryCardsSkeleton, AccountFiltersSkeleton } from './AccountSkeleton';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useRecordSelection } from '../../hooks/useRecordSelection';
+import { SelectionFilter } from '../common/SelectionFilter';
 
 export const AccountsView: React.FC = () => {
   const { accounts, deleteAccount, getTransactionsByAccount, transactions, loading, error, updateAccount, fetchAccounts, showTransactionForm, setShowTransactionForm, categories, purchaseCategories } = useFinanceStore();
@@ -33,32 +35,19 @@ export const AccountsView: React.FC = () => {
     useFinanceStore.getState().fetchAccounts();
   }, []);
 
-  // Handle URL parameter for selected account
-  useEffect(() => {
-    const selectedAccountId = searchParams.get('selected');
-    console.log('AccountsView: URL parameter check:', { selectedAccountId, accountsLength: accounts.length });
-    if (selectedAccountId) {
-      const account = accounts.find(a => a.id === selectedAccountId);
-      console.log('AccountsView: Found account:', account);
-      if (account) {
-        setSelectedAccount(account);
-        // Clear the URL parameter after setting the account
-        setSearchParams({}, { replace: true });
-        // Scroll to the account after a short delay
-        setTimeout(() => {
-          const element = document.getElementById(`account-${selectedAccountId}`);
-          console.log('AccountsView: Looking for element:', `account-${selectedAccountId}`, element);
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            element.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
-            setTimeout(() => {
-              element.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
-            }, 3000);
-          }
-        }, 100);
-      }
-    }
-  }, [searchParams, accounts, setSearchParams]);
+  // Record selection functionality
+  const {
+    selectedRecord,
+    selectedId,
+    isFromSearch,
+    selectedRecordRef,
+    clearSelection,
+    hasSelection
+  } = useRecordSelection({
+    records: accounts,
+    recordIdField: 'id',
+    scrollToRecord: true
+  });
 
   // New state for unified table view
   const [tableFilters, setTableFilters] = useState({
@@ -280,7 +269,7 @@ export const AccountsView: React.FC = () => {
       setLoadingMessage('Deleting account...'); // Show loading message for account deletion
       const transactionId = generateTransactionId();
       await deleteAccount(accountToDelete.id, transactionId);
-      toast.success(createSuccessMessage('Delete Account', transactionId, `Account deleted`));
+      // Toast notification is already handled in the finance store deleteAccount function
       setShowDeleteModal(false);
       setAccountToDelete(null);
     }
@@ -288,16 +277,7 @@ export const AccountsView: React.FC = () => {
 
   const totalBalance = accounts.reduce((sum, account) => sum + account.calculated_balance, 0);
 
-  // Debug DPS accounts
-  console.log('All accounts:', accounts);
-  console.log('DPS accounts:', accounts.filter(a => a.has_dps));
-  console.log('Account with DPS details:', accounts.filter(a => a.has_dps).map(a => ({
-    name: a.name,
-    has_dps: a.has_dps,
-    dps_type: a.dps_type,
-    dps_amount_type: a.dps_amount_type,
-    dps_fixed_amount: a.dps_fixed_amount
-  })));
+  // Debug DPS accounts - removed for production
 
   // Group accounts by currency
   const accountsByCurrency = useMemo(() => {
@@ -358,6 +338,11 @@ export const AccountsView: React.FC = () => {
 
   // Filter accounts (for cards and table)
   const filteredAccounts = useMemo(() => {
+    // If a record is selected via deep link, prioritize showing only that record
+    if (hasSelection && isFromSearch && selectedRecord) {
+      return [selectedRecord];
+    }
+
     return accounts.filter(account => {
       const matchesSearch = account.name.toLowerCase().includes(tableFilters.search.toLowerCase()) ||
                            account.description?.toLowerCase().includes(tableFilters.search.toLowerCase());
@@ -367,7 +352,7 @@ export const AccountsView: React.FC = () => {
       
       return matchesSearch && matchesCurrency && matchesType && matchesStatus;
     });
-  }, [accounts, tableFilters]);
+  }, [accounts, tableFilters, hasSelection, isFromSearch, selectedRecord]);
 
   // Sort filtered accounts for table display only
   const filteredAccountsForTable = useMemo(() => {
@@ -587,7 +572,7 @@ export const AccountsView: React.FC = () => {
     return (
       <div className="space-y-6">
         {/* Smooth skeleton for accounts page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700" style={{ paddingBottom: '13px' }}>
           {/* Filters skeleton */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <AccountFiltersSkeleton />
@@ -624,7 +609,7 @@ export const AccountsView: React.FC = () => {
       <div className="space-y-6">
 
         {/* Unified Filters and Table */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700" style={{ paddingBottom: '13px' }}>
           {/* Filters Section */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1" style={{ marginBottom: 0 }}>
@@ -645,6 +630,15 @@ export const AccountsView: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {/* Selection Filter */}
+                {hasSelection && selectedRecord && (
+                  <SelectionFilter
+                    label="Selected"
+                    value={selectedRecord.name || 'Account'}
+                    onClear={clearSelection}
+                  />
+                )}
 
                 {/* Mobile Filter Button */}
                 <div className="md:hidden">
@@ -986,11 +980,21 @@ export const AccountsView: React.FC = () => {
                       otherAccount.dps_savings_account_id === account.id
                     );
                     
+                    const isSelected = selectedId === account.id;
+                    const isFromSearchSelection = isFromSearch && isSelected;
+                    
                     return (
                       <React.Fragment key={account.id}>
                         <tr 
                           id={`account-${account.id}`}
-                          className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer" 
+                          ref={isSelected ? selectedRecordRef : null}
+                          className={`hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
+                            isSelected 
+                              ? isFromSearchSelection 
+                                ? 'ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20' 
+                                : 'ring-2 ring-blue-500 ring-opacity-50'
+                              : ''
+                          }`} 
                           onClick={() => toggleRowExpansion(account.id)}
                         >
                           <td className="px-6 py-[0.7rem]">

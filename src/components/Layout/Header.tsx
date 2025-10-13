@@ -6,7 +6,7 @@ import { useAuthStore } from '../../store/authStore';
 import { NotificationDropdown } from './NotificationDropdown';
 import { useNotificationsStore } from '../../stores/notificationsStore';
 import { ProfileEditModal } from './ProfileEditModal';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { GlobalSearchDropdown } from './GlobalSearchDropdown';
 import { supabase } from '../../lib/supabase';
 import { useTranslation } from 'react-i18next';
@@ -35,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
   const { unreadCount } = useNotificationsStore();
   const { i18n, t } = useTranslation();
   const { isMobile } = useMobileDetection();
+  const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
@@ -217,7 +218,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
   return (
     <>
       {/* Help Center Notification Banner */}
-      {showHelpBanner && (
+      {showHelpBanner && location.pathname !== '/dashboard-demo-only' && (
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-3 relative">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -266,11 +267,11 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
             </button>
             
             <div className="min-w-0 flex-1">
-              <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white truncate">
+              <h1 className="font-bold text-gray-900 dark:text-white truncate" style={{ fontSize: '21px', lineHeight: '1.2' }}>
                 {title}
               </h1>
               {subtitle && (
-                <div className="text-gray-600 text-xs sm:text-sm lg:text-base mt-0.5 hidden sm:block truncate">
+                <div className="text-gray-600 dark:text-gray-400 mt-0.5 hidden sm:block truncate" style={{ fontSize: '13px', lineHeight: '1.3' }}>
                   {subtitle}
                 </div>
               )}
@@ -286,7 +287,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
                 <input
                   type="text"
                   placeholder={t('search')}
-                  className="w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className="w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-sm"
                   value={globalSearchTerm}
                   onChange={e => setGlobalSearchTerm(e.target.value)}
                   onFocus={() => setIsSearchFocused(true)}
@@ -470,7 +471,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
               <input
                 type="text"
                 placeholder={t('search')}
-                className="flex-1 bg-transparent text-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 border-none outline-none"
+                className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 border-none outline-none"
                 value={globalSearchTerm}
                 onChange={e => setGlobalSearchTerm(e.target.value)}
                 ref={searchInputRef}

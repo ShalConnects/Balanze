@@ -7,6 +7,7 @@ import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 import { getUserReadingHistory, getUserArticleStats } from '../lib/articleHistory';
+import { generateInternalLinkingSuggestions } from '../lib/kbSitemap';
 import clsx from 'clsx';
 
 interface KBArticle {

@@ -1,17 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, DollarSign, Box } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Search, DollarSign } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { supabase } from '../../lib/supabase';
-import { format } from 'date-fns';
 import Fuse from 'fuse.js';
 import { useNavigate } from 'react-router-dom';
+import { SearchSkeleton } from '../common/SearchSkeleton';
 
-const TABS = [
-  { key: 'transactions', label: 'Transactions', color: 'text-yellow-600', underline: 'bg-yellow-500' },
-  { key: 'lendborrow', label: 'Lend & Borrow', color: 'text-pink-600', underline: 'bg-pink-500' },
-  { key: 'purchases', label: 'Purchases', color: 'text-blue-600', underline: 'bg-blue-500' },
-  { key: 'transfers', label: 'Transfers', color: 'text-green-600', underline: 'bg-green-500' },
-];
+// Removed unused TABS constant
 
 interface GlobalSearchDropdownProps {
   isFocused: boolean;
@@ -21,22 +16,94 @@ interface GlobalSearchDropdownProps {
   isOverlay?: boolean; // New prop to indicate if this is in an overlay
 }
 
-// Synonyms/aliases for search
+// Enhanced synonyms/aliases for comprehensive financial search
 const SYNONYMS: Record<string, string[]> = {
-  deposit: ['income', 'credit'],
-  withdrawal: ['expense', 'debit'],
-  transfer: ['move', 'send'],
-  purchase: ['buy', 'expense'],
-  salary: ['income', 'payroll'],
+  // Income/Deposit synonyms
+  deposit: ['income', 'credit', 'salary', 'wage', 'payroll', 'earnings', 'revenue', 'profit', 'bonus', 'commission'],
+  income: ['deposit', 'credit', 'salary', 'wage', 'payroll', 'earnings', 'revenue', 'profit', 'bonus', 'commission'],
+  salary: ['income', 'wage', 'payroll', 'earnings', 'salary', 'stipend', 'allowance'],
+  
+  // Expense/Withdrawal synonyms
+  withdrawal: ['expense', 'debit', 'payment', 'cost', 'charge', 'fee', 'bill', 'spending', 'outgoing'],
+  expense: ['withdrawal', 'debit', 'payment', 'cost', 'charge', 'fee', 'bill', 'spending', 'outgoing'],
+  payment: ['expense', 'withdrawal', 'debit', 'cost', 'charge', 'fee', 'bill'],
+  
+  // Transfer synonyms
+  transfer: ['move', 'send', 'shift', 'relocate', 'migrate', 'port', 'switch'],
+  move: ['transfer', 'send', 'shift', 'relocate'],
+  send: ['transfer', 'move', 'dispatch', 'transmit'],
+  
+  // Purchase/Buy synonyms
+  purchase: ['buy', 'expense', 'acquisition', 'procurement', 'shopping', 'buying'],
+  buy: ['purchase', 'acquire', 'obtain', 'procure', 'shop'],
+  shopping: ['purchase', 'buying', 'retail', 'spending'],
+  
+  // Account types
+  bank: ['checking', 'savings', 'account', 'financial'],
+  credit: ['card', 'credit card', 'plastic', 'payment card'],
+  cash: ['money', 'currency', 'bills', 'coins', 'physical'],
+  
+  // Transaction types
+  recurring: ['repeating', 'regular', 'periodic', 'scheduled', 'automatic'],
+  one_time: ['single', 'once', 'individual', 'unique'],
+  
+  // Status synonyms
+  pending: ['waiting', 'processing', 'in progress', 'unconfirmed'],
+  completed: ['done', 'finished', 'processed', 'confirmed', 'settled'],
+  cancelled: ['aborted', 'terminated', 'stopped', 'voided'],
+  
+  // Amount/Currency synonyms
+  amount: ['value', 'sum', 'total', 'cost', 'price'],
+  balance: ['remaining', 'available', 'current', 'outstanding'],
+  
+  // Date/Time synonyms
+  recent: ['latest', 'newest', 'current', 'today', 'this week'],
+  old: ['previous', 'past', 'historical', 'archived'],
+  
+  // Common financial terms
+  budget: ['allocation', 'planning', 'forecast', 'estimate'],
+  savings: ['reserve', 'fund', 'nest egg', 'stash'],
+  investment: ['portfolio', 'assets', 'securities', 'stocks', 'bonds'],
+  debt: ['loan', 'borrowing', 'liability', 'obligation'],
+  loan: ['debt', 'borrowing', 'advance', 'credit'],
+  
+  // Categories
+  food: ['dining', 'restaurant', 'groceries', 'meals', 'eating'],
+  transport: ['travel', 'commute', 'gas', 'fuel', 'transportation'],
+  entertainment: ['fun', 'leisure', 'recreation', 'hobby', 'activity'],
+  healthcare: ['medical', 'health', 'doctor', 'hospital', 'medicine'],
+  education: ['school', 'learning', 'tuition', 'course', 'training'],
+  utilities: ['bills', 'electricity', 'water', 'internet', 'phone'],
 };
 
 function expandQuery(query: string): string[] {
-  const words = query.split(/\s+/);
+  const words = query.toLowerCase().split(/\s+/);
   let expanded = [...words];
+  
+  // Add synonyms for each word
   for (const word of words) {
-    if (SYNONYMS[word]) expanded = expanded.concat(SYNONYMS[word]);
+    if (SYNONYMS[word]) {
+      expanded = expanded.concat(SYNONYMS[word]);
+    }
   }
-  return expanded;
+  
+  // Add phrase-based synonyms for common financial phrases
+  const phrase = query.toLowerCase();
+  if (phrase.includes('credit card') || phrase.includes('creditcard')) {
+    expanded.push('card', 'plastic', 'payment');
+  }
+  if (phrase.includes('bank account') || phrase.includes('bankaccount')) {
+    expanded.push('checking', 'savings', 'financial');
+  }
+  if (phrase.includes('cash flow') || phrase.includes('cashflow')) {
+    expanded.push('income', 'expense', 'money', 'flow');
+  }
+  if (phrase.includes('monthly') || phrase.includes('recurring')) {
+    expanded.push('regular', 'periodic', 'scheduled');
+  }
+  
+  // Remove duplicates and return
+  return [...new Set(expanded)];
 }
 
 // Recent searches (localStorage)
@@ -59,15 +126,23 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   onClose, 
   isOverlay = false 
 }) => {
-  const { globalSearchTerm, transactions, accounts, setGlobalSearchTerm, purchases, lendBorrowRecords } = useFinanceStore();
+  const { globalSearchTerm, transactions, accounts, setGlobalSearchTerm, purchases, lendBorrowRecords, donationSavingRecords } = useFinanceStore();
   const navigate = useNavigate();
   const [transfers, setTransfers] = useState<any[]>([]);
   const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
-  const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [highlightedIdx, setHighlightedIdx] = useState(0);
   const [recentSearches, setRecentSearches] = useState<string[]>(getRecentSearches());
+  const [isSearching, setIsSearching] = useState(false);
   const search = globalSearchTerm.trim();
-  const [activeTab, setActiveTab] = useState('transactions');
+
+  // Search performance optimization
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchCache] = useState<Map<string, any>>(new Map());
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Search suggestions and autocomplete
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Accordion state for each section
   const [showAllTransactions, setShowAllTransactions] = useState(false);
@@ -91,32 +166,32 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     
     // Get the correct ID based on item type
     let itemId = item?.id;
-    if (type === 'transaction' && item?.transaction_id) {
-      itemId = item.transaction_id;
-    }
     
-    console.log('Using itemId:', itemId);
     
     switch (type) {
       case 'account':
         console.log('Navigating to account:', itemId);
-        navigate(`/accounts?selected=${itemId}`);
+        navigate(`/accounts?selected=${itemId}&from=search`);
         break;
       case 'transaction':
         console.log('Navigating to transaction:', itemId);
-        navigate(`/transactions?selected=${itemId}`);
+        navigate(`/transactions?selected=${itemId}&from=search`);
         break;
       case 'purchase':
         console.log('Navigating to purchase:', itemId);
-        navigate(`/purchases?selected=${itemId}`);
+        navigate(`/purchases?selected=${itemId}&from=search`);
         break;
       case 'transfer':
         console.log('Navigating to transfer:', itemId);
-        navigate(`/transfers?selected=${itemId}`);
+        navigate(`/transfers?selected=${itemId}&from=search`);
         break;
       case 'lendborrow':
         console.log('Navigating to lend & borrow:', itemId);
-        navigate(`/lent-borrow?selected=${itemId}`);
+        navigate(`/lent-borrow?selected=${itemId}&from=search`);
+        break;
+      case 'donation':
+        console.log('Navigating to donation:', itemId);
+        navigate(`/donations?selected=${itemId}&from=search`);
         break;
       default:
         console.log('Unknown result type:', type);
@@ -149,6 +224,83 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     fetchLendBorrowRecords();
   }, []);
 
+  // Generate search suggestions based on available data
+  const generateSearchSuggestions = useCallback((query: string) => {
+    if (!query || query.length < 2) return [];
+    
+    const suggestions: string[] = [];
+    const queryLower = query.toLowerCase();
+    
+    // Get suggestions from transactions
+    transactions.forEach(transaction => {
+      if (transaction.description?.toLowerCase().includes(queryLower)) {
+        suggestions.push(transaction.description);
+      }
+      if (transaction.category?.toLowerCase().includes(queryLower)) {
+        suggestions.push(transaction.category);
+      }
+    });
+    
+    // Get suggestions from accounts
+    accounts.forEach(account => {
+      if (account.name?.toLowerCase().includes(queryLower)) {
+        suggestions.push(account.name);
+      }
+    });
+    
+    // Get suggestions from purchases
+    (purchases || []).forEach(purchase => {
+      if (purchase.item_name?.toLowerCase().includes(queryLower)) {
+        suggestions.push(purchase.item_name);
+      }
+      if (purchase.category?.toLowerCase().includes(queryLower)) {
+        suggestions.push(purchase.category);
+      }
+    });
+    
+    // Get suggestions from lend/borrow records
+    (lendBorrowRecords || []).forEach(record => {
+      if (record.person_name?.toLowerCase().includes(queryLower)) {
+        suggestions.push(record.person_name);
+      }
+    });
+    
+    // Remove duplicates and limit to 3 suggestions
+    return [...new Set(suggestions)].slice(0, 3);
+  }, [transactions, accounts, purchases, lendBorrowRecords]);
+
+  // Debounce search input for performance
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set loading state when search starts
+    if (search && search.length >= 2) {
+      setIsSearching(true);
+    }
+    
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+      setIsSearching(false);
+      // Generate suggestions for autocomplete
+      if (search && search.length >= 2) {
+        const suggestions = generateSearchSuggestions(search);
+        setSearchSuggestions(suggestions);
+        setShowSuggestions(suggestions.length > 0);
+      } else {
+        setSearchSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 300); // 300ms debounce delay
+    
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [search, generateSearchSuggestions]);
+
   // Hide dropdown on Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -161,24 +313,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setGlobalSearchTerm, inputRef]);
 
-  // Filter logic
-  const filteredTransactions = search
-    ? transactions
-        .filter(t => !t.tags?.some(tag => tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'))
-        .filter(t =>
-          (t.description?.toLowerCase() || '').includes(search) ||
-          (t.category?.toLowerCase() || '').includes(search) ||
-          t.tags?.some(tag => (tag?.toLowerCase() || '').includes(search)) ||
-          (t.transaction_id && (t.transaction_id?.toLowerCase() || '').includes(search))
-        )
-    : [];
-  const filteredAccounts = search
-    ? accounts.filter(a =>
-        (a.name?.toLowerCase() || '').includes(search) ||
-        (a.type?.toLowerCase() || '').includes(search) ||
-        (a.currency?.toLowerCase() || '').includes(search)
-      )
-    : [];
+  // Removed unused filter logic - now using fuzzy search
 
   // Group transfer transactions by transferId (tags[1])
   function groupTransfersByTransferId(transfers: any[]) {
@@ -230,80 +365,167 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     })),
     ...dpsTransfers.map(t => ({ ...t, type: 'dps' })),
   ];
-  const filteredTransfers = search
-    ? allTransfers.filter(transfer => {
-        const fromAccount = transfer.fromAccount?.name || transfer.from_account?.name || '';
-        const toAccount = transfer.toAccount?.name || transfer.to_account?.name || '';
-        const note = transfer.note || '';
-        const type = transfer.type || '';
-        const transactionId = transfer.transaction_id || '';
-        return (
-          (fromAccount?.toLowerCase() || '').includes(search) ||
-          (toAccount?.toLowerCase() || '').includes(search) ||
-          (note?.toLowerCase() || '').includes(search) ||
-          (type?.toLowerCase() || '').includes(search) ||
-          (transactionId?.toLowerCase() || '').includes(search)
-        );
-      })
-    : [];
+  // Removed unused filteredTransfers - now using fuzzy search
 
-  // Fuzzy search setup
+  // Enhanced fuzzy search configuration with optimized thresholds and weights
   const fuseOptions = {
-    threshold: 0.35,
+    threshold: 0.3, // Lower threshold for more sensitive matching
     keys: [
-      { name: 'description', weight: 0.5 },
-      { name: 'category', weight: 0.3 },
-      { name: 'tags', weight: 0.2 },
-      { name: 'transaction_id', weight: 0.2 },
-      { name: 'name', weight: 0.5 },
-      { name: 'type', weight: 0.2 },
-      { name: 'currency', weight: 0.1 },
+      { name: 'description', weight: 0.4 },
+      { name: 'category', weight: 0.25 },
+      { name: 'tags', weight: 0.15 },
+      { name: 'transaction_id', weight: 0.1 },
+      { name: 'name', weight: 0.4 },
+      { name: 'type', weight: 0.15 },
+      { name: 'currency', weight: 0.05 },
     ],
     includeMatches: true,
-    minMatchCharLength: 2,
+    minMatchCharLength: 1, // Allow single character matches for better UX
+    findAllMatches: true, // Find all matches, not just the first
+    ignoreLocation: true, // Ignore location of match in string
+    useExtendedSearch: true, // Enable extended search features
   };
   const fuseTransactions = new Fuse(transactions, fuseOptions);
   const fuseAccounts = new Fuse(accounts, fuseOptions);
   const fuseTransfers = new Fuse(allTransfers, fuseOptions);
   const fusePurchases = new Fuse(purchases || [], {
-    threshold: 0.35,
+    threshold: 0.3,
     keys: [
-      { name: 'item_name', weight: 0.5 },
-      { name: 'category', weight: 0.3 },
-      { name: 'notes', weight: 0.2 },
-      { name: 'status', weight: 0.2 },
-      { name: 'price', weight: 0.2 },
+      { name: 'item_name', weight: 0.4 },
+      { name: 'category', weight: 0.25 },
+      { name: 'notes', weight: 0.15 },
+      { name: 'status', weight: 0.1 },
+      { name: 'price', weight: 0.1 },
     ],
     includeMatches: true,
-    minMatchCharLength: 2,
+    minMatchCharLength: 1,
+    findAllMatches: true,
+    ignoreLocation: true,
+    useExtendedSearch: true,
   });
   const fuseLendBorrow = new Fuse(lendBorrowRecords || [], {
-    threshold: 0.35,
+    threshold: 0.3,
     keys: [
-      { name: 'person_name', weight: 0.5 },
-      { name: 'type', weight: 0.3 },
-      { name: 'notes', weight: 0.2 },
-      { name: 'status', weight: 0.2 },
+      { name: 'person_name', weight: 0.4 },
+      { name: 'type', weight: 0.25 },
+      { name: 'notes', weight: 0.15 },
+      { name: 'status', weight: 0.1 },
       { name: 'currency', weight: 0.1 },
     ],
     includeMatches: true,
-    minMatchCharLength: 2,
+    minMatchCharLength: 1,
+    findAllMatches: true,
+    ignoreLocation: true,
+    useExtendedSearch: true,
+  });
+  const fuseDonations = new Fuse(donationSavingRecords || [], {
+    threshold: 0.3,
+    keys: [
+      { name: 'type', weight: 0.4 },
+      { name: 'note', weight: 0.3 },
+      { name: 'status', weight: 0.2 },
+      { name: 'mode', weight: 0.1 },
+    ],
+    includeMatches: true,
+    minMatchCharLength: 1,
+    findAllMatches: true,
+    ignoreLocation: true,
+    useExtendedSearch: true,
   });
 
-  // Expand query with synonyms
-  const expandedQuery = expandQuery(search.toLowerCase()).join(' ');
+  // Memoized search results with caching
+  const searchResults = useMemo(() => {
+    if (!debouncedSearch) {
+      return {
+        fuzzyTransactions: [],
+        fuzzyAccounts: [],
+        fuzzyTransfers: [],
+        fuzzyPurchases: [],
+        fuzzyLendBorrow: [],
+        fuzzyDonations: []
+      };
+    }
 
-  // Fuzzy search results
-  const fuzzyTransactions = search ? fuseTransactions.search(expandedQuery) : [];
-  const fuzzyAccounts = search ? fuseAccounts.search(expandedQuery) : [];
-  const fuzzyTransfers = search ? fuseTransfers.search(expandedQuery) : [];
-  const fuzzyPurchases = search ? fusePurchases.search(expandedQuery) : [];
-  const fuzzyLendBorrow = search ? fuseLendBorrow.search(expandedQuery) : [];
+    // Check cache first
+    const cacheKey = debouncedSearch.toLowerCase();
+    if (searchCache.has(cacheKey)) {
+      return searchCache.get(cacheKey);
+    }
+
+    // Expand query with synonyms
+    const expandedQuery = expandQuery(debouncedSearch.toLowerCase()).join(' ');
+
+    // Perform fuzzy search
+    const results = {
+      fuzzyTransactions: fuseTransactions.search(expandedQuery),
+      fuzzyAccounts: fuseAccounts.search(expandedQuery),
+      fuzzyTransfers: fuseTransfers.search(expandedQuery),
+      fuzzyPurchases: fusePurchases.search(expandedQuery),
+      fuzzyLendBorrow: fuseLendBorrow.search(expandedQuery),
+      fuzzyDonations: fuseDonations.search(expandedQuery)
+    };
+
+    // Cache results (limit cache size to prevent memory issues)
+    if (searchCache.size > 50) {
+      const firstKey = searchCache.keys().next().value;
+      if (firstKey) {
+        searchCache.delete(firstKey);
+      }
+    }
+    searchCache.set(cacheKey, results);
+
+    return results;
+  }, [debouncedSearch, fuseTransactions, fuseAccounts, fuseTransfers, fusePurchases, fuseLendBorrow, fuseDonations, searchCache]);
+
+  const { fuzzyTransactions, fuzzyAccounts, fuzzyTransfers, fuzzyPurchases, fuzzyLendBorrow, fuzzyDonations } = searchResults;
+
+  // Enhanced result ranking function
+  const rankSearchResults = (results: any[], type: string) => {
+    return results.map(result => {
+      let score = result.score || 0;
+      
+      // Recency boost (more recent items get higher scores)
+      const itemDate = new Date(result.item.date || result.item.created_at || result.item.updated_at || 0);
+      const now = new Date();
+      const daysDiff = (now.getTime() - itemDate.getTime()) / (1000 * 60 * 60 * 24);
+      const recencyBoost = Math.max(0, 1 - (daysDiff / 365)); // Boost decreases over a year
+      score += recencyBoost * 0.2;
+      
+      // Frequency boost (items with higher amounts or more activity)
+      if (result.item.amount) {
+        const amountBoost = Math.min(0.1, Math.log10(parseFloat(result.item.amount) || 1) / 10);
+        score += amountBoost;
+      }
+      
+      // User behavior boost (if we had click tracking)
+      // This would be enhanced with actual user behavior data
+      const behaviorBoost = 0; // Placeholder for future enhancement
+      score += behaviorBoost;
+      
+      // Type-specific boosts
+      if (type === 'transaction' && result.item.type === 'income') {
+        score += 0.05; // Slightly boost income transactions
+      }
+      if (type === 'account' && result.item.isActive) {
+        score += 0.1; // Boost active accounts
+      }
+      
+      return { ...result, finalScore: score };
+    }).sort((a, b) => a.finalScore - b.finalScore); // Lower score = better match in Fuse.js
+  };
+
+  // Apply ranking to all result sets
+  const rankedTransactions = search ? rankSearchResults(fuzzyTransactions, 'transaction') : [];
+  const rankedAccounts = search ? rankSearchResults(fuzzyAccounts, 'account') : [];
+  const rankedTransfers = search ? rankSearchResults(fuzzyTransfers, 'transfer') : [];
+  const rankedPurchases = search ? rankSearchResults(fuzzyPurchases, 'purchase') : [];
+  const rankedLendBorrow = search ? rankSearchResults(fuzzyLendBorrow, 'lendborrow') : [];
+  const rankedDonations = search ? rankSearchResults(fuzzyDonations, 'donation') : [];
 
   // Debug logging - REMOVED to prevent console flooding
 
   // Calculate total results for keyboard navigation
-  const totalResults = fuzzyTransactions.length + fuzzyPurchases.length + fuzzyTransfers.length + fuzzyAccounts.length + fuzzyLendBorrow.length;
+  const totalResults = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length;
 
   // Highlight helper
   function highlight(text: string, matches: any[]): React.ReactNode {
@@ -330,25 +552,48 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     return result.length > 0 ? result : text;
   }
 
-  // Keyboard navigation
+  // Enhanced keyboard navigation with accessibility
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!isFocused) return;
-      if (e.key === 'ArrowDown') setHighlightedIdx(idx => Math.min(idx + 1, totalResults - 1));
-      if (e.key === 'ArrowUp') setHighlightedIdx(idx => Math.max(idx - 1, 0));
+      
+      // Prevent default behavior for navigation keys
+      if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab'].includes(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      
+      if (e.key === 'ArrowDown') {
+        setHighlightedIdx(idx => Math.min(idx + 1, totalResults - 1));
+      }
+      if (e.key === 'ArrowUp') {
+        setHighlightedIdx(idx => Math.max(idx - 1, 0));
+      }
+      if (e.key === 'Home') {
+        setHighlightedIdx(0);
+      }
+      if (e.key === 'End') {
+        setHighlightedIdx(totalResults - 1);
+      }
+      if (e.key === 'PageDown') {
+        setHighlightedIdx(idx => Math.min(idx + 5, totalResults - 1));
+      }
+      if (e.key === 'PageUp') {
+        setHighlightedIdx(idx => Math.max(idx - 5, 0));
+      }
       if (e.key === 'Enter') {
         let item;
         if (search) {
-          if (fuzzyTransactions.length > 0 && highlightedIdx < fuzzyTransactions.length) {
-            item = fuzzyTransactions[highlightedIdx]?.item;
-          } else if (fuzzyPurchases.length > 0 && highlightedIdx >= fuzzyTransactions.length && highlightedIdx < fuzzyTransactions.length + fuzzyPurchases.length) {
-            item = fuzzyPurchases[highlightedIdx - fuzzyTransactions.length]?.item;
-          } else if (fuzzyTransfers.length > 0 && highlightedIdx >= fuzzyTransactions.length + fuzzyPurchases.length && highlightedIdx < fuzzyTransactions.length + fuzzyPurchases.length + fuzzyTransfers.length) {
-            item = fuzzyTransfers[highlightedIdx - fuzzyTransactions.length - fuzzyPurchases.length]?.item;
-          } else if (fuzzyAccounts.length > 0 && highlightedIdx >= fuzzyTransactions.length + fuzzyPurchases.length + fuzzyTransfers.length && highlightedIdx < fuzzyTransactions.length + fuzzyPurchases.length + fuzzyTransfers.length + fuzzyAccounts.length) {
-            item = fuzzyAccounts[highlightedIdx - fuzzyTransactions.length - fuzzyPurchases.length - fuzzyTransfers.length]?.item;
-          } else if (fuzzyLendBorrow.length > 0 && highlightedIdx >= fuzzyTransactions.length + fuzzyPurchases.length + fuzzyTransfers.length + fuzzyAccounts.length) {
-            item = fuzzyLendBorrow[highlightedIdx - fuzzyTransactions.length - fuzzyPurchases.length - fuzzyTransfers.length - fuzzyAccounts.length]?.item;
+          if (rankedTransactions.length > 0 && highlightedIdx < rankedTransactions.length) {
+            item = rankedTransactions[highlightedIdx]?.item;
+          } else if (rankedPurchases.length > 0 && highlightedIdx >= rankedTransactions.length && highlightedIdx < rankedTransactions.length + rankedPurchases.length) {
+            item = rankedPurchases[highlightedIdx - rankedTransactions.length]?.item;
+          } else if (rankedTransfers.length > 0 && highlightedIdx >= rankedTransactions.length + rankedPurchases.length && highlightedIdx < rankedTransactions.length + rankedPurchases.length + rankedTransfers.length) {
+            item = rankedTransfers[highlightedIdx - rankedTransactions.length - rankedPurchases.length]?.item;
+          } else if (rankedAccounts.length > 0 && highlightedIdx >= rankedTransactions.length + rankedPurchases.length + rankedTransfers.length && highlightedIdx < rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length) {
+            item = rankedAccounts[highlightedIdx - rankedTransactions.length - rankedPurchases.length - rankedTransfers.length]?.item;
+          } else if (rankedLendBorrow.length > 0 && highlightedIdx >= rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length) {
+            item = rankedLendBorrow[highlightedIdx - rankedTransactions.length - rankedPurchases.length - rankedTransfers.length - rankedAccounts.length]?.item;
           }
         } else {
           item = recentSearches[highlightedIdx];
@@ -363,22 +608,22 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isFocused, search, highlightedIdx, fuzzyTransactions, fuzzyPurchases, fuzzyTransfers, fuzzyAccounts, fuzzyLendBorrow, recentSearches, setGlobalSearchTerm]);
+  }, [isFocused, search, highlightedIdx, rankedTransactions, rankedPurchases, rankedTransfers, rankedAccounts, rankedLendBorrow, recentSearches, setGlobalSearchTerm]);
 
   // Show recent searches if input is focused and empty
   // console.log('Checking dropdown visibility:', { search, isFocused, searchLength: search?.length });
   if ((!search || search.length === 0) && isFocused) {
     return (
       <div className={`${isOverlay ? 'relative w-full' : 'absolute left-0 top-full w-[125%] ml-[-12.5%]'} z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg dark:shadow-xl p-4 animate-fadein`}>
-        <div className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Recent Searches</div>
+        <div className="font-semibold text-gray-700 dark:text-gray-300 mb-2 text-sm">Recent Searches</div>
         {recentSearches.length === 0 ? (
           <div className="text-gray-400 dark:text-gray-500 text-sm">No recent searches</div>
         ) : (
-          <ul>
+          <div className="flex flex-wrap gap-2">
             {recentSearches.slice(0, 3).map((term, idx) => (
-              <li
+              <button
                 key={term}
-                className={`py-2 px-3 rounded cursor-pointer text-gray-700 dark:text-gray-300 ${highlightedIdx === idx ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                className={`px-3 py-1.5 rounded-full cursor-pointer text-gray-700 dark:text-gray-300 text-xs border transition-colors ${highlightedIdx === idx ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700' : 'hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-600'}`}
                 style={{ fontSize: '13px', lineHeight: '18px' }}
                 onMouseEnter={() => setHighlightedIdx(idx)}
                 onClick={(e) => {
@@ -401,9 +646,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                 }}
               >
                 {term}
-              </li>
+              </button>
             ))}
-          </ul>
+          </div>
         )}
       </div>
     );
@@ -412,11 +657,45 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   // console.log('Checking search results visibility:', { search, isFocused });
   if (!search || !isFocused) return null;
 
+  // Show skeleton loading while searching
+  if (isSearching) {
+    return (
+      <div
+        ref={dropdownRef}
+        role="listbox"
+        aria-label="Search results"
+        aria-live="polite"
+        aria-atomic="true"
+        style={{
+          position: isOverlay ? 'relative' : 'absolute',
+          left: isOverlay ? 'auto' : 0,
+          top: isOverlay ? 'auto' : '100%',
+          width: isOverlay ? '100%' : '125%',
+          marginLeft: isOverlay ? 'auto' : '-12.5%',
+          zIndex: 9999,
+          boxSizing: 'border-box',
+          maxHeight: '70vh',
+          borderRadius: '12px',
+          paddingTop: 0,
+          overflow: 'visible',
+          pointerEvents: 'auto',
+        }}
+        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-[0_4px_24px_0_rgba(0,0,0,0.10)] dark:shadow-[0_4px_24px_0_rgba(0,0,0,0.30)] animate-fadein flex flex-col overflow-visible"
+      >
+        <SearchSkeleton />
+      </div>
+    );
+  }
+
   console.log('Rendering dropdown with search:', search, 'fuzzyTransactions:', fuzzyTransactions.length);
 
   return (
     <div
       ref={dropdownRef}
+      role="listbox"
+      aria-label="Search results"
+      aria-live="polite"
+      aria-atomic="true"
       style={{
         position: isOverlay ? 'relative' : 'absolute',
         left: isOverlay ? 'auto' : 0,
@@ -485,17 +764,51 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
           </div>
         )}
 
+        {/* Search Suggestions */}
+        {showSuggestions && searchSuggestions.length > 0 && (
+          <div className="mb-6">
+            <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2 text-sm">
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+              Suggestions
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {searchSuggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setGlobalSearchTerm(suggestion);
+                    addRecentSearch(suggestion);
+                    setShowSuggestions(false);
+                    setTimeout(() => {
+                      inputRef.current?.focus();
+                    }, 10);
+                  }}
+                  className="px-3 py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-600 transition-colors text-xs"
+                  style={{ fontSize: '13px', lineHeight: '18px' }}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Transactions Section */}
-        {fuzzyTransactions.length > 0 && (
+        {rankedTransactions.length > 0 && (
           <div className="mb-6">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-              Transactions ({fuzzyTransactions.length})
+              Transactions ({rankedTransactions.length})
             </h3>
             <div className="space-y-2">
-              {(showAllTransactions ? fuzzyTransactions : fuzzyTransactions.slice(0, 3)).map((res, index) => (
+              {(showAllTransactions ? rankedTransactions : rankedTransactions.slice(0, 3)).map((res, index) => (
                 <button
                   key={`transaction-${index}`}
+                  role="option"
+                  aria-selected={highlightedIdx === index}
+                  aria-label={`Transaction: ${res.item.description}`}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -511,21 +824,21 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {highlight(res.item.description, (res.matches?.filter(m => m.key === 'description') ?? []) as any[])}
+                        {highlight(res.item.description || '', (res.matches?.filter((m: any) => m.key === 'description') ?? []) as any[])}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {highlight(res.item.category, (res.matches?.filter(m => m.key === 'category') ?? []) as any[])} • {res.item.amount} • {res.item.type}
+                        {highlight(res.item.category || '', (res.matches?.filter((m: any) => m.key === 'category') ?? []) as any[])} • {res.item.amount} • {res.item.type}
                       </div>
                     </div>
                   </div>
                 </button>
               ))}
-              {fuzzyTransactions.length > 3 && (
+              {rankedTransactions.length > 3 && (
                 <button
                   className="w-full text-center text-xs text-blue-600 dark:text-blue-400 mt-2"
                   onClick={() => setShowAllTransactions(v => !v)}
                 >
-                  {showAllTransactions ? 'Show less' : `Show more (${fuzzyTransactions.length - 3})`}
+                  {showAllTransactions ? 'Show less' : `Show more (${rankedTransactions.length - 3})`}
                 </button>
               )}
             </div>
@@ -533,19 +846,19 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         )}
 
         {/* Purchases Section */}
-        {fuzzyPurchases.length > 0 && (
+        {rankedPurchases.length > 0 && (
           <div className="mb-6">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
-              Purchases ({fuzzyPurchases.length})
+              Purchases ({rankedPurchases.length})
             </h3>
             <div className="space-y-2">
-              {(showAllPurchases ? fuzzyPurchases : fuzzyPurchases.slice(0, 3)).map((res, index) => (
+              {(showAllPurchases ? rankedPurchases : rankedPurchases.slice(0, 3)).map((res, index) => (
                 <button
                   key={`purchase-${index}`}
                   onClick={() => handleResultClick('purchase', res.item)}
                   className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                    highlightedIdx === fuzzyTransactions.length + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    highlightedIdx === rankedTransactions.length + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -556,21 +869,21 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {highlight(res.item.item_name, (res.matches?.filter(m => m.key === 'item_name') ?? []) as any[])}
+                        {highlight(res.item.item_name || '', (res.matches?.filter((m: any) => m.key === 'item_name') ?? []) as any[])}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {highlight(res.item.category, (res.matches?.filter(m => m.key === 'category') ?? []) as any[])} • {res.item.price} • {res.item.status}
+                        {highlight(res.item.category || '', (res.matches?.filter((m: any) => m.key === 'category') ?? []) as any[])} • {res.item.price} • {res.item.status}
                       </div>
                     </div>
                   </div>
                 </button>
               ))}
-              {fuzzyPurchases.length > 3 && (
+              {rankedPurchases.length > 3 && (
                 <button
                   className="w-full text-center text-xs text-blue-600 dark:text-blue-400 mt-2"
                   onClick={() => setShowAllPurchases(v => !v)}
                 >
-                  {showAllPurchases ? 'Show less' : `Show more (${fuzzyPurchases.length - 3})`}
+                  {showAllPurchases ? 'Show less' : `Show more (${rankedPurchases.length - 3})`}
                 </button>
               )}
             </div>
@@ -578,19 +891,19 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         )}
 
         {/* Transfers Section */}
-        {fuzzyTransfers.length > 0 && (
+        {rankedTransfers.length > 0 && (
           <div className="mb-6">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-              Transfers ({fuzzyTransfers.length})
+              Transfers ({rankedTransfers.length})
             </h3>
             <div className="space-y-2">
-              {(showAllTransfers ? fuzzyTransfers : fuzzyTransfers.slice(0, 3)).map((res, index) => (
+              {(showAllTransfers ? rankedTransfers : rankedTransfers.slice(0, 3)).map((res, index) => (
                 <button
                   key={`transfer-${index}`}
                   onClick={() => handleResultClick('transfer', res.item)}
                   className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                    highlightedIdx === fuzzyTransactions.length + fuzzyPurchases.length + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    highlightedIdx === rankedTransactions.length + rankedPurchases.length + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -601,9 +914,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {highlight(res.item.fromAccount?.name || res.item.from_account?.name || 'From', (res.matches?.filter(m => m.key === 'fromAccount' || m.key === 'from_account') ?? []) as any[])}
+                        {highlight(res.item.fromAccount?.name || res.item.from_account?.name || 'From', (res.matches?.filter((m: any) => m.key === 'fromAccount' || m.key === 'from_account') ?? []) as any[])}
                         {' → '}
-                        {highlight(res.item.toAccount?.name || res.item.to_account?.name || 'To', (res.matches?.filter(m => m.key === 'toAccount' || m.key === 'to_account') ?? []) as any[])}
+                        {highlight(res.item.toAccount?.name || res.item.to_account?.name || 'To', (res.matches?.filter((m: any) => m.key === 'toAccount' || m.key === 'to_account') ?? []) as any[])}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                         {res.item.fromAmount || res.item.amount} {res.item.fromCurrency || res.item.currency || ''} → {res.item.toAmount || res.item.amount} {res.item.toCurrency || res.item.currency || ''} • {res.item.note || ''}
@@ -612,12 +925,12 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                   </div>
                 </button>
               ))}
-              {fuzzyTransfers.length > 3 && (
+              {rankedTransfers.length > 3 && (
                 <button
                   className="w-full text-center text-xs text-blue-600 dark:text-blue-400 mt-2"
                   onClick={() => setShowAllTransfers(v => !v)}
                 >
-                  {showAllTransfers ? 'Show less' : `Show more (${fuzzyTransfers.length - 3})`}
+                  {showAllTransfers ? 'Show less' : `Show more (${rankedTransfers.length - 3})`}
                 </button>
               )}
             </div>
@@ -625,19 +938,19 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         )}
 
         {/* Accounts Section */}
-        {fuzzyAccounts.length > 0 && (
+        {rankedAccounts.length > 0 && (
           <div className="mb-6">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-              Accounts ({fuzzyAccounts.length})
+              Accounts ({rankedAccounts.length})
             </h3>
             <div className="space-y-2">
-              {(showAllAccounts ? fuzzyAccounts : fuzzyAccounts.slice(0, 3)).map((res, index) => (
+              {(showAllAccounts ? rankedAccounts : rankedAccounts.slice(0, 3)).map((res, index) => (
                 <button
                   key={`account-${index}`}
                   onClick={() => handleResultClick('account', res.item)}
                   className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                    highlightedIdx === fuzzyTransactions.length + fuzzyPurchases.length + fuzzyTransfers.length + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    highlightedIdx === rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -648,7 +961,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {highlight(res.item.name, (res.matches?.filter(m => m.key === 'name') ?? []) as any[])}
+                        {highlight(res.item.name || '', (res.matches?.filter((m: any) => m.key === 'name') ?? []) as any[])}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                         {res.item.currency} • Balance: {res.item.calculated_balance}
@@ -657,12 +970,12 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                   </div>
                 </button>
               ))}
-              {fuzzyAccounts.length > 3 && (
+              {rankedAccounts.length > 3 && (
                 <button
                   className="w-full text-center text-xs text-blue-600 dark:text-blue-400 mt-2"
                   onClick={() => setShowAllAccounts(v => !v)}
                 >
-                  {showAllAccounts ? 'Show less' : `Show more (${fuzzyAccounts.length - 3})`}
+                  {showAllAccounts ? 'Show less' : `Show more (${rankedAccounts.length - 3})`}
                 </button>
               )}
             </div>
@@ -670,19 +983,19 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         )}
 
         {/* Lend & Borrow Section */}
-        {fuzzyLendBorrow.length > 0 && (
+        {rankedLendBorrow.length > 0 && (
           <div className="mb-6">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-pink-500 rounded-full"></span>
-              Lend & Borrow ({fuzzyLendBorrow.length})
+              Lend & Borrow ({rankedLendBorrow.length})
             </h3>
             <div className="space-y-2">
-              {fuzzyLendBorrow.slice(0, 3).map((res, index) => (
+              {rankedLendBorrow.slice(0, 3).map((res, index) => (
                 <button
                   key={`lendborrow-${index}`}
                   onClick={() => handleResultClick('lendborrow', res.item)}
                   className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                    highlightedIdx === fuzzyTransactions.length + fuzzyPurchases.length + fuzzyTransfers.length + fuzzyAccounts.length + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    highlightedIdx === rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -693,7 +1006,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {highlight(res.item.person_name, (res.matches?.filter(m => m.key === 'person_name') ?? []) as any[])}
+                        {highlight(res.item.person_name || '', (res.matches?.filter((m: any) => m.key === 'person_name') ?? []) as any[])}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                         {res.item.type} • {res.item.amount} {res.item.currency} • {res.item.status}
@@ -706,8 +1019,46 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
           </div>
         )}
 
+        {/* Donations Section */}
+        {rankedDonations.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+              Donations ({rankedDonations.length})
+            </h3>
+            <div className="space-y-2">
+              {rankedDonations.slice(0, 3).map((res, index) => (
+                <button
+                  key={`donation-${index}`}
+                  onClick={() => handleResultClick('donation', res.item)}
+                  className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                    highlightedIdx === rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
+                      <svg className="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {highlight(res.item.type || '', (res.matches?.filter((m: any) => m.key === 'type') ?? []) as any[])}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        ${res.item.amount} • {res.item.mode} • {res.item.status}
+                        {res.item.note && typeof res.item.note === 'string' && res.item.note.trim() && ` • ${res.item.note.substring(0, 30)}${res.item.note.length > 30 ? '...' : ''}`}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* No Results */}
-        {search && fuzzyTransactions.length === 0 && fuzzyPurchases.length === 0 && fuzzyTransfers.length === 0 && fuzzyAccounts.length === 0 && fuzzyLendBorrow.length === 0 && (
+        {search && rankedTransactions.length === 0 && rankedPurchases.length === 0 && rankedTransfers.length === 0 && rankedAccounts.length === 0 && rankedLendBorrow.length === 0 && rankedDonations.length === 0 && (
           <div className="text-center py-8">
             <div className="text-gray-400 dark:text-gray-500 mb-2">
               <Search className="w-8 h-8 mx-auto" />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   LifeBuoy, Mail, Facebook, Twitter, Instagram, Linkedin, Github, 
-  LogOut, Menu, X
+  LogOut, Menu, X, Sun, Moon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import InteractiveBackground from '../components/InteractiveBackground';
@@ -12,7 +12,7 @@ import KBSearch from '../components/KBSearch';
 const PublicHelpCenter: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
-  const { isDarkMode } = useThemeStore();
+  const { isDarkMode, toggleTheme } = useThemeStore();
   const { user, signOut } = useAuthStore();
 
   useEffect(() => {
@@ -56,6 +56,17 @@ const PublicHelpCenter: React.FC = () => {
                 >
                   Blog
                 </button>
+                <button
+                  onClick={toggleTheme}
+                  className="p-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                  title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                >
+                  {isDarkMode ? (
+                    <Sun className="w-5 h-5" />
+                  ) : (
+                    <Moon className="w-5 h-5" />
+                  )}
+                </button>
                 {user ? (
                   <div className="flex items-center space-x-4">
                     <button
@@ -87,6 +98,17 @@ const PublicHelpCenter: React.FC = () => {
 
               {/* Mobile Menu Button */}
               <div className="md:hidden flex items-center space-x-4">
+                <button
+                  onClick={toggleTheme}
+                  className="p-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                  title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                >
+                  {isDarkMode ? (
+                    <Sun className="w-5 h-5" />
+                  ) : (
+                    <Moon className="w-5 h-5" />
+                  )}
+                </button>
                 {user ? (
                   <button 
                     onClick={() => signOut()}
@@ -156,22 +178,22 @@ const PublicHelpCenter: React.FC = () => {
         </nav>
 
         {/* Main Content */}
-        <div className="pt-16 bg-white dark:bg-gray-900 scroll-smooth font-manrope">
-          <div className="w-4/5 mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="pt-16 bg-white dark:bg-gray-800 scroll-smooth font-manrope">
+          <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-16">
             {/* Welcome Banner */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 mb-8 text-white">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500 rounded-xl p-8 mb-8 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-white/20 rounded-full">
+                  <div className="p-3 bg-white/20 dark:bg-white/30 rounded-full">
                     <LifeBuoy className="w-8 h-8" />
                   </div>
                   <div>
                     <h1 className="text-3xl md:text-4xl font-bold mb-2">Welcome to the Help Center!</h1>
-                    <p className="text-blue-100 text-lg">
+                    <p className="text-blue-100 dark:text-blue-200 text-lg">
                       Discover guides, tutorials, and tips to master Balanze. Can't find what you're looking for? 
                       <button 
                         onClick={() => window.open('mailto:shalconnect00@gmail.com', '_blank')}
-                        className="underline hover:text-white ml-1 font-semibold"
+                        className="underline hover:text-white dark:hover:text-blue-100 ml-1 font-semibold"
                       >
                         Contact our support team
                       </button>
@@ -180,7 +202,7 @@ const PublicHelpCenter: React.FC = () => {
                 </div>
                 <div className="hidden md:flex items-center gap-2">
                   <div className="text-right">
-                    <div className="text-sm text-blue-100">Last updated</div>
+                    <div className="text-sm text-blue-100 dark:text-blue-200">Last updated</div>
                     <div className="font-semibold">{new Date().toLocaleDateString()}</div>
                   </div>
                 </div>

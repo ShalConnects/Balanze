@@ -532,7 +532,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     content: `<div id="accounts" class="mb-12">
 
   <div class="space-y-12">
-    <div id="create-first-account" class="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-xl">
+    <div id="create-first-account" class="bg-gray-50 dark:bg-gray-800/50 py-8 rounded-xl">
       <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-6">You can add accounts by following these steps:</h3>
       
       <div class="space-y-4 text-gray-700 dark:text-gray-300">
@@ -5147,24 +5147,47 @@ export default function KBArticlePage() {
   return (
     <>
       <Helmet>
-        <title>{article?.title || 'Help Article - Balanze'}</title>
+        {/* Enhanced Title and Meta Tags */}
+        <title>{article?.title ? `${article.title} - Balanze Help Center` : 'Help Article - Balanze'}</title>
         <meta name="description" content={article?.description || 'Get help with Balanze financial tracking'} />
-        <meta name="keywords" content={`Balanze help, ${article?.tags?.join(', ') || 'financial tracking'}, ${article?.category || 'support'}`} />
-        <meta name="robots" content="index, follow" />
+        <meta name="keywords" content={`Balanze help, ${article?.tags?.join(', ') || 'financial tracking'}, ${article?.category || 'support'}, personal finance, expense tracking, budget management`} />
+        <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+        <meta name="author" content="Balanze Team" />
+        <meta name="language" content="en" />
+        <meta name="revisit-after" content="7 days" />
         
-        {/* Open Graph / Facebook */}
+        {/* Canonical URL */}
+        <link rel="canonical" href={window.location.href} />
+        
+        {/* Enhanced Open Graph / Facebook */}
         <meta property="og:type" content="article" />
         <meta property="og:title" content={article?.title || 'Help Article - Balanze'} />
         <meta property="og:description" content={article?.description || 'Get help with Balanze financial tracking'} />
         <meta property="og:url" content={window.location.href} />
         <meta property="og:site_name" content="Balanze Help Center" />
+        <meta property="og:locale" content="en_US" />
+        <meta property="og:updated_time" content={article?.lastUpdated} />
+        <meta property="article:published_time" content={article?.lastUpdated} />
+        <meta property="article:modified_time" content={article?.lastUpdated} />
+        <meta property="article:section" content={article?.category} />
+        <meta property="article:tag" content={article?.tags?.join(',')} />
+        <meta property="article:author" content="Balanze Team" />
         
-        {/* Twitter */}
+        {/* Enhanced Twitter Cards */}
         <meta property="twitter:card" content="summary_large_image" />
         <meta property="twitter:title" content={article?.title || 'Help Article - Balanze'} />
         <meta property="twitter:description" content={article?.description || 'Get help with Balanze financial tracking'} />
+        <meta property="twitter:site" content="@BalanzeApp" />
+        <meta property="twitter:creator" content="@BalanzeApp" />
         
-        {/* Article structured data */}
+        {/* Additional SEO Meta Tags */}
+        <meta name="theme-color" content="#3b82f6" />
+        <meta name="msapplication-TileColor" content="#3b82f6" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Balanze Help" />
+        
+        {/* Enhanced Article structured data */}
         {article && (
           <script type="application/ld+json">
             {JSON.stringify({
@@ -5174,15 +5197,19 @@ export default function KBArticlePage() {
               "description": article.description,
               "author": {
                 "@type": "Organization",
-                "name": "Balanze"
+                "name": "Balanze",
+                "url": window.location.origin
               },
               "publisher": {
                 "@type": "Organization",
                 "name": "Balanze",
                 "logo": {
                   "@type": "ImageObject",
-                  "url": window.location.origin + "/logo.png"
-                }
+                  "url": window.location.origin + "/logo.png",
+                  "width": 200,
+                  "height": 200
+                },
+                "url": window.location.origin
               },
               "datePublished": article.lastUpdated,
               "dateModified": article.lastUpdated,
@@ -5193,13 +5220,99 @@ export default function KBArticlePage() {
               "articleSection": article.category,
               "keywords": article.tags?.join(', '),
               "wordCount": article.content?.length || 0,
-              "timeRequired": article.readTime
+              "timeRequired": article.readTime,
+              "inLanguage": "en-US",
+              "isAccessibleForFree": true,
+              "genre": "Help Article",
+              "about": {
+                "@type": "Thing",
+                "name": "Personal Finance Management"
+              }
+            })}
+          </script>
+        )}
+        
+        {/* Breadcrumb structured data */}
+        {article && (
+          <script type="application/ld+json">
+            {JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "BreadcrumbList",
+              "itemListElement": [
+                {
+                  "@type": "ListItem",
+                  "position": 1,
+                  "name": "Home",
+                  "item": window.location.origin
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 2,
+                  "name": "Help Center",
+                  "item": `${window.location.origin}/help`
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 3,
+                  "name": article.category,
+                  "item": `${window.location.origin}/help?category=${encodeURIComponent(article.category)}`
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 4,
+                  "name": article.title,
+                  "item": window.location.href
+                }
+              ]
+            })}
+          </script>
+        )}
+        
+        {/* FAQ Schema for better search visibility */}
+        {article && article.tags?.includes('faq') && (
+          <script type="application/ld+json">
+            {JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": article.title,
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": article.description
+                  }
+                }
+              ]
+            })}
+          </script>
+        )}
+        
+        {/* HowTo Schema for tutorial articles */}
+        {article && (article.tags?.includes('tutorial') || article.tags?.includes('guide')) && (
+          <script type="application/ld+json">
+            {JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "HowTo",
+              "name": article.title,
+              "description": article.description,
+              "totalTime": article.readTime,
+              "supply": [],
+              "tool": [],
+              "step": [
+                {
+                  "@type": "HowToStep",
+                  "name": "Follow the guide",
+                  "text": article.description,
+                  "url": window.location.href
+                }
+              ]
             })}
           </script>
         )}
       </Helmet>
       
-      <div className="min-h-screen overflow-x-hidden">
+      <div className="min-h-screen overflow-x-hidden bg-gray-50 dark:bg-gray-900">
       {/* Mobile TOC Toggle Button */}
       {article?.tableOfContents && (
         <button
@@ -5371,7 +5484,7 @@ export default function KBArticlePage() {
         {/* Article Content */}
         <div className="bg-white dark:bg-gray-800 rounded-none sm:rounded-xl shadow-sm border-0 sm:border border-gray-200 dark:border-gray-700 p-4 sm:p-8 mb-6">
           <div 
-            className="prose prose-sm sm:prose-lg max-w-none dark:prose-invert prose-blue prose-headings:font-bold prose-p:leading-relaxed prose-li:leading-relaxed prose-ul:my-4 sm:prose-ul:my-6 prose-ol:my-4 sm:prose-ol:my-6 prose-h1:text-2xl sm:prose-h1:text-3xl prose-h2:text-xl sm:prose-h2:text-2xl prose-h3:text-lg sm:prose-h3:text-xl"
+            className="prose prose-sm sm:prose-lg max-w-none dark:prose-invert prose-blue dark:prose-blue prose-headings:font-bold prose-p:leading-relaxed prose-li:leading-relaxed prose-ul:my-4 sm:prose-ul:my-6 prose-ol:my-4 sm:prose-ol:my-6 prose-h1:text-2xl sm:prose-h1:text-3xl prose-h2:text-xl sm:prose-h2:text-2xl prose-h3:text-lg sm:prose-h3:text-xl dark:prose-headings:text-white dark:prose-p:text-gray-300 dark:prose-li:text-gray-300 dark:prose-strong:text-white dark:prose-a:text-blue-400 dark:prose-a:hover:text-blue-300"
             dangerouslySetInnerHTML={{ __html: article.content }}
           />
         </div>

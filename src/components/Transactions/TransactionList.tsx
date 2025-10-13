@@ -17,11 +17,26 @@ import { useAuthStore } from '../../store/authStore';
 
 import { useLoadingContext } from '../../context/LoadingContext';
 import { useNavigate } from 'react-router-dom';
+import { useRecordSelection } from '../../hooks/useRecordSelection';
+import { SelectionFilter } from '../common/SelectionFilter';
 
 export const TransactionList: React.FC<{ 
   transactions: Transaction[];
-  selectedTransactionId?: string | null;
-}> = ({ transactions, selectedTransactionId }) => {
+}> = ({ transactions }) => {
+  
+  // Record selection functionality
+  const {
+    selectedRecord,
+    selectedId,
+    isFromSearch,
+    selectedRecordRef,
+    clearSelection,
+    hasSelection
+  } = useRecordSelection({
+    records: transactions,
+    recordIdField: 'id',
+    scrollToRecord: true
+  });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | undefined>();
   const { getActiveAccounts, getActiveTransactions, deleteTransaction, categories, purchaseCategories } = useFinanceStore();
@@ -245,22 +260,6 @@ export const TransactionList: React.FC<{
     });
   };
 
-  // Add useEffect to highlight selected transaction
-  useEffect(() => {
-    if (selectedTransactionId) {
-      setTimeout(() => {
-        const element = document.getElementById(`transaction-${selectedTransactionId}`);
-        console.log('TransactionList: Looking for element:', `transaction-${selectedTransactionId}`, element);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          element.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
-          setTimeout(() => {
-            element.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
-          }, 3000);
-        }
-      }, 100);
-    }
-  }, [selectedTransactionId]);
 
   // Hide export menu on click outside
   React.useEffect(() => {
@@ -471,7 +470,13 @@ export const TransactionList: React.FC<{
 
   // Filtering
   const filteredTransactions = React.useMemo(() => {
+    // If a record is selected via deep link, prioritize showing only that record
+    if (hasSelection && isFromSearch && selectedRecord) {
+      return [selectedRecord];
+    }
+
     const today = new Date();
+    
     const filtered = transactions
       .filter(t => !t.tags?.some(tag => tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'))
       .filter(t => {
@@ -625,7 +630,7 @@ export const TransactionList: React.FC<{
   return (
     <div className="space-y-6">
       {/* Unified Filters and Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ paddingBottom: '13px' }}>
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700" style={{ paddingBottom: '13px' }}>
         {/* Filters Header */}
         <div className="p-3 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -647,6 +652,15 @@ export const TransactionList: React.FC<{
                 />
               </div>
             </div>
+
+            {/* Selection Filter */}
+            {hasSelection && selectedRecord && (
+              <SelectionFilter
+                label="Selected"
+                value={selectedRecord.description || 'Transaction'}
+                onClear={clearSelection}
+              />
+            )}
 
             {/* Mobile Filter Button */}
             <div className="md:hidden">
@@ -1116,15 +1130,25 @@ export const TransactionList: React.FC<{
                     </td>
                   </tr>
                 ) : (
-                  filteredTransactions.map((transaction) => {
-                    const account = accounts.find(a => a.id === transaction.account_id);
-                    const currency = account?.currency || 'USD';
-                    const isSelected = selectedTransactionId === transaction.transaction_id || selectedTransactionId === transaction.id;
+              filteredTransactions.map((transaction) => {
+                const account = accounts.find(a => a.id === transaction.account_id);
+                const currency = account?.currency || 'USD';
+                const isSelected = selectedId === transaction.id;
+                const isFromSearchSelection = isFromSearch && isSelected;
+                
+                    
                     return (
                       <tr 
                         key={transaction.id} 
                         id={`transaction-${transaction.transaction_id || transaction.id}`}
-                        className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${isSelected ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
+                        ref={isSelected ? selectedRecordRef : null}
+                        className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                          isSelected 
+                            ? isFromSearchSelection 
+                              ? 'ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20' 
+                              : 'ring-2 ring-blue-500 ring-opacity-50'
+                            : ''
+                        }`}
                       >
                         <td className="px-6 py-2 text-left">
                           <div className="text-gray-900 dark:text-white" style={{ fontSize: '14px' }}>
@@ -1223,12 +1247,20 @@ export const TransactionList: React.FC<{
               filteredTransactions.map((transaction) => {
                 const account = accounts.find(a => a.id === transaction.account_id);
                 const currency = account?.currency || 'USD';
-                const isSelected = selectedTransactionId === transaction.transaction_id || selectedTransactionId === transaction.id;
+                const isSelected = selectedId === transaction.transaction_id;
+                const isFromSearchSelection = isFromSearch && isSelected;
                 return (
                   <div 
                     key={transaction.id} 
                     id={`transaction-${transaction.transaction_id || transaction.id}`}
-                    className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow ${isSelected ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
+                    ref={isSelected ? selectedRecordRef : null}
+                    className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow ${
+                      isSelected 
+                        ? isFromSearchSelection 
+                          ? 'ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20' 
+                          : 'ring-2 ring-blue-500 ring-opacity-50'
+                        : ''
+                    }`}
                   >
                     {/* Card Header - Date and Type Badge */}
                     <div className="flex items-center justify-between p-3 pb-2">
@@ -1326,12 +1358,20 @@ export const TransactionList: React.FC<{
               filteredTransactions.map((transaction) => {
                 const account = accounts.find(a => a.id === transaction.account_id);
                 const currency = account?.currency || 'USD';
-                const isSelected = selectedTransactionId === transaction.transaction_id || selectedTransactionId === transaction.id;
+                const isSelected = selectedId === transaction.transaction_id;
+                const isFromSearchSelection = isFromSearch && isSelected;
                 return (
                   <div 
                     key={transaction.id} 
                     id={`transaction-${transaction.transaction_id || transaction.id}`}
-                    className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow ${isSelected ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
+                    ref={isSelected ? selectedRecordRef : null}
+                    className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow ${
+                      isSelected 
+                        ? isFromSearchSelection 
+                          ? 'ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20' 
+                          : 'ring-2 ring-blue-500 ring-opacity-50'
+                        : ''
+                    }`}
                   >
                     {/* Primary Row - Date, Description, Amount, Actions */}
                     <div className="grid grid-cols-12 gap-2 items-center mb-3">

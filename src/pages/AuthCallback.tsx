@@ -23,7 +23,6 @@ const AuthCallback: React.FC = () => {
 
         if (data.session?.user) {
           const user = data.session.user;
-          console.log('OAuth login successful:', user.id);
           
           // CRITICAL: Check for duplicate emails before allowing OAuth login
           try {
@@ -66,7 +65,7 @@ const AuthCallback: React.FC = () => {
               }
             }
             
-            console.log('OAuth email check passed, proceeding with login');
+            // OAuth email check passed, proceeding with login
           } catch (emailVerificationError) {
             console.error('Exception during email verification:', emailVerificationError);
             setError('Authentication verification failed. Please try again.');
@@ -88,10 +87,8 @@ const AuthCallback: React.FC = () => {
           
           if (accessToken && refreshToken) {
             // This is a password reset callback, redirect to reset password page
-            console.log('Password reset callback detected');
             navigate('/auth/reset-password');
           } else {
-            console.log('No session found after OAuth callback');
             setError('Login was cancelled or failed.');
             setTimeout(() => navigate('/auth'), 3000);
           }

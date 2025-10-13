@@ -14,6 +14,8 @@ import {
   TransactionSummaryCardsSkeleton, 
   TransactionFiltersSkeleton 
 } from '../Accounts/AccountSkeleton';
+import { useRecordSelection } from '../../hooks/useRecordSelection';
+import { SelectionFilter } from '../common/SelectionFilter';
 
 export const TransactionsView: React.FC = () => {
   const { transactions, accounts, categories, loading, error, globalSearchTerm, fetchTransactions, fetchCategories, fetchPurchaseCategories, purchaseCategories } = useFinanceStore();
@@ -23,8 +25,21 @@ export const TransactionsView: React.FC = () => {
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterAccount, setFilterAccount] = useState<string>('all');
-  const selectedTransactionId = searchParams.get('selected');
-  const selectedTransactionRef = useRef<HTMLDivElement>(null);
+  
+  // Record selection functionality
+  const {
+    selectedRecord,
+    selectedId,
+    isFromSearch,
+    selectedRecordRef,
+    clearSelection,
+    hasSelection
+  } = useRecordSelection({
+    records: transactions,
+    recordIdField: 'id',
+    scrollToRecord: true
+  });
+
 
   // Export dropdown state
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -63,23 +78,6 @@ export const TransactionsView: React.FC = () => {
     }
   }, [categories.length, purchaseCategories.length, fetchCategories, fetchPurchaseCategories, fetchTransactions]);
 
-  // Scroll to selected transaction when component mounts
-  useEffect(() => {
-    if (selectedTransactionId && selectedTransactionRef.current) {
-      setTimeout(() => {
-        selectedTransactionRef.current?.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        });
-        // Remove the selected parameter after scrolling
-        setSearchParams(prev => {
-          const newParams = new URLSearchParams(prev);
-          newParams.delete('selected');
-          return newParams;
-        });
-      }, 500);
-    }
-  }, [selectedTransactionId, setSearchParams]);
 
   // Filter transactions
   const filteredTransactions: Transaction[] = transactions.filter(transaction => {
@@ -91,6 +89,7 @@ export const TransactionsView: React.FC = () => {
     const matchesType = filterType === 'all' || (!isTransfer && transaction.type === filterType);
     const matchesCategory = filterCategory === 'all' || transaction.category === filterCategory;
     const matchesAccount = filterAccount === 'all' || transaction.account_id === filterAccount;
+
 
     return matchesSearch && matchesType && matchesCategory && matchesAccount && !isTransfer;
   });
@@ -224,7 +223,6 @@ export const TransactionsView: React.FC = () => {
       <div>
         <TransactionList 
           transactions={transactions as any}
-          selectedTransactionId={selectedTransactionId}
         />
       </div>
     </div>

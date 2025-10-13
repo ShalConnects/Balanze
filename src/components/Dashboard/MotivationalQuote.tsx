@@ -251,13 +251,12 @@ export const MotivationalQuote: React.FC = () => {
                   />
                 </button>
                 
-                <button
-                  onClick={() => navigate('/favorite-quotes')}
-                  className="p-1 rounded-full hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors group"
-                  title={`View all favorite quotes (${favoriteQuotes.length})`}
+                <div
+                  className="p-1 rounded-full cursor-not-allowed opacity-50"
+                  title="Demo mode - feature disabled"
                 >
-                  <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" />
-                </button>
+                  <ExternalLink className="w-4 h-4 text-gray-400" />
+                </div>
               </div>
             </div>
           </div>

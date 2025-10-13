@@ -172,7 +172,7 @@ const PublicArticlePage: React.FC = () => {
 
         {/* Main Content - KBArticlePage with consistent styling */}
         <div className="pt-16 bg-white dark:bg-gray-900 scroll-smooth font-manrope">
-          <div className="w-4/5 mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <KBArticlePage />
           </div>
         </div>
