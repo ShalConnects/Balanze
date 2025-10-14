@@ -4,6 +4,7 @@ import { useFinanceStore } from '../../store/useFinanceStore';
 import { Transaction } from '../../types';
 import { toast } from 'sonner';
 import { useLoadingContext } from '../../context/LoadingContext';
+import { useUpgradeModal } from '../../hooks/useUpgradeModal';
 import { validateTransaction, TRANSACTION_TYPES, COMMON_CATEGORIES, getTransactionTypeDisplayName } from '../../utils/transactionUtils';
 import { getDefaultAccountId } from '../../utils/defaultAccount';
 import DatePicker from 'react-datepicker';
@@ -24,6 +25,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
 }) => {
   const { addTransaction, updateTransaction, error, accounts, categories } = useFinanceStore();
   const { wrapAsync, setLoadingMessage, isLoading } = useLoadingContext();
+  const { handleDatabaseError } = useUpgradeModal();
 
   const [formData, setFormData] = useState({
     description: transaction?.description || '',
@@ -212,7 +214,26 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
         
         onClose();
       } catch (error) {
-
+        // Check if it's a plan limit error and show upgrade prompt
+        if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+          const errorMessage = error.message;
+          
+          if (errorMessage.includes('MONTHLY_TRANSACTION_LIMIT_EXCEEDED')) {
+            // Show toast and navigate to plans
+            const current = 25; // This would be the current count, but we'll use the limit for now
+            const limit = 25;
+            
+            toast.error(`Monthly transaction limit exceeded! You have ${current}/${limit} transactions this month. Upgrade to Premium for unlimited transactions.`);
+            setTimeout(() => {
+              window.location.href = '/settings?tab=plans';
+            }, 2000);
+            
+            // Also handle with upgrade modal
+            handleDatabaseError(error);
+            return;
+          }
+        }
+        
         toast.error('Failed to save transaction. Please try again.');
       } finally {
         // Loading handled by context

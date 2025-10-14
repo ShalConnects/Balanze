@@ -69,8 +69,8 @@ export const useUpgradeModal = () => {
 
   // Convenience methods for common scenarios
   const showAccountLimitModal = useCallback(() => {
-    const current = usageStats?.accounts.current || 5;
-    const limit = usageStats?.accounts.limit || 5;
+    const current = usageStats?.accounts.current || 3;
+    const limit = usageStats?.accounts.limit || 3;
     openUpgradeModal('limit', undefined, { current, limit, type: 'accounts' });
   }, [usageStats, openUpgradeModal]);
 

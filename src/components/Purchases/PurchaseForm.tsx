@@ -170,12 +170,12 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
-    
+
     if (!validateForm()) {
       toast.error('Please fix the errors in the form');
       return;
     }
-    
+
     await handleSubmit();
   };
 

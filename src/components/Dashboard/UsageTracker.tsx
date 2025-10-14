@@ -49,6 +49,7 @@ export const UsageTracker: React.FC = () => {
     loadUsageStats 
   } = usePlanFeatures();
 
+
   const getUsageColor = (percentage: number) => {
     if (percentage >= 90) return 'text-red-600 dark:text-red-400';
     if (percentage >= 75) return 'text-yellow-600 dark:text-yellow-400';

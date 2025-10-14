@@ -75,7 +75,7 @@ export class UrgentNotificationService {
         .from('notifications')
         .update({ deleted: true })
         .eq('user_id', userId)
-        .in('category', ['overdue', 'due_soon', 'upcoming']);
+        .in('type', ['urgent', 'reminder']);
     } catch (error) {
 
     }
@@ -118,7 +118,7 @@ export class UrgentNotificationService {
             .from('notifications')
             .update({ deleted: true })
             .eq('user_id', userId)
-            .eq('category', 'overdue');
+            .eq('type', 'urgent');
         }
       }
     } catch (error) {
@@ -177,13 +177,16 @@ export class UrgentNotificationService {
         }
       }
 
-      // Get planned purchases that are due soon
-      const { data: plannedPurchases, error: pError } = await supabase
-        .from('purchases')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('status', 'planned')
-        .not('planned_date', 'is', null);
+      // Get planned purchases that are due soon - TEMPORARILY DISABLED DUE TO DB ISSUES
+      // const { data: plannedPurchases, error: pError } = await supabase
+      //   .from('purchases')
+      //   .select('*')
+      //   .eq('user_id', userId)
+      //   .eq('status', 'planned')
+      //   .not('planned_date', 'is', null);
+      
+      const plannedPurchases = [];
+      const pError = null;
 
       if (pError) {
 

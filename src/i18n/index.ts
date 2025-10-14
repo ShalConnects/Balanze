@@ -26,7 +26,7 @@ i18n
   .init({
     resources,
     fallbackLng: 'en',
-    debug: true,
+    debug: false,
     interpolation: { escapeValue: false },
     detection: {
       order: ['localStorage', 'navigator', 'htmlTag'],
