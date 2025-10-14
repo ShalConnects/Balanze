@@ -121,6 +121,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     };
   }, [isMobile, isSidebarOpen]);
 
+  // Ensure mobile sidebar context flag is in sync with local sidebar state
+  // This prevents floating buttons from staying hidden due to a stale open flag
+  useEffect(() => {
+    if (!isSidebarOpen) {
+      setIsMobileSidebarOpen(false);
+    }
+  }, [isSidebarOpen, setIsMobileSidebarOpen]);
+
   return (
     <>
       <div className="h-screen bg-gray-50 dark:bg-gray-900 flex overflow-hidden relative z-0">

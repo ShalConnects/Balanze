@@ -229,7 +229,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     
     const { user } = useAuthStore.getState();
     if (!user) {
-      console.error('No user found');
+      // No user found
       return set({ loading: false, error: 'Not authenticated' });
     }
     
@@ -426,11 +426,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         const { dps_initial_balance: dpsInit, ...rest } = updates as any;
         dbUpdates = rest;
         dps_initial_balance = dpsInit;
-        console.log('🔥 UPDATE ACCOUNT DPS DEBUG 🔥');
-        console.log('DPS initial balance from form:', dps_initial_balance);
-        console.log('Current account has_dps:', currentAccount.has_dps);
-        console.log('Updates has_dps:', updates.has_dps);
-        console.log('🔥 END UPDATE DEBUG 🔥');
+        // DPS update debug info removed
       }
       // Use is_active for Supabase update
       const supabaseUpdates: any = { ...dbUpdates };
@@ -460,9 +456,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         
         // Check if a DPS savings account already exists
         if (currentAccount.dps_savings_account_id) {
-          console.log('🔥 UPDATING EXISTING DPS SAVINGS ACCOUNT 🔥');
-          console.log('DPS savings account ID:', currentAccount.dps_savings_account_id);
-          console.log('Setting initial_balance to:', dps_initial_balance);
+          // Updating existing DPS savings account
           
           // Delete all transactions for the DPS savings account
           await supabase
@@ -478,22 +472,11 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
             .select()
             .single();
           
-          console.log('DPS savings account update result:', { data: updatedDpsAccount, error: dpsUpdateError });
-          if (updatedDpsAccount) {
-            console.log('Updated DPS account initial_balance:', updatedDpsAccount.initial_balance);
-            console.log('Updated DPS account calculated_balance:', updatedDpsAccount.calculated_balance);
-          }
-          console.log('🔥 END UPDATE EXISTING DPS 🔥');
+          // DPS savings account update completed
           supabaseUpdates.dps_savings_account_id = currentAccount.dps_savings_account_id;
         } else {
           // Create a linked savings account with the correct initial_balance
-          console.log('🔥 CREATING NEW DPS SAVINGS ACCOUNT FOR EXISTING ACCOUNT 🔥');
-          console.log('Account name:', `${currentAccount.name} (DPS)`);
-          console.log('Type: savings');
-          console.log('Initial balance:', dps_initial_balance);
-          console.log('Currency:', currentAccount.currency);
-          console.log('User ID:', user.id);
-          console.log('🔥 END CREATE DEBUG 🔥');
+          // Creating new DPS savings account for existing account
           
           const { data: savingsAccount, error: savingsError } = await supabase
             .from('accounts')
@@ -509,14 +492,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
             .select()
             .single();
 
-          console.log('🔥 DPS SAVINGS ACCOUNT CREATION RESULT FOR EXISTING ACCOUNT 🔥');
-          console.log('Data:', savingsAccount);
-          console.log('Error:', savingsError);
-          if (savingsAccount) {
-            console.log('Created DPS account initial_balance:', savingsAccount.initial_balance);
-            console.log('Created DPS account calculated_balance:', savingsAccount.calculated_balance);
-          }
-          console.log('🔥 END CREATION RESULT 🔥');
+          // DPS savings account creation completed
           if (savingsError) throw savingsError;
 
           // Add the savings account ID to the updates
@@ -533,7 +509,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       if (error) throw error;
       await get().fetchAccounts();
       // Debug log after fetch
-      console.log('Accounts after DPS update:', get().accounts);
+      // Accounts updated after DPS changes
       set({ loading: false });
     } catch (err: any) {
       set({ error: err.message || 'Failed to update account', loading: false });
@@ -595,7 +571,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     
     const { user } = useAuthStore.getState();
     if (!user) {
-      console.error('No user found');
+      // No user found
       return set({ loading: false, error: 'Not authenticated' });
     }
     const { data, error } = await supabase
@@ -626,7 +602,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     const { transaction_id, ...transactionData } = transaction;
     const finalTransactionId = transaction_id || generateTransactionId();
     
-    console.log('Creating transaction with ID:', finalTransactionId);
+    // Creating transaction with generated ID
     
     const { data, error } = await supabase.from('transactions').insert({
       ...transactionData,
@@ -642,18 +618,11 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     // If this is an expense transaction with purchase details, create a purchase record
     if (transactionData.type === 'expense' && data?.id && purchaseDetails) {
       const purchaseCategories = get().purchaseCategories;
-      console.log('Checking purchase categories for transaction:', {
-        transactionCategory: transactionData.category,
-        availablePurchaseCategories: purchaseCategories.map(pc => pc.category_name),
-        totalPurchaseCategories: purchaseCategories.length,
-        hasPurchaseDetails: !!purchaseDetails
-      });
-      
+      // Checking if transaction category matches purchase categories
       const isPurchaseCategory = purchaseCategories.some(cat => cat.category_name === transactionData.category);
-      console.log('Is purchase category?', isPurchaseCategory);
       
       if (isPurchaseCategory) {
-        console.log('Creating purchase record for transaction:', data.id);
+        // Creating purchase record for transaction
         const account = get().accounts.find(a => a.id === transactionData.account_id);
         const purchaseData = {
           transaction_id: finalTransactionId, // Use the FF format transaction ID
@@ -668,14 +637,14 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           currency: account?.currency || 'USD'
         };
         
-        console.log('Purchase data to insert:', purchaseData);
+        // Purchase data prepared for insertion
         
         const { data: purchaseResult, error: purchaseError } = await supabase.from('purchases').insert(purchaseData).select('id').single();
         if (purchaseError) {
           console.error('Error creating purchase record:', purchaseError);
           // Don't fail the transaction if purchase creation fails
         } else {
-          console.log('Successfully created purchase record:', purchaseResult);
+          // Purchase record created successfully
           
           // Handle attachments if any
           if (purchaseResult?.id && purchaseDetails?.attachments.length) {
@@ -696,7 +665,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
                   };
                   const { error: insertError } = await supabase.from('purchase_attachments').insert(attachmentData);
                   if (insertError) {
-                    console.error('Attachment insert error:', insertError);
+                    // Attachment insert error
                   }
                 }
               }
@@ -877,7 +846,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     
     const { user } = useAuthStore.getState();
     if (!user) {
-      console.error('No user found');
+      // No user found
       return set({ loading: false, error: 'Not authenticated' });
     }
     
@@ -895,7 +864,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     
     // If no categories exist, initialize with default categories
     if (!data || data.length === 0) {
-      console.log('No categories found, initializing with defaults');
+      // No categories found, initializing with defaults
       const defaultCategoriesToInsert = defaultCategories.map(cat => ({
         name: cat.name,
         type: cat.type,
@@ -1244,7 +1213,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       
       const { user } = useAuthStore.getState();
       if (!user) {
-        console.error('No user found');
+        // No user found
         return set({ loading: false, error: 'Not authenticated' });
       }
       
@@ -1393,14 +1362,14 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   transferDPS: async ({ from_account_id, amount, transaction_id }: { from_account_id: string, amount: number, transaction_id?: string }) => {
     try {
       set({ loading: true, error: null });
-      console.log('Starting transferDPS with:', { from_account_id, amount });
+      // Starting DPS transfer
       
       const { user } = useAuthStore.getState();
       if (!user) throw new Error('Not authenticated');
 
       // Get the source account
       const sourceAccount = get().accounts.find(a => a.id === from_account_id);
-      console.log('Source account:', sourceAccount);
+      // Source account retrieved
       
       if (!sourceAccount) throw new Error('Source account not found');
       if (!sourceAccount.has_dps) throw new Error('Account does not have DPS enabled');
@@ -1408,12 +1377,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
       // Get the destination (savings) account
       const destAccount = get().accounts.find(a => a.id === sourceAccount.dps_savings_account_id);
-      console.log('Destination account:', destAccount);
+      // Destination account retrieved
       
       if (!destAccount) throw new Error('DPS savings account not found');
 
       // Create transaction records
-      console.log('Creating transaction records...');
+      // Creating transaction records
       const transferId = crypto.randomUUID();
       const now = new Date().toISOString();
       const finalTransactionId = transaction_id || generateTransactionId();
@@ -1434,7 +1403,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         });
 
       if (sourceTransactionError) {
-        console.error('Source transaction error:', sourceTransactionError);
+        // Source transaction error
         throw sourceTransactionError;
       }
 
@@ -1454,7 +1423,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         });
 
       if (destTransactionError) {
-        console.error('Destination transaction error:', destTransactionError);
+        // Destination transaction error
         // Rollback the source transaction
         await supabase
           .from('transactions')
@@ -1464,7 +1433,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       }
 
       // Create DPS transfer record
-      console.log('Creating DPS transfer record...');
+      // Creating DPS transfer record
       const { error: dpsError } = await supabase
         .from('dps_transfers')
         .insert({
@@ -1477,7 +1446,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         });
 
       if (dpsError) {
-        console.error('DPS transfer record error:', dpsError);
+        // DPS transfer record error
         // Rollback the transactions
         await supabase
           .from('transactions')
@@ -1487,12 +1456,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       }
 
       // Refresh the data
-      console.log('Refreshing accounts and transactions...');
+      // Refreshing accounts and transactions
       await Promise.all([
         get().fetchAccounts(),
         get().fetchTransactions()
       ]);
-      console.log('DPS transfer completed successfully');
+      // DPS transfer completed successfully
       set({ loading: false });
     } catch (err: any) {
       console.error('DPS transfer failed:', err);
@@ -1610,7 +1579,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     
     const { user } = useAuthStore.getState();
     if (!user) {
-      console.error('No user found');
+      // No user found
       return set({ loading: false, error: 'Not authenticated' });
     }
     
@@ -1626,7 +1595,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       return set({ loading: false, error: errorMessage });
     }
 
-    // console.log('Purchase categories data:', data); // Removed to prevent console flood
+    // Purchase categories data loaded
     set({ purchaseCategories: data || [], loading: false });
   },
 
@@ -1849,7 +1818,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       // Add a flag to prevent multiple simultaneous calls
       const currentState = get();
       if (currentState.loading) {
-        console.log('fetchAllData already in progress, skipping...');
+        // fetchAllData already in progress, skipping
         return;
       }
       
@@ -1978,7 +1947,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         const { createShortUrl } = await import('../utils/urlShortener');
         shortUrl = await createShortUrl(urlData.publicUrl, file.name, purchaseId);
       } catch (shortUrlError) {
-        console.warn('Failed to create short URL, using original URL:', shortUrlError);
+        // Failed to create short URL, using original URL
       }
       
       // Create attachment record in database
@@ -2065,7 +2034,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       
       const { user } = useAuthStore.getState();
       if (!user) {
-        console.error('No user found');
+        // No user found
         return set({ loading: false, error: 'Not authenticated' });
       }
       
@@ -2266,7 +2235,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       
       const { user } = useAuthStore.getState();
       if (!user) {
-        console.error('No user found');
+        // No user found
         return set({ loading: false, error: 'Not authenticated' });
       }
       

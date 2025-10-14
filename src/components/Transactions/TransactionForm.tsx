@@ -1,18 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Plus, AlertCircle, DollarSign, Calendar, Tag, CreditCard, TrendingUp, TrendingDown, Loader2, HelpCircle } from 'lucide-react';
+import { X, AlertCircle, HelpCircle } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
-import { useCallback } from 'react';
-import { createNotification } from '../../lib/notifications';
 import { useAuthStore } from '../../store/authStore';
-import { Transaction, Account, Category } from '../../types/index';
+import { Transaction } from '../../types/index';
 import { PurchaseAttachment } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { showToast } from '../../lib/toast';
-import { useNotificationsStore } from '../../stores/notificationsStore';
 import { logTransactionEvent } from '../../lib/auditLogging';
 import { PurchaseDetailsSection } from './PurchaseDetailsSection';
-import { generateTransactionId, createSuccessMessage } from '../../utils/transactionId';
-import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
+import { generateTransactionId } from '../../utils/transactionId';
+import { getCurrencySymbol } from '../../utils/currency';
 import { getDefaultAccountId } from '../../utils/defaultAccount';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import DatePicker from 'react-datepicker';
@@ -21,6 +18,7 @@ import { parseISO, format } from 'date-fns';
 import { CategoryModal } from '../common/CategoryModal';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getFilteredCategoriesForTransaction } from '../../utils/categoryFiltering';
+import { useDescriptionSuggestions } from '../../hooks/useDescriptionSuggestions';
 
 interface TransactionFormProps {
   accountId?: string;
@@ -35,16 +33,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const purchaseCategories = useFinanceStore(state => state.purchaseCategories);
   const addTransaction = useFinanceStore(state => state.addTransaction);
   const updateTransaction = useFinanceStore(state => state.updateTransaction);
-  const loading = useFinanceStore(state => state.loading);
-  const error = useFinanceStore(state => state.error);
   const addPurchaseCategory = useFinanceStore(state => state.addPurchaseCategory);
-  const addAccount = useFinanceStore(state => state.addAccount);
   const fetchAccounts = useFinanceStore(state => state.fetchAccounts);
   const addCategory = useFinanceStore(state => state.addCategory);
   const purchases = useFinanceStore(state => state.purchases);
 
   const { user } = useAuthStore();
-  const { fetchNotifications } = useNotificationsStore();
   const { wrapAsync, setLoadingMessage, isLoading } = useLoadingContext();
   const isEditMode = !!transactionToEdit;
 
@@ -108,6 +102,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   // Add refs for auto-focus and clear input
   const amountRef = useRef<HTMLInputElement | null>(null);
   const descriptionRef = useRef<HTMLInputElement | null>(null);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const descriptionSuggestions = useDescriptionSuggestions(data.description, 8);
 
   // Add isFormValid variable after data and errors are defined - memoized to prevent infinite re-renders
   const isFormValid = React.useMemo(() => 
@@ -378,7 +375,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         throw new Error('User not authenticated');
       }
 
-      const { data: newCashAccount, error } = await supabase
+      const { error } = await supabase
         .from('accounts')
         .insert([{
           name: 'Cash Wallet',
@@ -479,15 +476,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       
       if (inserts.length > 0) {
 
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('donation_saving_records')
           .insert(inserts)
           .select();
         if (error) {
-
-
-        } else {
-
+          // Error saving donation records
         }
       } else {
 
@@ -937,12 +931,75 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 name="description"
                 value={data.description}
                 ref={descriptionRef}
-                onChange={(e) => setData({ ...data, description: e.target.value })}
+                onChange={(e) => {
+                  setData({ ...data, description: e.target.value });
+                  setIsSuggestionsOpen(true);
+                  setHighlightedIndex(-1);
+                }}
+                onKeyDown={(e) => {
+                  if (!isSuggestionsOpen || descriptionSuggestions.length === 0) return;
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setHighlightedIndex((prev) => Math.min(prev + 1, descriptionSuggestions.length - 1));
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setHighlightedIndex((prev) => Math.max(prev - 1, 0));
+                  } else if (e.key === 'Enter') {
+                    if (highlightedIndex >= 0) {
+                      e.preventDefault();
+                      const value = descriptionSuggestions[highlightedIndex];
+                      setData({ ...data, description: value });
+                      setIsSuggestionsOpen(false);
+                      setHighlightedIndex(-1);
+                    }
+                  } else if (e.key === 'Escape') {
+                    setIsSuggestionsOpen(false);
+                    setHighlightedIndex(-1);
+                  }
+                }}
                 onBlur={handleBlur}
                 className={`${getInputClasses('description')} pr-8`}
                 placeholder="Enter name or title"
                 autoComplete="off"
               />
+              {isSuggestionsOpen && descriptionSuggestions.length > 0 && data.description.trim().length > 0 && (
+                <ul
+                  role="listbox"
+                  className="absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-auto border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 shadow-sm"
+                >
+                  {descriptionSuggestions.map((s, idx) => (
+                    <li
+                      key={`${s}-${idx}`}
+                      role="option"
+                      aria-selected={idx === highlightedIndex}
+                      className={`px-3 py-2 cursor-pointer text-sm ${idx === highlightedIndex ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setData({ ...data, description: s });
+                        setIsSuggestionsOpen(false);
+                        setHighlightedIndex(-1);
+                      }}
+                      onMouseEnter={() => setHighlightedIndex(idx)}
+                    >
+                      {(() => {
+                        const q = (data.description || '').trim();
+                        const i = s.toLowerCase().indexOf(q.toLowerCase());
+                        if (i < 0) return s;
+                        const before = s.slice(0, i);
+                        const match = s.slice(i, i + q.length);
+                        const after = s.slice(i + q.length);
+                        return (
+                          <span>
+                            {before}
+                            <span className="font-semibold text-blue-700 dark:text-blue-300">{match}</span>
+                            {after}
+                          </span>
+                        );
+                      })()}
+                    </li>
+                  ))}
+                </ul>
+              )}
               {data.description && (
                 <button
                   type="button"
@@ -1168,13 +1225,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               color: values.category_color || '#10B981',
               icon: '',
               description: values.description,
-              currency: values.currency,
+              currency: values.currency || 'USD',
             });
             setData({ ...data, category: values.category_name });
           } else {
             await addPurchaseCategory({
               ...values,
-              currency: values.currency,
+              currency: values.currency || 'USD',
               monthly_budget: values.monthly_budget ?? 0,
               category_color: values.category_color || '#3B82F6',
             });

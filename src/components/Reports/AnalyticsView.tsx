@@ -436,7 +436,12 @@ export const AnalyticsView: React.FC = () => {
   const SpendingByCategoryDonut: React.FC = () => {
     // Calculate spending by category for the selected currency
     const categorySpending = currencyTransactions
-      .filter(t => t.type === 'expense')
+      .filter(t => {
+        const isExpense = t.type === 'expense';
+        const isTransferTag = t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
+        const isTransferCategory = (t.category || '').toLowerCase() === 'transfer';
+        return isExpense && !isTransferTag && !isTransferCategory;
+      })
       .reduce((acc, transaction) => {
         const category = transaction.category || 'Uncategorized';
         if (!acc[category]) {
