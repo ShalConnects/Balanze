@@ -39,27 +39,17 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   // Sync route with currentView and close mobile sidebar on navigation
   useEffect(() => {
     const pathParts = location.pathname.split('/');
-    console.log('Route sync - Current location:', location.pathname);
-    console.log('Route sync - Path parts:', pathParts);
     
     // Now the path will be directly like /accounts, /transactions, etc.
     let view = 'dashboard';
     if (pathParts[1] && pathParts[1] !== '') {
       view = pathParts[1];
     }
-    console.log('Route sync - Setting current view to:', view);
     setCurrentView(view);
   }, [location]);
 
   // Close mobile sidebar on navigation
   useEffect(() => {
-    console.log('Navigation effect triggered:', {
-      isInitialLoad: isInitialLoad.current,
-      previousPathname: previousPathname.current,
-      currentPathname: location.pathname,
-      isMobile,
-      isSidebarOpen
-    });
     
     // Skip on initial load
     if (isInitialLoad.current) {
@@ -70,7 +60,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     
     // Close sidebar if pathname changed and we're on mobile
     if (previousPathname.current !== location.pathname && isMobile) {
-      console.log('Closing mobile sidebar due to navigation');
       setIsSidebarOpen(false);
       setIsMobileSidebarOpen(false);
     }
@@ -89,15 +78,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   // Update route when currentView changes
   const handleViewChange = (view: string) => {
-    console.log('handleViewChange called with:', view);
     
     // When we're inside the Dashboard component, the path will be /accounts
     // instead of /dashboard/accounts
     if (view === 'dashboard') {
-      console.log('Navigating to /');
       navigate('/');
     } else {
-      console.log('Navigating to:', `/${view}`);
       navigate(`/${view}`);
     }
   };

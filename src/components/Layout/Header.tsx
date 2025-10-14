@@ -75,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
       toast.success('Data refreshed successfully');
       triggerHapticFeedback('success');
     } catch (error) {
-      console.error('Error refreshing data:', error);
+
       toast.error('Failed to refresh data');
       triggerHapticFeedback('error');
     } finally {
@@ -198,7 +198,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
       await signOut();
       navigate('/login');
     } catch (error) {
-      console.error('Logout error:', error);
+
     }
   };
 
@@ -496,3 +496,4 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
     </>
   );
 };
+

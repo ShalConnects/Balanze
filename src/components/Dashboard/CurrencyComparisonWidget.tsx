@@ -227,3 +227,4 @@ export const CurrencyComparisonWidget: React.FC<CurrencyComparisonWidgetProps> =
     </div>
   );
 }; 
+

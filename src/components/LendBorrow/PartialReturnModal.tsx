@@ -52,7 +52,7 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
       if (error) throw error;
       setReturnHistory(data || []);
     } catch (error) {
-      console.error('Error fetching return history:', error);
+
     }
   };
 
@@ -117,7 +117,7 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
         .select()
         .single();
       if (updateError) {
-        console.error('Error updating lend_borrow status:', updateError);
+
       }
       toast.success(`Partial return of ${amount.toFixed(2)} ${record.currency} recorded successfully!`);
       const updatedRecord = {
@@ -133,7 +133,7 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
       setAmount(0);
       setReturnDate(new Date());
     } catch (error) {
-      console.error('Error recording partial return:', error);
+
       setError('An unexpected error occurred');
       toast.error('An unexpected error occurred');
       setLoading(false);
@@ -300,3 +300,4 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
     </>
   );
 }; 
+

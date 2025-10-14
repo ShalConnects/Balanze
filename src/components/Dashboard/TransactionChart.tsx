@@ -105,3 +105,4 @@ export const TransactionChart: React.FC<TransactionChartProps> = ({ selectedCurr
     </div>
   );
 };
+

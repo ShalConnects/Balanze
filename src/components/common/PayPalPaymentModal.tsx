@@ -40,7 +40,7 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
       await initializePayPal();
       setPaypalLoaded(true);
     } catch (err) {
-      console.error('Failed to load PayPal:', err);
+
       setError('Failed to load payment system. Please refresh and try again.');
     }
   };
@@ -89,7 +89,7 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
                 throw new Error('Payment verification failed');
               }
             } catch (err) {
-              console.error('Payment error:', err);
+
               setError('Payment failed. Please try again.');
               toast.error('Payment failed. Please try again.');
             } finally {
@@ -97,7 +97,7 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
             }
           },
           onError: (err: any) => {
-            console.error('PayPal error:', err);
+
             setError('Payment failed. Please try again.');
             toast.error('Payment failed. Please try again.');
             setLoading(false);
@@ -109,7 +109,7 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
         }).render('#paypal-button-container');
       }
     } catch (err) {
-      console.error('Payment error:', err);
+
       setError('Failed to initiate payment. Please try again.');
       toast.error('Payment failed. Please try again.');
     } finally {
@@ -243,3 +243,4 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
     </div>
   );
 }; 
+

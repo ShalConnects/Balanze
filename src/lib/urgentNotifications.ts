@@ -58,7 +58,7 @@ export class UrgentNotificationService {
       }
       
     } catch (error) {
-      console.error('❌ Error checking urgent notifications:', error);
+
     }
   }
 
@@ -77,7 +77,7 @@ export class UrgentNotificationService {
         .eq('user_id', userId)
         .in('category', ['overdue', 'due_soon', 'upcoming']);
     } catch (error) {
-      console.error('Error clearing all urgent notifications:', error);
+
     }
   }
 
@@ -92,7 +92,7 @@ export class UrgentNotificationService {
         .not('status', 'eq', 'overdue');
 
       if (lbError) {
-        console.error('Error fetching inactive lend/borrow records:', lbError);
+
       }
 
       // Get all purchases that are no longer planned
@@ -103,7 +103,7 @@ export class UrgentNotificationService {
         .not('status', 'eq', 'planned');
 
       if (pError) {
-        console.error('Error fetching completed purchases:', pError);
+
       }
 
       // Clear notifications for inactive items
@@ -122,7 +122,7 @@ export class UrgentNotificationService {
         }
       }
     } catch (error) {
-      console.error('Error clearing old urgent notifications:', error);
+
     }
   }
 
@@ -141,7 +141,7 @@ export class UrgentNotificationService {
         .in('status', ['active', 'overdue']);
 
       if (lbError) {
-        console.error('❌ Error fetching lend/borrow records:', lbError);
+
       } else if (lendBorrowRecords) {
         for (const record of lendBorrowRecords) {
           const dueDate = new Date(record.due_date);
@@ -186,7 +186,7 @@ export class UrgentNotificationService {
         .not('planned_date', 'is', null);
 
       if (pError) {
-        console.error('Error fetching planned purchases:', pError);
+
       } else if (plannedPurchases) {
         for (const purchase of plannedPurchases) {
           const dueDate = new Date(purchase.planned_date);
@@ -221,7 +221,7 @@ export class UrgentNotificationService {
         }
       }
     } catch (error) {
-      console.error('Error getting urgent items:', error);
+
     }
 
     // Sort by priority and days until due
@@ -248,7 +248,7 @@ export class UrgentNotificationService {
       .is('deleted', false);
 
     if (error) {
-      console.error('Error checking for existing urgent notifications:', error);
+
       return;
     }
 
@@ -317,7 +317,7 @@ export class UrgentNotificationService {
         .lt('due_date', todayString);
 
       if (fetchError) {
-        console.error('Error fetching overdue records:', fetchError);
+
         return;
       }
 
@@ -333,15 +333,16 @@ export class UrgentNotificationService {
           .upsert(updates, { onConflict: 'id' });
 
         if (updateError) {
-          console.error('Error updating overdue status:', updateError);
+
         } else {
         }
       }
     } catch (error) {
-      console.error('Error in updateOverdueStatus:', error);
+
     }
   }
 }
 
 // Export singleton instance
 export const urgentNotificationService = UrgentNotificationService.getInstance();
+

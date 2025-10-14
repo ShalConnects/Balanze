@@ -36,10 +36,10 @@ export const AccountsView: React.FC = () => {
   // Handle URL parameter for selected account
   useEffect(() => {
     const selectedAccountId = searchParams.get('selected');
-    console.log('AccountsView: URL parameter check:', { selectedAccountId, accountsLength: accounts.length });
+
     if (selectedAccountId) {
       const account = accounts.find(a => a.id === selectedAccountId);
-      console.log('AccountsView: Found account:', account);
+
       if (account) {
         setSelectedAccount(account);
         // Clear the URL parameter after setting the account
@@ -47,7 +47,7 @@ export const AccountsView: React.FC = () => {
         // Scroll to the account after a short delay
         setTimeout(() => {
           const element = document.getElementById(`account-${selectedAccountId}`);
-          console.log('AccountsView: Looking for element:', `account-${selectedAccountId}`, element);
+
           if (element) {
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             element.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
@@ -289,8 +289,8 @@ export const AccountsView: React.FC = () => {
   const totalBalance = accounts.reduce((sum, account) => sum + account.calculated_balance, 0);
 
   // Debug DPS accounts
-  console.log('All accounts:', accounts);
-  console.log('DPS accounts:', accounts.filter(a => a.has_dps));
+
+
   console.log('Account with DPS details:', accounts.filter(a => a.has_dps).map(a => ({
     name: a.name,
     has_dps: a.has_dps,
@@ -529,7 +529,7 @@ export const AccountsView: React.FC = () => {
         toast.success('DPS account deleted and balance moved to Cash Wallet');
       }
     } catch (error) {
-      console.error('Error deleting DPS:', error);
+
       toast.error('Failed to delete DPS account');
     }
     
@@ -1961,3 +1961,4 @@ export const AccountsView: React.FC = () => {
     </>
   );
 };
+

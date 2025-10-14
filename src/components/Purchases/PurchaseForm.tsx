@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, AlertCircle, Loader2 } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 import { CustomDropdown } from './CustomDropdown';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { parseISO } from 'date-fns';
-import { Purchase, PurchaseAttachment, PurchaseCategory } from '../../types';
+import { Purchase, PurchaseAttachment } from '../../types';
 import { PurchaseDetailsSection } from '../Transactions/PurchaseDetailsSection';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
@@ -57,22 +57,12 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   const [excludeFromCalculation, setExcludeFromCalculation] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
-  const [formSubmitted, setFormSubmitted] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [newCategory, setNewCategory] = useState({
-    category_name: '',
-    description: '',
-    monthly_budget: 0,
-    currency: 'USD',
-    category_color: '#3B82F6'
-  });
   const itemNameRef = useRef<HTMLInputElement>(null);
 
   // Autofocus on first field when modal opens
   useEffect(() => {
-    // console.log('PurchaseForm: useEffect triggered, isOpen =', isOpen);
     if (isOpen) {
-      console.log('PurchaseForm: Form is opening, editingPurchase =', editingPurchase);
       setTimeout(() => itemNameRef.current?.focus(), 100);
     }
   }, [isOpen]);
@@ -151,15 +141,6 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   };
 
   const isFormValid = () => {
-    console.log('isFormValid called with:', {
-      item_name: formData.item_name,
-      category: formData.category,
-      status: formData.status,
-      purchase_date: formData.purchase_date,
-      price: formData.price,
-      selectedAccountId: selectedAccountId
-    });
-    
     // Check if all required fields are filled
     const hasRequiredFields = 
       formData.item_name && 
@@ -168,17 +149,9 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
       formData.status && 
       formData.purchase_date;
     
-    console.log('hasRequiredFields:', hasRequiredFields);
-    
     // For planned purchases, require price as well
     if (formData.status === 'planned') {
       const isValid = hasRequiredFields && formData.price && !isNaN(Number(formData.price)) && Number(formData.price) > 0;
-      console.log('Planned purchase validation:', {
-        hasRequiredFields,
-        hasPrice: formData.price,
-        isPriceValid: formData.price && !isNaN(Number(formData.price)) && Number(formData.price) > 0,
-        isValid
-      });
       return isValid;
     }
     
@@ -198,27 +171,20 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     e.preventDefault();
     if (isLoading) return;
     
-    console.log('PurchaseForm: handleFormSubmit called, isLoading:', isLoading);
-    console.log('PurchaseForm: editingPurchase =', editingPurchase);
-    
-    console.log('PurchaseForm: Form validation result:', validateForm());
     if (!validateForm()) {
       toast.error('Please fix the errors in the form');
       return;
     }
     
-    console.log('PurchaseForm: calling handleSubmit');
     await handleSubmit();
   };
 
   const handleSubmit = wrapAsync(async () => {
     if (isLoading) return;
     
-    console.log('PurchaseForm: handleSubmit called, isLoading:', isLoading);
-    
     // Set loading message
     setLoadingMessage(editingPurchase ? 'Updating purchase...' : 'Saving purchase...');
-    console.log('PurchaseForm: Loading message set to:', editingPurchase ? 'Updating purchase...' : 'Saving purchase...');
+
     
     try {
         if (editingPurchase) {
@@ -253,7 +219,6 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                   .upload(`purchases/${editingPurchase.id}/${att.file_name}`, att.file, { upsert: true });
                 
                 if (uploadError) {
-                  console.error('Upload error:', uploadError);
                   continue;
                 }
                 
@@ -271,7 +236,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                   };
                   const { error: insertError } = await supabase.from('purchase_attachments').insert(attachmentData);
                   if (insertError) {
-                    console.error('Attachment insert error:', insertError);
+                    // Handle error silently
                   }
                 }
               }
@@ -350,7 +315,6 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                 .single();
               
               if (purchaseError) {
-                console.error('Purchase insert error:', purchaseError);
                 toast.error('Failed to add purchase. Please try again.');
                 return;
               }
@@ -364,7 +328,6 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                       .upload(`purchases/${newPurchase.id}/${att.file_name}`, att.file, { upsert: true });
                     
                     if (uploadError) {
-                      console.error('Upload error:', uploadError);
                       continue;
                     }
                     
@@ -382,7 +345,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                       };
                       const { error: insertError } = await supabase.from('purchase_attachments').insert(attachmentData);
                       if (insertError) {
-                        console.error('Attachment insert error:', insertError);
+                        // Handle error silently
                       }
                     }
                   }
@@ -434,7 +397,6 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
         setPurchaseAttachments([]);
         setFieldErrors({});
         setTouched({});
-        setFormSubmitted(false);
         setEditingPurchase(null);
         setExcludeFromCalculation(false);
         
@@ -442,14 +404,13 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
         await new Promise(resolve => setTimeout(resolve, 1000));
         onClose();
       } catch (error) {
-        console.error('Error submitting purchase:', error);
         toast.error('Failed to save purchase. Please try again.');
       } finally {
+        // Cleanup
       }
   });
 
   // Don't render if not open
-  // console.log('PurchaseForm: Rendering, isOpen =', isOpen, 'isLoading =', isLoading);
   if (!isOpen) return null;
 
   return (
@@ -809,8 +770,11 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
       <CategoryModal
         open={showCategoryModal}
         initialValues={{
-          ...newCategory,
-          currency: (excludeFromCalculation ? formData.currency : accounts.find(a => a.id === selectedAccountId)?.currency) || newCategory.currency || 'USD'
+          category_name: '',
+          description: '',
+          monthly_budget: 0,
+          currency: (excludeFromCalculation ? formData.currency : accounts.find(a => a.id === selectedAccountId)?.currency) || 'USD',
+          category_color: '#3B82F6'
         }}
         isEdit={false}
         onSave={async (values) => {
@@ -832,3 +796,4 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     </>
   );
 }; 
+

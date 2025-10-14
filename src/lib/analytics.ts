@@ -14,7 +14,7 @@ export function track(eventName: string, payload: Record<string, any> = {}) {
   
   // Development logging
   if (import.meta.env.DEV) {
-    console.info('[track]', eventName, payload);
+
   }
 }
 
@@ -44,3 +44,4 @@ export function trackFeatureUsage(feature: string, action: string = 'use') {
     timestamp: new Date().toISOString()
   });
 }
+

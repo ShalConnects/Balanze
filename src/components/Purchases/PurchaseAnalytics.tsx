@@ -517,3 +517,4 @@ export const PurchaseAnalytics: React.FC = () => {
     </div>
   );
 }; 
+

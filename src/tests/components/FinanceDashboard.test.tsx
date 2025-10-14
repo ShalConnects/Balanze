@@ -350,3 +350,4 @@ describe('FinanceDashboard WCAG Compliance', () => {
     });
   });
 });
+

@@ -23,8 +23,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('Starting Last Wish service...');
-    
     // Check for overdue users
     let overdueUsers = [];
     
@@ -41,8 +39,6 @@ export default async function handler(req, res) {
         overdueUsers = [data];
       }
     } catch (rpcError) {
-      console.log(`RPC function failed, trying direct query: ${rpcError.message}`);
-      
       // Fallback to direct query
       const { data: directData, error: directError } = await supabase
         .from('last_wish_settings')
@@ -76,14 +72,10 @@ export default async function handler(req, res) {
         }));
     }
 
-    console.log(`Found ${overdueUsers.length} overdue users`);
-
     // Process overdue users and send emails
     const emailResults = [];
     
     for (const user of overdueUsers) {
-      console.log(`Processing overdue user: ${user.email} (${user.days_overdue} days overdue)`);
-      
       try {
         // Import the email sending function from the API
         const { default: sendLastWishEmailHandler } = await import('./send-last-wish-email.js');
@@ -112,7 +104,6 @@ export default async function handler(req, res) {
         await sendLastWishEmailHandler(mockReq, mockRes);
         
         if (emailResult && emailResult.success) {
-          console.log(`✅ Email sent successfully for user ${user.user_id}`);
           emailResults.push({
             user_id: user.user_id,
             success: true,
@@ -125,7 +116,6 @@ export default async function handler(req, res) {
             .update({ delivery_triggered: true })
             .eq('user_id', user.user_id);
         } else {
-          console.error(`❌ Email failed for user ${user.user_id}:`, emailResult?.error);
           emailResults.push({
             user_id: user.user_id,
             success: false,
@@ -134,7 +124,6 @@ export default async function handler(req, res) {
         }
         
       } catch (emailError) {
-        console.error(`❌ Error sending email for user ${user.user_id}:`, emailError);
         emailResults.push({
           user_id: user.user_id,
           success: false,
@@ -145,8 +134,6 @@ export default async function handler(req, res) {
 
     const successfulEmails = emailResults.filter(r => r.success).length;
     const failedEmails = emailResults.filter(r => !r.success).length;
-    
-    console.log(`Service completed. Processed ${overdueUsers.length} users. Emails: ${successfulEmails} successful, ${failedEmails} failed.`);
     
     res.status(200).json({ 
       success: true, 
@@ -159,7 +146,6 @@ export default async function handler(req, res) {
       emailResults: emailResults
     });
   } catch (error) {
-    console.error(`Service failed: ${error.message}`);
     res.status(500).json({ 
       success: false, 
       error: error.message,

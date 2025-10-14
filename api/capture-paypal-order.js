@@ -62,7 +62,6 @@ export default async function handler(req, res) {
       throw new Error('Payment was not completed');
     }
   } catch (error) {
-    console.error('Error capturing PayPal payment:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to capture PayPal payment' 

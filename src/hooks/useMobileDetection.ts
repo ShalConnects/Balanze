@@ -20,3 +20,4 @@ export const useMobileDetection = () => {
 
   return { isMobile, isVerySmall };
 }; 
+

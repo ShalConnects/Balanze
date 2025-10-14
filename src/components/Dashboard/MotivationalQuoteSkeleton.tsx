@@ -46,3 +46,4 @@ export const MotivationalQuoteSkeleton: React.FC = () => {
     </div>
   );
 }; 
+

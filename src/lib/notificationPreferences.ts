@@ -60,7 +60,7 @@ export class NotificationPreferencesService {
 
   async getPreferences(userId: string): Promise<NotificationPreferences> {
     try {
-      console.log('Fetching preferences for user:', userId);
+
       
       const { data, error } = await supabase
         .from('notification_preferences')
@@ -69,20 +69,20 @@ export class NotificationPreferencesService {
         .eq('preference_key', 'notification_settings')
         .single();
 
-      console.log('Fetch result:', { data, error });
+
 
       if (error) {
         if (error.code === 'PGRST116') {
           // No rows returned - create default preferences
-          console.log('No preferences found, creating defaults');
+
           await this.savePreferences(userId, defaultPreferences);
           return defaultPreferences;
         } else if (error.code === '42P01') {
           // Table doesn't exist
-          console.error('Table notification_preferences does not exist');
+
           return defaultPreferences;
         } else {
-          console.error('Error fetching notification preferences:', error);
+
           return defaultPreferences;
         }
       }
@@ -95,37 +95,37 @@ export class NotificationPreferencesService {
 
       return { ...defaultPreferences, ...data.preference_value };
     } catch (error) {
-      console.error('Error fetching notification preferences:', error);
+
       return defaultPreferences;
     }
   }
 
   async savePreferences(userId: string, preferences: NotificationPreferences): Promise<boolean> {
     try {
-      console.log('💾 [NotificationPreferencesService] Saving preferences for user:', userId);
-      console.log('💾 [NotificationPreferencesService] Preferences to save:', preferences);
+
+
       
       // Check if user is authenticated
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      console.log('🔐 [NotificationPreferencesService] Session check:', { session: !!session, error: sessionError });
+
       
       if (sessionError) {
-        console.error('❌ [NotificationPreferencesService] Session error:', sessionError);
+
         return false;
       }
       
       if (!session) {
-        console.error('❌ [NotificationPreferencesService] No active session. User must be logged in to save preferences.');
+
         return false;
       }
       
       if (session.user.id !== userId) {
-        console.error('❌ [NotificationPreferencesService] User ID mismatch. Session user:', session.user.id, 'Requested user:', userId);
+
         return false;
       }
       
       // Try to save preferences with proper upsert configuration
-      console.log('💾 [NotificationPreferencesService] Attempting database upsert...');
+
       const { error } = await supabase
         .from('notification_preferences')
         .upsert({
@@ -136,19 +136,19 @@ export class NotificationPreferencesService {
           onConflict: 'user_id,preference_key'
         });
 
-      console.log('💾 [NotificationPreferencesService] Database upsert result:', { error });
+
 
       if (error) {
-        console.error('❌ [NotificationPreferencesService] Error saving notification preferences:', error);
+
         if (error.code === '42P01') {
-          console.error('Table notification_preferences does not exist. Please run the database migration.');
+
         } else if (error.code === '42501') {
-          console.error('Row Level Security policy violation. User may not be properly authenticated.');
+
           // Try to refresh the session and retry once
-          console.log('Attempting to refresh session and retry...');
+
           const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
           if (refreshError) {
-            console.error('Failed to refresh session:', refreshError);
+
             return false;
           }
           
@@ -164,14 +164,14 @@ export class NotificationPreferencesService {
             });
           
           if (retryError) {
-            console.error('Retry failed:', retryError);
+
             return false;
           }
           
-          console.log('Preferences saved successfully after session refresh');
+
           return true;
         } else if (error.code === '409' || error.code === '23505') {
-          console.error('Conflict error - trying alternative approach with explicit update');
+
           // Try to update existing record first, then insert if not found
           const { error: updateError } = await supabase
             .from('notification_preferences')
@@ -193,21 +193,21 @@ export class NotificationPreferencesService {
               });
             
             if (insertError) {
-              console.error('Both update and insert failed:', insertError);
+
               return false;
             }
           }
           
-          console.log('Preferences saved successfully using alternative approach');
+
           return true;
         }
         return false;
       }
 
-      console.log('✅ [NotificationPreferencesService] Preferences saved successfully');
+
       return true;
     } catch (error) {
-      console.error('Error saving notification preferences:', error);
+
       return false;
     }
   }
@@ -230,7 +230,7 @@ export class NotificationPreferencesService {
 
       return await this.savePreferences(userId, updatedPreferences);
     } catch (error) {
-      console.error('Error updating notification preference:', error);
+
       return false;
     }
   }
@@ -258,7 +258,7 @@ export class NotificationPreferencesService {
         // Map notification categories to preference structure
         const categoryMapping = this.mapNotificationCategoryToPreference(notificationCategory);
         if (!categoryMapping) {
-          console.warn(`Unknown notification category: ${notificationCategory}`);
+
           return true; // Default to allowing unknown categories
         }
         
@@ -266,7 +266,7 @@ export class NotificationPreferencesService {
         const categoryPrefs = preferences[category] as any;
         return categoryPrefs && categoryPrefs[prefKey] === true;
       } catch (error) {
-        console.error('Error checking notification preferences:', error);
+
         return true; // Default to allowing notifications on error
       }
     } else {
@@ -300,3 +300,4 @@ export class NotificationPreferencesService {
 }
 
 export const notificationPreferencesService = NotificationPreferencesService.getInstance();
+

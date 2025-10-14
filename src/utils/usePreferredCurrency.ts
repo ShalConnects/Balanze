@@ -12,3 +12,4 @@ export const usePreferredCurrency = () => {
     isDefaultCurrency: !profile?.local_currency || profile.local_currency === 'USD'
   };
 }; 
+

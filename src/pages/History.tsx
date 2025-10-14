@@ -139,7 +139,7 @@ export const History: React.FC = () => {
         calculateStatistics(uniqueLogs);
       }
     } catch (error) {
-      console.error('Error fetching logs:', error);
+
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -248,7 +248,7 @@ export const History: React.FC = () => {
     try {
       await navigator.clipboard.writeText(entityId);
     } catch (err) {
-      console.error('Failed to copy entity ID:', err);
+
     }
   };
 
@@ -507,3 +507,4 @@ export const History: React.FC = () => {
     </div>
   );
 }; 
+

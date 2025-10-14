@@ -34,7 +34,7 @@ export const filterPurchaseCategoriesByCurrency = (
  * @returns Sorted categories
  */
 export const sortCategoriesByCurrency = (categories: Category[]): Category[] => {
-  console.log('🔍 Sorting categories:', categories.map(c => ({ name: c.name, currency: c.currency || 'USD' })));
+
   
   const sorted = [...categories].sort((a, b) => {
     // First sort by currency
@@ -49,14 +49,14 @@ export const sortCategoriesByCurrency = (categories: Category[]): Category[] => 
     return a.name.localeCompare(b.name);
   });
   
-  console.log('✅ Sorted categories:', sorted.map(c => ({ name: c.name, currency: c.currency || 'USD' })));
+
   
   // Check if all currencies are the same
   const currencies = [...new Set(sorted.map(c => c.currency || 'USD'))];
-  console.log('💰 Unique currencies found:', currencies);
+
   
   if (currencies.length === 1) {
-    console.log('⚠️  All categories have the same currency. Run the database migration to add different currencies.');
+
   }
   
   return sorted;
@@ -183,3 +183,4 @@ export const getFilteredCategoriesForPurchase = (
     totalCategories: purchaseCategories.length
   };
 }; 
+

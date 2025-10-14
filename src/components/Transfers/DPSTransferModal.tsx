@@ -39,13 +39,6 @@ export const DPSTransferModal: React.FC<DPSTransferModalProps> = ({ isOpen, onCl
     setError('');
     setSuccess('');
     try {
-      console.log('Starting DPS transfer with:', {
-        selectedAccount,
-        linkedSavingsAccount,
-        transferAmount,
-        isFixedAmount
-      });
-      
       // Generate transaction ID
       const transactionId = generateTransactionId();
       
@@ -68,7 +61,7 @@ export const DPSTransferModal: React.FC<DPSTransferModalProps> = ({ isOpen, onCl
         onClose();
       }, 1200);
     } catch (err: any) {
-      console.error('DPS transfer error:', err);
+
       setError(err.message || 'Failed to transfer.');
       toast.error('DPS transfer failed. Please try again.');
     }
@@ -170,3 +163,4 @@ export const DPSTransferModal: React.FC<DPSTransferModalProps> = ({ isOpen, onCl
     </Dialog>
   );
 }; 
+

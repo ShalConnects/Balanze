@@ -34,3 +34,4 @@ export const getAccountColor = (type: Account['type']) => {
       return 'bg-gray-100 dark:bg-gray-900/40 text-gray-700 dark:text-gray-200';
   }
 }; 
+

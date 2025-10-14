@@ -56,7 +56,7 @@ const TestAuthPanel: React.FC = () => {
           await useFinanceStore.getState().fetchAllData();
           setStatus(`Logged in as ${userType} successfully! Data loaded. Session will persist on refresh.`);
         } catch (dataError) {
-          console.error('Error loading user data:', dataError);
+
           setStatus(`Logged in as ${userType} but failed to load data.`);
         }
       } else {
@@ -263,3 +263,4 @@ const TestAuthPanel: React.FC = () => {
 };
 
 export default TestAuthPanel; 
+

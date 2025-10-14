@@ -228,3 +228,4 @@ export const TransactionsView: React.FC = () => {
     </div>
   );
 };
+

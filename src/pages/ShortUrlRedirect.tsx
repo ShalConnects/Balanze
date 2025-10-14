@@ -32,7 +32,7 @@ const ShortUrlRedirect: React.FC = () => {
           navigate('/404');
         }
       } catch (error) {
-        console.error('Error resolving short URL:', error);
+
         navigate('/404');
       }
     };
@@ -51,3 +51,4 @@ const ShortUrlRedirect: React.FC = () => {
 };
 
 export default ShortUrlRedirect;
+

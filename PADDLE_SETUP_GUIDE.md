@@ -79,21 +79,17 @@ export default async function handler(req, res) {
     switch (event.event_type) {
       case 'transaction.completed':
         // Handle successful payment
-        console.log('Payment completed:', event.data);
         break;
       case 'subscription.created':
         // Handle subscription creation
-        console.log('Subscription created:', event.data);
         break;
       case 'subscription.updated':
         // Handle subscription updates
-        console.log('Subscription updated:', event.data);
         break;
     }
 
     res.status(200).json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error);
     res.status(500).json({ error: 'Webhook processing failed' });
   }
 }

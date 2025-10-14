@@ -122,3 +122,4 @@ export const UnifiedCategories: React.FC<UnifiedCategoriesProps> = ({ hideTitle 
     </div>
   );
 };
+

@@ -19,3 +19,4 @@ export const triggerHapticFeedback = (type: 'light' | 'medium' | 'heavy' = 'ligh
 export const supportsHapticFeedback = () => {
   return 'vibrate' in navigator;
 }; 
+

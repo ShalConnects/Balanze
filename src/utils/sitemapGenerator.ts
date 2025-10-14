@@ -49,3 +49,4 @@ Allow: /help-center/*
 Sitemap: ${baseUrl}/sitemap.xml
 Sitemap: ${baseUrl}/help-center-sitemap.xml`;
 }
+

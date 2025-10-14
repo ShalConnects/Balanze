@@ -294,7 +294,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       // Find the linked purchase for this transaction
       const linkedPurchase = purchases.find(p => p.transaction_id === transactionToEdit.transaction_id);
       if (linkedPurchase) {
-        console.log('Found linked purchase for editing:', linkedPurchase);
+
         setPurchasePriority(linkedPurchase.priority);
         setPurchaseNotes(linkedPurchase.notes || '');
         // Note: Attachments would need to be loaded separately if needed
@@ -358,18 +358,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
 
   // Get the cash account or create one if it doesn't exist
   const getCashAccount = async () => {
-    console.log('Looking for cash account...');
+
     const cashAccount = accounts.find(a => a.name === 'Cash Wallet');
     if (cashAccount) {
-      console.log('Found existing cash account:', cashAccount);
+
       return cashAccount;
     }
 
-    console.log('No cash account found, creating new one...');
+
     // Get the source account to use its currency
     const sourceAccount = accounts.find(a => a.id === data.account_id);
     const defaultCurrency = sourceAccount?.currency || 'USD';
-    console.log('Using currency:', defaultCurrency);
+
 
     try {
       // Create a new cash account directly using supabase
@@ -398,11 +398,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         .single();
 
       if (error) {
-        console.error('Error creating cash account:', error);
+
         throw new Error(`Failed to create cash account: ${error.message}`);
       }
 
-      console.log('Cash account created successfully:', newCashAccount);
+
       
       // Refresh accounts list
       await fetchAccounts();
@@ -416,7 +416,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         .single();
 
       if (refreshedAccounts.error) {
-        console.error('Error fetching refreshed accounts:', refreshedAccounts.error);
+
         throw new Error('Failed to fetch updated accounts');
       }
 
@@ -425,7 +425,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         throw new Error('Cash account was created but not found in refreshed list');
       }
 
-      console.log('Found cash account in refreshed list:', cashAccount);
+
       return {
         ...cashAccount,
         id: cashAccount.id,
@@ -434,7 +434,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         initial_balance: Number(cashAccount.initial_balance) || 0,
       };
     } catch (error) {
-      console.error('Error in getCashAccount:', error);
+
       throw error;
     }
   };
@@ -449,14 +449,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     modeValue?: number;
   }) {
     try {
-      console.log('[DEBUG] upsertDonationSavingRecords called with:', {
-        userId,
-        transactionId,
-        custom_transaction_id: customTransactionId,
-        donation,
-        donationMode,
-        modeValue
-      });
       
       // Remove old records for this transaction
       const { error: deleteError } = await supabase
@@ -465,7 +457,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         .eq('transaction_id', transactionId);
       
       if (deleteError) {
-        console.error('Error deleting old records:', deleteError);
+
       }
       
       // Insert new records if present
@@ -481,27 +473,27 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           mode_value: modeValue,
           status: 'pending',
         };
-        console.log('[DEBUG] Inserting donation record:', donationRecord);
+
         inserts.push(donationRecord);
       }
       
       if (inserts.length > 0) {
-        console.log('Inserting records:', inserts);
+
         const { data, error } = await supabase
           .from('donation_saving_records')
           .insert(inserts)
           .select();
         if (error) {
-          console.error('Error inserting donation/saving records:', error);
-          console.error('Error details:', error.details, error.hint, error.message);
+
+
         } else {
-          console.log('Successfully inserted donation/saving records:', data);
+
         }
       } else {
-        console.log('No records to insert - donation:', donation, 'donationMode:', donationMode);
+
       }
     } catch (err) {
-      console.error('Error upserting donation/saving records:', err);
+
     }
   }
 
@@ -520,7 +512,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       setLoadingMessage(isEditMode ? 'Updating transaction...' : 'Saving transaction...'); // Show loading message for form submission
       try {
         let donation_amount: number | undefined = undefined;
-        console.log('[DEBUG] handleSubmit - data.type:', data.type, 'donationValue:', donationValue, 'donationType:', donationType);
+
         if (data.type === 'income' && donationValue !== undefined && !isNaN(donationValue)) {
           if (donationType === 'percent') {
             // Calculate percentage of the transaction amount
@@ -532,16 +524,16 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           // If you want to store as negative for percent, uncomment below:
           // if (donationType === 'percent') donation_amount = -donation_amount;
         }
-        console.log('[DEBUG] handleSubmit donationType:', donationType, 'donationValue:', donationValue, 'donation_amount:', donation_amount);
+
         if (data.type === 'expense' && isExpenseType === 'cash_withdrawal') {
-          console.log('Processing cash withdrawal...');
+
           // Handle cash withdrawal
           const cashAccount = await getCashAccount();
           if (!cashAccount) {
             throw new Error('Failed to get or create cash account');
           }
 
-          console.log('Cash account found:', cashAccount);
+
 
           // Create withdrawal transaction
           const withdrawalData = {
@@ -555,7 +547,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             user_id: user?.id || ''
           };
 
-          console.log('Withdrawal data:', withdrawalData);
+
 
           // Create deposit transaction for cash account
           const depositData = {
@@ -569,31 +561,31 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             user_id: user?.id || ''
           };
 
-          console.log('Deposit data:', depositData);
+
 
           if (isEditMode && transactionToEdit) {
             // For cash withdrawals, we need to handle both transactions
             // This is complex because we need to find and update both withdrawal and deposit
-            console.log('Editing cash withdrawal - this requires special handling');
+
             // TODO: Implement proper cash withdrawal editing
             // For now, just update the withdrawal transaction
             await updateTransaction(transactionToEdit.id, withdrawalData);
             // Log the transaction update
             await logTransactionEvent('update', withdrawalData, transactionToEdit);
           } else {
-            console.log('Adding withdrawal transaction...');
+
             const withdrawalTransactionId = generateTransactionId();
             const withdrawalResult = await addTransaction({
               ...withdrawalData,
               transaction_id: withdrawalTransactionId
             });
-            console.log('Adding deposit transaction...');
+
             const depositTransactionId = generateTransactionId();
             const depositResult = await addTransaction({
               ...depositData,
               transaction_id: depositTransactionId
             });
-            console.log('Both transactions added successfully');
+
             
             // Log both transactions
             if (withdrawalResult) {
@@ -604,7 +596,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             }
           }
         } else {
-          console.log('Processing regular transaction...');
+
           // Handle regular transaction
           const transactionData = {
             account_id: data.account_id,
@@ -620,7 +612,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             user_id: user?.id || ''
           };
 
-          console.log('Transaction data:', transactionData);
+
 
           if (isEditMode && transactionToEdit) {
             // For edit mode, also pass purchase details if this is a purchase category
@@ -639,13 +631,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             // Create donation records for income transactions
             if (data.type === 'income' && user) {
               const modeValue = donationType === 'percent' ? donationValue : donation_amount;
-              console.log('Creating donation records for edit:', {
-                userId: user.id,
-                transactionId: transactionToEdit.transaction_id || transactionToEdit.id,
-                donation: donation_amount,
-                donationMode: donationType,
-                modeValue
-              });
               await upsertDonationSavingRecords({
                 userId: user.id,
                 transactionId: transactionToEdit.transaction_id || transactionToEdit.id,
@@ -659,14 +644,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             showToast.success('Transaction updated successfully');
           } else {
             const transactionId = generateTransactionId();
-            console.log('Submitting transaction with purchase details:', {
-              isPurchaseCategory,
-              purchaseDetails: isPurchaseCategory ? {
-                priority: purchasePriority,
-                notes: purchaseNotes,
-                attachments: purchaseAttachments
-              } : undefined
-            });
             
             const result = await addTransaction({
               ...transactionData,
@@ -685,14 +662,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               // Create donation records for income transactions
               if (data.type === 'income' && user) {
                 const modeValue = donationType === 'percent' ? donationValue : donation_amount;
-                console.log('[DEBUG] About to create donation record for income transaction:', {
-                  userId: user.id,
-                  transactionId: result.id,
-                  customTransactionId: result.transaction_id,
-                  donation: donation_amount,
-                  donationMode: donationType,
-                  modeValue
-                });
                 await upsertDonationSavingRecords({
                   userId: user.id,
                   transactionId: result.id, // Use DB UUID for FK
@@ -702,12 +671,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                   modeValue
                 });
               } else {
-                console.log('[DEBUG] Not creating donation record - data.type:', data.type, 'user:', !!user);
+
               }
             }
             
             // Show success toast
-            console.log('Showing success toast...');
+
             showToast.success('Transaction added successfully');
           }
         }
@@ -715,7 +684,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         // Removed transaction notifications - only show toast for transactions
         onClose(); // Only close after success
       } catch (error) {
-        console.error('Error saving transaction:', error);
+
         
         // Check if it's a plan limit error and show upgrade prompt
         if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
@@ -1225,3 +1194,4 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     </div>
   );
 };
+

@@ -17,26 +17,26 @@ export const AppInstallBanner: React.FC<AppInstallBannerProps> = ({
     // Check if user should see the banner
     const shouldShowBanner = () => {
       // Debug logging
-      console.log('=== App Banner Detection ===');
-      console.log('User Agent:', navigator.userAgent);
-      console.log('Platform:', navigator.platform);
-      console.log('Screen Width:', window.screen.width);
-      console.log('Window Width:', window.innerWidth);
+
+
+
+
+
 
       // 1. CRITICAL: Check if we're inside the Capacitor app (Android app itself)
       // If we're in the app, NEVER show the banner
       const isCapacitor = !!(window as any).Capacitor;
-      console.log('Is Capacitor:', isCapacitor);
+
       if (isCapacitor) {
-        console.log('❌ App Banner: Hidden - User is in the native app');
+
         return false;
       }
 
       // 2. Check if it's Android specifically (iOS users can't install Android app)
       const isAndroid = /Android/i.test(navigator.userAgent);
-      console.log('Is Android:', isAndroid);
+
       if (!isAndroid) {
-        console.log('❌ App Banner: Hidden - Not an Android device');
+
         return false;
       }
 
@@ -46,21 +46,21 @@ export const AppInstallBanner: React.FC<AppInstallBannerProps> = ({
       const isMobileScreen = window.screen.width <= 768;
       const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
-      console.log('Has Touch Screen:', hasTouchScreen);
-      console.log('Is Mobile Screen:', isMobileScreen);
-      console.log('Is Mobile Device (UA):', isMobileDevice);
+
+
+
       
       if (!isMobileDevice || !isMobileScreen) {
-        console.log('❌ App Banner: Hidden - Not a mobile device');
+
         return false;
       }
 
       // 4. Check if we're in desktop browser's mobile view (developer tools)
       // More reliable check: Linux is actually on Android devices, so only block Windows/Mac
       const isDesktopOS = /Win|Mac/i.test(navigator.platform);
-      console.log('Is Desktop OS:', isDesktopOS);
+
       if (isDesktopOS) {
-        console.log('❌ App Banner: Hidden - Desktop browser in mobile view');
+
         return false;
       }
 
@@ -69,22 +69,22 @@ export const AppInstallBanner: React.FC<AppInstallBannerProps> = ({
       const dismissedTime = localStorage.getItem(dismissedKey);
       if (dismissedTime) {
         const daysSinceDismissed = (Date.now() - parseInt(dismissedTime)) / (1000 * 60 * 60 * 24);
-        console.log('Days since dismissed:', daysSinceDismissed);
+
         if (daysSinceDismissed < 7) {
-          console.log('❌ App Banner: Hidden - Dismissed recently');
+
           return false;
         }
       }
 
       // 6. Check if user is in PWA mode (standalone)
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-      console.log('Is Standalone/PWA:', isStandalone);
+
       if (isStandalone) {
-        console.log('❌ App Banner: Hidden - PWA mode');
+
         return false;
       }
 
-      console.log('✅ App Banner: Showing - All checks passed!');
+
       return true;
     };
 
@@ -166,4 +166,5 @@ export const AppInstallBanner: React.FC<AppInstallBannerProps> = ({
 };
 
 export default AppInstallBanner;
+
 

@@ -226,3 +226,4 @@ export const ToDoList: React.FC<ToDoListProps> = ({ renderHeader }) => {
 // Add to your global CSS (index.css or tailwind.config.js):
 // .animate-fadein { animation: fadein 0.4s cubic-bezier(0.4,0,0.2,1) both; }
 // @keyframes fadein { from { opacity: 0; transform: translateY(24px);} to { opacity: 1; transform: none; } } 
+

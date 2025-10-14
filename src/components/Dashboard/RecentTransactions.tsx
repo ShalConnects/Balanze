@@ -75,3 +75,4 @@ export const RecentTransactions: React.FC = () => {
     </div>
   );
 };
+

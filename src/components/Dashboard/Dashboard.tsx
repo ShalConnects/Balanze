@@ -113,7 +113,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           const showAnalytics = await getPreference(user.id, 'showMultiCurrencyAnalytics', true);
           setShowMultiCurrencyAnalytics(showAnalytics);
         } catch (error) {
-          console.error('Error loading user preferences:', error);
           setShowMultiCurrencyAnalytics(true); // Default to showing
         }
       };
@@ -129,7 +128,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           const showWidget = await getPreference(user.id, 'showPurchasesWidget', true);
           setShowPurchasesWidget(showWidget);
         } catch (error) {
-          console.error('Error loading purchases widget preferences:', error);
           setShowPurchasesWidget(true); // Default to showing
         }
       };
@@ -147,7 +145,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           description: show ? 'Multi-currency analytics will be shown' : 'Multi-currency analytics hidden'
         });
       } catch (error) {
-        console.error('Error saving user preferences:', error);
         // Still update local state even if database save fails
         setShowMultiCurrencyAnalytics(show);
         toast.error('Failed to save preference', {
@@ -213,7 +210,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           description: show ? 'Purchases widget will be shown' : 'Purchases widget hidden'
         });
       } catch (error) {
-        console.error('Error saving purchases widget preferences:', error);
         // Still update local state even if database save fails
         setShowPurchasesWidget(show);
         toast.error('Failed to save preference', {
@@ -255,7 +251,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
       try {
         await useFinanceStore.getState().fetchPurchases();
       } catch (error) {
-        console.error('Error fetching purchases:', error);
       }
     };
     fetchData();
@@ -267,7 +262,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
       try {
         // Wait for user to be authenticated
         if (!user) {
-          console.log('User not authenticated yet, skipping data fetch');
           setDashboardLoading(false);
           setInitialDataFetched(true);
           return;
@@ -290,7 +284,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         setLoadingMessage(''); // Clear loading message
 
       } catch (error) {
-        console.error('Error refreshing dashboard data:', error);
         setDashboardLoading(false);
         setInitialDataFetched(true);
         setLoadingMessage(''); // Clear loading message even on error
@@ -308,7 +301,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   useEffect(() => {
     if (dashboardLoading && user) {
       const timeoutId = setTimeout(() => {
-        console.log('Dashboard: Force clearing loading state after timeout');
         setDashboardLoading(false);
       }, 10000); // 10 second timeout
       

@@ -129,7 +129,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
       if (dpsError) throw dpsError;
       setDpsTransfers(dpsData || []);
     } catch (err) {
-      console.error('Error fetching transfer history:', err);
+
     }
   };
 
@@ -184,7 +184,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
       // Only close modal after success
       onClose();
     } catch (err) {
-      console.error('Transfer failed:', err);
+
       toast.error('Transfer failed. Please try again.');
     } finally {
       // Set loading state to false
@@ -211,7 +211,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
         setFormData(prev => ({ ...prev, exchange_rate: suggestedRate.toString() }));
       }
     } catch (error) {
-      console.error('Error refreshing exchange rate:', error);
+
     } finally {
       setIsLoadingRate(false);
     }
@@ -543,3 +543,4 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
     </>
   );
 }; 
+

@@ -97,11 +97,10 @@ export const checkFeatureHealth = async (featureName: string) => {
     const metrics = await fetchFeatureMetrics(featureName);
     
     if (metrics.errorRate > 0.05) { // 5% error threshold
-      console.warn(`Feature ${featureName} showing high error rate`);
       // Trigger rollback or alert
     }
   } catch (error) {
-    console.error(`Health check failed for ${featureName}:`, error);
+    // Handle health check failure
   }
 };
 ```

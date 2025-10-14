@@ -135,3 +135,4 @@ export const UsageWarningPrompt: React.FC<{ type: string; percentage: number }> 
     message={`You're using ${percentage}% of your ${type} limit. Consider upgrading to Premium.`}
   />
 ); 
+

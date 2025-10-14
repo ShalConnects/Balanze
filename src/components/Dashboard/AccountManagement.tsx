@@ -57,7 +57,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
         setArticleStats(stats);
         setLoadingArticleStats(false);
       }).catch(error => {
-        console.error('Error loading article stats:', error);
+
         setLoadingArticleStats(false);
       });
     }
@@ -126,7 +126,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
     setDeletionProgress(0);
 
     try {
-      console.log('Starting account deletion process...');
+
       
       // Simulate progress updates
       setDeletionProgress(25);
@@ -142,14 +142,14 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
       await new Promise(resolve => setTimeout(resolve, 300));
 
       // Use the auth store's bulletproof deletion method
-      console.log('Using auth store deletion method...');
+
       const { success, error } = await deleteAccount();
       
       if (!success) {
         throw new Error(error || 'Failed to delete account');
       }
 
-      console.log('Account deletion completed successfully');
+
       setDeletionProgress(100);
       
       // Wait a moment to show completion
@@ -167,7 +167,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
       }, 2000);
       
     } catch (error: any) {
-      console.error('Account deletion failed:', error);
+
       setIsDeleting(false);
       setCurrentStep('confirmation');
       toast.error(error.message || 'Failed to delete account. Please try again.');
@@ -208,7 +208,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
       
       toast.success('Data exported successfully');
     } catch (error) {
-      console.error('Error exporting data:', error);
+
       
       // Check if it's a plan limit error and show upgrade prompt
       if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
@@ -714,3 +714,4 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
     </div>
   );
 }; 
+

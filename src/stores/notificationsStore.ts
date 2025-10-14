@@ -40,7 +40,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching notifications:', error);
+
         // Don't throw error, just set empty notifications
         set({ notifications: [], unreadCount: 0, isLoading: false });
         return;
@@ -50,7 +50,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       // Recalculate unread count to ensure consistency
       get().recalculateUnreadCount();
     } catch (error) {
-      console.error('Error in fetchNotifications:', error);
+
       set({ notifications: [], unreadCount: 0, error: (error as Error).message, isLoading: false });
     }
   },
@@ -63,7 +63,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         .eq('id', id);
 
       if (error) {
-        console.error('Error marking notification as read:', error);
+
         return;
       }
 
@@ -78,7 +78,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         };
       });
     } catch (error) {
-      console.error('Error in markAsRead:', error);
+
       set({ error: (error as Error).message });
     }
   },
@@ -100,7 +100,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         .eq('is_read', false);
 
       if (error) {
-        console.error('Error marking all notifications as read:', error);
+
         return;
       }
 
@@ -109,7 +109,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         unreadCount: 0
       }));
     } catch (error) {
-      console.error('Error in markAllAsRead:', error);
+
       set({ error: (error as Error).message });
     }
   },
@@ -122,7 +122,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         .eq('id', id);
 
       if (error) {
-        console.error('Error deleting notification:', error);
+
         return;
       }
 
@@ -135,7 +135,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         };
       });
     } catch (error) {
-      console.error('Error in deleteNotification:', error);
+
       set({ error: (error as Error).message });
     }
   },
@@ -156,13 +156,13 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         .eq('user_id', user.id);
 
       if (error) {
-        console.error('Error clearing all notifications:', error);
+
         return;
       }
 
       set({ notifications: [], unreadCount: 0 });
     } catch (error) {
-      console.error('Error in clearAllNotifications:', error);
+
       set({ error: (error as Error).message });
     }
   },
@@ -173,3 +173,4 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     }));
   }
 })); 
+

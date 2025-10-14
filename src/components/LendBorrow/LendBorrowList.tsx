@@ -134,7 +134,7 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
         [recordId]: data || []
       }));
     } catch (error) {
-      console.error('Error fetching return history:', error);
+
     }
   };
 
@@ -727,3 +727,4 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
     </>
   );
 }; 
+

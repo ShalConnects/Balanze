@@ -77,19 +77,19 @@ export const FloatingActionButton: React.FC = () => {
 
   // Check if categories exist and redirect to settings if needed - memoized to prevent infinite re-renders
   const checkCategoriesAndRedirect = React.useCallback((type: 'transaction' | 'purchase') => {
-    console.log('checkCategoriesAndRedirect called with type:', type);
-    console.log('categories:', categories);
-    console.log('purchaseCategories:', purchaseCategories);
+
+
+
     
     const hasIncomeCategories = categories.filter(cat => cat.type === 'income').length > 0;
     const hasExpenseCategories = purchaseCategories.length > 0; // Use purchaseCategories since transaction form now uses them
     
-    console.log('hasIncomeCategories:', hasIncomeCategories);
-    console.log('hasExpenseCategories:', hasExpenseCategories);
+
+
     
     if (type === 'transaction') {
       if (!hasIncomeCategories || !hasExpenseCategories) {
-        console.log('Categories check failed - showing error toast');
+
         toast.error('Please add categories first before creating transactions', {
           description: 'You need both income and expense categories to create transactions.',
           action: {
@@ -101,7 +101,7 @@ export const FloatingActionButton: React.FC = () => {
       }
     } else if (type === 'purchase') {
       if (!hasExpenseCategories) {
-        console.log('Purchase categories check failed - showing error toast');
+
         toast.error('Please add expense categories first before creating purchases', {
           description: 'You need expense categories to create purchases.',
           action: {
@@ -112,7 +112,7 @@ export const FloatingActionButton: React.FC = () => {
         return false;
       }
     }
-    console.log('Categories check passed - returning true');
+
     return true;
   }, [categories, purchaseCategories, navigate]);
 
@@ -122,11 +122,11 @@ export const FloatingActionButton: React.FC = () => {
   }, []);
 
   const handleAddTransaction = React.useCallback(() => {
-    console.log('handleAddTransaction called');
+
     if (checkCategoriesAndRedirect('transaction')) {
-      console.log('Setting showTransactionForm to true');
+
       setShowTransactionForm(true);
-      console.log('showTransactionForm set to true');
+
     }
   }, [checkCategoriesAndRedirect, setShowTransactionForm]);
 
@@ -156,7 +156,7 @@ export const FloatingActionButton: React.FC = () => {
     try {
       await addLendBorrowRecord(record);
     } catch (error) {
-      console.error('Error adding lend/borrow record:', error);
+
       toast.error('Failed to add record. Please try again.');
     }
   }, [addLendBorrowRecord]);
@@ -293,3 +293,4 @@ export const FloatingActionButton: React.FC = () => {
     </>
   );
 }; 
+

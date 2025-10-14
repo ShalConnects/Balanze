@@ -29,7 +29,7 @@ export const copyTransactionIdToClipboard = async (transactionId: string): Promi
     await navigator.clipboard.writeText(transactionId);
     return true;
   } catch (err) {
-    console.error('Failed to copy transaction ID:', err);
+
     return false;
   }
 };
@@ -130,3 +130,4 @@ export const TRANSACTION_TYPES = {
 } as const;
 
 export type TransactionType = typeof TRANSACTION_TYPES[keyof typeof TRANSACTION_TYPES]; 
+

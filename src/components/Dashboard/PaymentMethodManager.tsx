@@ -65,7 +65,7 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
       setLoading(true);
       
       if (!user?.id) {
-        console.error('No user ID available');
+
         return;
       }
 
@@ -75,7 +75,7 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
       });
 
       if (error) {
-        console.error('Error fetching payment methods:', error);
+
         toast.error('Failed to load payment methods');
         return;
       }
@@ -96,7 +96,7 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
 
       setPaymentMethods(transformedMethods);
     } catch (error) {
-      console.error('Error loading payment methods:', error);
+
       toast.error('Failed to load payment methods');
     } finally {
       setLoading(false);
@@ -104,14 +104,14 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
   };
 
   const handleAddPaymentMethod = () => {
-    console.log('Add payment method button clicked');
+
     setShowAddMethod(true);
   };
 
   const handlePaymentMethodAdded = async (newPaymentMethod: any) => {
     try {
       if (!user?.id) {
-        console.error('No user ID available');
+
         return;
       }
 
@@ -130,7 +130,7 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
       });
 
       if (error) {
-        console.error('Error adding payment method:', error);
+
         toast.error('Failed to add payment method');
         return;
       }
@@ -140,7 +140,7 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
       setShowAddMethod(false);
       toast.success('Payment method added successfully!');
     } catch (error) {
-      console.error('Error adding payment method:', error);
+
       toast.error('Failed to add payment method');
     }
   };
@@ -163,7 +163,7 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
   const confirmDeletePaymentMethod = async () => {
     try {
       if (!user?.id) {
-        console.error('No user ID available');
+
         return;
       }
 
@@ -174,7 +174,7 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
       });
 
       if (error) {
-        console.error('Error deleting payment method:', error);
+
         toast.error('Failed to delete payment method');
         return;
       }
@@ -183,7 +183,7 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
       await loadPaymentMethods();
       toast.success('Payment method deleted successfully');
     } catch (error) {
-      console.error('Error deleting payment method:', error);
+
       toast.error('Failed to delete payment method');
     } finally {
       setDeleteModal({
@@ -197,7 +197,7 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
   const handleSetDefault = async (methodId: string) => {
     try {
       if (!user?.id) {
-        console.error('No user ID available');
+
         return;
       }
 
@@ -208,7 +208,7 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
       });
 
       if (error) {
-        console.error('Error setting default payment method:', error);
+
         toast.error('Failed to update default payment method');
         return;
       }
@@ -217,7 +217,7 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
       await loadPaymentMethods();
       toast.success('Default payment method updated');
     } catch (error) {
-      console.error('Error setting default payment method:', error);
+
       toast.error('Failed to update default payment method');
     }
   };
@@ -511,3 +511,4 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
     </div>
   );
 };
+

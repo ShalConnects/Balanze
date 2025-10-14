@@ -254,7 +254,7 @@ const UserBubble: React.FC<UserBubbleProps> = ({ userName, userEmail, userPicUrl
         setReadingHistory(history);
         setLoadingHistory(false);
       }).catch(error => {
-        console.error('Error loading reading history:', error);
+
         setLoadingHistory(false);
       });
       
@@ -263,7 +263,7 @@ const UserBubble: React.FC<UserBubbleProps> = ({ userName, userEmail, userPicUrl
         setArticleStats(stats);
         setLoadingStats(false);
       }).catch(error => {
-        console.error('Error loading article stats:', error);
+
         setLoadingStats(false);
       });
     }
@@ -765,3 +765,4 @@ export default function KBSearch({ className }: KBSearchProps) {
     </div>
   );
 }
+

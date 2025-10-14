@@ -105,3 +105,4 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh }) => {
 };
 
 export default PullToRefresh;
+

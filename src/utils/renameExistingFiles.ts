@@ -35,7 +35,7 @@ const getStoragePathFromUrl = (publicUrl: string): string | null => {
     }
     return null;
   } catch (error) {
-    console.error('Error parsing URL:', error);
+
     return null;
   }
 };
@@ -52,7 +52,7 @@ const renameFileInStorage = async (
       .download(oldPath);
 
     if (downloadError || !fileData) {
-      console.error(`Error downloading file ${oldPath}:`, downloadError);
+
       return false;
     }
 
@@ -62,7 +62,7 @@ const renameFileInStorage = async (
       .upload(newPath, fileData, { upsert: true });
 
     if (uploadError) {
-      console.error(`Error uploading file ${newPath}:`, uploadError);
+
       return false;
     }
 
@@ -72,13 +72,13 @@ const renameFileInStorage = async (
       .remove([oldPath]);
 
     if (deleteError) {
-      console.error(`Error deleting old file ${oldPath}:`, deleteError);
+
       // Don't return false here - the new file exists, old one can be cleaned up later
     }
 
     return true;
   } catch (error) {
-    console.error('Error in renameFileInStorage:', error);
+
     return false;
   }
 };
@@ -101,13 +101,13 @@ const updateDatabaseRecord = async (
       .eq('id', attachmentId);
 
     if (error) {
-      console.error(`Error updating database record ${attachmentId}:`, error);
+
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Error in updateDatabaseRecord:', error);
+
     return false;
   }
 };
@@ -142,17 +142,17 @@ export const renameAllExistingFiles = async (userId?: string): Promise<{
     }
 
     if (!attachments || attachments.length === 0) {
-      console.log('No attachments found to rename');
+
       return results;
     }
 
     results.total = attachments.length;
-    console.log(`Found ${results.total} attachments to rename`);
+
 
     // Process each attachment
     for (const attachment of attachments as AttachmentRecord[]) {
       try {
-        console.log(`Processing attachment: ${attachment.file_name}`);
+
 
         // Get original extension
         const originalExtension = '.' + (attachment.file_name.split('.').pop() || '');
@@ -201,24 +201,24 @@ export const renameAllExistingFiles = async (userId?: string): Promise<{
           continue;
         }
 
-        console.log(`Successfully renamed: ${attachment.file_name} → ${newFileName}`);
+
         results.success++;
 
         // Add small delay to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 100));
 
       } catch (error) {
-        console.error(`Error processing attachment ${attachment.file_name}:`, error);
+
         results.errors.push(`Error processing ${attachment.file_name}: ${error}`);
         results.failed++;
       }
     }
 
-    console.log(`Renaming complete. Success: ${results.success}, Failed: ${results.failed}`);
+
     return results;
 
   } catch (error) {
-    console.error('Error in renameAllExistingFiles:', error);
+
     results.errors.push(`Fatal error: ${error}`);
     return results;
   }
@@ -286,10 +286,11 @@ export const previewFileRename = async (userId?: string): Promise<{
     };
 
   } catch (error) {
-    console.error('Error in previewFileRename:', error);
+
     return {
       files: [],
       total: 0
     };
   }
 };
+

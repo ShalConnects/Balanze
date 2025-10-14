@@ -426,3 +426,4 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
     </div>
   );
 }; 
+

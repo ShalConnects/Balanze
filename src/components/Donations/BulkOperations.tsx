@@ -54,7 +54,7 @@ export const BulkOperations: React.FC<BulkOperationsProps> = ({
       setSelectedRecords([]); // Clear selection after successful operation
     } catch (error) {
       toast.error('Failed to update donations');
-      console.error('Bulk status change error:', error);
+
     } finally {
       setIsProcessing(false);
     }
@@ -77,7 +77,7 @@ export const BulkOperations: React.FC<BulkOperationsProps> = ({
       setSelectedRecords([]); // Clear selection after successful operation
     } catch (error) {
       toast.error('Failed to delete donations');
-      console.error('Bulk delete error:', error);
+
     } finally {
       setIsProcessing(false);
       setShowConfirmDelete(false);
@@ -265,3 +265,4 @@ export const withSelection = (Component: React.ComponentType<any>) => {
     );
   };
 }; 
+

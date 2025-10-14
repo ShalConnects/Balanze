@@ -25,7 +25,7 @@ export const RefundRequestForm: React.FC<RefundRequestFormProps> = ({ isOpen, on
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Here you would typically send the data to your backend
-    console.log('Refund request submitted:', formData);
+
 
     setIsSubmitting(false);
     setIsSubmitted(true);
@@ -209,3 +209,4 @@ export const RefundRequestForm: React.FC<RefundRequestFormProps> = ({ isOpen, on
     </div>
   );
 };
+

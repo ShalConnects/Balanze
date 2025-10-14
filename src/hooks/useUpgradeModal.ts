@@ -8,23 +8,23 @@ export const useUpgradeModal = () => {
 
   const handleDatabaseError = useCallback((error: any) => {
     const errorMessage = error?.message || '';
-    console.log('🔍 handleDatabaseError called with:', errorMessage);
+
     
     // Check for specific error types
     if (errorMessage.includes('ACCOUNT_LIMIT_EXCEEDED')) {
-      console.log('✅ ACCOUNT_LIMIT_EXCEEDED detected, opening modal');
+
       // Use the actual limit from the error message (3 for free plan)
       const limit = 3;
       // Get current count from accounts array instead of usageStats
       const { accounts } = useFinanceStore.getState();
       const current = accounts.length;
-      console.log('📊 Current accounts:', current, 'Limit:', limit);
+
       
       // Direct call to store function
       const store = useFinanceStore.getState();
-      console.log('🔧 Calling store.openUpgradeModal directly');
+
       store.openUpgradeModal('limit', undefined, { current, limit, type: 'accounts' });
-      console.log('🔧 Store call completed');
+
       
       return true;
     }
@@ -111,3 +111,4 @@ export const useUpgradeModal = () => {
     showFeatureUpgradeModal
   };
 }; 
+

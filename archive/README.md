@@ -1,0 +1,1 @@
+# Archive\n\nThis directory stores archived, unused or ad-hoc scripts kept for reference.\n\nPolicy:\n- Do not execute archived scripts in production.\n- Prefer migrations in supabase/migrations.\n- Include a short note and date when archiving.\n

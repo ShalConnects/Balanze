@@ -152,10 +152,10 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
   // Handle result click navigation
   const handleResultClick = (type: string, item: any) => {
-    console.log('handleResultClick called:', { type, item });
-    console.log('Item structure:', JSON.stringify(item, null, 2));
-    console.log('Item ID:', item?.id);
-    console.log('Item transaction_id:', item?.transaction_id);
+
+
+
+
     
     addRecentSearch(search);
     setGlobalSearchTerm('');
@@ -170,31 +170,31 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     
     switch (type) {
       case 'account':
-        console.log('Navigating to account:', itemId);
+
         navigate(`/accounts?selected=${itemId}&from=search`);
         break;
       case 'transaction':
-        console.log('Navigating to transaction:', itemId);
+
         navigate(`/transactions?selected=${itemId}&from=search`);
         break;
       case 'purchase':
-        console.log('Navigating to purchase:', itemId);
+
         navigate(`/purchases?selected=${itemId}&from=search`);
         break;
       case 'transfer':
-        console.log('Navigating to transfer:', itemId);
+
         navigate(`/transfers?selected=${itemId}&from=search`);
         break;
       case 'lendborrow':
-        console.log('Navigating to lend & borrow:', itemId);
+
         navigate(`/lent-borrow?selected=${itemId}&from=search`);
         break;
       case 'donation':
-        console.log('Navigating to donation:', itemId);
+
         navigate(`/donations?selected=${itemId}&from=search`);
         break;
       default:
-        console.log('Unknown result type:', type);
+
     }
   };
 
@@ -611,7 +611,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   }, [isFocused, search, highlightedIdx, rankedTransactions, rankedPurchases, rankedTransfers, rankedAccounts, rankedLendBorrow, recentSearches, setGlobalSearchTerm]);
 
   // Show recent searches if input is focused and empty
-  // console.log('Checking dropdown visibility:', { search, isFocused, searchLength: search?.length });
+  
   if ((!search || search.length === 0) && isFocused) {
     return (
       <div className={`${isOverlay ? 'relative w-full' : 'absolute left-0 top-full w-[125%] ml-[-12.5%]'} z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg dark:shadow-xl p-4 animate-fadein`}>
@@ -634,10 +634,10 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                   setRecentSearches(getRecentSearches());
                   // Focus the input to show results for this term
                   setTimeout(() => {
-                    console.log('Focusing input, current value:', inputRef.current?.value);
+
                     inputRef.current?.focus();
-                    console.log('Input focused, new value:', inputRef.current?.value);
-                    console.log('Dropdown should still be visible');
+
+
                   }, 10);
                 }}
                 onMouseDown={(e) => {
@@ -654,7 +654,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     );
   }
 
-  // console.log('Checking search results visibility:', { search, isFocused });
+  
   if (!search || !isFocused) return null;
 
   // Show skeleton loading while searching
@@ -687,7 +687,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     );
   }
 
-  console.log('Rendering dropdown with search:', search, 'fuzzyTransactions:', fuzzyTransactions.length);
+
 
   return (
     <div
@@ -712,11 +712,11 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       }}
       className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-[0_4px_24px_0_rgba(0,0,0,0.10)] dark:shadow-[0_4px_24px_0_rgba(0,0,0,0.30)] animate-fadein flex flex-col overflow-visible"
       onClick={(e) => {
-        console.log('Dropdown container clicked!');
+
         e.stopPropagation();
       }}
       onMouseDown={(e) => {
-        console.log('Dropdown container mouse down!');
+
         e.stopPropagation();
       }}
     >
@@ -736,18 +736,18 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                 <button
                   key={index}
                   onClick={(e) => {
-                    console.log('Recent search button clicked:', search);
+
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('Setting global search term to:', search);
+
                     setGlobalSearchTerm(search);
                     addRecentSearch(search);
-                    console.log('About to focus input');
+
                     // Focus the input to show results for this term
                     setTimeout(() => {
-                      console.log('Focusing input, current value:', inputRef.current?.value);
+
                       inputRef.current?.focus();
-                      console.log('Input focused, new value:', inputRef.current?.value);
+
                     }, 10);
                   }}
                   onMouseDown={(e) => {
@@ -1070,3 +1070,4 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     </div>
   );
 };
+

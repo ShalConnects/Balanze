@@ -60,3 +60,4 @@ export const Loader: React.FC<LoaderProps> = ({ isLoading, message = 'Loading...
     </div>
   );
 }; 
+

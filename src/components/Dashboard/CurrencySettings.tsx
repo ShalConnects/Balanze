@@ -72,7 +72,7 @@ export const CurrencySettings: React.FC<CurrencySettingsProps> = () => {
 
       showToast.success('Currency preferences updated');
     } catch (error) {
-      console.error('Error updating currencies:', error);
+
       showToast.error('Failed to update currency preferences');
       // Revert the state
       setSelectedCurrencies(profile?.selected_currencies || []);
@@ -98,7 +98,7 @@ export const CurrencySettings: React.FC<CurrencySettingsProps> = () => {
       setLocalCurrency(currency);
       showToast.success('Local currency updated');
     } catch (error) {
-      console.error('Error updating local currency:', error);
+
       showToast.error('Failed to update local currency');
     } finally {
       setIsUpdating(false);
@@ -117,7 +117,7 @@ export const CurrencySettings: React.FC<CurrencySettingsProps> = () => {
         setSelectedDefaultAccount(profile?.default_account_id || '');
       }
     } catch (error) {
-      console.error('Error setting default account:', error);
+
       showToast.error('Failed to update default account');
       // Revert on failure
       setSelectedDefaultAccount(profile?.default_account_id || '');
@@ -248,3 +248,4 @@ export const CurrencySettings: React.FC<CurrencySettingsProps> = () => {
     </div>
   );
 };
+

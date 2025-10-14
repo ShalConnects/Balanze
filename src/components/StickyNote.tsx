@@ -37,3 +37,4 @@ export const StickyNote: React.FC = () => {
     </div>
   );
 }; 
+

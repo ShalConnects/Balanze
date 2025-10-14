@@ -180,3 +180,4 @@ export default {
   getAccessibleTextColor,
   getCategoryColor
 };
+

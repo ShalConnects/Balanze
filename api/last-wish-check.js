@@ -23,8 +23,6 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
 
 async function checkOverdueUsers() {
   try {
-    console.log('Checking for overdue Last Wish users...');
-    
     // Try the RPC function first
     let overdueUsers = [];
     
@@ -32,7 +30,6 @@ async function checkOverdueUsers() {
       const { data, error } = await supabase.rpc('check_overdue_last_wish');
       
       if (error) {
-        console.log(`RPC function error: ${error.message}`);
         throw error;
       }
       
@@ -42,8 +39,6 @@ async function checkOverdueUsers() {
         overdueUsers = [data];
       }
     } catch (rpcError) {
-      console.log(`RPC function failed, trying direct query: ${rpcError.message}`);
-      
       // Fallback to direct query
       const { data: directData, error: directError } = await supabase
         .from('last_wish_settings')
@@ -57,7 +52,6 @@ async function checkOverdueUsers() {
         .not('last_check_in', 'is', null);
       
       if (directError) {
-        console.log(`Direct query error: ${directError.message}`);
         // Return empty array instead of throwing error
         return 0;
       }
@@ -77,26 +71,20 @@ async function checkOverdueUsers() {
         }));
     }
 
-    console.log(`Found ${overdueUsers.length} overdue users`);
-
     for (const user of overdueUsers) {
       await processOverdueUser(user);
     }
 
     return overdueUsers.length;
   } catch (error) {
-    console.error(`Error checking overdue users: ${error.message}`);
     throw error;
   }
 }
 
 async function processOverdueUser(user) {
   try {
-    console.log(`Processing overdue user: ${user.email} (${user.days_overdue} days overdue)`);
-
     // Check if SMTP is configured
     if (!transporter) {
-      console.log('SMTP not configured, skipping email sending');
       return;
     }
 
@@ -111,7 +99,6 @@ async function processOverdueUser(user) {
       .single();
 
     if (settingsError) {
-      console.log(`Settings error for user ${user.user_id}: ${settingsError.message}`);
       return;
     }
 
@@ -125,10 +112,8 @@ async function processOverdueUser(user) {
       .from('last_wish_settings')
       .update({ delivery_triggered: true })
       .eq('user_id', user.user_id);
-
-    console.log(`Successfully processed user: ${user.email}`);
   } catch (error) {
-    console.error(`Error processing user ${user.email}: ${error.message}`);
+    // Handle error silently
   }
 }
 
@@ -197,7 +182,6 @@ async function sendDataToRecipient(user, recipient, userData, settings) {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log(`Sent data to recipient: ${recipient.email}`);
 
     // Log delivery
     await supabase
@@ -211,8 +195,6 @@ async function sendDataToRecipient(user, recipient, userData, settings) {
       });
 
   } catch (error) {
-    console.error(`Error sending to ${recipient.email}: ${error.message}`);
-    
     // Log failed delivery
     await supabase
       .from('last_wish_deliveries')
@@ -330,9 +312,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('Starting Last Wish service...');
     const processedCount = await checkOverdueUsers();
-    console.log(`Service completed. Processed ${processedCount} users.`);
     
     res.status(200).json({ 
       success: true, 
@@ -341,7 +321,6 @@ export default async function handler(req, res) {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error(`Service failed: ${error.message}`);
     res.status(500).json({ 
       success: false, 
       error: error.message,

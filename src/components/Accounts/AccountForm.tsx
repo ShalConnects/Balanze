@@ -88,7 +88,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
             }
           }
         } catch (error) {
-          console.error('Error fetching user profile:', error);
+
           // Fallback to all currencies if profile fetch fails
           setAvailableCurrencies(CURRENCY_OPTIONS.map(currency => ({
             label: currency,
@@ -275,7 +275,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
       
       onClose();
     } catch (error) {
-      console.error('Error saving account:', error);
+
       
               // Check if it's a plan limit error and show upgrade prompt
         if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
@@ -688,3 +688,4 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
     </>
   );
 };
+

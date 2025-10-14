@@ -27,14 +27,14 @@ export const createShortUrl = async (originalUrl: string, fileName: string, purc
       });
 
     if (error) {
-      console.error('Error creating short URL:', error);
+
       return originalUrl; // Fallback to original URL
     }
 
     // Return the shortened URL
     return `${window.location.origin}/f/${shortCode}`;
   } catch (error) {
-    console.error('Error in createShortUrl:', error);
+
     return originalUrl; // Fallback to original URL
   }
 };
@@ -49,13 +49,13 @@ export const resolveShortUrl = async (shortCode: string): Promise<string | null>
       .single();
 
     if (error || !data) {
-      console.error('Error resolving short URL:', error);
+
       return null;
     }
 
     return data.original_url;
   } catch (error) {
-    console.error('Error in resolveShortUrl:', error);
+
     return null;
   }
 };
@@ -98,3 +98,4 @@ export const generateFriendlyStoragePath = (
   const friendlyFileName = generateFriendlyFileName(purchase, originalFile);
   return `purchases/${purchase.id}/${friendlyFileName}`;
 };
+

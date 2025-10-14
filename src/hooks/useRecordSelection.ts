@@ -26,18 +26,11 @@ export const useRecordSelection = ({
 
   // Handle URL parameters and set up selection
   useEffect(() => {
-    console.log('useRecordSelection Debug:', {
-      urlSelectedId,
-      recordsCount: records.length,
-      fromSearch,
-      recordIdField
-    });
     
     if (urlSelectedId && records.length > 0) {
       // Find the record by the specified field
       const record = records.find(r => r[recordIdField] === urlSelectedId);
       
-      console.log('useRecordSelection Found Record:', record);
       
       if (record) {
         setSelectedId(urlSelectedId);

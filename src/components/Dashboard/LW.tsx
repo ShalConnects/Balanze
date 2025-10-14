@@ -385,7 +385,7 @@ These memories are my gift to you.`
         if (error) throw error;
         setLendBorrowRecords(data || []);
       } catch (error) {
-        console.error('Error fetching lend/borrow records:', error);
+
         setLendBorrowRecords([]);
       }
     };
@@ -449,7 +449,7 @@ These memories are my gift to you.`
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error loading LW settings:', error);
+
         return;
       }
 
@@ -498,7 +498,7 @@ These memories are my gift to you.`
         }
       }
     } catch (error) {
-      console.error('Error loading LW settings:', error);
+
     }
   };
 
@@ -564,8 +564,8 @@ These memories are my gift to you.`
         toast.success('Last Wish disabled successfully');
       }
     } catch (error) {
-      console.error('Error updating LW settings:', error);
-      console.error('Full error details:', JSON.stringify(error, null, 2));
+
+
       toast.error(`Failed to update settings: ${(error as any)?.message || 'Unknown error'}`);
     }
   };
@@ -621,8 +621,8 @@ These memories are my gift to you.`
 
       toast.success(`Check-in frequency updated to ${frequency} days`);
     } catch (error) {
-      console.error('Error updating check-in frequency:', error);
-      console.error('Full error details:', JSON.stringify(error, null, 2));
+
+
       toast.error(`Failed to update check-in frequency: ${(error as any)?.message || 'Unknown error'}`);
     }
   };
@@ -647,7 +647,7 @@ These memories are my gift to you.`
       setSettings(prev => ({ ...prev, lastCheckIn: now }));
       toast.success('Check-in successful! Your data is safe.');
     } catch (error) {
-      console.error('Error during check-in:', error);
+
       toast.error('Failed to check-in');
     } finally {
       setLoading(false);
@@ -742,7 +742,7 @@ These memories are my gift to you.`
         toast.success('Recipient added successfully');
       }
     } catch (error) {
-      console.error('Error adding recipient:', error);
+
       toast.error('Failed to add recipient');
     }
   };
@@ -811,7 +811,7 @@ These memories are my gift to you.`
         toast.success('Recipient removed successfully');
       }
     } catch (error) {
-      console.error('Error removing recipient:', error);
+
       toast.error('Failed to remove recipient');
     }
   };
@@ -872,8 +872,8 @@ These memories are my gift to you.`
 
       toast.success('Data inclusion settings updated');
     } catch (error) {
-      console.error('Error updating data inclusion:', error);
-      console.error('Full error details:', JSON.stringify(error, null, 2));
+
+
       toast.error(`Failed to update data inclusion: ${(error as any)?.message || 'Unknown error'}`);
     }
   };
@@ -2168,3 +2168,4 @@ const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
     </div>
   );
 };
+

@@ -62,3 +62,4 @@ export const AccountsOverview: React.FC<AccountsOverviewProps> = ({ selectedCurr
     </div>
   );
 };
+

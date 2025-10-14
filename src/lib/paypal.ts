@@ -80,7 +80,7 @@ export const createPayPalOrder = async (planId: string) => {
     const { orderId } = await response.json();
     return orderId;
   } catch (error) {
-    console.error('Error creating PayPal order:', error);
+
     throw error;
   }
 };
@@ -106,7 +106,8 @@ export const handlePayPalApproval = async (orderId: string, planId: string) => {
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error('Error capturing PayPal order:', error);
+
     throw error;
   }
 }; 
+

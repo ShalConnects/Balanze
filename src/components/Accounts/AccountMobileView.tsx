@@ -186,3 +186,4 @@ export const AccountMobileView: React.FC<AccountMobileViewProps> = React.memo(({
 });
 
 AccountMobileView.displayName = 'AccountMobileView'; 
+

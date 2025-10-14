@@ -265,3 +265,4 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
 });
 
 TransactionTable.displayName = 'TransactionTable'; 
+

@@ -168,3 +168,4 @@ export const FeatureUpgradeModal: React.FC<{ isOpen: boolean; onClose: () => voi
     feature={feature}
   />
 ); 
+

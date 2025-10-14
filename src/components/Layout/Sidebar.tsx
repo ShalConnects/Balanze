@@ -356,3 +356,4 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
     </>
   );
 };
+

@@ -41,7 +41,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     try {
       await redirectToCheckout(planId, user.email);
     } catch (err) {
-      console.error('Payment error:', err);
+
       setError('Failed to initiate payment. Please try again.');
       toast.error('Payment failed. Please try again.');
     } finally {
@@ -171,3 +171,4 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     </div>
   );
 }; 
+

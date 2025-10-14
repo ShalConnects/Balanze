@@ -29,7 +29,7 @@ export const InstallmentList: React.FC<InstallmentListProps> = ({ lendBorrowId, 
       if (error) throw error;
       setInstallments(data || []);
     } catch (error) {
-      console.error('Error fetching installments:', error);
+
     } finally {
       setLoading(false);
     }
@@ -144,3 +144,4 @@ export const InstallmentList: React.FC<InstallmentListProps> = ({ lendBorrowId, 
     </div>
   );
 }; 
+

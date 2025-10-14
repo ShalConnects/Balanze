@@ -117,3 +117,4 @@ export const PurchaseNotifications: React.FC = () => {
     </div>
   );
 }; 
+

@@ -48,7 +48,7 @@ export const CurrencyAnalytics: React.FC = () => {
           fetchPurchases()
         ]);
       } catch (error) {
-        console.error('Error fetching data for currency analytics:', error);
+
       }
     };
 
@@ -298,3 +298,4 @@ export const CurrencyAnalytics: React.FC = () => {
     </div>
   );
 }; 
+

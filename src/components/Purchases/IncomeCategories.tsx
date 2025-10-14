@@ -225,3 +225,4 @@ export const IncomeCategories: React.FC<IncomeCategoriesProps> = ({ hideTitle = 
     </div>
   );
 }; 
+

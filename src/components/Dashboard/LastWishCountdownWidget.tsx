@@ -141,15 +141,7 @@ export const LastWishCountdownWidget: React.FC = () => {
           // Show 99% progress when in final 24 hours
           const progressPercentage = isFinalHour ? 99 : Math.max(0, Math.min(100, (daysElapsed / totalDays) * 100));
           
-          // Debug logging
-          console.log('Last Wish Debug:', {
-            totalTimeLeft,
-            daysLeft,
-            isOverdue,
-            finalHourTimeData,
-            progressPercentage
-          });
-
+          
           setCountdown({
             daysLeft: Math.max(0, daysLeft),
             nextCheckIn: nextCheckIn.toLocaleDateString(),

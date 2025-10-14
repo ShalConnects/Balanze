@@ -310,3 +310,4 @@ export const PurchaseCategories: React.FC<PurchaseCategoriesProps> = ({ hideTitl
     </div>
   );
 }; 
+

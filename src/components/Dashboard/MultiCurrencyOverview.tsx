@@ -80,7 +80,7 @@ export const MultiCurrencyOverview: React.FC<MultiCurrencyOverviewProps> = ({
             const rate = await getExchangeRate(currency, baseCurrency);
             rates[currency] = rate;
           } catch (error) {
-            console.warn(`Failed to get rate for ${currency}:`, error);
+
             rates[currency] = 1; // Fallback
           }
         } else {
@@ -382,3 +382,4 @@ export const MultiCurrencyOverview: React.FC<MultiCurrencyOverviewProps> = ({
     </div>
   );
 }; 
+

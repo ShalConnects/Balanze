@@ -224,3 +224,4 @@ export const HybridCategories: React.FC<HybridCategoriesProps> = ({ hideTitle = 
     </div>
   );
 };
+

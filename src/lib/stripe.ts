@@ -49,7 +49,7 @@ export const createCheckoutSession = async (planId: string, customerEmail: strin
     const { sessionId } = await response.json();
     return sessionId;
   } catch (error) {
-    console.error('Error creating checkout session:', error);
+
     throw error;
   }
 };
@@ -72,7 +72,8 @@ export const redirectToCheckout = async (planId: string, customerEmail: string) 
       throw error;
     }
   } catch (error) {
-    console.error('Error redirecting to checkout:', error);
+
     throw error;
   }
 }; 
+

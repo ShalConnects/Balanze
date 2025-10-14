@@ -23,7 +23,7 @@ export async function sendLastWishEmail(userId, customSupabase = null) {
   // Use provided supabase client or default one
   const client = customSupabase || supabase;
   try {
-    console.log('📧 Starting Last Wish email delivery for user:', userId);
+
 
     // Get user's Last Wish settings
     const { data: settings, error: settingsError } = await client
@@ -47,9 +47,9 @@ export async function sendLastWishEmail(userId, customSupabase = null) {
     }
 
     // Gather user data
-    console.log('📊 Gathering user financial data...');
+
     const userData = await gatherUserData(userId, client);
-    console.log(`📊 Data gathered: ${Object.keys(userData).map(key => `${key}: ${userData[key].length}`).join(', ')}`);
+
 
     // Create email content
     const emailContent = createEmailContent(user, settings, userData);
@@ -63,7 +63,7 @@ export async function sendLastWishEmail(userId, customSupabase = null) {
       .limit(1);
 
     if (existingDelivery && existingDelivery.length > 0) {
-      console.log('⚠️ Last Wish already delivered, skipping duplicate delivery');
+
       return {
         success: true,
         message: 'Last Wish already delivered (duplicate prevented)',
@@ -75,7 +75,7 @@ export async function sendLastWishEmail(userId, customSupabase = null) {
     }
 
     // Call the API endpoint to send real emails
-    console.log('📧 Calling email API to send real emails...');
+
     
     try {
       const response = await fetch('/api/send-last-wish-email', {
@@ -95,7 +95,7 @@ export async function sendLastWishEmail(userId, customSupabase = null) {
         throw new Error(apiResult.error || 'Email API call failed');
       }
 
-      console.log('✅ Email API call successful:', apiResult);
+
       
       const results = apiResult.results || settings.recipients.map(recipient => ({
         recipient: recipient.email,
@@ -113,12 +113,12 @@ export async function sendLastWishEmail(userId, customSupabase = null) {
       };
 
     } catch (apiError) {
-      console.error('❌ Email API call failed, falling back to logging:', apiError);
+
       
       // Fallback: just log the attempt
-      console.log('📧 Last Wish Email Delivery (API Failed):');
-      console.log('Recipients:', settings.recipients.map(r => r.email));
-      console.log('Error:', apiError.message);
+
+
+
       
       const results = settings.recipients.map(recipient => ({
         recipient: recipient.email,
@@ -139,7 +139,7 @@ export async function sendLastWishEmail(userId, customSupabase = null) {
     }
 
   } catch (error) {
-    console.error('❌ Last Wish delivery failed:', error);
+
     return {
       success: false,
       error: error.message,
@@ -191,7 +191,7 @@ async function gatherUserData(userId, client) {
     data.donationSavings = donationSavings || [];
 
   } catch (error) {
-    console.error('Error gathering user data:', error);
+
   }
 
   return data;
@@ -272,7 +272,7 @@ function createEmailContent(user, settings, userData) {
  * Test email service (for development)
  */
 export async function testEmailService() {
-  console.log('🧪 Testing Email Service...');
+
   
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -281,10 +281,11 @@ export async function testEmailService() {
     }
 
     const result = await sendLastWishEmail(user.id);
-    console.log('Test result:', result);
+
     return result;
   } catch (error) {
-    console.error('Test failed:', error);
+
     return { success: false, error: error.message };
   }
 }
+

@@ -68,7 +68,6 @@ export default async function handler(req, res) {
 
     res.status(200).json({ orderId: orderData.id });
   } catch (error) {
-    console.error('Error creating PayPal order:', error);
     res.status(500).json({ error: 'Failed to create PayPal order' });
   }
 } 

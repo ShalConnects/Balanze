@@ -421,3 +421,4 @@ const GoalsPanel: React.FC<GoalsPanelProps> = ({
 };
 
 export default GoalsPanel;
+

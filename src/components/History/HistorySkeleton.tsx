@@ -310,3 +310,4 @@ export const HistoryShimmerSkeleton: React.FC = () => {
 };
 
 export default HistorySkeleton;
+

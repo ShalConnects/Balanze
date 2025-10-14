@@ -124,7 +124,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
       await new Promise(resolve => setTimeout(resolve, 300));
       onClose();
     } catch (error) {
-      console.error('Error saving record:', error);
+
       
       // Check if it's a plan limit error and show upgrade prompt
       if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
@@ -384,3 +384,4 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
     </>
   );
 }; 
+

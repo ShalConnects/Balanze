@@ -88,7 +88,7 @@ export const QuickPurchaseForm: React.FC<QuickPurchaseFormProps> = ({ isOpen, on
       });
       setErrors({});
     } catch (error) {
-      console.error('Error adding purchase:', error);
+
       toast.error('Failed to add purchase. Please try again.');
     } finally {
       setSubmitting(false);
@@ -305,3 +305,4 @@ export const QuickPurchaseForm: React.FC<QuickPurchaseFormProps> = ({ isOpen, on
     </Transition>
   );
 }; 
+

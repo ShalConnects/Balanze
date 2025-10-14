@@ -328,3 +328,4 @@ export const MotivationalQuote: React.FC = () => {
     </div>
   );
 }; 
+

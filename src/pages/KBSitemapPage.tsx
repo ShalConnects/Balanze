@@ -29,3 +29,4 @@ const KBSitemapPage: React.FC = () => {
 };
 
 export default KBSitemapPage;
+

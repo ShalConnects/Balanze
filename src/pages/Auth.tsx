@@ -193,12 +193,12 @@ export const Auth: React.FC = () => {
       const result = await signInWithProvider(provider);
       
       if (!result.success) {
-        console.error('Social login failed:', result.message);
+
       } else {
         // The user will be redirected to the OAuth provider
       }
     } catch (error) {
-      console.error('Social login exception:', error);
+
     } finally {
       setSocialLoading(null);
     }
@@ -237,7 +237,7 @@ export const Auth: React.FC = () => {
         
       }
     } catch (error) {
-      console.error('Signup error:', error);
+
     }
   };
 
@@ -281,7 +281,7 @@ export const Auth: React.FC = () => {
         // The auth store will handle navigation
       }
     } catch (error) {
-      console.error('Unexpected login error:', error);
+
     }
   };
 
@@ -907,3 +907,4 @@ export const Auth: React.FC = () => {
 };
 
 export default Auth;
+

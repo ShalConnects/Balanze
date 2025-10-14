@@ -41,7 +41,7 @@ export const FileRenameUtility: React.FC = () => {
       setPreviewFiles(preview.files);
       setShowPreview(true);
     } catch (error) {
-      console.error('Error generating preview:', error);
+
     } finally {
       setIsProcessing(false);
     }
@@ -58,7 +58,7 @@ export const FileRenameUtility: React.FC = () => {
       setRenameResult(result);
       setShowPreview(false);
     } catch (error) {
-      console.error('Error renaming files:', error);
+
       setRenameResult({
         success: 0,
         failed: 0,
@@ -204,3 +204,4 @@ export const FileRenameUtility: React.FC = () => {
     </div>
   );
 };
+

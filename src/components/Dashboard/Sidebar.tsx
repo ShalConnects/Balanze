@@ -144,3 +144,4 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
     </div>
   );
 } 
+

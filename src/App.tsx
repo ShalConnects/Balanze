@@ -261,7 +261,7 @@ function AppContent() {
     const initializeSession = async () => {
       // Add a timeout to prevent infinite hanging
       const timeoutId = setTimeout(() => {
-        console.log('Session initialization timeout - forcing completion');
+
         setLoading(false);
       }, 10000); // 10 second timeout
       
@@ -278,7 +278,7 @@ function AppContent() {
           });
           
           if (error) {
-            console.error('Error setting session:', error);
+
           } else if (data.user) {
             await handleEmailConfirmation();
           }
@@ -291,21 +291,21 @@ function AppContent() {
         
         if (currentUser && currentUser.email_confirmed_at) {
           // Only create profile for confirmed users - wait for it to complete
-          console.log('Initializing session for confirmed user:', currentUser.id);
+
           try {
           await setUserAndProfile(currentUser, null);
-          console.log('Profile initialization completed');
+
           } catch (error) {
-            console.error('Error in setUserAndProfile:', error);
+
             // Continue anyway to prevent hanging
           }
         } else {
           // For unconfirmed users or no user, just set null without creating profile
-          console.log('No confirmed user found, setting null profile');
+
           setUserAndProfile(null, null);
         }
       } catch (error) {
-        console.error('Error initializing session:', error);
+
       } finally {
         clearTimeout(timeoutId);
         setLoading(false);
@@ -359,7 +359,7 @@ function AppContent() {
             localStorage.removeItem('premiumIntent');
           }
         } catch (error) {
-          console.error('Error parsing premium intent:', error);
+
           localStorage.removeItem('premiumIntent');
         }
       }
@@ -398,7 +398,7 @@ function AppContent() {
           // Mark as checked to prevent re-running when profile loads
           setWelcomeModalChecked(true);
         } catch (error) {
-          console.error('Error checking welcome modal conditions:', error);
+
           // On error, assume new user and show modal
           setShowWelcomeModal(true);
           setWelcomeModalChecked(true);
@@ -547,3 +547,4 @@ function App() {
 }
 
 export default App;
+

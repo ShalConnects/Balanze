@@ -129,3 +129,4 @@ export const CategoryChart: React.FC<CategoryChartProps> = ({ transactions, cate
     </div>
   );
 };
+

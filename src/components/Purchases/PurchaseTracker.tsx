@@ -170,7 +170,7 @@ export const PurchaseTracker: React.FC = () => {
           setShowPurchasesWidget(showWidget);
           localStorage.setItem('showPurchasesWidget', JSON.stringify(showWidget));
         } catch (error) {
-          console.error('Error loading Purchases widget preferences:', error);
+
           // Keep current localStorage value if database fails
         }
       };
@@ -192,7 +192,7 @@ export const PurchaseTracker: React.FC = () => {
           description: 'You can hide it again from the dashboard'
         });
       } catch (error) {
-        console.error('Error saving Purchases widget preferences:', error);
+
         toast.error('Failed to save preference', {
           description: 'Your preference will be saved locally only'
         });
@@ -224,7 +224,7 @@ export const PurchaseTracker: React.FC = () => {
           setPurchaseAttachmentCounts(counts);
         }
       } catch (err) {
-        console.error('Error fetching attachment counts:', err);
+
       }
     };
 
@@ -711,7 +711,7 @@ export const PurchaseTracker: React.FC = () => {
                 .upload(`purchases/${editingPurchase.id}/${att.file_name}`, att.file, { upsert: true });
               
               if (uploadError) {
-                console.error('Upload error:', uploadError);
+
                 continue;
               }
               
@@ -729,7 +729,7 @@ export const PurchaseTracker: React.FC = () => {
                 };
                 const { error: insertError } = await supabase.from('purchase_attachments').insert(attachmentData);
                 if (insertError) {
-                  console.error('Attachment insert error:', insertError);
+
                 } else {
                   // Attachment uploaded successfully - removed for production
                 }
@@ -832,7 +832,7 @@ export const PurchaseTracker: React.FC = () => {
                     .upload(`purchases/${newPurchase.id}/${att.file_name}`, att.file, { upsert: true });
                   
                   if (uploadError) {
-                    console.error('Upload error:', uploadError);
+
                     continue;
                   }
                   
@@ -850,7 +850,7 @@ export const PurchaseTracker: React.FC = () => {
                     };
                     const { error: insertError } = await supabase.from('purchase_attachments').insert(attachmentData);
                     if (insertError) {
-                      console.error('Attachment insert error:', insertError);
+
                     } else {
                       // Attachment uploaded successfully - removed for production
                     }
@@ -909,7 +909,7 @@ export const PurchaseTracker: React.FC = () => {
     setShowPurchaseForm(false);
   setExcludeFromCalculation(false);
     } catch (error) {
-      console.error('Error submitting purchase:', error);
+
       if (editingPurchase) {
         toast.error('Failed to update purchase. Please try again.');
       } else {
@@ -1208,7 +1208,7 @@ export const PurchaseTracker: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Error downloading file:', error);
+
       toast.error(`Download failed: ${error.message}. Please try opening the file in a new tab.`);
     }
   };
@@ -1951,7 +1951,7 @@ export const PurchaseTracker: React.FC = () => {
                                         setModalAttachments([]);
                                       }
                                     } catch (err) {
-                                      console.error('Error loading attachments:', err);
+
                                       setModalAttachments([]);
                                     }
                                   }}
@@ -2001,7 +2001,7 @@ export const PurchaseTracker: React.FC = () => {
                                   setPurchaseAttachments([]);
                                 }
                               } catch (err) {
-                                console.error('Error loading attachments:', err);
+
                                 setPurchaseAttachments([]);
                               }
                               
@@ -2027,7 +2027,7 @@ export const PurchaseTracker: React.FC = () => {
                                     setSelectedAccountId('');
                                   }
                                 } catch (err) {
-                                  console.error('Error loading linked transaction:', err);
+
                                   setSelectedAccountId('');
                                 }
                               } else {
@@ -2153,7 +2153,7 @@ export const PurchaseTracker: React.FC = () => {
                                           setModalAttachments([]);
                                         }
                                       } catch (err) {
-                                        console.error('Error loading attachments:', err);
+
                                         setModalAttachments([]);
                                       }
                                     }}
@@ -2202,7 +2202,7 @@ export const PurchaseTracker: React.FC = () => {
                                 setPurchaseAttachments([]);
                               }
                             } catch (err) {
-                              console.error('Error loading attachments:', err);
+
                               setPurchaseAttachments([]);
                             }
                             
@@ -2228,7 +2228,7 @@ export const PurchaseTracker: React.FC = () => {
                                   setSelectedAccountId('');
                                 }
                               } catch (err) {
-                                console.error('Error loading linked transaction:', err);
+
                                 setSelectedAccountId('');
                               }
                             } else {
@@ -2337,7 +2337,7 @@ export const PurchaseTracker: React.FC = () => {
                                 setModalAttachments([]);
                               }
                             } catch (err) {
-                              console.error('Error loading attachments:', err);
+
                               setModalAttachments([]);
                             }
                           }}
@@ -3278,3 +3278,4 @@ export const PurchaseTracker: React.FC = () => {
     </div>
   );
 };
+

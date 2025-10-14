@@ -151,3 +151,4 @@ export function generateInternalLinkingSuggestions(articleSlug: string): {
     popularArticles
   };
 }
+

@@ -242,7 +242,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching accounts:', error);
       return set({ loading: false, error: error.message });
     }
 
@@ -273,17 +272,14 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   },
 
   addAccount: async (account: Omit<AccountInput, 'id' | 'user_id' | 'created_at'> & { dps_initial_balance?: number, transaction_id?: string }) => {
-    console.log('addAccount called with:', account);
     try {
       set({ loading: true, error: null });
       const { user } = useAuthStore.getState();
-      console.log('Current user:', user);
       if (!user) throw new Error('Not authenticated');
 
       // Calculate DPS initial balance
       const dpsInitial = account.dps_initial_balance || 0;
       const mainInitial = account.initial_balance;
-      console.log('DPS initial:', dpsInitial, 'Main initial:', mainInitial);
       
       // Remove dps_initial_balance from main account object
       const { dps_initial_balance, transaction_id, ...mainAccountData } = account;
@@ -292,7 +288,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         (mainAccountData as any).is_active = (mainAccountData as any).isActive;
         delete (mainAccountData as any).isActive;
       }
-      console.log('Main account data to insert:', mainAccountData);
       
       // First create the main account (do not deduct DPS initial)
       const { data: mainAccount, error: mainError } = await supabase
@@ -310,7 +305,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         .select()
         .single();
 
-      console.log('Main account insert result:', { data: mainAccount, error: mainError });
       if (mainError) throw mainError;
 
       // Audit log for account creation
@@ -328,15 +322,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       }
       // If this is a DPS account, create a linked savings account
       if (account.has_dps) {
-        console.log('🔥 DPS SAVINGS ACCOUNT CREATION DEBUG 🔥');
-        console.log('Account name:', `${account.name} (DPS)`);
-        console.log('Type: savings');
-        console.log('Initial balance (dpsInitial):', dpsInitial);
-        console.log('Currency:', account.currency);
-        console.log('User ID:', user.id);
-        console.log('Is active: true');
-        console.log('Description:', `DPS account for ${account.name}`);
-        console.log('🔥 END DPS DEBUG 🔥');
         
         const { data: savingsAccount, error: savingsError } = await supabase
           .from('accounts')
@@ -352,14 +337,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           .select()
           .single();
 
-        console.log('🔥 DPS SAVINGS ACCOUNT CREATION RESULT 🔥');
-        console.log('Data:', savingsAccount);
-        console.log('Error:', savingsError);
-        if (savingsAccount) {
-          console.log('Created DPS account initial_balance:', savingsAccount.initial_balance);
-          console.log('Created DPS account calculated_balance:', savingsAccount.calculated_balance);
-        }
-        console.log('🔥 END RESULT DEBUG 🔥');
         if (savingsError) throw savingsError;
 
         // Update the main account with the savings account ID
@@ -376,7 +353,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       const hasCashAccount = currentAccounts.some(acc => acc.type === 'cash');
       
       if (!hasCashAccount) {
-        console.log('User does not have a cash account, creating one...');
         const { data: cashAccount, error: cashError } = await supabase
           .from('accounts')
           .insert([{
@@ -397,10 +373,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           .single();
 
         if (cashError) {
-          console.error('Error creating cash account:', cashError);
           // Don't fail the main account creation if cash account fails
         } else {
-          console.log('Cash account created successfully:', cashAccount);
           
           // Audit log for cash account creation
           await supabase.from('activity_history').insert({
@@ -631,7 +605,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       .order('date', { ascending: false });
     
     if (error) {
-      console.error('Error fetching transactions:', error);
       return set({ loading: false, error: error.message });
     }
 

@@ -98,7 +98,7 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
 
       onAttachmentsChange([...attachments, tempAttachment]);
     } catch (error) {
-      console.error('Error uploading file:', error);
+
       setCurrentUploadFile(null);
       setUploadProgress(0);
     } finally {
@@ -116,7 +116,7 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
         .eq('id', attachmentId)
         .then(({ error }) => {
           if (error) {
-            console.error('Error removing attachment from database:', error);
+
           }
         });
     }
@@ -178,7 +178,7 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error downloading file:', error);
+
       toast.error('Failed to download file. Please try again.');
     }
   };
@@ -374,3 +374,4 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
     </div>
   );
 }; 
+

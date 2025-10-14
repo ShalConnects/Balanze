@@ -43,7 +43,7 @@ export const DonationTemplates: React.FC<DonationTemplatesProps> = ({
       try {
         setTemplates(JSON.parse(saved));
       } catch (error) {
-        console.error('Error loading donation templates:', error);
+
       }
     }
   }, []);
@@ -516,3 +516,4 @@ export const DonationTemplates: React.FC<DonationTemplatesProps> = ({
     </div>
   );
 }; 
+

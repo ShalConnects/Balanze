@@ -251,3 +251,4 @@ export const ReportsView: React.FC = () => {
     </div>
   );
 };
+

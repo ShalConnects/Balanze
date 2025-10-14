@@ -238,3 +238,4 @@ export default function ArticleEditor({ article, onSave }: ArticleEditorProps) {
     </div>
   );
 }
+

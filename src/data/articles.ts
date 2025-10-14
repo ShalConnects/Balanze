@@ -349,3 +349,4 @@ export function buildArticleContent(sections: string[]): string {
 export function getTOCByTemplate(templateName: keyof typeof TOC_TEMPLATES): TableOfContentsItem[] {
   return TOC_TEMPLATES[templateName] || TOC_TEMPLATES.gettingStarted;
 }
+

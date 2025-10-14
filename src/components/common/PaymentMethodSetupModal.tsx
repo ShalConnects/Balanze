@@ -147,7 +147,7 @@ export const PaymentMethodSetupModal: React.FC<PaymentMethodSetupModalProps> = (
       });
 
       if (error) {
-        console.error('Error adding payment method:', error);
+
         toast.error('Failed to add payment method. Please try again.');
         return;
       }
@@ -171,7 +171,7 @@ export const PaymentMethodSetupModal: React.FC<PaymentMethodSetupModalProps> = (
       onClose();
       
     } catch (error) {
-      console.error('Error adding payment method:', error);
+
       toast.error('Failed to add payment method. Please try again.');
     } finally {
       setLoading(false);
@@ -528,3 +528,4 @@ export const PaymentMethodSetupModal: React.FC<PaymentMethodSetupModalProps> = (
     </div>
   );
 };
+

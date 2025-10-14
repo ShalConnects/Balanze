@@ -46,12 +46,8 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
       setError(null);
 
       if (!PADDLE_CLIENT_TOKEN) {
-        console.warn('Paddle client token not configured, using fallback method');
-        console.log('Environment check:', {
-          PADDLE_VENDOR_ID,
-          PADDLE_ENVIRONMENT,
-          PADDLE_CLIENT_TOKEN: PADDLE_CLIENT_TOKEN ? 'Present' : 'Missing'
-        });
+
+        
         setError('Paddle client token not configured. Please check environment variables in Vercel dashboard.');
         setLoading(false);
         return;
@@ -62,22 +58,22 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
         environment: PADDLE_ENVIRONMENT as 'sandbox' | 'production',
         token: PADDLE_CLIENT_TOKEN,
         eventCallback: (data) => {
-          console.log('Paddle event:', data);
+
           handlePaddleEvent(data);
         }
       });
 
       if (paddleInstance && paddleInstance.Checkout) {
-        console.log('Paddle initialized successfully with checkout capability');
+
         setPaddle(paddleInstance);
         setLoading(false);
       } else {
-        console.warn('Paddle initialized but checkout not available');
+
         throw new Error('Failed to initialize Paddle with checkout capability');
       }
     } catch (err) {
-      console.error('Failed to load Paddle:', err);
-      console.log('Falling back to direct URL method');
+
+
       
       // Fallback to direct URL approach
       const priceId = getPaddlePriceId();
@@ -126,7 +122,7 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
       // Refresh the page to show new features
       window.location.reload();
     } catch (err) {
-      console.error('Payment error:', err);
+
       setError('Payment verification failed. Please contact support.');
       toast.error('Payment verification failed. Please contact support.');
     } finally {
@@ -151,13 +147,13 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
       };
       const hostedCheckoutUrl = hostedCheckoutUrls[planId];
 
-      console.log(`🚀 Starting ${PADDLE_ENVIRONMENT} checkout for plan: ${planId}`);
-      console.log('User details:', { email: user.email, id: user.id });
+
+
 
       // Strategy 1: Try Paddle.js overlay checkout first (best UX)
       if (paddle && paddle.Checkout) {
         try {
-          console.log('🎯 Attempting overlay checkout...');
+
           
           const checkoutPromise = paddle.Checkout.open({
             items: [{ priceId, quantity: 1 }],
@@ -190,7 +186,7 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
             );
             
             await Promise.race([checkoutPromise, timeoutPromise]);
-            console.log('✅ Overlay checkout opened successfully');
+
             setLoading(false);
             toast.success('Checkout opened!');
             return; // Success - exit early
@@ -198,21 +194,21 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
             // If checkout returns undefined/null, it might have failed silently
             throw new Error('Checkout returned null/undefined');
           } else {
-            console.log('✅ Overlay checkout opened (non-promise)');
+
             setLoading(false);
             toast.success('Checkout opened!');
             return; // Success - exit early
           }
         } catch (overlayError) {
-          console.warn('⚠️ Overlay checkout failed, trying fallback:', overlayError);
+
           // Continue to fallback strategy
         }
       }
 
       // Strategy 2: Fallback to hosted checkout URL in new tab
       if (hostedCheckoutUrl) {
-        console.log('🔄 Falling back to hosted checkout URL...');
-        console.log('Opening URL:', hostedCheckoutUrl);
+
+
         
         window.open(hostedCheckoutUrl, '_blank', 'noopener,noreferrer');
         setLoading(false);
@@ -221,7 +217,7 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
       }
 
       // Strategy 3: Final fallback - construct URL manually
-      console.log('🔄 Using final fallback method...');
+
       const fallbackUrl = PADDLE_ENVIRONMENT === 'sandbox' 
         ? `https://sandbox-buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`
         : `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
@@ -231,7 +227,7 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
       toast.success('Opening checkout...');
 
     } catch (err) {
-      console.error('❌ All checkout methods failed:', err);
+
       setError('Unable to open checkout. Please try again or contact support.');
       setLoading(false);
     }
@@ -376,3 +372,4 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
     </div>
   );
 };
+

@@ -665,3 +665,4 @@ const BlogDetail: React.FC = () => {
 };
 
 export default BlogDetail; 
+

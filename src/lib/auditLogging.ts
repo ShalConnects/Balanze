@@ -24,14 +24,14 @@ export const createAuditLog = async (data: AuditLogData): Promise<string | null>
       });
 
     if (error) {
-      console.error('Error creating audit log:', error);
+
       return null;
     }
 
-    console.log('Audit log created successfully:', result);
+
     return result;
   } catch (error) {
-    console.error('Error in createAuditLog:', error);
+
     return null;
   }
 };
@@ -47,7 +47,7 @@ export const testAuditLogging = async (): Promise<boolean> => {
     
     return result !== null;
   } catch (error) {
-    console.error('Test audit logging failed:', error);
+
     return false;
   }
 };
@@ -72,3 +72,4 @@ export const logTransactionEvent = async (
     severity: 'medium'
   });
 }; 
+

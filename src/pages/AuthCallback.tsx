@@ -15,7 +15,7 @@ const AuthCallback: React.FC = () => {
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Auth callback error:', error);
+
           setError('Authentication failed. Please try again.');
           setTimeout(() => navigate('/auth'), 3000);
           return;
@@ -31,7 +31,7 @@ const AuthCallback: React.FC = () => {
             });
             
             if (emailCheckError) {
-              console.error('Error checking for duplicate email:', emailCheckError);
+
               setError('Authentication verification failed. Please try again.');
               // Sign out the OAuth user
               await supabase.auth.signOut();
@@ -46,7 +46,7 @@ const AuthCallback: React.FC = () => {
                 .rpc('get_user_by_email', { email_to_check: user.email || '' });
               
               if (fetchError) {
-                console.error('Error fetching existing user:', fetchError);
+
                 setError('Authentication verification failed. Please try again.');
                 await supabase.auth.signOut();
                 setTimeout(() => navigate('/auth'), 3000);
@@ -55,7 +55,7 @@ const AuthCallback: React.FC = () => {
               
               // If the existing user has a different ID, this is a duplicate
               if (existingUsers && existingUsers !== user.id) {
-                console.warn('Duplicate email detected via OAuth:', user.email);
+
                 setError('This email is already registered with a different account. Please sign in using your original login method (email/password).');
                 
                 // Sign out the OAuth user
@@ -67,7 +67,7 @@ const AuthCallback: React.FC = () => {
             
             // OAuth email check passed, proceeding with login
           } catch (emailVerificationError) {
-            console.error('Exception during email verification:', emailVerificationError);
+
             setError('Authentication verification failed. Please try again.');
             await supabase.auth.signOut();
             setTimeout(() => navigate('/auth'), 3000);
@@ -94,7 +94,7 @@ const AuthCallback: React.FC = () => {
           }
         }
       } catch (err) {
-        console.error('Unexpected error in auth callback:', err);
+
         setError('An unexpected error occurred.');
         setTimeout(() => navigate('/auth'), 3000);
       }
@@ -134,3 +134,4 @@ const AuthCallback: React.FC = () => {
 };
 
 export default AuthCallback; 
+

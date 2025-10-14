@@ -461,7 +461,7 @@ export const AccountsView: React.FC = () => {
       
       await updateAccountPosition(draggedId, newPosition);
     } catch (error) {
-      console.error('Failed to reorder accounts:', error);
+      // Handle error silently
     }
   };
 
@@ -543,7 +543,6 @@ export const AccountsView: React.FC = () => {
         toast.success('DPS account deleted and balance moved to Cash Wallet');
       }
     } catch (error) {
-      console.error('Error deleting DPS:', error);
       toast.error('Failed to delete DPS account');
     }
     

@@ -74,30 +74,30 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('=== MANUAL DONATION SUBMIT START ===');
-    console.log('User authenticated:', !!user);
-    console.log('User ID:', user?.id);
-    console.log('Loading state:', isLoading);
-    console.log('Form values:', { amount, currency, note, date });
+
+
+
+
+
     
     if (!user || isLoading) {
-      console.log('❌ Early return: No user or already loading');
+
       return;
     }
 
     const amountNum = parseFloat(amount);
-    console.log('Parsed amount:', amountNum);
+
     
     if (!amountNum || amountNum <= 0) {
-      console.log('❌ Invalid amount:', amountNum);
+
       toast.error('Please enter a valid amount');
       return;
     }
 
-    console.log('✅ Amount validation passed');
-    console.log('🔄 Starting donation creation process...');
+
+
     try {
-      console.log('🔄 Starting donation creation process...');
+
       
       // For manual donations, we don't need to link to a specific account
       // since these are external donations not from user's accounts
@@ -105,7 +105,7 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
       // First, ensure we have a 'Donation' category or use a default one
       let categoryName = 'Donation';
       
-      console.log('🔍 Checking for Donation category...');
+
       
       // Check if 'Donation' category exists, if not use 'Income' as fallback
       const { data: categories } = await supabase
@@ -115,10 +115,10 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
         .eq('name', 'Donation')
         .limit(1);
       
-      console.log('Donation categories found:', categories);
+
       
       if (!categories || categories.length === 0) {
-        console.log('No Donation category found, checking for income categories...');
+
         // Use 'Income' as fallback category
         const { data: incomeCategories } = await supabase
           .from('categories')
@@ -127,15 +127,15 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
           .eq('type', 'income')
           .limit(1);
         
-        console.log('Income categories found:', incomeCategories);
+
         
         if (incomeCategories && incomeCategories.length > 0) {
           categoryName = incomeCategories[0].name;
-          console.log('Using fallback category:', categoryName);
+
         }
       }
       
-      console.log('Final category name:', categoryName);
+
 
       // Create the donation record directly without a transaction
       const donationData = {
@@ -151,7 +151,7 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
         created_at: new Date().toISOString().split('T')[0] // Always use current date for created_at
       };
       
-      console.log('📝 Creating donation record with data:', donationData);
+
       
       const { data: donationRecord, error: donationError } = await supabase
         .from('donation_saving_records')
@@ -160,29 +160,29 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
         .single();
 
       if (donationError) {
-        console.error('❌ Donation record creation error:', donationError);
+
         throw donationError;
       }
       
-      console.log('✅ Donation record created successfully:', donationRecord);
+
 
       toast.success('Manual donation recorded successfully!');
       
-      console.log('🔄 Starting data refresh...');
+
       
       // Small delay to ensure database commit
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      console.log('🔄 Refreshing donation records...');
+
       // Refresh all related data
       await fetchDonationSavingRecords();
       
-      console.log('🔄 Refreshing transactions...');
+
       // Also refresh transactions since the donations page depends on them
       const store = useFinanceStore.getState();
       await store.fetchTransactions();
       
-      console.log('✅ Data refresh completed');
+
       
       onClose();
       
@@ -199,14 +199,8 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
       setNote('');
       setDate(new Date());
     } catch (error: any) {
-      console.error('=== MANUAL DONATION ERROR ===');
-      console.error('❌ Error adding manual donation:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      });
+
+
       
       // More specific error messages
       if (error.message?.includes('foreign key')) {
@@ -349,3 +343,4 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
     </div>
   );
 }; 
+

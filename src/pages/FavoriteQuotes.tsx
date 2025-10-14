@@ -408,3 +408,4 @@ export const FavoriteQuotes: React.FC = () => {
     </div>
   );
 }; 
+

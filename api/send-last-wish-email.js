@@ -540,9 +540,7 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
     const emailContent = createEmailContent(user, recipient, filteredData, settings, isTestMode);
 
     // Generate PDF
-    console.log('📄 Generating PDF...');
     const pdfBuffer = await createPDFBuffer(user, recipient, filteredData, settings);
-    console.log('✅ PDF generated successfully');
 
     // Get user's display name for subject
     const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || user.email;
@@ -567,9 +565,7 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
       ]
     };
 
-    console.log(`📧 Sending ${isTestMode ? 'test ' : ''}email to: ${recipient.email}`);
     const result = await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent successfully to ${recipient.email}:`, result.messageId);
 
     // Log delivery
     await supabase
@@ -585,8 +581,6 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
     return { success: true, messageId: result.messageId };
 
   } catch (error) {
-    console.error(`❌ Error sending to ${recipient.email}:`, error);
-    
     // Log failed delivery
     await supabase
       .from('last_wish_deliveries')
@@ -605,8 +599,6 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
 
 async function sendLastWishEmail(userId, testMode = false) {
   try {
-    console.log(`🚀 Starting Last Wish email delivery for user: ${userId} (test mode: ${testMode})`);
-
     // Check if SMTP is configured
     if (!transporter) {
       throw new Error('SMTP not configured. Please set up SMTP settings in environment variables.');
@@ -634,14 +626,11 @@ async function sendLastWishEmail(userId, testMode = false) {
     }
 
     // Gather user data
-    console.log('📊 Gathering user financial data...');
     const userData = await gatherUserData(userId);
-    console.log(`📊 Data gathered: ${Object.keys(userData).map(key => `${key}: ${userData[key].length}`).join(', ')}`);
 
     // Send emails to all recipients
     const results = [];
     for (const recipient of settings.recipients) {
-      console.log(`📧 Sending to recipient: ${recipient.email} (${recipient.name})`);
       const result = await sendDataToRecipient(user.user, recipient, userData, settings, testMode);
       results.push({
         recipient: recipient.email,
@@ -665,8 +654,6 @@ async function sendLastWishEmail(userId, testMode = false) {
     const successCount = results.filter(r => r.success).length;
     const failCount = results.filter(r => !r.success).length;
 
-    console.log(`✅ Last Wish delivery completed: ${successCount} successful, ${failCount} failed`);
-
     return {
       success: true,
       message: `Last Wish delivered to ${successCount} recipient(s)`,
@@ -677,7 +664,6 @@ async function sendLastWishEmail(userId, testMode = false) {
     };
 
   } catch (error) {
-    console.error(`❌ Last Wish delivery failed:`, error);
     return {
       success: false,
       error: error.message,
@@ -713,8 +699,6 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log(`📧 API: Starting Last Wish email delivery for user: ${userId} (test mode: ${testMode})`);
-    
     const result = await sendLastWishEmail(userId, testMode);
     
     if (result.success) {
@@ -723,7 +707,6 @@ export default async function handler(req, res) {
       res.status(500).json(result);
     }
   } catch (error) {
-    console.error(`❌ API Error:`, error);
     res.status(500).json({ 
       success: false, 
       error: error.message,

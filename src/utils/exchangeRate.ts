@@ -57,7 +57,7 @@ export async function getExchangeRate(fromCurrency: string, toCurrency: string):
       return rate;
     }
   } catch (error) {
-    console.warn('Failed to fetch real-time exchange rate:', error);
+
   }
 
   // Fallback to common rates
@@ -65,12 +65,12 @@ export async function getExchangeRate(fromCurrency: string, toCurrency: string):
   const fallbackRate = COMMON_RATES[key];
   
   if (fallbackRate) {
-    console.log(`Using fallback rate for ${key}: ${fallbackRate}`);
+
     return fallbackRate;
   }
 
   // If no rate found, return 1 (same currency treatment)
-  console.warn(`No exchange rate found for ${fromCurrency} to ${toCurrency}, using 1:1`);
+
   return 1;
 }
 
@@ -91,7 +91,7 @@ async function fetchRealTimeRate(fromCurrency: string, toCurrency: string): Prom
     // Uncomment the above code and add your API key to use real-time rates
     return null;
   } catch (error) {
-    console.error('Error fetching real-time exchange rate:', error);
+
     return null;
   }
 }
@@ -176,3 +176,4 @@ export function getSupportedCurrencies(): string[] {
   
   return Array.from(currencies).sort();
 } 
+

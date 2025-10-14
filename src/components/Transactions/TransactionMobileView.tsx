@@ -243,3 +243,4 @@ export const TransactionMobileView: React.FC<TransactionMobileViewProps> = React
 });
 
 TransactionMobileView.displayName = 'TransactionMobileView'; 
+

@@ -252,3 +252,4 @@ export const usePerformanceTracking = (componentName: string) => {
 if (typeof window !== 'undefined') {
   performanceMonitor.startMonitoring();
 } 
+

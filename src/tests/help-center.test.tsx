@@ -91,3 +91,4 @@ describe('Help Center Integration', () => {
 
 // Export for potential use in other tests
 export { TestWrapper };
+

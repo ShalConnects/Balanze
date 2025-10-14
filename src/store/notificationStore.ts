@@ -148,7 +148,7 @@ export const useNotificationStore = create<NotificationStore>()(
           }));
           set({ favoriteQuotes: convertedQuotes, isLoadingQuotes: false });
         } catch (error) {
-          console.error('Error loading favorite quotes:', error);
+
           set({ isLoadingQuotes: false });
         }
       },
@@ -156,7 +156,7 @@ export const useNotificationStore = create<NotificationStore>()(
       addFavoriteQuote: async (quoteData) => {
         const { currentUserId } = get();
         if (!currentUserId) {
-          console.error('No current user ID for adding favorite quote');
+
           return;
         }
 
@@ -181,14 +181,14 @@ export const useNotificationStore = create<NotificationStore>()(
             }));
           }
         } catch (error) {
-          console.error('Error adding favorite quote:', error);
+
         }
       },
 
       removeFavoriteQuote: async (id) => {
         const { currentUserId } = get();
         if (!currentUserId) {
-          console.error('No current user ID for removing favorite quote');
+
           return;
         }
 
@@ -200,14 +200,14 @@ export const useNotificationStore = create<NotificationStore>()(
             }));
           }
         } catch (error) {
-          console.error('Error removing favorite quote:', error);
+
         }
       },
 
       removeFavoriteQuoteByContent: async (quote: string, author: string) => {
         const { currentUserId } = get();
         if (!currentUserId) {
-          console.error('No current user ID for removing favorite quote by content');
+
           return;
         }
 
@@ -221,7 +221,7 @@ export const useNotificationStore = create<NotificationStore>()(
             }));
           }
         } catch (error) {
-          console.error('Error removing favorite quote by content:', error);
+
         }
       },
 
@@ -348,3 +348,4 @@ export const useNotificationStore = create<NotificationStore>()(
     }
   )
 ); 
+

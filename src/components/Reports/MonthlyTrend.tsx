@@ -169,3 +169,4 @@ export const MonthlyTrend: React.FC<MonthlyTrendProps> = ({ transactions, period
     </div>
   );
 };
+

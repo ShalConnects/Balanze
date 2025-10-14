@@ -404,3 +404,4 @@ export const TransactionPurchaseUpdates: React.FC<TransactionPurchaseUpdatesProp
     </div>
   );
 }; 
+

@@ -135,7 +135,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
     try {
       await onSave(formData);
     } catch (error) {
-      console.error('Error saving category:', error);
+
       
       // Check if it's a plan limit error and show upgrade prompt
       if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
@@ -344,3 +344,4 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
     </div>
   );
 }; 
+

@@ -56,7 +56,7 @@ export const SubscriptionManager: React.FC = () => {
         setCurrentSubscription(statusData);
       }
     } catch (error) {
-      console.error('Error loading subscription data:', error);
+
     } finally {
       setLoading(false);
     }
@@ -83,7 +83,7 @@ export const SubscriptionManager: React.FC = () => {
         alert('Subscription upgraded successfully!');
       }
     } catch (error) {
-      console.error('Error upgrading subscription:', error);
+
       alert('Failed to upgrade subscription. Please try again.');
     } finally {
       setUpgrading(false);
@@ -225,3 +225,4 @@ export const SubscriptionManager: React.FC = () => {
     </div>
   );
 }; 
+

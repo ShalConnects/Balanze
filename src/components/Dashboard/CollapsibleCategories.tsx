@@ -202,3 +202,4 @@ export const CollapsibleCategories: React.FC<CollapsibleCategoriesProps> = ({ hi
     </div>
   );
 };
+

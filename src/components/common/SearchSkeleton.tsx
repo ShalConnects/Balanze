@@ -198,3 +198,4 @@ export const SearchSkeletonCompact: React.FC<SearchSkeletonProps> = ({ className
     </div>
   );
 };
+

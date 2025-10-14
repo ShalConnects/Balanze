@@ -51,3 +51,4 @@ export const BalanzeLogo: React.FC<BalanzeLogoProps> = ({
     </div>
   );
 }; 
+

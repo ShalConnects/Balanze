@@ -204,7 +204,7 @@ const DonationsSavingsPage: React.FC = () => {
           setShowDonationsSavingsWidget(showWidget);
           localStorage.setItem('showDonationsSavingsWidget', JSON.stringify(showWidget));
         } catch (error) {
-          console.error('Error loading Donations & Savings widget preferences:', error);
+
           // Keep current localStorage value if database fails
         }
       };
@@ -226,7 +226,7 @@ const DonationsSavingsPage: React.FC = () => {
           description: 'You can hide it again from the dashboard'
         });
       } catch (error) {
-        console.error('Error saving Donations & Savings widget preferences:', error);
+
         toast.error('Failed to save preference', {
           description: 'Your preference will be saved locally only'
         });
@@ -2005,3 +2005,4 @@ const DonationsSavingsPage: React.FC = () => {
 };
 
 export default DonationsSavingsPage;
+

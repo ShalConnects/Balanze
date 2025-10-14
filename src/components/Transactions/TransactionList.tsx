@@ -135,17 +135,11 @@ export const TransactionList: React.FC<{
 
   // Check if categories exist and redirect to settings if needed
   const checkCategoriesAndRedirect = () => {
-    console.log('checkCategoriesAndRedirect called');
     const hasIncomeCategories = categories.filter(cat => cat.type === 'income').length > 0;
     const hasExpenseCategories = purchaseCategories.length > 0; // Use purchaseCategories since transaction form now uses them
     
-    console.log('hasIncomeCategories:', hasIncomeCategories);
-    console.log('hasExpenseCategories:', hasExpenseCategories);
-    console.log('Categories count:', categories.length);
-    console.log('Purchase categories count:', purchaseCategories.length);
     
     if (!hasIncomeCategories || !hasExpenseCategories) {
-      console.log('Categories check failed - showing error toast');
       toast.error('Please add categories first before creating transactions', {
         description: 'You need both income and expense categories to create transactions.',
         action: {
@@ -155,7 +149,6 @@ export const TransactionList: React.FC<{
       });
       return false;
     }
-    console.log('Categories check passed');
     return true;
   };
 
@@ -447,7 +440,6 @@ export const TransactionList: React.FC<{
       await deleteTransaction(transaction.id);
       toast.success('Transaction deleted successfully');
     } catch (error) {
-      console.error('Error deleting transaction:', error);
       toast.error('Failed to delete transaction');
     }
     });
@@ -524,23 +516,6 @@ export const TransactionList: React.FC<{
   const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const transactionCount = filteredTransactions.length;
 
-  // Debug logging for BDT currency
-  if (filters.currency === 'BDT' || (!filters.currency && accounts.some(a => a.currency === 'BDT'))) {
-    console.log('TransactionList BDT Debug:', {
-      filters,
-      totalTransactions: transactions.length,
-      filteredTransactionsCount: filteredTransactions.length,
-      totalExpense,
-      expenseTransactions: filteredTransactions.filter(t => t.type === 'expense').map(t => ({ 
-        id: t.id, 
-        transaction_id: t.transaction_id, 
-        amount: t.amount, 
-        date: t.date, 
-        description: t.description,
-        account_currency: accounts.find(a => a.id === t.account_id)?.currency
-      }))
-    });
-  }
 
 
 
@@ -718,16 +693,11 @@ export const TransactionList: React.FC<{
             <div className="md:hidden">
               <button
                 onClick={() => {
-                  console.log('Mobile transaction button clicked');
-                  console.log('Categories:', categories);
-                  console.log('Purchase categories:', purchaseCategories);
                   
                   if (checkCategoriesAndRedirect()) {
-                    console.log('Categories check passed, opening form');
                     setSelectedTransaction(undefined);
                     setIsFormOpen(true);
                   } else {
-                    console.log('Categories check failed, toast should show');
                   }
                 }}
                 className="bg-gradient-primary text-white px-2 py-1.5 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center justify-center text-[13px] h-8 w-8"

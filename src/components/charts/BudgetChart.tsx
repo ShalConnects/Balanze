@@ -310,3 +310,4 @@ const BudgetChart: React.FC<BudgetChartProps> = ({
 };
 
 export default BudgetChart;
+

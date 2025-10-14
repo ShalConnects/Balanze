@@ -755,7 +755,7 @@ export default function AdminPage() {
   const handleSave = (updatedArticle: KBArticle) => {
     setCurrentArticle(updatedArticle);
     // In a real app, you'd save this to your backend/database
-    console.log('Article saved:', updatedArticle);
+
   };
 
   const handlePreview = () => {
@@ -842,3 +842,4 @@ export default function AdminPage() {
     </div>
   );
 }
+

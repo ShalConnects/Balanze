@@ -24,7 +24,7 @@ export class MobileScrollFix {
   private init(): void {
     // DISABLED: This utility was causing touch scroll conflicts
     // All scroll handling is now done via pure CSS approach in App.tsx and index.css
-    console.log('MobileScrollFix: Disabled to prevent touch scroll conflicts');
+
   }
 
   private isMobileDevice(): boolean {
@@ -201,3 +201,4 @@ export const initMobileScrollFix = (): MobileScrollFix => {
 
 // Export for use in components
 export default MobileScrollFix;
+

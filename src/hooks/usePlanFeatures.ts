@@ -65,7 +65,7 @@ export const usePlanFeatures = () => {
       if (error) throw error;
       setFeatures(data);
     } catch (error) {
-      console.error('Error loading plan features:', error);
+
       // Set default free features
       setFeatures({
         max_accounts: 3,
@@ -112,7 +112,7 @@ export const usePlanFeatures = () => {
 
       setUsageStats(combinedStats);
     } catch (error) {
-      console.error('Error loading usage stats:', error);
+
     } finally {
       setLoading(false);
     }
@@ -199,3 +199,4 @@ export const usePlanFeatures = () => {
     loadUsageStats, // Allow manual refresh
   };
 }; 
+

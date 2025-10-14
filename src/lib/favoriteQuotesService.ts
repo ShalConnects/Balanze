@@ -40,7 +40,7 @@ export class FavoriteQuotesService {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching favorite quotes:', error);
+
         return [];
       }
 
@@ -48,7 +48,7 @@ export class FavoriteQuotesService {
       this.cache.set(userId, quotes);
       return quotes;
     } catch (error) {
-      console.error('Error fetching favorite quotes:', error);
+
       return [];
     }
   }
@@ -71,7 +71,7 @@ export class FavoriteQuotesService {
           // Duplicate quote - this is fine, just return the existing one
           return await this.getFavoriteQuoteByContent(userId, quoteData.quote, quoteData.author);
         }
-        console.error('Error adding favorite quote:', error);
+
         return null;
       }
 
@@ -79,7 +79,7 @@ export class FavoriteQuotesService {
       this.clearCache(userId);
       return data;
     } catch (error) {
-      console.error('Error adding favorite quote:', error);
+
       return null;
     }
   }
@@ -93,7 +93,7 @@ export class FavoriteQuotesService {
         .eq('user_id', userId);
 
       if (error) {
-        console.error('Error removing favorite quote:', error);
+
         return false;
       }
 
@@ -101,7 +101,7 @@ export class FavoriteQuotesService {
       this.clearCache(userId);
       return true;
     } catch (error) {
-      console.error('Error removing favorite quote:', error);
+
       return false;
     }
   }
@@ -116,7 +116,7 @@ export class FavoriteQuotesService {
         .eq('author', author);
 
       if (error) {
-        console.error('Error removing favorite quote by content:', error);
+
         return false;
       }
 
@@ -124,7 +124,7 @@ export class FavoriteQuotesService {
       this.clearCache(userId);
       return true;
     } catch (error) {
-      console.error('Error removing favorite quote by content:', error);
+
       return false;
     }
   }
@@ -140,13 +140,13 @@ export class FavoriteQuotesService {
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-        console.error('Error checking if quote is favorited:', error);
+
         return false;
       }
 
       return !!data;
     } catch (error) {
-      console.error('Error checking if quote is favorited:', error);
+
       return false;
     }
   }
@@ -162,13 +162,13 @@ export class FavoriteQuotesService {
         .single();
 
       if (error) {
-        console.error('Error fetching favorite quote by content:', error);
+
         return null;
       }
 
       return data;
     } catch (error) {
-      console.error('Error fetching favorite quote by content:', error);
+
       return null;
     }
   }
@@ -199,3 +199,4 @@ export const removeFavoriteQuoteByContent = (userId: string, quote: string, auth
 
 export const isQuoteFavorited = (userId: string, quote: string, author: string): Promise<boolean> => 
   favoriteQuotesService.isQuoteFavorited(userId, quote, author); 
+

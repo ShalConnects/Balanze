@@ -7,11 +7,8 @@ const supabase = createClient(
 );
 
 async function testSMTPConfiguration() {
-  console.log('=== SMTP Configuration Test ===');
-  
   try {
     // Test 1: Try to send a test email
-    console.log('1. Testing email service...');
     
     const { data, error } = await supabase.auth.resetPasswordForEmail(
       'test@example.com',
@@ -21,26 +18,21 @@ async function testSMTPConfiguration() {
     );
     
     if (error) {
-      console.error('❌ SMTP Test Failed:', error.message);
-      
       if (error.message.includes('rate limit')) {
-        console.log('⚠️  Rate limit detected - SMTP may not be configured yet');
-        console.log('📧 Please configure SMTP in Supabase dashboard first');
+        // Rate limit detected - SMTP may not be configured yet
       } else {
-        console.log('❌ Email service error:', error.message);
+        // Email service error
       }
     } else {
-      console.log('✅ SMTP Test Successful!');
-      console.log('📧 Email service is working properly');
+      // SMTP Test Successful!
     }
     
   } catch (error) {
-    console.error('❌ Test failed:', error.message);
+    // Test failed
   }
 }
 
 // Run the test
 testSMTPConfiguration().then(() => {
-  console.log('\n=== Test Complete ===');
-  console.log('If you see errors, please configure SMTP in Supabase dashboard');
+  // Test Complete
 }); 

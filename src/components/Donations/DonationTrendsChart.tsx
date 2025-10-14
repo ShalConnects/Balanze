@@ -256,3 +256,4 @@ export const DonationTrendsChart: React.FC<DonationTrendsChartProps> = ({ record
     </div>
   );
 }; 
+

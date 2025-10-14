@@ -504,3 +504,4 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
     </div>
   );
 };
+

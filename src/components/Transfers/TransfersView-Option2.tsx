@@ -84,7 +84,7 @@ export const TransfersView: React.FC = () => {
       setDpsTransfers(dpsData || []);
       setAllTransactions(allTx || []);
     } catch (err: any) {
-      console.error('Error fetching transfer history:', err);
+
       setError(err.message);
     } finally {
       setLoading(false);
@@ -445,3 +445,4 @@ export const TransfersView: React.FC = () => {
     </div>
   );
 }; 
+

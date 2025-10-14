@@ -101,7 +101,7 @@ export const LendBorrowView: React.FC = () => {
           setShowLendBorrowWidget(showWidget);
           localStorage.setItem('showLendBorrowWidget', JSON.stringify(showWidget));
         } catch (error) {
-          console.error('Error loading Lend & Borrow widget preferences:', error);
+
           // Keep current localStorage value if database fails
         }
       };
@@ -123,7 +123,7 @@ export const LendBorrowView: React.FC = () => {
           description: 'You can hide it again from the dashboard'
         });
       } catch (error) {
-        console.error('Error saving Lend & Borrow widget preferences:', error);
+
         toast.error('Failed to save preference', {
           description: 'Your preference will be saved locally only'
         });
@@ -316,7 +316,7 @@ export const LendBorrowView: React.FC = () => {
         .upsert(updates, { onConflict: 'id' });
 
       if (error) {
-        console.error('Error updating overdue status:', error);
+
         return records;
       }
 
@@ -326,7 +326,7 @@ export const LendBorrowView: React.FC = () => {
         return overdueRecord ? { ...record, status: 'overdue' as const } : record;
       });
     } catch (error) {
-      console.error('Error updating overdue status:', error);
+
       return records;
     }
   };
@@ -404,7 +404,7 @@ export const LendBorrowView: React.FC = () => {
       setShowForm(false);
       toast.success('Record added successfully!');
     } catch (error) {
-      console.error('Error adding lend/borrow record:', error);
+
       toast.error('Failed to add record. Please try again.');
     }
   };
@@ -435,13 +435,13 @@ export const LendBorrowView: React.FC = () => {
         .single();
 
       if (error) {
-        console.error('Supabase error:', error);
+
         toast.error('Error updating record: ' + error.message);
         throw error;
       }
 
       if (!data) {
-        console.error('No data returned from update');
+
         toast.error('No data returned from update. Please check your database permissions.');
         return;
       }
@@ -452,7 +452,7 @@ export const LendBorrowView: React.FC = () => {
       // ); // This line is removed as lendBorrowRecords is now managed by useFinanceStore
       setEditingRecord(null);
     } catch (error) {
-      console.error('Error updating lend/borrow record:', error);
+
       toast.error('Failed to update record. Please try again.');
     }
   };
@@ -474,7 +474,7 @@ export const LendBorrowView: React.FC = () => {
           .eq('user_id', user.id);
 
         if (error) {
-          console.error('Supabase error:', error);
+
           toast.error('Error deleting record: ' + error.message);
           throw error;
         }
@@ -483,7 +483,7 @@ export const LendBorrowView: React.FC = () => {
         // setLendBorrowRecords(prev => prev.filter(r => r.id !== id)); // This line is removed as lendBorrowRecords is now managed by useFinanceStore
         toast.success('Record deleted successfully!');
       } catch (error) {
-        console.error('Error deleting lend/borrow record:', error);
+
         toast.error('Failed to delete record. Please try again.');
       }
     });
@@ -498,7 +498,7 @@ export const LendBorrowView: React.FC = () => {
       await useFinanceStore.getState().updateLendBorrowRecord(id, { status });
       toast.success(`Status updated to ${status}`);
     } catch (error) {
-      console.error('Error updating status:', error);
+
       toast.error('Failed to update status. Please try again.');
     }
   };
@@ -1057,7 +1057,7 @@ export const LendBorrowView: React.FC = () => {
             try {
               await handleUpdateRecord(editingRecord.id, updates);
             } catch (error) {
-              console.error('Error in edit form submission:', error);
+
             }
           }}
         />
@@ -1312,3 +1312,4 @@ export const LendBorrowView: React.FC = () => {
     </div>
   );
 }; 
+

@@ -120,9 +120,9 @@ class DashboardAnalyticsImpl implements DashboardAnalytics {
         })
       });
 
-      console.log(`Flushed ${eventsToSend.length} analytics events`);
+
     } catch (error) {
-      console.warn('Failed to send analytics events:', error);
+
       // Re-add events back to queue for retry (with limit)
       if (this.events.length < this.MAX_EVENTS) {
         this.events.unshift(...eventsToSend.slice(0, this.MAX_EVENTS - this.events.length));
@@ -260,3 +260,4 @@ export const cleanupAnalytics = () => {
 };
 
 export default getDashboardAnalytics;
+

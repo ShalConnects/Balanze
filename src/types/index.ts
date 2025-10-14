@@ -325,3 +325,4 @@ export interface PaymentHistoryStats {
   failedTransactions: number;
   refundedTransactions: number;
 }
+

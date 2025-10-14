@@ -57,7 +57,7 @@ export const setDefaultAccount = async (accountId: string): Promise<boolean> => 
     const result = await updateProfile({ default_account_id: accountId });
     return !result.error;
   } catch (error) {
-    console.error('Error setting default account:', error);
+
     return false;
   }
 };
@@ -72,7 +72,7 @@ export const clearDefaultAccount = async (): Promise<boolean> => {
     const result = await updateProfile({ default_account_id: undefined });
     return !result.error;
   } catch (error) {
-    console.error('Error clearing default account:', error);
+
     return false;
   }
 };
@@ -86,3 +86,4 @@ export const isDefaultAccount = (accountId: string): boolean => {
   const { profile } = useAuthStore.getState();
   return profile?.default_account_id === accountId;
 };
+

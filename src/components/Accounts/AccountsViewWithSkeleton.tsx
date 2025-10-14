@@ -68,7 +68,6 @@ export const AccountsViewWithSkeleton: React.FC = () => {
         
         setLoadingMessage('Accounts loaded successfully!');
       } catch (error) {
-        console.error('Error loading accounts:', error);
         setLoadingMessage('Failed to load accounts');
       } finally {
         stopLoading();
@@ -88,12 +87,10 @@ export const AccountsViewWithSkeleton: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Handle form submission logic here
-      console.log('Form submitted:', formData);
       
       setShowAccountForm(false);
       setSelectedAccount(null);
     } catch (error) {
-      console.error('Error saving account:', error);
       setLoadingMessage('Failed to save account');
     } finally {
       stopFormLoading();
@@ -115,9 +112,8 @@ export const AccountsViewWithSkeleton: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 800));
       
       // Handle delete logic here
-      console.log('Account deleted:', accountId);
+      
     } catch (error) {
-      console.error('Error deleting account:', error);
       setLoadingMessage('Failed to delete account');
     } finally {
       stopFormLoading();
@@ -146,7 +142,6 @@ export const AccountsViewWithSkeleton: React.FC = () => {
       
       await updateAccountPosition(draggedId, newPosition);
     } catch (error) {
-      console.error('Failed to reorder accounts:', error);
     }
   };
 
@@ -307,8 +302,8 @@ export const AccountsViewWithSkeleton: React.FC = () => {
               onEditAccount={handleEditAccount}
               onDeleteAccount={handleDeleteAccount}
               onAddAccount={() => setShowAccountForm(true)}
-              onShowInfo={(account) => console.log('Show info:', account)}
-              onAddTransaction={(accountId) => console.log('Add transaction:', accountId)}
+              onShowInfo={(account) => {}}
+              onAddTransaction={(accountId) => {}}
             />
           ) : (
             <AccountTable
@@ -318,11 +313,10 @@ export const AccountsViewWithSkeleton: React.FC = () => {
               onToggleRow={handleToggleRow}
               onEditAccount={handleEditAccount}
               onDeleteAccount={handleDeleteAccount}
-              onAddTransaction={(accountId) => console.log('Add transaction:', accountId)}
-              onShowInfo={(account) => console.log('Show info:', account)}
+              onAddTransaction={(accountId) => {}}
+              onShowInfo={(account) => {}}
               onUpdateAccount={async (accountId, updates) => {
-                // This would need to be implemented based on your store methods
-                console.log('Update account:', accountId, updates);
+                
               }}
               onReorderAccounts={handleReorderAccounts}
               formatCurrency={(amount, currency) => {

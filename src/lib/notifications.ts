@@ -21,7 +21,7 @@ export async function createNotification(
     if (notificationCategory) {
       const shouldSend = await notificationPreferencesService.shouldSendNotification(userId, notificationCategory);
       if (!shouldSend) {
-        console.log(`Notification blocked by user preferences for category: ${notificationCategory}`);
+
         return { success: true, blocked: true };
       }
     }
@@ -34,7 +34,7 @@ export async function createNotification(
     });
 
     if (error) {
-      console.error('Error creating notification:', error);
+
       throw error;
     }
 
@@ -56,7 +56,7 @@ export async function createNotification(
 
     return { success: true };
   } catch (error) {
-    console.error('Error creating notification:', error);
+
     throw error;
   }
 }
@@ -270,7 +270,7 @@ export class SmartNotificationManager {
         if (preferences.frequency.weekly_summary) return 'weekly_summary';
         if (preferences.frequency.monthly_report) return 'monthly_report';
       } catch (error) {
-        console.warn('Could not get notification frequency, defaulting to real_time:', error);
+
       }
     }
     return 'real_time';
@@ -315,3 +315,4 @@ export const smartNotificationManager = SmartNotificationManager.getInstance();
 export const createFinancialNotification = smartNotificationManager.createFinancialNotification.bind(smartNotificationManager);
 export const createSystemNotification = smartNotificationManager.createSystemNotification.bind(smartNotificationManager);
 export const createActivityNotification = smartNotificationManager.createActivityNotification.bind(smartNotificationManager);
+

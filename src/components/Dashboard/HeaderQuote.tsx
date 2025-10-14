@@ -41,7 +41,7 @@ export const HeaderQuote: React.FC = () => {
         throw new Error('Invalid quote data');
       }
     } catch (err) {
-      console.warn('Failed to fetch quote from API, using fallback:', err);
+
       // Use a random fallback quote
       const randomIndex = Math.floor(Math.random() * fallbackQuotes.length);
       setQuote(fallbackQuotes[randomIndex]);
@@ -74,3 +74,4 @@ export const HeaderQuote: React.FC = () => {
     </div>
   );
 }; 
+

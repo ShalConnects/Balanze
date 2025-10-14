@@ -70,11 +70,11 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
         .single();
 
       if (cashError) {
-        console.error('Error creating cash account:', cashError);
+
         throw new Error(`Failed to create cash account: ${cashError.message}`);
       }
 
-      console.log('Cash account created successfully:', newCashAccount);
+
       
       // Add audit log
       try {
@@ -89,7 +89,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
           }
         });
       } catch (auditError) {
-        console.warn('Failed to create audit log:', auditError);
+
         // Don't fail the account creation if audit log fails
       }
       
@@ -114,7 +114,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
       }, 2000);
       
     } catch (error) {
-      console.error('Error creating cash account:', error);
+
       const errorMessage = error instanceof Error ? error.message : 'Failed to create cash account';
       toast.error(errorMessage);
       setIsCreating(false);
@@ -269,7 +269,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
                 </button>
                 <button
                   onClick={() => {
-                    console.log('Manual close clicked');
+
                     onClose();
                     setIsSuccess(false);
                     setSelectedCurrency('');
@@ -287,3 +287,4 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
     </div>
   );
 }; 
+

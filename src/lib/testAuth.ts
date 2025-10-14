@@ -33,7 +33,7 @@ export class TestAuthManager {
 
   // Create test users using regular signup (no admin permissions needed)
   async setupTestUsers() {
-    console.log('Setting up test users...');
+
     
     for (const [key, userData] of Object.entries(TEST_USERS)) {
       try {
@@ -50,12 +50,12 @@ export class TestAuthManager {
         
         if (error) {
           if (error.message.includes('already registered')) {
-            console.log(`Test user ${userData.email} already exists`);
+
           } else {
-            console.error(`Error creating ${key} user:`, error);
+
           }
         } else {
-          console.log(`Created test user: ${userData.email}`);
+
           
           // Create profile for the user if signup was successful
           if (data.user) {
@@ -63,7 +63,7 @@ export class TestAuthManager {
           }
         }
       } catch (error) {
-        console.error(`Error setting up ${key} user:`, error);
+
       }
     }
   }
@@ -83,10 +83,10 @@ export class TestAuthManager {
         });
       
       if (error) {
-        console.error('Error creating profile:', error);
+
       }
     } catch (error) {
-      console.error('Error creating user profile:', error);
+
     }
   }
 
@@ -98,7 +98,7 @@ export class TestAuthManager {
       // First, check if we already have a session for this user
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.email === userData.email) {
-        console.log(`Already logged in as ${userData.email}`);
+
         this.currentTestUser = session.user;
         return { success: true, user: session.user };
       }
@@ -110,22 +110,22 @@ export class TestAuthManager {
       });
 
       if (error) {
-        console.error('Test login error:', error);
+
         return { success: false, error };
       }
 
       this.currentTestUser = data.user;
-      console.log(`Logged in as test user: ${userData.email}`);
+
       
       // Verify session was created
       const { data: { session: newSession } } = await supabase.auth.getSession();
       if (newSession) {
-        console.log('Session created successfully');
+
       }
       
       return { success: true, user: data.user };
     } catch (error) {
-      console.error('Test login error:', error);
+
       return { success: false, error };
     }
   }
@@ -140,9 +140,9 @@ export class TestAuthManager {
     try {
       await supabase.auth.signOut();
       this.currentTestUser = null;
-      console.log('Logged out test user');
+
     } catch (error) {
-      console.error('Test logout error:', error);
+
     }
   }
 
@@ -165,18 +165,18 @@ export class TestAuthManager {
       });
       
       if (error) {
-        console.error('Error creating custom test user:', error);
+
         return { success: false, error };
       }
       
       if (data.user) {
         await this.createUserProfile(data.user.id, fullName, subscription);
-        console.log(`Created custom test user: ${email}`);
+
       }
       
       return { success: true, user: data.user };
     } catch (error) {
-      console.error('Error creating custom test user:', error);
+
       return { success: false, error };
     }
   }
@@ -190,3 +190,4 @@ export class TestAuthManager {
 
 // Export singleton instance
 export const testAuth = TestAuthManager.getInstance(); 
+

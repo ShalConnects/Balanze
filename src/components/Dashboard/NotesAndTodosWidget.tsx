@@ -58,7 +58,7 @@ export const NotesAndTodosWidget: React.FC = () => {
           .order('updated_at', { ascending: false });
         if (!error && data && isMounted) setNotes(data);
       } catch (error) {
-        console.error('Error fetching notes:', error);
+
       }
     };
     fetchNotes();
@@ -91,7 +91,7 @@ export const NotesAndTodosWidget: React.FC = () => {
           .order('created_at', { ascending: false });
         if (!tasksError && tasksData) setTasks(tasksData);
       } catch (error) {
-        console.error('Error refreshing notes and tasks:', error);
+
       }
     };
 
@@ -139,7 +139,7 @@ export const NotesAndTodosWidget: React.FC = () => {
           .update({ text })
           .eq('id', id);
       } catch (error) {
-        console.error('Error auto-saving note:', error);
+
       }
     }, 1000); // Save after 1 second of no typing
   };
@@ -207,7 +207,7 @@ export const NotesAndTodosWidget: React.FC = () => {
           .order('created_at', { ascending: false });
         if (!error && data && isMounted) setTasks(data);
       } catch (error) {
-        console.error('Error fetching tasks:', error);
+
       }
     };
     fetchTasks();
@@ -250,7 +250,7 @@ export const NotesAndTodosWidget: React.FC = () => {
           .update({ text })
           .eq('id', id);
       } catch (error) {
-        console.error('Error auto-saving task:', error);
+
       }
     }, 1000); // Save after 1 second of no typing
   };
@@ -583,3 +583,4 @@ export const NotesAndTodosWidget: React.FC = () => {
     </div>
   );
 }; 
+

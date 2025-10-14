@@ -212,7 +212,7 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
         
         onClose();
       } catch (error) {
-        console.error('Error saving transaction:', error);
+
         toast.error('Failed to save transaction. Please try again.');
       } finally {
         // Loading handled by context
@@ -605,3 +605,4 @@ export const TransactionFormEnhanced: React.FC<TransactionFormEnhancedProps> = (
     </div>
   );
 }; 
+

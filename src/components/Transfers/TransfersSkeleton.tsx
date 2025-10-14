@@ -328,3 +328,4 @@ export const TransfersShimmerSkeleton: React.FC = () => {
 };
 
 export default TransfersSkeleton;
+

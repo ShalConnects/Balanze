@@ -39,3 +39,4 @@ useThemeStore.subscribe((state) => {
     document.documentElement.classList.remove('dark');
   }
 }); 
+

@@ -82,7 +82,7 @@ export const UrgentNotifications: React.FC = () => {
 
         setLendBorrowRecords(lbData || []);
       } catch (error) {
-        console.error('Error fetching lend/borrow records:', error);
+
       } finally {
         setLoading(false);
       }
@@ -262,3 +262,4 @@ export const UrgentNotifications: React.FC = () => {
     </div>
   );
 }; 
+

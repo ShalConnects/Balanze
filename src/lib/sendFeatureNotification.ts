@@ -41,7 +41,6 @@ export async function sendFeatureNotificationToAllUsers(
       } catch (error) {
         const errorMessage = `Failed to notify user ${user.id}: ${error}`;
         errors.push(errorMessage);
-        console.error(errorMessage);
       }
     });
 
@@ -52,7 +51,6 @@ export async function sendFeatureNotificationToAllUsers(
   } catch (error) {
     const errorMessage = `Failed to send feature notification: ${error}`;
     errors.push(errorMessage);
-    console.error(errorMessage);
     return { success: false, usersNotified, errors };
   }
 }

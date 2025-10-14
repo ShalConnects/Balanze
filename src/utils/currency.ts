@@ -43,7 +43,7 @@ export const formatCurrency = (amount: number, currency: string = 'USD') => {
     }).format(Math.abs(amount)).replace(currency, symbol);
   } catch (error) {
     // Fallback to simple formatting if Intl.NumberFormat fails
-    console.warn('Currency formatting failed for:', currency, 'Falling back to USD');
+
     const symbol = getCurrencySymbol('USD');
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -52,3 +52,4 @@ export const formatCurrency = (amount: number, currency: string = 'USD') => {
     }).format(Math.abs(amount)).replace('USD', symbol);
   }
 }; 
+

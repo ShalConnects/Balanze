@@ -44,7 +44,7 @@ export async function trackArticleReading(params: TrackArticleReadingParams): Pr
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      console.warn('No authenticated user found for article tracking');
+
       return;
     }
 
@@ -57,10 +57,10 @@ export async function trackArticleReading(params: TrackArticleReadingParams): Pr
     });
 
     if (error) {
-      console.error('Error tracking article reading:', error);
+
     }
   } catch (error) {
-    console.error('Error in trackArticleReading:', error);
+
   }
 }
 
@@ -77,7 +77,7 @@ export async function trackArticleReadingUniversal(params: TrackArticleReadingPa
       await trackArticleReading(params);
     } else {
       // Track in client-side analytics for anonymous users
-      console.log('Tracking article reading for anonymous user:', params);
+
       // You can integrate with Google Analytics, Mixpanel, or other analytics here
       if (typeof window !== 'undefined' && (window as any).gtag) {
         (window as any).gtag('event', 'article_view', {
@@ -89,7 +89,7 @@ export async function trackArticleReadingUniversal(params: TrackArticleReadingPa
       }
     }
   } catch (error) {
-    console.error('Error in trackArticleReadingUniversal:', error);
+
   }
 }
 
@@ -101,7 +101,7 @@ export async function getUserReadingHistory(limit: number = 10): Promise<Article
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      console.warn('No authenticated user found for reading history');
+
       return [];
     }
 
@@ -111,13 +111,13 @@ export async function getUserReadingHistory(limit: number = 10): Promise<Article
     });
 
     if (error) {
-      console.error('Error fetching reading history:', error);
+
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('Error in getUserReadingHistory:', error);
+
     return [];
   }
 }
@@ -130,7 +130,7 @@ export async function trackArticleFeedback(params: TrackArticleFeedbackParams): 
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      console.warn('No authenticated user found for article feedback tracking');
+
       return;
     }
 
@@ -143,10 +143,10 @@ export async function trackArticleFeedback(params: TrackArticleFeedbackParams): 
     });
 
     if (error) {
-      console.error('Error tracking article feedback:', error);
+
     }
   } catch (error) {
-    console.error('Error in trackArticleFeedback:', error);
+
   }
 }
 
@@ -158,13 +158,13 @@ export async function getArticleFeedbackStats(): Promise<ArticleFeedbackStats[]>
     const { data, error } = await supabase.rpc('get_article_feedback_stats');
 
     if (error) {
-      console.error('Error fetching article feedback stats:', error);
+
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('Error in getArticleFeedbackStats:', error);
+
     return [];
   }
 }
@@ -184,7 +184,7 @@ export async function getUserArticleStats(): Promise<{
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      console.warn('No authenticated user found for article stats');
+
       return {
         totalReads: 0,
         helpfulCount: 0,
@@ -200,7 +200,7 @@ export async function getUserArticleStats(): Promise<{
     });
 
     if (error) {
-      console.error('Error fetching user article stats:', error);
+
       return {
         totalReads: 0,
         helpfulCount: 0,
@@ -213,7 +213,7 @@ export async function getUserArticleStats(): Promise<{
 
     // The function now returns a JSON object, so we need to extract the values
     if (data) {
-      console.log('Raw article stats data:', data);
+
       const stats = {
         totalReads: Number(data.total_reads) || 0,
         helpfulCount: Number(data.helpful_count) || 0,
@@ -222,7 +222,7 @@ export async function getUserArticleStats(): Promise<{
         helpfulRate: Number(data.helpful_rate) || 0,
         totalTimeSpent: Number(data.total_time_spent) || 0
       };
-      console.log('Processed article stats:', stats);
+
       return stats;
     }
 
@@ -235,7 +235,7 @@ export async function getUserArticleStats(): Promise<{
       totalTimeSpent: 0
     };
   } catch (error) {
-    console.error('Error in getUserArticleStats:', error);
+
     return {
       totalReads: 0,
       helpfulCount: 0,
@@ -263,3 +263,4 @@ export async function trackArticleTimeSpent(
     time_spent_seconds: timeSpentSeconds
   });
 }
+

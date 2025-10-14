@@ -95,7 +95,7 @@ export const Plans: React.FC = () => {
   const loadPaddle = async () => {
     try {
       if (!PADDLE_CLIENT_TOKEN) {
-        console.warn('Paddle client token not configured');
+
         return;
       }
 
@@ -103,16 +103,16 @@ export const Plans: React.FC = () => {
         environment: PADDLE_ENVIRONMENT as 'sandbox' | 'production',
         token: PADDLE_CLIENT_TOKEN,
         eventCallback: (data) => {
-          console.log('Paddle event:', data);
+
         }
       });
 
       if (paddleInstance && paddleInstance.Checkout) {
-        console.log('Paddle initialized successfully');
+
         setPaddle(paddleInstance);
       }
     } catch (err) {
-      console.error('Failed to load Paddle:', err);
+
     }
   };
 
@@ -130,29 +130,29 @@ export const Plans: React.FC = () => {
     setShowDowngradeModal(false);
 
     try {
-      console.log('🔄 Processing downgrade to free plan...');
+
 
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
 
       // For lifetime subscribers, request immediate downgrade
-      console.log('Calling RPC with params:', { user_uuid: user.id, is_lifetime: isLifetimeSubscriber });
+
       
       const { data, error } = await supabase.rpc('downgrade_user_subscription', {
         user_uuid: user.id,
         is_lifetime: isLifetimeSubscriber
       });
 
-      console.log('RPC response:', { data, error });
+
 
       if (error) {
-        console.error('RPC error:', error);
+
         throw error;
       }
 
       const status = data?.status as 'immediate' | 'scheduled' | 'error' | undefined;
-      console.log('Status from response:', status, 'Type:', typeof status);
+
 
       if (status === 'immediate') {
         toast.success('Downgrade to Free plan completed. Changes have taken effect immediately.');
@@ -163,10 +163,10 @@ export const Plans: React.FC = () => {
       }
 
       if (status === 'scheduled') {
-        console.log('Entering scheduled block');
+
         const effective = data?.effective_date ? new Date(data.effective_date) : null;
         const when = effective ? effective.toLocaleString() : 'the end of your current billing period';
-        console.log('Showing toast for scheduled downgrade');
+
         toast.success(`Downgrade to Free plan initiated. Changes will take effect at ${when}.`);
         setLoading(null);
         return;
@@ -175,7 +175,7 @@ export const Plans: React.FC = () => {
       toast.success('Downgrade request submitted.');
       setLoading(null);
     } catch (err) {
-      console.error('❌ Downgrade failed:', err);
+
       toast.error('Unable to process downgrade. Please contact support.');
       setLoading(null);
     }
@@ -208,12 +208,12 @@ export const Plans: React.FC = () => {
       const priceId = priceMapping[planId];
       const hostedCheckoutUrl = hostedCheckoutUrls[planId];
 
-      console.log(`🚀 Starting direct checkout for ${planName} (${planId})`);
+
 
       // Strategy 1: Try Paddle.js overlay checkout first
       if (paddle && paddle.Checkout) {
         try {
-          console.log('🎯 Attempting overlay checkout...');
+
           
           const checkoutPromise = paddle.Checkout.open({
             items: [{ priceId, quantity: 1 }],
@@ -242,26 +242,26 @@ export const Plans: React.FC = () => {
             );
             
             await Promise.race([checkoutPromise, timeoutPromise]);
-            console.log('✅ Overlay checkout opened successfully');
+
             setLoading(null);
             toast.success('Checkout opened!');
             return;
           } else if (checkoutPromise === undefined || checkoutPromise === null) {
             throw new Error('Checkout returned null/undefined');
           } else {
-            console.log('✅ Overlay checkout opened (non-promise)');
+
             setLoading(null);
             toast.success('Checkout opened!');
             return;
           }
         } catch (overlayError) {
-          console.warn('⚠️ Overlay checkout failed, trying fallback:', overlayError);
+
         }
       }
 
       // Strategy 2: Fallback to hosted checkout URL in new tab
       if (hostedCheckoutUrl) {
-        console.log('🔄 Opening hosted checkout URL...');
+
         window.open(hostedCheckoutUrl, '_blank', 'noopener,noreferrer');
         setLoading(null);
         toast.success('Opening secure checkout...');
@@ -269,14 +269,14 @@ export const Plans: React.FC = () => {
       }
 
       // Strategy 3: Final fallback
-      console.log('🔄 Using final fallback method...');
+
       const fallbackUrl = `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
       window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
       setLoading(null);
       toast.success('Opening checkout...');
 
     } catch (err) {
-      console.error('❌ Checkout failed:', err);
+
       toast.error('Unable to open checkout. Please try again.');
       setLoading(null);
     }
@@ -504,3 +504,4 @@ export const Plans: React.FC = () => {
     </div>
   );
 }; 
+

@@ -7,11 +7,8 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function testExactError() {
-  console.log('🎯 TESTING EXACT UUID/VARCHAR MISMATCH ERROR\n');
-  
   try {
     // Step 1: Check if there are any existing transactions
-    console.log('=== STEP 1: CHECKING EXISTING DATA ===');
     
     const { data: transactions, error: transactionsError } = await supabase
       .from('transactions')
@@ -19,18 +16,11 @@ async function testExactError() {
       .limit(10);
     
     if (transactionsError) {
-      console.log('❌ Error accessing transactions:', transactionsError.message);
       return;
     }
     
-    console.log(`Found ${transactions?.length || 0} existing transactions`);
-    
     if (!transactions || transactions.length === 0) {
-      console.log('No existing transactions found. The error might occur during creation/editing.');
-      console.log('Let\'s test the database schema directly...');
-      
       // Step 2: Test the database schema directly
-      console.log('\n=== STEP 2: TESTING DATABASE SCHEMA ===');
       
       // Try to create a test transaction with a UUID transaction_id
       const testUUIDTransaction = {
@@ -45,7 +35,7 @@ async function testExactError() {
         transaction_id: '550e8400-e29b-41d4-a716-446655440000' // UUID format
       };
       
-      console.log('Testing with UUID transaction_id:', testUUIDTransaction.transaction_id);
+      // Testing with UUID transaction_id
       
       const { data: createdUUIDTransaction, error: createUUIDError } = await supabase
         .from('transactions')

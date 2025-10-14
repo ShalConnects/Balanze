@@ -80,7 +80,6 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
           setShowDonationsSavingsWidget(showWidget);
           localStorage.setItem('showDonationsSavingsWidget', JSON.stringify(showWidget));
         } catch (error) {
-          console.error('Error loading Donations & Savings widget preferences:', error);
           // Keep current localStorage value if database fails
         }
       };
@@ -142,7 +141,6 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
           description: show ? 'Donations & Savings widget will be shown' : 'Donations & Savings widget hidden'
         });
       } catch (error) {
-        console.error('Error saving Donations & Savings widget preferences:', error);
         toast.error('Failed to save preference', {
           description: 'Your preference will be saved locally only'
         });

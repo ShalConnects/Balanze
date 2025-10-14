@@ -48,7 +48,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
   error: null,
   success: null,
   setUserAndProfile: async (user, profile) => {
-    console.log('Setting user and profile:', user?.id, profile?.id);
+
     
     // If no user, just set null and return (no profile creation)
     if (!user) {
@@ -59,13 +59,13 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
     // If we already have a profile for this user, don't fetch again
     const currentState = get();
     if (currentState.user?.id === user.id && currentState.profile) {
-      console.log('Profile already exists for user, skipping fetch');
+
       return;
     }
     
     // If we have a user but no profile, set user immediately and fetch profile in background
     if (!profile) {
-      console.log('No profile provided, setting user immediately and fetching profile in background');
+
       
       // Set user immediately to ensure login works, but keep loading true for profile
       set({ user, profile: null, isLoading: true });
@@ -73,7 +73,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       // Fetch profile in background (completely non-blocking)
       setTimeout(async () => {
         try {
-          console.log('Background: Fetching profile for user:', user.id);
+
           const { data: existingProfile, error: fetchError } = await supabase
             .from('profiles')
             .select('*')
@@ -81,7 +81,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             .single();
           
           if (existingProfile && !fetchError) {
-            console.log('Background: Found existing profile in database:', existingProfile);
+
             // Map database fields to AppUser format
             const profileData: AppUser = {
               id: existingProfile.id,
@@ -96,7 +96,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             return;
           } else if (fetchError && fetchError.code === 'PGRST116') {
             // PGRST116 means "no rows returned" - profile doesn't exist
-            console.log('Background: Profile does not exist, creating new one');
+
             // Create a new profile
             const newProfile: AppUser = {
               id: user.id,
@@ -123,13 +123,13 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
               });
             
             if (!saveError) {
-              console.log('Background: New profile created and saved');
+
               set({ user, profile: newProfile, isLoading: false });
             } else {
-              console.error('Background: Error saving new profile:', saveError);
+
             }
           } else {
-            console.log('Background: Fetch error, creating new profile:', fetchError);
+
             // Create a new profile on any error
             const newProfile: AppUser = {
               id: user.id,
@@ -156,14 +156,14 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
               });
             
             if (!saveError) {
-              console.log('Background: New profile created and saved after error');
+
               set({ user, profile: newProfile, isLoading: false });
             } else {
-              console.error('Background: Error saving new profile after error:', saveError);
+
             }
           }
         } catch (error) {
-          console.log('Background: Profile fetch exception, creating new profile:', error);
+
           // Create a new profile on any exception
           const newProfile: AppUser = {
             id: user.id,
@@ -191,13 +191,13 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
               });
             
             if (!saveError) {
-              console.log('Background: New profile created and saved after exception');
+
               set({ user, profile: newProfile, isLoading: false });
             } else {
-              console.error('Background: Error saving new profile after exception:', saveError);
+
             }
           } catch (saveException) {
-            console.error('Background: Exception saving new profile:', saveException);
+
           }
         }
       }, 100); // 100ms delay to ensure login completes first
@@ -233,7 +233,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         .single();
 
       if (error) {
-        console.error("Error updating profile in DB:", error);
+
         throw error;
       }
       
@@ -281,38 +281,38 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
 
     try {
       const userId = user.id;
-      console.log('Starting account deletion for:', userId);
+
       
       // Use the simple disable database function
-      console.log('Calling delete_user_simple_disable function...');
+
       const { data, error } = await supabase.rpc('delete_user_simple_disable', {
         user_id: userId
       });
       
       if (error) {
-        console.error('Database function error:', error);
+
         return { success: false, error: error.message };
       }
       
-      console.log('Database function result:', data);
+
       
       if (data === true) {
-        console.log('Account deletion completed successfully');
+
         
         // Sign out and clear session
         await supabase.auth.signOut();
-        console.log('Signed out user');
+
 
         // Clear local state
         set({ user: null, profile: null });
 
         return { success: true };
       } else {
-        console.error('Database function returned false');
+
         return { success: false, error: 'Database deletion failed' };
       }
     } catch (error: any) {
-      console.error('Error during account deletion:', error);
+
       return { success: false, error: error.message || 'Failed to delete account' };
     }
   },
@@ -326,12 +326,12 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       });
 
       if (error) {
-        console.error('Sign in error:', error);
+
         set({ error: error.message, isLoading: false });
         return { success: false, message: error.message };
       }
 
-      console.log('Sign in successful:', data.user?.id);
+
       
       // Set user immediately to trigger navigation
       set({ user: data.user, isLoading: false });
@@ -344,7 +344,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       
       return { success: true };
     } catch (error) {
-      console.error('Sign in exception:', error);
+
       const errorMessage = (error as Error).message;
       set({ error: errorMessage, isLoading: false });
       return { success: false, message: errorMessage };
@@ -355,7 +355,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
     set({ isLoading: true, error: null, success: null });
     
     try {
-      console.log('Starting registration for:', email);
+
       
       // CRITICAL: Always check for existing email - NO FALLBACK for security
       const { data: emailCheck, error: emailCheckError } = await supabase.rpc('check_email_exists', {
@@ -364,7 +364,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       
       // If the email check function fails, BLOCK registration for security
       if (emailCheckError) {
-        console.error('Email check failed:', emailCheckError);
+
         const errorMessage = 'Unable to verify email availability. Please try again later.';
         set({ error: errorMessage, isLoading: false });
         return { success: false, message: errorMessage };
@@ -377,7 +377,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         return { success: false, message: userFriendlyError };
       }
       
-      console.log('Email check passed, proceeding with registration');
+
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -391,7 +391,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       });
 
       if (error) {
-        console.error('Registration error:', error);
+
         
         const errorMessage = error.message.toLowerCase();
         if (errorMessage.includes('already registered') || 
@@ -409,12 +409,12 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       }
 
       if (!data.user) {
-        console.error('No user returned from signup');
+
         set({ error: 'Registration failed. Please try again.', isLoading: false });
         return { success: false, message: 'Registration failed. Please try again.' };
       }
 
-      console.log('User created:', data.user.id);
+
       
       // Auto-confirm user for better UX - no email confirmation required
       set({ 
@@ -432,7 +432,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       return { success: true, message: 'Account created successfully! Welcome to Balanze!' };
       
     } catch (error) {
-      console.error('Registration exception:', error);
+
       const errorMessage = (error as Error).message;
       set({ error: errorMessage, isLoading: false });
       return { success: false, message: errorMessage };
@@ -531,17 +531,18 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
-        console.error('Error checking auth state:', error);
+
         return;
       }
 
       if (session?.user) {
-        console.log('Found existing session:', session.user.id);
+
         const { setUserAndProfile } = get();
         await setUserAndProfile(session.user, null);
       }
     } catch (error) {
-      console.error('Exception checking auth state:', error);
+
     }
   }
 }));
+

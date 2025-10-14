@@ -80,7 +80,7 @@ export const EnhancedDonationFilters: React.FC<EnhancedDonationFiltersProps> = (
       try {
         setSavedPresets(JSON.parse(saved));
       } catch (error) {
-        console.error('Error loading saved presets:', error);
+
       }
     }
   }, []);
@@ -509,3 +509,4 @@ export const EnhancedDonationFilters: React.FC<EnhancedDonationFiltersProps> = (
     </div>
   );
 }; 
+

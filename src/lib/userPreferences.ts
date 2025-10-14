@@ -40,7 +40,7 @@ export class UserPreferencesManager {
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-        console.error('Error fetching user preferences:', error);
+
         return this.getDefaultPreferences();
       }
 
@@ -51,7 +51,7 @@ export class UserPreferencesManager {
       
       return preferences;
     } catch (error) {
-      console.error('Error fetching user preferences:', error);
+
       return this.getDefaultPreferences();
     }
   }
@@ -82,14 +82,14 @@ export class UserPreferencesManager {
         });
 
       if (error) {
-        console.error('Error updating user preferences:', error);
+
         throw error;
       }
 
       // Update cache
       this.cache.set(userId, newPreferences);
     } catch (error) {
-      console.error('Error updating user preferences:', error);
+
       throw error;
     }
   }
@@ -193,3 +193,4 @@ export const isBannerDismissed = (userId: string, bannerId: string) =>
 
 export const dismissBanner = (userId: string, bannerId: string) => 
   userPreferencesManager.dismissBanner(userId, bannerId); 
+

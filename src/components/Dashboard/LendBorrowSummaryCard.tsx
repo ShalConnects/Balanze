@@ -69,7 +69,7 @@ export const LendBorrowSummaryCard: React.FC = () => {
           setShowLendBorrowWidget(showWidget);
           localStorage.setItem('showLendBorrowWidget', JSON.stringify(showWidget));
         } catch (error) {
-          console.error('Error loading Lend & Borrow widget preferences:', error);
+
           // Keep current localStorage value if database fails
         }
       };
@@ -131,7 +131,7 @@ export const LendBorrowSummaryCard: React.FC = () => {
           description: show ? 'Lend & Borrow widget will be shown' : 'Lend & Borrow widget hidden'
         });
       } catch (error) {
-        console.error('Error saving Lend & Borrow widget preferences:', error);
+
         toast.error('Failed to save preference', {
           description: 'Your preference will be saved locally only'
         });
@@ -424,3 +424,4 @@ export const LendBorrowSummaryCard: React.FC = () => {
     </div>
   );
 }; 
+

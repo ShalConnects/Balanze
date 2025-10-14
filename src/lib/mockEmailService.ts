@@ -21,11 +21,6 @@ export class MockEmailService {
     
     this.emailLog.push(emailData);
     
-    console.log('📧 Mock Email Sent:', {
-      to,
-      subject,
-      timestamp: emailData.timestamp.toISOString()
-    });
     
     // Simulate email delay
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -50,3 +45,4 @@ export class MockEmailService {
 }
 
 export const mockEmailService = MockEmailService.getInstance(); 
+

@@ -288,3 +288,4 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
     </div>
   );
 }; 
+
