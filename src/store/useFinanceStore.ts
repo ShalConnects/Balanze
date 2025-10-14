@@ -399,6 +399,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         err.message.includes('ACCOUNT_LIMIT_EXCEEDED') ||
         err.message.includes('CURRENCY_LIMIT_EXCEEDED') ||
         err.message.includes('TRANSACTION_LIMIT_EXCEEDED') ||
+        err.message.includes('MONTHLY_TRANSACTION_LIMIT_EXCEEDED') ||
         err.message.includes('FEATURE_NOT_AVAILABLE')
       )) {
         set({ loading: false }); // Reset loading state before re-throwing
@@ -592,28 +593,29 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     notes: string;
     attachments: PurchaseAttachment[];
   }) => {
-    set({ loading: true, error: null });
-    const { user } = useAuthStore.getState();
-    if (!user) {
-      set({ loading: false, error: 'Not authenticated' });
-      return undefined;
-    }
-    
-    const { transaction_id, ...transactionData } = transaction;
-    const finalTransactionId = transaction_id || generateTransactionId();
-    
-    // Creating transaction with generated ID
-    
-    const { data, error } = await supabase.from('transactions').insert({
-      ...transactionData,
-      transaction_id: finalTransactionId,
-      user_id: user.id,
-    }).select('id,transaction_id').single();
-    
-    if (error) {
-      set({ loading: false, error: error.message });
-      return undefined;
-    }
+    try {
+      set({ loading: true, error: null });
+      const { user } = useAuthStore.getState();
+      if (!user) {
+        set({ loading: false, error: 'Not authenticated' });
+        return undefined;
+      }
+      
+      const { transaction_id, ...transactionData } = transaction;
+      const finalTransactionId = transaction_id || generateTransactionId();
+      
+      // Creating transaction with generated ID
+      
+      const { data, error } = await supabase.from('transactions').insert({
+        ...transactionData,
+        transaction_id: finalTransactionId,
+        user_id: user.id,
+      }).select('id,transaction_id').single();
+      
+      if (error) {
+        set({ loading: false, error: error.message });
+        return undefined;
+      }
     
     // If this is an expense transaction with purchase details, create a purchase record
     if (transactionData.type === 'expense' && data?.id && purchaseDetails) {
@@ -683,7 +685,23 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     ]);
     set({ loading: false });
     
-    return { id: data.id as string, transaction_id: data.transaction_id as string };
+      return { id: data.id as string, transaction_id: data.transaction_id as string };
+    } catch (err: any) {
+      // Re-throw plan-related errors so they can be handled by the UI
+      if (err.message && (
+        err.message.includes('ACCOUNT_LIMIT_EXCEEDED') ||
+        err.message.includes('CURRENCY_LIMIT_EXCEEDED') ||
+        err.message.includes('TRANSACTION_LIMIT_EXCEEDED') ||
+        err.message.includes('MONTHLY_TRANSACTION_LIMIT_EXCEEDED') ||
+        err.message.includes('FEATURE_NOT_AVAILABLE')
+      )) {
+        set({ loading: false }); // Reset loading state before re-throwing
+        throw err; // Re-throw plan-related errors
+      }
+      
+      set({ error: err.message || 'Failed to add transaction', loading: false });
+      return undefined;
+    }
   },
 
   updateTransaction: async (id: string, transaction: Partial<Transaction>, purchaseDetails?: {
