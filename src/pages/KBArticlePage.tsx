@@ -141,7 +141,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </div>
     </div>
   </div>
-  <img src="/settings-currency.gif" alt="Settings Currency" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mb-8" />
+  <img src="/settings-currency.gif" alt="Settings Currency" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mb-8" loading="lazy" decoding="async" />
 </div>
 
 <div id="categories-tab" class="mb-12">
@@ -202,7 +202,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       If you have questions about billing or need help choosing a plan, contact our support team from the <strong>Need Help?</strong> section.
     </p>
   </div>
-  <img src="/plan-usage.gif" alt="Settings Upgrade" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mb-8" />
+  <img src="/plan-usage.gif" alt="Settings Upgrade" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mb-8" loading="lazy" decoding="async" />
 </div>
 
 <div id="account-management-tab" class="mb-12">
@@ -250,7 +250,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       <li>Regularly export your data for your own records or backups.</li>
     </ul>
   </div>
-  <img src="/account-management.png" alt="Account Management" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mb-8" />
+  <img src="/account-management.png" alt="Account Management" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mb-8" loading="lazy" decoding="async" />
 </div>
 
 <div id="last-wish-tab" class="mb-12">
@@ -410,7 +410,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
   </div>
 
   <div class="my-8">
-    <img src="/article_1.png" alt="Balanze Dashboard Overview" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg" />
+  <img src="/article_1.png" alt="Balanze Dashboard Overview" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg" loading="lazy" decoding="async" width="1280" height="720" />
   </div>
 </div>
 
@@ -423,7 +423,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
   - Register with your email address and password <br>
   - Register with your Google account
 </p>
-<img src="/article_2.png" alt="Balanze Registration" class="w-1/2 max-w-4xl mx-auto rounded-lg shadow-lg" />
+<img src="/article_2.png" alt="Balanze Registration" class="w-1/2 max-w-4xl mx-auto rounded-lg shadow-lg" loading="lazy" decoding="async" width="640" height="360" />
 <br>
 <p class="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
   After you login, you will be redirected to the dashboard where you need to select your currency first. After you select your currency, a default 
@@ -437,7 +437,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
   </span>
   will be created for you.
 </p>
-<img src="/select_currency.gif" alt="Balanze Dashboard" class="w-1/2 max-w-4xl mx-auto rounded-lg shadow-lg" />
+<img src="/select_currency.gif" alt="Balanze Dashboard" class="w-1/2 max-w-4xl mx-auto rounded-lg shadow-lg" loading="lazy" decoding="async" width="640" height="360" />
 </div>
 
 <div id="pro-tips" class="mb-12">
@@ -545,6 +545,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
               alt='Screenshot showing the "Accounts" button highlighted in the Balanze sidebar' 
               class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0"
               style={{ marginLeft: 0 }}
+              loading="lazy" decoding="async" width="768" height="432"
             />
           </div>
         </div>
@@ -557,6 +558,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
               alt='Screenshot showing the "Add Accounts" button' 
               class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0"
               style={{ marginLeft: 0 }}
+              loading="lazy" decoding="async" width="768" height="432"
             />
           </div>
         </div>
@@ -893,7 +895,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
               <strong>Important:</strong> Once enabled, your Last Wish will remain active as long as your Premium subscription is maintained.
             </p>
           </div>
-          <img src="/last_wish_enable.png" alt="Screenshot showing the "Enable Last Wish" toggle" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+          <img src="/last_wish_enable.png" alt="Screenshot showing the \"Enable Last Wish\" toggle" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
         </div>
       </div>
       
@@ -906,9 +908,9 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           </p>
           <ul class="text-gray-700 dark:text-gray-300 ml-4 space-y-2 mb-4">
             <li>• <strong>Inactivity Period:</strong> Set how long without account activity triggers activation (default: 180 days)</li>
-            <img src="/last_wish_activation_conditions.png" alt="Screenshot showing the "Activation Conditions" settings" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+            <img src="/last_wish_activation_conditions.png" alt="Screenshot showing the \"Activation Conditions\" settings" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
             <li>• <strong>Emergency Contacts:</strong> Designate trusted contacts who can request activation</li>
-            <img src="/last_wish_emergency_contacts.png" alt="Screenshot showing the "Emergency Contacts" settings" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+            <img src="/last_wish_emergency_contacts.png" alt="Screenshot showing the \"Emergency Contacts\" settings" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
           </ul>
         </div>
       </div>
@@ -929,7 +931,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
             <strong>Tip:</strong> You can update your inactivity period or beneficiaries at any time from the Last Wish tab in Settings.
           </p>
         </div>
-        <img src="/last_wish_inactivity_monitoring.png" alt="Screenshot showing inactivity period selection and beneficiary list" class="w-1/2 max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+        <img src="/last_wish_inactivity_monitoring.png" alt="Screenshot showing inactivity period selection and beneficiary list" class="w-1/2 max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="640" height="360" />
       </div>
     </div>
 
@@ -956,7 +958,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
         <li>• Personal memories and experiences</li>
         <li>• Expressions of love and gratitude</li>
       </ul>
-      <img src="/last_wish_create_messages.png" alt="Screenshot showing the "Create Messages" section" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+      <img src="/last_wish_create_messages.png" alt="Screenshot showing the \"Create Messages\" section" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
     </div>
     
     <div class="bg-green-50 dark:bg-green-900/20 p-6 rounded-xl">
@@ -970,7 +972,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
         <li>• Bill payment instructions</li>
         <li>• Asset location and access details</li>
       </ul>
-      <img src="/last_wish_data_export.png" alt="Screenshot showing the data export options for Last Wish messages and instructions" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+      <img src="/last_wish_data_export.png" alt="Screenshot showing the data export options for Last Wish messages and instructions" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
     </div>
   </div>
   
@@ -1367,14 +1369,14 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
         <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-0">1</span>
         <div>
           <span>Go to <strong>"Transactions"</strong> in the sidebar</span>
-          <img src="/add_transaction_1.png" alt="Screenshot showing the "Transactions" button highlighted in the Balanze sidebar" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+          <img src="/add_transaction_1.png" alt="Screenshot showing the \"Transactions\" button highlighted in the Balanze sidebar" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
         </div>
       </div>
       <div class="flex items-start">
         <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-0">2</span>
         <div>
           <span>Click <strong>"Add Transaction"</strong></span>
-          <img src="/add_transaction_2.png" alt="Screenshot showing the "Add Transaction" button" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+          <img src="/add_transaction_2.png" alt="Screenshot showing the \"Add Transaction\" button" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
         </div>
       </div>
       <div class="flex items-start">
@@ -1430,7 +1432,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
         <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-0">4</span>
         <div>
           <span>Click the <strong>"Make Transaction"</strong> button to save your transaction</span>
-          <img src="/add_transaction_3.png" alt="Screenshot showing the "Make Transaction" button" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+          <img src="/add_transaction_3.png" alt="Screenshot showing the \"Make Transaction\" button" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
         </div>
       </div>
     </div>
@@ -1599,7 +1601,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Method 1: Using the Transactions Form</h3>
       <p class="text-gray-700 dark:text-gray-300 mb-4">
         By selecting the purchase category in the transactions form when adding a new transaction. You can refer to this <a href="/kb/how-to-create-your-first-transaction" class="text-blue-600 dark:text-blue-400 hover:underline">article</a> for more details.
-        <img src="/add_purchase_1.png" alt="Screenshot showing the "Purchase" options in the transactions form" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+        <img src="/add_purchase_1.png" alt="Screenshot showing the \"Purchase\" options in the transactions form" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
       </p>
     </div>
     
@@ -1619,14 +1621,14 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
         <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-0">1</span>
         <div>
           <span>Go to <strong>"Purchases"</strong> in the sidebar</span>
-          <img src="/add_purchase_3.png" alt="Screenshot showing the "Transactions" button highlighted in the Balanze sidebar" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+          <img src="/add_purchase_3.png" alt="Screenshot showing the \"Transactions\" button highlighted in the Balanze sidebar" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
         </div>
       </div>
       <div class="flex items-start">
         <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-0">2</span>
         <div>
           <span>Click <strong>"Add Purchase"</strong></span>
-          <img src="/add_purchase_2.png" alt="Screenshot showing the "Transactions" button highlighted in the Balanze sidebar" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+          <img src="/add_purchase_2.png" alt="Screenshot showing the \"Transactions\" button highlighted in the Balanze sidebar" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
         </div>
       </div>
       <div class="flex items-start">
@@ -2161,7 +2163,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           <span>Currency-specific analysis</span>
         </li>
       </ul>
-      <img src="/monthly-trends-chart.png" alt="Monthly Trends Chart showing income, expenses, and net cash flow over time" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" />
+      <img src="/monthly-trends-chart.png" alt="Monthly Trends Chart showing income, expenses, and net cash flow over time" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" loading="lazy" decoding="async" width="1280" height="720" />
     </div>
     
     <div id="kpi-cards" class="mb-8">
@@ -2188,7 +2190,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           <p class="text-sm text-gray-600 dark:text-gray-300">Visual thermometer showing progress toward your savings goals with projection estimates.</p>
         </div>
       </div>
-      <img src="/kpi-cards-gauges.png" alt="KPI Cards showing Net Cash Flow Gauge and Spending by Category donut chart" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" />
+      <img src="/kpi-cards-gauges.png" alt="KPI Cards showing Net Cash Flow Gauge and Spending by Category donut chart" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" loading="lazy" decoding="async" width="1280" height="720" />
     </div>
     
     <div id="smart-recommendations" class="mb-8">
@@ -2214,7 +2216,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           <span>Goal achievement strategies</span>
         </li>
       </ul>
-      <img src="/smart-recommendations-insights.png" alt="Smart Recommendations and Insights & Alerts showing financial health status and positive insights" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" />
+      <img src="/smart-recommendations-insights.png" alt="Smart Recommendations and Insights & Alerts showing financial health status and positive insights" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" loading="lazy" decoding="async" width="1280" height="720" />
     </div>
   </div>
 </div>
@@ -2251,7 +2253,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           <p class="text-sm text-gray-600 dark:text-gray-300">Percentage of purchase goals completed vs planned.</p>
         </div>
       </div>
-      <img src="/purchase-analytics-kpis.png" alt="Purchase Analytics KPI Cards showing Total Spent, Budget Utilization, Purchase Count, and Average Purchase" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" />
+      <img src="/purchase-analytics-kpis.png" alt="Purchase Analytics KPI Cards showing Total Spent, Budget Utilization, Purchase Count, and Average Purchase" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" loading="lazy" decoding="async" width="1280" height="720" />
     </div>
     
     <div id="spending-trends" class="mb-8">
@@ -2277,7 +2279,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           <span>Spending velocity analysis</span>
         </li>
       </ul>
-      <img src="/purchase-analytics-trends-breakdown.png" alt="Purchase Analytics showing Spending Trend over 12 months and Category Breakdown donut chart" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" />
+      <img src="/purchase-analytics-trends-breakdown.png" alt="Purchase Analytics showing Spending Trend over 12 months and Category Breakdown donut chart" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" loading="lazy" decoding="async" width="1280" height="720" />
     </div>
     
     <div id="category-breakdown" class="mb-8">
@@ -2339,7 +2341,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           <p class="text-sm text-gray-600 dark:text-gray-300">Amount you still owe to others from active loans.</p>
         </div>
       </div>
-      <img src="/lent-borrow-overview-cards.png" alt="Lent & Borrow Overview Cards showing Total Lent Out, Total Borrowed, Net Position, and Overdue Loans" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" />
+      <img src="/lent-borrow-overview-cards.png" alt="Lent & Borrow Overview Cards showing Total Lent Out, Total Borrowed, Net Position, and Overdue Loans" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" loading="lazy" decoding="async" width="1280" height="720" />
     </div>
     
     <div id="aging-analysis" class="mb-8">
@@ -2365,7 +2367,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           <span>Visual bar chart showing distribution across age groups</span>
         </li>
       </ul>
-      <img src="/loan-aging-analysis-trophy-case.png" alt="Loan Aging Analysis bar chart and Trophy Case showing achievements like Loan Round-Trip, Super Lender, Quick Settler, and Trust Builder" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" />
+      <img src="/loan-aging-analysis-trophy-case.png" alt="Loan Aging Analysis bar chart and Trophy Case showing achievements like Loan Round-Trip, Super Lender, Quick Settler, and Trust Builder" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" loading="lazy" decoding="async" width="1280" height="720" />
     </div>
     
     <div id="due-date-tracking" class="mb-8">
@@ -2391,7 +2393,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           <span>Interest calculation for overdue amounts</span>
         </li>
       </ul>
-      <img src="/upcoming-due-dates.png" alt="Upcoming Due Dates section showing five cards with lent/borrow items, amounts, and due dates" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" />
+      <img src="/upcoming-due-dates.png" alt="Upcoming Due Dates section showing five cards with lent/borrow items, amounts, and due dates" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" loading="lazy" decoding="async" width="1280" height="720" />
     </div>
   </div>
 </div>
@@ -2623,7 +2625,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </div>
       
       <div class="mt-6">
-        <img src="/currency-transfer-modal.png" alt="Currency Transfer modal showing From Account, To Account, Amount, and Note fields with Transfer button" class="w-full max-w-md mx-auto rounded-lg shadow-lg" />
+        <img src="/currency-transfer-modal.png" alt="Currency Transfer modal showing From Account, To Account, Amount, and Note fields with Transfer button" class="w-full max-w-md mx-auto rounded-lg shadow-lg" loading="lazy" decoding="async" width="768" height="432" />
       </div>
     </div>
   </div>
@@ -2696,7 +2698,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </div>
       
       <div class="mt-6">
-        <img src="/dps-transfer-modal.png" alt="DPS Transfer modal showing DPS Account dropdown and Transfer button" class="w-full max-w-md mx-auto rounded-lg shadow-lg" />
+        <img src="/dps-transfer-modal.png" alt="DPS Transfer modal showing DPS Account dropdown and Transfer button" class="w-full max-w-md mx-auto rounded-lg shadow-lg" loading="lazy" decoding="async" width="768" height="432" />
       </div>
     </div>
   </div>
@@ -2769,7 +2771,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </div>
       
       <div class="mt-6">
-        <img src="/in-between-transfer-modal.png" alt="In-between Transfer modal showing From Account, To Account, Amount, and Note fields with Transfer button" class="w-full max-w-md mx-auto rounded-lg shadow-lg" />
+        <img src="/in-between-transfer-modal.png" alt="In-between Transfer modal showing From Account, To Account, Amount, and Note fields with Transfer button" class="w-full max-w-md mx-auto rounded-lg shadow-lg" loading="lazy" decoding="async" width="768" height="432" />
       </div>
     </div>
   </div>
@@ -3039,7 +3041,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
         <div>
           <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Navigate to Categories</h4>
           <p class="text-gray-700 dark:text-gray-300">Go to Settings → Categories tab</p>
-          <img src="/navigate_to_categories.png" alt="Screenshot showing the "Categories" tab" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+          <img src="/navigate_to_categories.png" alt="Screenshot showing the \"Categories\" tab" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
         </div>
       </div>
       
@@ -3048,7 +3050,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
         <div>
           <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Click "Add Income Category"</h4>
           <p class="text-gray-700 dark:text-gray-300">Look for the "Add Category" button in the Income section</p>
-          <img src="/add_income_category.png" alt="Screenshot showing the "Add Income Category" button" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+          <img src="/add_income_category.png" alt="Screenshot showing the \"Add Income Category\" button" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
         </div>
       </div>
 
@@ -3064,7 +3066,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
             <li><strong>Currency:</strong> Select the currency for this category</li>
             <li><strong>Color:</strong> Select a color to easily identify this category in charts and lists</li>
           </ul>
-          <img src="/fill_in_category_details.png" alt="Screenshot showing the "Fill in Category Details" form" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+          <img src="/fill_in_category_details.png" alt="Screenshot showing the \"Fill in Category Details\" form" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
         </div>
       </div>
       
@@ -3103,7 +3105,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
         <div>
           <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Click "Add Expense Category"</h4>
           <p class="text-gray-700 dark:text-gray-300">Look for the "Add Category" button in the Expense section</p>
-          <img src="/add_expense_category.png" alt="Screenshot showing the "Add Expense Category" button" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} />
+          <img src="/add_expense_category.png" alt="Screenshot showing the \"Add Expense Category\" button" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
         </div>
       </div>
       
@@ -3332,6 +3334,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           alt='Screenshot showing the "Donations" option in the Balanze sidebar' 
           class="w-1/2 max-w-md rounded-lg shadow-lg mt-4 ml-0"
           style={{ marginLeft: 0 }}
+          loading="lazy" decoding="async" width="640" height="360"
         />
       </div>
     </div>

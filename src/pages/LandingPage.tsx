@@ -523,6 +523,8 @@ const LandingPage: React.FC = () => {
                   src="/main-dashboard.png" 
                   alt="Balanze Dashboard"
                   className="w-full max-w-4xl rounded-xl"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
               
@@ -782,6 +784,10 @@ const LandingPage: React.FC = () => {
                   src="/info-feature-1.png" 
                   alt="Lent & Borrow Overview" 
                   className="w-full h-full object-contain rounded-md shadow-sm"
+                  loading="lazy"
+                  decoding="async"
+                  width="1024"
+                  height="512"
                 />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
@@ -799,6 +805,10 @@ const LandingPage: React.FC = () => {
                   src="/info-feature-2.png" 
                   alt="Multi-Currency Details" 
                   className="w-full h-full object-contain rounded-md shadow-sm"
+                  loading="lazy"
+                  decoding="async"
+                  width="1024"
+                  height="512"
                 />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
@@ -816,6 +826,10 @@ const LandingPage: React.FC = () => {
                   src="/info-feature-3.png" 
                   alt="Donations & Savings Tracking" 
                   className="w-full h-full object-contain rounded-md shadow-sm"
+                  loading="lazy"
+                  decoding="async"
+                  width="1024"
+                  height="512"
                 />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
@@ -861,6 +875,10 @@ const LandingPage: React.FC = () => {
                   src="/purchase-analytics-demo.png" 
                   alt="Purchasing Analytics Demo" 
                   className="w-full h-auto max-h-72 object-contain rounded-md shadow"
+                  loading="lazy"
+                  decoding="async"
+                  width="1024"
+                  height="512"
                 />
               </div>
             </div>
@@ -885,6 +903,10 @@ const LandingPage: React.FC = () => {
                   src="/lend-borrow-analytics-demo.png" 
                   alt="Lent & Borrow Analytics Demo" 
                   className="w-full h-auto max-h-72 object-contain rounded-md shadow"
+                  loading="lazy"
+                  decoding="async"
+                  width="1024"
+                  height="512"
                 />
               </div>
               {/* Removed See Dashboard button */}
