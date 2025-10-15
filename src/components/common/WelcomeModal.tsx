@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { CheckCircle, Loader2 } from 'lucide-react';
-import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { toast } from 'sonner';
@@ -22,6 +21,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
   const [selectedCurrency, setSelectedCurrency] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
 
   // Get currency options from user's profile
   const currencyOptions = React.useMemo(() => {
@@ -169,14 +169,22 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Which currency would you like to use for your first account?
               </label>
-              <CustomDropdown
-                options={currencyOptions}
-                value={selectedCurrency}
-                onChange={setSelectedCurrency}
-                placeholder="Select Currency *"
-                fullWidth={true}
+              <button
+                type="button"
+                onClick={() => setShowCurrencyModal(true)}
                 disabled={isCreating}
-              />
+                className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 text-gray-700 dark:text-gray-100 px-4 pr-[10px] py-2 text-[14px] h-10 rounded-lg border border-blue-200/50 dark:border-blue-800/50 hover:from-blue-100 hover:via-indigo-100 hover:to-purple-100 dark:hover:from-blue-800/30 dark:hover:via-indigo-800/30 dark:hover:to-purple-800/30 transition-colors flex items-center space-x-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className={selectedCurrency ? '' : 'text-gray-400'}>
+                  {selectedCurrency ? 
+                    currencyOptions.find(opt => opt.value === selectedCurrency)?.label || selectedCurrency
+                    : 'Select Currency *'
+                  }
+                </span>
+                <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
             </div>
 
             {/* Continue Button */}
@@ -284,6 +292,58 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
           </>
         )}
       </div>
+
+      {/* Currency Selection Modal */}
+      {showCurrencyModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-[100001]">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100000]" />
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm mx-4 z-[100001] shadow-xl">
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Select Currency
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Choose your preferred currency for your first account
+              </p>
+            </div>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {currencyOptions.map(option => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCurrency(option.value);
+                    setShowCurrencyModal(false);
+                  }}
+                  className={`w-full flex items-center text-left text-sm rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors px-4 py-3 ${
+                    selectedCurrency === option.value 
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold' 
+                      : 'text-gray-700 dark:text-gray-100'
+                  }`}
+                >
+                  <span className="flex-1">{option.label}</span>
+                  {selectedCurrency === option.value && (
+                    <svg className="w-5 h-5 text-white ml-2" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowCurrencyModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }; 
