@@ -347,7 +347,7 @@ export const LendBorrowSummaryCard: React.FC = () => {
         <div className="text-center text-gray-400 py-8">Loading...</div>
       ) : (
         <>
-          <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             <div className="w-full relative">
               <StatCard
                 title="Total Lent"

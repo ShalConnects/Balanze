@@ -1,5 +1,7 @@
 import React from 'react';
 import { Account, Transaction } from '../../types';
+import { StatCard } from '../Dashboard/StatCard';
+import { Wallet, TrendingUp, Target, Users } from 'lucide-react';
 
 interface AccountSummaryCardsProps {
   filteredAccounts: Account[];
@@ -16,45 +18,73 @@ export const AccountSummaryCards: React.FC<AccountSummaryCardsProps> = ({
     USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', ALL: 'L', INR: '₹', CAD: '$', AUD: '$'
   }[currency] || currency;
 
+  // Calculate insights
+  const activeAccounts = filteredAccounts.filter(a => a.isActive);
+  const accountTypeBreakdown = activeAccounts.reduce((acc, account) => {
+    acc[account.type] = (acc[account.type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const transactionBreakdown = filteredTransactions.reduce((acc, transaction) => {
+    acc[transaction.type] = (acc[transaction.type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const dpsAccounts = filteredAccounts.filter(a => a.has_dps);
+  const dpsTypeBreakdown = dpsAccounts.reduce((acc, account) => {
+    const dpsType = account.dps_type || 'flexible';
+    acc[dpsType] = (acc[dpsType] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Format account type breakdown
+  const accountTypeInsight = Object.entries(accountTypeBreakdown)
+    .map(([type, count]) => `${count} ${type}`)
+    .join(', ');
+
+  // Format transaction breakdown
+  const transactionInsight = Object.entries(transactionBreakdown)
+    .map(([type, count]) => `${count} ${type}`)
+    .join(', ');
+
+  // Format DPS type breakdown
+  const dpsTypeInsight = Object.entries(dpsTypeBreakdown)
+    .map(([type, count]) => `${count} ${type}`)
+    .join(', ');
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3">
-      <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="text-left">
-            <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Active Accounts</p>
-            <p className="font-bold text-green-600 dark:text-green-400" style={{ fontSize: '1.2rem' }}>
-              {filteredAccounts.filter(a => a.isActive).length}
-            </p>
-          </div>
-          <span className="text-green-600" style={{ fontSize: '1.2rem' }}>{currencySymbol}</span>
-        </div>
-      </div>
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3 p-3">
+      <StatCard
+        title="Active Accounts"
+        value={activeAccounts.length.toString()}
+        icon={<Wallet className="w-5 h-5" />}
+        color="green"
+        insight={accountTypeInsight || 'No active accounts'}
+      />
       
-      <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="text-left">
-            <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Transactions</p>
-            <p className="font-bold text-blue-600 dark:text-blue-400" style={{ fontSize: '1.2rem' }}>
-              {filteredTransactions.length}
-            </p>
-          </div>
-          <span className="text-blue-600" style={{ fontSize: '1.2rem' }}>{currencySymbol}</span>
-        </div>
-      </div>
+      <StatCard
+        title="Total Transactions"
+        value={filteredTransactions.length.toString()}
+        icon={<TrendingUp className="w-5 h-5" />}
+        color="blue"
+        insight={transactionInsight || 'No transactions'}
+      />
       
-      <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="text-left">
-            <p className="text-xs font-medium text-gray-600 dark:text-gray-400">DPS Accounts</p>
-            <p className="font-bold text-purple-600 dark:text-purple-400" style={{ fontSize: '1.2rem' }}>
-              {filteredAccounts.filter(a => a.has_dps).length}
-            </p>
-          </div>
-          <svg className="text-purple-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2l4 -4" />
-          </svg>
-        </div>
-      </div>
+      <StatCard
+        title="DPS Accounts"
+        value={dpsAccounts.length.toString()}
+        icon={<Target className="w-5 h-5" />}
+        color="purple"
+        insight={dpsTypeInsight || 'No DPS accounts'}
+      />
+
+      <StatCard
+        title="Total Balance"
+        value={`${currencySymbol}${activeAccounts.reduce((sum, account) => sum + account.calculated_balance, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+        icon={<Users className="w-5 h-5" />}
+        color="gray"
+        insight={`${activeAccounts.length} accounts`}
+      />
     </div>
   );
 }; 

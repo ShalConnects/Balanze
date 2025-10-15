@@ -404,6 +404,25 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
         await new Promise(resolve => setTimeout(resolve, 1000));
         onClose();
       } catch (error) {
+        // Check if it's a plan limit error and show upgrade prompt
+        if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+          const errorMessage = error.message;
+          
+          if (errorMessage && errorMessage.includes('PURCHASE_LIMIT_EXCEEDED')) {
+            // Show toast and navigate to plans
+            const { purchases } = useFinanceStore.getState();
+            const currentCount = purchases.length;
+            const limit = 50; // Free plan limit
+            
+            toast.error(`Purchase limit exceeded! You have ${currentCount}/${limit} purchases. Upgrade to Premium for unlimited purchases.`);
+            setTimeout(() => {
+              window.location.href = '/settings?tab=plans-usage';
+            }, 2000);
+            
+            return;
+          }
+        }
+        
         toast.error('Failed to save purchase. Please try again.');
       } finally {
         // Cleanup

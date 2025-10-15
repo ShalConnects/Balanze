@@ -285,11 +285,11 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
             // Show toast and navigate to plans
             const { accounts } = useFinanceStore.getState();
             const current = accounts.length;
-            const limit = 5;
+            const limit = 3;
             
             showToast.error(`Account limit exceeded! You have ${current}/${limit} accounts. Upgrade to Premium for unlimited accounts.`);
             setTimeout(() => {
-              window.location.href = '/settings?tab=plans';
+              window.location.href = 'http://localhost:5174/settings?tab=plans-usage';
             }, 2000);
             
             return;

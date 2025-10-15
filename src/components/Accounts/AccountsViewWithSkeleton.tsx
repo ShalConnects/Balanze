@@ -235,7 +235,7 @@ export const AccountsViewWithSkeleton: React.FC = () => {
 
       {/* Summary Cards Section */}
       <AccountSummaryCards
-        accounts={sortedAccounts}
+        filteredAccounts={sortedAccounts}
         transactions={transactions}
       />
 

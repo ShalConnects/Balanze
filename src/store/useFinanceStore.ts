@@ -1517,22 +1517,52 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     const { user } = useAuthStore.getState();
     if (!user) return set({ loading: false, error: 'Not authenticated' });
 
-    const { error } = await supabase.from('purchases').insert({
-      ...purchase,
-      user_id: user.id,
-    });
+    try {
+      const { error } = await supabase.from('purchases').insert({
+        ...purchase,
+        user_id: user.id,
+      });
 
-    if (error) {
-      const errorMessage = error.message ? error.message : 'An unknown error occurred.';
-      set({ loading: false, error: errorMessage });
-      return;
+      if (error) {
+        // Re-throw plan-related errors so they can be handled by the UI
+        if (error.message && (
+          error.message.includes('ACCOUNT_LIMIT_EXCEEDED') ||
+          error.message.includes('CURRENCY_LIMIT_EXCEEDED') ||
+          error.message.includes('TRANSACTION_LIMIT_EXCEEDED') ||
+          error.message.includes('MONTHLY_TRANSACTION_LIMIT_EXCEEDED') ||
+          error.message.includes('PURCHASE_LIMIT_EXCEEDED') ||
+          error.message.includes('FEATURE_NOT_AVAILABLE')
+        )) {
+          set({ loading: false }); // Reset loading state before re-throwing
+          throw error; // Re-throw plan-related errors
+        }
+        
+        const errorMessage = error.message ? error.message : 'An unknown error occurred.';
+        set({ loading: false, error: errorMessage });
+        return;
+      }
+
+      // Add a small delay to ensure the loading animation is visible
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      await get().fetchPurchases();
+      set({ loading: false });
+    } catch (err: any) {
+      // Re-throw plan-related errors so they can be handled by the UI
+      if (err.message && (
+        err.message.includes('ACCOUNT_LIMIT_EXCEEDED') ||
+        err.message.includes('CURRENCY_LIMIT_EXCEEDED') ||
+        err.message.includes('TRANSACTION_LIMIT_EXCEEDED') ||
+        err.message.includes('MONTHLY_TRANSACTION_LIMIT_EXCEEDED') ||
+        err.message.includes('PURCHASE_LIMIT_EXCEEDED') ||
+        err.message.includes('FEATURE_NOT_AVAILABLE')
+      )) {
+        set({ loading: false }); // Reset loading state before re-throwing
+        throw err; // Re-throw plan-related errors
+      }
+      
+      set({ error: err.message || 'Failed to add purchase', loading: false });
     }
-
-    // Add a small delay to ensure the loading animation is visible
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    await get().fetchPurchases();
-    set({ loading: false });
   },
 
   updatePurchase: async (id: string, purchase: Partial<Purchase>) => {

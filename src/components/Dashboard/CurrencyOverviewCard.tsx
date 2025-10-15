@@ -274,9 +274,9 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
       <div className="mb-4">
         {/* Amount row */}
         <div className="flex items-center justify-between mb-1">
-          <div className="text-lg sm:text-lg lg:text-xl font-bold tabular-nums text-gray-900 dark:text-white">
-            {formatCurrency(totalBalance, currency)}
-          </div>
+           <div className="text-base sm:text-lg lg:text-xl font-bold tabular-nums text-gray-900 dark:text-white">
+             {formatCurrency(totalBalance, currency)}
+           </div>
           
           {/* Right side: Delta, sparkline, and info button - all on same row */}
           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -376,7 +376,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
       </div>
       
       {/* Mobile-optimized stats grid */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-3">
         <div className="w-full">
           <StatCard
             title={<span className="text-[13px]">{t('dashboard.monthlyIncome')}</span>}

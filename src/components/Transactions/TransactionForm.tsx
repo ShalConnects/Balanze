@@ -684,7 +684,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
           const errorMessage = error.message;
           
-          if (errorMessage && errorMessage.includes('TRANSACTION_LIMIT_EXCEEDED')) {
+          if (errorMessage && (errorMessage.includes('TRANSACTION_LIMIT_EXCEEDED') || errorMessage.includes('MONTHLY_TRANSACTION_LIMIT_EXCEEDED'))) {
             // Show toast and navigate to plans
             const { transactions } = useFinanceStore.getState();
             const currentMonth = new Date().getMonth();
@@ -693,9 +693,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               const transactionDate = new Date(t.date);
               return transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
             }).length;
-            const limit = 100;
+            const limit = 25; // Updated to 25 for free plan
             
-            showToast.error(`Transaction limit exceeded! You have ${monthlyTransactions}/${limit} transactions this month. Upgrade to Premium for unlimited transactions.`);
+            showToast.error(`Monthly transaction limit exceeded! You have ${monthlyTransactions}/${limit} transactions this month. Upgrade to Premium for unlimited transactions.`);
             setTimeout(() => {
               window.location.href = '/settings?tab=plans';
             }, 2000);
@@ -741,7 +741,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       {/* Modal Container */}
       <div
         data-tour="transaction-form"
-        className="relative bg-white dark:bg-gray-800 rounded-[1rem] border border-gray-200 dark:border-gray-700 p-6 w-full max-w-[38rem] max-h-[90vh] overflow-y-auto overflow-visible z-50 shadow-xl transition-all"
+        className="relative bg-white dark:bg-gray-800 rounded-[1rem] border border-gray-200 dark:border-gray-700 p-6 w-full max-w-[38rem] max-h-[90vh] overflow-visible z-50 shadow-xl transition-all"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">

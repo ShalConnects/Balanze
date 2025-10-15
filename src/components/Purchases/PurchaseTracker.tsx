@@ -909,6 +909,23 @@ export const PurchaseTracker: React.FC = () => {
     setShowPurchaseForm(false);
   setExcludeFromCalculation(false);
     } catch (error) {
+      // Check if it's a plan limit error and show upgrade prompt
+      if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+        const errorMessage = error.message;
+        
+        if (errorMessage && errorMessage.includes('PURCHASE_LIMIT_EXCEEDED')) {
+          // Show toast and navigate to plans
+          const currentCount = purchases.length;
+          const limit = 50; // Free plan limit
+          
+          toast.error(`Purchase limit exceeded! You have ${currentCount}/${limit} purchases. Upgrade to Premium for unlimited purchases.`);
+          setTimeout(() => {
+            window.location.href = '/settings?tab=plans-usage';
+          }, 2000);
+          
+          return;
+        }
+      }
 
       if (editingPurchase) {
         toast.error('Failed to update purchase. Please try again.');

@@ -154,10 +154,10 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
   // DatePicker: highlight today, allow typing, quick-select today
   const today = new Date();
   const handleDateChange = (date: Date | null) => {
-    handleDropdownChange('due_date', date ? date.toISOString().split('T')[0] : '');
+    handleDropdownChange('due_date', date ? date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0') : '');
   };
   const handleDateToday = () => {
-    handleDropdownChange('due_date', today.toISOString().split('T')[0]);
+    handleDropdownChange('due_date', today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'));
   };
 
   // Disable Add button if required fields missing or submitting
@@ -174,7 +174,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
         />
         {/* Modal Container */}
         <div
-          className="relative bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-[38rem] max-h-[90vh] overflow-y-auto z-50 shadow-2xl transition-all"
+          className="relative bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-[38rem] max-h-[90vh] overflow-visible z-50 shadow-2xl transition-all"
           onClick={e => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-6">

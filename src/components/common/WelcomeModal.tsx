@@ -143,11 +143,11 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
 
   return (
     <div 
-      className="fixed inset-0 flex items-center justify-center z-50"
+      className="fixed inset-0 flex items-center justify-center z-[100000]"
       onKeyDown={handleKeyDown}
     >
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
-      <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-md mx-4 z-50 shadow-xl">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99999]" />
+      <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-md mx-4 z-[100000] shadow-xl">
         
         {!isSuccess ? (
           <>
