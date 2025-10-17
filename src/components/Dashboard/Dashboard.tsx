@@ -242,8 +242,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     .sort((a, b) => new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime())
     .slice(0, 5);
 
-  // Responsive state detection - using hook instead of local state
-  const { isMobile, isVerySmall } = useMobileDetection();
 
   // Fetch purchases data when dashboard loads
   useEffect(() => {
