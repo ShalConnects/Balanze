@@ -58,7 +58,7 @@ export const FloatingActionButton: React.FC = () => {
   const [showInBetweenTransferModal, setShowInBetweenTransferModal] = useState(false);
   const [showLendBorrowForm, setShowLendBorrowForm] = useState(false);
   const [showTip, setShowTip] = useState(true);
-  const { isMobile } = useMobileDetection();
+  const { isMobile, isBrowser } = useMobileDetection();
   const { isMobileSidebarOpen } = useMobileSidebar();
   const { 
     setShowTransactionForm, 
@@ -201,8 +201,8 @@ export const FloatingActionButton: React.FC = () => {
   return (
     <>
       <div 
-        className={`fixed right-6 z-50 flex flex-col items-end ${isMobile && isMobileSidebarOpen ? 'hidden' : ''}`}
-        style={{ bottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)))' }}
+        className={`fixed right-6 z-50 flex flex-col items-end ${isMobile && isMobileSidebarOpen ? 'hidden' : ''} ${isBrowser && isMobile ? 'browser-fab-positioning' : ''}`}
+        style={{ bottom: isBrowser && isMobile ? undefined : 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)))' }}
       >
         <div className="relative flex flex-col items-end">
           {/* Animated Menu Items - now absolutely positioned above the FAB */}

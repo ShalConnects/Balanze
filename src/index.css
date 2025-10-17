@@ -860,6 +860,19 @@ body.sidebar-open {
   }
 }
 
+/* Browser-specific FAB positioning fixes */
+@media (max-width: 768px) {
+  /* Only apply to browsers, not mobile apps */
+  .browser-fab-positioning {
+    bottom: max(calc(1.5rem + 80px), calc(1.5rem + 80px + env(safe-area-inset-bottom, 0px))) !important;
+  }
+  
+  /* Browser-specific bottom navigation spacing */
+  .browser-bottom-nav-spacing {
+    padding-bottom: 80px !important;
+  }
+}
+
 /* Critical Android scroll fix - Pure CSS approach */
 html, body {
   -webkit-overflow-scrolling: touch !important;

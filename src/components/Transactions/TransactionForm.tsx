@@ -911,7 +911,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                   {errors.category}
                 </span>
               )}
-              {filteredCategoriesData.accountCurrency && !filteredCategoriesData.hasMatchingCategories && (
+              {filteredCategoriesData.accountCurrency && !filteredCategoriesData.hasMatchingCategories && data.type && (
                 <div className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
                   <HelpCircle className="w-3 h-3" />
                   No categories found for {filteredCategoriesData.accountCurrency}. 
