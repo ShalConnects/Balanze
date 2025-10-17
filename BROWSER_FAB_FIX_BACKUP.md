@@ -4,9 +4,10 @@
 
 ### **Files Modified:**
 1. `src/hooks/useMobileDetection.ts` - Added browser detection
-2. `src/index.css` - Added browser-specific CSS classes
+2. `src/index.css` - Added browser-specific CSS classes (reduced from 80px to 40px)
 3. `src/components/Layout/FloatingActionButton.tsx` - Added browser positioning
-4. `src/components/Dashboard/Dashboard.tsx` - Added browser spacing
+4. `src/components/Layout/MainLayout.tsx` - Added global browser spacing to all pages
+5. `src/components/Dashboard/Dashboard.tsx` - Removed local browser spacing (now global)
 
 ---
 

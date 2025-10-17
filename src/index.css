@@ -864,12 +864,12 @@ body.sidebar-open {
 @media (max-width: 768px) {
   /* Only apply to browsers, not mobile apps */
   .browser-fab-positioning {
-    bottom: max(calc(1.5rem + 80px), calc(1.5rem + 80px + env(safe-area-inset-bottom, 0px))) !important;
+    bottom: max(calc(1.5rem + 40px), calc(1.5rem + 40px + env(safe-area-inset-bottom, 0px))) !important;
   }
   
   /* Browser-specific bottom navigation spacing */
   .browser-bottom-nav-spacing {
-    padding-bottom: 80px !important;
+    padding-bottom: 40px !important;
   }
 }
 

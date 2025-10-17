@@ -38,7 +38,7 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
-  const { isMobile, isBrowser } = useMobileDetection();
+  const { isMobile } = useMobileDetection();
   const { 
     getDashboardStats, 
     getActiveAccounts, 
@@ -551,7 +551,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         </div>
 
         {/* Mobile Bottom Section - Notes/Todos and Recent Transactions */}
-        <div className={`lg:hidden space-y-6 dashboard-mobile-container ${isBrowser && isMobile ? 'browser-bottom-nav-spacing' : ''}`}>
+        <div className="lg:hidden space-y-6 dashboard-mobile-container">
           <LastWishCountdownWidget />
           <NotesAndTodosWidget />
           

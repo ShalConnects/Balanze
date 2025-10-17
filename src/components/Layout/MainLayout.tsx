@@ -26,7 +26,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [currentView, setCurrentView] = useState(location.pathname.split('/')[2] || 'dashboard');
   const { isSidebarCollapsed } = useThemeStore();
   
-  const { isMobile, isVerySmall } = useMobileDetection();
+  const { isMobile, isVerySmall, isBrowser } = useMobileDetection();
   const { setIsMobileSidebarOpen } = useMobileSidebar();
   
   // Force collapse on mobile - always collapsed on mobile
@@ -169,7 +169,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                           : undefined
             )}
           />
-          <main className="flex-1 p-1 sm:p-2 lg:p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 max-w-full pb-safe-bottom">
+          <main className={`flex-1 p-1 sm:p-2 lg:p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 max-w-full pb-safe-bottom ${isBrowser && isMobile ? 'browser-bottom-nav-spacing' : ''}`}>
             {children}
           </main>
         </div>
