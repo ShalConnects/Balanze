@@ -14,6 +14,7 @@ import { getCurrencySymbol } from '../../utils/currency';
 import { Loader } from '../../components/common/Loader';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { CategoryModal } from '../common/CategoryModal';
+import { getDefaultAccountId } from '../../utils/defaultAccount';
 
 
 interface PurchaseFormProps {
@@ -32,7 +33,8 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     fetchPurchases, 
     fetchAccounts,
     addTransaction,
-    addPurchaseCategory
+    addPurchaseCategory,
+    purchases
   } = useFinanceStore();
   const { user, profile } = useAuthStore();
   const { wrapAsync, setLoadingMessage, loadingMessage, isLoading } = useLoadingContext();
@@ -42,14 +44,14 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     item_name: record?.item_name || '',
     category: record?.category || '',
     price: record?.price ? String(record.price) : '',
-    currency: record?.currency || 'USD',
+    currency: record?.currency || profile?.local_currency || profile?.selected_currencies?.[0] || '',
     purchase_date: record?.purchase_date || new Date().toISOString().split('T')[0],
     status: record?.status || '' as '' | 'planned' | 'purchased' | 'cancelled',
     priority: record?.priority || 'medium' as 'low' | 'medium' | 'high',
     notes: record?.notes || ''
   });
 
-  const [selectedAccountId, setSelectedAccountId] = useState<string>(record?.account_id || '');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>(record?.account_id || getDefaultAccountId());
   const [purchasePriority, setPurchasePriority] = useState<'low' | 'medium' | 'high'>(record?.priority || 'medium');
   const [purchaseAttachments, setPurchaseAttachments] = useState<PurchaseAttachment[]>([]);
   const [showPurchaseDetails, setShowPurchaseDetails] = useState(true);
@@ -59,6 +61,11 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const itemNameRef = useRef<HTMLInputElement>(null);
+  
+  // Autocomplete state for item name
+  const [showItemNameSuggestions, setShowItemNameSuggestions] = useState(false);
+  const [itemNameSuggestions, setItemNameSuggestions] = useState<string[]>([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
 
   // Autofocus on first field when modal opens
   useEffect(() => {
@@ -73,6 +80,32 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
       useFinanceStore.getState().fetchPurchaseCategories();
     }
   }, [isOpen, user, purchaseCategories.length]);
+
+  // Generate item name suggestions
+  const generateItemNameSuggestions = (input: string) => {
+    if (!input.trim()) {
+      setItemNameSuggestions([]);
+      setShowItemNameSuggestions(false);
+      return;
+    }
+
+    // Combine purchases and transactions for more comprehensive suggestions
+    const allSuggestions = [
+      ...purchases.map(p => p.item_name),
+      ...(useFinanceStore.getState().transactions || []).map(t => t.description)
+    ];
+
+    const suggestions = allSuggestions
+      .filter((name, index, self) => 
+        name.toLowerCase().includes(input.toLowerCase()) && 
+        self.indexOf(name) === index
+      )
+      .slice(0, 5);
+
+    setItemNameSuggestions(suggestions);
+    setShowItemNameSuggestions(suggestions.length > 0);
+    setSelectedSuggestionIndex(-1);
+  };
 
 
 
@@ -130,6 +163,11 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
       return next;
     });
     setTouched(t => ({ ...t, [name]: true }));
+    
+    // Handle autocomplete for item name
+    if (name === 'item_name') {
+      generateItemNameSuggestions(value);
+    }
   };
 
   const handleAccountChange = (val: string) => {
@@ -138,6 +176,46 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     setFormData(f => ({ ...f, category: '' }));
     setTouched(t => ({ ...t, account: true }));
     validateForm(formData, val);
+  };
+
+  // Handle keyboard navigation for suggestions
+  const handleItemNameKeyDown = (e: React.KeyboardEvent) => {
+    if (!showItemNameSuggestions) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev < itemNameSuggestions.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev > 0 ? prev - 1 : itemNameSuggestions.length - 1
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedSuggestionIndex >= 0) {
+          const selectedSuggestion = itemNameSuggestions[selectedSuggestionIndex];
+          setFormData(f => ({ ...f, item_name: selectedSuggestion }));
+          setShowItemNameSuggestions(false);
+          setSelectedSuggestionIndex(-1);
+        }
+        break;
+      case 'Escape':
+        setShowItemNameSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+        break;
+    }
+  };
+
+  // Handle suggestion selection
+  const handleSuggestionClick = (suggestion: string) => {
+    setFormData(f => ({ ...f, item_name: suggestion }));
+    setShowItemNameSuggestions(false);
+    setSelectedSuggestionIndex(-1);
   };
 
   const isFormValid = () => {
@@ -180,6 +258,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   };
 
   const handleSubmit = wrapAsync(async () => {
+    console.log('🔍 PurchaseForm handleSubmit called');
     if (isLoading) return;
     
     // Set loading message
@@ -289,7 +368,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
               status: 'planned' as const,
               priority: formData.priority,
               notes: formData.notes || '',
-              currency: 'USD'
+              currency: formData.currency
             };
             
             await addPurchase(purchaseData);
@@ -304,79 +383,43 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                 status: 'purchased' as const,
                 priority: formData.priority,
                 notes: formData.notes || '',
-                currency: formData.currency || 'USD',
+                currency: formData.currency,
                 user_id: user?.id || '',
                 exclude_from_calculation: true
               };
-              const { data: newPurchase, error: purchaseError } = await supabase
-                .from('purchases')
-                .insert(purchaseData)
-                .select()
-                .single();
-              
-              if (purchaseError) {
-                toast.error('Failed to add purchase. Please try again.');
-                return;
-              }
+              // Use addPurchase function to ensure proper error handling
+              await addPurchase(purchaseData);
 
-              // Handle attachments for new purchase
-              if (purchaseAttachments.length > 0 && newPurchase) {
-                for (const att of purchaseAttachments) {
-                  if (att.file && att.file_path.startsWith('blob:')) {
-                    const { data: uploadData, error: uploadError } = await supabase.storage
-                      .from('attachments')
-                      .upload(`purchases/${newPurchase.id}/${att.file_name}`, att.file, { upsert: true });
-                    
-                    if (uploadError) {
-                      continue;
-                    }
-                    
-                    if (!uploadError && uploadData && uploadData.path) {
-                      const { publicUrl } = supabase.storage.from('attachments').getPublicUrl(uploadData.path).data;
-                      const attachmentData = {
-                        purchase_id: newPurchase.id,
-                        user_id: user?.id || '',
-                        file_name: att.file_name,
-                        file_path: publicUrl,
-                        file_size: att.file_size,
-                        file_type: att.file_type,
-                        mime_type: att.mime_type,
-                        created_at: new Date().toISOString(),
-                      };
-                      const { error: insertError } = await supabase.from('purchase_attachments').insert(attachmentData);
-                      if (insertError) {
-                        // Handle error silently
-                      }
-                    }
-                  }
-                }
-              }
+              // Attachments will be handled by the addPurchase function
 
               await fetchPurchases();
               await fetchAccounts();
               toast.success('Purchase added successfully (excluded from calculation)!');
             } else {
-              // Normal flow: create transaction and link purchase
+              // Create purchase directly without creating transaction
               const selectedAccount = accounts.find(a => a.id === selectedAccountId);
               if (!selectedAccount) throw new Error('Selected account not found');
-              const transactionData = {
-                account_id: selectedAccountId,
-                amount: parseFloat(formData.price),
-                type: 'expense' as 'expense',
-                category: formData.category,
-                description: formData.item_name,
-                date: formData.purchase_date,
-                tags: ['purchase'],
-                user_id: user?.id || '',
-              };
-              // Add transaction and get transactionId - this will automatically create a purchase record
-              const transactionId = await addTransaction(transactionData, {
-                priority: (formData.status || 'planned') === 'purchased' ? formData.priority : 'medium',
-                notes: formData.notes || '',
-                attachments: purchaseAttachments, // Pass attachments to be handled by addTransaction
-              });
-              if (transactionId) {
+              
+              console.log('🔍 PurchaseForm calling addPurchase...');
+              try {
+                await addPurchase({
+                  item_name: formData.item_name,
+                  category: formData.category,
+                  price: parseFloat(formData.price),
+                  currency: selectedAccount.currency,
+                  purchase_date: formData.purchase_date,
+                  status: formData.status || 'planned',
+                  priority: formData.priority || 'medium',
+                  notes: formData.notes || '',
+                  exclude_from_calculation: excludeFromCalculation
+                });
+                
+                console.log('✅ PurchaseForm addPurchase successful');
+                // Only show success toast if no error occurred
                 toast.success('Purchase added successfully!');
+              } catch (error) {
+                console.log('❌ PurchaseForm addPurchase error:', error);
+                throw error; // Re-throw to be caught by the outer try-catch
               }
             }
           }
@@ -387,7 +430,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
           item_name: '',
           category: '',
           price: '',
-          currency: 'USD',
+          currency: profile?.local_currency || profile?.selected_currencies?.[0] || '',
           purchase_date: new Date().toISOString().split('T')[0],
           status: '',
           priority: 'medium',
@@ -412,7 +455,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
             // Show toast and navigate to plans
             const { purchases } = useFinanceStore.getState();
             const currentCount = purchases.length;
-            const limit = 50; // Free plan limit
+            const limit = 50; // Updated to 50 for free plan
             
             toast.error(`Purchase limit exceeded! You have ${currentCount}/${limit} purchases. Upgrade to Premium for unlimited purchases.`);
             setTimeout(() => {
@@ -458,27 +501,58 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
             </button>
           </div>
           
-          {/* Exclude from Calculation Option - Only for new purchases */}
+          {/* Payment Method Selection - Only for new purchases */}
           {!editingPurchase && (
-            <div 
-              className="flex items-center space-x-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 mb-6 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-              onClick={() => !isLoading && setExcludeFromCalculation(!excludeFromCalculation)}
-            >
-              <input
-                type="checkbox"
-                id="excludeFromCalculation"
-                checked={excludeFromCalculation}
-                onChange={(e) => setExcludeFromCalculation(e.target.checked)}
-                onClick={(e) => e.stopPropagation()}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                disabled={isLoading}
-              />
-              <label htmlFor="excludeFromCalculation" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer flex-1">
-                <span className="font-medium">Exclude from account balance calculation</span>
-                <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Check this if the purchase was already made using this account. This will not create a transaction record or affect your account balance.
-                </span>
-              </label>
+            <div className="mb-4">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
+                 <div className="grid grid-cols-2 gap-3">
+                   <div 
+                     className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                       !excludeFromCalculation 
+                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                         : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                     }`}
+                     onClick={() => !isLoading && setExcludeFromCalculation(false)}
+                   >
+                     <div className="flex items-center space-x-3">
+                       <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                         <span className="text-sm">💳</span>
+                       </div>
+                       <div className="flex-1 min-w-0">
+                         <div className="font-semibold text-gray-900 dark:text-white text-sm">
+                           From Account
+                         </div>
+                         <div className="text-xs text-gray-600 dark:text-gray-400">
+                           Affects Balance
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                   
+                   <div 
+                     className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                       excludeFromCalculation 
+                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                         : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                     }`}
+                     onClick={() => !isLoading && setExcludeFromCalculation(true)}
+                   >
+                     <div className="flex items-center space-x-3">
+                       <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                         <span className="text-sm">📝</span>
+                       </div>
+                       <div className="flex-1 min-w-0">
+                         <div className="font-semibold text-gray-900 dark:text-white text-sm">
+                           Record Only
+                         </div>
+                         <div className="text-xs text-gray-600 dark:text-gray-400">
+                           No Balance Change
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+              </div>
             </div>
           )}
           <form onSubmit={handleFormSubmit} className="space-y-7">
@@ -496,7 +570,17 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                   onChange={e => {
                     handleFormChange('item_name', e.target.value);
                   }}
-                  onBlur={handleBlur}
+                  onKeyDown={handleItemNameKeyDown}
+                  onBlur={() => {
+                    handleBlur({ target: { name: 'item_name' } } as React.FocusEvent<any>);
+                    // Delay hiding suggestions to allow clicks
+                    setTimeout(() => setShowItemNameSuggestions(false), 150);
+                  }}
+                  onFocus={() => {
+                    if (formData.item_name.trim()) {
+                      generateItemNameSuggestions(formData.item_name);
+                    }
+                  }}
                   className={`w-full px-4 pr-[32px] text-[14px] h-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors bg-gray-100 font-medium ${fieldErrors.item_name && touched.item_name ? 'border-red-500 ring-red-200' : 'border-gray-300'}`}
                   placeholder="Enter item name *"
                   required
@@ -507,6 +591,38 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                     <X className="w-4 h-4" />
                   </button>
                 )}
+                
+                {/* Autocomplete suggestions */}
+                {showItemNameSuggestions && itemNameSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {itemNameSuggestions.map((suggestion, index) => (
+                      <div
+                        key={index}
+                        className={`px-4 py-2 cursor-pointer text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                          index === selectedSuggestionIndex ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                        }`}
+                        onClick={() => handleSuggestionClick(suggestion)}
+                      >
+                        {(() => {
+                          const query = formData.item_name.trim();
+                          const matchIndex = suggestion.toLowerCase().indexOf(query.toLowerCase());
+                          if (matchIndex < 0) return suggestion;
+                          const before = suggestion.slice(0, matchIndex);
+                          const match = suggestion.slice(matchIndex, matchIndex + query.length);
+                          const after = suggestion.slice(matchIndex + query.length);
+                          return (
+                            <span>
+                              {before}
+                              <span className="font-semibold text-blue-700 dark:text-blue-300">{match}</span>
+                              {after}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
                 {fieldErrors.item_name && touched.item_name && (
                   <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.item_name}</span>
                 )}
@@ -584,12 +700,12 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                                 value: currency,
                                 label: `${currency} (${getCurrencySymbol(currency)})`
                               }))
-                            : [
+                            : profile?.local_currency ? [
                                 { 
-                                  value: profile?.local_currency || 'USD', 
-                                  label: `${profile?.local_currency || 'USD'} (${getCurrencySymbol(profile?.local_currency || 'USD')})` 
+                                  value: profile.local_currency, 
+                                  label: `${profile.local_currency} (${getCurrencySymbol(profile.local_currency)})` 
                                 }
-                              ]
+                              ] : []
                         }
                         value={formData.currency}
                         onChange={val => {
@@ -661,14 +777,6 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                         );
                       }
                       
-                      if (excludeFromCalculation && targetCurrency) {
-                        return (
-                          <div className="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1">
-                            <span>ℹ️</span>
-                            Categories filtered by selected currency: {targetCurrency}
-                          </div>
-                        );
-                      }
                       
                       return null;
                     })()}
@@ -792,14 +900,14 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
           category_name: '',
           description: '',
           monthly_budget: 0,
-          currency: (excludeFromCalculation ? formData.currency : accounts.find(a => a.id === selectedAccountId)?.currency) || 'USD',
+          currency: (excludeFromCalculation ? formData.currency : accounts.find(a => a.id === selectedAccountId)?.currency) || profile?.local_currency || profile?.selected_currencies?.[0] || '',
           category_color: '#3B82F6'
         }}
         isEdit={false}
         onSave={async (values) => {
           await addPurchaseCategory({
             ...values,
-            currency: values.currency || 'USD',
+            currency: values.currency || profile?.local_currency || profile?.selected_currencies?.[0] || '',
             monthly_budget: values.monthly_budget ?? 0,
             category_color: values.category_color || '#3B82F6',
           });

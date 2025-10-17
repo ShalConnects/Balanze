@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { toast } from 'sonner';
@@ -20,7 +20,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
   
   const [selectedCurrency, setSelectedCurrency] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
 
   // Get currency options from user's profile
@@ -93,25 +92,48 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
         // Don't fail the account creation if audit log fails
       }
       
+      // Update user profile with selected currency preferences
+      const { data: updatedProfile, error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          selected_currencies: [selectedCurrency],
+          local_currency: selectedCurrency
+        })
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('Failed to update profile with currency preferences:', profileError);
+        // Don't fail the account creation if profile update fails
+      } else if (updatedProfile) {
+        // Update the auth store with the new profile data
+        const { setUserAndProfile } = useAuthStore.getState();
+        const profileData = {
+          id: updatedProfile.id,
+          fullName: updatedProfile.full_name,
+          profilePicture: updatedProfile.profile_picture,
+          local_currency: updatedProfile.local_currency,
+          selected_currencies: updatedProfile.selected_currencies,
+          default_account_id: updatedProfile.default_account_id,
+          subscription: updatedProfile.subscription
+        };
+        setUserAndProfile(user, profileData);
+      }
+
       // Fetch accounts to update the store
       await fetchAccounts();
       
-      setIsSuccess(true);
       toast.success('Cash account created successfully!');
       
-      // Show success message briefly, then start the tour
-      setTimeout(() => {
-        setIsSuccess(false);
-        setSelectedCurrency('');
-        setIsCreating(false);
-        setLoading(false); // Clear global loading state
-        onClose(); // Close the welcome modal
-        
-        // Additional delay to ensure modal is fully closed before starting tour
-        setTimeout(() => {
-          onStartTour(); // Start the contextual tour
-        }, 300);
-      }, 2000);
+      // Close modal and start tour immediately
+      setSelectedCurrency('');
+      setIsCreating(false);
+      setLoading(false); // Clear global loading state
+      onClose(); // Close the welcome modal
+      
+      // Start the tour immediately
+      onStartTour();
       
     } catch (error) {
 
@@ -125,7 +147,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
   const handleClose = () => {
     if (!isCreating) {
       onClose();
-      setIsSuccess(false);
       setSelectedCurrency('');
       setIsCreating(false);
     }
@@ -135,7 +156,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
 
   // Prevent escape key from closing modal during currency selection
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape' && !isSuccess) {
+    if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
     }
@@ -149,147 +170,58 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99999]" />
       <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-md mx-4 z-[100000] shadow-xl">
         
-        {!isSuccess ? (
-          <>
-            {/* Welcome Message */}
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                Welcome to Balanze! 🎉
-              </h2>
-              <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
-                To get started, please select your preferred currency below. We'll create your first cash account automatically.
-              </p>
-              <p className="text-sm text-orange-600 dark:text-orange-400 mt-2 font-medium">
-                Currency selection is required to continue
-              </p>
-            </div>
+        {/* Welcome Message */}
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Welcome to Balanze! 🎉
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
+            To get started, please select your preferred currency below. We'll create your first cash account automatically.
+          </p>
+          <p className="text-sm text-orange-600 dark:text-orange-400 mt-2 font-medium">
+            Currency selection is required to continue
+          </p>
+        </div>
 
-            {/* Currency Selection */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Which currency would you like to use for your first account?
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowCurrencyModal(true)}
-                disabled={isCreating}
-                className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 text-gray-700 dark:text-gray-100 px-4 pr-[10px] py-2 text-[14px] h-10 rounded-lg border border-blue-200/50 dark:border-blue-800/50 hover:from-blue-100 hover:via-indigo-100 hover:to-purple-100 dark:hover:from-blue-800/30 dark:hover:via-indigo-800/30 dark:hover:to-purple-800/30 transition-colors flex items-center space-x-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className={selectedCurrency ? '' : 'text-gray-400'}>
-                  {selectedCurrency ? 
-                    currencyOptions.find(opt => opt.value === selectedCurrency)?.label || selectedCurrency
-                    : 'Select Currency *'
-                  }
-                </span>
-                <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-            </div>
+        {/* Currency Selection */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Which currency would you like to use for your first account?
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowCurrencyModal(true)}
+            disabled={isCreating}
+            className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 text-gray-700 dark:text-gray-100 px-4 pr-[10px] py-2 text-[14px] h-10 rounded-lg border border-blue-200/50 dark:border-blue-800/50 hover:from-blue-100 hover:via-indigo-100 hover:to-purple-100 dark:hover:from-blue-800/30 dark:hover:via-indigo-800/30 dark:hover:to-purple-800/30 transition-colors flex items-center space-x-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span className={selectedCurrency ? '' : 'text-gray-400'}>
+              {selectedCurrency ? 
+                currencyOptions.find(opt => opt.value === selectedCurrency)?.label || selectedCurrency
+                : 'Select Currency *'
+              }
+            </span>
+            <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
 
-            {/* Continue Button */}
-            {selectedCurrency && (
-              <button
-                onClick={handleContinue}
-                disabled={isCreating}
-                className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-md hover:shadow-lg"
-              >
-                {isCreating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Creating Account...
-                  </>
-                ) : (
-                  'Continue'
-                )}
-              </button>
+        {/* Continue Button */}
+        {selectedCurrency && (
+          <button
+            onClick={handleContinue}
+            disabled={isCreating}
+            className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-md hover:shadow-lg"
+          >
+            {isCreating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Creating Account...
+              </>
+            ) : (
+              'Continue'
             )}
-          </>
-        ) : (
-          <>
-            {/* Success State */}
-            <div className="text-center">
-              <div className="mb-4">
-                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                  Account Created Successfully!
-                </h3>
-                <p className="text-gray-600 dark:text-gray-300 text-sm">
-                  Your cash account has been created. Here's how to add your initial balance:
-                </p>
-              </div>
-
-              {/* Simple CSS Animation Tutorial */}
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
-                <div className="space-y-3">
-                  {/* Step 1: Click Accounts */}
-                  <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                      1
-                    </div>
-                    <div className="flex-1">
-                      <div className="bg-blue-100 dark:bg-blue-900/30 h-8 rounded animate-pulse"></div>
-                      <p className="text-xs text-gray-500 mt-1">Click "Accounts" in sidebar</p>
-                    </div>
-                  </div>
-
-                  {/* Step 2: Click Edit */}
-                  <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                      2
-                    </div>
-                    <div className="flex-1">
-                      <div className="bg-green-100 dark:bg-green-900/30 h-8 rounded animate-pulse"></div>
-                      <p className="text-xs text-gray-500 mt-1">Click edit button on Cash Wallet</p>
-                    </div>
-                  </div>
-
-                  {/* Step 3: Add Balance */}
-                  <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                      3
-                    </div>
-                    <div className="flex-1">
-                      <div className="bg-yellow-100 dark:bg-yellow-900/30 h-8 rounded animate-pulse"></div>
-                      <p className="text-xs text-gray-500 mt-1">Add your initial balance</p>
-                    </div>
-                  </div>
-
-                  {/* Step 4: Save */}
-                  <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                      4
-                    </div>
-                    <div className="flex-1">
-                      <div className="bg-purple-100 dark:bg-purple-900/30 h-8 rounded animate-pulse"></div>
-                      <p className="text-xs text-gray-500 mt-1">Save changes</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={handleClose}
-                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Got it!
-                </button>
-                <button
-                  onClick={() => {
-
-                    onClose();
-                    setIsSuccess(false);
-                    setSelectedCurrency('');
-                    setIsCreating(false);
-                  }}
-                  className="px-4 py-2 bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-600 transition-colors"
-                >
-                  Close & Continue
-                </button>
-              </div>
-            </div>
-          </>
+          </button>
         )}
       </div>
 
@@ -302,9 +234,18 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Select Currency
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
                 Choose your preferred currency for your first account
               </p>
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                <p className="text-xs text-amber-800 dark:text-amber-200">
+                  <strong>⚠️ Important:</strong> Free users can only use 1 currency. This choice cannot be changed later. 
+                  <br />
+                  <span className="text-amber-700 dark:text-amber-300">
+                    Upgrade to Premium to use multiple currencies.
+                  </span>
+                </p>
+              </div>
             </div>
 
             <div className="space-y-2 max-h-60 overflow-y-auto">

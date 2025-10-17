@@ -37,7 +37,7 @@ const plans: Plan[] = [
       { text: 'Up to 3 accounts', included: true, icon: Users },
       { text: '1 currency only', included: true, icon: Globe },
       { text: '25 transactions per month', included: true, icon: CreditCard },
-      { text: '50 purchases limit', included: true, icon: Download },
+      { text: '50 purchases (lifetime)', included: true, icon: Download },
       { text: 'Basic reports', included: true, icon: BarChart3 },
       { text: 'Email support (24-48h response)', included: true, icon: MessageSquare },
       { text: 'Basic analytics', included: true, icon: BarChart3 },

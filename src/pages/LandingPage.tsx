@@ -1316,7 +1316,7 @@ const LandingPage: React.FC = () => {
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
                     <Download className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">50 purchases limit</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">50 purchases (lifetime)</span>
                   </div>
                 </li>
                 <li className="flex items-start">

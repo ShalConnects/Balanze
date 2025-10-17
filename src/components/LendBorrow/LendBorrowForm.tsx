@@ -20,7 +20,7 @@ interface LendBorrowFormProps {
 
 export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose, onSubmit }) => {
   const { t } = useTranslation();
-  const { accounts } = useFinanceStore();
+  const { accounts, lendBorrowRecords } = useFinanceStore();
   const { profile } = useAuthStore();
   const { isLoading } = useLoadingContext();
   const [form, setForm] = useState<LendBorrowInput>({
@@ -39,6 +39,11 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
   const typeRef = useRef<HTMLInputElement | null>(null);
   const personNameRef = useRef<HTMLInputElement | null>(null);
   const notesRef = useRef<HTMLTextAreaElement | null>(null);
+  
+  // Autocomplete state for person name
+  const [showPersonNameSuggestions, setShowPersonNameSuggestions] = useState(false);
+  const [personNameSuggestions, setPersonNameSuggestions] = useState<string[]>([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
 
   // Responsive: stack fields vertically on mobile
   const fieldRowClass = 'flex flex-col sm:flex-row gap-2 sm:gap-x-4 sm:items-center';
@@ -94,11 +99,72 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: name === 'amount' ? Number(value) : value }));
     if (errors[name]) setErrors((prev: Record<string, string>) => ({ ...prev, [name]: '' }));
+    
+    // Handle autocomplete for person name
+    if (name === 'person_name') {
+      generatePersonNameSuggestions(value);
+    }
   };
 
   const handleDropdownChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev: Record<string, string>) => ({ ...prev, [field]: '' }));
+  };
+
+  // Generate person name suggestions
+  const generatePersonNameSuggestions = (input: string) => {
+    if (!input.trim()) {
+      setPersonNameSuggestions([]);
+      setShowPersonNameSuggestions(false);
+      return;
+    }
+
+    const suggestions = lendBorrowRecords
+      .map(record => record.person_name)
+      .filter((name, index, self) => 
+        name.toLowerCase().includes(input.toLowerCase()) && 
+        self.indexOf(name) === index
+      )
+      .slice(0, 5);
+
+    setPersonNameSuggestions(suggestions);
+    setShowPersonNameSuggestions(suggestions.length > 0);
+    setSelectedSuggestionIndex(-1);
+  };
+
+  // Handle keyboard navigation for suggestions
+  const handlePersonNameKeyDown = (e: React.KeyboardEvent) => {
+    if (!showPersonNameSuggestions) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedSuggestionIndex(prev => 
+        prev < personNameSuggestions.length - 1 ? prev + 1 : 0
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedSuggestionIndex(prev => 
+        prev > 0 ? prev - 1 : personNameSuggestions.length - 1
+      );
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedSuggestionIndex >= 0) {
+        const suggestion = personNameSuggestions[selectedSuggestionIndex];
+        setForm(prev => ({ ...prev, person_name: suggestion }));
+        setShowPersonNameSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+      }
+    } else if (e.key === 'Escape') {
+      setShowPersonNameSuggestions(false);
+      setSelectedSuggestionIndex(-1);
+    }
+  };
+
+  // Handle suggestion click
+  const handleSuggestionClick = (suggestion: string) => {
+    setForm(prev => ({ ...prev, person_name: suggestion }));
+    setShowPersonNameSuggestions(false);
+    setSelectedSuggestionIndex(-1);
   };
 
   const handleClear = (field: 'person_name' | 'notes') => {
@@ -223,6 +289,12 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                   value={form.person_name}
                   onChange={handleChange}
                   onBlur={handleBlur}
+                  onKeyDown={handlePersonNameKeyDown}
+                  onFocus={() => {
+                    if (form.person_name.trim()) {
+                      generatePersonNameSuggestions(form.person_name);
+                    }
+                  }}
                   className={getInputClasses('person_name') + ' min-w-[200px] pr-8'}
                   placeholder="Enter person's name *"
                   autoComplete="off"
@@ -239,6 +311,38 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                     <X className="w-4 h-4" />
                   </button>
                 )}
+                
+                {/* Autocomplete suggestions */}
+                {showPersonNameSuggestions && personNameSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {personNameSuggestions.map((suggestion, index) => (
+                      <div
+                        key={index}
+                        className={`px-4 py-2 cursor-pointer text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                          index === selectedSuggestionIndex ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                        }`}
+                        onClick={() => handleSuggestionClick(suggestion)}
+                      >
+                        {(() => {
+                          const query = form.person_name.trim();
+                          const matchIndex = suggestion.toLowerCase().indexOf(query.toLowerCase());
+                          if (matchIndex < 0) return suggestion;
+                          const before = suggestion.slice(0, matchIndex);
+                          const match = suggestion.slice(matchIndex, matchIndex + query.length);
+                          const after = suggestion.slice(matchIndex + query.length);
+                          return (
+                            <span>
+                              {before}
+                              <span className="font-semibold text-blue-700 dark:text-blue-300">{match}</span>
+                              {after}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
                 {errors.person_name && touched.person_name ? (
                   <p className="mt-1 text-xs text-red-600 flex items-center min-h-[20px]">
                     <AlertCircle className="w-4 h-4 mr-1" />

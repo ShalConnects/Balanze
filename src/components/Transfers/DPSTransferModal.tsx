@@ -93,7 +93,7 @@ export const DPSTransferModal: React.FC<DPSTransferModalProps> = ({ isOpen, onCl
                 You don’t have any DPS accounts set up yet.
               </p>
               <a
-                href="http://localhost:5173/accounts"
+                href="/accounts"
                 className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
               >
                 Create one?

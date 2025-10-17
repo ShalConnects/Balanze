@@ -697,7 +697,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             
             showToast.error(`Monthly transaction limit exceeded! You have ${monthlyTransactions}/${limit} transactions this month. Upgrade to Premium for unlimited transactions.`);
             setTimeout(() => {
-              window.location.href = '/settings?tab=plans';
+              window.location.href = '/settings?tab=plans-usage';
             }, 2000);
             
             return;

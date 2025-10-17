@@ -289,7 +289,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
             
             showToast.error(`Account limit exceeded! You have ${current}/${limit} accounts. Upgrade to Premium for unlimited accounts.`);
             setTimeout(() => {
-              window.location.href = 'http://localhost:5174/settings?tab=plans-usage';
+              window.location.href = '/settings?tab=plans-usage';
             }, 2000);
             
             return;

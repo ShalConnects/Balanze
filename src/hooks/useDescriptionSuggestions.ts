@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 
 export function useDescriptionSuggestions(input: string, maxResults: number = 8): string[] {
-  const { transactions } = useFinanceStore();
+  const { transactions, purchases } = useFinanceStore();
   const [debouncedInput, setDebouncedInput] = useState(input);
 
   // Debounce input to reduce rapid recomputation
@@ -15,10 +15,10 @@ export function useDescriptionSuggestions(input: string, maxResults: number = 8)
     const query = (debouncedInput || '').trim().toLowerCase();
     if (query.length < 1) return [];
 
-    // Collect unique descriptions
+    // Collect unique descriptions from both transactions and purchases
     const uniqueDescriptions = new Map<string, { text: string; count: number; recentIndex: number }>();
 
-    // Iterate once to gather occurrences and a recency hint (lower recentIndex means older)
+    // Process transactions
     for (let i = 0; i < transactions.length; i += 1) {
       const desc = transactions[i]?.description || '';
       const tags = transactions[i]?.tags || [];
@@ -30,10 +30,26 @@ export function useDescriptionSuggestions(input: string, maxResults: number = 8)
       const existing = uniqueDescriptions.get(key);
       if (existing) {
         existing.count += 1;
-        // Keep the most recent index (largest i) to bias recent usage
+        // Keep the most recent index (larger i) to bias recent usage
         if (i > existing.recentIndex) existing.recentIndex = i;
       } else {
         uniqueDescriptions.set(key, { text: desc, count: 1, recentIndex: i });
+      }
+    }
+
+    // Process purchases (starting index after transactions)
+    const transactionCount = transactions.length;
+    for (let i = 0; i < purchases.length; i += 1) {
+      const itemName = purchases[i]?.item_name || '';
+      if (!itemName) continue;
+      const key = itemName;
+      const existing = uniqueDescriptions.get(key);
+      if (existing) {
+        existing.count += 1;
+        // Keep the most recent index (larger i) to bias recent usage
+        if (i > existing.recentIndex) existing.recentIndex = i;
+      } else {
+        uniqueDescriptions.set(key, { text: itemName, count: 1, recentIndex: transactionCount + i });
       }
     }
 
@@ -67,5 +83,5 @@ export function useDescriptionSuggestions(input: string, maxResults: number = 8)
       .slice(0, maxResults);
 
     return ordered;
-  }, [debouncedInput, maxResults, transactions]);
+  }, [debouncedInput, maxResults, transactions, purchases]);
 }

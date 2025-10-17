@@ -6,6 +6,7 @@ import { CategoryModal } from '../common/CategoryModal';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { useAuthStore } from '../../store/authStore';
 import { sortPurchaseCategoriesByCurrency } from '../../utils/categoryFiltering';
+import { showToast } from '../../lib/toast';
 
 interface PurchaseCategoriesProps {
   hideTitle?: boolean;
@@ -55,21 +56,27 @@ export const PurchaseCategories: React.FC<PurchaseCategoriesProps> = ({ hideTitl
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (editingCategory) {
-      await updatePurchaseCategory(editingCategory.id, formData);
-      setEditingCategory(null);
-    } else {
-      await addPurchaseCategory(formData);
+    try {
+      if (editingCategory) {
+        await updatePurchaseCategory(editingCategory.id, formData);
+        setEditingCategory(null);
+        showToast.success('Category updated successfully');
+      } else {
+        await addPurchaseCategory(formData);
+        showToast.success('Category added successfully');
+      }
+      
+      setFormData({
+        category_name: '',
+        description: '',
+        monthly_budget: 0,
+        currency: 'USD',
+        category_color: '#3B82F6'
+      });
+      setShowForm(false);
+    } catch (error) {
+      showToast.error(editingCategory ? 'Failed to update category' : 'Failed to add category');
     }
-    
-    setFormData({
-      category_name: '',
-      description: '',
-      monthly_budget: 0,
-      currency: 'USD',
-      category_color: '#3B82F6'
-    });
-    setShowForm(false);
   };
 
   const handleEdit = (category: PurchaseCategory) => {
@@ -91,9 +98,14 @@ export const PurchaseCategories: React.FC<PurchaseCategoriesProps> = ({ hideTitl
 
   const confirmDelete = async () => {
     if (categoryToDelete) {
-      await deletePurchaseCategory(categoryToDelete.id);
-      setShowDeleteModal(false);
-      setCategoryToDelete(null);
+      try {
+        await deletePurchaseCategory(categoryToDelete.id);
+        setShowDeleteModal(false);
+        setCategoryToDelete(null);
+        showToast.success('Category deleted successfully');
+      } catch (error) {
+        showToast.error('Failed to delete category');
+      }
     }
   };
 

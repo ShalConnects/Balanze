@@ -614,6 +614,13 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       
       if (error) {
         set({ loading: false, error: error.message });
+        // Re-throw plan limit errors so UI can handle toast + redirect
+        if (
+          error.message?.includes('MONTHLY_TRANSACTION_LIMIT_EXCEEDED') ||
+          error.message?.includes('TRANSACTION_LIMIT_EXCEEDED')
+        ) {
+          throw error;
+        }
         return undefined;
       }
     
@@ -862,7 +869,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   fetchCategories: async () => {
     set({ loading: true, error: null });
     
-    const { user } = useAuthStore.getState();
+    const { user, profile } = useAuthStore.getState();
     if (!user) {
       // No user found
       return set({ loading: false, error: 'Not authenticated' });
@@ -882,13 +889,17 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     
     // If no categories exist, initialize with default categories
     if (!data || data.length === 0) {
+      // Get user's selected currency from profile, fallback to USD
+      const userCurrency = profile?.local_currency || 'USD';
+      
       // No categories found, initializing with defaults
       const defaultCategoriesToInsert = defaultCategories.map(cat => ({
         name: cat.name,
         type: cat.type,
         color: cat.color,
         icon: cat.icon,
-        description: `Default ${cat.type} category`
+        description: `Default ${cat.type} category`,
+        currency: userCurrency
       }));
       
       const { data: insertedCategories, error: insertError } = await supabase
@@ -903,6 +914,38 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       
       set({ categories: insertedCategories || [], loading: false });
     } else {
+      // Check for currency mismatch and fix if needed (only for free users)
+      const userCurrency = profile?.local_currency || 'USD';
+      const isPremium = profile?.subscription?.plan === 'premium';
+      const hasCurrencyMismatch = data.some(cat => cat.currency !== userCurrency);
+      
+      // Only apply mismatch detection if profile subscription data is fully loaded
+      if (profile?.subscription?.plan !== undefined) {
+        if (!isPremium && hasCurrencyMismatch) {
+          console.log(`Currency mismatch detected for free user. Updating categories from ${data[0]?.currency || 'unknown'} to ${userCurrency}`);
+          
+          // Update existing categories to match user's currency
+          const { error: updateError } = await supabase
+            .from('categories')
+            .update({ currency: userCurrency })
+            .eq('user_id', user.id);
+            
+          if (updateError) {
+            console.error('Error updating category currencies:', updateError);
+            // Continue with existing data even if update fails
+          } else {
+            // Update local state with corrected currency
+            const updatedCategories = data.map(cat => ({ ...cat, currency: userCurrency }));
+            set({ categories: updatedCategories, loading: false });
+            return;
+          }
+        } else if (isPremium && hasCurrencyMismatch) {
+          console.log(`Premium user detected with mixed currencies. Preserving existing currency mix.`);
+        }
+      } else {
+        console.log(`Profile subscription data not fully loaded yet. Skipping currency mismatch detection.`);
+      }
+      
       set({ categories: data || [], loading: false });
     }
   },
@@ -1512,18 +1555,21 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   },
 
   addPurchase: async (purchase: Omit<Purchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+    console.log('🔍 addPurchase called with:', purchase);
     set({ loading: true, error: null });
     
     const { user } = useAuthStore.getState();
     if (!user) return set({ loading: false, error: 'Not authenticated' });
 
     try {
+      console.log('🔍 Inserting purchase into database...');
       const { error } = await supabase.from('purchases').insert({
         ...purchase,
         user_id: user.id,
       });
 
       if (error) {
+        console.log('❌ Database error:', error);
         // Re-throw plan-related errors so they can be handled by the UI
         if (error.message && (
           error.message.includes('ACCOUNT_LIMIT_EXCEEDED') ||
@@ -1533,21 +1579,25 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           error.message.includes('PURCHASE_LIMIT_EXCEEDED') ||
           error.message.includes('FEATURE_NOT_AVAILABLE')
         )) {
+          console.log('🚫 Plan limit error - rethrowing:', error.message);
           set({ loading: false }); // Reset loading state before re-throwing
           throw error; // Re-throw plan-related errors
         }
         
         const errorMessage = error.message ? error.message : 'An unknown error occurred.';
+        console.log('❌ Generic database error:', errorMessage);
         set({ loading: false, error: errorMessage });
         return;
       }
 
+      console.log('✅ Purchase inserted successfully!');
       // Add a small delay to ensure the loading animation is visible
       await new Promise(resolve => setTimeout(resolve, 500));
 
       await get().fetchPurchases();
       set({ loading: false });
     } catch (err: any) {
+      console.log('❌ Exception caught in addPurchase:', err);
       // Re-throw plan-related errors so they can be handled by the UI
       if (err.message && (
         err.message.includes('ACCOUNT_LIMIT_EXCEEDED') ||
@@ -1557,10 +1607,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         err.message.includes('PURCHASE_LIMIT_EXCEEDED') ||
         err.message.includes('FEATURE_NOT_AVAILABLE')
       )) {
+        console.log('🚫 Plan limit error in catch - rethrowing:', err.message);
         set({ loading: false }); // Reset loading state before re-throwing
         throw err; // Re-throw plan-related errors
       }
       
+      console.log('❌ Generic exception error:', err.message);
       set({ error: err.message || 'Failed to add purchase', loading: false });
     }
   },
@@ -1625,7 +1677,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   fetchPurchaseCategories: async () => {
     set({ loading: true, error: null });
     
-    const { user } = useAuthStore.getState();
+    const { user, profile } = useAuthStore.getState();
     if (!user) {
       // No user found
       return set({ loading: false, error: 'Not authenticated' });
@@ -1641,6 +1693,40 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       const errorMessage = error.message ? error.message : 'Failed to fetch purchase categories';
       console.error('Error fetching purchase categories:', error);
       return set({ loading: false, error: errorMessage });
+    }
+
+    // Check for currency mismatch and fix if needed (only for free users)
+    if (data && data.length > 0) {
+      const userCurrency = profile?.local_currency || 'USD';
+      const isPremium = profile?.subscription?.plan === 'premium';
+      const hasCurrencyMismatch = data.some(cat => cat.currency !== userCurrency);
+      
+      // Only apply mismatch detection if profile subscription data is fully loaded
+      if (profile?.subscription?.plan !== undefined) {
+        if (!isPremium && hasCurrencyMismatch) {
+          console.log(`Currency mismatch detected in purchase categories for free user. Updating from ${data[0]?.currency || 'unknown'} to ${userCurrency}`);
+          
+          // Update existing purchase categories to match user's currency
+          const { error: updateError } = await supabase
+            .from('purchase_categories')
+            .update({ currency: userCurrency })
+            .eq('user_id', user.id);
+            
+          if (updateError) {
+            console.error('Error updating purchase category currencies:', updateError);
+            // Continue with existing data even if update fails
+          } else {
+            // Update local state with corrected currency
+            const updatedCategories = data.map(cat => ({ ...cat, currency: userCurrency }));
+            set({ purchaseCategories: updatedCategories, loading: false });
+            return;
+          }
+        } else if (isPremium && hasCurrencyMismatch) {
+          console.log(`Premium user detected with mixed purchase category currencies. Preserving existing currency mix.`);
+        }
+      } else {
+        console.log(`Profile subscription data not fully loaded yet. Skipping purchase category currency mismatch detection.`);
+      }
     }
 
     // Purchase categories data loaded
@@ -1888,8 +1974,11 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   },
 
   syncExpenseCategoriesWithPurchaseCategories: async () => {
-    const { user } = useAuthStore.getState();
+    const { user, profile } = useAuthStore.getState();
     if (!user) return;
+    
+    // Get user's selected currency from profile, fallback to USD
+    const userCurrency = profile?.local_currency || 'USD';
     
     // Only use actual user categories from database
     const userCategories = get().categories;
@@ -1917,7 +2006,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           category_name: expenseCat.name,
           description: `Category for ${expenseCat.name}`,
           monthly_budget: 0,
-          currency: 'USD',
+          currency: userCurrency,
           category_color: expenseCat.color || '#3B82F6',
         };
         const { data: savedCategory, error } = await supabase

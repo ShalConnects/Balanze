@@ -96,7 +96,7 @@ export const QuickPurchaseForm: React.FC<QuickPurchaseFormProps> = ({ isOpen, on
           // Show toast and navigate to plans
           const { purchases } = useFinanceStore.getState();
           const currentCount = purchases.length;
-          const limit = 50; // Free plan limit
+          const limit = 50; // Updated to 50 for free plan
           
           toast.error(`Purchase limit exceeded! You have ${currentCount}/${limit} purchases. Upgrade to Premium for unlimited purchases.`);
           setTimeout(() => {
