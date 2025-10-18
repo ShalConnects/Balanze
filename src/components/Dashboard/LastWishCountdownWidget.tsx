@@ -332,7 +332,7 @@ export const LastWishCountdownWidget: React.FC = () => {
   // If delivered, show delivery status
   if (isDelivered && deliveryData) {
     return (
-      <div className="mb-5 bg-gradient-to-br from-green-50 via-white to-blue-100 dark:from-green-900/40 dark:via-gray-900 dark:to-blue-900/20 rounded-2xl p-4 sm:p-5 border-2 border-green-400 dark:border-green-600 shadow-xl transition-all duration-300 hover:shadow-2xl">
+      <div className="bg-gradient-to-br from-green-50 via-white to-blue-100 dark:from-green-900/40 dark:via-gray-900 dark:to-blue-900/20 rounded-2xl p-4 sm:p-5 border-2 border-green-400 dark:border-green-600 shadow-xl transition-all duration-300 hover:shadow-2xl">
         {/* Icon at the top */}
         <div className="flex justify-center mb-4">
           <div className="w-12 h-12 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">

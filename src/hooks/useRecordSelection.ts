@@ -26,11 +26,9 @@ export const useRecordSelection = ({
 
   // Handle URL parameters and set up selection
   useEffect(() => {
-    
     if (urlSelectedId && records.length > 0) {
       // Find the record by the specified field
       const record = records.find(r => r[recordIdField] === urlSelectedId);
-      
       
       if (record) {
         setSelectedId(urlSelectedId);
@@ -54,7 +52,7 @@ export const useRecordSelection = ({
         // Clear URL parameters after processing the selection
         setTimeout(() => {
           setSearchParams({}, { replace: true });
-        }, 1000); // Small delay to ensure the selection is processed
+        }, 2000); // Longer delay to ensure the selection is fully processed
       } else {
         // Record not found, clear selection
         clearSelection();
@@ -71,7 +69,7 @@ export const useRecordSelection = ({
       }
     } else {
       setSelectedRecord(null);
-      setIsFromSearch(false);
+      // Don't reset isFromSearch here - let the main useEffect handle it
     }
   }, [selectedId, records, recordIdField]);
 

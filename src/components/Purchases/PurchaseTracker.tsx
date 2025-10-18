@@ -150,6 +150,8 @@ export const PurchaseTracker: React.FC = () => {
     scrollToRecord: true
   });
 
+
+
   // Debug logging for purchases data - removed for production
 
 
@@ -1899,24 +1901,17 @@ export const PurchaseTracker: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="text-left">
                                         <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Spent</p>
-                <p className="font-bold text-green-600 dark:text-green-400" style={{ fontSize: '1.2rem' }}>
+                <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
                   {formatCurrency(totalSpent, analyticsCurrency)}
                 </p>
-              </div>
-              <span className="text-green-600" style={{ fontSize: '1.2rem' }}>
-                {getCurrencySymbol(analyticsCurrency)}
-              </span>
-            </div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
-            <div className="flex items-center justify-between">
-              <div className="text-left">
-                                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400">This Month</p>
-                <p className="font-bold text-blue-600 dark:text-blue-400" style={{ fontSize: '1.2rem' }}>
-                  {formatCurrency(monthlySpent, analyticsCurrency)}
+                <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                  {(() => {
+                    const avgSpent = purchasedCount > 0 ? totalSpent / purchasedCount : 0;
+                    return `Avg ${formatCurrency(avgSpent, analyticsCurrency)} per purchase`;
+                  })()}
                 </p>
               </div>
-              <span className="text-blue-600" style={{ fontSize: '1.2rem' }}>
+              <span className="text-purple-600" style={{ fontSize: '1.2rem' }}>
                 {getCurrencySymbol(analyticsCurrency)}
               </span>
             </div>
@@ -1925,18 +1920,35 @@ export const PurchaseTracker: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="text-left">
                                         <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Completed</p>
-                <p className="font-bold text-green-600 dark:text-green-400" style={{ fontSize: '1.2rem' }}>{purchasedCount}</p>
+                <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>{purchasedCount}</p>
+                <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                  {(() => {
+                    const totalPurchases = purchasedCount + plannedCountAll;
+                    const completionRate = totalPurchases > 0 ? Math.round((purchasedCount / totalPurchases) * 100) : 0;
+                    return `Completion Rate: ${completionRate}%`;
+                  })()}
+                </p>
               </div>
-              <CheckCircle className="text-green-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
+              <CheckCircle className="text-purple-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
             <div className="flex items-center justify-between">
               <div className="text-left">
                 <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Planned</p>
-                <p className="font-bold text-yellow-600 dark:text-yellow-400" style={{ fontSize: '1.2rem' }}>{plannedCountAll}</p>
+                <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>{plannedCountAll}</p>
+                <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                  {(() => {
+                    const today = new Date();
+                    const overdueCount = filteredPurchases.filter(p => 
+                      p.status === 'planned' && 
+                      new Date(p.purchase_date) < today
+                    ).length;
+                    return `Overdue: ${overdueCount} item${overdueCount !== 1 ? 's' : ''}`;
+                  })()}
+                </p>
               </div>
-              <Clock className="text-yellow-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
+              <Clock className="text-purple-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
             </div>
           </div>
         </div>

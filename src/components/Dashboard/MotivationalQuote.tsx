@@ -12,7 +12,12 @@ interface QuoteData {
   a: string;
 }
 
-export const MotivationalQuote: React.FC = () => {
+interface MotivationalQuoteProps {
+  hideHeader?: boolean;
+  enableExternalLink?: boolean;
+}
+
+export const MotivationalQuote: React.FC<MotivationalQuoteProps> = ({ hideHeader = false, enableExternalLink = false }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -51,10 +56,10 @@ export const MotivationalQuote: React.FC = () => {
         clearTimeout(tooltipTimeoutRef.current);
       }
       
-      // Hide tooltip after 3 seconds
+      // Hide tooltip after 1 second
       tooltipTimeoutRef.current = setTimeout(() => {
         setShowCrossTooltip(false);
-      }, 3000);
+      }, 1000);
     }
   };
 
@@ -228,14 +233,16 @@ export const MotivationalQuote: React.FC = () => {
       </div>
       
       <div className="relative z-10">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Heart className="w-4 h-4 text-red-500 animate-pulse" />
-            <span className="text-xs font-medium text-purple-700 dark:text-purple-300 uppercase tracking-wide">
-              Daily Inspiration
-            </span>
+        {!hideHeader && (
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Heart className="w-4 h-4 text-red-500 animate-pulse" />
+              <span className="text-xs font-medium text-purple-700 dark:text-purple-300 uppercase tracking-wide">
+                Daily Inspiration
+              </span>
+            </div>
           </div>
-        </div>
+        )}
         
         <div className="flex items-start space-x-3">
           <div className="flex-shrink-0 mt-1">
@@ -311,12 +318,25 @@ export const MotivationalQuote: React.FC = () => {
                   />
                 </button>
                 
-                <div
-                  className="p-1 rounded-full cursor-not-allowed opacity-50"
-                  title="Demo mode - feature disabled"
-                >
-                  <ExternalLink className="w-4 h-4 text-gray-400" />
-                </div>
+                {enableExternalLink ? (
+                  <button
+                    onClick={() => {
+                      // Navigate to favorite quotes page
+                      navigate('/favorite-quotes');
+                    }}
+                    className="p-1 rounded-full hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors group"
+                    title="View favorite quotes"
+                  >
+                    <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
+                  </button>
+                ) : (
+                  <div
+                    className="p-1 rounded-full cursor-not-allowed opacity-50"
+                    title="Demo mode - feature disabled"
+                  >
+                    <ExternalLink className="w-4 h-4 text-gray-400" />
+                  </div>
+                )}
               </div>
             </div>
           </div>

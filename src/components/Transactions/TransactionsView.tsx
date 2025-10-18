@@ -41,6 +41,7 @@ export const TransactionsView: React.FC = () => {
   });
 
 
+
   // Export dropdown state
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -223,6 +224,12 @@ export const TransactionsView: React.FC = () => {
       <div>
         <TransactionList 
           transactions={transactions as any}
+          selectedRecord={selectedRecord}
+          selectedId={selectedId}
+          isFromSearch={isFromSearch}
+          hasSelection={hasSelection}
+          selectedRecordRef={selectedRecordRef}
+          clearSelection={clearSelection}
         />
       </div>
     </div>

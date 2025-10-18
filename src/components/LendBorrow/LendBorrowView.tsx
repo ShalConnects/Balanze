@@ -86,6 +86,7 @@ export const LendBorrowView: React.FC = () => {
     scrollToRecord: true
   });
 
+
   // Widget visibility state - hybrid approach (localStorage + database)
   const [showLendBorrowWidget, setShowLendBorrowWidget] = useState(() => {
     const saved = localStorage.getItem('showLendBorrowWidget');
@@ -991,33 +992,60 @@ export const LendBorrowView: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="text-left">
                                           <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Lent</p>
-                  <p className="font-bold text-green-600 dark:text-green-400" style={{ fontSize: '1.2rem' }}>
+                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
                     {formatCurrency(currentAnalytics.total_lent, currentAnalytics.currency)}
                   </p>
+                  <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                    {(() => {
+                      const uniqueLentTo = new Set(
+                        filteredRecords
+                          .filter(r => r.type === 'lend' && r.status === 'active')
+                          .map(r => r.person_name)
+                      ).size;
+                      return `To ${uniqueLentTo} people`;
+                    })()}
+                  </p>
                 </div>
-                <span className="text-green-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(currentAnalytics.currency)}</span>
+                <span className="text-purple-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(currentAnalytics.currency)}</span>
               </div>
             </div>
             <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
               <div className="flex items-center justify-between">
                 <div className="text-left">
                                           <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Borrowed</p>
-                  <p className="font-bold text-red-600 dark:text-red-400" style={{ fontSize: '1.2rem' }}>
+                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
                     {formatCurrency(currentAnalytics.total_borrowed, currentAnalytics.currency)}
                   </p>
+                  <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                    {(() => {
+                      const uniqueBorrowedFrom = new Set(
+                        filteredRecords
+                          .filter(r => r.type === 'borrow' && r.status === 'active')
+                          .map(r => r.person_name)
+                      ).size;
+                      return `From ${uniqueBorrowedFrom} people`;
+                    })()}
+                  </p>
                 </div>
-                <span className="text-red-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(currentAnalytics.currency)}</span>
+                <span className="text-purple-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(currentAnalytics.currency)}</span>
               </div>
             </div>
             <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
               <div className="flex items-center justify-between">
                 <div className="text-left">
                   <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Outstanding</p>
-                  <p className="font-bold text-blue-600 dark:text-blue-400" style={{ fontSize: '1.2rem' }}>
+                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
                     {formatCurrency(currentAnalytics.outstanding_lent - currentAnalytics.outstanding_borrowed, currentAnalytics.currency)}
                   </p>
+                  <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                    {(() => {
+                      const netPosition = currentAnalytics.outstanding_lent - currentAnalytics.outstanding_borrowed;
+                      const sign = netPosition >= 0 ? '+' : '';
+                      return `Net Position: ${sign}${formatCurrency(Math.abs(netPosition), currentAnalytics.currency)}`;
+                    })()}
+                  </p>
                 </div>
-                <Clock className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
+                <Clock className="text-purple-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
               </div>
             </div>
           </div>

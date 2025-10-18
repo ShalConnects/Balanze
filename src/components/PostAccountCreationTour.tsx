@@ -44,15 +44,26 @@ const getTourSteps = (isMobile: boolean): Step[] => [
         <h3 className="font-semibold mb-2">💰 Edit Your Account Balance</h3>
         <p>Click the pencil icon to set your initial cash balance. This helps us track your real starting amount accurately.</p>
         
-        {/* GIF demonstration - smaller on mobile */}
+        {/* Article link - smaller on mobile */}
         <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Watch how to do it:</p>
-          <img 
-            src="/static/placeholders/onboarding-gifs/step1.gif" 
-            alt="How to edit account balance - click pencil icon and update initial balance"
-            className={`w-full mx-auto rounded border ${isMobile ? 'max-w-[200px]' : 'max-w-xs'}`}
-            style={{ maxHeight: isMobile ? '120px' : '150px', objectFit: 'contain' }}
-          />
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Read the guide:</p>
+          <a 
+            href="https://balanze.cash/kb/create-first-account"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-primary/30 text-gradient-primary rounded-lg hover:bg-gradient-primary/40 transition-colors text-sm font-medium"
+          >
+            How to Create Your First Account
+            <svg className="w-4 h-4" fill="none" strokeWidth="2" viewBox="0 0 24 24">
+              <defs>
+                <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#3b82f6" />
+                  <stop offset="100%" stopColor="#8b5cf6" />
+                </linearGradient>
+              </defs>
+              <path stroke="url(#gradient1)" strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
         </div>
       </div>
     ),
@@ -66,15 +77,26 @@ const getTourSteps = (isMobile: boolean): Step[] => [
         <h3 className="font-semibold mb-2">📝 Add Your First Transaction</h3>
         <p>Finally, click the "+" button to add your first transaction! Record income, expenses, or transfers.</p>
         
-        {/* GIF demonstration - smaller on mobile */}
+        {/* Article link - smaller on mobile */}
         <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">See how easy it is:</p>
-          <img 
-            src="/static/placeholders/onboarding-gifs/step2.gif" 
-            alt="How to add a transaction - click plus button and fill in details"
-            className={`w-full mx-auto rounded border ${isMobile ? 'max-w-[200px]' : 'max-w-xs'}`}
-            style={{ maxHeight: isMobile ? '120px' : '150px', objectFit: 'contain' }}
-          />
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Read the guide:</p>
+          <a 
+            href="https://balanze.cash/kb/create-first-transaction"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-primary/30 text-gradient-primary rounded-lg hover:bg-gradient-primary/40 transition-colors text-sm font-medium"
+          >
+            How to Create Your First Transaction
+            <svg className="w-4 h-4" fill="none" strokeWidth="2" viewBox="0 0 24 24">
+              <defs>
+                <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#3b82f6" />
+                  <stop offset="100%" stopColor="#8b5cf6" />
+                </linearGradient>
+              </defs>
+              <path stroke="url(#gradient2)" strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
         </div>
       </div>
     ),

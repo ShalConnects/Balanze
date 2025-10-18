@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { ArrowUpRight, ArrowDownRight, Copy, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
@@ -14,6 +14,7 @@ import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuthStore } from '../../store/authStore';
+import { searchService, SEARCH_CONFIGS, highlightMatches } from '../../utils/searchService';
 
 import { useLoadingContext } from '../../context/LoadingContext';
 import { useNavigate } from 'react-router-dom';
@@ -22,21 +23,23 @@ import { SelectionFilter } from '../common/SelectionFilter';
 
 export const TransactionList: React.FC<{ 
   transactions: Transaction[];
-}> = ({ transactions }) => {
+  selectedRecord?: any;
+  selectedId?: string | null;
+  isFromSearch?: boolean;
+  hasSelection?: boolean;
+  selectedRecordRef?: React.RefObject<HTMLDivElement>;
+  clearSelection?: () => void;
+}> = ({ 
+  transactions, 
+  selectedRecord, 
+  selectedId, 
+  isFromSearch, 
+  hasSelection, 
+  selectedRecordRef, 
+  clearSelection 
+}) => {
   
-  // Record selection functionality
-  const {
-    selectedRecord,
-    selectedId,
-    isFromSearch,
-    selectedRecordRef,
-    clearSelection,
-    hasSelection
-  } = useRecordSelection({
-    records: transactions,
-    recordIdField: 'id',
-    scrollToRecord: true
-  });
+  // Record selection functionality is now passed as props from parent component
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | undefined>();
   const { getActiveAccounts, getActiveTransactions, deleteTransaction, categories, purchaseCategories } = useFinanceStore();
@@ -53,8 +56,15 @@ export const TransactionList: React.FC<{
     type: 'all' as 'all' | 'income' | 'expense',
     account: 'all',
     currency: '',
-    dateRange: { start: '', end: '' }
+    dateRange: { start: '', end: '' },
+    showModifiedOnly: false,
+    recentlyModifiedDays: 7
   });
+
+  // Enhanced search state
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Get this month date range for default
   const getThisMonthDateRange = () => {
@@ -158,7 +168,9 @@ export const TransactionList: React.FC<{
     type: 'all' as 'all' | 'income' | 'expense',
     account: 'all',
     currency: '', // <-- add currency filter
-    dateRange: getThisMonthDateRange()
+    dateRange: getThisMonthDateRange(),
+    showModifiedOnly: false, // New: Show only recently modified transactions
+    recentlyModifiedDays: 7 // New: Number of days for "recently modified"
   });
   
   // Add sorting state - default to most recent first
@@ -171,8 +183,10 @@ export const TransactionList: React.FC<{
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showDateMenu, setShowDateMenu] = useState(false);
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(false); // <-- add state for currency menu
+  const [showModifiedMenu, setShowModifiedMenu] = useState(false); // New: state for recently modified menu
   const currencyMenuRef = useRef<HTMLDivElement>(null); // <-- add ref for click outside
   const accountMenuRef = useRef<HTMLDivElement>(null);
+  const modifiedMenuRef = useRef<HTMLDivElement>(null); // New: ref for recently modified menu
   
   // State for delete confirmation modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -419,6 +433,17 @@ export const TransactionList: React.FC<{
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Click outside handler for modified menu
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (modifiedMenuRef.current && !modifiedMenuRef.current.contains(event.target as Node)) {
+        setShowModifiedMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const getAccountName = (accountId: string) => {
     const account = accounts.find(a => a.id === accountId);
     return account?.name || 'Unknown Account';
@@ -460,8 +485,59 @@ export const TransactionList: React.FC<{
     toast.success('Transaction ID copied to clipboard');
   };
 
-  // Filtering
-  const filteredTransactions = React.useMemo(() => {
+  // Enhanced search suggestions
+  const generateSearchSuggestions = useCallback((searchQuery: string) => {
+    if (!searchQuery || searchQuery.length < 2) {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const suggestions = searchService.getSuggestions(
+      transactions,
+      searchQuery,
+      ['description', 'transaction_id', 'category'],
+      5
+    );
+
+    setSearchSuggestions(suggestions);
+    setShowSuggestions(suggestions.length > 0);
+  }, [transactions]);
+
+  // Debounced search with loading state
+  useEffect(() => {
+    if (filters.search.trim()) {
+      setIsSearching(true);
+      const timeoutId = setTimeout(() => {
+        setIsSearching(false);
+        generateSearchSuggestions(filters.search);
+      }, 300);
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      setIsSearching(false);
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [filters.search, generateSearchSuggestions]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showSuggestions) {
+        const target = event.target as Element;
+        if (!target.closest('.transaction-search-suggestions')) {
+          setShowSuggestions(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSuggestions]);
+
+  // Enhanced filtering with fuzzy search
+  const filteredTransactions = useMemo(() => {
     // If a record is selected via deep link, prioritize showing only that record
     if (hasSelection && isFromSearch && selectedRecord) {
       return [selectedRecord];
@@ -469,19 +545,23 @@ export const TransactionList: React.FC<{
 
     const today = new Date();
     
-    const filtered = transactions
+    // First filter out transfers and apply basic filters
+    let filtered = transactions
       .filter(t => !t.tags?.some(tag => tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'))
       .filter(t => {
         if (filters.type !== 'all' && t.type !== filters.type) return false;
         if (filters.account !== 'all' && t.account_id !== filters.account) return false;
         if (filters.currency && accounts.find(a => a.id === t.account_id)?.currency !== filters.currency) return false;
-        if (
-          filters.search &&
-          !(
-            t.description.toLowerCase().includes(filters.search.toLowerCase()) ||
-            (t.transaction_id && t.transaction_id.toLowerCase().includes(filters.search.toLowerCase()))
-          )
-        ) return false;
+        
+        // New: Filter by recently modified transactions
+        if (filters.showModifiedOnly) {
+          if (!t.updated_at || t.updated_at === t.created_at) return false; // Only show transactions that have been modified
+          const modifiedDate = new Date(t.updated_at);
+          const cutoffDate = new Date();
+          cutoffDate.setDate(cutoffDate.getDate() - filters.recentlyModifiedDays);
+          if (modifiedDate < cutoffDate) return false;
+        }
+        
         if (filters.dateRange.start && filters.dateRange.end) {
           const txDate = new Date(t.date);
           const startDate = new Date(filters.dateRange.start);
@@ -506,10 +586,24 @@ export const TransactionList: React.FC<{
         }
         return true;
       });
+
+    // Apply fuzzy search if search term exists
+    if (filters.search && filters.search.trim()) {
+      const searchResults = searchService.search(
+        filtered,
+        filters.search,
+        'transactions',
+        SEARCH_CONFIGS.transactions,
+        { limit: 1000 }
+      );
+      
+      // Extract items from search results
+      filtered = searchResults.map(result => result.item);
+    }
     
     // Apply sorting
     return sortData(filtered);
-  }, [transactions, filters, sortConfig, accounts]);
+  }, [transactions, filters, sortConfig, accounts, hasSelection, isFromSearch, selectedRecord]);
 
   // Summary card values should be based on filteredTransactions only
   const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
@@ -609,14 +703,19 @@ export const TransactionList: React.FC<{
         {/* Filters Header */}
         <div className="p-3 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            {/* Search Filter */}
+            {/* Enhanced Search Filter with Suggestions */}
             <div>
               <div className="relative">
-                <Search className={`absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 ${filters.search ? 'text-blue-500' : 'text-gray-400'}`} />
+                <Search className={`absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 ${isSearching ? 'animate-pulse text-blue-500' : filters.search ? 'text-blue-500' : 'text-gray-400'}`} />
                 <input
                   type="text"
                   value={filters.search}
                   onChange={e => setFilters({ ...filters, search: e.target.value })}
+                  onFocus={() => {
+                    if (filters.search && searchSuggestions.length > 0) {
+                      setShowSuggestions(true);
+                    }
+                  }}
                   className={`w-full pl-8 pr-2 py-1.5 text-[13px] h-8 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400 transition-colors ${
                     filters.search 
                       ? 'border-blue-300 dark:border-blue-600' 
@@ -625,6 +724,30 @@ export const TransactionList: React.FC<{
                   style={filters.search ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                   placeholder="Search transactions…"
                 />
+                
+                {/* Search Suggestions Dropdown */}
+                {false && showSuggestions && searchSuggestions.length > 0 && (
+                  <div className="transaction-search-suggestions absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
+                    {searchSuggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          setFilters({ ...filters, search: suggestion });
+                          setShowSuggestions(false);
+                          
+                          // Track suggestion usage
+                          searchService.trackSuggestionUsage(filters.search, suggestion);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-600 last:border-b-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Search className="w-3 h-3 text-gray-400" />
+                          <span className="truncate">{suggestion}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -642,11 +765,11 @@ export const TransactionList: React.FC<{
               <button
                 onClick={() => setShowMobileFilterMenu(v => !v)}
                 className={`px-2 py-1.5 text-[13px] h-8 w-8 rounded-md transition-colors flex items-center justify-center ${
-                  (filters.type !== 'all' || filters.account !== 'all' || filters.currency || filters.dateRange.start || filters.dateRange.end)
+                  (filters.type !== 'all' || filters.account !== 'all' || filters.currency || filters.dateRange.start || filters.dateRange.end || filters.showModifiedOnly)
                     ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
-                style={(filters.type !== 'all' || filters.account !== 'all' || filters.currency || filters.dateRange.start || filters.dateRange.end) ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+                style={(filters.type !== 'all' || filters.account !== 'all' || filters.currency || filters.dateRange.start || filters.dateRange.end || filters.showModifiedOnly) ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                 title="Filters"
               >
                 <Filter className="w-4 h-4" />
@@ -854,6 +977,81 @@ export const TransactionList: React.FC<{
                 </div>
               )}
             </div>
+            
+            {/* Recently Modified Filter */}
+            <div className="hidden md:block relative">
+              <button
+                className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
+                  filters.showModifiedOnly 
+                    ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700' 
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
+                } ${showModifiedMenu ? 'ring-2 ring-blue-500' : ''}`}
+                style={filters.showModifiedOnly ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+                onClick={() => {
+                  setShowModifiedMenu(v => !v);
+                  setShowTypeMenu(false);
+                  setShowAccountMenu(false);
+                  setShowCurrencyMenu(false);
+                  setShowPresetDropdown(false);
+                }}
+                type="button"
+              >
+                <span>{filters.showModifiedOnly ? `Modified (${filters.recentlyModifiedDays}d)` : 'All Transactions'}</span>
+                <svg className="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showModifiedMenu && (
+                <div ref={modifiedMenuRef} className="absolute left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 min-w-[180px]">
+                  <button 
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" 
+                    onClick={() => { 
+                      setFilters({ ...filters, showModifiedOnly: false }); 
+                      setShowModifiedMenu(false); 
+                    }}
+                  >
+                    All Transactions
+                  </button>
+                  <button 
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" 
+                    onClick={() => { 
+                      setFilters({ ...filters, showModifiedOnly: true, recentlyModifiedDays: 1 }); 
+                      setShowModifiedMenu(false); 
+                    }}
+                  >
+                    Modified Today
+                  </button>
+                  <button 
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" 
+                    onClick={() => { 
+                      setFilters({ ...filters, showModifiedOnly: true, recentlyModifiedDays: 3 }); 
+                      setShowModifiedMenu(false); 
+                    }}
+                  >
+                    Modified (3 days)
+                  </button>
+                  <button 
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" 
+                    onClick={() => { 
+                      setFilters({ ...filters, showModifiedOnly: true, recentlyModifiedDays: 7 }); 
+                      setShowModifiedMenu(false); 
+                    }}
+                  >
+                    Modified (7 days)
+                  </button>
+                  <button 
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" 
+                    onClick={() => { 
+                      setFilters({ ...filters, showModifiedOnly: true, recentlyModifiedDays: 30 }); 
+                      setShowModifiedMenu(false); 
+                    }}
+                  >
+                    Modified (30 days)
+                  </button>
+                </div>
+              )}
+            </div>
+            
             {/* Custom Range Modal */}
             {showCustomModal && (
               <>
@@ -932,9 +1130,9 @@ export const TransactionList: React.FC<{
                 </div>
               </>
             )}
-            {(filters.search || filters.type !== 'all' || filters.account !== 'all' || (filters.currency && filters.currency !== (profile?.local_currency || 'USD')) || getDateRangeLabel() !== 'This Month') && (
+            {(filters.search || filters.type !== 'all' || filters.account !== 'all' || (filters.currency && filters.currency !== (profile?.local_currency || 'USD')) || getDateRangeLabel() !== 'This Month' || filters.showModifiedOnly) && (
               <button
-                onClick={() => setFilters({ search: '', type: 'all', account: 'all', currency: '', dateRange: getThisMonthDateRange() })}
+                onClick={() => setFilters({ search: '', type: 'all', account: 'all', currency: '', dateRange: getThisMonthDateRange(), showModifiedOnly: false, recentlyModifiedDays: 7 })}
                 className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
                 title="Clear all filters"
               >
@@ -994,32 +1192,107 @@ export const TransactionList: React.FC<{
           <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
             <div className="flex items-center justify-between">
               <div className="text-left">
-                                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Income</p>
-                <p className="font-bold text-green-600 dark:text-green-400" style={{ fontSize: '1.2rem' }}>
+                <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Income</p>
+                <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
                   {formatCurrency(totalIncome, selectedCurrency)}
                 </p>
-              </div>
-              <span className="text-green-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
-            </div>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
-            <div className="flex items-center justify-between">
-              <div className="text-left">
-                                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Expense</p>
-                <p className="font-bold text-red-600 dark:text-red-400" style={{ fontSize: '1.2rem' }}>
-                  {formatCurrency(totalExpense, selectedCurrency)}
+                <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                  {(() => {
+                    const now = new Date();
+                    const currentMonth = now.getMonth();
+                    const currentYear = now.getFullYear();
+                    
+                    const thisMonthIncome = transactions.filter(t => {
+                      const transactionDate = new Date(t.date);
+                      return t.type === 'income' && 
+                             transactionDate.getMonth() === currentMonth && 
+                             transactionDate.getFullYear() === currentYear;
+                    }).reduce((sum, t) => sum + t.amount, 0);
+                    
+                    const lastMonthIncome = transactions.filter(t => {
+                      const transactionDate = new Date(t.date);
+                      const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+                      const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+                      return t.type === 'income' && 
+                             transactionDate.getMonth() === lastMonth && 
+                             transactionDate.getFullYear() === lastMonthYear;
+                    }).reduce((sum, t) => sum + t.amount, 0);
+                    
+                    if (lastMonthIncome === 0) return 'No previous data';
+                    
+                    const growthRate = Math.round(((thisMonthIncome - lastMonthIncome) / lastMonthIncome) * 100);
+                    return `Monthly Growth: ${growthRate > 0 ? '+' : ''}${growthRate}% vs last month`;
+                  })()}
                 </p>
               </div>
-              <span className="text-red-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
+              <span className="text-purple-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
             <div className="flex items-center justify-between">
               <div className="text-left">
-                                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Transactions</p>
-                <p className="font-bold text-blue-600 dark:text-blue-400" style={{ fontSize: '1.2rem' }}>{transactionCount}</p>
+                <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Expense</p>
+                <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
+                  {formatCurrency(totalExpense, selectedCurrency)}
+                </p>
+                <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                  {(() => {
+                    const now = new Date();
+                    const currentMonth = now.getMonth();
+                    const currentYear = now.getFullYear();
+                    
+                    const thisMonthExpense = transactions.filter(t => {
+                      const transactionDate = new Date(t.date);
+                      return t.type === 'expense' && 
+                             transactionDate.getMonth() === currentMonth && 
+                             transactionDate.getFullYear() === currentYear;
+                    }).reduce((sum, t) => sum + t.amount, 0);
+                    
+                    const lastMonthExpense = transactions.filter(t => {
+                      const transactionDate = new Date(t.date);
+                      const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+                      const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+                      return t.type === 'expense' && 
+                             transactionDate.getMonth() === lastMonth && 
+                             transactionDate.getFullYear() === lastMonthYear;
+                    }).reduce((sum, t) => sum + t.amount, 0);
+                    
+                    if (lastMonthExpense === 0) return 'No previous data';
+                    
+                    const changeRate = Math.round(((thisMonthExpense - lastMonthExpense) / lastMonthExpense) * 100);
+                    return `Monthly Change: ${changeRate > 0 ? '+' : ''}${changeRate}% vs last month`;
+                  })()}
+                </p>
               </div>
-              <span className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }}>#</span>
+              <span className="text-purple-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
+            </div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
+            <div className="flex items-center justify-between">
+              <div className="text-left">
+                <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Transactions</p>
+                <p className="font-bold text-blue-600 dark:text-blue-400" style={{ fontSize: '1.2rem' }}>{transactionCount}</p>
+                <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                  {(() => {
+                    const now = new Date();
+                    const currentMonth = now.getMonth();
+                    const currentYear = now.getFullYear();
+                    
+                    const thisMonthTransactions = transactions.filter(t => {
+                      const transactionDate = new Date(t.date);
+                      return transactionDate.getMonth() === currentMonth && 
+                             transactionDate.getFullYear() === currentYear;
+                    });
+                    
+                    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+                    const daysPassed = Math.min(now.getDate(), daysInMonth);
+                    const velocity = daysPassed > 0 ? (thisMonthTransactions.length / daysPassed) : 0;
+                    
+                    return `Transaction Velocity: ${velocity.toFixed(1)} per day`;
+                  })()}
+                </p>
+              </div>
+              <span className="text-purple-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }}>#</span>
             </div>
           </div>
         </div>
@@ -1477,7 +1750,7 @@ export const TransactionList: React.FC<{
                       setShowMobileFilterMenu(false);
                     }}
                     className={`p-1 transition-colors ${
-                      (tempFilters.type !== 'all' || tempFilters.account !== 'all' || tempFilters.currency || tempFilters.dateRange.start || tempFilters.dateRange.end)
+                      (tempFilters.type !== 'all' || tempFilters.account !== 'all' || tempFilters.currency || tempFilters.dateRange.start || tempFilters.dateRange.end || tempFilters.showModifiedOnly)
                         ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
                         : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                     }`}
@@ -1494,7 +1767,9 @@ export const TransactionList: React.FC<{
                         type: 'all',
                         account: 'all',
                         currency: '',
-                        dateRange: { start: '', end: '' }
+                        dateRange: { start: '', end: '' },
+                        showModifiedOnly: false,
+                        recentlyModifiedDays: 7
                       });
                       setShowMobileFilterMenu(false);
                     }}
@@ -1700,6 +1975,63 @@ export const TransactionList: React.FC<{
                   }`}
                 >
                   This Month
+                </button>
+              </div>
+            </div>
+
+            {/* Recently Modified Filter */}
+            <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Recently Modified</div>
+              <div className="flex flex-wrap gap-1">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, showModifiedOnly: false }); }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    !tempFilters.showModifiedOnly
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, showModifiedOnly: true, recentlyModifiedDays: 1 }); }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.showModifiedOnly && tempFilters.recentlyModifiedDays === 1
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, showModifiedOnly: true, recentlyModifiedDays: 3 }); }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.showModifiedOnly && tempFilters.recentlyModifiedDays === 3
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  3 Days
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, showModifiedOnly: true, recentlyModifiedDays: 7 }); }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.showModifiedOnly && tempFilters.recentlyModifiedDays === 7
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  7 Days
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, showModifiedOnly: true, recentlyModifiedDays: 30 }); }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.showModifiedOnly && tempFilters.recentlyModifiedDays === 30
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  30 Days
                 </button>
               </div>
             </div>

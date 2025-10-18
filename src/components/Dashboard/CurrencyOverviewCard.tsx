@@ -349,7 +349,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
         </div>
         
         {/* Timestamp row */}
-        <div className="text-xs text-gray-500 dark:text-gray-400">
+        <div className="text-[11px] text-gray-500 dark:text-gray-400">
           {getRelativeTimeString(lastCurrencyActivityDate)}
         </div>
       </div>

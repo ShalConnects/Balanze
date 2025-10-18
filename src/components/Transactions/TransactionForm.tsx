@@ -741,7 +741,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       {/* Modal Container */}
       <div
         data-tour="transaction-form"
-        className="relative bg-white dark:bg-gray-800 rounded-[1rem] border border-gray-200 dark:border-gray-700 p-6 w-full max-w-[38rem] max-h-[90vh] overflow-visible z-50 shadow-xl transition-all"
+        className="relative bg-white dark:bg-gray-800 rounded-[1rem] border border-gray-200 dark:border-gray-700 p-6 w-full max-w-[38rem] max-h-[90vh] overflow-y-auto z-50 shadow-xl transition-all"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">

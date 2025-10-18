@@ -1,7 +1,7 @@
 import React from 'react';
 import { Account, Transaction } from '../../types';
 import { StatCard } from '../Dashboard/StatCard';
-import { Wallet, TrendingUp, Target, Users } from 'lucide-react';
+import { Wallet, TrendingUp, Target, Users, Calendar } from 'lucide-react';
 
 interface AccountSummaryCardsProps {
   filteredAccounts: Account[];
@@ -52,8 +52,33 @@ export const AccountSummaryCards: React.FC<AccountSummaryCardsProps> = ({
     .map(([type, count]) => `${count} ${type}`)
     .join(', ');
 
+  // Calculate monthly activity
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  
+  const thisMonthTransactions = filteredTransactions.filter(t => {
+    const transactionDate = new Date(t.date);
+    return transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
+  });
+  
+  const lastMonthTransactions = filteredTransactions.filter(t => {
+    const transactionDate = new Date(t.date);
+    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+    return transactionDate.getMonth() === lastMonth && transactionDate.getFullYear() === lastMonthYear;
+  });
+  
+  const monthlyChange = lastMonthTransactions.length > 0 
+    ? Math.round(((thisMonthTransactions.length - lastMonthTransactions.length) / lastMonthTransactions.length) * 100)
+    : 0;
+  
+  const monthlyInsight = monthlyChange !== 0 
+    ? `${monthlyChange > 0 ? '+' : ''}${monthlyChange}% vs last month`
+    : 'Same as last month';
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3 p-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 p-3">
       <StatCard
         title="Active Accounts"
         value={activeAccounts.length.toString()}
@@ -84,6 +109,14 @@ export const AccountSummaryCards: React.FC<AccountSummaryCardsProps> = ({
         icon={<Users className="w-5 h-5" />}
         color="gray"
         insight={`${activeAccounts.length} accounts`}
+      />
+
+      <StatCard
+        title="Monthly Activity"
+        value={thisMonthTransactions.length.toString()}
+        icon={<Calendar className="w-5 h-5" />}
+        color="blue"
+        insight={monthlyInsight}
       />
     </div>
   );

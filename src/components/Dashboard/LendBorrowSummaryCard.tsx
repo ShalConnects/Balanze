@@ -88,10 +88,10 @@ export const LendBorrowSummaryCard: React.FC = () => {
         clearTimeout(tooltipTimeoutRef.current);
       }
       
-      // Hide tooltip after 3 seconds
+      // Hide tooltip after 1 second
       tooltipTimeoutRef.current = setTimeout(() => {
         setShowCrossTooltip(false);
-      }, 3000);
+      }, 1000);
     }
   };
 

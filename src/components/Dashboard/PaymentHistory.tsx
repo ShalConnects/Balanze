@@ -212,7 +212,6 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
     return (
       <div className="space-y-6">
         <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Payment History</h2>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
             View and manage your payment transactions
           </p>
@@ -224,20 +223,6 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
 
   return (
     <div className="space-y-4">
-      {/* Header with Link to Full Page */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Payment History</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Recent payment transactions</p>
-        </div>
-        <Link
-          to="/payment-history"
-          className="flex items-center px-3 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors text-sm font-medium"
-        >
-          View Full History
-          <ExternalLink className="w-4 h-4 ml-1" />
-        </Link>
-      </div>
 
       {/* Summary Statistics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -267,29 +252,6 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Completed</p>
-              <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{summaryStats.completedTransactions}</p>
-            </div>
-            <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex-shrink-0">
-              <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Pending</p>
-              <p className="text-xl font-bold text-yellow-600 dark:text-yellow-400">{summaryStats.pendingTransactions}</p>
-            </div>
-            <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex-shrink-0">
-              <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Filters and Search - Only show in full page */}
@@ -391,16 +353,6 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
                 : "No transactions match your current filters."
               }
             </p>
-            {paymentTransactions.length === 0 && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 max-w-md mx-auto">
-                <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
-                  <strong>Developer Note:</strong> To see real payment data, set up the payment tables in your database.
-                </p>
-                <p className="text-xs text-blue-600 dark:text-blue-300">
-                  Run the SQL scripts in the project root to create sample payment data.
-                </p>
-              </div>
-            )}
           </div>
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">

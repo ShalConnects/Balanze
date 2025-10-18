@@ -98,10 +98,10 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
         clearTimeout(tooltipTimeoutRef.current);
       }
       
-      // Hide tooltip after 3 seconds
+      // Hide tooltip after 1 second
       tooltipTimeoutRef.current = setTimeout(() => {
         setShowCrossTooltip(false);
-      }, 3000);
+      }, 1000);
     }
   };
 
@@ -347,7 +347,7 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 pr-8 gap-3">
         {/* Left side - Info button */}
         <div className="flex items-center gap-2 flex-1">
-          {/* <h2 className="text-lg font-bold text-gray-900 dark:text-white">Donations & Savings</h2> */}
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Donations & Savings</h2>
           <div className="relative flex items-center">
             <button
               type="button"
@@ -435,7 +435,7 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
             value={formatCurrency(totalDonated, filterCurrency || 'USD')}
             color="green"
             insight={
-              <span className="text-xs text-gray-500">
+              <span className="text-[11px] text-gray-500">
                 {monthlyDonations > 0 ? `${monthlyDonations} donations this month` : 'No donations this month'}
               </span>
             }
@@ -447,7 +447,7 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
             value={formatCurrency(totalSaved, filterCurrency || 'USD')}
             color="green"
             insight={
-              <span className="text-xs text-gray-500">
+              <span className="text-[11px] text-gray-500">
                 {activeSavingsGoals > 0 
                   ? `${activeSavingsGoals} active goals` 
                   : dpsAccountsForTooltip.length > 0 

@@ -521,6 +521,7 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
             const isSelected = selectedId === record.id;
             const isFromSearchSelection = isFromSearch && isSelected;
             
+            
             return (
               <React.Fragment key={record.id}>
                 <tr 
@@ -528,15 +529,13 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                   ref={isSelected ? selectedRecordRef : null}
                   className={`
                     transition-all duration-200 ease-in-out cursor-pointer
-                    ${isEven ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}
-                    hover:bg-blue-50 dark:hover:bg-blue-900/20 
-                    hover:shadow-sm
                     ${isSelected 
                       ? isFromSearchSelection 
-                        ? 'ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20' 
+                        ? 'ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20 !important' 
                         : 'ring-2 ring-blue-500 ring-opacity-50'
-                      : ''
+                      : isEven ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'
                     }
+                    ${!isSelected ? 'hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:shadow-sm' : ''}
                   `} 
                   onClick={() => toggleRowExpansion(record.id)}
                 >

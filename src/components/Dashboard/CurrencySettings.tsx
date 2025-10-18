@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, Star, CreditCard, Wallet, PiggyBank, Building } from 'lucide-react';
+import { Check, Star, CreditCard, Wallet, Building } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { getCurrencySymbol } from '../../utils/currency';
@@ -218,56 +218,111 @@ export const CurrencySettings: React.FC<CurrencySettingsProps> = () => {
             : "Free plan allows only 1 currency. Upgrade to Premium to use multiple currencies."
           }
         </p>
-        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-3">
-          {availableCurrencies.map((currency) => {
-            const isSelected = selectedCurrencies.includes(currency);
-            const isPrimary = localCurrency === currency;
-            const isDisabled = !isPremium; // Free users can't interact with any currency
-            
-            return (
-              <div
-                key={currency}
-                className={`relative p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 ${
-                  isSelected
-                    ? 'border-blue-500 bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100 dark:from-blue-800/40 dark:via-indigo-800/40 dark:to-purple-800/40'
-                    : 'border-gray-200 dark:border-gray-600'
-                } ${isPrimary ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''} ${
-                  isDisabled 
-                    ? 'opacity-50 cursor-not-allowed' 
-                    : 'cursor-pointer hover:border-blue-300 dark:hover:border-blue-500'
-                }`}
-                onClick={() => !isDisabled && toggleCurrency(currency)}
-              >
-                <div className="text-center">
-                  <div className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-1">
-                    {getCurrencySymbol(currency)}
+        <div className="flex flex-wrap gap-2 sm:gap-3">
+          <div className="w-full grid grid-cols-2 gap-2 sm:hidden">
+            {availableCurrencies.map((currency) => {
+              const isSelected = selectedCurrencies.includes(currency);
+              const isPrimary = localCurrency === currency;
+              const isDisabled = !isPremium;
+              
+              return (
+                <div
+                  key={currency}
+                  className={`relative p-2 rounded-lg border-2 transition-all duration-200 ${
+                    isSelected
+                      ? 'border-blue-500 bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100 dark:from-blue-800/40 dark:via-indigo-800/40 dark:to-purple-800/40'
+                      : 'border-gray-200 dark:border-gray-600'
+                  } ${isPrimary ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''} ${
+                    isDisabled 
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : 'cursor-pointer hover:border-blue-300 dark:hover:border-blue-500'
+                  }`}
+                  onClick={() => !isDisabled && toggleCurrency(currency)}
+                >
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                      {getCurrencySymbol(currency)}
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-300">{currency}</div>
+                    {isSelected && (
+                      <div className="absolute top-1 right-1">
+                        <Check className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                      </div>
+                    )}
+                    {isPrimary && (
+                      <div className="absolute bottom-1 right-1">
+                        <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                      </div>
+                    )}
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">{currency}</div>
-                  {isSelected && (
-                    <div className="absolute top-1 right-1">
-                      <Check className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                    </div>
-                  )}
-                  {isPrimary && (
-                    <div className="absolute bottom-1 right-1">
-                      <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                    </div>
+                  {isSelected && !isPrimary && isPremium && (
+                    <button
+                      className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full hover:bg-blue-700 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateLocalCurrency(currency);
+                      }}
+                    >
+                      Set
+                    </button>
                   )}
                 </div>
-                {isSelected && !isPrimary && isPremium && (
-                  <button
-                    className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full hover:bg-blue-700 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      updateLocalCurrency(currency);
-                    }}
-                  >
-                    Set
-                  </button>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          
+          {/* Desktop/Tablet Layout */}
+          <div className="hidden sm:grid sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-3 w-full">
+            {availableCurrencies.map((currency) => {
+              const isSelected = selectedCurrencies.includes(currency);
+              const isPrimary = localCurrency === currency;
+              const isDisabled = !isPremium;
+              
+              return (
+                <div
+                  key={currency}
+                  className={`relative p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 ${
+                    isSelected
+                      ? 'border-blue-500 bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100 dark:from-blue-800/40 dark:via-indigo-800/40 dark:to-purple-800/40'
+                      : 'border-gray-200 dark:border-gray-600'
+                  } ${isPrimary ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''} ${
+                    isDisabled 
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : 'cursor-pointer hover:border-blue-300 dark:hover:border-blue-500'
+                  }`}
+                  onClick={() => !isDisabled && toggleCurrency(currency)}
+                >
+                  <div className="text-center">
+                    <div className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-1">
+                      {getCurrencySymbol(currency)}
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">{currency}</div>
+                    {isSelected && (
+                      <div className="absolute top-1 right-1">
+                        <Check className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                      </div>
+                    )}
+                    {isPrimary && (
+                      <div className="absolute bottom-1 right-1">
+                        <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                      </div>
+                    )}
+                  </div>
+                  {isSelected && !isPrimary && isPremium && (
+                    <button
+                      className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full hover:bg-blue-700 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateLocalCurrency(currency);
+                      }}
+                    >
+                      Set
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 

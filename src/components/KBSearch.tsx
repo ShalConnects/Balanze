@@ -1,5 +1,5 @@
 // src/components/KBSearch.tsx
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Search, BookOpen, ExternalLink, Clock, Tag, Home, Sun, Moon, User, X, History, TrendingUp, ThumbsUp, ThumbsDown, Clock as ClockIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { trackHelpCenter } from '../lib/analytics';
@@ -8,6 +8,7 @@ import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 import { getUserReadingHistory, getUserArticleStats } from '../lib/articleHistory';
 import { generateInternalLinkingSuggestions } from '../lib/kbSitemap';
+import { searchService, SEARCH_CONFIGS, highlightMatches, SearchResult } from '../utils/searchService';
 import clsx from 'clsx';
 
 interface KBArticle {
@@ -410,6 +411,9 @@ export default function KBSearch({ className }: KBSearchProps) {
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showResults, setShowResults] = useState(false);
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useThemeStore();
   const { user, profile } = useAuthStore();
@@ -422,26 +426,83 @@ export default function KBSearch({ className }: KBSearchProps) {
   const userPicUrl = profile?.profilePicture ? 
     supabase.storage.from('avatars').getPublicUrl(profile.profilePicture).data.publicUrl : null;
 
+  // Enhanced search with fuzzy matching
   const filteredArticles = useMemo(() => {
-    let filtered = MOCK_ARTICLES;
+    let articles = MOCK_ARTICLES;
 
-    // Filter by category
+    // Filter by category first
     if (selectedCategory !== 'All') {
-      filtered = filtered.filter(article => article.category === selectedCategory);
+      articles = articles.filter(article => article.category === selectedCategory);
     }
 
-    // Filter by search query
-    if (query.trim()) {
-      const searchTerm = query.toLowerCase();
-      filtered = filtered.filter(article =>
-        article.title.toLowerCase().includes(searchTerm) ||
-        article.description.toLowerCase().includes(searchTerm) ||
-        article.tags.some(tag => tag.toLowerCase().includes(searchTerm))
-      );
+    // If no search query, return all articles in category
+    if (!query.trim()) {
+      return articles;
     }
 
-    return filtered;
+    // Use unified search service for fuzzy matching
+    const searchResults = searchService.search(
+      articles,
+      query,
+      'articles',
+      SEARCH_CONFIGS.articles,
+      { limit: 50 }
+    );
+
+    // Extract items from search results
+    return searchResults.map(result => result.item);
   }, [query, selectedCategory]);
+
+  // Generate search suggestions
+  const generateSuggestions = useCallback((searchQuery: string) => {
+    if (!searchQuery || searchQuery.length < 2) {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const suggestions = searchService.getSuggestions(
+      MOCK_ARTICLES,
+      searchQuery,
+      ['title', 'description'],
+      5
+    );
+
+    setSearchSuggestions(suggestions);
+    setShowSuggestions(suggestions.length > 0);
+  }, []);
+
+  // Debounced search with loading state
+  useEffect(() => {
+    if (query.trim()) {
+      setIsSearching(true);
+      const timeoutId = setTimeout(() => {
+        setIsSearching(false);
+        generateSuggestions(query);
+      }, 300);
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      setIsSearching(false);
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [query, generateSuggestions]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showSuggestions) {
+        const target = event.target as Element;
+        if (!target.closest('.search-suggestions-container')) {
+          setShowSuggestions(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSuggestions]);
 
   const handleSearch = (searchQuery: string) => {
     setQuery(searchQuery);
@@ -456,6 +517,15 @@ export default function KBSearch({ className }: KBSearchProps) {
       category: article.category,
       source: 'search'
     });
+    
+    // Track search analytics if this was from a search result
+    if (query && filteredArticles.length > 0) {
+      const searchResult = filteredArticles.find(a => a.slug === article.slug);
+      if (searchResult) {
+        // This would be enhanced to track the specific search event
+        console.log('Article clicked from search:', article.title);
+      }
+    }
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -615,9 +685,9 @@ export default function KBSearch({ className }: KBSearchProps) {
           />
         </div>
 
-        {/* Search Input */}
+        {/* Enhanced Search Input with Suggestions */}
         <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gradient-primary w-5 h-5" />
+          <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${isSearching ? 'animate-pulse text-blue-500' : 'text-gradient-primary'}`} />
           <input
             type="text"
             placeholder="Search for help articles, features, or guides..."
@@ -626,43 +696,99 @@ export default function KBSearch({ className }: KBSearchProps) {
             onFocus={() => setShowResults(true)}
             className="w-full pl-10 pr-4 py-3 border border-gradient-primary/30 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gradient-primary/50 focus:ring-2 focus:ring-gradient-primary focus:border-gradient-primary"
           />
+          
+          {/* Search Suggestions Dropdown */}
+          {showSuggestions && searchSuggestions.length > 0 && (
+            <div className="search-suggestions-container absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+              {searchSuggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setQuery(suggestion);
+                    setShowSuggestions(false);
+                    setShowResults(true);
+                    trackHelpCenter('suggestion_click', { suggestion, category: selectedCategory });
+                    
+                    // Track suggestion usage in search analytics
+                    searchService.trackSuggestionUsage(query, suggestion);
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-600 last:border-b-0"
+                >
+                  <div className="flex items-center gap-2">
+                    <Search className="w-3 h-3 text-gray-400" />
+                    <span className="truncate">{suggestion}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Category Filters */}
+        {/* Enhanced Category Filters with Counts */}
         <div className="flex flex-wrap gap-2">
-          {CATEGORIES.map((category) => (
-            <button
-              key={category}
-              onClick={() => {
-                setSelectedCategory(category);
-                setShowResults(true);
-                trackHelpCenter('category_filter', { category });
-              }}
-              className={clsx(
-                'px-3 py-1 text-sm font-medium rounded-full transition-colors',
-                selectedCategory === category
-                  ? 'bg-gradient-primary/10 text-gradient-primary border border-gradient-primary/20'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'
-              )}
-            >
-              {category}
-            </button>
-          ))}
+          {CATEGORIES.map((category) => {
+            const categoryCount = MOCK_ARTICLES.filter(article => 
+              category === 'All' || article.category === category
+            ).length;
+            
+            return (
+              <button
+                key={category}
+                onClick={() => {
+                  setSelectedCategory(category);
+                  setShowResults(true);
+                  trackHelpCenter('category_filter', { category });
+                }}
+                className={clsx(
+                  'px-3 py-1 text-sm font-medium rounded-full transition-colors flex items-center gap-2',
+                  selectedCategory === category
+                    ? 'bg-gradient-primary/10 text-gradient-primary border border-gradient-primary/20'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'
+                )}
+              >
+                <span>{category}</span>
+                <span className={clsx(
+                  'text-xs px-1.5 py-0.5 rounded-full',
+                  selectedCategory === category
+                    ? 'bg-gradient-primary/20 text-gradient-primary'
+                    : 'bg-gray-200 text-gray-500 dark:bg-gray-600 dark:text-gray-400'
+                )}>
+                  {categoryCount}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Results */}
+      {/* Enhanced Results with Loading State */}
       {showResults && (
         <div className="p-6">
-          {filteredArticles.length === 0 ? (
+          {isSearching ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gradient-primary mx-auto mb-4"></div>
+              <p className="text-gradient-primary/70">Searching articles...</p>
+            </div>
+          ) : filteredArticles.length === 0 ? (
             <div className="text-center py-8">
               <Search className="w-12 h-12 text-gradient-primary mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gradient-primary mb-2">
                 No articles found
               </h3>
-              <p className="text-gradient-primary/70">
+              <p className="text-gradient-primary/70 mb-4">
                 Try adjusting your search terms or browse different categories.
               </p>
+              {query && (
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  <p>Search suggestions:</p>
+                  <ul className="mt-2 space-y-1">
+                    <li>• Try different keywords</li>
+                    <li>• Check spelling</li>
+                    <li>• Use broader terms</li>
+                    <li>• Browse categories below</li>
+                  </ul>
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -672,6 +798,11 @@ export default function KBSearch({ className }: KBSearchProps) {
                   {selectedCategory !== 'All' && ` in ${selectedCategory}`}
                   {query && ` matching "${query}"`}
                 </p>
+                {query && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Results ranked by relevance and recency
+                  </p>
+                )}
               </div>
               
               <div className="space-y-4">

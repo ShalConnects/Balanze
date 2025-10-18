@@ -28,9 +28,11 @@ import { SkeletonCard, SkeletonChart } from '../common/Skeleton';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import { LastWishCountdownWidget } from './LastWishCountdownWidget';
 import { MotivationalQuote } from './MotivationalQuote';
+import { MobileAccordionWidget } from './MobileAccordionWidget';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { toast } from 'sonner';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
+import PullToRefresh from '../PullToRefresh';
 
 
 interface DashboardProps {
@@ -56,6 +58,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     accounts,
     addPurchase
   } = useFinanceStore();
+  
+  // Subscribe to store data changes to make stats reactive
+  const storeAccounts = useFinanceStore((state) => state.accounts);
+  const storeTransactions = useFinanceStore((state) => state.transactions);
   
   // Use local loading state for dashboard instead of global store loading
   // Initialize with true to prevent flash of empty state
@@ -85,14 +91,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   const fetchDonationSavingRecords = useCallback(() => {
     useFinanceStore.getState().fetchDonationSavingRecords();
   }, []);
+
+  // Combined refresh handler for PullToRefresh
+  const handleRefresh = useCallback(async () => {
+    try {
+      await Promise.all([
+        fetchTransactions(),
+        fetchAccounts(),
+        fetchCategories(),
+        fetchPurchaseCategories(),
+        fetchDonationSavingRecords()
+      ]);
+    } catch (error) {
+      console.error('Error refreshing dashboard data:', error);
+    }
+  }, [fetchTransactions, fetchAccounts, fetchCategories, fetchPurchaseCategories, fetchDonationSavingRecords]);
   
   const { wrapAsync, setLoadingMessage } = useLoadingContext();
   const { user } = useAuthStore();
   
+  // Calculate stats reactively when store data changes
   const stats = getDashboardStats();
   const activeAccounts = getActiveAccounts();
   const transactions = getActiveTransactions();
-  const allTransactions = useFinanceStore((state) => state.transactions); // Get all transactions, not just active ones
+  const allTransactions = storeTransactions; // Use reactive store data
   
   
   // Debug logging for currency card issue
@@ -172,10 +194,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         clearTimeout(purchaseTooltipTimeoutRef.current);
       }
       
-      // Hide tooltip after 3 seconds
+      // Hide tooltip after 1 second
       purchaseTooltipTimeoutRef.current = setTimeout(() => {
         setShowPurchaseCrossTooltip(false);
-      }, 3000);
+      }, 1000);
     }
   };
 
@@ -405,6 +427,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
   return (
     <>
+      <PullToRefresh onRefresh={handleRefresh} />
       {/* Main Dashboard Content */}
       <div data-tour="dashboard" className="flex flex-col lg:flex-row gap-6">
         {/* Main Content - Full width on mobile, flex-1 on desktop */}
@@ -504,7 +527,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                   </Link>
                 </div>
                 {/* Purchase Stats Cards - Responsive grid */}
-                <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 lg:gap-4 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 mb-6">
                   <StatCard
                     title="Planned Purchases"
                     value={totalPlannedPurchases.toString()}
@@ -525,8 +548,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
             </div>
           </div>
 
-          {/* Motivational Quote */}
-          <MotivationalQuote />
+          {/* Motivational Quote - Hidden on mobile, shown on desktop */}
+          <div className="hidden lg:block">
+            <MotivationalQuote enableExternalLink={true} />
+          </div>
 
           {/* Recent Transactions - Hidden on mobile, shown on desktop */}
           <div className="hidden lg:block w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700">
@@ -550,25 +575,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           <NotesAndTodosWidget />
         </div>
 
-        {/* Mobile Bottom Section - Notes/Todos and Recent Transactions */}
-        <div className="lg:hidden space-y-6 dashboard-mobile-container">
-          <LastWishCountdownWidget />
-          <NotesAndTodosWidget />
-          
-          {/* Recent Transactions - Mobile version */}
-          <div className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 transaction-list-mobile">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('dashboard.recentTransactions')}</h2>
-              <Link 
-                to="/transactions" 
-                className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
-              >
-                <span>View All</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <RecentTransactions />
-          </div>
+        {/* Mobile Bottom Section - Accordion Layout */}
+        <div className="lg:hidden dashboard-mobile-container">
+          <MobileAccordionWidget />
         </div>
 
         <FloatingActionButton />

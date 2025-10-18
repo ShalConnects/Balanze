@@ -12,6 +12,7 @@ import { NotesAndTodosWidget } from '../components/Dashboard/NotesAndTodosWidget
 import { PurchaseForm } from '../components/Purchases/PurchaseForm';
 import { DashboardSkeleton } from '../components/Dashboard/DashboardSkeleton';
 import { MotivationalQuote } from '../components/Dashboard/MotivationalQuote';
+import { MobileAccordionWidget } from '../components/Dashboard/MobileAccordionWidget';
 import { toast } from 'sonner';
 import { MainLayout } from '../components/Layout/MainLayout';
 
@@ -1256,7 +1257,7 @@ const MockRecentTransactions: React.FC = () => {
 
   return (
     <div className="max-h-[400px] overflow-y-auto">
-      <div className="space-y-2 pb-4">
+      <div className="space-y-0 pb-4">
         {mockRecentTransactions.map((transaction) => {
           const account = mockAccounts.find(a => a.id === transaction.account_id);
           const currency = account?.currency || 'USD';
@@ -2027,8 +2028,10 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
             </div>
           </div>
 
-          {/* Motivational Quote */}
-          <MotivationalQuote />
+          {/* Motivational Quote - Hidden on mobile, shown on desktop */}
+          <div className="hidden lg:block">
+            <MotivationalQuote />
+          </div>
 
           {/* Recent Transactions - Hidden on mobile, shown on desktop */}
           <div className="hidden lg:block w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700">
@@ -2049,22 +2052,13 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
           <NotesAndTodosWidget />
         </div>
 
-        {/* Mobile Bottom Section - Notes/Todos and Recent Transactions */}
-        <div className="lg:hidden space-y-6 dashboard-mobile-container">
-          <MockLastWishCountdownWidget />
-          <NotesAndTodosWidget />
-          
-          {/* Recent Transactions - Mobile version */}
-          <div className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 transaction-list-mobile">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('dashboard.recentTransactions')}</h2>
-              <div className="text-sm font-medium flex items-center space-x-1 text-gray-400 cursor-not-allowed">
-                <span>View All</span>
-                <ArrowRight className="w-4 h-4" />
-              </div>
-            </div>
-            <MockRecentTransactions />
-          </div>
+        {/* Mobile Bottom Section - Accordion Layout */}
+        <div className="lg:hidden dashboard-mobile-container">
+          <MobileAccordionWidget 
+            isDemo={true}
+            MockLastWishCountdownWidget={MockLastWishCountdownWidget}
+            MockRecentTransactions={MockRecentTransactions}
+          />
         </div>
 
         <FloatingActionButton />

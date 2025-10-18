@@ -26,6 +26,7 @@ import { PaymentTransaction } from '../types';
 import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import PullToRefresh from '../components/PullToRefresh';
 import { Link } from 'react-router-dom';
 
 export const PaymentHistoryPage: React.FC = () => {
@@ -225,6 +226,7 @@ export const PaymentHistoryPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <PullToRefresh onRefresh={fetchPaymentTransactions} />
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -239,7 +241,6 @@ export const PaymentHistoryPage: React.FC = () => {
               </Link>
               <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mr-4" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Payment History</h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400">View and manage your payment transactions</p>
               </div>
             </div>
@@ -293,29 +294,6 @@ export const PaymentHistoryPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.completedTransactions}</p>
-              </div>
-              <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.pendingTransactions}</p>
-              </div>
-              <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Filters and Search */}
@@ -441,16 +419,6 @@ export const PaymentHistoryPage: React.FC = () => {
                 : "No transactions match your current filters."
               }
             </p>
-            {paymentTransactions.length === 0 && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 max-w-md mx-auto">
-                <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
-                  <strong>Developer Note:</strong> To see real payment data, set up the payment tables in your database.
-                </p>
-                <p className="text-xs text-blue-600 dark:text-blue-300">
-                  Run the SQL scripts in the project root to create sample payment data.
-                </p>
-              </div>
-            )}
           </div>
           ) : (
             <div className="divide-y divide-gray-200 dark:divide-gray-700">

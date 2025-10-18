@@ -15,6 +15,7 @@ import { AccountCardSkeleton, AccountTableSkeleton, AccountSummaryCardsSkeleton,
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
+import { searchService, SEARCH_CONFIGS } from '../../utils/searchService';
 
 export const AccountsView: React.FC = () => {
   const { accounts, deleteAccount, getTransactionsByAccount, transactions, loading, error, updateAccount, updateAccountPosition, fetchAccounts, showTransactionForm, setShowTransactionForm, categories, purchaseCategories } = useFinanceStore();
@@ -56,6 +57,11 @@ export const AccountsView: React.FC = () => {
     type: 'all',
     status: 'active' // 'active' or 'all'
   });
+
+  // Enhanced search state
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   
   // Add sorting state
   const [sortConfig, setSortConfig] = useState<{
@@ -349,22 +355,88 @@ export const AccountsView: React.FC = () => {
 
 
 
-  // Filter accounts (for cards and table)
+  // Enhanced search suggestions
+  const generateSearchSuggestions = useCallback((searchQuery: string) => {
+    if (!searchQuery || searchQuery.length < 2) {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const suggestions = searchService.getSuggestions(
+      accounts,
+      searchQuery,
+      ['name', 'description', 'type'],
+      5
+    );
+
+    setSearchSuggestions(suggestions);
+    setShowSuggestions(suggestions.length > 0);
+  }, [accounts]);
+
+  // Debounced search with loading state
+  useEffect(() => {
+    if (tableFilters.search.trim()) {
+      setIsSearching(true);
+      const timeoutId = setTimeout(() => {
+        setIsSearching(false);
+        generateSearchSuggestions(tableFilters.search);
+      }, 300);
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      setIsSearching(false);
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [tableFilters.search, generateSearchSuggestions]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showSuggestions) {
+        const target = event.target as Element;
+        if (!target.closest('.account-search-suggestions')) {
+          setShowSuggestions(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSuggestions]);
+
+  // Enhanced filtering with fuzzy search
   const filteredAccounts = useMemo(() => {
     // If a record is selected via deep link, prioritize showing only that record
     if (hasSelection && isFromSearch && selectedRecord) {
       return [selectedRecord];
     }
 
-    return accounts.filter(account => {
-      const matchesSearch = account.name.toLowerCase().includes(tableFilters.search.toLowerCase()) ||
-                           account.description?.toLowerCase().includes(tableFilters.search.toLowerCase());
+    // First apply basic filters
+    let filtered = accounts.filter(account => {
       const matchesCurrency = tableFilters.currency === '' || account.currency === tableFilters.currency;
       const matchesType = tableFilters.type === 'all' || account.type === tableFilters.type;
       const matchesStatus = tableFilters.status === 'all' || (tableFilters.status === 'active' && account.isActive);
       
-      return matchesSearch && matchesCurrency && matchesType && matchesStatus;
+      return matchesCurrency && matchesType && matchesStatus;
     });
+
+    // Apply fuzzy search if search term exists
+    if (tableFilters.search && tableFilters.search.trim()) {
+      const searchResults = searchService.search(
+        filtered,
+        tableFilters.search,
+        'accounts',
+        SEARCH_CONFIGS.accounts,
+        { limit: 1000 }
+      );
+      
+      // Extract items from search results
+      filtered = searchResults.map(result => result.item);
+    }
+
+    return filtered;
   }, [accounts, tableFilters, hasSelection, isFromSearch, selectedRecord]);
 
   // Sort filtered accounts for table display only
@@ -600,7 +672,7 @@ export const AccountsView: React.FC = () => {
     return (
       <div className="space-y-6">
         {/* Smooth skeleton for accounts page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700" style={{ paddingBottom: '13px' }}>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
           {/* Filters skeleton */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <AccountFiltersSkeleton />
@@ -637,17 +709,22 @@ export const AccountsView: React.FC = () => {
       <div className="space-y-6">
 
         {/* Unified Filters and Table */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700" style={{ paddingBottom: '13px' }}>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
           {/* Filters Section */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1" style={{ marginBottom: 0 }}>
                 <div>
                   <div className="relative">
-                    <Search className={`absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 ${tableFilters.search ? 'text-blue-500' : 'text-gray-400'}`} />
+                    <Search className={`absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 ${isSearching ? 'animate-pulse text-blue-500' : tableFilters.search ? 'text-blue-500' : 'text-gray-400'}`} />
                     <input
                       type="text"
                       value={tableFilters.search}
                       onChange={(e) => setTableFilters({ ...tableFilters, search: e.target.value })}
+                      onFocus={() => {
+                        if (tableFilters.search && searchSuggestions.length > 0) {
+                          setShowSuggestions(true);
+                        }
+                      }}
                       className={`w-full pl-8 pr-2 py-1.5 text-[13px] h-8 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400 transition-colors ${
                         tableFilters.search 
                           ? 'border-blue-300 dark:border-blue-600' 
@@ -656,6 +733,30 @@ export const AccountsView: React.FC = () => {
                       style={tableFilters.search ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                       placeholder="Search accounts..."
                     />
+                    
+                    {/* Search Suggestions Dropdown */}
+                    {false && showSuggestions && searchSuggestions.length > 0 && (
+                      <div className="account-search-suggestions absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
+                        {searchSuggestions.map((suggestion, index) => (
+                          <button
+                            key={index}
+                            onClick={() => {
+                              setTableFilters({ ...tableFilters, search: suggestion });
+                              setShowSuggestions(false);
+                              
+                              // Track suggestion usage
+                              searchService.trackSuggestionUsage(tableFilters.search, suggestion);
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-600 last:border-b-0"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Search className="w-3 h-3 text-gray-400" />
+                              <span className="truncate">{suggestion}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -891,27 +992,66 @@ export const AccountsView: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <div className="text-left">
                         <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Active Accounts</p>
-                        <p className="font-bold text-green-600 dark:text-green-400" style={{ fontSize: '1.2rem' }}>{filteredAccounts.filter(a => a.isActive).length}</p>
+                        <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>{filteredAccounts.filter(a => a.isActive).length}</p>
+                        <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                          {(() => {
+                            const activeAccounts = filteredAccounts.filter(a => a.isActive);
+                            const accountTypes = activeAccounts.reduce((acc, account) => {
+                              acc[account.type] = (acc[account.type] || 0) + 1;
+                              return acc;
+                            }, {} as Record<string, number>);
+                            const typeBreakdown = Object.entries(accountTypes)
+                              .map(([type, count]) => `${count} ${type}`)
+                              .join(', ');
+                            return typeBreakdown || 'No active accounts';
+                          })()}
+                        </p>
                       </div>
-                      <span className="text-green-600" style={{ fontSize: '1.2rem' }}>{currencySymbol}</span>
+                      <svg className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
                     </div>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
                     <div className="flex items-center justify-between">
                       <div className="text-left">
                         <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Transactions</p>
-                        <p className="font-bold text-blue-600 dark:text-blue-400" style={{ fontSize: '1.2rem' }}>{filteredTransactions.length}</p>
+                        <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>{filteredTransactions.length}</p>
+                        <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                          {(() => {
+                            const transactionBreakdown = filteredTransactions.reduce((acc, transaction) => {
+                              acc[transaction.type] = (acc[transaction.type] || 0) + 1;
+                              return acc;
+                            }, {} as Record<string, number>);
+                            const breakdown = Object.entries(transactionBreakdown)
+                              .map(([type, count]) => `${count} ${type}`)
+                              .join(', ');
+                            return breakdown || 'No transactions';
+                          })()}
+                        </p>
                       </div>
-                      <span className="text-blue-600" style={{ fontSize: '1.2rem' }}>{currencySymbol}</span>
+                      <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>#</span>
                     </div>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
                     <div className="flex items-center justify-between">
                       <div className="text-left">
                         <p className="text-xs font-medium text-gray-600 dark:text-gray-400">DPS Accounts</p>
-                        <p className="font-bold text-purple-600 dark:text-purple-400" style={{ fontSize: '1.2rem' }}>{filteredAccounts.filter(a => a.has_dps).length}</p>
+                        <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>{filteredAccounts.filter(a => a.has_dps).length}</p>
+                        <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                          {(() => {
+                            const dpsAccounts = filteredAccounts.filter(a => a.has_dps);
+                            const dpsTypeBreakdown = dpsAccounts.reduce((acc, account) => {
+                              const dpsType = account.dps_type || 'flexible';
+                              acc[dpsType] = (acc[dpsType] || 0) + 1;
+                              return acc;
+                            }, {} as Record<string, number>);
+                            const breakdown = Object.entries(dpsTypeBreakdown)
+                              .map(([type, count]) => `${count} ${type}`)
+                              .join(', ');
+                            return breakdown || 'No DPS accounts';
+                          })()}
+                        </p>
                       </div>
-                      <svg className="text-purple-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2l4 -4" /></svg>
+                      <svg className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2l4 -4m5.618 -4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176 -1.332 9 -6.03 9 -11.622 0 -1.042 -.133 -2.052 -.382 -3.016z" /></svg>
                     </div>
                   </div>
                 </>
@@ -920,7 +1060,7 @@ export const AccountsView: React.FC = () => {
           </div>
 
                                         {/* Table Section */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
             {/* Desktop Table View */}
             <div className="hidden lg:block max-h-[500px] overflow-y-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900 text-[14px]">
