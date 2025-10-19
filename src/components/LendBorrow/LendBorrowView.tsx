@@ -6,7 +6,6 @@ import { useAuthStore } from '../../store/authStore';
 import { LendBorrow, LendBorrowInput } from '../../types/index';
 import { LendBorrowForm } from './LendBorrowForm';
 import { LendBorrowList } from './LendBorrowList';
-import { PartialReturnModal } from './PartialReturnModal';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { LendBorrowCardSkeleton, LendBorrowTableSkeleton, LendBorrowSummaryCardsSkeleton, LendBorrowFiltersSkeleton } from './LendBorrowSkeleton';
 import { toast } from 'sonner';
@@ -42,7 +41,6 @@ export const LendBorrowView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<LendBorrow | null>(null);
-  const [partialReturnRecord, setPartialReturnRecord] = useState<LendBorrow | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<string>('');
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(false);
   const currencyMenuRef = useRef<HTMLDivElement>(null);
@@ -391,11 +389,11 @@ export const LendBorrowView: React.FC = () => {
 
   // Add new record
   const handleAddRecord = async (record: LendBorrowInput) => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     try {
-      // Attempting to add record
-
       // Add a small delay to ensure loading animation is visible
       await new Promise(resolve => setTimeout(resolve, 300));
 
@@ -405,8 +403,62 @@ export const LendBorrowView: React.FC = () => {
       setShowForm(false);
       toast.success('Record added successfully!');
     } catch (error) {
-
+      console.error('❌ handleAddRecord error:', error);
       toast.error('Failed to add record. Please try again.');
+    }
+  };
+
+  // Handle settlement with account selection
+  const handleSettle = async (record: LendBorrow, accountId: string) => {
+    try {
+      // Create settlement transaction
+      const settlementTransaction = {
+        user_id: user!.id,
+        account_id: accountId,
+        type: record.type === 'lend' ? 'income' : 'expense', // Lend settlement = income, borrow settlement = expense
+        amount: record.amount,
+        description: record.type === 'lend' 
+          ? `Repayment from ${record.person_name}` 
+          : `Repayment to ${record.person_name}`,
+        category: 'Lend/Borrow',
+        date: new Date().toISOString().split('T')[0],
+        tags: ['lend_borrow', 'settlement'],
+        transaction_id: `LB${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`
+      };
+
+      // Insert settlement transaction
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .insert([settlementTransaction]);
+
+      if (transactionError) {
+        console.error('Settlement transaction error:', transactionError);
+        toast.error('Failed to create settlement transaction');
+        return;
+      }
+
+      // Update record status to settled
+      const { error: updateError } = await supabase
+        .from('lend_borrow')
+        .update({ status: 'settled' })
+        .eq('id', record.id);
+
+      if (updateError) {
+        console.error('Update record error:', updateError);
+        toast.error('Failed to update record status');
+        return;
+      }
+
+      // Refresh data
+      await Promise.all([
+        fetchLendBorrowRecords(),
+        fetchAccounts()
+      ]);
+
+      toast.success('Record settled successfully!');
+    } catch (error) {
+      console.error('Settlement error:', error);
+      toast.error('Failed to settle record');
     }
   };
 
@@ -422,7 +474,20 @@ export const LendBorrowView: React.FC = () => {
     };
 
     try {
-      // Attempting to update record
+      // Get the current record to check if we need to update the associated transaction
+      const { data: currentRecord, error: fetchError } = await supabase
+        .from('lend_borrow')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching current record:', fetchError);
+        toast.error('Failed to fetch current record');
+        return;
+      }
+
 
       // Add a small delay to ensure loading animation is visible
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -436,24 +501,107 @@ export const LendBorrowView: React.FC = () => {
         .single();
 
       if (error) {
-
+        console.error('Error updating record:', error);
         toast.error('Error updating record: ' + error.message);
         throw error;
       }
 
       if (!data) {
-
+        console.error('No data returned from update');
         toast.error('No data returned from update. Please check your database permissions.');
         return;
       }
 
-      // Successfully updated record
-      // setLendBorrowRecords(prev => 
-      //   prev.map(r => r.id === id ? data : r)
-      // ); // This line is removed as lendBorrowRecords is now managed by useFinanceStore
-      setEditingRecord(null);
-    } catch (error) {
+      // Update associated transaction if it exists and affect_account_balance is true
+      
+      if (currentRecord.affect_account_balance && 
+          (updates.amount || updates.person_name || updates.type || updates.account_id)) {
+        
+        // If no transaction_id exists, create one
+        let transactionId = currentRecord.transaction_id;
+        if (!transactionId) {
+          transactionId = `LB${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`;
+          
+          // Update the lend/borrow record with the new transaction_id
+          const { error: updateTransactionIdError } = await supabase
+            .from('lend_borrow')
+            .update({ transaction_id: transactionId })
+            .eq('id', id)
+            .eq('user_id', user.id);
+          
+          if (updateTransactionIdError) {
+            console.error('Error updating transaction_id:', updateTransactionIdError);
+            toast.error('Failed to create transaction ID');
+            return;
+          }
+        }
+        
+        // Get the account information for the transaction
+        const selectedAccount = accounts.find(acc => acc.id === (updates.account_id || currentRecord.account_id));
+        
+        if (!selectedAccount) {
+          console.error('Selected account not found');
+          toast.error('Selected account not found');
+          return;
+        }
 
+        // Check if transaction already exists
+        const { data: existingTransaction, error: fetchTransactionError } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('transaction_id', transactionId)
+          .eq('user_id', user.id)
+          .single();
+
+
+        // Prepare transaction data
+        const transactionData = {
+          user_id: user.id,
+          account_id: updates.account_id || currentRecord.account_id,
+          type: (updates.type || currentRecord.type) === 'lend' ? 'expense' : 'income',
+          amount: updates.amount || currentRecord.amount,
+          description: `${updates.type || currentRecord.type === 'lend' ? 'Lent to' : 'Borrowed from'} ${updates.person_name || currentRecord.person_name}`,
+          category: 'Lend/Borrow',
+          date: new Date().toISOString().split('T')[0],
+          tags: ['lend_borrow', 'loan'],
+          transaction_id: transactionId
+        };
+
+
+        let transactionResult;
+        if (existingTransaction) {
+          // Update existing transaction
+          transactionResult = await supabase
+            .from('transactions')
+            .update(transactionData)
+            .eq('transaction_id', transactionId)
+            .eq('user_id', user.id)
+            .select();
+        } else {
+          // Create new transaction
+          transactionResult = await supabase
+            .from('transactions')
+            .insert([transactionData])
+            .select();
+        }
+
+        if (transactionResult.error) {
+          console.error('Error with transaction:', transactionResult.error);
+          toast.error('Record updated but failed to update associated transaction');
+        } else {
+          // Refresh accounts and transactions to show updated data
+          await Promise.all([
+            fetchAccounts(),
+            fetchLendBorrowRecords()
+          ]);
+        }
+      }
+
+      // Successfully updated record
+      setEditingRecord(null);
+      toast.success('Record updated successfully!');
+    } catch (error) {
+      console.error('Error in handleUpdateRecord:', error);
       toast.error('Failed to update record. Please try again.');
     }
   };
@@ -466,8 +614,49 @@ export const LendBorrowView: React.FC = () => {
     const wrappedDelete = wrapAsync(async () => {
       setLoadingMessage('Deleting record...');
       try {
-        // Attempting to delete record
+        // Get the current record to check for associated transaction
+        const { data: currentRecord, error: fetchError } = await supabase
+          .from('lend_borrow')
+          .select('transaction_id, affect_account_balance')
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .single();
 
+        if (fetchError) {
+          console.error('Error fetching record for deletion:', fetchError);
+          toast.error('Failed to fetch record for deletion');
+          return;
+        }
+
+        // Step 1: Delete associated transaction FIRST if it exists
+        if (currentRecord.transaction_id && currentRecord.affect_account_balance) {
+          const { error: transactionError } = await supabase
+            .from('transactions')
+            .delete()
+            .eq('transaction_id', currentRecord.transaction_id)
+            .eq('user_id', user.id);
+
+          if (transactionError) {
+            console.error('Error deleting associated transaction:', transactionError);
+            toast.error('Failed to delete associated transaction');
+            return;
+          }
+        }
+
+        // Step 2: Disable account balance effects to prevent triggers
+        const { error: disableError } = await supabase
+          .from('lend_borrow')
+          .update({ affect_account_balance: false })
+          .eq('id', id)
+          .eq('user_id', user.id);
+
+        if (disableError) {
+          console.error('Error disabling account balance effects:', disableError);
+          toast.error('Failed to prepare record for deletion');
+          return;
+        }
+
+        // Step 3: Delete the lend/borrow record
         const { error } = await supabase
           .from('lend_borrow')
           .delete()
@@ -475,16 +664,21 @@ export const LendBorrowView: React.FC = () => {
           .eq('user_id', user.id);
 
         if (error) {
-
+          console.error('Error deleting record:', error);
           toast.error('Error deleting record: ' + error.message);
           throw error;
         }
 
         // Successfully deleted record
-        // setLendBorrowRecords(prev => prev.filter(r => r.id !== id)); // This line is removed as lendBorrowRecords is now managed by useFinanceStore
-        toast.success('Record deleted successfully!');
+        toast.success('Record and associated transaction deleted successfully!');
+        
+        // Refresh data to show updated list
+        await Promise.all([
+          fetchLendBorrowRecords(),
+          fetchAccounts()
+        ]);
       } catch (error) {
-
+        console.error('Error in handleDeleteRecord:', error);
         toast.error('Failed to delete record. Please try again.');
       }
     });
@@ -504,17 +698,6 @@ export const LendBorrowView: React.FC = () => {
     }
   };
 
-  const handlePartialReturn = (record: LendBorrow) => {
-    // Partial return clicked
-    setPartialReturnRecord(record);
-  };
-
-  const handlePartialReturnUpdated = (updatedRecord: LendBorrow) => {
-    // setLendBorrowRecords(prev => 
-    //   prev.map(record => record.id === updatedRecord.id ? updatedRecord : record)
-    // ); // This line is removed as lendBorrowRecords is now managed by useFinanceStore
-    setPartialReturnRecord(null);
-  };
 
   // Update loading state when records change
   useEffect(() => {
@@ -1058,7 +1241,7 @@ export const LendBorrowView: React.FC = () => {
                 onEdit={record => setEditingRecord(record)}
                 onDelete={handleDeleteRecord}
                 onUpdateStatus={handleUpdateStatus}
-                onPartialReturn={handlePartialReturn}
+                onSettle={handleSettle}
                 selectedId={selectedId}
                 isFromSearch={isFromSearch}
                 selectedRecordRef={selectedRecordRef}
@@ -1327,16 +1510,6 @@ export const LendBorrowView: React.FC = () => {
         </div>
       )}
 
-      {/* Partial Return Modal */}
-      {partialReturnRecord && (
-        // Rendering PartialReturnModal
-        <PartialReturnModal
-          isOpen={!!partialReturnRecord}
-          record={partialReturnRecord}
-          onClose={() => setPartialReturnRecord(null)}
-          onUpdated={handlePartialReturnUpdated}
-        />
-      )}
     </div>
   );
 }; 

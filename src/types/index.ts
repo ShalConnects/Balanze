@@ -190,6 +190,12 @@ export interface LendBorrow {
   notes?: string;
   created_at: string;
   updated_at: string;
+  // Account integration fields
+  account_id?: string;
+  transaction_id?: string;
+  repayment_transaction_id?: string;
+  interest_transaction_id?: string;
+  affect_account_balance?: boolean;
   // Partial return fields (kept for backward compatibility)
   partial_return_amount?: number;
   partial_return_date?: string;
@@ -205,6 +211,12 @@ export interface LendBorrowInput {
   due_date?: string;
   status?: 'active' | 'settled' | 'overdue';
   notes?: string;
+  // Account integration fields
+  account_id?: string;
+  transaction_id?: string;
+  repayment_transaction_id?: string;
+  interest_transaction_id?: string;
+  affect_account_balance?: boolean;
   partial_return_amount?: number;
   partial_return_date?: string;
 }
@@ -216,6 +228,9 @@ export interface LendBorrowReturn {
   amount: number;
   return_date: string;
   created_at: string;
+  // Account information for the payment
+  account_id?: string;
+  notes?: string;
 }
 
 // Keep the old PartialReturn type for backward compatibility

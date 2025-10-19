@@ -335,12 +335,18 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                   <div className="font-semibold mb-2">Total: {formatCurrency(totalBalance, currency)}</div>
                   <div className="font-medium mb-1">Accounts ({currencyAccounts.length}):</div>
                   <ul className="space-y-1">
-                    {currencyAccounts.map(acc => (
-                      <li key={acc.id} className="flex justify-between">
-                        <span className="truncate max-w-[100px] sm:max-w-[120px]" title={acc.name}>{acc.name}</span>
-                        <span className="ml-2 tabular-nums text-xs">{formatCurrency(acc.calculated_balance || 0, currency)}</span>
-                      </li>
-                    ))}
+                    {currencyAccounts.map(acc => {
+                      const balance = acc.calculated_balance || 0;
+                      const isNegative = balance < 0;
+                      return (
+                        <li key={acc.id} className="flex justify-between">
+                          <span className="truncate max-w-[100px] sm:max-w-[120px]" title={acc.name}>{acc.name}</span>
+                          <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : ''}`}>
+                            {formatCurrency(balance, currency)}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}
@@ -413,12 +419,18 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
             </div>
             <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">Accounts ({currencyAccounts.length}):</div>
             <ul className="space-y-1 max-h-48 overflow-y-auto">
-              {currencyAccounts.map(acc => (
-                <li key={acc.id} className="flex justify-between text-xs text-gray-700 dark:text-gray-200">
-                  <span className="truncate max-w-[120px]" title={acc.name}>{acc.name}</span>
-                  <span className="ml-2 tabular-nums">{formatCurrency(acc.calculated_balance || 0, currency)}</span>
-                </li>
-              ))}
+              {currencyAccounts.map(acc => {
+                const balance = acc.calculated_balance || 0;
+                const isNegative = balance < 0;
+                return (
+                  <li key={acc.id} className="flex justify-between text-xs text-gray-700 dark:text-gray-200">
+                    <span className="truncate max-w-[120px]" title={acc.name}>{acc.name}</span>
+                    <span className={`ml-2 tabular-nums ${isNegative ? 'text-red-600 dark:text-red-400' : ''}`}>
+                      {formatCurrency(balance, currency)}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>

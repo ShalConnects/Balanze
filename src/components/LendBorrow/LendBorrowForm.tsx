@@ -11,6 +11,7 @@ import { parseISO } from 'date-fns';
 import { useAuthStore } from '../../store/authStore';
 import { Loader } from '../../components/common/Loader';
 import { useLoadingContext } from '../../context/LoadingContext';
+import { getCurrencySymbol } from '../../utils/currency';
 
 interface LendBorrowFormProps {
   record?: LendBorrow;
@@ -27,12 +28,14 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
     type: record?.type || '',
     person_name: record?.person_name || '',
     amount: record?.amount || undefined,
-    currency: record?.currency || '',
+    currency: '', // Will be set automatically from selected account
     due_date: record?.due_date || '',
     notes: record?.notes || '',
     status: record?.status || 'active',
     partial_return_amount: record?.partial_return_amount || 0,
     partial_return_date: record?.partial_return_date || '',
+    account_id: record?.account_id || profile?.default_account_id || '',
+    affect_account_balance: record?.affect_account_balance ?? true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -49,22 +52,24 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
   const fieldRowClass = 'flex flex-col sm:flex-row gap-2 sm:gap-x-4 sm:items-center';
   const fieldColClass = 'flex-1';
 
-  // Get available currencies from accounts
-  const availableCurrencies = Array.from(new Set(accounts.map(a => a.currency)));
+  // Currency will be automatically set from the selected account
+  // No need for currency dropdown since it comes from the account
 
-  // Currency options: only show selected_currencies if available, else all
-  const allCurrencyOptions = [
-    { value: 'USD', label: 'USD' },
-    { value: 'EUR', label: 'EUR' },
-    { value: 'GBP', label: 'GBP' },
-    { value: 'BDT', label: 'BDT' },
-    { value: 'JPY', label: 'JPY' },
-    { value: 'CAD', label: 'CAD' },
-    { value: 'AUD', label: 'AUD' },
+  // Sort accounts to show default account first
+  const sortedAccountOptions = [
+    ...accounts.filter(acc => acc.id === profile?.default_account_id),
+    ...accounts.filter(acc => acc.id !== profile?.default_account_id)
   ];
-  const currencyOptions = profile?.selected_currencies && profile.selected_currencies.length > 0
-    ? allCurrencyOptions.filter(opt => profile.selected_currencies?.includes?.(opt.value))
-    : allCurrencyOptions;
+
+  // Auto-set currency when account is selected
+  useEffect(() => {
+    if (form.account_id) {
+      const selectedAccount = accounts.find(acc => acc.id === form.account_id);
+      if (selectedAccount) {
+        setForm(prev => ({ ...prev, currency: selectedAccount.currency }));
+      }
+    }
+  }, [form.account_id, accounts]);
 
   // Autofocus first field on open
   useEffect(() => {
@@ -75,12 +80,26 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    if (!form.person_name.trim()) newErrors.person_name = 'Person name is required';
-    if (!form.amount || form.amount <= 0) newErrors.amount = 'Valid amount is required';
-    if (!form.type) newErrors.type = 'Type is required';
-    if (!form.currency) newErrors.currency = 'Currency is required';
+    
+    if (!form.person_name.trim()) {
+      newErrors.person_name = 'Person name is required';
+    }
+    if (!form.amount || form.amount <= 0) {
+      newErrors.amount = 'Valid amount is required';
+    }
+    if (!form.type) {
+      newErrors.type = 'Type is required';
+    }
+    if (form.affect_account_balance && !form.account_id) {
+      newErrors.account_id = 'Account is required when affecting account balance';
+    }
+    if (!form.affect_account_balance && !form.currency) {
+      newErrors.currency = 'Currency is required for record-only transactions';
+    }
+    
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const isValid = Object.keys(newErrors).length === 0;
+    return isValid;
   };
 
   // Inline validation on blur
@@ -177,7 +196,26 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setTouched({ person_name: true, amount: true, type: true, currency: true });
+    setTouched({ person_name: true, amount: true, type: true });
+    
+    // Ensure currency is set from the selected account (only for account-linked records)
+    if (form.affect_account_balance && form.account_id) {
+      const selectedAccount = accounts.find(acc => acc.id === form.account_id);
+      if (selectedAccount) {
+        setForm(prev => ({ ...prev, currency: selectedAccount.currency }));
+      }
+    }
+
+    // Auto-set due date to 7 days from today if not provided (only for account-linked records)
+    if (form.affect_account_balance && (!form.due_date || form.due_date === '')) {
+      const sevenDaysFromNow = new Date();
+      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+      const dueDateString = sevenDaysFromNow.getFullYear() + '-' + 
+        String(sevenDaysFromNow.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(sevenDaysFromNow.getDate()).padStart(2, '0');
+      setForm(prev => ({ ...prev, due_date: dueDateString }));
+    }
+    
     if (!validateForm()) {
       toast.error('Please fix the errors in the form');
       return;
@@ -190,6 +228,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
       await new Promise(resolve => setTimeout(resolve, 300));
       onClose();
     } catch (error) {
+      console.error('❌ Form submit error:', error);
 
       
       // Check if it's a plan limit error and show upgrade prompt
@@ -227,7 +266,8 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
   };
 
   // Disable Add button if required fields missing or submitting
-  const isFormValid = form.person_name.trim() && form.amount && form.amount > 0 && form.type && form.currency;
+  const isFormValid = form.person_name.trim() && form.amount && form.amount > 0 && form.type && 
+    (form.affect_account_balance ? form.account_id : form.currency);
 
   return (
     <>
@@ -259,6 +299,75 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Account Balance Toggle */}
+            <div className="w-full" style={{ marginTop: 0, marginBottom: '15px' }}>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div className="grid grid-cols-2 gap-3">
+                  <div 
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                      form.affect_account_balance 
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                    }`}
+                    onClick={() => {
+                      setForm(prev => ({ ...prev, affect_account_balance: true }));
+                    }}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm">💳</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-gray-900 dark:text-white text-sm">
+                          From Account
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                          Affects Balance
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div 
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                      !form.affect_account_balance 
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                    }`}
+                    onClick={() => {
+                      setForm(prev => ({ ...prev, affect_account_balance: false, account_id: '' }));
+                    }}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm">📄</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-gray-900 dark:text-white text-sm">
+                          Record Only
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                          No Balance Change
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Warning Message for Record Only */}
+            {!form.affect_account_balance && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3" style={{ marginBottom: '15px' }}>
+                <div className="flex items-center">
+                  <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mr-2 flex-shrink-0" />
+                  <span className="text-sm text-amber-800 dark:text-amber-200">
+                    <strong>Record Only Mode:</strong> This record won't affect account balances. You must manually select the currency for this transaction.
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Basic Information */}
             <div className={fieldRowClass} style={{ marginTop: 0 }}>
               <div className={fieldColClass}>
@@ -354,7 +463,51 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
               </div>
             </div>
 
+            {/* Account Selection and Amount - Side by Side */}
             <div className={fieldRowClass} style={{ marginTop: 0 }}>
+              <div className={fieldColClass}>
+                {form.affect_account_balance ? (
+                  <CustomDropdown
+                    value={form.account_id}
+                    onChange={(value) => handleDropdownChange('account_id', value)}
+                    options={sortedAccountOptions
+                      .map(account => ({
+                        value: account.id,
+                        label: `${account.name} (${account.currency}) - ${getCurrencySymbol(account.currency)}${account.calculated_balance?.toFixed(2) || '0.00'}`
+                      }))
+                    }
+                    placeholder="Select account *"
+                    disabled={!!record}
+                  />
+                ) : (
+                  <CustomDropdown
+                    value={form.currency}
+                    onChange={(value) => handleDropdownChange('currency', value)}
+                    options={Array.from(new Set(accounts.map(acc => acc.currency)))
+                      .map(currency => ({
+                        value: currency,
+                        label: `${currency} - ${getCurrencySymbol(currency)}`
+                      }))
+                    }
+                    placeholder="Select currency *"
+                    disabled={!!record}
+                  />
+                )}
+                {errors.account_id && touched.account_id ? (
+                  <p className="mt-1 text-xs text-red-600 flex items-center min-h-[20px]">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {errors.account_id}
+                  </p>
+                ) : errors.currency && touched.currency ? (
+                  <p className="mt-1 text-xs text-red-600 flex items-center min-h-[20px]">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {errors.currency}
+                  </p>
+                ) : (
+                  <div className="min-h-[20px]" />
+                )}
+              </div>
+
               <div className={fieldColClass + ' relative'}>
                 <input
                   name="amount"
@@ -377,27 +530,11 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                   <div className="min-h-[20px]" />
                 )}
               </div>
-
-              <div className={fieldColClass}>
-                <CustomDropdown
-                  value={form.currency}
-                  onChange={(value) => handleDropdownChange('currency', value)}
-                  options={currencyOptions}
-                  placeholder="Currency *"
-                />
-                {errors.currency && touched.currency ? (
-                  <p className="mt-1 text-xs text-red-600 flex items-center min-h-[20px]">
-                    <AlertCircle className="w-4 h-4 mr-1" />
-                    {errors.currency}
-                  </p>
-                ) : (
-                  <div className="min-h-[20px]" />
-                )}
-              </div>
             </div>
 
-            {/* Due Date */}
-            <div className="w-full" style={{ marginTop: 0 }}>
+            {/* Due Date - Only show for account-linked records */}
+            {form.affect_account_balance && (
+              <div className="w-full" style={{ marginTop: 0, marginBottom: '15px' }}>
               <div className={getInputClasses('due_date') + ' flex items-center bg-gray-100 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full'}>
                 <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 <DatePicker
@@ -431,10 +568,11 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                   {errors.due_date}
                 </p>
               )}
-            </div>
+              </div>
+            )}
 
             {/* Notes */}
-            <div className="relative">
+            <div className="relative" style={{ marginTop: 0 }}>
               <textarea
                 ref={notesRef}
                 name="notes"

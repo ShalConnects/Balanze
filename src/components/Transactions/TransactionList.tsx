@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { ArrowUpRight, ArrowDownRight, Copy, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Copy, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -20,6 +20,12 @@ import { useLoadingContext } from '../../context/LoadingContext';
 import { useNavigate } from 'react-router-dom';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
+import { LendBorrowInfoModal } from './LendBorrowInfoModal';
+
+// Helper function to check if a transaction is related to lend/borrow
+const isLendBorrowTransaction = (transaction: Transaction): boolean => {
+  return transaction.tags?.includes('lend_borrow') || false;
+};
 
 export const TransactionList: React.FC<{ 
   transactions: Transaction[];
@@ -191,6 +197,7 @@ export const TransactionList: React.FC<{
   // State for delete confirmation modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+  const [showLendBorrowInfo, setShowLendBorrowInfo] = useState(false);
 
   // Add export menu state and ref
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -1448,20 +1455,32 @@ export const TransactionList: React.FC<{
                         </td>
                         <td className="px-6 py-2 text-center">
                           <div className="flex justify-center gap-2 items-center">
-                            <button
-                              onClick={() => handleEdit(transaction)}
-                              className="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
-                              title="Edit"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => { setTransactionToDelete(transaction); setShowDeleteModal(true); }}
-                              className="text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                             {isLendBorrowTransaction(transaction) ? (
+                               <button
+                                 onClick={() => setShowLendBorrowInfo(true)}
+                                 className="text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                                 title="Lend & Borrow transaction info"
+                               >
+                                 <Info className="w-4 h-4" />
+                               </button>
+                             ) : (
+                               <>
+                                 <button
+                                   onClick={() => handleEdit(transaction)}
+                                   className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                   title="Edit"
+                                 >
+                                   <Edit2 className="w-4 h-4" />
+                                 </button>
+                                 <button
+                                   onClick={() => setTransactionToDelete(transaction) && setShowDeleteModal(true)}
+                                   className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                   title="Delete"
+                                 >
+                                   <Trash2 className="w-4 h-4" />
+                                 </button>
+                               </>
+                             )}
                           </div>
                         </td>
                       </tr>
@@ -1561,20 +1580,32 @@ export const TransactionList: React.FC<{
                         {getAccountName(transaction.account_id)}
                       </div>
                       <div className="flex gap-1">
-                        <button
-                          onClick={() => handleEdit(transaction)}
-                          className="p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors"
-                          title="Edit"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => { setTransactionToDelete(transaction); setShowDeleteModal(true); }}
-                          className="p-1.5 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                         {isLendBorrowTransaction(transaction) ? (
+                           <button
+                             onClick={() => setShowLendBorrowInfo(true)}
+                             className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                             title="Lend & Borrow transaction info"
+                           >
+                             <Info className="w-3.5 h-3.5" />
+                           </button>
+                         ) : (
+                           <>
+                             <button
+                               onClick={() => handleEdit(transaction)}
+                               className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                               title="Edit"
+                             >
+                               <Edit2 className="w-3.5 h-3.5" />
+                             </button>
+                             <button
+                               onClick={() => setTransactionToDelete(transaction) && setShowDeleteModal(true)}
+                               className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                               title="Delete"
+                             >
+                               <Trash2 className="w-3.5 h-3.5" />
+                             </button>
+                           </>
+                         )}
                       </div>
                     </div>
                   </div>
@@ -1651,16 +1682,26 @@ export const TransactionList: React.FC<{
                         <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</div>
                         <div className="flex gap-2 items-center">
                           <button
-                            onClick={() => handleEdit(transaction)}
-                            className="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
-                            title="Edit"
+                            onClick={() => !isLendBorrowTransaction(transaction) && handleEdit(transaction)}
+                            className={`text-gray-500 dark:text-gray-400 ${
+                              isLendBorrowTransaction(transaction)
+                                ? 'cursor-not-allowed opacity-50'
+                                : 'hover:text-blue-600 dark:hover:text-blue-400'
+                            }`}
+                            title={isLendBorrowTransaction(transaction) ? "This transaction is managed by the Lend & Borrow page. Please make changes there instead." : "Edit"}
+                            disabled={isLendBorrowTransaction(transaction)}
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => { setTransactionToDelete(transaction); setShowDeleteModal(true); }}
-                            className="text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
-                            title="Delete"
+                            onClick={() => !isLendBorrowTransaction(transaction) && setTransactionToDelete(transaction) && setShowDeleteModal(true)}
+                            className={`text-gray-500 dark:text-gray-400 ${
+                              isLendBorrowTransaction(transaction)
+                                ? 'cursor-not-allowed opacity-50'
+                                : 'hover:text-red-600 dark:hover:text-red-400'
+                            }`}
+                            title={isLendBorrowTransaction(transaction) ? "This transaction is managed by the Lend & Borrow page. Please make changes there instead." : "Delete"}
+                            disabled={isLendBorrowTransaction(transaction)}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1730,6 +1771,12 @@ export const TransactionList: React.FC<{
         }
         confirmLabel="Delete Transaction"
         cancelLabel="Cancel"
+      />
+
+      {/* Lend & Borrow Info Modal */}
+      <LendBorrowInfoModal
+        isOpen={showLendBorrowInfo}
+        onClose={() => setShowLendBorrowInfo(false)}
       />
 
       {/* Mobile Filter Modal */}

@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { LendBorrow, LendBorrowReturn } from '../../types/index';
 import { useTranslation } from 'react-i18next';
-import { Edit2, Trash2, InfoIcon, CheckCircle, Clock, AlertTriangle, DollarSign, CornerDownLeft, ChevronUp, ChevronDown, Handshake, RotateCcw } from 'lucide-react';
+import { Edit2, Trash2, InfoIcon, CheckCircle, Clock, AlertTriangle, DollarSign, ChevronUp, ChevronDown, Handshake, RotateCcw, Info } from 'lucide-react';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
+import { SettlementModal } from './SettlementModal';
 import { supabase } from '../../lib/supabase';
+import { EnhancedTooltip } from '../common/EnhancedTooltip';
+import { SettledRecordInfoModal } from './SettledRecordInfoModal';
+import { useFinanceStore } from '../../store/useFinanceStore';
 
 interface LendBorrowListProps {
   records: LendBorrow[];
@@ -11,7 +15,7 @@ interface LendBorrowListProps {
   onEdit: (record: LendBorrow) => void;
   onDelete: (id: string) => void;
   onUpdateStatus: (id: string, status: LendBorrow['status']) => void;
-  onPartialReturn: (record: LendBorrow) => void;
+  onSettle: (record: LendBorrow, accountId: string) => void;
   analytics?: any;
   formatCurrency?: (amount: number, currency: string) => string;
   selectedId?: string | null;
@@ -19,10 +23,18 @@ interface LendBorrowListProps {
   selectedRecordRef?: React.RefObject<HTMLDivElement>;
 }
 
-export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading, onEdit, onDelete, onUpdateStatus, onPartialReturn, analytics, formatCurrency, selectedId, isFromSearch, selectedRecordRef }) => {
+export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading, onEdit, onDelete, onUpdateStatus, onSettle, analytics, formatCurrency, selectedId, isFromSearch, selectedRecordRef }) => {
   const { t } = useTranslation();
+  const { fetchLendBorrowRecords, accounts } = useFinanceStore();
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [returnHistory, setReturnHistory] = useState<Record<string, LendBorrowReturn[]>>({});
+
+  // Helper function to get account information
+  const getAccountInfo = (accountId?: string) => {
+    if (!accountId) return null;
+    const account = accounts.find(a => a.id === accountId);
+    return account ? { name: account.name, type: account.type } : null;
+  };
   
   // Add sorting state
   const [sortConfig, setSortConfig] = useState<{
@@ -44,6 +56,22 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
     recordType: 'lend',
     recordAmount: 0,
     recordCurrency: 'USD'
+  });
+
+  const [settlementModal, setSettlementModal] = useState<{
+    isOpen: boolean;
+    record: LendBorrow | null;
+  }>({
+    isOpen: false,
+    record: null
+  });
+
+  const [settledRecordInfoModal, setSettledRecordInfoModal] = useState<{
+    isOpen: boolean;
+    record: LendBorrow | null;
+  }>({
+    isOpen: false,
+    record: null
   });
 
   // Sorting function
@@ -191,6 +219,7 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
     return diffDays;
   };
 
+  
   return (
     <>
       {/* Mobile/Tablet Stacked Table View */}
@@ -230,32 +259,35 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                     </div>
                   </div>
                   <div className="col-span-2 flex items-center justify-end gap-1">
-                    {record.status !== 'settled' ? (
-                      <>
-                        <button
-                          onClick={() => onPartialReturn(record)}
-                          className="p-1 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
-                          title="Partial Return"
-                        >
-                          <CornerDownLeft className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => onUpdateStatus(record.id, 'settled')}
-                          className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                          title="Mark as Settled"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                        </button>
-                      </>
-                    ) : (
+                    {record.status === 'active' && (
                       <button
-                        onClick={() => onUpdateStatus(record.id, 'active')}
-                        className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        title="Mark as Active"
+                        onClick={() => {
+                          setSettlementModal({ isOpen: true, record });
+                        }}
+                        className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                        title="Settle"
                       >
-                        <RotateCcw className="w-4 h-4" />
+                        <CheckCircle className="w-4 h-4" />
                       </button>
                     )}
+                    {record.status === 'settled' ? (
+                      <button
+                        onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
+                        className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        title="Settled record info"
+                      >
+                        <Info className="w-4 h-4" />
+                      </button>
+                    ) : record.account_id ? (
+                      <button
+                        onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
+                        className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        title="Account-linked record info"
+                      >
+                        <Info className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <>
                     <button
                       onClick={() => onEdit(record)}
                       className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
@@ -270,6 +302,8 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
+                      </>
+                    )}
                   </div>
                 </div>
                 
@@ -341,6 +375,46 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                         </div>
                       </div>
 
+                      {/* Account Information */}
+                      {record.account_id && (() => {
+                        const accountInfo = getAccountInfo(record.account_id);
+                        return (
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Account</div>
+                            <div className="text-sm text-gray-900 dark:text-white">
+                              {accountInfo ? (
+                                <span className="break-words">
+                                  {accountInfo.name}
+                                  <span className="text-gray-500 dark:text-gray-400"> ({accountInfo.type})</span>
+                                </span>
+                              ) : (
+                                <span className="text-gray-500 dark:text-gray-400">Unknown Account</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Transaction Information */}
+                      {record.transaction_id && (
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Transaction ID</div>
+                          <div className="text-xs text-gray-900 dark:text-white font-mono break-all">
+                            {record.transaction_id}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Settlement Information */}
+                      {record.status === 'settled' && record.repayment_transaction_id && (
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Settlement Transaction</div>
+                          <div className="text-xs text-gray-900 dark:text-white font-mono break-all">
+                            {record.repayment_transaction_id}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Total Returned */}
                       <div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Returned</div>
@@ -349,19 +423,42 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                         </div>
                       </div>
 
-                      {/* Return History */}
+                      {/* Return/Payment History */}
                       {recordReturns.length > 0 && (
                         <div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Return History</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                            {record.type === 'lend' ? 'Return History' : 'Payment History'}
+                          </div>
                           <div className="space-y-2">
                             {recordReturns.map((ret: any, index: number) => (
-                              <div key={index} className="flex items-center justify-between text-xs bg-gray-50 dark:bg-gray-800 rounded px-2 py-1">
+                              <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded px-2 py-2">
+                                <div className="flex items-center justify-between text-xs mb-1">
                                 <div className="text-gray-600 dark:text-gray-300">
                                   {formatDate(ret.return_date)}
                                 </div>
                                 <div className="font-medium text-gray-900 dark:text-white">
                                   {formatCurrency ? formatCurrency(ret.amount, record.currency) : defaultFormatCurrency(ret.amount, record.currency)}
                                 </div>
+                                </div>
+                                
+                                {/* Account Information for Payment */}
+                                {ret.account_id && (() => {
+                                  const accountInfo = getAccountInfo(ret.account_id);
+                                  return accountInfo ? (
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                      <span className="font-medium">Account:</span> 
+                                      <span className="break-words ml-1">{accountInfo.name}</span>
+                                    </div>
+                                  ) : null;
+                                })()}
+                                
+                                {/* Payment Notes */}
+                                {ret.notes && (
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    <span className="font-medium">Note:</span> 
+                                    <span className="break-words ml-1">{ret.notes}</span>
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -598,7 +695,7 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                     <div className="text-sm text-gray-900 dark:text-white">
                       {record.due_date ? formatDate(record.due_date) : '-'}
                     </div>
-                    {record.due_date && (
+                    {record.due_date && record.status !== 'settled' && (
                       <div className={`text-xs ${
                         isOverdue ? 'text-orange-600 dark:text-orange-400 font-medium' : 'text-gray-500 dark:text-gray-400'
                       }`}>
@@ -608,6 +705,24 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                   </td>
                   <td className="px-6 py-[0.7rem] text-center">
                     <div className="flex justify-center gap-2 items-center" onClick={(e) => e.stopPropagation()}>
+                      {record.status === 'settled' ? (
+                        <button
+                          onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
+                          className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          title="Settled record info"
+                        >
+                          <Info className="w-4 h-4" />
+                        </button>
+                      ) : record.account_id ? (
+                        <button
+                          onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
+                          className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          title="Account-linked record info"
+                        >
+                          <Info className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <>
                       <button
                         onClick={() => onEdit(record)}
                         className="text-gray-500 hover:text-blue-600"
@@ -615,32 +730,6 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      {record.status !== 'settled' ? (
-                        <>
-                          <button
-                            onClick={() => onPartialReturn(record)}
-                            className="text-gray-500 hover:text-blue-600"
-                            title="Partial Return"
-                          >
-                            <CornerDownLeft className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => onUpdateStatus(record.id, 'settled')}
-                            className="text-gray-500 hover:text-blue-600"
-                            title="Mark as Settled"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={() => onUpdateStatus(record.id, 'active')}
-                          className="text-gray-500 hover:text-blue-600"
-                          title="Mark as Active"
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                        </button>
-                      )}
                       <button
                         onClick={() => handleDeleteClick(record)}
                         className="text-gray-500 hover:text-red-600"
@@ -648,6 +737,21 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
+                        </>
+                      )}
+                      
+                      {/* Settlement button for active records (all records) */}
+                      {record.status === 'active' && (
+                        <button
+                          onClick={() => {
+                            setSettlementModal({ isOpen: true, record });
+                          }}
+                          className="text-gray-500 hover:text-green-600"
+                          title="Settle"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -656,13 +760,43 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                 {isRowExpanded(record.id) && (
                   <tr className="bg-gray-50 dark:bg-gray-800">
                     <td colSpan={6} className="px-6 py-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         {/* Record Details */}
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium text-gray-900 dark:text-white">Record Details</h4>
                           <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
                             <div><span className="font-medium">Created:</span> {formatDate(record.created_at)}</div>
                             <div><span className="font-medium">Updated:</span> {record.updated_at ? formatDate(record.updated_at) : 'Never'}</div>
+                            
+                            {/* Account Information */}
+                            {record.account_id && (() => {
+                              const accountInfo = getAccountInfo(record.account_id);
+                              return accountInfo ? (
+                                <div className="break-words">
+                                  <span className="font-medium">{t('lendBorrow.account')}:</span> 
+                                  <span className="break-words">{accountInfo.name}</span>
+                                  <span className="text-gray-500 dark:text-gray-400"> ({accountInfo.type})</span>
+                                </div>
+                              ) : (
+                                <div><span className="font-medium">{t('lendBorrow.account')}:</span> {t('lendBorrow.unknownAccount')}</div>
+                              );
+                            })()}
+                            
+                            {/* Transaction Information */}
+                            {record.transaction_id && (
+                              <div className="break-all">
+                                <span className="font-medium">{t('lendBorrow.transactionId')}:</span> 
+                                <span className="font-mono text-xs">{record.transaction_id}</span>
+                              </div>
+                            )}
+                            
+                            {/* Settlement Information */}
+                            {record.status === 'settled' && record.repayment_transaction_id && (
+                              <div className="break-all">
+                                <span className="font-medium">{t('lendBorrow.settlementTransaction')}:</span> 
+                                <span className="font-mono text-xs">{record.repayment_transaction_id}</span>
+                              </div>
+                            )}
 
                             {record.notes && (
                               <div><span className="font-medium">Notes:</span> {record.notes}</div>
@@ -675,15 +809,38 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                           </div>
                         </div>
 
-                        {/* Return History */}
+                        {/* Return/Payment History */}
                         {recordReturns.length > 0 && (
                           <div className="space-y-2">
-                            <h4 className="text-sm font-medium text-gray-900 dark:text-white">Return History</h4>
-                            <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1 max-h-32 overflow-y-auto">
+                            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                              {record.type === 'lend' ? t('lendBorrow.returnHistory') : t('lendBorrow.paymentHistory')}
+                            </h4>
+                            <div className="text-xs text-gray-600 dark:text-gray-300 space-y-2 max-h-32 overflow-y-auto">
                               {recordReturns.map((ret) => (
-                                <div key={ret.id} className="flex justify-between">
-                                  <span>{(formatCurrency || defaultFormatCurrency)(ret.amount, record.currency)}</span>
-                                  <span>{formatDate(ret.return_date)}</span>
+                                <div key={ret.id} className="border-b border-gray-200 dark:border-gray-700 pb-2 last:border-b-0">
+                                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
+                                    <span className="font-medium">{(formatCurrency || defaultFormatCurrency)(ret.amount, record.currency)}</span>
+                                    <span className="text-gray-500 dark:text-gray-400">{formatDate(ret.return_date)}</span>
+                                  </div>
+                                  
+                                  {/* Account Information for Payment */}
+                                  {ret.account_id && (() => {
+                                    const accountInfo = getAccountInfo(ret.account_id);
+                                    return accountInfo ? (
+                                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        <span className="font-medium">{t('lendBorrow.account')}:</span> 
+                                        <span className="break-words">{accountInfo.name}</span>
+                                      </div>
+                                    ) : null;
+                                  })()}
+                                  
+                                  {/* Payment Notes */}
+                                  {ret.notes && (
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                      <span className="font-medium">{t('lendBorrow.note')}:</span> 
+                                      <span className="break-words">{ret.notes}</span>
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -723,6 +880,32 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
       confirmLabel="Delete Record"
       cancelLabel="Cancel"
     />
+
+    {/* Settlement Modal */}
+    {settlementModal.isOpen && settlementModal.record && (
+      <SettlementModal
+        record={settlementModal.record}
+        onClose={() => {
+          setSettlementModal({ isOpen: false, record: null });
+        }}
+        onSettle={(accountId) => {
+          onSettle(settlementModal.record!, accountId);
+          setSettlementModal({ isOpen: false, record: null });
+        }}
+        onRecordUpdated={async () => {
+          // Refresh the lend/borrow records to show updated status
+          await fetchLendBorrowRecords();
+        }}
+      />
+    )}
+
+    {/* Settled Record Info Modal */}
+    <SettledRecordInfoModal
+      isOpen={settledRecordInfoModal.isOpen}
+      onClose={() => setSettledRecordInfoModal({ isOpen: false, record: null })}
+      record={settledRecordInfoModal.record}
+    />
+    
     </>
   );
 }; 

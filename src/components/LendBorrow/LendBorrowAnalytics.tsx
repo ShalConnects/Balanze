@@ -85,6 +85,10 @@ export const LendBorrowAnalytics: React.FC = () => {
     const now = new Date();
     const currencyRecords = lendBorrowRecords.filter(r => r.currency === selectedCurrency);
     
+    // Separate records that affect account balance from standalone records
+    const recordsAffectingBalance = currencyRecords.filter(r => r.affect_account_balance === true);
+    const standaloneRecords = currencyRecords.filter(r => r.affect_account_balance === false);
+    
     // Calculate loan aging data
     const agingData = [
       { age: '0-30d', count: 0, amount: 0, color: '#10B981' },
@@ -92,7 +96,8 @@ export const LendBorrowAnalytics: React.FC = () => {
       { age: '61+d', count: 0, amount: 0, color: '#EF4444' }
     ];
     
-    currencyRecords.forEach(record => {
+    // Only include records that affect account balance in aging analysis
+    recordsAffectingBalance.forEach(record => {
       if (record.due_date && record.due_date !== '') {
         const dueDate = new Date(record.due_date);
         const daysDiff = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -110,8 +115,8 @@ export const LendBorrowAnalytics: React.FC = () => {
       }
     });
     
-    // Generate upcoming due dates from real records
-    const upcomingDue = currencyRecords
+    // Generate upcoming due dates from real records (only those affecting balance)
+    const upcomingDue = recordsAffectingBalance
       .filter(record => record.due_date && record.due_date !== '' && record.status === 'active')
       .map(record => {
         const dueDate = new Date(record.due_date);
@@ -129,10 +134,10 @@ export const LendBorrowAnalytics: React.FC = () => {
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()) // Sort by due date
       .slice(0, 5); // Take top 5
     
-    // Calculate real milestones based on actual data
-    const totalRecords = currencyRecords.length;
-    const settledRecords = currencyRecords.filter(r => r.status === 'settled').length;
-    const totalLent = currencyRecords.filter(r => r.type === 'lend').reduce((sum, r) => sum + r.amount, 0);
+    // Calculate real milestones based on actual data (only records affecting balance)
+    const totalRecords = recordsAffectingBalance.length;
+    const settledRecords = recordsAffectingBalance.filter(r => r.status === 'settled').length;
+    const totalLent = recordsAffectingBalance.filter(r => r.type === 'lend').reduce((sum, r) => sum + r.amount, 0);
     const repaymentRate = totalRecords > 0 ? (settledRecords / totalRecords) * 100 : 0;
     
     const milestones = [
@@ -177,15 +182,23 @@ export const LendBorrowAnalytics: React.FC = () => {
     };
   }, [lendBorrowRecords, selectedCurrency]);
   
-  // Calculate KPIs from real data
+  // Calculate KPIs from real data (only records affecting account balance)
   const currencyRecords = lendBorrowRecords.filter(r => r.currency === selectedCurrency);
-  const totalLent = currencyRecords.filter(r => r.type === 'lend').reduce((sum, r) => sum + r.amount, 0);
-  const totalBorrowed = currencyRecords.filter(r => r.type === 'borrow').reduce((sum, r) => sum + r.amount, 0);
-  const outstandingLent = currencyRecords.filter(r => r.type === 'lend' && r.status === 'active').reduce((sum, r) => sum + r.amount, 0);
-  const outstandingBorrowed = currencyRecords.filter(r => r.type === 'borrow' && r.status === 'active').reduce((sum, r) => sum + r.amount, 0);
-  const overdueCount = currencyRecords.filter(r => r.status === 'overdue').length;
-  const activeLentCount = currencyRecords.filter(r => r.type === 'lend' && r.status === 'active').length;
-  const activeBorrowedCount = currencyRecords.filter(r => r.type === 'borrow' && r.status === 'active').length;
+  const recordsAffectingBalance = currencyRecords.filter(r => r.affect_account_balance === true);
+  const standaloneRecords = currencyRecords.filter(r => r.affect_account_balance === false);
+  
+  const totalLent = recordsAffectingBalance.filter(r => r.type === 'lend').reduce((sum, r) => sum + r.amount, 0);
+  const totalBorrowed = recordsAffectingBalance.filter(r => r.type === 'borrow').reduce((sum, r) => sum + r.amount, 0);
+  const outstandingLent = recordsAffectingBalance.filter(r => r.type === 'lend' && r.status === 'active').reduce((sum, r) => sum + r.amount, 0);
+  const outstandingBorrowed = recordsAffectingBalance.filter(r => r.type === 'borrow' && r.status === 'active').reduce((sum, r) => sum + r.amount, 0);
+  const overdueCount = recordsAffectingBalance.filter(r => r.status === 'overdue').length;
+  const activeLentCount = recordsAffectingBalance.filter(r => r.type === 'lend' && r.status === 'active').length;
+  const activeBorrowedCount = recordsAffectingBalance.filter(r => r.type === 'borrow' && r.status === 'active').length;
+  
+  // Standalone records stats
+  const standaloneLent = standaloneRecords.filter(r => r.type === 'lend').reduce((sum, r) => sum + r.amount, 0);
+  const standaloneBorrowed = standaloneRecords.filter(r => r.type === 'borrow').reduce((sum, r) => sum + r.amount, 0);
+  const standaloneCount = standaloneRecords.length;
   
   // Calculate net position and percentages
   const netPosition = totalLent - totalBorrowed;
@@ -502,6 +515,46 @@ export const LendBorrowAnalytics: React.FC = () => {
         {/* Comment: Temporal salience boosts action by making upcoming tasks visible */}
       </div>
 
+      {/* Standalone Records Section */}
+      {standaloneCount > 0 && (
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Standalone Records</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                  <Handshake className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                </div>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Standalone Lent</span>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrencyWithSymbol(standaloneLent)}</p>
+            </div>
+            
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                  <CreditCard className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                </div>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Standalone Borrowed</span>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrencyWithSymbol(standaloneBorrowed)}</p>
+            </div>
+            
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                  <Eye className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                </div>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Records</span>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{standaloneCount}</p>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
+            These records don't affect your account balance and are tracked separately for reference only.
+          </p>
+        </div>
+      )}
 
     </div>
   );

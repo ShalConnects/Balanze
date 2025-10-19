@@ -58,7 +58,7 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
 
   const validate = () => {
     if (amount <= 0) return 'Amount must be greater than 0';
-    if (amount > remainingAmount) return `Amount cannot exceed remaining amount (${remainingAmount.toFixed(2)} ${record.currency})`;
+    if (amount > remainingAmount) return `Amount cannot exceed remaining amount (${getCurrencySymbol(record.currency)}${remainingAmount.toFixed(2)})`;
     return '';
   };
 
@@ -119,7 +119,7 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
       if (updateError) {
 
       }
-      toast.success(`Partial return of ${amount.toFixed(2)} ${record.currency} recorded successfully!`);
+      toast.success(`Partial return of ${getCurrencySymbol(record.currency)}${amount.toFixed(2)} recorded successfully!`);
       const updatedRecord = {
         ...record,
         status: newStatus as 'settled' | 'active' | 'overdue',

@@ -2369,10 +2369,9 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   fetchLendBorrowRecords: async () => {
     try {
       set({ loading: true, error: null });
-      
+
       const { user } = useAuthStore.getState();
       if (!user) {
-        // No user found
         return set({ loading: false, error: 'Not authenticated' });
       }
       
@@ -2382,9 +2381,13 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Supabase fetch error:', error);
+        throw error;
+      }
       set({ lendBorrowRecords: data || [], loading: false });
     } catch (err: any) {
+      console.error('❌ fetchLendBorrowRecords error:', err);
       set({ error: err.message || 'Failed to fetch lend/borrow records', loading: false });
     }
   },
@@ -2396,22 +2399,39 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       const { user } = useAuthStore.getState();
       if (!user) throw new Error('Not authenticated');
 
+      // Validate required fields for account integration
+      if (record.affect_account_balance && !record.account_id) {
+        throw new Error('Account selection is required when affecting account balance');
+      }
+
       const cleanRecord = {
         ...record,
         due_date: record.due_date === "" ? null : record.due_date,
         partial_return_date: record.partial_return_date === "" ? null : record.partial_return_date,
+        account_id: record.account_id === "" ? null : record.account_id,
         user_id: user.id,
       };
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('lend_borrow')
-        .insert([cleanRecord]);
+        .insert([cleanRecord])
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Supabase insert error:', error);
+        throw error;
+      }
 
-      await get().fetchLendBorrowRecords();
+      // Refresh both lend/borrow records and accounts to get updated balances
+      await Promise.all([
+        get().fetchLendBorrowRecords(),
+        get().fetchAccounts(),
+        get().fetchTransactions()
+      ]);
+      
       set({ loading: false });
     } catch (err: any) {
+      console.error('❌ addLendBorrowRecord error:', err);
       set({ error: err.message || 'Failed to add lend/borrow record', loading: false });
     }
   },
@@ -2428,7 +2448,14 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         .eq('id', id);
 
       if (error) throw error;
-      await get().fetchLendBorrowRecords();
+      
+      // Refresh all related data when updating lend/borrow records
+      await Promise.all([
+        get().fetchLendBorrowRecords(),
+        get().fetchAccounts(),
+        get().fetchTransactions()
+      ]);
+      
       set({ loading: false });
     } catch (err: any) {
       set({ error: err.message || 'Failed to update lend/borrow record', loading: false });

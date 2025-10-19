@@ -24,7 +24,7 @@ interface AccountFormProps {
 }
 
 export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, account }) => {
-  const { addAccount, updateAccount, loading, error } = useFinanceStore();
+  const { addAccount, updateAccount, loading, error, getTransactionsByAccount } = useFinanceStore();
   const { profile } = useAuthStore();
   const { modalState, closeModal, handleDatabaseError } = useUpgradeModal();
   const { setLoading, setLoadingMessage } = useLoadingContext();
@@ -51,6 +51,9 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
   const [availableCurrencies, setAvailableCurrencies] = useState<Array<{label: string, value: string}>>(
     CURRENCY_OPTIONS.map(currency => ({ label: currency, value: currency }))
   );
+
+  // Check if account has existing transactions
+  const hasExistingTransactions = account ? getTransactionsByAccount(account.id).length > 0 : false;
 
   // Fetch user profile and set up available currencies
   useEffect(() => {
@@ -128,6 +131,11 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
   };
 
   const handleFieldChange = (field: string, value: string | boolean) => {
+    // Prevent changes to disabled fields
+    if (hasExistingTransactions && (field === 'balance' || field === 'currency')) {
+      return;
+    }
+    
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Clear error when user starts typing
@@ -440,7 +448,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
                 onBlur={() => handleBlur('balance')}
                 className={getInputClasses('balance')}
                 placeholder="0.00"
-                disabled={loading}
+                disabled={loading || hasExistingTransactions}
                 aria-describedby={errors.balance ? 'balance-error' : undefined}
                 aria-invalid={!!errors.balance}
               />
@@ -449,6 +457,12 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
               <p id="balance-error" className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
                 <AlertCircle className="w-4 h-4 mr-1" />
                 {errors.balance}
+              </p>
+            )}
+            {hasExistingTransactions && (
+              <p className="mt-1 text-sm text-amber-600 dark:text-amber-400 flex items-center">
+                <Info className="w-4 h-4 mr-1" />
+                Initial balance cannot be changed when account has existing transactions
               </p>
             )}
           </div>
@@ -463,8 +477,14 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
               value={formData.currency}
               onChange={(value) => handleFieldChange('currency', value)}
               placeholder="Select currency"
-              disabled={loading}
+              disabled={loading || hasExistingTransactions}
             />
+            {hasExistingTransactions && (
+              <p className="mt-1 text-sm text-amber-600 dark:text-amber-400 flex items-center">
+                <Info className="w-4 h-4 mr-1" />
+                Currency cannot be changed when account has existing transactions
+              </p>
+            )}
           </div>
 
           {/* Description */}

@@ -186,7 +186,14 @@
     "addFirstRecord": "Add your first lend/borrow record to get started.",
     "overdueWarning": "This record is overdue!",
     "dueSoonWarning": "Due soon",
-    "noDueDate": "No due date set"
+    "noDueDate": "No due date set",
+    "account": "Account",
+    "transactionId": "Transaction ID",
+    "settlementTransaction": "Settlement Transaction",
+    "unknownAccount": "Unknown Account",
+    "returnHistory": "Return History",
+    "paymentHistory": "Payment History",
+    "note": "Note"
   },
 
   "urgentNotifications": {

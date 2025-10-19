@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
-import { Edit2, Trash2, Copy, ArrowUpRight, ArrowDownRight, Calendar, Tag } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Edit2, Trash2, Copy, ArrowUpRight, ArrowDownRight, Calendar, Tag, Info } from 'lucide-react';
 import { Transaction, Account } from '../../types';
 import { formatCurrency } from '../../utils/accountUtils';
 import { format } from 'date-fns';
+import { LendBorrowInfoModal } from './LendBorrowInfoModal';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -16,6 +17,11 @@ interface TransactionTableProps {
   getAccountName: (accountId: string) => string;
 }
 
+// Helper function to check if a transaction is related to lend/borrow
+const isLendBorrowTransaction = (transaction: Transaction): boolean => {
+  return transaction.tags?.includes('lend_borrow') || false;
+};
+
 export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
   transactions,
   accounts,
@@ -27,6 +33,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
   formatCurrency,
   getAccountName
 }) => {
+  const [showLendBorrowInfo, setShowLendBorrowInfo] = useState(false);
   // Memoize expensive calculations
   const transactionData = useMemo(() => {
     return transactions.map(transaction => {
@@ -37,6 +44,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
         transaction,
         account,
         isTransfer,
+        isLendBorrow: isLendBorrowTransaction(transaction),
         formattedDate: format(new Date(transaction.date), 'MMM dd, yyyy'),
         formattedTime: format(new Date(transaction.date), 'HH:mm'),
         isExpanded: expandedRows.has(transaction.id)
@@ -176,20 +184,32 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
                       >
                         <Copy className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => onEditTransaction(transaction)}
-                        className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-                        title="Edit transaction"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => onDeleteTransaction(transaction.id)}
-                        className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                        title="Delete transaction"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                       {data.isLendBorrow ? (
+                         <button
+                           onClick={() => setShowLendBorrowInfo(true)}
+                           className="text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                           title="Lend & Borrow transaction info"
+                         >
+                           <Info className="w-4 h-4" />
+                         </button>
+                       ) : (
+                         <>
+                           <button
+                             onClick={() => onEditTransaction(transaction)}
+                             className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                             title="Edit transaction"
+                           >
+                             <Edit2 className="w-4 h-4" />
+                           </button>
+                           <button
+                             onClick={() => onDeleteTransaction(transaction.id)}
+                             className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                             title="Delete transaction"
+                           >
+                             <Trash2 className="w-4 h-4" />
+                           </button>
+                         </>
+                       )}
                     </div>
                   </td>
                 </tr>
@@ -258,11 +278,17 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
               </React.Fragment>
             );
           })}
-        </tbody>
-      </table>
-    </div>
-  );
-});
-
-TransactionTable.displayName = 'TransactionTable'; 
+         </tbody>
+       </table>
+       
+       {/* Lend & Borrow Info Modal */}
+       <LendBorrowInfoModal
+         isOpen={showLendBorrowInfo}
+         onClose={() => setShowLendBorrowInfo(false)}
+       />
+     </div>
+   );
+ });
+ 
+ TransactionTable.displayName = 'TransactionTable';
 
