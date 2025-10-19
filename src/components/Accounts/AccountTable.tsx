@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Edit2, Trash2, InfoIcon, PlusCircle, Wallet, GripVertical } from 'lucide-react';
+import { Edit2, Trash2, InfoIcon, PlusCircle, Wallet, ChevronUp, ChevronDown } from 'lucide-react';
 import { Account, Transaction } from '../../types';
 import { getAccountColor } from '../../utils/accountIcons';
 
@@ -13,7 +13,9 @@ interface AccountTableProps {
   onAddTransaction: (accountId: string) => void;
   onShowInfo: (account: Account) => void;
   onUpdateAccount: (accountId: string, updates: any) => Promise<void>;
-  onReorderAccounts: (draggedId: string, targetId: string) => Promise<void>;
+  onMoveAccountUp: (accountId: string) => Promise<void>;
+  onMoveAccountDown: (accountId: string) => Promise<void>;
+  isRearrangeMode: boolean;
   formatCurrency: (amount: number, currency: string) => string;
 }
 
@@ -27,34 +29,11 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
   onAddTransaction,
   onShowInfo,
   onUpdateAccount,
-  onReorderAccounts,
+  onMoveAccountUp,
+  onMoveAccountDown,
+  isRearrangeMode,
   formatCurrency
 }) => {
-  const [draggedId, setDraggedId] = useState<string | null>(null);
-
-  // Drag and drop handlers
-  const handleDragStart = (e: React.DragEvent, accountId: string) => {
-    setDraggedId(accountId);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', accountId);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDrop = async (e: React.DragEvent, targetAccountId: string) => {
-    e.preventDefault();
-    if (draggedId && draggedId !== targetAccountId) {
-      await onReorderAccounts(draggedId, targetAccountId);
-    }
-    setDraggedId(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedId(null);
-  };
 
   // Memoize expensive calculations
   const accountData = useMemo(() => {
@@ -155,24 +134,45 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
                   ${isEven ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}
                   hover:bg-blue-50 dark:hover:bg-blue-900/20 
                   hover:shadow-sm
-                  ${draggedId === account.id ? 'opacity-50' : ''}
                 `} 
-                draggable
-                onDragStart={(e) => handleDragStart(e, account.id)}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, account.id)}
-                onDragEnd={handleDragEnd}
                 onClick={() => onToggleRow(account.id)}
               >
                 <td className="px-6 py-[0.7rem]">
                   <div className="flex items-center">
-                    <div 
-                      className="mr-2 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <GripVertical className="w-4 h-4" />
-                    </div>
+                    {isRearrangeMode && (
+                      <div className="mr-2 flex flex-col space-y-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onMoveAccountUp(account.id);
+                          }}
+                          disabled={index === 0}
+                          className={`p-1 rounded transition-colors ${
+                            index === 0 
+                              ? 'text-gray-300 cursor-not-allowed' 
+                              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700'
+                          }`}
+                          title="Move up"
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onMoveAccountDown(account.id);
+                          }}
+                          disabled={index === accounts.length - 1}
+                          className={`p-1 rounded transition-colors ${
+                            index === accounts.length - 1 
+                              ? 'text-gray-300 cursor-not-allowed' 
+                              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700'
+                          }`}
+                          title="Move down"
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                     <div className="flex-1">
                       <div 
                         className="text-sm font-medium text-gray-900 dark:text-white relative group"

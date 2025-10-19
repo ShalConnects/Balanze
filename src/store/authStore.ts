@@ -442,12 +442,24 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
   signInWithProvider: async (provider: 'google' | 'apple') => {
     set({ isLoading: true, error: null, success: null });
     try {
+      const redirectUrl = `https://balanze.cash/auth/callback`;
+      console.log('🔍 OAuth Debug Info:');
+      console.log('- Provider:', provider);
+      console.log('- Redirect URL:', redirectUrl);
+      console.log('- Window origin:', window.location.origin);
+      console.log('- Current URL:', window.location.href);
+      
+      // Use Supabase OAuth for both Google and Apple
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: redirectUrl
         }
       });
+      
+      console.log('📤 Supabase OAuth Response:');
+      console.log('- Data:', data);
+      console.log('- Error:', error);
 
       if (error) {
         // Provide user-friendly error messages

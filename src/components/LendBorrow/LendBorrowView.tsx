@@ -633,7 +633,7 @@ export const LendBorrowView: React.FC = () => {
     return (
       <div className="space-y-6">
         {/* Smooth skeleton for lend & borrow page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700" style={{ paddingBottom: '13px' }}>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0">
           {/* Filters skeleton */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <LendBorrowFiltersSkeleton />
@@ -704,7 +704,7 @@ export const LendBorrowView: React.FC = () => {
           <div className="space-y-6">
 
         {/* Unified Filters and Table */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700" style={{ paddingBottom: '13px' }}>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0">
           {/* Filters Section */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-start" style={{ marginBottom: 0 }}>
@@ -1050,7 +1050,7 @@ export const LendBorrowView: React.FC = () => {
             </div>
           </div>
           {/* Table Section */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto lg:rounded-b-xl" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
             <div className="max-h-[500px] overflow-y-auto">
               <LendBorrowList
                 records={filteredRecords}

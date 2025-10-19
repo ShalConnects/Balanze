@@ -132,8 +132,10 @@ export const AccountsView: React.FC = () => {
       // When no sort is active, respect manual position order
       return [...data].sort((a, b) => {
         // First sort by position (lower numbers first)
-        if (a.position !== b.position) {
-          return (a.position || 0) - (b.position || 0);
+        const aPos = a.position ?? 0;
+        const bPos = b.position ?? 0;
+        if (aPos !== bPos) {
+          return aPos - bPos;
         }
         // If positions are equal, fall back to created_at (newest first)
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -521,19 +523,41 @@ export const AccountsView: React.FC = () => {
     setShowDpsDeleteModal(true);
   };
 
-  const handleReorderAccounts = async (draggedId: string, targetId: string) => {
+  const handleMoveAccountUp = async (accountId: string) => {
     try {
-      const draggedIndex = accounts.findIndex(acc => acc.id === draggedId);
-      const targetIndex = accounts.findIndex(acc => acc.id === targetId);
+      const currentIndex = filteredAccountsForTable.findIndex(acc => acc.id === accountId);
+      if (currentIndex <= 0) return; // Already at top
       
-      if (draggedIndex === -1 || targetIndex === -1) return;
+      const targetIndex = currentIndex - 1;
+      const targetAccount = filteredAccountsForTable[targetIndex];
       
-      // Calculate new position for the dragged account
-      const newPosition = targetIndex + 1; // Position after the target
-      
-      await updateAccountPosition(draggedId, newPosition);
+      // Update both positions simultaneously to avoid race conditions
+      await Promise.all([
+        updateAccountPosition(accountId, targetIndex),
+        updateAccountPosition(targetAccount.id, currentIndex)
+      ]);
     } catch (error) {
-      // Handle error silently
+      console.error('Failed to move account up:', error);
+      // Optionally show user feedback
+    }
+  };
+
+  const handleMoveAccountDown = async (accountId: string) => {
+    try {
+      const currentIndex = filteredAccountsForTable.findIndex(acc => acc.id === accountId);
+      if (currentIndex >= filteredAccountsForTable.length - 1) return; // Already at bottom
+      
+      const targetIndex = currentIndex + 1;
+      const targetAccount = filteredAccountsForTable[targetIndex];
+      
+      // Update both positions simultaneously to avoid race conditions
+      await Promise.all([
+        updateAccountPosition(accountId, targetIndex),
+        updateAccountPosition(targetAccount.id, currentIndex)
+      ]);
+    } catch (error) {
+      console.error('Failed to move account down:', error);
+      // Optionally show user feedback
     }
   };
 
@@ -709,7 +733,7 @@ export const AccountsView: React.FC = () => {
       <div className="space-y-6">
 
         {/* Unified Filters and Table */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0">
           {/* Filters Section */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1" style={{ marginBottom: 0 }}>
@@ -1007,7 +1031,7 @@ export const AccountsView: React.FC = () => {
                           })()}
                         </p>
                       </div>
-                      <svg className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                      <svg className="text-purple-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
                     </div>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
@@ -1028,7 +1052,7 @@ export const AccountsView: React.FC = () => {
                           })()}
                         </p>
                       </div>
-                      <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>#</span>
+                      <span className="text-purple-600" style={{ fontSize: '1.2rem' }}>#</span>
                     </div>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
@@ -1060,7 +1084,7 @@ export const AccountsView: React.FC = () => {
           </div>
 
                                         {/* Table Section */}
-          <div className="overflow-x-auto" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
+          <div className="overflow-x-auto lg:rounded-b-xl" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
             {/* Desktop Table View */}
             <div className="hidden lg:block max-h-[500px] overflow-y-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900 text-[14px]">
@@ -1179,35 +1203,42 @@ export const AccountsView: React.FC = () => {
                                 : 'ring-2 ring-blue-500 ring-opacity-50'
                               : ''
                           }`} 
-                          draggable={isRearrangeMode}
-                          onDragStart={isRearrangeMode ? (e) => {
-                            e.dataTransfer.effectAllowed = 'move';
-                            e.dataTransfer.setData('text/html', account.id);
-                          } : undefined}
-                          onDragOver={isRearrangeMode ? (e) => {
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = 'move';
-                          } : undefined}
-                          onDrop={isRearrangeMode ? async (e) => {
-                            e.preventDefault();
-                            const draggedId = e.dataTransfer.getData('text/html');
-                            if (draggedId && draggedId !== account.id) {
-                              await handleReorderAccounts(draggedId, account.id);
-                            }
-                          } : undefined}
                           onClick={() => toggleRowExpansion(account.id)}
                         >
                           <td className="px-6 py-[0.7rem]">
                             <div className="flex items-center">
                               {isRearrangeMode && (
-                                <div 
-                                  className="mr-2 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
-                                  onMouseDown={(e) => e.stopPropagation()}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
-                                  </svg>
+                                <div className="mr-2 flex flex-col space-y-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMoveAccountUp(account.id);
+                                    }}
+                                    disabled={filteredAccountsForTable.indexOf(account) === 0}
+                                    className={`p-1 rounded transition-colors ${
+                                      filteredAccountsForTable.indexOf(account) === 0 
+                                        ? 'text-gray-300 cursor-not-allowed' 
+                                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700'
+                                    }`}
+                                    title="Move up"
+                                  >
+                                    <ChevronUp className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMoveAccountDown(account.id);
+                                    }}
+                                    disabled={filteredAccountsForTable.indexOf(account) === filteredAccountsForTable.length - 1}
+                                    className={`p-1 rounded transition-colors ${
+                                      filteredAccountsForTable.indexOf(account) === filteredAccountsForTable.length - 1 
+                                        ? 'text-gray-300 cursor-not-allowed' 
+                                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700'
+                                    }`}
+                                    title="Move down"
+                                  >
+                                    <ChevronDown className="w-3 h-3" />
+                                  </button>
                                 </div>
                               )}
                               <div className="flex-1">

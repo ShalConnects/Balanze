@@ -562,7 +562,7 @@ const DonationsSavingsPage: React.FC = () => {
     return (
       <div className="space-y-6">
         {/* Smooth skeleton for donations page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0">
           {/* Filters skeleton */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <DonationFiltersSkeleton />
@@ -602,7 +602,7 @@ const DonationsSavingsPage: React.FC = () => {
       <div className="space-y-6">
 
         {/* Unified Filters and Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700" style={{ paddingBottom: '13px' }}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0">
           {/* Filters Section */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex flex-wrap md:flex-nowrap justify-between items-center w-full" style={{ marginBottom: 0 }}>
@@ -1113,7 +1113,7 @@ const DonationsSavingsPage: React.FC = () => {
           </div> */}
           
           {/* Desktop Table View */}
-          <div className="hidden xl:block overflow-x-auto">
+          <div className="hidden xl:block overflow-x-auto lg:rounded-b-xl" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
             <div className="max-h-[500px] overflow-y-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800 text-[14px]">
                 <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">

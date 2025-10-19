@@ -8,11 +8,107 @@ const AuthCallback: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const { setUserAndProfile } = useAuthStore();
 
+  const handleGoogleOAuthCallback = async (code: string) => {
+    try {
+      console.log('🔄 Processing Google OAuth callback...');
+      
+      // Exchange authorization code for access token
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET,
+          code: code,
+          grant_type: 'authorization_code',
+          redirect_uri: 'https://balanze.cash/auth/callback',
+        }),
+      });
+
+      const tokenData = await tokenResponse.json();
+      console.log('🔑 Token Response:', tokenData);
+
+      if (tokenData.error) {
+        throw new Error(tokenData.error_description || 'Failed to exchange code for token');
+      }
+
+      // Get user info from Google
+      const userResponse = await fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${tokenData.access_token}`);
+      const userData = await userResponse.json();
+      console.log('👤 Google User Data:', userData);
+
+      if (userData.error) {
+        throw new Error('Failed to get user information from Google');
+      }
+
+      // Create or sign in user with Supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: userData.email,
+        password: `google_${userData.id}_${Date.now()}`, // Temporary password for OAuth users
+      });
+
+      if (authError && authError.message.includes('Invalid login credentials')) {
+        // User doesn't exist, create account
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: userData.email,
+          password: `google_${userData.id}_${Date.now()}`,
+          options: {
+            data: {
+              full_name: userData.name,
+              avatar_url: userData.picture,
+              provider: 'google'
+            }
+          }
+        });
+
+        if (signUpError) {
+          throw new Error('Failed to create account');
+        }
+
+        // Set user and profile
+        await setUserAndProfile(signUpData.user!, null);
+      } else if (authError) {
+        throw new Error('Authentication failed');
+      } else {
+        // Set user and profile
+        await setUserAndProfile(authData.user!, null);
+      }
+
+      // Redirect to dashboard
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('❌ Google OAuth Error:', err);
+      setError('Authentication failed. Please try again.');
+      setTimeout(() => navigate('/auth'), 3000);
+    }
+  };
+
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        console.log('🔄 AuthCallback Debug Info:');
+        console.log('- Current URL:', window.location.href);
+        console.log('- URL Search Params:', window.location.search);
+        console.log('- URL Hash:', window.location.hash);
+        
+        // Check for OAuth errors in URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get('error');
+        
+        if (error) {
+          console.log('❌ OAuth Error:', error);
+          setError('Authentication failed. Please try again.');
+          setTimeout(() => navigate('/auth'), 3000);
+          return;
+        }
+        
         // Get the current session after OAuth redirect
-        const { data, error } = await supabase.auth.getSession();
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        
+        console.log('📥 Session Data:', data);
+        console.log('❌ Session Error:', error);
         
         if (error) {
 

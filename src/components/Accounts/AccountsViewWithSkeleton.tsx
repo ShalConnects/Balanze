@@ -130,18 +130,41 @@ export const AccountsViewWithSkeleton: React.FC = () => {
     setExpandedRows(newExpandedRows);
   };
 
-  const handleReorderAccounts = async (draggedId: string, targetId: string) => {
+  const handleMoveAccountUp = async (accountId: string) => {
     try {
-      const draggedIndex = sortedAccounts.findIndex(acc => acc.id === draggedId);
-      const targetIndex = sortedAccounts.findIndex(acc => acc.id === targetId);
+      const currentIndex = sortedAccounts.findIndex(acc => acc.id === accountId);
+      if (currentIndex <= 0) return; // Already at top
       
-      if (draggedIndex === -1 || targetIndex === -1) return;
+      const targetIndex = currentIndex - 1;
+      const targetAccount = sortedAccounts[targetIndex];
       
-      // Calculate new position for the dragged account
-      const newPosition = targetIndex + 1; // Position after the target
-      
-      await updateAccountPosition(draggedId, newPosition);
+      // Update both positions simultaneously to avoid race conditions
+      await Promise.all([
+        updateAccountPosition(accountId, targetIndex),
+        updateAccountPosition(targetAccount.id, currentIndex)
+      ]);
     } catch (error) {
+      console.error('Failed to move account up:', error);
+      // Optionally show user feedback
+    }
+  };
+
+  const handleMoveAccountDown = async (accountId: string) => {
+    try {
+      const currentIndex = sortedAccounts.findIndex(acc => acc.id === accountId);
+      if (currentIndex >= sortedAccounts.length - 1) return; // Already at bottom
+      
+      const targetIndex = currentIndex + 1;
+      const targetAccount = sortedAccounts[targetIndex];
+      
+      // Update both positions simultaneously to avoid race conditions
+      await Promise.all([
+        updateAccountPosition(accountId, targetIndex),
+        updateAccountPosition(targetAccount.id, currentIndex)
+      ]);
+    } catch (error) {
+      console.error('Failed to move account down:', error);
+      // Optionally show user feedback
     }
   };
 
@@ -318,7 +341,9 @@ export const AccountsViewWithSkeleton: React.FC = () => {
               onUpdateAccount={async (accountId, updates) => {
                 
               }}
-              onReorderAccounts={handleReorderAccounts}
+              onMoveAccountUp={handleMoveAccountUp}
+              onMoveAccountDown={handleMoveAccountDown}
+              isRearrangeMode={false}
               formatCurrency={(amount, currency) => {
                 if (currency === 'BDT') {
                   return `৳${amount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

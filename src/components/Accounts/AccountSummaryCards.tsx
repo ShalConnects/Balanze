@@ -83,7 +83,7 @@ export const AccountSummaryCards: React.FC<AccountSummaryCardsProps> = ({
         title="Active Accounts"
         value={activeAccounts.length.toString()}
         icon={<Wallet className="w-5 h-5" />}
-        color="green"
+        color="purple"
         insight={accountTypeInsight || 'No active accounts'}
       />
       
@@ -91,7 +91,7 @@ export const AccountSummaryCards: React.FC<AccountSummaryCardsProps> = ({
         title="Total Transactions"
         value={filteredTransactions.length.toString()}
         icon={<TrendingUp className="w-5 h-5" />}
-        color="blue"
+        color="purple"
         insight={transactionInsight || 'No transactions'}
       />
       
