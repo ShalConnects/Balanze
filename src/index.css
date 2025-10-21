@@ -1022,6 +1022,15 @@ main {
     max-height: calc(100dvh - 4rem);
   }
   
+  /* Capacitor Android specific modal fixes */
+  .capacitor-android .account-modal-mobile {
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  }
+  
+  .capacitor-android .account-modal-content {
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 4rem) !important;
+  }
+  
   /* Ensure modal content is scrollable on mobile */
   .modal-scrollable {
     -webkit-overflow-scrolling: touch !important;

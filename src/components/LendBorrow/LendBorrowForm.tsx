@@ -304,10 +304,10 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
                 <div className="grid grid-cols-2 gap-3">
                   <div 
-                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-300 shadow-sm ${
                       form.affect_account_balance 
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
-                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                        ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 shadow-md' 
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-md'
                     }`}
                     onClick={() => {
                       setForm(prev => ({ ...prev, affect_account_balance: true }));
@@ -329,10 +329,10 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                   </div>
                   
                   <div 
-                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-300 shadow-sm ${
                       !form.affect_account_balance 
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
-                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                        ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 shadow-md' 
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-md'
                     }`}
                     onClick={() => {
                       setForm(prev => ({ ...prev, affect_account_balance: false, account_id: '' }));

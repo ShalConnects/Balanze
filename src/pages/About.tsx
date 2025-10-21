@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import InteractiveBackground from '../components/InteractiveBackground';
 import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
+import { Footer } from '../components/Layout/Footer';
 
 const About: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -138,76 +139,21 @@ const About: React.FC = () => {
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg">
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Our Team & Vision</h2>
-              <p className="text-lg text-gray-700 dark:text-gray-300 mb-2">
-                Balanze was created by a passionate team of developers, designers, and finance enthusiasts. Our vision is to make financial wellness accessible to everyone, everywhere.
+              <p className="text-lg text-gray-700 dark:text-gray-300 mb-4">
+                Balanze was created by a passionate team of developers, designers, and finance enthusiasts at <a href="https://shalconnects.com/" target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline transition-colors">ShalConnects</a>, a technology company dedicated to building innovative solutions that connect people with the tools they need to succeed.
+              </p>
+              <p className="text-lg text-gray-700 dark:text-gray-300 mb-4">
+                Our vision is to make financial wellness accessible to everyone, everywhere. We believe that financial literacy and management tools should not be a luxury, but a fundamental right for all individuals and families.
               </p>
               <p className="text-lg text-gray-700 dark:text-gray-300">
-                We're committed to continuous improvement, listening to our users, and building features that truly make a difference in your financial life.
+                We're committed to continuous improvement, listening to our users, and building features that truly make a difference in your financial life. At ShalConnects, we combine technical expertise with deep understanding of real-world financial challenges to create solutions that work.
               </p>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <footer className="bg-gray-900 text-white py-16">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="md:col-span-2">
-                <div className="flex items-center space-x-2 mb-4">
-                  <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">B</span>
-                  </div>
-                  <h3 className="text-2xl font-bold">Balanze</h3>
-                </div>
-                <p className="text-gray-400 mb-6 max-w-md">
-                  Take control of your financial future with our comprehensive personal finance platform.
-                </p>
-                <div className="flex space-x-4">
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                    <Facebook className="w-5 h-5" />
-                  </a>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                    <Twitter className="w-5 h-5" />
-                  </a>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                    <Instagram className="w-5 h-5" />
-                  </a>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                    <Linkedin className="w-5 h-5" />
-                  </a>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                    <Github className="w-5 h-5" />
-                  </a>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-lg font-semibold mb-4">Company</h4>
-                <ul className="space-y-2">
-                  <li><a href="/about" className="text-gray-400 hover:text-white transition-colors">About</a></li>
-                  <li><a href="/blog" className="text-gray-400 hover:text-white transition-colors">Blog</a></li>
-                  <li><a href="/privacypolicy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a></li>
-                  <li><a href="/refundpolicy" className="text-gray-400 hover:text-white transition-colors">Refund Policy</a></li>
-                  <li><a href="/termsofservice" className="text-gray-400 hover:text-white transition-colors">Terms of Service</a></li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="border-t border-gray-800 mt-12 pt-8">
-              <div className="flex flex-col md:flex-row justify-between items-center">
-                <p className="text-gray-400 text-sm">
-                  © 2025 Balanze. All rights reserved.
-                </p>
-                <div className="flex items-center space-x-4 mt-4 md:mt-0">
-                                  <a href="mailto:shalconnect00@gmail.com" className="text-gray-400 hover:text-white transition-colors text-sm">
-                  <Mail className="w-4 h-4 inline mr-2" />
-                  shalconnect00@gmail.com
-                </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </footer>
+        <Footer />
 
         {/* Dark Mode Toggle Button - Always Visible */}
         <button

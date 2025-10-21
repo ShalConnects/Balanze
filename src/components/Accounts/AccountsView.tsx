@@ -1927,9 +1927,9 @@ export const AccountsView: React.FC = () => {
       {modalOpen && selectedAccount && (
         <>
           {/* Mobile Full Screen Modal */}
-          <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="fixed inset-0 z-50 lg:hidden account-modal-mobile">
           <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setModalOpen(false)} />
-            <div className="relative bg-white w-full h-full flex flex-col overflow-hidden">
+            <div className="relative bg-white w-full h-full flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
               {/* Mobile Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
                 <h2 className="text-lg font-semibold text-gray-900">Account Details</h2>
@@ -1942,7 +1942,7 @@ export const AccountsView: React.FC = () => {
               </div>
               
               {/* Mobile Scrollable Content */}
-              <div className="flex-1 overflow-y-auto overscroll-contain -webkit-overflow-scrolling-touch" style={{ height: 'calc(100vh - 60px)' }}>
+              <div className="flex-1 overflow-y-auto overscroll-contain -webkit-overflow-scrolling-touch account-modal-content" style={{ height: 'calc(100dvh - 60px - env(safe-area-inset-top, 0px))' }}>
                 <div className="p-4 space-y-4">
                   {/* Mobile Transactions Section */}
                   <div>

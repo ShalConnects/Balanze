@@ -9,105 +9,110 @@ import { KBArticle, TableOfContentsItem } from '../data/articles';
 const MOCK_ARTICLES: Record<string, KBArticle> = {
   'getting-started-guide': {
     slug: 'getting-started-guide',
-    title: 'Getting Started with Balanze',
-    description: 'Complete guide to setting up your account and adding your first transactions',
+    title: 'Getting Started with Balanze: Complete Beginner\'s Guide',
+    description: 'Learn how to get started with Balanze personal finance management. Complete step-by-step guide for beginners including account setup, transaction tracking, and financial analytics.',
     category: 'Getting Started',
-    tags: ['setup', 'beginner', 'accounts', 'transactions'],
+    tags: ['getting started', 'beginner guide', 'personal finance', 'budgeting', 'account setup', 'transaction tracking', 'financial management', 'Balanze tutorial'],
     difficulty: 'beginner',
     lastUpdated: '2024-01-15',
-    readTime: '5 min read',
+    readTime: '8 min read',
     author: 'Balanze Team',
     tableOfContents: [
       {
         id: 'what-is-balanze',
-        title: 'What is Balanze?',
+        title: 'Getting Started with Balanze: Complete Beginner\'s Guide',
         level: 1
       },
       {
         id: 'quick-start',
-        title: 'Plans & Pricing',
+        title: 'How to Get Started with Balanze: 3 Simple Steps',
         level: 1,
         children: [
           {
             id: 'create-first-account',
-            title: '- Create Your First Account',
+            title: 'How to Create Your First Balanze Account',
             level: 2,
             children: [
               {
                 id: 'account-types',
-                title: '- - Account Types',
+                title: 'Account Types',
                 level: 3
               }
             ]
           },
           {
             id: 'add-first-transaction',
-            title: 'Add Your First Transaction',
+            title: 'How to Add Your First Transaction in Balanze',
             level: 2
           },
           {
             id: 'explore-dashboard',
-            title: 'Explore Your Dashboard',
+            title: 'Explore Your Balanze Dashboard and Analytics',
             level: 2
           }
         ]
       },
       {
         id: 'pro-tips',
-        title: 'Pro Tips',
+        title: 'Balanze Pro Tips for Better Financial Management',
+        level: 1
+      },
+      {
+        id: 'faq-section',
+        title: 'Frequently Asked Questions About Getting Started with Balanze',
         level: 1
       },
       {
         id: 'need-help',
-        title: 'Need Help?',
+        title: 'Need Additional Help?',
         level: 1
       },
       {
         id: 'whats-next',
-        title: "What's Next?",
+        title: "What's Next After Getting Started with Balanze?",
         level: 1
       }
     ],
     content: `
 <div id="what-is-balanze" class="mb-12">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">What is Balanze?</h2>
+  <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-6">Getting Started with Balanze: Complete Beginner's Guide</h1>
   
   <div class="mb-8">
     <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-      Congratulations on taking the first step towards better financial management. This guide will walk you through everything you need to know to get started with Balanze.
+      Welcome to your comprehensive <strong>Balanze getting started guide</strong>! This complete beginner's tutorial will walk you through everything you need to know to set up your personal finance management system and start tracking your money effectively.
     </p>
     
     <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-      Balanze is a comprehensive personal finance management platform that helps you:
+      <strong>Balanze</strong> is a powerful, user-friendly personal finance management platform designed to help you take control of your financial life. Whether you're new to budgeting or looking for a better way to track your finances, this guide will show you how to:
     </p>
     
     <ul class="space-y-3 text-gray-700 dark:text-gray-300">
       <li class="flex items-start">
         <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-        <span>Track income and expenses</span>
+        <span><strong>Track income and expenses</strong> with detailed categorization and automatic categorization</span>
       </li>
       <li class="flex items-start">
         <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-        <span>Manage multiple accounts and currencies</span>
+        <span><strong>Manage multiple accounts and currencies</strong> including bank accounts, credit cards, and investment accounts</span>
       </li>
       <li class="flex items-start">
         <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-        <span>Analyze spending patterns</span>
+        <span><strong>Analyze spending patterns</strong> with comprehensive financial analytics and insights</span>
       </li>
       <li class="flex items-start">
         <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-        <span>Set and track financial goals</span>
+        <span><strong>Set and track financial goals</strong> with budget planning and goal tracking features</span>
       </li>
       <li class="flex items-start">
         <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-        <span>Export data for tax preparation</span>
+        <span><strong>Export data for tax preparation</strong> with comprehensive reporting and data export capabilities</span>
       </li>
     </ul>
   </div>
 
   <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-6 my-8 rounded-r-lg">
     <p class="text-gray-700 dark:text-gray-300 font-medium text-lg leading-relaxed">
-      <strong class="text-blue-600 dark:text-blue-400">Balanze is completely FREE to use!</strong> Start tracking your finances immediately with our full-featured free plan. 
+      <strong class="text-blue-600 dark:text-blue-400">Balanze is completely FREE to use!</strong> Start your <strong>personal finance journey</strong> immediately with our full-featured free plan. 
       Want even more advanced features? Try our premium features with a <span class="text-blue-600 dark:text-blue-400 font-bold">14-day free trial</span> - no credit card required!
     </p>
   </div>
@@ -118,11 +123,11 @@ const MOCK_ARTICLES: Record<string, KBArticle> = {
 </div>
 
 <div id="quick-start" class="mb-12">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Quick Start (3 Steps)</h2>
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">How to Get Started with Balanze: 3 Simple Steps</h2>
   
   <div class="space-y-12">
     <div id="create-first-account" class="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-xl">
-      <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Step 1: Create Your First Account</h3>
+      <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Step 1: How to Create Your First Balanze Account</h3>
       
       <div class="space-y-4 text-gray-700 dark:text-gray-300">
         <div class="flex items-start">
@@ -176,7 +181,7 @@ const MOCK_ARTICLES: Record<string, KBArticle> = {
     </div>
 
     <div id="add-first-transaction" class="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-xl">
-      <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Step 2: Add Your First Transaction</h3>
+      <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Step 2: How to Add Your First Transaction in Balanze</h3>
       
       <div class="space-y-4 text-gray-700 dark:text-gray-300">
         <div class="flex items-start">
@@ -223,7 +228,7 @@ const MOCK_ARTICLES: Record<string, KBArticle> = {
     </div>
 
     <div id="explore-dashboard" class="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-xl">
-      <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Step 3: Explore Your Dashboard</h3>
+      <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Step 3: Explore Your Balanze Dashboard and Analytics</h3>
       
       <p class="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
         Return to the dashboard to see:
@@ -252,30 +257,56 @@ const MOCK_ARTICLES: Record<string, KBArticle> = {
 </div>
 
 <div id="pro-tips" class="mb-12">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Pro Tips</h2>
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Balanze Pro Tips for Better Financial Management</h2>
   
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl">
-      <h4 class="font-semibold text-blue-900 dark:text-blue-300 mb-3">Use Categories</h4>
-      <p class="text-gray-700 dark:text-gray-300">Categorizing transactions helps you understand spending patterns</p>
+      <h4 class="font-semibold text-blue-900 dark:text-blue-300 mb-3">Use Transaction Categories Effectively</h4>
+      <p class="text-gray-700 dark:text-gray-300">Properly categorizing your transactions in Balanze helps you understand spending patterns and create better budgets</p>
     </div>
     <div class="bg-green-50 dark:bg-green-900/20 p-6 rounded-xl">
-      <h4 class="font-semibold text-green-900 dark:text-green-300 mb-3">Regular Updates</h4>
-      <p class="text-gray-700 dark:text-gray-300">Add transactions regularly for accurate insights</p>
+      <h4 class="font-semibold text-green-900 dark:text-green-300 mb-3">Regular Transaction Updates</h4>
+      <p class="text-gray-700 dark:text-gray-300">Add transactions regularly in Balanze for accurate financial insights and better analytics</p>
     </div>
     <div class="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-xl">
-      <h4 class="font-semibold text-purple-900 dark:text-purple-300 mb-3">Multiple Currencies</h4>
-      <p class="text-gray-700 dark:text-gray-300">Balanze supports multiple currencies with automatic conversion</p>
+      <h4 class="font-semibold text-purple-900 dark:text-purple-300 mb-3">Multi-Currency Support</h4>
+      <p class="text-gray-700 dark:text-gray-300">Balanze supports multiple currencies with automatic conversion for international users</p>
     </div>
     <div class="bg-orange-50 dark:bg-orange-900/20 p-6 rounded-xl">
-      <h4 class="font-semibold text-orange-900 dark:text-orange-300 mb-3">Mobile Friendly</h4>
-      <p class="text-gray-700 dark:text-gray-300">Access Balanze from any device with our responsive design</p>
+      <h4 class="font-semibold text-orange-900 dark:text-orange-300 mb-3">Mobile-Friendly Design</h4>
+      <p class="text-gray-700 dark:text-gray-300">Access Balanze from any device with our responsive design for on-the-go financial management</p>
+    </div>
+  </div>
+</div>
+
+<div id="faq-section" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Frequently Asked Questions About Getting Started with Balanze</h2>
+  
+  <div class="space-y-6">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">How do I get started with Balanze?</h3>
+      <p class="text-gray-700 dark:text-gray-300">Getting started with Balanze is simple: create your first account, add your initial transaction, and explore the dashboard. Our step-by-step guide above walks you through each process.</p>
+    </div>
+    
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Is Balanze free to use?</h3>
+      <p class="text-gray-700 dark:text-gray-300">Yes, Balanze offers a completely free plan with full features. You can also try premium features with a 14-day free trial, no credit card required.</p>
+    </div>
+    
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">What types of accounts can I add to Balanze?</h3>
+      <p class="text-gray-700 dark:text-gray-300">Balanze supports bank accounts, credit cards, cash wallets, investment accounts, and more. You can manage multiple accounts and currencies in one place.</p>
+    </div>
+    
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">How do I track my spending with Balanze?</h3>
+      <p class="text-gray-700 dark:text-gray-300">Add transactions regularly, categorize them properly, and use the analytics dashboard to understand your spending patterns and financial trends.</p>
     </div>
   </div>
 </div>
 
 <div id="need-help" class="mb-12">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Need Help?</h2>
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Need Additional Help?</h2>
   
   <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-6 rounded-r-lg">
     <p class="text-gray-700 dark:text-gray-300 mb-4 font-medium">If you get stuck:</p>
@@ -297,7 +328,7 @@ const MOCK_ARTICLES: Record<string, KBArticle> = {
 </div>
 
 <div id="whats-next" class="mb-12">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">What's Next?</h2>
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">What's Next After Getting Started with Balanze?</h2>
   
   <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-8 rounded-xl">
     <p class="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">

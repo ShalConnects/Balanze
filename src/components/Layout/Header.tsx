@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, ReactNode } from 'react';
-import { Menu, Bell, Search, Sun, Moon, User, Settings, LogOut, ArrowLeftRight, LifeBuoy, Globe, Heart, Quote, X, BookOpen, Sparkles, RefreshCw } from 'lucide-react';
+import { Menu, Bell, Search, Sun, Moon, User, Settings, LogOut, ArrowLeftRight, LifeBuoy, Globe, Heart, Quote, X, BookOpen, Sparkles, RefreshCw, Trophy } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useThemeStore } from '../../store/themeStore';
 import { useAuthStore } from '../../store/authStore';
@@ -13,6 +13,10 @@ import { useTranslation } from 'react-i18next';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { triggerHapticFeedback } from '../../utils/hapticFeedback';
 import { toast } from 'sonner';
+import { RetryMechanism } from '../../utils/retryMechanism';
+import { useGranularLoading } from '../../utils/loadingStates';
+import { useSmartRefresh } from '../../utils/smartRefresh';
+import { useAccessibility } from '../../utils/accessibilityEnhancements';
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -51,35 +55,119 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
   const userMenuRef = useRef<HTMLDivElement>(null);
   const languageBtnRef = useRef<HTMLButtonElement>(null);
   const languageMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Atomic refresh lock to prevent race conditions
+  const refreshLock = useRef(false);
+  
+  // Granular loading state management
+  const { loadingState, initialize, startStep, completeStep, failStep, complete } = useGranularLoading();
+  
+  // Smart refresh with data staleness detection
+  const { 
+    analytics, 
+    recommendations, 
+    recordRefreshAttempt, 
+    recordRefreshSuccess, 
+    recordRefreshError,
+    isDataStale,
+    getFormattedTimeSinceLastRefresh 
+  } = useSmartRefresh();
+  
+  // Accessibility enhancements
+  const { 
+    announceRefresh, 
+    getRefreshButtonProps, 
+    getProgressDescription,
+    getHighContrastStyles,
+    getFocusStyles 
+  } = useAccessibility();
 
-  // Refresh handler
+  // Enhanced refresh handler with granular loading and retry mechanism
   const handleRefresh = async () => {
-    if (isRefreshing) return;
+    // Atomic check and set to prevent race conditions
+    if (refreshLock.current || isRefreshing) return;
     
+    refreshLock.current = true;
     setIsRefreshing(true);
     triggerHapticFeedback('medium');
     
+    // Record refresh attempt and announce to screen readers
+    recordRefreshAttempt();
+    announceRefresh('Refresh started', 'assertive');
+    
+    // Initialize granular loading with refresh steps
+    initialize([
+      { id: 'transactions', name: 'Fetching transactions' },
+      { id: 'accounts', name: 'Fetching accounts' },
+      { id: 'categories', name: 'Fetching categories' },
+      { id: 'purchase-categories', name: 'Fetching purchase categories' },
+      { id: 'donation-saving', name: 'Fetching donation & saving records' },
+      { id: 'purchases', name: 'Fetching purchases' }
+    ]);
+    
     try {
-      await Promise.all([
-        fetchTransactions(),
-        fetchAccounts(),
-        fetchCategories(),
-        fetchPurchaseCategories(),
-        fetchDonationSavingRecords(),
-        fetchPurchases()
-      ]);
+      // Execute refresh functions with retry mechanism and staggered execution
+      const refreshFunctions = [
+        () => fetchTransactions(),
+        () => fetchAccounts(),
+        () => fetchCategories(),
+        () => fetchPurchaseCategories(),
+        () => fetchDonationSavingRecords(),
+        () => fetchPurchases()
+      ];
+      
+      const stepIds = ['transactions', 'accounts', 'categories', 'purchase-categories', 'donation-saving', 'purchases'];
+      
+      // Execute functions with retry and granular progress tracking
+      for (let i = 0; i < refreshFunctions.length; i++) {
+        const stepId = stepIds[i];
+        startStep(stepId);
+        
+        const result = await RetryMechanism.execute(refreshFunctions[i], {
+          maxRetries: 2,
+          baseDelay: 1000,
+          retryCondition: (error) => {
+            // Retry on network errors and 5xx server errors
+            return !error.response || error.response.status >= 500;
+          }
+        });
+        
+        if (result.success) {
+          completeStep(stepId);
+          // Announce progress to screen readers
+          announceRefresh(`Completed: ${stepId}`, 'polite');
+        } else {
+          failStep(stepId, result.error?.message || 'Unknown error');
+          // Announce error to screen readers
+          announceRefresh(`Failed: ${stepId} - ${result.error?.message || 'Unknown error'}`, 'assertive');
+        }
+      }
       
       // Dispatch custom event to notify components that need to refresh
       window.dispatchEvent(new CustomEvent('dataRefreshed'));
       
+      // Complete the loading process
+      complete();
+      
+      // Record successful refresh and announce completion
+      const duration = Date.now() - (loadingState.startTime || 0);
+      recordRefreshSuccess(duration);
+      announceRefresh('Data refreshed successfully', 'assertive');
+      
       toast.success('Data refreshed successfully');
       triggerHapticFeedback('success');
     } catch (error) {
-
+      complete(); // Complete loading even on error
+      
+      // Record failed refresh and announce error
+      recordRefreshError(error instanceof Error ? error.message : 'Unknown error');
+      announceRefresh('Failed to refresh data', 'assertive');
+      
       toast.error('Failed to refresh data');
       triggerHapticFeedback('error');
     } finally {
       setIsRefreshing(false);
+      refreshLock.current = false; // Release the atomic lock
     }
   };
 
@@ -313,15 +401,50 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
             
             {/* Theme Toggle & Notifications */}
             <div className="flex items-center gap-1 sm:gap-2">
-              {/* Refresh Button - Option 1 */}
-              <button
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all flex items-center justify-center ${isRefreshing ? 'cursor-not-allowed opacity-50' : ''}`}
-                title="Refresh data"
-              >
-                <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-gray-300 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </button>
+              {/* Enhanced Refresh Button with Progress and Accessibility */}
+              <div className="relative">
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all flex items-center justify-center ${isRefreshing ? 'cursor-not-allowed opacity-50' : ''} focus:outline-none`}
+                  title={
+                    loadingState.isActive 
+                      ? `Refreshing... ${loadingState.overallProgress}%` 
+                      : isDataStale() 
+                        ? `Refresh data (Last updated: ${getFormattedTimeSinceLastRefresh()})`
+                        : "Refresh data"
+                  }
+                  {...getRefreshButtonProps(isRefreshing, loadingState.overallProgress)}
+                  style={{
+                    ...getHighContrastStyles()
+                  }}
+                >
+                  <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-gray-300 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </button>
+                
+                {/* Progress indicator */}
+                {loadingState.isActive && (
+                  <div className="absolute -bottom-1 left-0 right-0 h-1 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                      style={{ width: `${loadingState.overallProgress}%` }}
+                      role="progressbar"
+                      aria-valuenow={loadingState.overallProgress}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={getProgressDescription(loadingState.overallProgress, loadingState.currentStep)}
+                    />
+                  </div>
+                )}
+                
+                
+                {/* Progress description for screen readers */}
+                {loadingState.isActive && (
+                  <div id="refresh-progress-description" className="sr-only">
+                    {getProgressDescription(loadingState.overallProgress, loadingState.currentStep)}
+                  </div>
+                )}
+              </div>
 
               <button
                 onClick={toggleTheme}
@@ -394,6 +517,17 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
                   >
                     <User className="w-4 h-4 mr-2 flex-shrink-0" />
                     <span className="truncate">{t('editProfile')}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      navigate('/achievements');
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full px-3 sm:px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                  >
+                    <Trophy className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="truncate">Achievements</span>
                   </button>
 
                   <button

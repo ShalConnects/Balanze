@@ -106,36 +106,6 @@ const MOCK_ARTICLES: KBArticle[] = [
     readTime: '5 min read'
   },
   {
-    slug: 'transaction-management',
-    title: 'Managing Income and Expenses',
-    description: 'Learn how to add, categorize, and organize your financial transactions',
-    category: 'Transactions',
-    tags: ['transactions', 'income', 'expenses', 'categories'],
-    difficulty: 'beginner',
-    lastUpdated: '2024-01-12',
-    readTime: '7 min read'
-  },
-  {
-    slug: 'multi-currency-setup',
-    title: 'Working with Multiple Currencies',
-    description: 'Set up and manage accounts in different currencies with automatic conversion',
-    category: 'Advanced',
-    tags: ['currency', 'international', 'conversion'],
-    difficulty: 'intermediate',
-    lastUpdated: '2024-01-08',
-    readTime: '6 min read'
-  },
-  {
-    slug: 'data-export-import',
-    title: 'Exporting and Importing Financial Data',
-    description: 'Export your data for tax preparation or import from other financial apps',
-    category: 'Advanced',
-    tags: ['export', 'import', 'data', 'csv', 'backup'],
-    difficulty: 'advanced',
-    lastUpdated: '2024-01-09',
-    readTime: '10 min read'
-  },
-  {
     slug: 'quote-feature-comprehensive-guide',
     title: 'Complete Guide to the Quote Feature',
     description: 'Comprehensive guide to understanding and using the motivational quote feature in Balanze, including favorites, categories, and customization options',
@@ -863,6 +833,29 @@ export default function KBSearch({ className }: KBSearchProps) {
                   </Link>
                 ))}
               </div>
+              
+              {/* Related Content Suggestions */}
+              {query && filteredArticles.length > 0 && (
+                <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-3">
+                    Related Topics
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {['Getting Started', 'Account Management', 'Transactions', 'Analytics', 'Premium Features'].map((topic) => (
+                      <button
+                        key={topic}
+                        onClick={() => {
+                          setQuery(topic.toLowerCase());
+                          setSelectedCategory('All');
+                        }}
+                        className="px-3 py-1 text-xs bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300 rounded-full hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors"
+                      >
+                        {topic}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import ProductTour from '../components/ProductTour';
 import KBSearch from '../components/KBSearch';
+import ArticleTourManager from '../components/ArticleTourManager';
+import TourSuggestionEngine from '../components/TourSuggestionEngine';
 import { useAuthStore } from '../store/authStore';
 import { useFinanceStore } from '../store/useFinanceStore';
 
@@ -182,7 +184,7 @@ const HelpAndSupport: React.FC = () => {
                 <p className="text-blue-100 dark:text-blue-200">
                   Discover guides, tutorials, and tips to master Balanze. Can't find what you're looking for? 
                   <button 
-                    onClick={() => window.open('mailto:shalconnect00@gmail.com', '_blank')}
+                    onClick={() => window.open('mailto:shalconnects007@gmail.com', '_blank')}
                     className="underline hover:text-white dark:hover:text-blue-100 ml-1"
                   >
                     Contact our support team
@@ -210,6 +212,16 @@ const HelpAndSupport: React.FC = () => {
             </a>
           </div>
         )}
+
+        {/* Article-Based Tour Manager - Hidden for now */}
+        {/* <div className="mb-8">
+          <ArticleTourManager />
+        </div> */}
+
+        {/* Tour Suggestion Engine - Hidden for now */}
+        {/* <div className="mb-8">
+          <TourSuggestionEngine maxSuggestions={3} />
+        </div> */}
 
         {/* Product Tour Component */}
         {showTour && (

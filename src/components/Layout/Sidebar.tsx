@@ -11,7 +11,9 @@ import {
   BarChart3,
   Handshake,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Wallet,
+  Trophy
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
@@ -33,6 +35,8 @@ const navigation = [
   { name: 'navigation.transactions', id: 'transactions', icon: TrendingUp },
   { name: 'navigation.purchases', id: 'purchases', icon: ShoppingBag },
   { name: 'navigation.lendBorrow', id: 'lent-borrow', icon: Handshake },
+  // { name: 'navigation.investments', id: 'investments', icon: Wallet },
+  // { name: 'navigation.simpleInvestments', id: 'simple-investments', icon: TrendingUp },
   { name: 'navigation.analytics', id: 'analytics', icon: PieChart },
   { name: 'navigation.settings', id: 'settings', icon: Settings },
 ];

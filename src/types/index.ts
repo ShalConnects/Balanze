@@ -341,3 +341,9 @@ export interface PaymentHistoryStats {
   refundedTransactions: number;
 }
 
+// =====================================================
+// INVESTMENT TRACKING EXPORTS
+// =====================================================
+export * from './investment';
+export * from './simple-investment';
+

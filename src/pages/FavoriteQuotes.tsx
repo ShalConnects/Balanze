@@ -87,14 +87,6 @@ export const FavoriteQuotes: React.FC = () => {
       <div className="max-w-4xl mx-auto px-2 sm:px-3 lg:px-4 xl:px-6">
         {/* Compact Header - Mobile Optimized */}
         <div className="mb-3 sm:mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
-              Favorite Quotes
-            </h1>
-            <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full">
-              {filteredQuotes.length}/{favoriteQuotes.length}
-            </span>
-          </div>
         </div>
 
         {/* Sticky Search - Always Visible */}

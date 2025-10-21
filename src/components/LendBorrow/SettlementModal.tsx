@@ -61,7 +61,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
   }, [profile?.default_account_id, selectedAccountId, record.currency, accounts, sortedAccountOptions]);
 
   // Calculate remaining amount for partial returns
-  const totalReturned = returnHistory.reduce((sum, ret) => sum + ret.amount, 0);
+  const totalReturned = returnHistory.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
   const remainingAmount = record.amount - totalReturned;
   
   // Check if record should be auto-settled
@@ -69,11 +69,11 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
   
   // Fetch return history on modal open to check for existing partial returns
   useEffect(() => {
-    fetchReturnHistory();
+      fetchReturnHistory();
   }, [record.id]);
 
   // Check if record has existing partial returns/payments
-  const hasPartialReturns = returnHistory.length > 0;
+  const hasPartialReturns = returnHistory.length > 0 || (record.partial_return_amount && record.partial_return_amount > 0);
 
   // Auto-set settlement method for record-only entries with partial history
   useEffect(() => {
@@ -250,7 +250,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
         console.log('🎉 Partial return completed successfully, record remains active');
         toast.success(`${record.type === 'lend' ? 'Partial return' : 'Partial payment'} of ${getCurrencySymbol(record.currency)}${partialAmount.toFixed(2)} recorded successfully!`);
       }
-      
+
       onClose();
     } catch (error: any) {
       console.error('❌ Error recording partial return:', error);
@@ -379,17 +379,17 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
             )}
           </div>
 
-          {/* Settlement Method Selection for Record-Only Entries - Only show when no partial history and not yet decided */}
+          {/* Settlement Method Selection for Record-Only Entries - Only show when no partial history and simple method selected */}
           {!record.account_id && !hasPartialReturns && settlementMethod === 'simple' && (
             <div className="mb-6">
               <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">
                 How would you like to settle this record?
               </label>
               <div className="grid grid-cols-2 gap-3">
-                <label className={`relative flex items-center justify-center p-3 border-2 rounded-lg transition-all duration-200 ${
+                <label className={`relative flex items-center justify-center p-4 border-2 rounded-lg transition-all duration-300 shadow-sm ${
                   settlementMethod === 'simple'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400 cursor-pointer' 
-                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer'
+                    ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 dark:border-blue-400 cursor-pointer shadow-md' 
+                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer hover:shadow-md'
                 }`}>
                   <input
                     type="radio"
@@ -422,10 +422,10 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                   </div>
                 </label>
                 
-                <label className={`relative flex items-center justify-center p-3 border-2 rounded-lg transition-all duration-200 ${
+                <label className={`relative flex items-center justify-center p-4 border-2 rounded-lg transition-all duration-300 shadow-sm ${
                   settlementMethod === 'account'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400 cursor-pointer' 
-                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer'
+                    ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 dark:border-blue-400 cursor-pointer shadow-md' 
+                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer hover:shadow-md'
                 }`}>
                   <input
                     type="radio"
@@ -469,25 +469,25 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
             {/* Only show account selection for account-linked records or when user selects account settlement for record-only */}
             {(record.account_id || (!record.account_id && settlementMethod === 'account')) && (
               <>
-                {sortedAccountOptions.length > 0 ? (
-                  <CustomDropdown
-                    value={selectedAccountId}
-                    onChange={(value) => {
-                      setSelectedAccountId(value);
-                      setErrors({});
-                    }}
-                    options={sortedAccountOptions.map(account => ({
-                      value: account.id,
-                      label: `${account.name} - ${getCurrencySymbol(account.currency)}${account.calculated_balance?.toFixed(2) || '0.00'}`
-                    }))}
-                    placeholder="Select account *"
-                  />
-                ) : (
-                  <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                      No {record.currency} accounts found. Please create a {record.currency} account first to proceed with settlement.
-                    </p>
-                  </div>
+            {sortedAccountOptions.length > 0 ? (
+              <CustomDropdown
+                value={selectedAccountId}
+                onChange={(value) => {
+                  setSelectedAccountId(value);
+                  setErrors({});
+                }}
+                options={sortedAccountOptions.map(account => ({
+                  value: account.id,
+                  label: `${account.name} - ${getCurrencySymbol(account.currency)}${account.calculated_balance?.toFixed(2) || '0.00'}`
+                }))}
+                placeholder="Select account *"
+              />
+            ) : (
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  No {record.currency} accounts found. Please create a {record.currency} account first to proceed with settlement.
+                </p>
+              </div>
                 )}
               </>
             )}
@@ -502,17 +502,17 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
 
           {/* Settlement Type Selection - Only show for account-linked records or when user selects account settlement */}
           {(record.account_id || (!record.account_id && settlementMethod === 'account')) && (
-            <div className="mb-4">
+          <div className="mb-4">
             <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">
               Settlement Type
             </label>
             <div className="grid grid-cols-2 gap-3">
-              <label className={`relative flex items-center justify-center p-3 border-2 rounded-lg transition-all duration-200 ${
+              <label className={`relative flex items-center justify-center p-4 border-2 rounded-lg transition-all duration-300 shadow-sm ${
                 hasPartialReturns
                   ? 'border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 cursor-not-allowed opacity-50'
                   : settlementType === 'full' 
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400 cursor-pointer' 
-                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer'
+                    ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 dark:border-blue-400 cursor-pointer shadow-md' 
+                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer hover:shadow-md'
               }`}>
                 <input
                   type="radio"
@@ -528,8 +528,8 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                     hasPartialReturns
                       ? 'border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600'
                       : settlementType === 'full' 
-                        ? 'border-blue-500 bg-blue-500' 
-                        : 'border-gray-300 dark:border-gray-600'
+                      ? 'border-blue-500 bg-blue-500' 
+                      : 'border-gray-300 dark:border-gray-600'
                   }`}>
                     {settlementType === 'full' && !hasPartialReturns && (
                       <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
@@ -539,20 +539,20 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                     hasPartialReturns
                       ? 'text-gray-400 dark:text-gray-500'
                       : settlementType === 'full' 
-                        ? 'text-blue-700 dark:text-blue-300' 
-                        : 'text-gray-700 dark:text-gray-300'
+                      ? 'text-blue-700 dark:text-blue-300' 
+                      : 'text-gray-700 dark:text-gray-300'
                   }`}>
                     Full Settlement
                   </span>
                 </div>
               </label>
               
-              <label className={`relative flex items-center justify-center p-3 border-2 rounded-lg transition-all duration-200 ${
+              <label className={`relative flex items-center justify-center p-4 border-2 rounded-lg transition-all duration-300 shadow-sm ${
                 shouldBeSettled 
                   ? 'border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 cursor-not-allowed opacity-50'
                   : settlementType === 'partial' 
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400 cursor-pointer' 
-                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer'
+                    ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 dark:border-blue-400 cursor-pointer shadow-md' 
+                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer hover:shadow-md'
               }`}>
                 <input
                   type="radio"
@@ -568,8 +568,8 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                     shouldBeSettled
                       ? 'border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600'
                       : settlementType === 'partial' 
-                        ? 'border-blue-500 bg-blue-500' 
-                        : 'border-gray-300 dark:border-gray-600'
+                      ? 'border-blue-500 bg-blue-500' 
+                      : 'border-gray-300 dark:border-gray-600'
                   }`}>
                     {settlementType === 'partial' && !shouldBeSettled && (
                       <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
@@ -579,8 +579,8 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                     shouldBeSettled
                       ? 'text-gray-400 dark:text-gray-500'
                       : settlementType === 'partial' 
-                        ? 'text-blue-700 dark:text-blue-300' 
-                        : 'text-gray-700 dark:text-gray-300'
+                      ? 'text-blue-700 dark:text-blue-300' 
+                      : 'text-gray-700 dark:text-gray-300'
                   }`}>
                     {record.type === 'lend' ? 'Partial Return' : 'Partial Payment'}
                   </span>
@@ -592,14 +592,11 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
 
           {/* Message when full settlement is disabled due to existing partial returns */}
           {hasPartialReturns && (
-            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <div className="flex items-center">
-                <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mr-2" />
-                <span className="text-sm text-blue-800 dark:text-blue-200">
-                  Full settlement is not available because this record already has {record.type === 'lend' ? 'partial returns' : 'partial payments'}. 
-                  Continue making {record.type === 'lend' ? 'partial returns' : 'partial payments'} until fully {record.type === 'lend' ? 'returned' : 'paid'}.
-                </span>
-              </div>
+            <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <span className="text-xs text-blue-800 dark:text-blue-200" style={{ fontSize: '0.80rem', lineHeight: '1.2' }}>
+                Full settlement is not available because this record already has {record.type === 'lend' ? 'partial returns' : 'partial payments'}. 
+                Continue making {record.type === 'lend' ? 'partial returns' : 'partial payments'} until fully {record.type === 'lend' ? 'returned' : 'paid'}.
+              </span>
             </div>
           )}
 
@@ -714,7 +711,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                 : (hasPartialReturns && settlementType === 'full')
                   ? 'Not Available'
                   : settlementType === 'full' 
-                    ? (record.type === 'lend' ? 'Receive Repayment' : 'Make Payment')
+                ? (record.type === 'lend' ? 'Receive Repayment' : 'Make Payment')
                     : (record.type === 'lend' ? 'Add Return' : 'Add Payment')
               }
             </button>

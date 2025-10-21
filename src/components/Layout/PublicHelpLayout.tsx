@@ -1,5 +1,6 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
+import { Footer } from './Footer';
 
 interface PublicHelpLayoutProps {
   children: React.ReactNode;
@@ -104,63 +105,7 @@ export const PublicHelpLayout: React.FC<PublicHelpLayoutProps> = ({
         </main>
 
         {/* Public Footer */}
-        <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Product</h3>
-                <ul className="space-y-2">
-                  <li><a href="/dashboard-demo" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm">Demo</a></li>
-                  <li><a href="/about" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm">About</a></li>
-                </ul>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Support</h3>
-                <ul className="space-y-2">
-                  <li><a href="/help-center" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm">Help Center</a></li>
-                  <li><a href="mailto:shalconnect00@gmail.com" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm">Contact Us</a></li>
-                </ul>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Legal</h3>
-                <ul className="space-y-2">
-                  <li><a href="/privacypolicy" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm">Privacy Policy</a></li>
-                  <li><a href="/termsofservice" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm">Terms of Service</a></li>
-                </ul>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Get Started</h3>
-                <div className="space-y-2">
-                  <a 
-                    href="/signup" 
-                    className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-                  >
-                    Create Account
-                  </a>
-                </div>
-              </div>
-            </div>
-            
-            <div className="border-t border-gray-200 dark:border-gray-700 mt-8 pt-8">
-              <div className="flex flex-col md:flex-row justify-between items-center">
-                <p className="text-gray-500 dark:text-gray-400 text-sm">
-                  © 2024 Balanze. All rights reserved.
-                </p>
-                <div className="flex items-center space-x-4 mt-4 md:mt-0">
-                  <a href="/help-center" className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-sm">
-                    Help Center
-                  </a>
-                  <a href="/about" className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-sm">
-                    About
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </footer>
+        <Footer />
       </div>
     </>
   );

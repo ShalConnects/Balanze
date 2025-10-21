@@ -34,7 +34,7 @@ BEGIN
         END IF;
         
         -- Create the transaction record
-        INSERT INTO transactions (
+                INSERT INTO transactions (
             user_id,
             account_id,
             type,
@@ -46,7 +46,7 @@ BEGIN
             transaction_id,
             created_at,
             updated_at
-        ) VALUES (
+                ) VALUES (
             record_record.user_id,
             record_record.account_id,
             transaction_type,
@@ -61,7 +61,7 @@ BEGIN
         );
         
         -- Update the lend_borrow record with the transaction_id
-        UPDATE lend_borrow 
+            UPDATE lend_borrow 
         SET 
             transaction_id = new_transaction_id,
             updated_at = NOW()
@@ -74,8 +74,8 @@ BEGIN
             record_record.person_name,
             record_record.amount,
             new_transaction_id;
-    END LOOP;
-    
+        END LOOP;
+        
     RAISE NOTICE 'Migration completed successfully!';
 END $$;
 

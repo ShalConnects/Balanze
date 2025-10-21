@@ -33,10 +33,13 @@ import { CurrencyAnalytics } from './components/Reports/CurrencyAnalytics';
 import { Settings } from './components/Dashboard/Settings';
 import { PaymentHistoryPage } from './pages/PaymentHistoryPage';
 import HelpAndSupport from './pages/HelpAndSupport';
+import { Investments } from './pages/Investments';
+import { SimpleInvestments } from './pages/SimpleInvestments';
 import { History } from './pages/History';
 import { HelpLayout } from './components/Layout/HelpLayout';
 import { PublicHelpLayout } from './components/Layout/PublicHelpLayout';
 import PublicHelpCenter from './pages/PublicHelpCenter';
+import TopicClusterHub from './pages/TopicClusterHub';
 import PublicArticlePage from './pages/PublicArticlePage';
 import SitemapPage from './pages/SitemapPage';
 import RobotsTxtPage from './pages/RobotsTxtPage';
@@ -44,6 +47,9 @@ import DonationsSavingsPage from './pages/DonationsSavingsPage';
 import { FavoriteQuotes } from './pages/FavoriteQuotes';
 import { WelcomeModal } from './components/common/WelcomeModal';
 import PostAccountCreationTour from './components/PostAccountCreationTour';
+import Achievements from './pages/Achievements';
+import { AchievementIntegration } from './components/Achievements/AchievementIntegration';
+import ContextualTourTrigger from './components/ContextualTourTrigger';
 import { Analytics } from '@vercel/analytics/react';
 import { useNotificationStore } from './store/notificationStore';
 import { useNotificationsStore } from './stores/notificationsStore';
@@ -421,7 +427,7 @@ function AppContent() {
   }
 
   return (
-    <>
+    <AchievementIntegration>
       {/* Pull-to-Refresh Component - Only for logged-in users */}
       {user && <PullToRefresh onRefresh={handleRefresh} />}
       
@@ -470,6 +476,8 @@ function AppContent() {
         <Route path="/savings" element={user ? <MainLayout><SavingsView /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/purchases" element={user ? <MainLayout><PurchaseTracker /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/lent-borrow" element={user ? <MainLayout><LendBorrowPage /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/investments" element={user ? <MainLayout><Investments /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/simple-investments" element={user ? <MainLayout><SimpleInvestments /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/purchase-categories" element={user ? <MainLayout><PurchaseCategories /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/purchase-analytics" element={user ? <MainLayout><PurchaseAnalytics /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/lent-borrow-analytics" element={user ? <MainLayout><LendBorrowAnalytics /></MainLayout> : <Navigate to="/login" />} />
@@ -486,6 +494,7 @@ function AppContent() {
         <Route path="/history" element={user ? <MainLayout><History /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/donations" element={user ? <MainLayout><DonationsSavingsPage /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/favorite-quotes" element={user ? <MainLayout><FavoriteQuotes /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/achievements" element={user ? <MainLayout><Achievements /></MainLayout> : <Navigate to="/login" />} />
         
         {/* Demo routes - public */}
         <Route path="/dashboard-demo" element={<DashboardDemo />} />
@@ -504,6 +513,7 @@ function AppContent() {
         
         {/* Public Help Center Routes - SEO Optimized */}
         <Route path="/help-center" element={<PublicHelpCenter />} />
+        <Route path="/help-center/topics" element={<TopicClusterHub />} />
         <Route path="/help-center/:slug" element={<PublicArticlePage />} />
         
         {/* SEO Routes */}
@@ -526,7 +536,10 @@ function AppContent() {
           setShowPostAccountTour(false);
         }}
       />
-    </>
+      
+      {/* Contextual Tour Trigger */}
+      <ContextualTourTrigger       />
+    </AchievementIntegration>
   );
 }
 

@@ -21,6 +21,12 @@ import { trackArticleReadingUniversal, trackArticleTimeSpent, trackArticleFeedba
 import { toast } from 'sonner';
 import clsx from 'clsx';
 import { useThemeStore } from '../store/themeStore';
+import RelatedArticles from '../components/RelatedArticles';
+import Breadcrumb from '../components/Breadcrumb';
+import { trackInternalLink, trackPageView, trackTimeOnPage, trackExitPage } from '../lib/seoAnalytics';
+import { generateHelpCenterPageStructuredData, injectStructuredData } from '../lib/structuredData';
+import { generateMetaTags, generateMetaTagsHTML, generateArticleJsonLd } from '../lib/metaOptimizer';
+import { trackArticleView, trackInternalLinkClick, trackTimeOnPage as ga4TrackTimeOnPage, initializeGA4 } from '../lib/ga4Integration';
 
 interface KBArticle {
   slug: string;
@@ -35,6 +41,7 @@ interface KBArticle {
   author?: string;
   relatedArticles?: string[];
   tableOfContents?: TableOfContentsItem[];
+  seoKeywords?: string[];
 }
 
 interface TableOfContentsItem {
@@ -56,7 +63,8 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     lastUpdated: new Date().toISOString().split('T')[0], // dynamically set to today
     readTime: '3 min read',
     author: 'Balanze Team',
-    relatedArticles: ['getting-started-guide', 'account-management', 'premium-features'],
+    relatedArticles: ['getting-started-guide', 'create-first-transaction', 'analytics-dashboard'],
+    seoKeywords: ['settings guide', 'configure categories', 'app preferences', 'notifications', 'currency settings', 'plans and usage', 'data export', 'account management', 'last wish', 'Balanze settings'],
     tableOfContents: [
       { id: 'overview', title: 'Settings Page Overview', level: 1 },
       { id: 'general-tab', title: 'General', level: 1 },
@@ -72,6 +80,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
   <p class="text-lg text-gray-700 dark:text-gray-300 mb-8 leading-relaxed">
     The Settings page in Balanze is your central hub for customizing your financial tracking experience. This comprehensive guide will walk you through every tab and feature available in your Settings.
   </p>
+  
 <div id="overview">
   <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Settings Page Overview</h2>
   </div>
@@ -141,29 +150,27 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </div>
     </div>
   </div>
-  <img src="/settings-currency.gif" alt="Settings Currency" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mb-8" loading="lazy" decoding="async" />
+  <img 
+    src="/settings-currency.gif" 
+    alt="Settings Currency configuration animation showing currency selection and update process" 
+    class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mb-8 border border-gray-200 dark:border-gray-700" 
+    loading="lazy" 
+    decoding="async"
+    title="Currency Settings - Configure your financial preferences"
+  />
 </div>
 
 <div id="categories-tab" class="mb-12">
   <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Categories</h2>
-  <p class="text-lg text-gray-700 dark:text-gray-300 mb-8 leading-relaxed">
-    For comprehensive, step-by-step instructions, please refer to our guide:&nbsp;
-    <a 
-      href="/kb/how-to-create-your-first-income-expense-category" 
-      class="text-blue-600 dark:text-blue-400 hover:underline font-semibold"
-      target="_blank"
-      rel="noopener"
-    >
-      How to Create Your First Income/Expense Category
-    </a>.
-    <br />
-    This resource provides detailed information on how to add, customize, and manage your <strong>income/expense categories</strong> within Balanze.
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-4">
+    Create organized <a href="/kb/how-to-create-your-first-income-expense-category" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">income and expense categories</a> to keep reports clear and meaningful. This helps your <a href="/kb/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">analytics</a> show accurate insights.
   </p>
     
 </div>
 
 <div id="plans-usage-tab" class="mb-12">
   <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Plans & Usage</h2>
+  <p class="text-gray-700 dark:text-gray-300 mb-4">Understand your limits and upgrade if you need premium features like multi-currency and advanced analytics.</p>
 
   <div class="bg-blue-50 dark:bg-blue-900/20 p-8 rounded-xl mb-8">
     <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
@@ -202,14 +209,22 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       If you have questions about billing or need help choosing a plan, contact our support team from the <strong>Need Help?</strong> section.
     </p>
   </div>
-  <img src="/plan-usage.gif" alt="Settings Upgrade" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mb-8" loading="lazy" decoding="async" />
+  <img 
+    src="/plan-usage.gif" 
+    alt="Settings Upgrade animation showing plan usage statistics and upgrade options" 
+    class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mb-8 border border-gray-200 dark:border-gray-700" 
+    loading="lazy" 
+    decoding="async"
+    title="Plan Usage - Monitor your subscription and upgrade options"
+  />
 </div>
 
 <div id="account-management-tab" class="mb-12">
   <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Account Management</h2>
+  <p class="text-gray-700 dark:text-gray-300 mb-4">From here you can <a href="/kb/data-export-guide" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">export your data</a> and manage profile preferences.</p>
   
   <p class="text-lg text-gray-700 dark:text-gray-300 mb-8 leading-relaxed">
-    The <strong>Account Management</strong> tab is your central hub for managing your Balanze profile, security, and data. Here’s a detailed breakdown of what you can do in this section:
+    The <strong>Account Management</strong> tab is your central hub for managing your Balanze profile, security, and data. Here's a detailed breakdown of what you can do in this section:
   </p>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -250,7 +265,14 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       <li>Regularly export your data for your own records or backups.</li>
     </ul>
   </div>
-  <img src="/account-management.png" alt="Account Management" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mb-8" loading="lazy" decoding="async" />
+  <img 
+    src="/account-management.png" 
+    alt="Account Management interface showing account list, balances, and management options" 
+    class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mb-8 border border-gray-200 dark:border-gray-700" 
+    loading="lazy" 
+    decoding="async"
+    title="Account Management - Manage all your financial accounts"
+  />
 </div>
 
 <div id="last-wish-tab" class="mb-12">
@@ -298,7 +320,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
 </div>
 
 <div id="need-help" class="mb-12">
-  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Need Help?</h2>
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Need Help?</h2>
   
   <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-6 rounded-r-lg">
     <p class="text-gray-700 dark:text-gray-300 mb-4 font-medium">If you get stuck:</p>
@@ -313,7 +335,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnects007@gmail.com</a></span>
       </li>
     </ul>
   </div>
@@ -327,6 +349,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     description: 'Complete guide to setting up your account and adding your first transactions',
     category: 'Getting Started',
     tags: ['setup', 'beginner', 'accounts', 'transactions'],
+    seoKeywords: ['get started', 'setup balanze', 'personal finance app', 'add account', 'add transaction', 'budget tracking'],
     difficulty: 'beginner',
     lastUpdated: new Date().toISOString().split('T')[0], // dynamically set to today
     readTime: `${Math.max(1, Math.round((`
@@ -339,6 +362,11 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       {
         id: 'what-is-balanze',
         title: 'What is Balanze?',
+        level: 1
+      },
+      {
+        id: 'quick-start',
+        title: 'Quick Start',
         level: 1
       },
       {
@@ -370,9 +398,24 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
   <div class="mb-8">
     <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
       Congratulations on taking the first step towards better financial management. This guide will walk you through everything you need to know to get started with Balanze.
+      <a href="/kb/create-first-account" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">Create your first account</a> and 
+      <a href="/kb/create-first-transaction" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">add your first transaction</a> to get started.
+    </p>
+    
+    <h2 id="quick-start" class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Quick Start</h2>
+    <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6">
+      <ol class="list-decimal ml-6 space-y-1 text-gray-700 dark:text-gray-300">
+        <li><a href="/kb/create-first-account" class="text-blue-600 dark:text-blue-400 hover:underline">Create your first account</a> (bank, credit card, or cash)</li>
+        <li><a href="/kb/create-first-transaction" class="text-blue-600 dark:text-blue-400 hover:underline">Add your first transaction</a> (income or expense)</li>
+        <li><a href="/kb/settings-page-comprehensive-guide" class="text-blue-600 dark:text-blue-400 hover:underline">Configure your settings</a> (categories, preferences)</li>
+        <li><a href="/kb/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline">Explore your analytics</a> (spending insights)</li>
+      </ol>
+    </div>
+    <p class="text-gray-700 dark:text-gray-300 mb-6">
+      To organize your spending from day one, <a href="/kb/how-to-create-your-first-income-expense-category" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">create your first income/expense category</a>. This keeps your reports clean and improves insights.
     </p>
 
-      <h5 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">What is Balanze?</h5>
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">What is Balanze?</h2>
 
       <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
       Balanze is a comprehensive personal finance management platform that helps you:
@@ -410,9 +453,19 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
   </div>
 
   <div class="my-8">
-  <img src="/article_1.png" alt="Balanze Dashboard Overview" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg" loading="lazy" decoding="async" width="1280" height="720" />
+  <img 
+    src="/article_1.png" 
+    alt="Balanze Dashboard Overview showing main navigation, account balances, recent transactions, and key financial metrics" 
+    class="w-full max-w-4xl mx-auto rounded-lg shadow-lg border border-gray-200 dark:border-gray-700" 
+    loading="lazy" 
+    decoding="async" 
+    width="1280" 
+    height="720"
+    title="Balanze Dashboard - Your financial command center"
+  />
   </div>
 </div>
+
 
 <div id="registration-and-login" class="mb-12">
 
@@ -423,7 +476,16 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
   - Register with your email address and password <br>
   - Register with your Google account
 </p>
-<img src="/article_2.png" alt="Balanze Registration" class="w-1/2 max-w-4xl mx-auto rounded-lg shadow-lg" loading="lazy" decoding="async" width="640" height="360" />
+<img 
+  src="/article_2.png" 
+  alt="Balanze Registration form showing email, password, and signup button with validation indicators" 
+  class="w-1/2 max-w-4xl mx-auto rounded-lg shadow-lg border border-gray-200 dark:border-gray-700" 
+  loading="lazy" 
+  decoding="async" 
+  width="640" 
+  height="360"
+  title="Balanze Registration - Create your account"
+/>
 <br>
 <p class="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
   After you login, you will be redirected to the dashboard where you need to select your currency first. After you select your currency, a default 
@@ -437,7 +499,16 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
   </span>
   will be created for you.
 </p>
-<img src="/select_currency.gif" alt="Balanze Dashboard" class="w-1/2 max-w-4xl mx-auto rounded-lg shadow-lg" loading="lazy" decoding="async" width="640" height="360" />
+<img 
+  src="/select_currency.gif" 
+  alt="Balanze Dashboard currency selection animation showing dropdown menu with various currency options" 
+  class="w-1/2 max-w-4xl mx-auto rounded-lg shadow-lg border border-gray-200 dark:border-gray-700" 
+  loading="lazy" 
+  decoding="async" 
+  width="640" 
+  height="360"
+  title="Currency Selection - Choose your primary currency"
+/>
 </div>
 
 <div id="pro-tips" class="mb-12">
@@ -479,7 +550,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnects007@gmail.com</a></span>
       </li>
     </ul>
   </div>
@@ -494,6 +565,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     description: 'Step-by-step guide to adding bank accounts, credit cards, and cash wallets with DPS setup',
     category: 'Accounts',
     tags: ['accounts', 'setup', 'banking', 'dps'],
+    seoKeywords: ['create first account', 'add bank account', 'add credit card', 'cash wallet setup', 'account management', 'personal finance setup', 'Balanze account setup', 'open checking account', 'add savings account', 'beginner guide'],
     difficulty: 'beginner',
     lastUpdated: new Date().toISOString().split('T')[0], // dynamically set to today
     readTime: `${Math.max(1, Math.round((`
@@ -529,26 +601,163 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
         level: 1
       }
     ],
-    content: `<div id="accounts" class="mb-12">
+    content: `
+<h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-8">How to Create Your First Account</h1>
 
-  <div class="space-y-12">
-    <div id="create-first-account" class="bg-gray-50 dark:bg-gray-800/50 py-8 rounded-xl">
-      <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-6">You can add accounts by following these steps:</h3>
-      
-      <div class="space-y-4 text-gray-700 dark:text-gray-300">
+<div class="mb-8">
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    Welcome to Balanze! Creating your first account is the foundation of your financial tracking journey. This guide will walk you through adding bank accounts, credit cards, and cash wallets, plus setting up Daily Profit Sharing (DPS) for automated savings.
+  </p>
+  
+  <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6">
+    <p class="text-blue-800 dark:text-blue-200 font-medium">
+      💡 <strong>Pro Tip:</strong> Start with your main checking account and add other accounts as needed. You can always <a href="/help-center/create-first-transaction" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">add transactions</a> and <a href="/help-center/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">view analytics</a> once your accounts are set up.
+    </p>
+  </div>
+</div>
+
+<h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Step-by-Step Account Creation</h2>
+
+<div class="space-y-8">
         <div class="flex items-start">
-          <span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-0">1</span>
+    <span class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mr-4 mt-1">1</span>
           <div>
-            <span>Click on <strong>"Accounts"</strong> in the sidebar</span>
-            <img 
-              src="/add_account_1.png" 
-              alt='Screenshot showing the "Accounts" button highlighted in the Balanze sidebar' 
-              class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0"
-              style={{ marginLeft: 0 }}
-              loading="lazy" decoding="async" width="768" height="432"
-            />
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Navigate to Accounts</h3>
+      <p class="text-gray-700 dark:text-gray-300 mb-4">Click on <strong>"Accounts"</strong> in the sidebar to access the accounts management page.</p>
+      <img 
+        src="/add_account_1.png" 
+        alt="Screenshot showing the Accounts button highlighted in the Balanze sidebar with navigation arrow" 
+        class="w-full max-w-md rounded-lg shadow-lg border border-gray-200 dark:border-gray-700" 
+        loading="lazy"
+        title="Step 1: Navigate to Accounts"
+      />
           </div>
         </div>
+
+  <div class="flex items-start">
+    <span class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mr-4 mt-1">2</span>
+    <div>
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Click Add Account</h3>
+      <p class="text-gray-700 dark:text-gray-300 mb-4">Click the <strong>"Add Account"</strong> button to start creating your first account.</p>
+      <img src="/add_account_2.png" alt="Screenshot showing the Add Account button in the accounts page" class="w-full max-w-md rounded-lg shadow-lg" loading="lazy" />
+    </div>
+  </div>
+
+  <div class="flex items-start">
+    <span class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mr-4 mt-1">3</span>
+    <div>
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Choose Account Type</h3>
+      <p class="text-gray-700 dark:text-gray-300 mb-4">Select your account type from the available options:</p>
+      <ul class="list-disc ml-6 text-gray-700 dark:text-gray-300 space-y-2">
+        <li><strong>Bank Account</strong> - Checking, savings, or other bank accounts</li>
+        <li><strong>Credit Card</strong> - Credit cards and lines of credit</li>
+        <li><strong>Cash</strong> - Physical cash and wallets</li>
+        <li><strong>Investment</strong> - Investment accounts and portfolios</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="flex items-start">
+    <span class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mr-4 mt-1">4</span>
+    <div>
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Fill Account Details</h3>
+      <p class="text-gray-700 dark:text-gray-300 mb-4">Complete the account information:</p>
+      <ul class="list-disc ml-6 text-gray-700 dark:text-gray-300 space-y-2">
+        <li><strong>Account Name</strong> - e.g., "Chase Checking" or "Emergency Savings"</li>
+        <li><strong>Account Type</strong> - Specific type within the category</li>
+        <li><strong>Initial Balance</strong> - Your current account balance</li>
+        <li><strong>Currency</strong> - USD, EUR, etc.</li>
+        <li><strong>Description</strong> - Optional notes about the account</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Daily Profit Sharing (DPS) Setup</h2>
+
+<div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-6 rounded-r-lg mb-8">
+  <h3 class="text-xl font-semibold text-green-800 dark:text-green-200 mb-3">What is DPS?</h3>
+  <p class="text-green-700 dark:text-green-300 mb-4">
+    Daily Profit Sharing (DPS) is an automated savings feature that helps you build wealth by regularly transferring money to a dedicated savings account. It's perfect for building emergency funds or achieving financial goals.
+  </p>
+</div>
+
+<div class="space-y-6">
+  <div>
+    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">How to Enable DPS</h3>
+    <div class="space-y-4">
+      <div class="flex items-start">
+        <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-1">1</span>
+        <div>
+          <p class="text-gray-700 dark:text-gray-300">Look for the <strong>"Enable DPS"</strong> option when creating your account</p>
+        </div>
+      </div>
+      <div class="flex items-start">
+        <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-1">2</span>
+        <div>
+          <p class="text-gray-700 dark:text-gray-300">Toggle the switch to enable DPS for this account</p>
+        </div>
+      </div>
+      <div class="flex items-start">
+        <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-1">3</span>
+        <div>
+          <p class="text-gray-700 dark:text-gray-300">Choose your DPS frequency: <strong>Monthly</strong> or <strong>Daily</strong></p>
+        </div>
+      </div>
+      <div class="flex items-start">
+        <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-1">4</span>
+        <div>
+          <p class="text-gray-700 dark:text-gray-300">Select amount type: <strong>Fixed Amount</strong> or <strong>Percentage</strong> of income</p>
+        </div>
+      </div>
+      <div class="flex items-start">
+        <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-1">5</span>
+        <div>
+          <p class="text-gray-700 dark:text-gray-300">Enter your desired amount or percentage</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Best Practices</h2>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+  <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg">
+    <h3 class="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-3">Start with Real Balances</h3>
+    <p class="text-blue-700 dark:text-blue-300">Enter your actual account balances for accurate financial tracking from day one.</p>
+  </div>
+  
+  <div class="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg">
+    <h3 class="text-lg font-semibold text-green-800 dark:text-green-200 mb-3">Enable DPS Early</h3>
+    <p class="text-green-700 dark:text-green-300">Set up automated savings when creating accounts to build good financial habits.</p>
+  </div>
+  
+  <div class="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-lg">
+    <h3 class="text-lg font-semibold text-purple-800 dark:text-purple-200 mb-3">Use Descriptive Names</h3>
+    <p class="text-purple-700 dark:text-purple-300">Choose clear account names like "Chase Checking" or "Emergency Savings" for easy identification.</p>
+  </div>
+  
+  <div class="bg-orange-50 dark:bg-orange-900/20 p-6 rounded-lg">
+    <h3 class="text-lg font-semibold text-orange-800 dark:text-orange-200 mb-3">Choose Correct Types</h3>
+    <p class="text-orange-700 dark:text-orange-300">Select the right account type (Checking, Savings, Credit) for proper balance calculations.</p>
+  </div>
+</div>
+
+<div class="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg mb-8">
+  <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Next Steps</h3>
+  <p class="text-gray-700 dark:text-gray-300 mb-4">
+    Once your accounts are set up, you're ready to start tracking your finances:
+  </p>
+  <ul class="list-disc ml-6 text-gray-700 dark:text-gray-300 space-y-2">
+    <li><a href="/help-center/create-first-transaction" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">Add your first transaction</a> to start tracking income and expenses</li>
+    <li><a href="/help-center/how-to-create-your-first-income-expense-category" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">Create categories</a> to organize your spending</li>
+    <li><a href="/help-center/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">Explore analytics</a> to understand your financial patterns</li>
+    <li><a href="/help-center/transaction-management" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">Learn transaction management</a> for advanced features</li>
+    <li><a href="/help-center/settings-page-comprehensive-guide" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">Configure settings</a> to customize your experience</li>
+  </ul>
+</div>
+
         <div class="flex items-start">
           <span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-0">2</span>
           <div>
@@ -601,7 +810,13 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
         <p class="text-gray-700 dark:text-gray-300 leading-relaxed">
           Balanze supports several account types including Checking, Savings, Credit, Cash, Investment accounts, and more.
         </p>
-        <img src="/account_types.png" alt="Account Types" class="w-full max-w-2xl mx-auto rounded-lg shadow-md" />
+        <img 
+          src="/account_types.png" 
+          alt="Account Types interface showing different account categories with icons and descriptions" 
+          class="w-full max-w-2xl mx-auto rounded-lg shadow-md border border-gray-200 dark:border-gray-700" 
+          loading="lazy"
+          title="Account Types - Choose the right account for your needs"
+        />
       </div>
       <div id="dps" class="mt-8 p-6 bg-white dark:bg-gray-700 rounded-lg">
         <h4 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">DPS</h4>
@@ -642,7 +857,13 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
             <li>Save your account settings. DPS will now run automatically based on your configuration!</li>
           </ol>
           <div class="mt-4">
-            <img src="/dps.png" alt="Enable DPS Example" class="w-full max-w-md mx-auto rounded shadow" />
+            <img 
+              src="/dps.png" 
+              alt="Enable DPS Example showing Daily Profit Sharing configuration with percentage settings" 
+              class="w-full max-w-md mx-auto rounded shadow border border-gray-200 dark:border-gray-700" 
+              loading="lazy"
+              title="DPS Configuration - Set up automatic savings"
+            />
           </div>
         </div>
         <div class="mt-4 text-gray-700 dark:text-gray-300">
@@ -693,14 +914,14 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnects007@gmail.com</a></span>
       </li>
     </ul>
   </div>
 </div>
 
 `,
-    relatedArticles: ['getting-started-guide', 'create-first-transaction', 'multi-currency-setup']
+    relatedArticles: ['create-first-transaction', 'analytics-dashboard', 'settings-page-comprehensive-guide']
   },
   'how-to-use-last-wish': {
     slug: 'how-to-use-last-wish',
@@ -895,7 +1116,17 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
               <strong>Important:</strong> Once enabled, your Last Wish will remain active as long as your Premium subscription is maintained.
             </p>
           </div>
-          <img src="/last_wish_enable.png" alt="Screenshot showing the \"Enable Last Wish\" toggle" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
+          <img 
+          src="/last_wish_enable.png" 
+          alt="Screenshot showing the Enable Last Wish toggle with activation switch highlighted" 
+          class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0 border border-gray-200 dark:border-gray-700" 
+          style={{ marginLeft: 0 }} 
+          loading="lazy" 
+          decoding="async" 
+          width="768" 
+          height="432"
+          title="Enable Last Wish Feature"
+        />
         </div>
       </div>
       
@@ -1306,7 +1537,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnects007@gmail.com</a></span>
       </li>
     </ul>
   </div>
@@ -1329,6 +1560,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     description: 'Step-by-step guide to adding your first income and expense transactions',
     category: 'Transactions',
     tags: ['transactions', 'income', 'expenses', 'beginner'],
+    seoKeywords: ['add transaction', 'record expense', 'record income', 'personal finance', 'budget tracking', 'transaction form', 'transaction categories', 'first transaction guide', 'Balanze transactions', 'how to add expense'],
     difficulty: 'beginner',
     lastUpdated: new Date().toISOString().split('T')[0],
     readTime: '4 min read',
@@ -1361,7 +1593,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
   
   <div class="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-xl">
     <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-      Now that you have your accounts set up, it's time to add your first transaction. This will help you start tracking your income and expenses.
+      Now that you have your accounts set up, it's time to add your first transaction. This will help you start tracking your income and expenses. If you haven't already, <a href="/kb/create-first-account" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">create your first account</a> and <a href="/kb/how-to-create-your-first-income-expense-category" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">set up categories</a> so your reports and <a href="/kb/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">analytics</a> are accurate. You can always review <a href="/kb/transaction-management" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">transaction management</a> later and <a href="/kb/data-export-guide" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">export your data</a> when needed.
     </p>
     
     <div class="space-y-4 text-gray-700 dark:text-gray-300">
@@ -1507,7 +1739,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnects007@gmail.com</a></span>
       </li>
     </ul>
   </div>
@@ -1768,7 +2000,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnects007@gmail.com</a></span>
       </li>
     </ul>
   </div>
@@ -1798,8 +2030,8 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
         level: 1
       },
       {
-        id: 'tracking-repayments',
-        title: 'Tracking Repayments',
+        id: 'settlement-workflow',
+        title: 'Settlement & Repayment Options',
         level: 1
       },
       {
@@ -1824,12 +2056,8 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     </span>
   </div>
 
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">What are Lent & Borrow Records?</h2>
   
   <div class="mb-8">
-    <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-      <strong>Lent & Borrow Records</strong> in Balanze help you track money you lend to others and money you borrow from others. This feature is essential for managing personal loans, informal lending, and keeping track of who owes you money or who you owe money to.
-    </p>
     
     <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-6 my-8 rounded-r-lg">
       <p class="text-gray-700 dark:text-gray-300 font-medium text-lg leading-relaxed">
@@ -1837,29 +2065,6 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </p>
     </div>
     
-    <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">Key Benefits:</h3>
-    <ul class="space-y-3 text-gray-700 dark:text-gray-300">
-      <li class="flex items-start">
-        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-        <span>Track money you lend to friends, family, or others</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-        <span>Monitor money you borrow from others</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-        <span>Record partial and full repayments</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-        <span>Keep detailed records of loan terms and conditions</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-        <span>Generate reports on your lending and borrowing activity</span>
-      </li>
-    </ul>
   </div>
 </div>
 
@@ -1868,8 +2073,30 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
   
   <div class="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-xl">
     <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-      You can create lent & borrow records following two methods:
+      You can create lent & borrow records in two ways:
     </p>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
+        <h4 class="font-semibold text-blue-900 dark:text-blue-300 mb-3 flex items-center">
+          <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"/>
+          </svg>
+          Account-Linked Records
+        </h4>
+        <p class="text-gray-700 dark:text-gray-300 text-sm">Records that affect your account balances and create transactions automatically.</p>
+      </div>
+      <div class="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-xl border border-purple-200 dark:border-purple-800">
+        <h4 class="font-semibold text-purple-900 dark:text-purple-300 mb-3 flex items-center">
+          <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+            <path fill-rule="evenodd" d="M4 5a2 2 0 012-2h8a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 1a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/>
+          </svg>
+          Record Only Mode
+        </h4>
+        <p class="text-gray-700 dark:text-gray-300 text-sm">Records for tracking purposes only - no account balance changes.</p>
+      </div>
+    </div>
     
     <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
       Follow these steps to create your first lent & borrow record:
@@ -1893,7 +2120,23 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       <div class="flex items-start">
         <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-4 mt-0">3</span>
         <div>
-          <span>Fill in the lent/borrow details:</span>
+          <span>Choose your record type and fill in the details:</span>
+          
+          <div class="mt-4 mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <h5 class="font-semibold text-yellow-800 dark:text-yellow-300 mb-2">📋 Record Type Selection</h5>
+            <p class="text-sm text-yellow-700 dark:text-yellow-300 mb-3">Choose how this record should work:</p>
+            <div class="space-y-2">
+              <div class="flex items-start">
+                <span class="text-yellow-600 dark:text-yellow-400 mr-2">•</span>
+                <span class="text-sm"><strong>Account-Linked:</strong> Affects account balances and creates transactions</span>
+              </div>
+              <div class="flex items-start">
+                <span class="text-yellow-600 dark:text-yellow-400 mr-2">•</span>
+                <span class="text-sm"><strong>Record Only:</strong> For tracking purposes only - no account changes</span>
+              </div>
+            </div>
+          </div>
+          
           <ul class="mt-2 ml-4 space-y-2">
             <li class="flex items-start">
               <span class="text-green-600 dark:text-green-400 mr-2">•</span>
@@ -1909,77 +2152,130 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
             </li>
             <li class="flex items-start">
               <span class="text-green-600 dark:text-green-400 mr-2">•</span>
-              <span>Select curency</span>
+              <span><strong>Account-Linked:</strong> Select account (affects balance) OR <strong>Record Only:</strong> Select currency manually</span>
             </li>
             <li class="flex items-start">
               <span class="text-green-600 dark:text-green-400 mr-2">•</span>
-              <span>Due date (when it should be repaid)</span>
+              <span>Due date (when it should be repaid) - <em>auto-set to 7 days if not specified for account-linked records</em></span>
             </li>
             <li class="flex items-start">
               <span class="text-green-600 dark:text-green-400 mr-2">•</span>
               <span>Description (optional notes about the loan terms)</span>
             </li>
           </ul>
+          
+          <img 
+            src="/lent_borrow_form.png" 
+            alt="Screenshot showing the Lent & Borrow form with record type selection and form fields with highlighted sections" 
+            class="w-full max-w-2xl rounded-lg shadow-lg mt-4 ml-0 border border-gray-200 dark:border-gray-700" 
+            style={{ marginLeft: 0 }} 
+            loading="lazy"
+            title="Lent & Borrow Form - Record your financial agreements"
+          />
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<div id="tracking-repayments" class="mb-12">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Tracking Repayments</h2>
+<div id="settlement-workflow" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Settlement & Repayment Options</h2>
   
-  <div class="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-xl">
-    <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-      Once you've created a lent or borrow record, you can track repayments:
-    </p>
+  <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-8 rounded-xl mb-8">
     
-    <ul class="space-y-3 text-gray-700 dark:text-gray-300">
-      <li class="flex items-start">
-        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
-        <span>View all your lent and borrowed amounts in the dashboard</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
-        <span>Record partial repayments as they happen</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
-        <span>Track remaining balances for each loan</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
-        <span>Get reminders for upcoming due dates</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
-        <span>Mark loans as fully repaid when completed</span>
-      </li>
-    </ul>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
+        <h4 class="font-semibold text-blue-900 dark:text-blue-300 mb-3 flex items-center">
+          <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"/>
+          </svg>
+          Full Settlement
+        </h4>
+        <p class="text-gray-700 dark:text-gray-300 text-sm mb-3">Complete repayment of the entire loan amount.</p>
+        <ul class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+          <li>• Available for new records without partial history</li>
+          <li>• Creates transaction and updates account balance</li>
+          <li>• Marks record as "Settled"</li>
+        </ul>
+      </div>
+      
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg border border-purple-200 dark:border-purple-800">
+        <h4 class="font-semibold text-purple-900 dark:text-purple-300 mb-3 flex items-center">
+          <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"/>
+          </svg>
+          Partial Returns/Payments
+        </h4>
+        <p class="text-gray-700 dark:text-gray-300 text-sm mb-3">Record partial repayments as they happen.</p>
+        <ul class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+          <li>• Track multiple partial payments over time</li>
+          <li>• Auto-settles when fully paid</li>
+          <li>• Shows remaining balance</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+      <h5 class="font-semibold text-yellow-800 dark:text-yellow-300 mb-2">🎯 Record-Only Settlement Options</h5>
+      <p class="text-sm text-yellow-700 dark:text-yellow-300 mb-2">For Record Only mode, you get additional settlement choices:</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="flex items-start">
+          <span class="text-yellow-600 dark:text-yellow-400 mr-2">•</span>
+          <span class="text-sm"><strong>Just mark as settled:</strong> No account balance changes</span>
+        </div>
+        <div class="flex items-start">
+          <span class="text-yellow-600 dark:text-yellow-400 mr-2">•</span>
+          <span class="text-sm"><strong>Settle with account:</strong> Creates transaction and affects balance</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+      <div class="text-center">
+        <img 
+          src="/Full_Settlement.png" 
+          alt="Screenshot showing Full Settlement option in the settlement modal with highlighted button" 
+          class="w-full max-w-md rounded-lg shadow-lg mx-auto border border-gray-200 dark:border-gray-700" 
+          loading="lazy"
+          title="Full Settlement Option"
+        />
+      </div>
+      <div class="text-center">
+        <img 
+          src="/Partial_Returns.png" 
+          alt="Screenshot showing Partial Returns option in the settlement modal with highlighted button" 
+          class="w-full max-w-md rounded-lg shadow-lg mx-auto border border-gray-200 dark:border-gray-700" 
+          loading="lazy"
+          title="Partial Returns Option"
+        />
+      </div>
+    </div>
   </div>
 </div>
+
 
 <div id="pro-tips" class="mb-12">
   <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Pro Tips</h2>
   
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl">
-      <h4 class="font-semibold text-blue-900 dark:text-blue-300 mb-3">Set Clear Terms</h4>
-      <p class="text-gray-700 dark:text-gray-300">Always include due dates, and repayment terms in the description to avoid confusion later</p>
+      <h4 class="font-semibold text-blue-900 dark:text-blue-300 mb-3">Choose the Right Mode</h4>
+      <p class="text-gray-700 dark:text-gray-300">Use <strong>Account-Linked</strong> for loans that affect your finances, or <strong>Record Only</strong> for tracking informal agreements</p>
     </div>
     <div class="bg-green-50 dark:bg-green-900/20 p-6 rounded-xl">
-      <h4 class="font-semibold text-green-900 dark:text-green-300 mb-3">Use Descriptive Names</h4>
-      <p class="text-gray-700 dark:text-gray-300">Include the person's name and purpose in the description, like "John - Car repair loan" or "Sarah - Emergency fund"</p>
+      <h4 class="font-semibold text-green-900 dark:text-green-300 mb-3">Use Partial Returns</h4>
+      <p class="text-gray-700 dark:text-gray-300">Record partial payments as they happen - the system will auto-settle when fully paid and prevent double-counting</p>
     </div>
     <div class="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-xl">
-      <h4 class="font-semibold text-purple-900 dark:text-purple-300 mb-3">Track Regularly</h4>
-      <p class="text-gray-700 dark:text-gray-300">Update repayment records promptly to maintain accurate balances and avoid forgetting about loans</p>
+      <h4 class="font-semibold text-purple-900 dark:text-purple-300 mb-3">Protect Account-Linked Records</h4>
+      <p class="text-gray-700 dark:text-gray-300">Account-linked records are protected from editing/deletion to maintain financial accuracy - use info icons to understand why</p>
     </div>
     <div class="bg-orange-50 dark:bg-orange-900/20 p-6 rounded-xl">
-      <h4 class="font-semibold text-orange-900 dark:text-orange-300 mb-3">Separate Personal and Business</h4>
-      <p class="text-gray-700 dark:text-gray-300">Use different categories or descriptions to distinguish between personal loans to friends and business lending</p>
+      <h4 class="font-semibold text-orange-900 dark:text-orange-300 mb-3">Settlement Options</h4>
+      <p class="text-gray-700 dark:text-gray-300">For Record Only mode, choose "Just mark as settled" for simple tracking or "Settle with account" to create transactions</p>
     </div>
   </div>
+  
 </div>
 
 <div id="need-help" class="mb-12">
@@ -1998,7 +2294,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnects007@gmail.com</a></span>
       </li>
     </ul>
   </div>
@@ -2016,6 +2312,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     lastUpdated: new Date().toISOString().split('T')[0],
     readTime: '12 min read',
     author: 'Balanze Team',
+    seoKeywords: ['analytics dashboard', 'financial insights', 'spending analysis', 'budget reports', 'expense tracking', 'income analysis', 'financial charts', 'money management', 'Balanze analytics', 'financial data'],
     tableOfContents: [
       {
         id: 'overview',
@@ -2105,8 +2402,18 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
   
   <div class="mb-8">
     <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-      Balanze's analytics dashboard provides comprehensive insights into your financial behavior through three specialized analytics pages. Each page offers unique perspectives on different aspects of your financial life, helping you make informed decisions and track your progress toward financial goals.
+      Balanze's analytics dashboard provides comprehensive insights into your financial behavior through three specialized analytics pages. Each page offers unique perspectives on different aspects of your financial life, helping you make informed decisions and track your progress toward financial goals. Make sure you have <a href="/kb/create-first-account" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">accounts set up</a>, <a href="/kb/create-first-transaction" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">transactions recorded</a>, and <a href="/kb/how-to-create-your-first-income-expense-category" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">categories organized</a> for meaningful insights. You can also <a href="/kb/transaction-management" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">manage your transactions</a> and <a href="/kb/data-export-guide" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">export your data</a> from the analytics.
     </p>
+    
+    <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 rounded-r-lg mb-6">
+      <p class="text-gray-700 dark:text-gray-300 font-medium mb-2">Prerequisites for Analytics:</p>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">To get meaningful insights, you need:</p>
+      <ul class="list-disc ml-6 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+        <li><a href="/kb/create-first-account" class="text-green-600 dark:text-green-400 hover:underline">At least one account</a> with transactions</li>
+        <li><a href="/kb/transaction-management" class="text-green-600 dark:text-green-400 hover:underline">Several transactions</a> to analyze patterns</li>
+        <li><a href="/kb/how-to-create-your-first-income-expense-category" class="text-green-600 dark:text-green-400 hover:underline">Properly categorized</a> income and expenses</li>
+      </ul>
+    </div>
     
     <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-6 my-8 rounded-r-lg">
       <p class="text-gray-700 dark:text-gray-300 font-medium text-lg leading-relaxed">
@@ -2163,7 +2470,16 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           <span>Currency-specific analysis</span>
         </li>
       </ul>
-      <img src="/monthly-trends-chart.png" alt="Monthly Trends Chart showing income, expenses, and net cash flow over time" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" loading="lazy" decoding="async" width="1280" height="720" />
+      <img 
+        src="/monthly-trends-chart.png" 
+        alt="Monthly Trends Chart showing income, expenses, and net cash flow over time with interactive data points and trend lines" 
+        class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6 border border-gray-200 dark:border-gray-700" 
+        loading="lazy" 
+        decoding="async" 
+        width="1280" 
+        height="720"
+        title="Monthly Trends Chart - Track your financial progress over time"
+      />
     </div>
     
     <div id="kpi-cards" class="mb-8">
@@ -2190,7 +2506,16 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           <p class="text-sm text-gray-600 dark:text-gray-300">Visual thermometer showing progress toward your savings goals with projection estimates.</p>
         </div>
       </div>
-      <img src="/kpi-cards-gauges.png" alt="KPI Cards showing Net Cash Flow Gauge and Spending by Category donut chart" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" loading="lazy" decoding="async" width="1280" height="720" />
+      <img 
+        src="/kpi-cards-gauges.png" 
+        alt="KPI Cards showing Net Cash Flow Gauge and Spending by Category donut chart with color-coded segments and percentage indicators" 
+        class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6 border border-gray-200 dark:border-gray-700" 
+        loading="lazy" 
+        decoding="async" 
+        width="1280" 
+        height="720"
+        title="KPI Cards & Gauges - Visual representation of your financial health"
+      />
     </div>
     
     <div id="smart-recommendations" class="mb-8">
@@ -2216,7 +2541,16 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           <span>Goal achievement strategies</span>
         </li>
       </ul>
-      <img src="/smart-recommendations-insights.png" alt="Smart Recommendations and Insights & Alerts showing financial health status and positive insights" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" loading="lazy" decoding="async" width="1280" height="720" />
+      <img 
+        src="/smart-recommendations-insights.png" 
+        alt="Smart Recommendations and Insights & Alerts showing financial health status and positive insights with actionable recommendations" 
+        class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6 border border-gray-200 dark:border-gray-700" 
+        loading="lazy" 
+        decoding="async" 
+        width="1280" 
+        height="720"
+        title="Smart Recommendations - AI-powered financial insights and tips"
+      />
     </div>
   </div>
 </div>
@@ -2253,7 +2587,16 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           <p class="text-sm text-gray-600 dark:text-gray-300">Percentage of purchase goals completed vs planned.</p>
         </div>
       </div>
-      <img src="/purchase-analytics-kpis.png" alt="Purchase Analytics KPI Cards showing Total Spent, Budget Utilization, Purchase Count, and Average Purchase" class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6" loading="lazy" decoding="async" width="1280" height="720" />
+      <img 
+        src="/purchase-analytics-kpis.png" 
+        alt="Purchase Analytics KPI Cards showing Total Spent, Budget Utilization, Purchase Count, and Average Purchase with color-coded metrics" 
+        class="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-6 border border-gray-200 dark:border-gray-700" 
+        loading="lazy" 
+        decoding="async" 
+        width="1280" 
+        height="720"
+        title="Purchase Analytics KPIs - Key performance indicators for your spending"
+      />
     </div>
     
     <div id="spending-trends" class="mb-8">
@@ -2445,7 +2788,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnects007@gmail.com</a></span>
       </li>
     </ul>
   </div>
@@ -2625,7 +2968,16 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </div>
       
       <div class="mt-6">
-        <img src="/currency-transfer-modal.png" alt="Currency Transfer modal showing From Account, To Account, Amount, and Note fields with Transfer button" class="w-full max-w-md mx-auto rounded-lg shadow-lg" loading="lazy" decoding="async" width="768" height="432" />
+        <img 
+          src="/currency-transfer-modal.png" 
+          alt="Currency Transfer modal showing From Account, To Account, Amount, and Note fields with Transfer button highlighted" 
+          class="w-full max-w-md mx-auto rounded-lg shadow-lg border border-gray-200 dark:border-gray-700" 
+          loading="lazy" 
+          decoding="async" 
+          width="768" 
+          height="432"
+          title="Currency Transfer Modal"
+        />
       </div>
     </div>
   </div>
@@ -2812,8 +3164,10 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
           <div class="mt-6 flex flex-col items-center">
             <img
               src="/transfer_type.png"
-              alt="Transfer type selection example"
-              class="w-1/2 max-w-md rounded-lg shadow-lg border border-gray-200 dark:border-gray-700"
+              alt="Transfer Type selection interface showing different transfer options with icons and descriptions"
+              class="w-full max-w-md mx-auto rounded-lg shadow-lg border border-gray-200 dark:border-gray-700"
+              loading="lazy"
+              title="Transfer Types - Choose the right transfer method"
               id="transfer-type-image"
             /><br>
           </div>
@@ -2887,7 +3241,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnects007@gmail.com</a></span>
       </li>
     </ul>
   </div>
@@ -2901,11 +3255,12 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     description: 'Complete guide to creating, customizing, and managing income and expense categories in Balanze',
     category: 'Getting Started',
     tags: ['categories', 'income', 'expense', 'organization', 'setup', 'beginner'],
+    seoKeywords: ['create income categories', 'expense categories setup', 'organize spending categories', 'personal finance categories', 'Balanze categories guide', 'income expense tracking', 'budget categories', 'financial organization', 'category management', 'spending organization'],
     difficulty: 'beginner',
     lastUpdated: new Date().toISOString().split('T')[0],
     readTime: '8 min read',
     author: 'Balanze Team',
-    relatedArticles: ['settings-page-comprehensive-guide', 'create-first-transaction', 'analytics-dashboard'],
+    relatedArticles: ['create-first-transaction', 'analytics-dashboard', 'settings-page-comprehensive-guide'],
     tableOfContents: [
       { id: 'overview', title: 'Understanding Categories', level: 1 },
       { id: 'why-categories-matter', title: 'Why Categories Matter', level: 1 },
@@ -2916,15 +3271,22 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       { id: 'pro-tips', title: 'Pro Tips', level: 1 },
       { id: 'need-help', title: 'Need Help?', level: 1 }
     ],
-    content: `<div id="category-overview" class="mb-12">
+    content: `
+<h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-8">How to Create Your First Income/Expense Category</h1>
 
-  <p class="text-lg text-gray-700 dark:text-gray-300 mb-8 leading-relaxed">
+<div class="mb-8">
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
     Categories are the foundation of effective financial tracking in Balanze. They help you organize your income and expenses, making it easier to understand where your money comes from and where it goes. This comprehensive guide will walk you through creating your first categories and establishing a solid organizational system.
   </p>
 
-<div id="overview">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Understanding Categories</h2>
+  <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6">
+    <p class="text-blue-800 dark:text-blue-200 font-medium">
+      💡 <strong>Pro Tip:</strong> Set up categories before adding transactions for cleaner <a href="/help-center/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">analytics</a>. You can always <a href="/help-center/create-first-transaction" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">add transactions</a> and <a href="/help-center/settings-page-comprehensive-guide" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">configure settings</a> once your categories are organized.
+    </p>
   </div>
+  </div>
+
+<h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Understanding Categories</h2>
   
   <div class="bg-blue-50 dark:bg-blue-900/20 p-8 rounded-xl mb-8">
     <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
@@ -2961,7 +3323,6 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
   </div>
 </div>
 
-<div id="why-categories-matter" class="mb-12">
   <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Why Categories Matter</h2>
   
   <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
@@ -3041,7 +3402,17 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
         <div>
           <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Navigate to Categories</h4>
           <p class="text-gray-700 dark:text-gray-300">Go to Settings → Categories tab</p>
-          <img src="/navigate_to_categories.png" alt="Screenshot showing the \"Categories\" tab" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
+          <img 
+            src="/navigate_to_categories.png" 
+            alt="Screenshot showing the Categories tab with highlighted navigation" 
+            class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0 border border-gray-200 dark:border-gray-700" 
+            style={{ marginLeft: 0 }} 
+            loading="lazy" 
+            decoding="async" 
+            width="768" 
+            height="432"
+            title="Step 1: Navigate to Categories"
+          />
         </div>
       </div>
       
@@ -3050,7 +3421,17 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
         <div>
           <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Click "Add Income Category"</h4>
           <p class="text-gray-700 dark:text-gray-300">Look for the "Add Category" button in the Income section</p>
-          <img src="/add_income_category.png" alt="Screenshot showing the \"Add Income Category\" button" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
+          <img 
+            src="/add_income_category.png" 
+            alt="Screenshot showing the Add Income Category button with highlighted navigation" 
+            class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0 border border-gray-200 dark:border-gray-700" 
+            style={{ marginLeft: 0 }} 
+            loading="lazy" 
+            decoding="async" 
+            width="768" 
+            height="432"
+            title="Step 2: Add Income Category"
+          />
         </div>
       </div>
 
@@ -3066,7 +3447,17 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
             <li><strong>Currency:</strong> Select the currency for this category</li>
             <li><strong>Color:</strong> Select a color to easily identify this category in charts and lists</li>
           </ul>
-          <img src="/fill_in_category_details.png" alt="Screenshot showing the \"Fill in Category Details\" form" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
+          <img 
+            src="/fill_in_category_details.png" 
+            alt="Screenshot showing the Fill in Category Details form with highlighted input fields" 
+            class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0 border border-gray-200 dark:border-gray-700" 
+            style={{ marginLeft: 0 }} 
+            loading="lazy" 
+            decoding="async" 
+            width="768" 
+            height="432"
+            title="Step 3: Fill Category Details"
+          />
         </div>
       </div>
       
@@ -3105,7 +3496,17 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
         <div>
           <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Click "Add Expense Category"</h4>
           <p class="text-gray-700 dark:text-gray-300">Look for the "Add Category" button in the Expense section</p>
-          <img src="/add_expense_category.png" alt="Screenshot showing the \"Add Expense Category\" button" class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0" style={{ marginLeft: 0 }} loading="lazy" decoding="async" width="768" height="432" />
+          <img 
+            src="/add_expense_category.png" 
+            alt="Screenshot showing the Add Expense Category button with highlighted navigation" 
+            class="w-full max-w-md rounded-lg shadow-lg mt-4 ml-0 border border-gray-200 dark:border-gray-700" 
+            style={{ marginLeft: 0 }} 
+            loading="lazy" 
+            decoding="async" 
+            width="768" 
+            height="432"
+            title="Step 2: Add Expense Category"
+          />
         </div>
       </div>
       
@@ -3235,26 +3636,18 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
   </div>
 </div>
 
-<div id="need-help" class="mb-12">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Need Help?</h2>
-  
-  <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-6 rounded-r-lg">
-    <p class="text-gray-700 dark:text-gray-300 mb-4 font-medium">If you get stuck:</p>
-    <ul class="space-y-3 text-gray-700 dark:text-gray-300">
-      <li class="flex items-start">
-        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Use the search function in the help center</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Check out our video tutorials</span>
-      </li>
-      <li class="flex items-start">
-        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
-      </li>
+<div class="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg mb-8">
+  <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Next Steps</h3>
+  <p class="text-gray-700 dark:text-gray-300 mb-4">
+    Now that you've set up your categories, you're ready to start tracking your finances:
+  </p>
+  <ul class="list-disc ml-6 text-gray-700 dark:text-gray-300 space-y-2">
+    <li><a href="/help-center/create-first-transaction" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">Add your first transaction</a> to start tracking income and expenses</li>
+    <li><a href="/help-center/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">Explore analytics</a> to understand your spending patterns</li>
+    <li><a href="/help-center/settings-page-comprehensive-guide" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">Configure settings</a> to customize your experience</li>
+    <li><a href="/help-center/transaction-management" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">Learn transaction management</a> for advanced features</li>
+    <li><a href="/help-center/data-export-guide" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">Export your data</a> when needed</li>
     </ul>
-  </div>
 </div>
 
 `
@@ -3755,7 +4148,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnects007@gmail.com</a></span>
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
@@ -4008,7 +4401,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
   </div>
 </div>
 <div id="need-help" class="mb-12">
-  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Need Help?</h2>
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Need Help?</h2>
   
   <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-6 rounded-r-lg">
     <p class="text-gray-700 dark:text-gray-300 mb-4 font-medium">If you get stuck:</p>
@@ -4023,7 +4416,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnects007@gmail.com</a></span>
       </li>
     </ul>
   </div>
@@ -4342,7 +4735,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
 
 </div>
 <div id="need-help" class="mb-12">
-  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Need Help?</h2>
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Need Help?</h2>
   
   <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-6 rounded-r-lg">
     <p class="text-gray-700 dark:text-gray-300 mb-4 font-medium">If you get stuck:</p>
@@ -4357,7 +4750,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnects007@gmail.com</a></span>
       </li>
     </ul>
   </div>
@@ -4367,420 +4760,738 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
 
 `
   },
-  'notes-todo-comprehensive-guide': {
-    slug: 'notes-todo-comprehensive-guide',
-    title: 'Notes & To-Do Feature: Complete Guide',
-    description: 'Master the Notes and To-Do features in Balanze - organize your thoughts, track tasks, and boost productivity',
-    category: 'Productivity Features',
-    tags: ['notes', 'todo', 'tasks', 'productivity', 'organization', 'planning'],
+  'transaction-management': {
+    slug: 'transaction-management',
+    title: 'Transaction Management Guide',
+    description: 'How to add, edit, delete, import, and report on transactions in Balanze',
+    category: 'Transactions',
+    tags: ['transactions', 'income', 'expense', 'categories', 'import', 'reports'],
+    seoKeywords: ['transaction management', 'add transaction', 'edit transaction', 'delete transaction', 'bulk import CSV', 'transaction reports', 'expense tracking', 'income tracking', 'financial analytics', 'data export'],
     difficulty: 'beginner',
     lastUpdated: new Date().toISOString().split('T')[0],
-    readTime: '5 min read',
+    readTime: '4 min read',
     author: 'Balanze Team',
-    relatedArticles: ['getting-started-guide', 'settings-page-comprehensive-guide', 'premium-features'],
+    relatedArticles: ['create-first-transaction', 'transaction-categories', 'transaction-reports'],
     tableOfContents: [
-      { id: 'overview', title: 'Notes & To-Do Overview', level: 1 },
-      { id: 'getting-started', title: 'Getting Started', level: 1 },
-      { id: 'notes-feature', title: 'Notes Feature', level: 1 },
-      { id: 'todo-feature', title: 'To-Do Feature', level: 1 },
-      { id: 'advanced-features', title: 'Advanced Features', level: 1 },
-      { id: 'best-practices', title: 'Best Practices', level: 1 },
-      { id: 'troubleshooting', title: 'Troubleshooting', level: 1 },
-      { id: 'pro-tips', title: 'Pro Tips', level: 1 }
+      { id: 'overview', title: 'Overview', level: 1 },
+      { id: 'add-transaction', title: 'Add a Transaction', level: 1 },
+      { id: 'edit-transaction', title: 'Edit or Delete', level: 1 },
+      { id: 'bulk-import', title: 'Bulk Import (CSV)', level: 1 },
+      { id: 'reports', title: 'View Reports', level: 1 },
+      { id: 'pro-tips', title: 'Pro Tips', level: 1 },
+      { id: 'need-help', title: 'Need Help?', level: 1 }
     ],
-    content: `<div id="notes-todo-overview" class="mb-12">
-  <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-8">Notes & To-Do Feature: Complete Guide</h1>
-  
-  <p class="text-lg text-gray-700 dark:text-gray-300 mb-8 leading-relaxed">
-    The Notes & To-Do feature in Balanze is your personal productivity companion, designed to help you capture thoughts, organize tasks, and stay on top of your financial and personal goals. This comprehensive guide will help you master both features and integrate them seamlessly into your daily workflow.
+    content: `<div id="overview" class="mb-12">
+  <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-6">Transaction Management</h1>
+  <p class="text-lg text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+    Manage every <strong>transaction</strong> in Balanze with confidence. Start by <a href="/kb/create-first-account" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">creating an account</a>, then <a href="/kb/create-first-transaction" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">add your first transaction</a> and <a href="/kb/how-to-create-your-first-income-expense-category" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">organize categories</a>. Review insights in the <a href="/kb/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">analytics dashboard</a> and <a href="/kb/data-export-guide" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">export your data</a> anytime.
   </p>
-
-<div id="overview">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Notes & To-Do Overview</h2>
-</div>
-  
-  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-    The Notes & To-Do feature combines two powerful productivity tools in one convenient interface:
+  <p class="text-gray-700 dark:text-gray-300 leading-relaxed">
+    This guide shows you how to <strong>add</strong>, <strong>edit</strong>, <strong>delete</strong>, and <strong>import</strong> transactions, and where to find <strong>reports</strong>.
   </p>
-  
-  <div class="grid md:grid-cols-2 gap-6 mb-8">
-    <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
-      <h3 class="text-xl font-semibold text-blue-900 dark:text-blue-100 mb-3">📝 Notes</h3>
-      <ul class="space-y-2 text-blue-800 dark:text-blue-200">
-        <li>• Capture quick thoughts and ideas</li>
-        <li>• Store important information</li>
-        <li>• Create personal reminders</li>
-        <li>• Organize by categories</li>
-      </ul>
-    </div>
-    
-    <div class="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg border border-green-200 dark:border-green-800">
-      <h3 class="text-xl font-semibold text-green-900 dark:text-green-100 mb-3">✅ To-Do</h3>
-      <ul class="space-y-2 text-green-800 dark:text-green-200">
-        <li>• Track tasks and goals</li>
-        <li>• Set priorities and deadlines</li>
-        <li>• Mark completed items</li>
-        <li>• Stay organized and focused</li>
-      </ul>
-    </div>
-  </div>
-
-<div id="getting-started">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Getting Started</h2>
+   
+   <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6">
+     <p class="text-gray-700 dark:text-gray-300 font-medium mb-2">Prerequisites:</p>
+     <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Before managing transactions, make sure you have:</p>
+     <ul class="list-disc ml-6 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+       <li><a href="/kb/create-first-account" class="text-blue-600 dark:text-blue-400 hover:underline">Created at least one account</a> (bank, credit card, or cash)</li>
+       <li><a href="/kb/how-to-create-your-first-income-expense-category" class="text-blue-600 dark:text-blue-400 hover:underline">Set up categories</a> for income and expenses</li>
+     </ul>
+   </div>
 </div>
 
-  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-    Accessing the Notes & To-Do feature is simple and intuitive:
-  </p>
-
-  <div class="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg mb-6">
-    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">How to Access</h3>
-    <ol class="space-y-3 text-gray-700 dark:text-gray-300">
+<div id="add-transaction" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Add a Transaction</h2>
+  
+  <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg mb-6">
+    <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">📝 Step-by-Step Guide</h3>
+    <ol class="space-y-3 text-blue-800 dark:text-blue-200">
       <li class="flex items-start">
         <span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mr-3 mt-0.5">1</span>
-        <span>Navigate to the main dashboard or sidebar</span>
+        <span>Open <strong>Transactions</strong> from the sidebar</span>
       </li>
       <li class="flex items-start">
         <span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mr-3 mt-0.5">2</span>
-        <span>Look for the "Notes & To-Do" section or icon</span>
+        <span>Click <strong>Add Transaction</strong> button</span>
       </li>
       <li class="flex items-start">
         <span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mr-3 mt-0.5">3</span>
-        <span>Click to open the feature panel</span>
+        <span>Fill in transaction details: type, amount, account, category, date, and description</span>
+      </li>
+      <li class="flex items-start">
+        <span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mr-3 mt-0.5">4</span>
+        <span>Click <strong>Save</strong> to record the transaction</span>
       </li>
     </ol>
   </div>
 
-  <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
-    <div class="flex items-start">
-      <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">💡</span>
-      <div>
-        <h4 class="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Quick Tip</h4>
-        <p class="text-yellow-700 dark:text-yellow-300">The Notes & To-Do feature is available on both desktop and mobile versions of Balanze, ensuring you can stay productive wherever you are.</p>
-      </div>
-    </div>
-  </div>
-
-<div id="notes-feature">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Notes Feature</h2>
-</div>
-
-  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-    The Notes feature allows you to capture and organize your thoughts, ideas, and important information quickly and efficiently.
-  </p>
-
-  <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Creating Notes</h3>
-  <div class="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg mb-6">
-    <ol class="space-y-3 text-gray-700 dark:text-gray-300">
-      <li class="flex items-start">
-        <span class="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mr-3 mt-0.5">1</span>
-        <span>Click on the "Notes" tab in the feature panel</span>
-      </li>
-      <li class="flex items-start">
-        <span class="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mr-3 mt-0.5">2</span>
-        <span>Click the "Add Note" button or the plus (+) icon</span>
-      </li>
-      <li class="flex items-start">
-        <span class="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mr-3 mt-0.5">3</span>
-        <span>Type your note content in the text field</span>
-      </li>
-      <li class="flex items-start">
-        <span class="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mr-3 mt-0.5">4</span>
-        <span>Press Enter or click "Save" to create the note</span>
-      </li>
-    </ol>
-  </div>
-
-  <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Managing Notes</h3>
-  <div class="grid md:grid-cols-2 gap-6 mb-6">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
     <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-      <h4 class="font-semibold text-gray-900 dark:text-white mb-2">✏️ Editing Notes</h4>
-      <p class="text-gray-700 dark:text-gray-300 text-sm">Click on any note to edit its content. Changes are automatically saved as you type.</p>
+      <img 
+        src="/add_transaction_1.png" 
+        alt="Screenshot showing the Transactions button highlighted in the Balanze sidebar" 
+        class="w-full rounded-lg shadow-sm mb-3" 
+        loading="lazy"
+        title="Step 1: Navigate to Transactions"
+      />
+      <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Step 1: Navigate</h4>
+      <p class="text-sm text-gray-600 dark:text-gray-400">Click on the Transactions option in the sidebar to access the transactions page.</p>
     </div>
     
     <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-      <h4 class="font-semibold text-gray-900 dark:text-white mb-2">🗑️ Deleting Notes</h4>
-      <p class="text-gray-700 dark:text-gray-300 text-sm">Click the delete icon (trash can) next to any note to remove it permanently.</p>
-    </div>
-  </div>
-
-  <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Note Categories</h3>
-  <p class="text-gray-700 dark:text-gray-300 mb-4">Organize your notes with categories for better management:</p>
-  <ul class="space-y-2 text-gray-700 dark:text-gray-300 mb-6">
-    <li class="flex items-start">
-      <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-      <span><strong>Financial</strong>: Budget notes, expense tracking, financial goals</span>
-    </li>
-    <li class="flex items-start">
-      <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-      <span><strong>Personal</strong>: Daily thoughts, ideas, personal reminders</span>
-    </li>
-    <li class="flex items-start">
-      <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-      <span><strong>Work</strong>: Meeting notes, project ideas, work-related tasks</span>
-    </li>
-    <li class="flex items-start">
-      <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-      <span><strong>Goals</strong>: Long-term objectives, milestone tracking</span>
-    </li>
-  </ul>
-
-<div id="todo-feature">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">To-Do Feature</h2>
-</div>
-
-  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-    The To-Do feature helps you stay organized and track your tasks, goals, and important deadlines.
-  </p>
-
-  <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Creating Tasks</h3>
-  <div class="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg mb-6">
-    <ol class="space-y-3 text-gray-700 dark:text-gray-300">
-      <li class="flex items-start">
-        <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mr-3 mt-0.5">1</span>
-        <span>Click on the "To-Do" tab in the feature panel</span>
-      </li>
-      <li class="flex items-start">
-        <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mr-3 mt-0.5">2</span>
-        <span>Type your task in the "Add a task..." input field</span>
-      </li>
-      <li class="flex items-start">
-        <span class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold mr-3 mt-0.5">3</span>
-        <span>Click the plus (+) button or press Enter to add the task</span>
-      </li>
-    </ol>
-  </div>
-
-  <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Task Management</h3>
-  <div class="grid md:grid-cols-3 gap-4 mb-6">
-    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-      <h4 class="font-semibold text-gray-900 dark:text-white mb-2">✅ Complete Tasks</h4>
-      <p class="text-gray-700 dark:text-gray-300 text-sm">Click the checkbox next to any task to mark it as completed. Completed tasks will be crossed out and moved to the bottom.</p>
+      <img 
+        src="/add_transaction_2.png" 
+        alt="Screenshot showing the Add Transaction button" 
+        class="w-full rounded-lg shadow-sm mb-3" 
+        loading="lazy"
+        title="Step 2: Add Transaction"
+      />
+      <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Step 2: Add Transaction</h4>
+      <p class="text-sm text-gray-600 dark:text-gray-400">Click the Add Transaction button to open the transaction form.</p>
     </div>
     
     <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-      <h4 class="font-semibold text-gray-900 dark:text-white mb-2">✏️ Edit Tasks</h4>
-      <p class="text-gray-700 dark:text-gray-300 text-sm">Click on any task text to edit its content. Changes are saved automatically.</p>
-    </div>
-    
-    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-      <h4 class="font-semibold text-gray-900 dark:text-white mb-2">🗑️ Delete Tasks</h4>
-      <p class="text-gray-700 dark:text-gray-300 text-sm">Click the delete icon next to any task to remove it from your list.</p>
+      <img 
+        src="/add_transaction_3.png" 
+        alt="Screenshot showing the Make Transaction button" 
+        class="w-full rounded-lg shadow-sm mb-3" 
+        loading="lazy"
+        title="Step 3: Complete Transaction"
+      />
+      <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Step 3: Complete</h4>
+      <p class="text-sm text-gray-600 dark:text-gray-400">Fill in all required fields and click Make Transaction to save.</p>
     </div>
   </div>
-
-  <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Task Organization</h3>
-  <p class="text-gray-700 dark:text-gray-300 mb-4">Keep your tasks organized with these strategies:</p>
-  <ul class="space-y-2 text-gray-700 dark:text-gray-300 mb-6">
-    <li class="flex items-start">
-      <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
-      <span><strong>Priority Order</strong>: List tasks in order of importance</span>
-    </li>
-    <li class="flex items-start">
-      <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
-      <span><strong>Daily Tasks</strong>: Focus on what needs to be done today</span>
-    </li>
-    <li class="flex items-start">
-      <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
-      <span><strong>Weekly Goals</strong>: Break down larger projects into smaller tasks</span>
-    </li>
-    <li class="flex items-start">
-      <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
-      <span><strong>Financial Tasks</strong>: Track bill payments, budget reviews, and financial planning</span>
-    </li>
-  </ul>
-
-<div id="advanced-features">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Advanced Features</h2>
 </div>
 
-  <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Search and Filter</h3>
-  <p class="text-gray-700 dark:text-gray-300 mb-4">Quickly find what you're looking for:</p>
-  <ul class="space-y-2 text-gray-700 dark:text-gray-300 mb-6">
-    <li class="flex items-start">
-      <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
-      <span><strong>Search</strong>: Use the search bar to find specific notes or tasks</span>
-    </li>
-    <li class="flex items-start">
-      <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
-      <span><strong>Filter by Status</strong>: Show only completed or pending tasks</span>
-    </li>
-    <li class="flex items-start">
-      <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
-      <span><strong>Sort Options</strong>: Organize by date, priority, or alphabetical order</span>
-    </li>
+<div id="edit-transaction" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Edit or Delete a Transaction</h2>
+  <ul class="list-disc ml-6 space-y-2 text-gray-700 dark:text-gray-300">
+    <li>From the list, click a transaction to open its details.</li>
+    <li>Update fields and save to apply changes.</li>
+    <li>Use <strong>Delete</strong> to remove it permanently.</li>
   </ul>
+</div>
 
-  <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Data Synchronization</h3>
-  <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800 mb-6">
-    <h4 class="font-semibold text-blue-900 dark:text-blue-100 mb-3">🔄 Automatic Sync</h4>
-    <p class="text-blue-800 dark:text-blue-200 mb-3">Your notes and tasks are automatically synchronized across all your devices:</p>
-    <ul class="space-y-2 text-blue-800 dark:text-blue-200">
-      <li>• Changes made on your phone appear instantly on your computer</li>
-      <li>• No manual sync required - everything happens automatically</li>
-      <li>• Your data is safely backed up in the cloud</li>
+<div id="bulk-import" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Bulk Import (CSV)</h2>
+  <p class="text-gray-700 dark:text-gray-300 mb-4">Import many transactions at once using a CSV file:</p>
+  <ol class="list-decimal ml-6 space-y-2 text-gray-700 dark:text-gray-300">
+    <li>Prepare a CSV with columns like <em>date</em>, <em>type</em>, <em>amount</em>, <em>account</em>, <em>category</em>, <em>description</em>.</li>
+    <li>Open the import option in <strong>Transactions</strong> (if available in your build).</li>
+    <li>Map columns and confirm to import.</li>
+  </ol>
+  <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">Tip: Ensure categories exist to avoid mismatches.</p>
+  <img src="/Partial_Returns.png" alt="Bulk Import Example" class="w-full max-w-3xl mx-auto rounded-lg shadow mb-4" />
+</div>
+
+<div id="reports" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">View Transaction Reports</h2>
+  <p class="text-gray-700 dark:text-gray-300 mb-4">Analyze your spending and income:</p>
+  <ul class="list-disc ml-6 space-y-2 text-gray-700 dark:text-gray-300">
+    <li>Use <strong>Analytics</strong> to see spending by category and trends.</li>
+    <li>Export data from <strong>Settings → Account</strong> if you need CSV/Excel/PDF.</li>
+  </ul>
+</div>
+
+<div id="pro-tips" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Pro Tips</h2>
+  <ul class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700 dark:text-gray-300">
+    <li class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">Use consistent <strong>categories</strong> for clearer reports.</li>
+    <li class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">Record transactions daily to stay accurate.</li>
+    <li class="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">Add detailed <strong>descriptions</strong> for future reference.</li>
+    <li class="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">Consider <strong>bulk import</strong> for bank exports.</li>
+  </ul>
+</div>
+
+ <div id="next-steps" class="mb-12">
+   <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Next Steps</h2>
+   
+  <div class="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 p-6 rounded-xl">
+    <p class="text-gray-700 dark:text-gray-300 mb-4 font-medium">Now that you can make purchases, here's what to explore next:</p>
+    <ul class="space-y-3 text-gray-700 dark:text-gray-300">
+      <li class="flex items-start">
+        <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+        <span>Set up <a href="/kb/how-to-create-your-first-income-expense-category" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">purchase categories</a> for better organization</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+        <span>Review your <a href="/kb/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">purchase analytics</a> and spending patterns</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+        <span>Learn about <a href="/kb/transaction-management" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">bulk import</a> for multiple purchases</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+        <span>Explore <a href="/kb/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">budget tracking</a> and financial goals</span>
+      </li>
     </ul>
   </div>
-
-<div id="best-practices">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Best Practices</h2>
 </div>
 
-  <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Notes Best Practices</h3>
-  <div class="grid md:grid-cols-2 gap-6 mb-6">
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-      <h4 class="font-semibold text-gray-900 dark:text-white mb-3">📝 Writing Effective Notes</h4>
-      <ul class="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
-        <li>• Keep notes concise and to the point</li>
-        <li>• Use bullet points for better readability</li>
-        <li>• Include dates and context when relevant</li>
-        <li>• Review and update notes regularly</li>
-      </ul>
-    </div>
-    
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-      <h4 class="font-semibold text-gray-900 dark:text-white mb-3">🗂️ Organization Tips</h4>
-      <ul class="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
-        <li>• Use consistent naming conventions</li>
-        <li>• Group related notes together</li>
-        <li>• Archive old notes periodically</li>
-        <li>• Use tags or categories for easy filtering</li>
-      </ul>
-    </div>
-  </div>
-
-  <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">To-Do Best Practices</h3>
-  <div class="grid md:grid-cols-2 gap-6 mb-6">
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-      <h4 class="font-semibold text-gray-900 dark:text-white mb-3">✅ Task Management</h4>
-      <ul class="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
-        <li>• Break large tasks into smaller, actionable items</li>
-        <li>• Set realistic deadlines for yourself</li>
-        <li>• Review your task list daily</li>
-        <li>• Celebrate completed tasks</li>
-      </ul>
-    </div>
-    
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-      <h4 class="font-semibold text-gray-900 dark:text-white mb-3">🎯 Productivity Tips</h4>
-      <ul class="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
-        <li>• Focus on 3-5 most important tasks per day</li>
-        <li>• Use the 2-minute rule for quick tasks</li>
-        <li>• Batch similar tasks together</li>
-        <li>• Regular cleanup of completed items</li>
-      </ul>
-    </div>
-  </div>
-
-<div id="troubleshooting">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Troubleshooting</h2>
-</div>
-
-  <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Common Issues</h3>
+ 
+`
+  },
   
-  <div class="space-y-4 mb-6">
-    <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-      <h4 class="font-semibold text-red-800 dark:text-red-200 mb-2">❌ Notes not saving</h4>
-      <p class="text-red-700 dark:text-red-300 mb-2">If your notes aren't saving automatically:</p>
-      <ul class="space-y-1 text-red-700 dark:text-red-300 text-sm">
-        <li>• Check your internet connection</li>
-        <li>• Refresh the page and try again</li>
-        <li>• Clear your browser cache</li>
-        <li>• Contact support if the issue persists</li>
-      </ul>
-    </div>
-    
-    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-      <h4 class="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">⚠️ Tasks not syncing</h4>
-      <p class="text-yellow-700 dark:text-yellow-300 mb-2">If tasks aren't syncing across devices:</p>
-      <ul class="space-y-1 text-yellow-700 dark:text-yellow-300 text-sm">
-        <li>• Ensure you're logged into the same account</li>
-        <li>• Check your internet connection</li>
-        <li>• Wait a few minutes for sync to complete</li>
-        <li>• Log out and log back in</li>
-      </ul>
-    </div>
-    
-    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-      <h4 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">ℹ️ Performance issues</h4>
-      <p class="text-blue-700 dark:text-blue-300 mb-2">If the feature is running slowly:</p>
-      <ul class="space-y-1 text-blue-700 dark:text-blue-300 text-sm">
-        <li>• Clear old completed tasks regularly</li>
-        <li>• Archive old notes to improve performance</li>
-        <li>• Close other browser tabs</li>
-        <li>• Update your browser to the latest version</li>
-      </ul>
-    </div>
+  // MISSING ARTICLES - High Priority Content Gaps
+  'financial-planning-guide': {
+    slug: 'financial-planning-guide',
+    title: 'Financial Planning with Balanze - Complete Guide',
+    description: 'Comprehensive guide to using Balanze for financial planning, goal setting, and long-term wealth management',
+    category: 'Financial Planning',
+    tags: ['financial-planning', 'goals', 'budgeting', 'wealth-management', 'strategy'],
+    difficulty: 'intermediate',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '15 min read',
+    author: 'Balanze Team',
+    relatedArticles: ['analytics-dashboard', 'transaction-management', 'settings-page-comprehensive-guide'],
+    tableOfContents: [
+      { id: 'overview', title: 'Financial Planning Overview', level: 1 },
+      { id: 'goal-setting', title: 'Setting Financial Goals', level: 1 },
+      { id: 'budget-planning', title: 'Budget Planning Strategies', level: 1 },
+      { id: 'tracking-progress', title: 'Tracking Your Progress', level: 1 },
+      { id: 'advanced-features', title: 'Advanced Planning Features', level: 1 },
+      { id: 'pro-tips', title: 'Pro Tips', level: 1 }
+    ],
+    content: `<div id="overview" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Financial Planning with Balanze</h2>
+  <p class="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+    Transform your financial future with strategic planning using Balanze. This comprehensive guide shows you how to set goals, create budgets, and track your progress toward financial freedom.
+  </p>
+  
+  <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 rounded-r-lg mb-6">
+    <p class="text-gray-700 dark:text-gray-300 font-medium mb-2">Prerequisites:</p>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Before starting financial planning, ensure you have:</p>
+    <ul class="list-disc ml-6 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+      <li><a href="/kb/create-first-account" class="text-green-600 dark:text-green-400 hover:underline">Set up your accounts</a> (bank, credit, savings)</li>
+      <li><a href="/kb/transaction-management" class="text-green-600 dark:text-green-400 hover:underline">Added several transactions</a> for historical data</li>
+      <li><a href="/kb/analytics-dashboard" class="text-green-600 dark:text-green-400 hover:underline">Familiarized yourself with analytics</a> for insights</li>
+    </ul>
   </div>
-
-<div id="pro-tips">
-  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Pro Tips</h2>
 </div>
 
-  <div class="grid md:grid-cols-2 gap-6 mb-8">
-    <div class="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 p-6 rounded-lg border border-purple-200 dark:border-purple-800">
-      <h3 class="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-3">🚀 Productivity Hacks</h3>
-      <ul class="space-y-2 text-purple-800 dark:text-purple-200 text-sm">
-        <li>• Use notes for brainstorming and tasks for action items</li>
-        <li>• Create a daily "Top 3" task list</li>
-        <li>• Use notes to capture ideas before they slip away</li>
-        <li>• Review notes weekly to extract actionable tasks</li>
+<div id="goal-setting" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Setting Financial Goals</h2>
+  <p class="text-gray-700 dark:text-gray-300 mb-4">
+    The foundation of financial planning is setting clear, achievable goals. Balanze helps you track progress toward these goals.
+  </p>
+  
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+      <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Short-term Goals (1-2 years)</h4>
+      <ul class="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-2 mt-1">•</span>
+          <span>Emergency fund (3-6 months expenses)</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-2 mt-1">•</span>
+          <span>Vacation or major purchase</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-2 mt-1">•</span>
+          <span>Debt payoff milestones</span>
+        </li>
       </ul>
     </div>
     
-    <div class="bg-gradient-to-br from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20 p-6 rounded-lg border border-green-200 dark:border-green-800">
-      <h3 class="text-lg font-semibold text-green-900 dark:text-green-100 mb-3">💡 Integration Ideas</h3>
-      <ul class="space-y-2 text-green-800 dark:text-green-200 text-sm">
-        <li>• Link notes to specific financial transactions</li>
-        <li>• Create task lists for budget planning sessions</li>
-        <li>• Use notes to track financial goals and progress</li>
-        <li>• Combine with expense tracking for complete financial management</li>
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+      <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Long-term Goals (5+ years)</h4>
+      <ul class="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+          <span>Retirement savings</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+          <span>Home purchase</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+          <span>Education fund</span>
+        </li>
       </ul>
     </div>
   </div>
+</div>
 
-  <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800 mb-8">
-    <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">🎯 Advanced Workflow</h3>
-    <p class="text-blue-800 dark:text-blue-200 mb-3">Create a powerful productivity system:</p>
-    <ol class="space-y-2 text-blue-800 dark:text-blue-200 text-sm">
-      <li class="flex items-start">
-        <span class="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-semibold mr-3 mt-0.5">1</span>
-        <span>Start each day by reviewing your task list and adding new items</span>
-      </li>
-      <li class="flex items-start">
-        <span class="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-semibold mr-3 mt-0.5">2</span>
-        <span>Use notes to capture thoughts and ideas throughout the day</span>
-      </li>
-      <li class="flex items-start">
-        <span class="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-semibold mr-3 mt-0.5">3</span>
-        <span>Convert important notes into actionable tasks</span>
-      </li>
-      <li class="flex items-start">
-        <span class="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-semibold mr-3 mt-0.5">4</span>
-        <span>End each day by reviewing completed tasks and planning tomorrow</span>
-      </li>
-    </ol>
+<div id="budget-planning" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Budget Planning Strategies</h2>
+  <p class="text-gray-700 dark:text-gray-300 mb-4">
+    Create effective budgets using Balanze's analytics and transaction data to guide your financial decisions.
+  </p>
+  
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+      <h4 class="font-semibold text-gray-900 dark:text-white mb-3">50/30/20 Rule</h4>
+      <ul class="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
+        <li>• 50% for needs (rent, utilities, groceries)</li>
+        <li>• 30% for wants (entertainment, dining out)</li>
+        <li>• 20% for savings and debt repayment</li>
+      </ul>
+    </div>
+    
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+      <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Zero-Based Budgeting</h4>
+      <ul class="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
+        <li>• Assign every dollar a purpose</li>
+        <li>• Track every expense category</li>
+        <li>• Adjust monthly based on priorities</li>
+      </ul>
+    </div>
   </div>
+</div>
 
-  <div class="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg mb-8">
-    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Need More Help?</h3>
-    <p class="text-gray-700 dark:text-gray-300 mb-4">If you have questions about the Notes & To-Do feature:</p>
-    <ul class="space-y-2 text-gray-700 dark:text-gray-300">
+<div id="tracking-progress" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Tracking Your Progress</h2>
+  <p class="text-gray-700 dark:text-gray-300 mb-4">
+    Monitor your financial progress using Balanze's analytics and reporting features.
+  </p>
+  
+  <div class="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg mb-6">
+    <h4 class="font-semibold text-green-900 dark:text-green-100 mb-3">📊 Key Metrics to Track</h4>
+    <ul class="space-y-2 text-green-800 dark:text-green-200">
+      <li>• Monthly savings rate and trends</li>
+      <li>• Debt-to-income ratio changes</li>
+      <li>• Emergency fund growth</li>
+      <li>• Investment portfolio performance</li>
+      <li>• Goal completion percentages</li>
+    </ul>
+  </div>
+</div>
+
+<div id="advanced-features" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Advanced Planning Features</h2>
+  <p class="text-gray-700 dark:text-gray-300 mb-4">
+    Leverage Balanze's advanced features for sophisticated financial planning.
+  </p>
+  
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <div class="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-lg">
+      <h4 class="font-semibold text-purple-900 dark:text-purple-100 mb-3">🎯 Goal Tracking</h4>
+      <p class="text-purple-800 dark:text-purple-200 text-sm">Set specific financial goals and track progress with visual indicators and milestone celebrations.</p>
+    </div>
+    
+    <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg">
+      <h4 class="font-semibold text-blue-900 dark:text-blue-100 mb-3">📈 Scenario Planning</h4>
+      <p class="text-blue-800 dark:text-blue-200 text-sm">Model different financial scenarios to understand the impact of major life changes on your finances.</p>
+    </div>
+  </div>
+</div>
+
+<div id="pro-tips" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Pro Tips</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg">
+      <h4 class="font-semibold text-blue-900 dark:text-blue-100 mb-3">🎯 SMART Goals</h4>
+      <p class="text-blue-800 dark:text-blue-200 text-sm">Set Specific, Measurable, Achievable, Relevant, and Time-bound financial goals for better success rates.</p>
+    </div>
+    <div class="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg">
+      <h4 class="font-semibold text-green-900 dark:text-green-100 mb-3">📊 Regular Reviews</h4>
+      <p class="text-green-800 dark:text-green-200 text-sm">Review your financial plan monthly and adjust based on changing circumstances and priorities.</p>
+    </div>
+    <div class="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-lg">
+      <h4 class="font-semibold text-purple-900 dark:text-purple-100 mb-3">🔄 Automation</h4>
+      <p class="text-purple-800 dark:text-purple-200 text-sm">Automate savings transfers and bill payments to ensure consistent progress toward your goals.</p>
+    </div>
+    <div class="bg-orange-50 dark:bg-orange-900/20 p-6 rounded-lg">
+      <h4 class="font-semibold text-orange-900 dark:text-orange-100 mb-3">📚 Education</h4>
+      <p class="text-orange-800 dark:text-orange-200 text-sm">Continuously educate yourself about personal finance to make informed decisions and adapt your strategy.</p>
+    </div>
+  </div>
+</div>
+
+<div id="next-steps" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Next Steps</h2>
+  
+  <div class="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 p-6 rounded-xl">
+    <p class="text-gray-700 dark:text-gray-300 mb-4 font-medium">Now that you understand financial planning, here's what to explore next:</p>
+    <ul class="space-y-3 text-gray-700 dark:text-gray-300">
       <li class="flex items-start">
-        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-        <span>Check out our other help center articles</span>
+        <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+        <span>Set up <a href="/kb/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">financial goals</a> and track your progress</span>
       </li>
       <li class="flex items-start">
-        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-        <span>Watch our video tutorials on productivity features</span>
+        <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+        <span>Create <a href="/kb/transaction-management" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">budget categories</a> for better expense tracking</span>
       </li>
       <li class="flex items-start">
-        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+        <span>Explore <a href="/kb/advanced-analytics" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">advanced analytics</a> for deeper insights</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-green-600 dark:text-green-400 mr-3 mt-1">•</span>
+        <span>Learn about <a href="/kb/how-to-use-last-wish" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">premium features</a> for advanced planning</span>
       </li>
     </ul>
   </div>
-</div>`
+</div>
+
+<div id="need-help" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Need Help?</h2>
+  
+  <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-6 rounded-r-lg">
+    <p class="text-gray-700 dark:text-gray-300 mb-4 font-medium">If you get stuck:</p>
+    <ul class="space-y-3 text-gray-700 dark:text-gray-300">
+      <li class="flex items-start">
+        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
+        <span>Use the search function in the help center</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
+        <span>Check out our video tutorials</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
+        <span>Contact support at <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnects007@gmail.com</a></span>
+      </li>
+    </ul>
+  </div>
+</div>
+`
+  },
+  
+  'data-export-guide': {
+    slug: 'data-export-guide',
+    title: 'Data Export and Backup Guide',
+    description: 'Complete guide to exporting your financial data, creating backups, and ensuring data portability',
+    category: 'Data Management',
+    tags: ['data-export', 'backup', 'csv', 'portability', 'security'],
+    difficulty: 'beginner',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '8 min read',
+    author: 'Balanze Team',
+    relatedArticles: ['settings-page-comprehensive-guide', 'transaction-management', 'analytics-dashboard'],
+    tableOfContents: [
+      { id: 'overview', title: 'Data Export Overview', level: 1 },
+      { id: 'export-transactions', title: 'Exporting Transactions', level: 1 },
+      { id: 'backup-accounts', title: 'Backing Up Account Data', level: 1 },
+      { id: 'data-format', title: 'Understanding Data Formats', level: 1 },
+      { id: 'security', title: 'Data Security Best Practices', level: 1 }
+    ],
+    content: `<div id="overview" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Data Export and Backup Guide</h2>
+  <p class="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+    Keep your financial data safe and portable. This guide shows you how to export your data, create backups, and ensure you never lose your financial information.
+  </p>
+  
+  <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6">
+    <p class="text-gray-700 dark:text-gray-300 font-medium mb-2">Why Export Your Data?</p>
+    <ul class="list-disc ml-6 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+      <li>Backup your financial records</li>
+      <li>Import into other financial tools</li>
+      <li>Create tax reports and documentation</li>
+      <li>Ensure data portability and ownership</li>
+    </ul>
+  </div>
+</div>
+
+<div id="export-transactions" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Exporting Transactions</h2>
+  <p class="text-gray-700 dark:text-gray-300 mb-4">
+    Export your transaction data in various formats for different use cases.
+  </p>
+  
+  <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
+    <h4 class="font-semibold text-gray-900 dark:text-white mb-2">CSV Export (Recommended)</h4>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Best for spreadsheets and tax software</p>
+    <ul class="list-disc ml-6 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+      <li>Includes all transaction details</li>
+      <li>Compatible with Excel, Google Sheets</li>
+      <li>Easy to import into tax software</li>
+    </ul>
+  </div>
+</div>
+
+<div id="next-steps" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Next Steps</h2>
+  
+  <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-6 rounded-xl">
+    <p class="text-gray-700 dark:text-gray-300 mb-4 font-medium">Now that you can export your data, here's what to explore next:</p>
+    <ul class="space-y-3 text-gray-700 dark:text-gray-300">
+      <li class="flex items-start">
+        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+        <span>Set up <a href="/kb/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">regular data backups</a> for peace of mind</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+        <span>Use exported data for <a href="/kb/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">tax preparation</a> and financial planning</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+        <span>Explore <a href="/kb/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">advanced analytics</a> for deeper insights</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
+        <span>Learn about <a href="/kb/how-to-use-last-wish" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">data portability</a> and legacy planning</span>
+      </li>
+    </ul>
+  </div>
+</div>
+`
+  },
+  
+  // REMAINING MISSING ARTICLES - Critical Content Gaps
+  'mobile-app-features': {
+    slug: 'mobile-app-features',
+    title: 'Mobile App Features - Complete Guide',
+    description: 'Complete guide to using Balanze on mobile devices, including all mobile-specific features and optimizations',
+    category: 'Mobile',
+    tags: ['mobile', 'app', 'features', 'on-the-go', 'smartphone', 'tablet'],
+    difficulty: 'beginner',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '10 min read',
+    author: 'Balanze Team',
+    relatedArticles: ['getting-started-guide', 'transaction-management', 'analytics-dashboard'],
+    tableOfContents: [
+      { id: 'overview', title: 'Mobile App Overview', level: 1 },
+      { id: 'key-features', title: 'Key Mobile Features', level: 1 },
+      { id: 'navigation', title: 'Mobile Navigation', level: 1 },
+      { id: 'offline-sync', title: 'Offline Sync & Data', level: 1 },
+      { id: 'mobile-tips', title: 'Mobile Pro Tips', level: 1 }
+    ],
+    content: `<div id="overview" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Mobile App Features Guide</h2>
+  <p class="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+    Take your financial management on the go with Balanze's powerful mobile app. This guide covers all mobile-specific features, optimizations, and best practices for managing your finances from anywhere.
+  </p>
+  
+  <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6">
+    <p class="text-gray-700 dark:text-gray-300 font-medium mb-2">Mobile Prerequisites:</p>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Before using mobile features, ensure you have:</p>
+    <ul class="list-disc ml-6 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+      <li><a href="/kb/getting-started-guide" class="text-blue-600 dark:text-blue-400 hover:underline">Set up your account</a> on desktop first</li>
+      <li><a href="/kb/create-first-account" class="text-blue-600 dark:text-blue-400 hover:underline">Added your accounts</a> and initial transactions</li>
+      <li>Downloaded the latest version of the Balanze mobile app</li>
+    </ul>
+  </div>
+</div>
+
+<div id="key-features" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Key Mobile Features</h2>
+  <p class="text-gray-700 dark:text-gray-300 mb-4">
+    Balanze's mobile app includes all the features you need for on-the-go financial management.
+  </p>
+  
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+      <h4 class="font-semibold text-gray-900 dark:text-white mb-2">📱 Quick Transaction Entry</h4>
+      <ul class="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-2 mt-1">•</span>
+          <span>Add transactions in seconds</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-2 mt-1">•</span>
+          <span>Voice-to-text input</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-green-600 dark:text-green-400 mr-2 mt-1">•</span>
+          <span>Quick category selection</span>
+        </li>
+      </ul>
+    </div>
+    
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+      <h4 class="font-semibold text-gray-900 dark:text-white mb-2">📊 Mobile Analytics</h4>
+      <ul class="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+          <span>Real-time spending insights</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+          <span>Interactive charts and graphs</span>
+        </li>
+        <li class="flex items-start">
+          <span class="text-blue-600 dark:text-blue-400 mr-2 mt-1">•</span>
+          <span>Budget progress tracking</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div id="next-steps" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Next Steps</h2>
+  
+  <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-6 rounded-xl">
+  </div>
+</div>
+`
+  },
+  
+  'advanced-analytics': {
+    slug: 'advanced-analytics',
+    title: 'Advanced Analytics - Deep Dive Guide',
+    description: 'Comprehensive guide to advanced analytics features, custom reports, and financial insights in Balanze',
+    category: 'Analytics',
+    tags: ['advanced-analytics', 'reports', 'insights', 'custom-reports', 'financial-analysis'],
+    difficulty: 'advanced',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '20 min read',
+    author: 'Balanze Team',
+    relatedArticles: ['analytics-dashboard', 'financial-planning-guide', 'data-export-guide'],
+    tableOfContents: [
+      { id: 'overview', title: 'Advanced Analytics Overview', level: 1 },
+      { id: 'custom-reports', title: 'Creating Custom Reports', level: 1 },
+      { id: 'data-visualization', title: 'Advanced Data Visualization', level: 1 },
+      { id: 'predictive-analytics', title: 'Predictive Analytics', level: 1 },
+      { id: 'export-analysis', title: 'Exporting Analysis Data', level: 1 }
+    ],
+    content: `<div id="overview" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Advanced Analytics Guide</h2>
+  <p class="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+    Unlock the full power of Balanze's analytics with advanced features, custom reports, and deep financial insights. This guide is for users who want to go beyond basic analytics.
+  </p>
+  
+  <div class="bg-purple-50 dark:bg-purple-900/20 border-l-4 border-purple-500 p-4 rounded-r-lg mb-6">
+    <p class="text-gray-700 dark:text-gray-300 font-medium mb-2">Prerequisites for Advanced Analytics:</p>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Before diving into advanced features, ensure you have:</p>
+    <ul class="list-disc ml-6 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+      <li><a href="/kb/analytics-dashboard" class="text-purple-600 dark:text-purple-400 hover:underline">Mastered basic analytics</a> and dashboard navigation</li>
+      <li><a href="/kb/transaction-management" class="text-purple-600 dark:text-purple-400 hover:underline">At least 3 months of transaction data</a> for meaningful analysis</li>
+      <li><a href="/kb/financial-planning-guide" class="text-purple-600 dark:text-purple-400 hover:underline">Set up financial goals</a> for goal-based analytics</li>
+    </ul>
+  </div>
+</div>
+
+<div id="custom-reports" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Creating Custom Reports</h2>
+  <p class="text-gray-700 dark:text-gray-300 mb-4">
+    Build custom reports tailored to your specific financial analysis needs.
+  </p>
+  
+  <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
+    <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Report Builder Features</h4>
+    <ul class="list-disc ml-6 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+      <li>Custom date ranges and filters</li>
+      <li>Multiple account and category combinations</li>
+      <li>Advanced grouping and aggregation options</li>
+      <li>Export to multiple formats (PDF, Excel, CSV)</li>
+    </ul>
+  </div>
+</div>
+
+<div id="next-steps" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Next Steps</h2>
+  
+  <div class="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 p-6 rounded-xl">
+    <p class="text-gray-700 dark:text-gray-300 mb-4 font-medium">Now that you understand advanced analytics, here's what to explore next:</p>
+    <ul class="space-y-3 text-gray-700 dark:text-gray-300">
+      <li class="flex items-start">
+        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
+        <span>Create <a href="/kb/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">custom reports</a> for specific financial goals</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
+        <span>Set up <a href="/kb/analytics-dashboard" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">automated insights</a> and alerts</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
+        <span>Learn about <a href="/kb/data-export-guide" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">data export</a> for external analysis</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-purple-600 dark:text-purple-400 mr-3 mt-1">•</span>
+        <span>Explore <a href="/kb/how-to-use-last-wish" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">premium features</a> for advanced planning</span>
+      </li>
+    </ul>
+  </div>
+</div>
+`
+  },
+  
+  'troubleshooting-guide': {
+    slug: 'troubleshooting-guide',
+    title: 'Troubleshooting Guide - Common Issues & Solutions',
+    description: 'Complete troubleshooting guide for common issues, error messages, and solutions in Balanze',
+    category: 'Support',
+    tags: ['troubleshooting', 'support', 'errors', 'solutions', 'help', 'fixes'],
+    difficulty: 'beginner',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '12 min read',
+    author: 'Balanze Team',
+    relatedArticles: ['getting-started-guide', 'settings-page-comprehensive-guide', 'data-export-guide'],
+    tableOfContents: [
+      { id: 'overview', title: 'Troubleshooting Overview', level: 1 },
+      { id: 'common-issues', title: 'Common Issues & Solutions', level: 1 },
+      { id: 'error-messages', title: 'Understanding Error Messages', level: 1 },
+      { id: 'performance-issues', title: 'Performance & Speed Issues', level: 1 },
+      { id: 'data-issues', title: 'Data Sync & Backup Issues', level: 1 },
+      { id: 'contact-support', title: 'When to Contact Support', level: 1 }
+    ],
+    content: `<div id="overview" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Troubleshooting Guide</h2>
+  <p class="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+    Resolve common issues quickly with this comprehensive troubleshooting guide. Find solutions to the most frequent problems users encounter in Balanze.
+  </p>
+  
+  <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-r-lg mb-6">
+    <p class="text-gray-700 dark:text-gray-300 font-medium mb-2">Quick Fix Checklist:</p>
+    <ul class="list-disc ml-6 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+      <li>Refresh your browser or restart the app</li>
+      <li>Check your internet connection</li>
+      <li>Clear browser cache and cookies</li>
+      <li>Update to the latest version</li>
+    </ul>
+  </div>
+</div>
+
+<div id="common-issues" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Common Issues & Solutions</h2>
+  
+  <div class="space-y-4">
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+      <h4 class="font-semibold text-gray-900 dark:text-white mb-2">❌ "Unable to Load Data" Error</h4>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">This usually indicates a connection or sync issue.</p>
+      <ul class="list-disc ml-6 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+        <li>Check your internet connection</li>
+        <li>Try refreshing the page</li>
+        <li>Clear browser cache</li>
+        <li>Contact support if issue persists</li>
+      </ul>
+    </div>
+    
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+      <h4 class="font-semibold text-gray-900 dark:text-white mb-2">⚠️ "Transaction Not Saving" Issue</h4>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Transactions may not save due to validation errors.</p>
+      <ul class="list-disc ml-6 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+        <li>Ensure all required fields are filled</li>
+        <li>Check that amount is a valid number</li>
+        <li>Verify account and category selections</li>
+        <li>Try saving with a different browser</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div id="next-steps" class="mb-12">
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Next Steps</h2>
+  
+  <div class="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 p-6 rounded-xl">
+    <p class="text-gray-700 dark:text-gray-300 mb-4 font-medium">If you're still experiencing issues, here are additional resources:</p>
+    <ul class="space-y-3 text-gray-700 dark:text-gray-300">
+      <li class="flex items-start">
+        <span class="text-red-600 dark:text-red-400 mr-3 mt-1">•</span>
+        <span>Review the <a href="/kb/getting-started-guide" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">getting started guide</a> for basic setup</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-red-600 dark:text-red-400 mr-3 mt-1">•</span>
+        <span>Check your <a href="/kb/settings-page-comprehensive-guide" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">settings configuration</a> for common issues</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-red-600 dark:text-red-400 mr-3 mt-1">•</span>
+        <span>Contact our <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">support team</a> for personalized help</span>
+      </li>
+      <li class="flex items-start">
+        <span class="text-red-600 dark:text-red-400 mr-3 mt-1">•</span>
+        <span>Explore our <a href="/help" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">help center</a> for more detailed guides</span>
+      </li>
+    </ul>
+  </div>
+</div>
+`
   }
 };
 
@@ -4794,6 +5505,14 @@ export default function KBArticlePage() {
   const [copied, setCopied] = useState(false);
   const [startTime] = useState(Date.now());
   const [activeSection, setActiveSection] = useState<string>('');
+
+  // Initialize GA4 on component mount
+  useEffect(() => {
+    initializeGA4({
+      measurementId: import.meta.env.VITE_GA4_MEASUREMENT_ID || 'G-XXXXXXXXXX',
+      debug: import.meta.env.DEV
+    });
+  }, []);
   const [isTocOpen, setIsTocOpen] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -4822,6 +5541,71 @@ export default function KBArticlePage() {
             article_title: foundArticle.title,
             article_category: foundArticle.category
           });
+
+          // SEO Analytics tracking
+          trackPageView(slug);
+          
+          // GA4 tracking
+          trackArticleView(slug, foundArticle.title, foundArticle.category, foundArticle.readTime);
+          
+          // Generate and inject meta tags
+          const metaTags = generateMetaTags({
+            slug: foundArticle.slug,
+            title: foundArticle.title,
+            description: foundArticle.description,
+            category: foundArticle.category,
+            tags: foundArticle.tags || [],
+            author: foundArticle.author,
+            lastUpdated: foundArticle.lastUpdated,
+            readTime: foundArticle.readTime,
+            difficulty: foundArticle.difficulty || 'beginner'
+          });
+          
+          // Inject meta tags into document head
+          const metaTagsHTML = generateMetaTagsHTML(metaTags);
+          const metaContainer = document.getElementById('meta-tags');
+          if (metaContainer) {
+            metaContainer.innerHTML = metaTagsHTML;
+          }
+          
+          // Inject structured data for SEO
+          const breadcrumbs = [
+            { name: 'Home', url: '/' },
+            { name: 'Help Center', url: '/help-center' },
+            { name: foundArticle.title, url: `/help-center/${slug}` }
+          ];
+          
+          const structuredData = generateHelpCenterPageStructuredData(
+            {
+              slug: foundArticle.slug,
+              title: foundArticle.title,
+              description: foundArticle.description,
+              author: foundArticle.author,
+              lastUpdated: foundArticle.lastUpdated,
+              category: foundArticle.category,
+              readTime: foundArticle.readTime
+            },
+            breadcrumbs
+          );
+          
+          // Inject all structured data
+          Object.values(structuredData).forEach(data => {
+            injectStructuredData(data);
+          });
+          
+          // Inject article JSON-LD
+          const articleJsonLd = generateArticleJsonLd({
+            slug: foundArticle.slug,
+            title: foundArticle.title,
+            description: foundArticle.description,
+            category: foundArticle.category,
+            tags: foundArticle.tags || [],
+            author: foundArticle.author,
+            lastUpdated: foundArticle.lastUpdated,
+            readTime: foundArticle.readTime,
+            difficulty: foundArticle.difficulty || 'beginner'
+          });
+          injectStructuredData(articleJsonLd, 'article-json-ld');
         }
       }, 300);
     }
@@ -4834,6 +5618,13 @@ export default function KBArticlePage() {
         const timeSpent = Math.floor((Date.now() - startTime) / 1000);
         if (timeSpent > 5) { // Only track if user spent more than 5 seconds
           trackArticleTimeSpent(slug, article.title, article.category, timeSpent);
+          
+          // SEO Analytics tracking
+          trackTimeOnPage(article.slug, timeSpent);
+          trackExitPage(article.slug);
+          
+          // GA4 tracking
+          ga4TrackTimeOnPage(article.slug, timeSpent);
         }
       }
     };
@@ -5484,6 +6275,11 @@ export default function KBArticlePage() {
           )}
         </div>
 
+        {/* Breadcrumb */}
+        <div className="mb-4">
+          <Breadcrumb />
+        </div>
+
         {/* Article Content */}
         <div className="bg-white dark:bg-gray-800 rounded-none sm:rounded-xl shadow-sm border-0 sm:border border-gray-200 dark:border-gray-700 p-4 sm:p-8 mb-6">
           <div 
@@ -5491,6 +6287,13 @@ export default function KBArticlePage() {
             dangerouslySetInnerHTML={{ __html: article.content }}
           />
         </div>
+
+        {/* Related Articles - hidden for getting-started-guide per request */}
+        {article.slug !== 'getting-started-guide' && (
+          <RelatedArticles currentSlug={article.slug} />
+        )}
+
+        {/* SEO tools removed per request */}
 
         {/* Feedback Section */}
         <div className="bg-white dark:bg-gray-800 rounded-none sm:rounded-xl shadow-sm border-0 sm:border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-6">
@@ -5527,44 +6330,8 @@ export default function KBArticlePage() {
           )}
         </div>
 
-        {/* Related Articles */}
-        {article.relatedArticles && article.relatedArticles.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Related Articles
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {article.relatedArticles.map((relatedSlug) => {
-                const relatedArticle = MOCK_ARTICLES[relatedSlug];
-                if (!relatedArticle) return null;
-                
-                return (
-                  <Link
-                    key={relatedSlug}
-                    to={`/kb/${relatedSlug}`}
-                    className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors group"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        {relatedArticle.title}
-                      </h4>
-                      <ExternalLink className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+        {/* Remove duplicate manual related list: we rely on <RelatedArticles /> above */}
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                      {relatedArticle.description}
-                    </p>
-                    <div className="flex items-center gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      <span>{relatedArticle.readTime}</span>
-                      <span>•</span>
-                      <span>{relatedArticle.category}</span>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
-          </div>
         </div>
       </div>
 

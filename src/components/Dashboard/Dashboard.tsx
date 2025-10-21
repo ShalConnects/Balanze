@@ -100,10 +100,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         fetchAccounts(),
         fetchCategories(),
         fetchPurchaseCategories(),
-        fetchDonationSavingRecords()
+        fetchDonationSavingRecords(),
+        useFinanceStore.getState().fetchPurchases() // Add missing fetchPurchases
       ]);
     } catch (error) {
       console.error('Error refreshing dashboard data:', error);
+      throw error; // Re-throw to let PullToRefresh handle error state
     }
   }, [fetchTransactions, fetchAccounts, fetchCategories, fetchPurchaseCategories, fetchDonationSavingRecords]);
   
@@ -115,6 +117,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   const activeAccounts = getActiveAccounts();
   const transactions = getActiveTransactions();
   const allTransactions = storeTransactions; // Use reactive store data
+  
+  // Debug logging for currency cards
+  useEffect(() => {
+    console.log('Dashboard Debug:', {
+      statsByCurrency: stats.byCurrency,
+      activeAccountsCount: activeAccounts.length,
+      transactionsCount: allTransactions.length,
+      accounts: storeAccounts.length
+    });
+  }, [stats.byCurrency, activeAccounts.length, allTransactions.length, storeAccounts.length]);
   
   
   // Debug logging for currency card issue
@@ -328,6 +340,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     }
   }, [dashboardLoading, user]);
 
+  // Listen for global refresh events from header
+  useEffect(() => {
+    const handleDataRefresh = async () => {
+      try {
+        await handleRefresh();
+      } catch (error) {
+        console.error('Error handling global data refresh:', error);
+      }
+    };
+
+    window.addEventListener('dataRefreshed', handleDataRefresh);
+    return () => {
+      window.removeEventListener('dataRefreshed', handleDataRefresh);
+    };
+  }, [handleRefresh]);
+
   // Auto refresh removed - data will only be fetched on component mount
 
   // Manual refresh is handled by the Header component's refresh button
@@ -467,17 +495,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
           {/* Currency Sections & Donations & Savings - Responsive grid */}
           <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6">
-            {stats.byCurrency.map(({ currency }) => (
-              <div key={currency} className="w-full">
-                <CurrencyOverviewCard
-                  currency={currency}
-                  transactions={allTransactions}
-                  accounts={rawAccounts}
-                  t={t}
-                  formatCurrency={formatCurrency}
-                />
-              </div>
-            ))}
+            {stats.byCurrency.length > 0 ? (
+              stats.byCurrency.map(({ currency }) => (
+                <div key={currency} className="w-full">
+                  <CurrencyOverviewCard
+                    currency={currency}
+                    transactions={allTransactions}
+                    accounts={rawAccounts}
+                    t={t}
+                    formatCurrency={formatCurrency}
+                  />
+                </div>
+              ))
+            ) : (
+              // Fallback: Show currency cards for all active accounts if stats.byCurrency is empty
+              Array.from(new Set(rawAccounts.filter(acc => acc.isActive).map(acc => acc.currency))).map(currency => (
+                <div key={currency} className="w-full">
+                  <CurrencyOverviewCard
+                    currency={currency}
+                    transactions={allTransactions}
+                    accounts={rawAccounts}
+                    t={t}
+                    formatCurrency={formatCurrency}
+                  />
+                </div>
+              ))
+            )}
             {/* Donations & Savings Overview Card - Place after currency cards */}
             <div className="w-full">
               <DonationSavingsOverviewCard

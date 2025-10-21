@@ -257,6 +257,11 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                     <div className="text-sm text-gray-600 dark:text-gray-300">
                       {formatCurrency ? formatCurrency(record.amount, record.currency) : defaultFormatCurrency(record.amount, record.currency)}
                     </div>
+                    {record.partial_return_amount && record.partial_return_amount > 0 && (
+                      <div className="text-xs text-green-600 dark:text-green-400">
+                        Partial: {formatCurrency ? formatCurrency(record.partial_return_amount, record.currency) : defaultFormatCurrency(record.partial_return_amount, record.currency)}
+                      </div>
+                    )}
                   </div>
                   <div className="col-span-2 flex items-center justify-end gap-1">
                     {record.status === 'active' && (
@@ -415,11 +420,39 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                         </div>
                       )}
 
+                      {/* Partial Return Information */}
+                      {record.partial_return_amount && record.partial_return_amount > 0 && (
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Partial Return</div>
+                          <div className="text-sm font-medium text-green-600 dark:text-green-400">
+                            {formatCurrency ? formatCurrency(record.partial_return_amount, record.currency) : defaultFormatCurrency(record.partial_return_amount, record.currency)}
+                          </div>
+                          {record.partial_return_date && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Date: {formatDate(record.partial_return_date)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Total Returned */}
                       <div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Returned</div>
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {formatCurrency ? formatCurrency(recordReturns.reduce((sum: number, ret: any) => sum + ret.amount, 0), record.currency) : defaultFormatCurrency(recordReturns.reduce((sum: number, ret: any) => sum + ret.amount, 0), record.currency)}
+                          {formatCurrency ? formatCurrency((recordReturns.reduce((sum: number, ret: any) => sum + ret.amount, 0) + (record.partial_return_amount || 0)), record.currency) : defaultFormatCurrency((recordReturns.reduce((sum: number, ret: any) => sum + ret.amount, 0) + (record.partial_return_amount || 0)), record.currency)}
+                        </div>
+                        {record.partial_return_amount && record.partial_return_amount > 0 && (
+                          <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                            Including partial return: {formatCurrency ? formatCurrency(record.partial_return_amount, record.currency) : defaultFormatCurrency(record.partial_return_amount, record.currency)}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Remaining Amount */}
+                      <div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Remaining Amount</div>
+                        <div className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                          {formatCurrency ? formatCurrency(record.amount - (recordReturns.reduce((sum: number, ret: any) => sum + ret.amount, 0) + (record.partial_return_amount || 0)), record.currency) : defaultFormatCurrency(record.amount - (recordReturns.reduce((sum: number, ret: any) => sum + ret.amount, 0) + (record.partial_return_amount || 0)), record.currency)}
                         </div>
                       </div>
 

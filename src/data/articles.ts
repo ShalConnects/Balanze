@@ -21,6 +21,19 @@ export interface KBArticle {
   author?: string;
   relatedArticles?: string[];
   tableOfContents?: TableOfContentsItem[];
+  // Enhanced SEO and linking properties
+  topicCluster?: string;
+  parentArticle?: string;
+  childArticles?: string[];
+  seoKeywords?: string[];
+  internalLinks?: InternalLink[];
+}
+
+export interface InternalLink {
+  text: string;
+  targetSlug: string;
+  context: string;
+  anchorText: string;
 }
 
 // Article content templates
@@ -265,7 +278,7 @@ export const ARTICLE_SECTIONS = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:shalconnect00@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnect00@gmail.com</a></span>
+        <span>Contact support at <a href="mailto:shalconnects007@gmail.com" class="text-blue-600 dark:text-blue-400 hover:underline">shalconnects007@gmail.com</a></span>
       </li>
     </ul>
   </div>
@@ -348,5 +361,146 @@ export function buildArticleContent(sections: string[]): string {
 // Helper function to get TOC by template name
 export function getTOCByTemplate(templateName: keyof typeof TOC_TEMPLATES): TableOfContentsItem[] {
   return TOC_TEMPLATES[templateName] || TOC_TEMPLATES.gettingStarted;
+}
+
+// Topic clusters for SEO and internal linking
+export const TOPIC_CLUSTERS = {
+  'getting-started': {
+    name: 'Getting Started',
+    description: 'Essential guides for new users',
+    hubArticle: 'getting-started-guide',
+    articles: [
+      'getting-started-guide',
+      'create-first-account',
+      'create-first-transaction',
+      'settings-page-comprehensive-guide'
+    ]
+  },
+  'account-management': {
+    name: 'Account Management',
+    description: 'Managing accounts, transfers, and currencies',
+    hubArticle: 'account-management-guide',
+    articles: [
+      'create-first-account',
+      'how-to-create-your-first-transfer',
+      'currency-management',
+      'account-settings'
+    ]
+  },
+  'transactions': {
+    name: 'Transactions & Tracking',
+    description: 'Adding, managing, and analyzing transactions',
+    hubArticle: 'transaction-management-guide',
+    articles: [
+      'create-first-transaction',
+      'transaction-categories',
+      'bulk-transaction-import',
+      'transaction-reports'
+    ]
+  },
+  'analytics': {
+    name: 'Analytics & Insights',
+    description: 'Understanding your financial data',
+    hubArticle: 'analytics-overview',
+    articles: [
+      'analytics-overview',
+      'spending-analysis',
+      'budget-tracking',
+      'financial-reports'
+    ]
+  },
+  'premium-features': {
+    name: 'Premium Features',
+    description: 'Advanced features for premium users',
+    hubArticle: 'premium-features-guide',
+    articles: [
+      'premium-features-guide',
+      'how-to-use-last-wish',
+      'advanced-analytics',
+      'data-export-options'
+    ]
+  }
+};
+
+// Enhanced article data with internal linking
+export const ENHANCED_ARTICLES: Record<string, Partial<KBArticle>> = {
+  'getting-started-guide': {
+    topicCluster: 'getting-started',
+    parentArticle: null,
+    childArticles: ['create-first-account', 'create-first-transaction'],
+    seoKeywords: ['getting started with Balanze', 'Balanze beginner guide', 'how to use Balanze', 'Balanze setup guide', 'personal finance management', 'budgeting software', 'financial tracking', 'account setup', 'transaction tracking', 'financial analytics'],
+    internalLinks: [
+      {
+        text: 'Create your first account',
+        targetSlug: 'create-first-account',
+        context: 'account setup',
+        anchorText: 'account creation guide'
+      },
+      {
+        text: 'Add your first transaction',
+        targetSlug: 'create-first-transaction',
+        context: 'transaction setup',
+        anchorText: 'transaction guide'
+      }
+    ]
+  },
+  'create-first-account': {
+    topicCluster: 'getting-started',
+    parentArticle: 'getting-started-guide',
+    childArticles: ['account-management-guide'],
+    seoKeywords: ['account creation', 'bank account', 'credit card', 'setup'],
+    internalLinks: [
+      {
+        text: 'Learn about account management',
+        targetSlug: 'account-management-guide',
+        context: 'account management',
+        anchorText: 'account management guide'
+      },
+      {
+        text: 'Create your first transaction',
+        targetSlug: 'create-first-transaction',
+        context: 'next steps',
+        anchorText: 'transaction guide'
+      }
+    ]
+  },
+  'settings-page-comprehensive-guide': {
+    topicCluster: 'getting-started',
+    parentArticle: 'getting-started-guide',
+    childArticles: ['category-management', 'premium-features-guide'],
+    seoKeywords: ['settings', 'configuration', 'preferences', 'account settings'],
+    internalLinks: [
+      {
+        text: 'Manage your categories',
+        targetSlug: 'category-management',
+        context: 'category setup',
+        anchorText: 'category management guide'
+      },
+      {
+        text: 'Explore premium features',
+        targetSlug: 'premium-features-guide',
+        context: 'premium features',
+        anchorText: 'premium features guide'
+      }
+    ]
+  }
+};
+
+// Helper function to get related articles based on topic cluster
+export function getRelatedArticlesByCluster(slug: string, limit: number = 3): string[] {
+  const article = ENHANCED_ARTICLES[slug];
+  if (!article?.topicCluster) return [];
+  
+  const cluster = TOPIC_CLUSTERS[article.topicCluster as keyof typeof TOPIC_CLUSTERS];
+  if (!cluster) return [];
+  
+  return cluster.articles
+    .filter(articleSlug => articleSlug !== slug)
+    .slice(0, limit);
+}
+
+// Helper function to get internal links for an article
+export function getInternalLinks(slug: string): InternalLink[] {
+  return ENHANCED_ARTICLES[slug]?.internalLinks || [];
 }
 

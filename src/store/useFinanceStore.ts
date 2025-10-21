@@ -1,12 +1,26 @@
 import { create } from 'zustand';
 import { Account, Transaction, Category, Budget, DashboardStats, SavingsGoal, Purchase, PurchaseCategory, PurchaseAnalytics, MultiCurrencyPurchaseAnalytics, PurchaseAttachment, LendBorrowAnalytics, LendBorrow } from '../types';
 import { DonationSavingRecord, DonationSavingAnalytics, PaymentTransaction, PaymentHistoryStats } from '../types/index';
+import { 
+  InvestmentAsset, 
+  InvestmentTransaction, 
+  InvestmentCategory, 
+  InvestmentGoal, 
+  InvestmentAnalytics,
+  InvestmentDashboardStats,
+  InvestmentAssetInput,
+  InvestmentTransactionInput,
+  InvestmentCategoryInput,
+  InvestmentGoalInput
+} from '../types/investment';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
 import { showToast } from '../lib/toast';
 import { createNotification } from '../lib/notifications';
 import { logTransactionEvent, createAuditLog } from '../lib/auditLogging';
 import { generateTransactionId } from '../utils/transactionId';
+import { useAchievementStore } from './achievementStore';
+import { userActivityService } from '../lib/userActivityService';
 
 // Extend the Account type to make calculated_balance optional for input
 type AccountInput = Omit<Account, 'calculated_balance'>;
@@ -28,6 +42,15 @@ interface FinanceStore {
   showTransferModal: boolean;
   showPurchaseForm: boolean;
   donationSavingRecords: DonationSavingRecord[];
+  
+  // Investment Management
+  investmentAssets: InvestmentAsset[];
+  investmentTransactions: InvestmentTransaction[];
+  investmentCategories: InvestmentCategory[];
+  investmentGoals: InvestmentGoal[];
+  showInvestmentAssetForm: boolean;
+  showInvestmentTransactionForm: boolean;
+  showInvestmentGoalForm: boolean;
   setDonationSavingRecords: (records: DonationSavingRecord[] | ((prev: DonationSavingRecord[]) => DonationSavingRecord[])) => void;
   
   // Payment History
@@ -104,6 +127,39 @@ interface FinanceStore {
   setShowAccountForm: (show: boolean) => void;
   setShowTransferModal: (show: boolean) => void;
   setShowPurchaseForm: (show: boolean) => void;
+  
+  // Investment Management Methods
+  setShowInvestmentAssetForm: (show: boolean) => void;
+  setShowInvestmentTransactionForm: (show: boolean) => void;
+  setShowInvestmentGoalForm: (show: boolean) => void;
+  
+  // Investment Assets
+  fetchInvestmentAssets: () => Promise<void>;
+  addInvestmentAsset: (asset: InvestmentAssetInput) => Promise<void>;
+  updateInvestmentAsset: (id: string, asset: Partial<InvestmentAssetInput>) => Promise<void>;
+  deleteInvestmentAsset: (id: string) => Promise<void>;
+  
+  // Investment Transactions
+  fetchInvestmentTransactions: () => Promise<void>;
+  addInvestmentTransaction: (transaction: InvestmentTransactionInput) => Promise<void>;
+  updateInvestmentTransaction: (id: string, transaction: Partial<InvestmentTransactionInput>) => Promise<void>;
+  deleteInvestmentTransaction: (id: string) => Promise<void>;
+  
+  // Investment Categories
+  fetchInvestmentCategories: () => Promise<void>;
+  addInvestmentCategory: (category: InvestmentCategoryInput) => Promise<void>;
+  updateInvestmentCategory: (id: string, category: Partial<InvestmentCategoryInput>) => Promise<void>;
+  deleteInvestmentCategory: (id: string) => Promise<void>;
+  
+  // Investment Goals
+  fetchInvestmentGoals: () => Promise<void>;
+  addInvestmentGoal: (goal: InvestmentGoalInput) => Promise<void>;
+  updateInvestmentGoal: (id: string, goal: Partial<InvestmentGoalInput>) => Promise<void>;
+  deleteInvestmentGoal: (id: string) => Promise<void>;
+  
+  // Investment Analytics
+  getInvestmentAnalytics: () => InvestmentAnalytics;
+  getInvestmentDashboardStats: () => InvestmentDashboardStats;
 
   getActiveAccounts: () => Account[];
   getActiveTransactions: () => Transaction[];
@@ -194,6 +250,15 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   showTransferModal: false,
   showPurchaseForm: false,
   donationSavingRecords: [],
+  
+  // Investment Management State
+  investmentAssets: [],
+  investmentTransactions: [],
+  investmentCategories: [],
+  investmentGoals: [],
+  showInvestmentAssetForm: false,
+  showInvestmentTransactionForm: false,
+  showInvestmentGoalForm: false,
   setDonationSavingRecords: (records) => {
     set((state) => ({
       donationSavingRecords: typeof records === 'function' ? records(state.donationSavingRecords) : records
@@ -392,6 +457,14 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
       // Only fetch accounts on success
       await get().fetchAccounts();
+      
+      // Track account creation activity
+      await userActivityService.trackAccountCreated(user.id, { accountType: account.type });
+      
+      // Trigger achievement check for account creation
+      const { checkAndAwardAchievements } = useAchievementStore.getState();
+      checkAndAwardAchievements('create_account', { accountType: account.type });
+      
       set({ loading: false });
     } catch (err: any) {
       // Re-throw plan-related errors so they can be handled by the UI
@@ -690,6 +763,14 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       get().fetchAccounts(),
       get().fetchPurchases()
     ]);
+    
+    // Track transaction creation activity
+    await userActivityService.trackTransactionCreated(user.id, { transactionType: transactionData.type });
+    
+    // Trigger achievement check for transaction creation
+    const { checkAndAwardAchievements } = useAchievementStore.getState();
+    checkAndAwardAchievements('create_transaction', { transactionType: transactionData.type });
+    
     set({ loading: false });
     
       return { id: data.id as string, transaction_id: data.transaction_id as string };
@@ -980,6 +1061,13 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       
       // Show success toast
       showToast.success(`Category "${categoryData.name}" created successfully`);
+      
+      // Track category creation activity
+      await userActivityService.trackCategoryCreated(user.id, { categoryType: categoryData.type });
+      
+      // Trigger achievement check for category creation
+      const { checkAndAwardAchievements } = useAchievementStore.getState();
+      checkAndAwardAchievements('create_category', { categoryType: categoryData.type });
       
       // If this is an expense category, also create a purchase category to unify them
       if (categoryData.type === 'expense') {
@@ -2555,6 +2643,547 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       pendingTransactions: paymentTransactions.filter(tx => tx.status === 'pending').length,
       failedTransactions: paymentTransactions.filter(tx => tx.status === 'failed').length,
       refundedTransactions: paymentTransactions.filter(tx => tx.status === 'refunded').length
+    };
+  },
+
+  // Investment Management Methods
+  setShowInvestmentAssetForm: (show: boolean) => set({ showInvestmentAssetForm: show }),
+  setShowInvestmentTransactionForm: (show: boolean) => set({ showInvestmentTransactionForm: show }),
+  setShowInvestmentGoalForm: (show: boolean) => set({ showInvestmentGoalForm: show }),
+
+  // Investment Assets
+  fetchInvestmentAssets: async () => {
+    set({ loading: true, error: null });
+    
+    const { user } = useAuthStore.getState();
+    if (!user) {
+      set({ loading: false, error: 'Not authenticated' });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('investment_assets')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      set({ investmentAssets: data || [], loading: false });
+    } catch (err: any) {
+      console.error('Error fetching investment assets:', err);
+      set({ error: err.message, loading: false });
+    }
+  },
+
+  addInvestmentAsset: async (asset: InvestmentAssetInput) => {
+    const { user } = useAuthStore.getState();
+    if (!user) throw new Error('Not authenticated');
+
+    try {
+      const { data, error } = await supabase
+        .from('investment_assets')
+        .insert([{ ...asset, user_id: user.id }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      set((state) => ({
+        investmentAssets: [data, ...state.investmentAssets]
+      }));
+
+      showToast('Asset added successfully', 'success');
+    } catch (err: any) {
+      console.error('Error adding investment asset:', err);
+      showToast(err.message || 'Failed to add asset', 'error');
+      throw err;
+    }
+  },
+
+  updateInvestmentAsset: async (id: string, asset: Partial<InvestmentAssetInput>) => {
+    try {
+      const { data, error } = await supabase
+        .from('investment_assets')
+        .update(asset)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      set((state) => ({
+        investmentAssets: state.investmentAssets.map(a => a.id === id ? data : a)
+      }));
+
+      showToast('Asset updated successfully', 'success');
+    } catch (err: any) {
+      console.error('Error updating investment asset:', err);
+      showToast(err.message || 'Failed to update asset', 'error');
+      throw err;
+    }
+  },
+
+  deleteInvestmentAsset: async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('investment_assets')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      set((state) => ({
+        investmentAssets: state.investmentAssets.filter(a => a.id !== id)
+      }));
+
+      showToast('Asset deleted successfully', 'success');
+    } catch (err: any) {
+      console.error('Error deleting investment asset:', err);
+      showToast(err.message || 'Failed to delete asset', 'error');
+      throw err;
+    }
+  },
+
+  // Investment Transactions
+  fetchInvestmentTransactions: async () => {
+    set({ loading: true, error: null });
+    
+    const { user } = useAuthStore.getState();
+    if (!user) {
+      set({ loading: false, error: 'Not authenticated' });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('investment_transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('transaction_date', { ascending: false });
+
+      if (error) throw error;
+
+      set({ investmentTransactions: data || [], loading: false });
+    } catch (err: any) {
+      console.error('Error fetching investment transactions:', err);
+      set({ error: err.message, loading: false });
+    }
+  },
+
+  addInvestmentTransaction: async (transaction: InvestmentTransactionInput) => {
+    const { user } = useAuthStore.getState();
+    if (!user) throw new Error('Not authenticated');
+
+    try {
+      const { data, error } = await supabase
+        .from('investment_transactions')
+        .insert([{ ...transaction, user_id: user.id }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      set((state) => ({
+        investmentTransactions: [data, ...state.investmentTransactions]
+      }));
+
+      showToast('Transaction added successfully', 'success');
+    } catch (err: any) {
+      console.error('Error adding investment transaction:', err);
+      showToast(err.message || 'Failed to add transaction', 'error');
+      throw err;
+    }
+  },
+
+  updateInvestmentTransaction: async (id: string, transaction: Partial<InvestmentTransactionInput>) => {
+    try {
+      const { data, error } = await supabase
+        .from('investment_transactions')
+        .update(transaction)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      set((state) => ({
+        investmentTransactions: state.investmentTransactions.map(t => t.id === id ? data : t)
+      }));
+
+      showToast('Transaction updated successfully', 'success');
+    } catch (err: any) {
+      console.error('Error updating investment transaction:', err);
+      showToast(err.message || 'Failed to update transaction', 'error');
+      throw err;
+    }
+  },
+
+  deleteInvestmentTransaction: async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('investment_transactions')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      set((state) => ({
+        investmentTransactions: state.investmentTransactions.filter(t => t.id !== id)
+      }));
+
+      showToast('Transaction deleted successfully', 'success');
+    } catch (err: any) {
+      console.error('Error deleting investment transaction:', err);
+      showToast(err.message || 'Failed to delete transaction', 'error');
+      throw err;
+    }
+  },
+
+  // Investment Categories
+  fetchInvestmentCategories: async () => {
+    set({ loading: true, error: null });
+    
+    const { user } = useAuthStore.getState();
+    if (!user) {
+      set({ loading: false, error: 'Not authenticated' });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('investment_categories')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+
+      set({ investmentCategories: data || [], loading: false });
+    } catch (err: any) {
+      console.error('Error fetching investment categories:', err);
+      set({ error: err.message, loading: false });
+    }
+  },
+
+  addInvestmentCategory: async (category: InvestmentCategoryInput) => {
+    const { user } = useAuthStore.getState();
+    if (!user) throw new Error('Not authenticated');
+
+    try {
+      const { data, error } = await supabase
+        .from('investment_categories')
+        .insert([{ ...category, user_id: user.id }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      set((state) => ({
+        investmentCategories: [...state.investmentCategories, data]
+      }));
+
+      showToast('Category added successfully', 'success');
+    } catch (err: any) {
+      console.error('Error adding investment category:', err);
+      showToast(err.message || 'Failed to add category', 'error');
+      throw err;
+    }
+  },
+
+  updateInvestmentCategory: async (id: string, category: Partial<InvestmentCategoryInput>) => {
+    try {
+      const { data, error } = await supabase
+        .from('investment_categories')
+        .update(category)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      set((state) => ({
+        investmentCategories: state.investmentCategories.map(c => c.id === id ? data : c)
+      }));
+
+      showToast('Category updated successfully', 'success');
+    } catch (err: any) {
+      console.error('Error updating investment category:', err);
+      showToast(err.message || 'Failed to update category', 'error');
+      throw err;
+    }
+  },
+
+  deleteInvestmentCategory: async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('investment_categories')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      set((state) => ({
+        investmentCategories: state.investmentCategories.filter(c => c.id !== id)
+      }));
+
+      showToast('Category deleted successfully', 'success');
+    } catch (err: any) {
+      console.error('Error deleting investment category:', err);
+      showToast(err.message || 'Failed to delete category', 'error');
+      throw err;
+    }
+  },
+
+  // Investment Goals
+  fetchInvestmentGoals: async () => {
+    set({ loading: true, error: null });
+    
+    const { user } = useAuthStore.getState();
+    if (!user) {
+      set({ loading: false, error: 'Not authenticated' });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('investment_goals')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      set({ investmentGoals: data || [], loading: false });
+    } catch (err: any) {
+      console.error('Error fetching investment goals:', err);
+      set({ error: err.message, loading: false });
+    }
+  },
+
+  addInvestmentGoal: async (goal: InvestmentGoalInput) => {
+    const { user } = useAuthStore.getState();
+    if (!user) throw new Error('Not authenticated');
+
+    try {
+      const { data, error } = await supabase
+        .from('investment_goals')
+        .insert([{ ...goal, user_id: user.id }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      set((state) => ({
+        investmentGoals: [data, ...state.investmentGoals]
+      }));
+
+      showToast('Goal added successfully', 'success');
+    } catch (err: any) {
+      console.error('Error adding investment goal:', err);
+      showToast(err.message || 'Failed to add goal', 'error');
+      throw err;
+    }
+  },
+
+  updateInvestmentGoal: async (id: string, goal: Partial<InvestmentGoalInput>) => {
+    try {
+      const { data, error } = await supabase
+        .from('investment_goals')
+        .update(goal)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      set((state) => ({
+        investmentGoals: state.investmentGoals.map(g => g.id === id ? data : g)
+      }));
+
+      showToast('Goal updated successfully', 'success');
+    } catch (err: any) {
+      console.error('Error updating investment goal:', err);
+      showToast(err.message || 'Failed to update goal', 'error');
+      throw err;
+    }
+  },
+
+  deleteInvestmentGoal: async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('investment_goals')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      set((state) => ({
+        investmentGoals: state.investmentGoals.filter(g => g.id !== id)
+      }));
+
+      showToast('Goal deleted successfully', 'success');
+    } catch (err: any) {
+      console.error('Error deleting investment goal:', err);
+      showToast(err.message || 'Failed to delete goal', 'error');
+      throw err;
+    }
+  },
+
+  // Investment Analytics
+  getInvestmentAnalytics: (): InvestmentAnalytics => {
+    const { investmentAssets, investmentTransactions } = get();
+    
+    const totalPortfolioValue = investmentAssets.reduce((sum, asset) => sum + asset.total_value, 0);
+    const totalCostBasis = investmentAssets.reduce((sum, asset) => sum + asset.cost_basis, 0);
+    const totalUnrealizedGainLoss = investmentAssets.reduce((sum, asset) => sum + asset.unrealized_gain_loss, 0);
+    const totalRealizedGainLoss = investmentAssets.reduce((sum, asset) => sum + asset.realized_gain_loss, 0);
+    const totalGainLoss = totalUnrealizedGainLoss + totalRealizedGainLoss;
+    const overallReturnPercentage = totalCostBasis > 0 ? (totalGainLoss / totalCostBasis) * 100 : 0;
+
+    // Asset type breakdown
+    const assetTypeBreakdown = investmentAssets.reduce((acc, asset) => {
+      const existing = acc.find(item => item.asset_type === asset.asset_type);
+      if (existing) {
+        existing.total_value += asset.total_value;
+        existing.count += 1;
+      } else {
+        acc.push({
+          asset_type: asset.asset_type,
+          total_value: asset.total_value,
+          count: 1
+        });
+      }
+      return acc;
+    }, [] as Array<{ asset_type: string; total_value: number; count: number }>);
+
+    // Calculate percentages
+    assetTypeBreakdown.forEach(item => {
+      item.percentage = totalPortfolioValue > 0 ? (item.total_value / totalPortfolioValue) * 100 : 0;
+    });
+
+    // Currency breakdown
+    const currencyBreakdown = investmentAssets.reduce((acc, asset) => {
+      const existing = acc.find(item => item.currency === asset.currency);
+      if (existing) {
+        existing.total_value += asset.total_value;
+      } else {
+        acc.push({
+          currency: asset.currency,
+          total_value: asset.total_value
+        });
+      }
+      return acc;
+    }, [] as Array<{ currency: string; total_value: number }>);
+
+    // Calculate percentages for currency
+    currencyBreakdown.forEach(item => {
+      item.percentage = totalPortfolioValue > 0 ? (item.total_value / totalPortfolioValue) * 100 : 0;
+    });
+
+    // Top and worst performing assets
+    const sortedAssets = [...investmentAssets].sort((a, b) => {
+      const aReturn = a.cost_basis > 0 ? (a.unrealized_gain_loss / a.cost_basis) * 100 : 0;
+      const bReturn = b.cost_basis > 0 ? (b.unrealized_gain_loss / b.cost_basis) * 100 : 0;
+      return bReturn - aReturn;
+    });
+
+    const topPerformingAsset = sortedAssets[0] ? {
+      symbol: sortedAssets[0].symbol,
+      name: sortedAssets[0].name,
+      gain_loss: sortedAssets[0].unrealized_gain_loss,
+      return_percentage: sortedAssets[0].cost_basis > 0 ? (sortedAssets[0].unrealized_gain_loss / sortedAssets[0].cost_basis) * 100 : 0
+    } : undefined;
+
+    const worstPerformingAsset = sortedAssets[sortedAssets.length - 1] ? {
+      symbol: sortedAssets[sortedAssets.length - 1].symbol,
+      name: sortedAssets[sortedAssets.length - 1].name,
+      gain_loss: sortedAssets[sortedAssets.length - 1].unrealized_gain_loss,
+      return_percentage: sortedAssets[sortedAssets.length - 1].cost_basis > 0 ? (sortedAssets[sortedAssets.length - 1].unrealized_gain_loss / sortedAssets[sortedAssets.length - 1].cost_basis) * 100 : 0
+    } : undefined;
+
+    return {
+      total_portfolio_value: totalPortfolioValue,
+      total_cost_basis: totalCostBasis,
+      total_unrealized_gain_loss: totalUnrealizedGainLoss,
+      total_realized_gain_loss: totalRealizedGainLoss,
+      total_gain_loss: totalGainLoss,
+      overall_return_percentage: overallReturnPercentage,
+      asset_count: investmentAssets.length,
+      transaction_count: investmentTransactions.length,
+      top_performing_asset: topPerformingAsset,
+      worst_performing_asset: worstPerformingAsset,
+      asset_type_breakdown: assetTypeBreakdown,
+      currency_breakdown: currencyBreakdown,
+      monthly_performance: [] // TODO: Implement monthly performance calculation
+    };
+  },
+
+  getInvestmentDashboardStats: (): InvestmentDashboardStats => {
+    const { investmentAssets, investmentTransactions, investmentGoals } = get();
+    
+    const totalPortfolioValue = investmentAssets.reduce((sum, asset) => sum + asset.total_value, 0);
+    const totalGainLoss = investmentAssets.reduce((sum, asset) => sum + asset.unrealized_gain_loss, 0);
+    const totalCostBasis = investmentAssets.reduce((sum, asset) => sum + asset.cost_basis, 0);
+    const returnPercentage = totalCostBasis > 0 ? (totalGainLoss / totalCostBasis) * 100 : 0;
+
+    // Portfolio allocation
+    const portfolioAllocation = investmentAssets.reduce((acc, asset) => {
+      const existing = acc.find(item => item.asset_type === asset.asset_type);
+      if (existing) {
+        existing.total_value += asset.total_value;
+        existing.count += 1;
+      } else {
+        acc.push({
+          asset_type: asset.asset_type,
+          total_value: asset.total_value,
+          count: 1,
+          color: '#3B82F6' // Default color, could be enhanced
+        });
+      }
+      return acc;
+    }, [] as Array<{ asset_type: string; total_value: number; count: number; color: string }>);
+
+    // Calculate percentages
+    portfolioAllocation.forEach(item => {
+      item.percentage = totalPortfolioValue > 0 ? (item.total_value / totalPortfolioValue) * 100 : 0;
+    });
+
+    // Top assets by performance
+    const topAssets = [...investmentAssets]
+      .sort((a, b) => b.unrealized_gain_loss - a.unrealized_gain_loss)
+      .slice(0, 5)
+      .map(asset => ({
+        symbol: asset.symbol,
+        name: asset.name,
+        asset_type: asset.asset_type,
+        current_value: asset.total_value,
+        cost_basis: asset.cost_basis,
+        gain_loss: asset.unrealized_gain_loss,
+        return_percentage: asset.cost_basis > 0 ? (asset.unrealized_gain_loss / asset.cost_basis) * 100 : 0,
+        total_shares: asset.total_shares,
+        current_price: asset.current_price,
+        currency: asset.currency
+      }));
+
+    // Recent transactions
+    const recentTransactions = investmentTransactions.slice(0, 5);
+
+    // Goals stats
+    const activeGoals = investmentGoals.filter(goal => goal.status === 'active').length;
+    const completedGoals = investmentGoals.filter(goal => goal.status === 'completed').length;
+
+    return {
+      total_portfolio_value: totalPortfolioValue,
+      total_gain_loss: totalGainLoss,
+      return_percentage: returnPercentage,
+      asset_count: investmentAssets.length,
+      active_goals: activeGoals,
+      completed_goals: completedGoals,
+      recent_transactions: recentTransactions,
+      top_assets: topAssets,
+      portfolio_allocation: portfolioAllocation
     };
   },
 }));

@@ -79,6 +79,24 @@ export const SettledRecordInfoModal: React.FC<SettledRecordInfoModalProps> = ({
                       <span className="text-gray-900 dark:text-white">{new Date(record.due_date).toLocaleDateString()}</span>
                     </div>
                   )}
+                  {record.partial_return_amount && record.partial_return_amount > 0 && (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600 dark:text-gray-400">Partial Return:</span>
+                        <span className="text-green-600 dark:text-green-400 font-medium">{formatCurrency(record.partial_return_amount, record.currency)}</span>
+                      </div>
+                      {record.partial_return_date && (
+                        <div className="flex justify-between">
+                          <span className="font-medium text-gray-600 dark:text-gray-400">Return Date:</span>
+                          <span className="text-gray-900 dark:text-white">{new Date(record.partial_return_date).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600 dark:text-gray-400">Remaining:</span>
+                        <span className="text-gray-900 dark:text-white font-medium">{formatCurrency(record.amount - record.partial_return_amount, record.currency)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}

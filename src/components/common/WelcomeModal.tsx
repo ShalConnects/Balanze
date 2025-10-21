@@ -50,7 +50,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
       const { data: newCashAccount, error: cashError } = await supabase
         .from('accounts')
         .insert([{
-          name: `Cash Wallet (${selectedCurrency})`,
+          name: 'Cash Wallet',
           type: 'cash',
           initial_balance: 0,
           calculated_balance: 0,
