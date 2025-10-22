@@ -82,39 +82,39 @@ export const AccountSummaryCards: React.FC<AccountSummaryCardsProps> = ({
       <StatCard
         title="Active Accounts"
         value={activeAccounts.length.toString()}
-        icon={<Wallet className="w-5 h-5" />}
-        color="purple"
+        icon={<Wallet />}
+        color="blue"
         insight={accountTypeInsight || 'No active accounts'}
       />
       
       <StatCard
         title="Total Transactions"
         value={filteredTransactions.length.toString()}
-        icon={<TrendingUp className="w-5 h-5" />}
-        color="purple"
+        icon={<TrendingUp />}
+        color="blue"
         insight={transactionInsight || 'No transactions'}
       />
       
       <StatCard
         title="DPS Accounts"
         value={dpsAccounts.length.toString()}
-        icon={<Target className="w-5 h-5" />}
-        color="purple"
+        icon={<Target />}
+        color="blue"
         insight={dpsTypeInsight || 'No DPS accounts'}
       />
 
       <StatCard
         title="Total Balance"
         value={`${currencySymbol}${activeAccounts.reduce((sum, account) => sum + account.calculated_balance, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-        icon={<Users className="w-5 h-5" />}
-        color="gray"
+        icon={<Users />}
+        color="blue"
         insight={`${activeAccounts.length} accounts`}
       />
 
       <StatCard
         title="Monthly Activity"
         value={thisMonthTransactions.length.toString()}
-        icon={<Calendar className="w-5 h-5" />}
+        icon={<Calendar />}
         color="blue"
         insight={monthlyInsight}
       />

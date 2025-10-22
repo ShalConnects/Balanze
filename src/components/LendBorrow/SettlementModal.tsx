@@ -40,6 +40,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
   const [touched, setTouched] = useState<{ amount?: boolean }>({});
   const amountRef = useRef<HTMLInputElement | null>(null);
 
+
   // Filter accounts by currency and sort to show default account first
   const currencyFilteredAccounts = accounts.filter(acc => acc.currency === record.currency);
   const sortedAccountOptions = [
@@ -66,6 +67,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
   
   // Check if record should be auto-settled
   const shouldBeSettled = remainingAmount <= 0;
+
   
   // Fetch return history on modal open to check for existing partial returns
   useEffect(() => {
@@ -73,7 +75,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
   }, [record.id]);
 
   // Check if record has existing partial returns/payments
-  const hasPartialReturns = returnHistory.length > 0 || (record.partial_return_amount && record.partial_return_amount > 0);
+  const hasPartialReturns = returnHistory.length > 0 || (record.partial_return_amount && record.partial_return_amount > 0) || false;
 
   // Auto-set settlement method for record-only entries with partial history
   useEffect(() => {
@@ -126,39 +128,22 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
   };
 
   const handlePartialReturn = async () => {
-    console.log('🔍 handlePartialReturn called for record-only record');
-    console.log('🔍 Record details:', {
-      id: record.id,
-      account_id: record.account_id,
-      settlementMethod,
-      partialAmount,
-      selectedAccountId
-    });
 
     const validationError = validatePartialAmount();
     if (validationError) {
-      console.log('❌ Validation error:', validationError);
       setErrors({ amount: validationError });
       return;
     }
 
     // Only require account selection for account-linked records or when user selects account settlement
     if ((record.account_id || (!record.account_id && settlementMethod === 'account')) && !selectedAccountId) {
-      console.log('❌ Account selection required but not provided');
       setErrors({ account: 'Please select an account' });
       return;
     }
 
-    console.log('✅ Validation passed, starting partial return process...');
     setLoading(true);
     try {
       // Create partial return record
-      console.log('📝 Creating partial return record with data:', {
-        lend_borrow_id: record.id,
-        amount: partialAmount,
-        return_date: returnDate.toISOString(),
-        account_id: (record.account_id || (!record.account_id && settlementMethod === 'account')) ? selectedAccountId : null
-      });
 
       const { data: returnData, error: returnError } = await supabase
         .from('lend_borrow_returns')
@@ -172,16 +157,12 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
         .single();
 
       if (returnError) {
-        console.log('❌ Error creating partial return record:', returnError);
         throw returnError;
       }
-      console.log('✅ Partial return record created successfully:', returnData);
 
       // For record-only entries with account settlement, create transaction manually
       // since the database trigger won't fire (original record has account_id: null)
       if (!record.account_id && settlementMethod === 'account') {
-        console.log('🔄 Creating manual transaction for record-only entry with account settlement');
-        
         const transactionData = {
           user_id: record.user_id,
           account_id: selectedAccountId,
@@ -194,38 +175,20 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           transaction_id: `LB${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`
         };
 
-        console.log('📝 Creating transaction with data:', transactionData);
-
         const { error: transactionError } = await supabase
           .from('transactions')
           .insert([transactionData]);
 
         if (transactionError) {
-          console.error('❌ Error creating transaction:', transactionError);
           toast.error('Partial return recorded but failed to create transaction');
-        } else {
-          console.log('✅ Transaction created successfully');
         }
-      } else {
-        // Note: Transaction creation is handled by database trigger for account-linked records
-        console.log('ℹ️ Transaction creation will be handled by database trigger');
       }
 
       // Check if this partial return/payment makes the record fully settled
       const newTotalReturned = totalReturned + partialAmount;
       const newRemainingAmount = record.amount - newTotalReturned;
       
-      console.log('🔍 Settlement calculation:', {
-        totalReturned,
-        partialAmount,
-        newTotalReturned,
-        recordAmount: record.amount,
-        newRemainingAmount,
-        shouldAutoSettle: newRemainingAmount <= 0
-      });
-      
       if (newRemainingAmount <= 0) {
-        console.log('🔄 Auto-settling record as it\'s now fully paid');
         // Auto-settle the record since it's now fully paid
         const { error: settleError } = await supabase
           .from('lend_borrow')
@@ -236,10 +199,8 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           .eq('id', record.id);
         
         if (settleError) {
-          console.error('❌ Error auto-settling record:', settleError);
           toast.error('Failed to auto-settle record');
         } else {
-          console.log('✅ Record auto-settled successfully');
           toast.success(`${record.type === 'lend' ? 'Partial return' : 'Partial payment'} of ${getCurrencySymbol(record.currency)}${partialAmount.toFixed(2)} recorded and record automatically settled!`);
           // Refresh the data to show updated status
           if (onRecordUpdated) {
@@ -247,13 +208,11 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           }
         }
       } else {
-        console.log('🎉 Partial return completed successfully, record remains active');
         toast.success(`${record.type === 'lend' ? 'Partial return' : 'Partial payment'} of ${getCurrencySymbol(record.currency)}${partialAmount.toFixed(2)} recorded successfully!`);
       }
 
       onClose();
     } catch (error: any) {
-      console.error('❌ Error recording partial return:', error);
       toast.error(error.message || `Failed to record ${record.type === 'lend' ? 'partial return' : 'partial payment'}`);
     } finally {
       setLoading(false);
@@ -261,16 +220,9 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
   };
 
   const handleFullSettlement = () => {
-    console.log('🔍 handleFullSettlement called');
-    console.log('🔍 Record details:', {
-      id: record.id,
-      account_id: record.account_id,
-      settlementMethod
-    });
 
     // For record-only entries with simple settlement, just mark as settled
     if (!record.account_id && settlementMethod === 'simple') {
-      console.log('🔄 Simple settlement for record-only entry');
       // Update record status to settled without account transaction
       supabase
         .from('lend_borrow')
@@ -280,7 +232,6 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
         })
         .eq('id', record.id)
         .then(() => {
-          console.log('✅ Record marked as settled successfully');
           toast.success('Record marked as settled successfully!');
           if (onRecordUpdated) {
             onRecordUpdated();
@@ -288,7 +239,6 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           onClose();
         })
         .catch((error) => {
-          console.error('❌ Error settling record:', error);
           toast.error('Failed to settle record');
         });
       return;

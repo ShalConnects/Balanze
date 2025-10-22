@@ -4,10 +4,9 @@ import { useFinanceStore } from '../../store/useFinanceStore';
 import { TransactionForm } from './TransactionForm';
 import { TransactionList } from './TransactionList';
 import { Transaction } from '../../types';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useExport } from '../../hooks/useExport';
 import { 
   TransactionTableSkeleton, 
   TransactionMobileSkeleton, 
@@ -39,8 +38,6 @@ export const TransactionsView: React.FC = () => {
     recordIdField: 'id',
     scrollToRecord: true
   });
-
-
 
   // Export dropdown state
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -95,6 +92,21 @@ export const TransactionsView: React.FC = () => {
     return matchesSearch && matchesType && matchesCategory && matchesAccount && !isTransfer;
   });
 
+  // Export functionality using shared hook
+  const { isExporting, exportFormat, exportToCSV, exportToPDF, exportToHTML } = useExport({
+    transactions: filteredTransactions,
+    accounts,
+    filters: {
+      search: globalSearchTerm,
+      type: filterType,
+      account: filterAccount,
+      currency: '',
+      dateRange: { start: '', end: '' },
+      showModifiedOnly: false,
+      recentlyModifiedDays: 7
+    }
+  });
+
   // Use a generic formatCurrency function
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -103,87 +115,19 @@ export const TransactionsView: React.FC = () => {
     }).format(amount);
   };
 
-  // Export handlers
-  const handleExportCSV = () => {
-    // Simple CSV export
-    const headers = ['Date', 'Description', 'Category', 'Account', 'Type', 'Amount', 'Tags'];
-    const csvData = filteredTransactions.map(transaction => {
-      const account = accounts.find(a => a.id === transaction.account_id);
-      return [
-        new Date(transaction.date).toLocaleDateString(),
-        transaction.description,
-        transaction.category,
-        account?.name || 'Unknown',
-        transaction.tags?.includes('transfer') ? 'Transfer' : transaction.type,
-        transaction.amount,
-        (transaction.tags || []).join('; ')
-      ];
-    });
-    const csvContent = [headers, ...csvData]
-      .map(row => row.map(field => `"${field}"`).join(','))
-      .join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transactions-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+  // Export handlers with loading states
+  const handleExportCSV = async () => {
+    await exportToCSV();
     setShowExportMenu(false);
   };
 
-  const handleExportPDF = () => {
-    // Real PDF export logic
-    const doc = new jsPDF();
-    const headers = [['Date', 'Description', 'Category', 'Account', 'Type', 'Amount', 'Tags']];
-    const rows = filteredTransactions.map(transaction => {
-      const account = accounts.find(a => a.id === transaction.account_id);
-      return [
-        new Date(transaction.date).toLocaleDateString(),
-        transaction.description,
-        transaction.category,
-        account?.name || 'Unknown',
-        transaction.tags?.includes('transfer') ? 'Transfer' : transaction.type,
-        transaction.amount,
-        (transaction.tags || []).join('; ')
-      ];
-    });
-    autoTable(doc, {
-      head: headers,
-      body: rows,
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [41, 128, 185] },
-      margin: { top: 20 },
-    });
-    doc.save(`transactions-${new Date().toISOString().split('T')[0]}.pdf`);
+  const handleExportPDF = async () => {
+    await exportToPDF();
     setShowExportMenu(false);
   };
 
-  const handleExportHTML = () => {
-    // Simple HTML export (stub)
-    let html = '<table border="1"><thead><tr>';
-    const headers = ['Date', 'Description', 'Category', 'Account', 'Type', 'Amount', 'Tags'];
-    html += headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>';
-    filteredTransactions.forEach(transaction => {
-      const account = accounts.find(a => a.id === transaction.account_id);
-      html += '<tr>' + [
-        new Date(transaction.date).toLocaleDateString(),
-        transaction.description,
-        transaction.category,
-        account?.name || 'Unknown',
-        transaction.tags?.includes('transfer') ? 'Transfer' : transaction.type,
-        transaction.amount,
-        (transaction.tags || []).join('; ')
-      ].map(field => `<td>${field}</td>`).join('') + '</tr>';
-    });
-    html += '</tbody></table>';
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transactions-${new Date().toISOString().split('T')[0]}.html`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+  const handleExportHTML = async () => {
+    await exportToHTML();
     setShowExportMenu(false);
   };
 

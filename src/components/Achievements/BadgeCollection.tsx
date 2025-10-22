@@ -14,6 +14,7 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({
   filterByRarity
 }) => {
   const [activeTab, setActiveTab] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const categories: { value: AchievementCategory | 'all'; label: string; icon: React.ReactNode }[] = [
     { value: 'all', label: 'All', icon: <Trophy className="w-4 h-4" /> },
@@ -93,6 +94,7 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({
     if (activeTab === 'all') {
       // For 'all' tab, fetch all achievements at once
       const fetchAllAchievements = async () => {
+        setIsLoading(true);
         try {
           const { data, error } = await supabase
             .from('achievements')
@@ -115,6 +117,8 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({
           setAchievementsCache(grouped);
         } catch (error) {
           console.error('Error fetching all achievements:', error);
+        } finally {
+          setIsLoading(false);
         }
       };
       fetchAllAchievements();
@@ -181,6 +185,35 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({
     }
   };
 
+
+  // Show skeleton loading while fetching achievements
+  if (isLoading) {
+    return (
+      <div className="space-y-8 animate-pulse">
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <div
+              key={index}
+              className="rounded-xl p-3 sm:p-4 border-2 border-gray-200 dark:border-gray-600 bg-white/60 dark:bg-gray-800/40"
+            >
+              <div className="flex flex-col items-center text-center space-y-2 sm:space-y-3">
+                <div className="p-2 sm:p-3 rounded-xl bg-gray-200 dark:bg-gray-700">
+                  <div className="w-6 h-6 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                </div>
+                <div className="space-y-1 sm:space-y-2 w-full">
+                  <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-3/4 mx-auto"></div>
+                  <div className="h-2 bg-gray-300 dark:bg-gray-600 rounded w-full"></div>
+                  <div className="h-2 bg-gray-300 dark:bg-gray-600 rounded w-2/3 mx-auto"></div>
+                  <div className="h-5 bg-gray-300 dark:bg-gray-600 rounded-full w-16 mx-auto"></div>
+                  <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-1/2 mx-auto"></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

@@ -1911,7 +1911,7 @@ export const PurchaseTracker: React.FC = () => {
                   })()}
                 </p>
               </div>
-              <span className="text-purple-600" style={{ fontSize: '1.2rem' }}>
+              <span className="text-blue-600" style={{ fontSize: '1.2rem' }}>
                 {getCurrencySymbol(analyticsCurrency)}
               </span>
             </div>
@@ -1929,7 +1929,7 @@ export const PurchaseTracker: React.FC = () => {
                   })()}
                 </p>
               </div>
-              <CheckCircle className="text-purple-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
+              <CheckCircle className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
@@ -1948,7 +1948,7 @@ export const PurchaseTracker: React.FC = () => {
                   })()}
                 </p>
               </div>
-              <Clock className="text-purple-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
+              <Clock className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
             </div>
           </div>
         </div>

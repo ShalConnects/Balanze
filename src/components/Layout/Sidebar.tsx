@@ -223,7 +223,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
             {navigation.map((item) => {
               const Icon = item.icon;
               const isActive = currentView === item.id;
-              const isAnalyticsActive = Boolean(currentView === 'analytics' || currentView === 'purchase-analytics' || currentView === 'lent-borrow-analytics');
+              const isAnalyticsActive = Boolean(currentView === 'analytics');
               
               return (
                 <div key={item.id}>
@@ -267,42 +267,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
                   </button>
                   
                   {/* Subcategories for Analytics */}
-                  {item.id === 'analytics' && isAnalyticsActive && (!effectiveCollapsed || (isMobile && isOpen)) && (
-                    <div className={`mt-2 space-y-1 ${isMobile && isOpen ? 'ml-6' : 'ml-6'}`}>
-                      <button
-                        onClick={() => {
-                          onViewChange('purchase-analytics');
-                          if (window.innerWidth < 768) onToggle();
-                        }}
-                        className={`
-                          w-full flex items-center space-x-3 px-4 py-2 rounded-lg transition-all duration-200 text-sm text-left
-                          ${currentView === 'purchase-analytics'
-                            ? 'bg-gradient-to-r from-blue-100 via-purple-100 to-blue-100 dark:from-blue-800/30 dark:via-purple-800/30 dark:to-blue-800/30 text-gradient-primary shadow-sm' 
-                            : 'text-gray-500 dark:text-gray-400 hover:bg-gradient-to-r hover:from-gray-50 hover:via-blue-50/40 hover:to-gray-50 dark:hover:from-gray-700/50 dark:hover:via-blue-900/15 dark:hover:to-gray-700/50 hover:text-gray-700 dark:hover:text-gray-300'
-                          }
-                        `}
-                      >
-                        <BarChart3 className="w-4 h-4" />
-                        <span>{t('navigation.purchaseAnalytics')}</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          onViewChange('lent-borrow-analytics');
-                          if (window.innerWidth < 768) onToggle();
-                        }}
-                        className={`
-                          w-full flex items-center space-x-3 px-4 py-2 rounded-lg transition-all duration-200 text-sm text-left
-                          ${currentView === 'lent-borrow-analytics'
-                            ? 'bg-gradient-to-r from-blue-100 via-purple-100 to-blue-100 dark:from-blue-800/30 dark:via-purple-800/30 dark:to-blue-800/30 text-gradient-primary shadow-sm' 
-                            : 'text-gray-500 dark:text-gray-400 hover:bg-gradient-to-r hover:from-gray-50 hover:via-blue-50/40 hover:to-gray-50 dark:hover:from-gray-700/50 dark:hover:via-blue-900/15 dark:hover:to-gray-700/50 hover:text-gray-700 dark:hover:text-gray-300'
-                          }
-                        `}
-                      >
-                        <Handshake className="w-4 h-4" />
-                        <span>{t('navigation.lendBorrowAnalytics')}</span>
-                      </button>
-                    </div>
-                  )}
                 </div>
               );
             })}

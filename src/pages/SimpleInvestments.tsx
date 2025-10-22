@@ -12,6 +12,7 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../utils/currency';
+import { formatTransactionDescription } from '../utils/transactionDescriptionFormatter';
 import { SkeletonCard } from '../components/common/Skeleton';
 import { SimpleInvestmentGoalForm } from '../components/SimpleInvestments/SimpleInvestmentGoalForm';
 
@@ -443,7 +444,7 @@ export const SimpleInvestments: React.FC = () => {
                     transaction.type === 'income' ? 'bg-green-500' : 'bg-red-500'
                   }`} />
                   <div>
-                    <p className="font-medium text-gray-900">{transaction.description}</p>
+                    <p className="font-medium text-gray-900">{formatTransactionDescription(transaction.description)}</p>
                     <p className="text-sm text-gray-500">
                       {new Date(transaction.date).toLocaleDateString()} • {transaction.category}
                     </p>

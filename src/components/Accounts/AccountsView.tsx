@@ -16,6 +16,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
 import { searchService, SEARCH_CONFIGS } from '../../utils/searchService';
+import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 
 export const AccountsView: React.FC = () => {
   const { accounts, deleteAccount, getTransactionsByAccount, transactions, loading, error, updateAccount, updateAccountPosition, fetchAccounts, showTransactionForm, setShowTransactionForm, categories, purchaseCategories } = useFinanceStore();
@@ -1031,7 +1032,7 @@ export const AccountsView: React.FC = () => {
                           })()}
                         </p>
                       </div>
-                      <svg className="text-purple-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                      <svg className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
                     </div>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
@@ -1052,7 +1053,7 @@ export const AccountsView: React.FC = () => {
                           })()}
                         </p>
                       </div>
-                      <span className="text-purple-600" style={{ fontSize: '1.2rem' }}>#</span>
+                      <span className="text-blue-600" style={{ fontSize: '1.2rem' }}>#</span>
                     </div>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
@@ -1463,10 +1464,12 @@ export const AccountsView: React.FC = () => {
                                       <div key={transaction.id} className="flex justify-between items-center">
                                         <div className="flex-1 min-w-0">
                                           <div className="truncate">
-                                            {(transaction.description || 'No description').length > 20 
-                                              ? (transaction.description || 'No description').substring(0, 20) + '...'
-                                              : (transaction.description || 'No description')
-                                            }
+                                            {(() => {
+                                              const formattedDesc = formatTransactionDescription(transaction.description || 'No description');
+                                              return formattedDesc.length > 20 
+                                                ? formattedDesc.substring(0, 20) + '...'
+                                                : formattedDesc;
+                                            })()}
                                           </div>
                                         </div>
                                         <div className={`font-medium ml-2 ${transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
@@ -1762,10 +1765,12 @@ export const AccountsView: React.FC = () => {
                                     <div key={transaction.id} className="flex justify-between items-center">
                                       <div className="flex-1 min-w-0">
                                         <div className="truncate">
-                                          {(transaction.description || 'No description').length > 20 
-                                            ? (transaction.description || 'No description').substring(0, 20) + '...'
-                                            : (transaction.description || 'No description')
-                                          }
+                                          {(() => {
+                                            const formattedDesc = formatTransactionDescription(transaction.description || 'No description');
+                                            return formattedDesc.length > 20 
+                                              ? formattedDesc.substring(0, 20) + '...'
+                                              : formattedDesc;
+                                          })()}
                                         </div>
                                       </div>
                                       <div className={`font-medium ml-2 ${transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
@@ -2121,7 +2126,7 @@ export const AccountsView: React.FC = () => {
                                 {new Date(t.date).toLocaleDateString()}
                               </td>
                               <td className="px-1 sm:px-2 py-1 sm:py-2 text-xs font-medium text-gray-900 hidden sm:table-cell">
-                                {t.description}
+                                {formatTransactionDescription(t.description)}
                               </td>
                               <td className="px-1 sm:px-2 py-1 sm:py-2 text-xs text-gray-500 hidden md:table-cell">
                                 {t.category}

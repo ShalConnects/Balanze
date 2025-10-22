@@ -21,6 +21,9 @@ import { useNavigate } from 'react-router-dom';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
 import { LendBorrowInfoModal } from './LendBorrowInfoModal';
+import { useExport } from '../../hooks/useExport';
+import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
+import { FinancialHealthCard } from './FinancialHealthCard';
 
 // Helper function to check if a transaction is related to lend/borrow
 const isLendBorrowTransaction = (transaction: Transaction): boolean => {
@@ -147,6 +150,206 @@ export const TransactionList: React.FC<{
 
     // If none match, show custom range
     return 'Custom Range';
+  };
+
+  // Helper function to detect date filter type
+  const getDateFilterType = () => {
+    if (!filters.dateRange.start || !filters.dateRange.end) {
+      return 'allTime';
+    }
+
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+
+    // Check if it's today
+    if (filters.dateRange.start === todayStr && filters.dateRange.end === todayStr) {
+      return 'today';
+    }
+
+    // Check if it's this week
+    const day = today.getDay();
+    const diffToMonday = (day === 0 ? -6 : 1) - day;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    
+    const mondayStr = monday.toISOString().slice(0, 10);
+    const sundayStr = sunday.toISOString().slice(0, 10);
+    
+    if (filters.dateRange.start === mondayStr && filters.dateRange.end === sundayStr) {
+      return 'week';
+    }
+
+    // Check if it's this month
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    const firstOfMonthStr = firstOfMonth.toISOString().slice(0, 10);
+    const lastOfMonthStr = lastOfMonth.toISOString().slice(0, 10);
+    
+    if (filters.dateRange.start === firstOfMonthStr && filters.dateRange.end === lastOfMonthStr) {
+      return 'month';
+    }
+
+    // Check if it's this year
+    const firstOfYear = new Date(today.getFullYear(), 0, 1);
+    const lastOfYear = new Date(today.getFullYear(), 11, 31);
+    
+    const firstOfYearStr = firstOfYear.toISOString().slice(0, 10);
+    const lastOfYearStr = lastOfYear.toISOString().slice(0, 10);
+    
+    if (filters.dateRange.start === firstOfYearStr && filters.dateRange.end === lastOfYearStr) {
+      return 'year';
+    }
+
+    // Custom range
+    return 'custom';
+  };
+
+  // Helper function to get comparison period based on filter type
+  const getComparisonPeriod = (filterType: string) => {
+    const today = new Date();
+    
+    switch (filterType) {
+      case 'today':
+        return {
+          start: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1).toISOString().slice(0, 10),
+          end: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1).toISOString().slice(0, 10),
+          label: 'yesterday'
+        };
+      case 'week':
+        const day = today.getDay();
+        const diffToMonday = (day === 0 ? -6 : 1) - day;
+        const monday = new Date(today);
+        monday.setDate(today.getDate() + diffToMonday);
+        const lastWeekMonday = new Date(monday);
+        lastWeekMonday.setDate(monday.getDate() - 7);
+        const lastWeekSunday = new Date(lastWeekMonday);
+        lastWeekSunday.setDate(lastWeekMonday.getDate() + 6);
+        return {
+          start: lastWeekMonday.toISOString().slice(0, 10),
+          end: lastWeekSunday.toISOString().slice(0, 10),
+          label: 'last week'
+        };
+      case 'month':
+        const firstOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const lastOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        return {
+          start: firstOfLastMonth.toISOString().slice(0, 10),
+          end: lastOfLastMonth.toISOString().slice(0, 10),
+          label: 'last month'
+        };
+      case 'year':
+        const firstOfLastYear = new Date(today.getFullYear() - 1, 0, 1);
+        const lastOfLastYear = new Date(today.getFullYear() - 1, 11, 31);
+        return {
+          start: firstOfLastYear.toISOString().slice(0, 10),
+          end: lastOfLastYear.toISOString().slice(0, 10),
+          label: 'last year'
+        };
+      case 'custom':
+        // For custom ranges, calculate a similar length period before the current range
+        const currentStart = new Date(filters.dateRange.start);
+        const currentEnd = new Date(filters.dateRange.end);
+        const rangeLength = Math.ceil((currentEnd.getTime() - currentStart.getTime()) / (1000 * 60 * 60 * 24));
+        const comparisonEnd = new Date(currentStart.getTime() - 1);
+        const comparisonStart = new Date(comparisonEnd.getTime() - (rangeLength * 24 * 60 * 60 * 1000));
+        return {
+          start: comparisonStart.toISOString().slice(0, 10),
+          end: comparisonEnd.toISOString().slice(0, 10),
+          label: 'previous period'
+        };
+      default:
+        return {
+          start: '',
+          end: '',
+          label: 'previous period'
+        };
+    }
+  };
+
+  // Helper function to calculate dynamic transaction velocity
+  const getTransactionVelocity = () => {
+    const filterType = getDateFilterType();
+    
+    // Get transactions in the current period
+    const currentTransactions = transactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      const startDate = new Date(filters.dateRange.start);
+      const endDate = new Date(filters.dateRange.end);
+      return transactionDate >= startDate && transactionDate <= endDate;
+    });
+    
+    if (currentTransactions.length === 0) {
+      return { velocity: 0, unit: 'per day', text: 'No transactions' };
+    }
+    
+    const startDate = new Date(filters.dateRange.start);
+    const endDate = new Date(filters.dateRange.end);
+    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    
+    switch (filterType) {
+      case 'today':
+        return {
+          velocity: currentTransactions.length,
+          unit: 'today',
+          text: `${currentTransactions.length} today`
+        };
+      case 'week':
+        const weekVelocity = totalDays > 0 ? currentTransactions.length / totalDays : 0;
+        return {
+          velocity: weekVelocity,
+          unit: 'per day',
+          text: `${weekVelocity.toFixed(1)} per day`
+        };
+      case 'month':
+        const monthVelocity = totalDays > 0 ? currentTransactions.length / totalDays : 0;
+        return {
+          velocity: monthVelocity,
+          unit: 'per day',
+          text: `${monthVelocity.toFixed(1)} per day`
+        };
+      case 'year':
+        const yearMonths = Math.ceil(totalDays / 30);
+        const yearVelocity = yearMonths > 0 ? currentTransactions.length / yearMonths : 0;
+        return {
+          velocity: yearVelocity,
+          unit: 'per month',
+          text: `${yearVelocity.toFixed(1)} per month`
+        };
+      case 'custom':
+        // For custom ranges, determine appropriate unit
+        if (totalDays <= 7) {
+          const dayVelocity = totalDays > 0 ? currentTransactions.length / totalDays : 0;
+          return {
+            velocity: dayVelocity,
+            unit: 'per day',
+            text: `${dayVelocity.toFixed(1)} per day`
+          };
+        } else if (totalDays <= 90) {
+          const weekVelocity = totalDays > 0 ? currentTransactions.length / (totalDays / 7) : 0;
+          return {
+            velocity: weekVelocity,
+            unit: 'per week',
+            text: `${weekVelocity.toFixed(1)} per week`
+          };
+        } else {
+          const monthVelocity = totalDays > 0 ? currentTransactions.length / (totalDays / 30) : 0;
+          return {
+            velocity: monthVelocity,
+            unit: 'per month',
+            text: `${monthVelocity.toFixed(1)} per month`
+          };
+        }
+      default:
+        const defaultVelocity = totalDays > 0 ? currentTransactions.length / totalDays : 0;
+        return {
+          velocity: defaultVelocity,
+          unit: 'per day',
+          text: `${defaultVelocity.toFixed(1)} per day`
+        };
+    }
   };
 
   // Check if categories exist and redirect to settings if needed
@@ -329,81 +532,19 @@ export const TransactionList: React.FC<{
     }
   }, [showMobileFilterMenu]);
 
-  // Export handlers
-  const handleExportCSV = () => {
-    const headers = ['Date', 'Description', 'Category', 'Account', 'Type', 'Amount', 'Tags'];
-    const csvData = filteredTransactions.map(transaction => {
-      const account = accounts.find(a => a.id === transaction.account_id);
-      return [
-        new Date(transaction.date).toLocaleDateString(),
-        transaction.description,
-        transaction.category,
-        account?.name || 'Unknown',
-        transaction.tags?.includes('transfer') ? 'Transfer' : transaction.type,
-        transaction.amount,
-        (transaction.tags || []).join('; ')
-      ];
-    });
-    const csvContent = [headers, ...csvData]
-      .map(row => row.map(field => `"${field}"`).join(','))
-      .join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transactions-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+  // Export handlers with loading states
+  const handleExportCSV = async () => {
+    await exportToCSV();
     setShowExportMenu(false);
   };
-  const handleExportPDF = () => {
-    const doc = new jsPDF();
-    const headers = [['Date', 'Description', 'Category', 'Account', 'Type', 'Amount']];
-    const rows = filteredTransactions.map(transaction => {
-      const account = accounts.find(a => a.id === transaction.account_id);
-      return [
-        new Date(transaction.date).toLocaleDateString(),
-        transaction.description,
-        transaction.category,
-        account?.name || 'Unknown',
-        transaction.tags?.includes('transfer') ? 'Transfer' : transaction.type,
-        transaction.amount
-      ];
-    });
-    autoTable(doc, {
-      head: headers,
-      body: rows,
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [41, 128, 185] },
-      margin: { top: 20 },
-    });
-    doc.save(`transactions-${new Date().toISOString().split('T')[0]}.pdf`);
+
+  const handleExportPDF = async () => {
+    await exportToPDF();
     setShowExportMenu(false);
   };
-  const handleExportHTML = () => {
-    let html = '<table border="1"><thead><tr>';
-    const headers = ['Date', 'Description', 'Category', 'Account', 'Type', 'Amount', 'Tags'];
-    html += headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>';
-    filteredTransactions.forEach(transaction => {
-      const account = accounts.find(a => a.id === transaction.account_id);
-      html += '<tr>' + [
-        new Date(transaction.date).toLocaleDateString(),
-        transaction.description,
-        transaction.category,
-        account?.name || 'Unknown',
-        transaction.tags?.includes('transfer') ? 'Transfer' : transaction.type,
-        transaction.amount,
-        (transaction.tags || []).join('; ')
-      ].map(field => `<td>${field}</td>`).join('') + '</tr>';
-    });
-    html += '</tbody></table>';
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transactions-${new Date().toISOString().split('T')[0]}.html`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+
+  const handleExportHTML = async () => {
+    await exportToHTML();
     setShowExportMenu(false);
   };
 
@@ -612,6 +753,14 @@ export const TransactionList: React.FC<{
     return sortData(filtered);
   }, [transactions, filters, sortConfig, accounts, hasSelection, isFromSearch, selectedRecord]);
 
+  // Export functionality using shared hook
+  const { isExporting, exportFormat, exportToCSV, exportToPDF, exportToHTML } = useExport({
+    transactions: filteredTransactions,
+    accounts,
+    filters,
+    sortConfig
+  });
+
   // Summary card values should be based on filteredTransactions only
   const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
@@ -788,29 +937,48 @@ export const TransactionList: React.FC<{
               <div className="relative" ref={exportMenuRef}>
                 <button
                   onClick={() => setShowExportMenu(v => !v)}
-                  className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 px-2 py-1.5 h-8 w-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
-                  aria-label="Export"
-                  title="Export"
+                  disabled={isExporting}
+                  className={`bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 px-2 py-1.5 h-8 w-8 rounded-md transition-colors flex items-center justify-center ${
+                    isExporting 
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : 'hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                  aria-label={isExporting ? 'Export in progress' : 'Export transactions'}
+                  title={isExporting ? 'Export in progress...' : 'Export transactions'}
                 >
-                  <Download className="w-4 h-4" />
+                  {isExporting ? (
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
                 </button>
-                {showExportMenu && (
-                  <div className="absolute right-0 mt-2 w-32 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
+                {showExportMenu && !isExporting && (
+                  <div 
+                    className="absolute right-0 mt-2 w-32 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50"
+                    role="menu"
+                    aria-label="Export options"
+                  >
                     <button
                       onClick={handleExportCSV}
                       className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      role="menuitem"
+                      aria-label="Export as CSV"
                     >
                       CSV
                     </button>
                     <button
                       onClick={handleExportPDF}
                       className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      role="menuitem"
+                      aria-label="Export as PDF"
                     >
                       PDF
                     </button>
                     <button
                       onClick={handleExportHTML}
                       className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      role="menuitem"
+                      aria-label="Export as HTML"
                     >
                       HTML
                     </button>
@@ -1152,28 +1320,48 @@ export const TransactionList: React.FC<{
               <div className="relative" ref={exportMenuRef}>
                 <button
                   onClick={() => setShowExportMenu(v => !v)}
-                  className="bg-gray-100 text-gray-700 px-3 py-1.5 h-8 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center"
-                  aria-label="Export"
+                  disabled={isExporting}
+                  className={`bg-gray-100 text-gray-700 px-3 py-1.5 h-8 rounded-md transition-colors flex items-center justify-center ${
+                    isExporting 
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : 'hover:bg-gray-200'
+                  }`}
+                  aria-label={isExporting ? 'Export in progress' : 'Export transactions'}
+                  title={isExporting ? 'Export in progress...' : 'Export transactions'}
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  {isExporting ? (
+                    <div className="w-3.5 h-3.5 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5" />
+                  )}
                 </button>
-                {showExportMenu && (
-                  <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                {showExportMenu && !isExporting && (
+                  <div 
+                    className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+                    role="menu"
+                    aria-label="Export options"
+                  >
                     <button
                       onClick={handleExportCSV}
                       className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                      role="menuitem"
+                      aria-label="Export as CSV"
                     >
                       CSV
                     </button>
                     <button
                       onClick={handleExportPDF}
                       className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                      role="menuitem"
+                      aria-label="Export as PDF"
                     >
                       PDF
                     </button>
                     <button
                       onClick={handleExportHTML}
                       className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                      role="menuitem"
+                      aria-label="Export as HTML"
                     >
                       HTML
                     </button>
@@ -1203,36 +1391,68 @@ export const TransactionList: React.FC<{
                 <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
                   {formatCurrency(totalIncome, selectedCurrency)}
                 </p>
-                <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                <p className={`${(() => {
+                    const filterType = getDateFilterType();
+                    const comparisonPeriod = getComparisonPeriod(filterType);
+                    
+                    // Calculate current period income
+                    const currentIncome = transactions.filter(t => {
+                      const transactionDate = new Date(t.date);
+                      const startDate = new Date(filters.dateRange.start);
+                      const endDate = new Date(filters.dateRange.end);
+                      return t.type === 'income' && 
+                             transactionDate >= startDate && 
+                             transactionDate <= endDate;
+                    }).reduce((sum, t) => sum + t.amount, 0);
+                    
+                    // Calculate comparison period income
+                    const comparisonIncome = transactions.filter(t => {
+                      const transactionDate = new Date(t.date);
+                      const compStartDate = new Date(comparisonPeriod.start);
+                      const compEndDate = new Date(comparisonPeriod.end);
+                      return t.type === 'income' && 
+                             transactionDate >= compStartDate && 
+                             transactionDate <= compEndDate;
+                    }).reduce((sum, t) => sum + t.amount, 0);
+                    
+                    if (comparisonIncome === 0) return 'text-gray-500 dark:text-gray-400';
+                    
+                    const growthRate = Math.round(((currentIncome - comparisonIncome) / comparisonIncome) * 100);
+                    return growthRate > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+                  })()}`} style={{ fontSize: '11px' }}>
                   {(() => {
-                    const now = new Date();
-                    const currentMonth = now.getMonth();
-                    const currentYear = now.getFullYear();
+                    const filterType = getDateFilterType();
+                    const comparisonPeriod = getComparisonPeriod(filterType);
                     
-                    const thisMonthIncome = transactions.filter(t => {
+                    // Calculate current period income
+                    const currentIncome = transactions.filter(t => {
                       const transactionDate = new Date(t.date);
+                      const startDate = new Date(filters.dateRange.start);
+                      const endDate = new Date(filters.dateRange.end);
                       return t.type === 'income' && 
-                             transactionDate.getMonth() === currentMonth && 
-                             transactionDate.getFullYear() === currentYear;
+                             transactionDate >= startDate && 
+                             transactionDate <= endDate;
                     }).reduce((sum, t) => sum + t.amount, 0);
                     
-                    const lastMonthIncome = transactions.filter(t => {
+                    // Calculate comparison period income
+                    const comparisonIncome = transactions.filter(t => {
                       const transactionDate = new Date(t.date);
-                      const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-                      const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+                      const compStartDate = new Date(comparisonPeriod.start);
+                      const compEndDate = new Date(comparisonPeriod.end);
                       return t.type === 'income' && 
-                             transactionDate.getMonth() === lastMonth && 
-                             transactionDate.getFullYear() === lastMonthYear;
+                             transactionDate >= compStartDate && 
+                             transactionDate <= compEndDate;
                     }).reduce((sum, t) => sum + t.amount, 0);
                     
-                    if (lastMonthIncome === 0) return 'No previous data';
+                    if (comparisonIncome === 0) return 'No previous data';
                     
-                    const growthRate = Math.round(((thisMonthIncome - lastMonthIncome) / lastMonthIncome) * 100);
-                    return `Monthly Growth: ${growthRate > 0 ? '+' : ''}${growthRate}% vs last month`;
+                    const growthRate = Math.round(((currentIncome - comparisonIncome) / comparisonIncome) * 100);
+                    
+                    return `${growthRate > 0 ? 'Earning more' : 'Earning less'} (${Math.abs(growthRate)}% ${growthRate > 0 ? 'increase' : 'decrease'})`;
                   })()}
                 </p>
               </div>
-              <span className="text-purple-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
+              <span className="text-blue-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
@@ -1242,36 +1462,68 @@ export const TransactionList: React.FC<{
                 <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
                   {formatCurrency(totalExpense, selectedCurrency)}
                 </p>
-                <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                <p className={`${(() => {
+                    const filterType = getDateFilterType();
+                    const comparisonPeriod = getComparisonPeriod(filterType);
+                    
+                    // Calculate current period expense
+                    const currentExpense = transactions.filter(t => {
+                      const transactionDate = new Date(t.date);
+                      const startDate = new Date(filters.dateRange.start);
+                      const endDate = new Date(filters.dateRange.end);
+                      return t.type === 'expense' && 
+                             transactionDate >= startDate && 
+                             transactionDate <= endDate;
+                    }).reduce((sum, t) => sum + t.amount, 0);
+                    
+                    // Calculate comparison period expense
+                    const comparisonExpense = transactions.filter(t => {
+                      const transactionDate = new Date(t.date);
+                      const compStartDate = new Date(comparisonPeriod.start);
+                      const compEndDate = new Date(comparisonPeriod.end);
+                      return t.type === 'expense' && 
+                             transactionDate >= compStartDate && 
+                             transactionDate <= compEndDate;
+                    }).reduce((sum, t) => sum + t.amount, 0);
+                    
+                    if (comparisonExpense === 0) return 'text-gray-500 dark:text-gray-400';
+                    
+                    const changeRate = Math.round(((currentExpense - comparisonExpense) / comparisonExpense) * 100);
+                    return changeRate > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400';
+                  })()}`} style={{ fontSize: '11px' }}>
                   {(() => {
-                    const now = new Date();
-                    const currentMonth = now.getMonth();
-                    const currentYear = now.getFullYear();
+                    const filterType = getDateFilterType();
+                    const comparisonPeriod = getComparisonPeriod(filterType);
                     
-                    const thisMonthExpense = transactions.filter(t => {
+                    // Calculate current period expense
+                    const currentExpense = transactions.filter(t => {
                       const transactionDate = new Date(t.date);
+                      const startDate = new Date(filters.dateRange.start);
+                      const endDate = new Date(filters.dateRange.end);
                       return t.type === 'expense' && 
-                             transactionDate.getMonth() === currentMonth && 
-                             transactionDate.getFullYear() === currentYear;
+                             transactionDate >= startDate && 
+                             transactionDate <= endDate;
                     }).reduce((sum, t) => sum + t.amount, 0);
                     
-                    const lastMonthExpense = transactions.filter(t => {
+                    // Calculate comparison period expense
+                    const comparisonExpense = transactions.filter(t => {
                       const transactionDate = new Date(t.date);
-                      const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-                      const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+                      const compStartDate = new Date(comparisonPeriod.start);
+                      const compEndDate = new Date(comparisonPeriod.end);
                       return t.type === 'expense' && 
-                             transactionDate.getMonth() === lastMonth && 
-                             transactionDate.getFullYear() === lastMonthYear;
+                             transactionDate >= compStartDate && 
+                             transactionDate <= compEndDate;
                     }).reduce((sum, t) => sum + t.amount, 0);
                     
-                    if (lastMonthExpense === 0) return 'No previous data';
+                    if (comparisonExpense === 0) return 'No previous data';
                     
-                    const changeRate = Math.round(((thisMonthExpense - lastMonthExpense) / lastMonthExpense) * 100);
-                    return `Monthly Change: ${changeRate > 0 ? '+' : ''}${changeRate}% vs last month`;
+                    const changeRate = Math.round(((currentExpense - comparisonExpense) / comparisonExpense) * 100);
+                    
+                    return `${changeRate > 0 ? 'Spending more' : 'Spending less'} (${Math.abs(changeRate)}% ${changeRate > 0 ? 'increase' : 'decrease'})`;
                   })()}
                 </p>
               </div>
-              <span className="text-purple-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
+              <span className="text-blue-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
@@ -1281,27 +1533,18 @@ export const TransactionList: React.FC<{
                 <p className="font-bold text-blue-600 dark:text-blue-400" style={{ fontSize: '1.2rem' }}>{transactionCount}</p>
                 <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
                   {(() => {
-                    const now = new Date();
-                    const currentMonth = now.getMonth();
-                    const currentYear = now.getFullYear();
-                    
-                    const thisMonthTransactions = transactions.filter(t => {
-                      const transactionDate = new Date(t.date);
-                      return transactionDate.getMonth() === currentMonth && 
-                             transactionDate.getFullYear() === currentYear;
-                    });
-                    
-                    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-                    const daysPassed = Math.min(now.getDate(), daysInMonth);
-                    const velocity = daysPassed > 0 ? (thisMonthTransactions.length / daysPassed) : 0;
-                    
-                    return `Transaction Velocity: ${velocity.toFixed(1)} per day`;
+                    const velocityData = getTransactionVelocity();
+                    return velocityData.text;
                   })()}
                 </p>
               </div>
-              <span className="text-purple-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }}>#</span>
+              <span className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }}>#</span>
             </div>
           </div>
+          <FinancialHealthCard 
+            transactions={filteredTransactions} 
+            selectedCurrency={selectedCurrency} 
+          />
         </div>
         {/* Desktop Table View */}
         <div className="lg:block hidden overflow-x-auto lg:rounded-b-xl" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
@@ -1424,7 +1667,7 @@ export const TransactionList: React.FC<{
                         </td>
                         <td className="px-6 py-2">
                           <div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">{transaction.description}</div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{formatTransactionDescription(transaction.description)}</div>
                             {transaction.transaction_id && (
                               <button
                                 onClick={() => handleCopyTransactionId(transaction.transaction_id!)}
@@ -1558,7 +1801,7 @@ export const TransactionList: React.FC<{
                     {/* Card Body - Description and Amount */}
                     <div className="px-3 pb-2">
                       <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                        {transaction.description}
+                        {formatTransactionDescription(transaction.description)}
                       </div>
                       {transaction.transaction_id && (
                         <button
@@ -1663,7 +1906,7 @@ export const TransactionList: React.FC<{
                       </div>
                       <div className="col-span-6">
                         <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">{transaction.description}</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">{formatTransactionDescription(transaction.description)}</div>
                         {transaction.transaction_id && (
                           <button
                             onClick={() => handleCopyTransactionId(transaction.transaction_id!)}

@@ -97,9 +97,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'analytics': return 'Analytics';
       case 'purchases': return 'Purchases';
       case 'purchase-categories': return 'Purchase Categories';
-      case 'purchase-analytics': return 'Purchase Analytics';
       case 'lent-borrow': return 'Lent & Borrow';
-      case 'lent-borrow-analytics': return 'Lent & Borrow Analytics';
+      case 'achievements': return 'Achievements';
       case 'settings': return 'Settings';
       case 'about': return 'About';
       case 'donations': return 'Donations';

@@ -853,7 +853,7 @@ export const LendBorrowView: React.FC = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
           <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Handshake className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+            <Handshake className="w-8 h-8 text-blue-600 dark:text-blue-400" />
           </div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
             Lent & Borrow Tracking
@@ -1189,7 +1189,7 @@ export const LendBorrowView: React.FC = () => {
                     })()}
                   </p>
                 </div>
-                <span className="text-purple-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(currentAnalytics.currency)}</span>
+                <span className="text-blue-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(currentAnalytics.currency)}</span>
               </div>
             </div>
             <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
@@ -1210,7 +1210,7 @@ export const LendBorrowView: React.FC = () => {
                     })()}
                   </p>
                 </div>
-                <span className="text-purple-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(currentAnalytics.currency)}</span>
+                <span className="text-blue-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(currentAnalytics.currency)}</span>
               </div>
             </div>
             <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
@@ -1220,15 +1220,17 @@ export const LendBorrowView: React.FC = () => {
                   <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
                     {formatCurrency(currentAnalytics.outstanding_lent - currentAnalytics.outstanding_borrowed, currentAnalytics.currency)}
                   </p>
-                  <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                  <p className={`${(() => {
+                      const netPosition = currentAnalytics.outstanding_lent - currentAnalytics.outstanding_borrowed;
+                      return netPosition >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+                    })()}`} style={{ fontSize: '11px' }}>
                     {(() => {
                       const netPosition = currentAnalytics.outstanding_lent - currentAnalytics.outstanding_borrowed;
-                      const sign = netPosition >= 0 ? '+' : '';
-                      return `Net Position: ${sign}${formatCurrency(Math.abs(netPosition), currentAnalytics.currency)}`;
+                      return netPosition >= 0 ? 'Net Lender' : 'Net Borrower';
                     })()}
                   </p>
                 </div>
-                <Clock className="text-purple-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
+                <Clock className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
               </div>
             </div>
           </div>

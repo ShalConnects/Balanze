@@ -10,50 +10,54 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid,
-  LineChart,
   Line,
   Area,
-  AreaChart,
   ComposedChart,
   Legend
 } from 'recharts';
 import { 
   TrendingUp, 
   TrendingDown, 
-  DollarSign, 
-  PiggyBank, 
   CreditCard,
   CheckCircle,
   AlertTriangle,
-  Target,
-  Calendar,
-  Download,
-  Globe,
   BarChart3,
-  TrendingUpIcon,
-  Filter,
-  CalendarDays,
   Lightbulb,
-  ArrowUpRight,
-  ArrowDownRight
+  ChevronDown,
+  ChevronRight,
+  ShoppingBag,
+  Handshake,
+  Sparkles,
+  Trophy,
+  Award,
+  Star,
+  ThumbsUp,
+  ThumbsDown,
+  Eye
 } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
 import { format, startOfMonth, endOfMonth, subMonths, eachMonthOfInterval, parseISO } from 'date-fns';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
-import { useNavigate } from 'react-router-dom';
+import { detectUserContext } from '../../utils/humorContext';
+import { HumorEngine } from '../../utils/humorEngine';
 
 export const AnalyticsView: React.FC = () => {
-  const { getActiveTransactions, getDashboardStats, getActiveAccounts } = useFinanceStore();
+  const { getActiveTransactions, getDashboardStats, getActiveAccounts, purchases, lendBorrowRecords, getCategories } = useFinanceStore();
   const { profile } = useAuthStore();
-  const navigate = useNavigate();
   const transactions = getActiveTransactions();
   const [showExportMenu, setShowExportMenu] = useState(false);
   const accounts = getActiveAccounts();
   const stats = getDashboardStats();
+  const categories = getCategories();
   const [selectedPeriod, setSelectedPeriod] = useState<'current' | 'last3' | 'last6' | 'last12'>('current');
   const [selectedCurrency, setSelectedCurrency] = useState(stats.byCurrency[0]?.currency || 'USD');
   const [showTrends, setShowTrends] = useState(true);
+  const [expandedAccordions, setExpandedAccordions] = useState({
+    total: true,
+    purchase: false,
+    lendBorrow: false
+  });
 
   // Close export menu when clicking outside
   useEffect(() => {
@@ -82,9 +86,6 @@ export const AnalyticsView: React.FC = () => {
       analytics: {
         summary: {
           totalTransactions: transactions.length,
-          totalIncome: stats.totalIncome,
-          totalExpenses: stats.totalExpenses,
-          netCashFlow: stats.netCashFlow,
           currency: selectedCurrency
         },
         transactions: transactions.map(t => ({
@@ -93,16 +94,12 @@ export const AnalyticsView: React.FC = () => {
           type: t.type,
           category: t.category,
           description: t.description,
-          date: t.date,
-          account: t.account_name,
-          currency: t.currency
+          date: t.date
         })),
         accounts: accounts.map(a => ({
           id: a.id,
           name: a.name,
-          type: a.type,
-          balance: a.balance,
-          currency: a.currency
+          type: a.type
         })),
         stats: stats,
         period: selectedPeriod,
@@ -110,21 +107,53 @@ export const AnalyticsView: React.FC = () => {
       }
     };
     
-    // Create downloadable file
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { 
-      type: format === 'csv' ? 'text/csv' : 
-            format === 'pdf' ? 'application/pdf' : 
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    });
-    
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `analytics-export-${format}-${new Date().toISOString().split('T')[0]}.${format}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (format === 'pdf') {
+      // For PDF, create a simple text-based report
+      const pdfContent = `
+ANALYTICS REPORT
+Generated: ${new Date().toLocaleString()}
+Currency: ${selectedCurrency}
+Period: ${selectedPeriod}
+
+SUMMARY:
+- Total Transactions: ${transactions.length}
+
+TRANSACTIONS:
+${transactions.map(t => 
+  `${t.date} | ${t.type.toUpperCase()} | ${formatCurrency(t.amount, selectedCurrency)} | ${t.category || 'Uncategorized'} | ${t.description}`
+).join('\n')}
+
+ACCOUNTS:
+${accounts.map(a => 
+  `${a.name} | ${a.type}`
+).join('\n')}
+      `.trim();
+      
+      const blob = new Blob([pdfContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `analytics-export-${format}-${new Date().toISOString().split('T')[0]}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else {
+      // For CSV and Excel, use JSON format
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { 
+        type: format === 'csv' ? 'text/csv' : 
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `analytics-export-${format}-${new Date().toISOString().split('T')[0]}.${format === 'csv' ? 'csv' : 'xlsx'}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
     
     setShowExportMenu(false);
   };
@@ -139,6 +168,1005 @@ export const AnalyticsView: React.FC = () => {
   const formatPercentage = (value: number) => {
     return `${value.toFixed(1)}%`;
   };
+
+  // Accordion toggle function - only one section can be open at a time
+  const toggleAccordion = (accordion: 'total' | 'purchase' | 'lendBorrow') => {
+    setExpandedAccordions(prev => {
+      // If clicking the same section, keep it open (no toggle behavior)
+      if (prev[accordion]) {
+        return prev; // Keep current state unchanged
+      }
+      // If clicking a different section, close all others and open the clicked one
+      return {
+        total: accordion === 'total',
+        purchase: accordion === 'purchase',
+        lendBorrow: accordion === 'lendBorrow'
+      };
+    });
+  };
+
+  // Purchase Analytics Functions
+  const getCurrencyPurchases = (currency: string) => {
+    return purchases.filter(p => p.currency === currency);
+  };
+
+  const getPeriodPurchases = (period: string) => {
+    const now = new Date();
+    let startDate = new Date();
+    
+    switch (period) {
+      case 'current':
+        startDate = startOfMonth(now);
+        break;
+      case 'last3':
+        startDate = subMonths(now, 3);
+        break;
+      case 'last6':
+        startDate = subMonths(now, 6);
+        break;
+      case 'last12':
+        startDate = subMonths(now, 12);
+        break;
+      default:
+        startDate = startOfMonth(now);
+    }
+    
+    return getCurrencyPurchases(selectedCurrency).filter(purchase => {
+      const purchaseDate = new Date(purchase.purchase_date);
+      return purchaseDate >= startDate && purchaseDate <= now;
+    });
+  };
+
+  const periodPurchases = getPeriodPurchases(selectedPeriod);
+
+  // Calculate KPIs for the selected period
+  const totalSpent = periodPurchases
+    .filter(p => p.status === 'purchased')
+    .reduce((sum, p) => sum + Number(p.price), 0);
+  
+  const purchaseCount = periodPurchases.filter(p => p.status === 'purchased').length;
+  const plannedCount = periodPurchases.filter(p => p.status === 'planned').length;
+  const averagePurchase = purchaseCount > 0 ? totalSpent / purchaseCount : 0;
+  
+  // Real Purchase Analytics Calculations
+  const totalPlanned = periodPurchases.length;
+  const completionRate = totalPlanned > 0 ? (purchaseCount / totalPlanned) * 100 : 0;
+  
+  // Average planned vs actual price comparison
+  const plannedItems = periodPurchases.filter(p => p.status === 'planned');
+  const purchasedItems = periodPurchases.filter(p => p.status === 'purchased');
+  const averagePlannedPrice = plannedItems.length > 0 ? 
+    plannedItems.reduce((sum, p) => sum + Number(p.price), 0) / plannedItems.length : 0;
+  const averageActualPrice = purchasedItems.length > 0 ? 
+    purchasedItems.reduce((sum, p) => sum + Number(p.price), 0) / purchasedItems.length : 0;
+  const priceAccuracy = averagePlannedPrice > 0 ? 
+    ((averageActualPrice - averagePlannedPrice) / averagePlannedPrice) * 100 : 0;
+  
+  // Purchase frequency (purchases per week)
+  const now = new Date();
+  const startDate = selectedPeriod === 'current' ? startOfMonth(now) : 
+                   selectedPeriod === 'last3' ? subMonths(now, 3) :
+                   selectedPeriod === 'last6' ? subMonths(now, 6) : subMonths(now, 12);
+  const daysDiff = Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const weeksInPeriod = Math.max(1, daysDiff / 7);
+  const purchaseFrequency = weeksInPeriod > 0 ? purchaseCount / weeksInPeriod : 0;
+  
+  // Category success rate
+  const categoryStats = periodPurchases.reduce((acc, purchase) => {
+    const category = purchase.category || 'Other';
+    if (!acc[category]) {
+      acc[category] = { planned: 0, purchased: 0 };
+    }
+    if (purchase.status === 'planned') acc[category].planned++;
+    if (purchase.status === 'purchased') acc[category].purchased++;
+    return acc;
+  }, {} as Record<string, { planned: number, purchased: number }>);
+  
+  const categorySuccessRates = Object.entries(categoryStats).map(([category, stats]) => ({
+    category,
+    successRate: stats.planned > 0 ? (stats.purchased / stats.planned) * 100 : 0,
+    planned: stats.planned,
+    purchased: stats.purchased
+  })).filter(cat => cat.planned > 0);
+  
+  const bestCategory = categorySuccessRates.length > 0 ? 
+    categorySuccessRates.reduce((best, current) => 
+      current.successRate > best.successRate ? current : best
+    ) : null;
+
+  // Generate trend data for the selected period
+  const generateTrendData = () => {
+    const now = new Date();
+    const days = selectedPeriod === 'current' ? 30 : selectedPeriod === 'last3' ? 90 : selectedPeriod === 'last6' ? 180 : 365;
+    const trendData = [];
+    
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const dateKey = date.toISOString().split('T')[0];
+      
+      const dayPurchases = periodPurchases.filter(p => {
+        const purchaseDate = new Date(p.purchase_date);
+        return purchaseDate.toISOString().split('T')[0] === dateKey;
+      });
+      
+      const dailySpend = dayPurchases
+        .filter(p => p.status === 'purchased')
+        .reduce((sum, p) => sum + Number(p.price), 0);
+      
+      const purchaseCount = dayPurchases.filter(p => p.status === 'purchased').length;
+      
+      trendData.push({
+        date: dateKey,
+        spend: Math.round(dailySpend),
+        purchases: purchaseCount
+      });
+    }
+    
+    return trendData;
+  };
+
+  const trendData = useMemo(() => generateTrendData(), [periodPurchases, selectedPeriod]);
+
+  // Generate category breakdown
+  const generateCategoryData = () => {
+    const categoryMap = new Map();
+    
+    periodPurchases
+      .filter(p => p.status === 'purchased')
+      .forEach(purchase => {
+        const category = purchase.category || 'Other';
+        if (!categoryMap.has(category)) {
+          categoryMap.set(category, { total: 0, count: 0 });
+        }
+        categoryMap.get(category).total += Number(purchase.price);
+        categoryMap.get(category).count += 1;
+      });
+    
+    const colors = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
+    
+    return Array.from(categoryMap.entries()).map(([name, data], index) => ({
+      name,
+      value: Math.round(data.total),
+      count: data.count,
+      color: colors[index % colors.length]
+    }));
+  };
+
+  const categoryData = useMemo(() => generateCategoryData(), [periodPurchases]);
+
+  // Smart alerts for purchases using humor engine (same as Total Analytics)
+  const generatePurchaseAlerts = () => {
+    const alerts = [];
+    
+    // Always detect user context for balanced humor (same as Total Analytics)
+    let userContext = null;
+    let humorEngine = null;
+    
+    if (periodPurchases.length > 0) {
+      try {
+        userContext = detectUserContext({
+          monthlyIncome: currentCurrencyStats?.monthlyIncome,
+          monthlyExpenses: currentCurrencyStats?.monthlyExpenses,
+          transactions: currencyTransactions.map(t => ({
+            amount: t.amount,
+            type: t.type,
+            category: t.category,
+            tags: t.tags,
+            date: t.date
+          }))
+        });
+        humorEngine = new HumorEngine(userContext, 'medium', 'auto');
+      } catch (error) {
+        console.warn('HumorEngine failed to initialize:', error);
+      }
+    }
+    
+    // Completion rate insights with humor
+    if (completionRate >= 80) {
+      if (humorEngine) {
+        const humorMessage = humorEngine.generateMessage('surplus', { amount: completionRate });
+        alerts.push({
+          type: 'success',
+          message: humorMessage.message,
+          category: 'Purchase Planning',
+          icon: Sparkles
+        });
+      } else {
+        alerts.push({
+          type: 'success',
+          message: `🎯 Excellent! You complete ${completionRate.toFixed(1)}% of your planned purchases!`,
+          category: 'Purchase Planning',
+          icon: AlertTriangle
+        });
+      }
+    } else if (completionRate >= 50) {
+      if (humorEngine) {
+        const humorMessage = humorEngine.generateMessage('deficit', { amount: completionRate });
+        alerts.push({
+          type: 'warning',
+          message: humorMessage.message,
+          category: 'Purchase Planning',
+          icon: AlertTriangle
+        });
+      } else {
+        alerts.push({
+          type: 'warning',
+          message: `📊 You complete ${completionRate.toFixed(1)}% of planned purchases. Consider being more selective with planning.`,
+          category: 'Purchase Planning',
+          icon: AlertTriangle
+        });
+      }
+    } else if (completionRate > 0) {
+      if (humorEngine) {
+        const humorMessage = humorEngine.generateMessage('deficit', { amount: completionRate });
+        alerts.push({
+          type: 'warning',
+          message: humorMessage.message,
+          category: 'Purchase Planning',
+          icon: AlertTriangle
+        });
+      } else {
+        alerts.push({
+          type: 'warning',
+          message: `⚠️ Low completion rate (${completionRate.toFixed(1)}%). Focus on planning items you'll actually buy.`,
+          category: 'Purchase Planning',
+          icon: AlertTriangle
+        });
+      }
+    }
+    
+    // Price accuracy insights with humor
+    if (Math.abs(priceAccuracy) <= 10) {
+      if (humorEngine) {
+        const humorMessage = humorEngine.generateMessage('surplus', { amount: Math.abs(priceAccuracy) });
+        alerts.push({
+          type: 'success',
+          message: humorMessage.message,
+          category: 'Price Planning',
+          icon: CheckCircle
+        });
+      } else {
+        alerts.push({
+          type: 'success',
+          message: `💰 Great price prediction! You're within ${Math.abs(priceAccuracy).toFixed(1)}% of planned prices.`,
+          category: 'Price Planning',
+          icon: CheckCircle
+        });
+      }
+    } else if (priceAccuracy > 20) {
+      if (humorEngine) {
+        const humorMessage = humorEngine.generateMessage('deficit', { amount: priceAccuracy });
+        alerts.push({
+          type: 'warning',
+          message: humorMessage.message,
+          category: 'Price Planning',
+          icon: CheckCircle
+        });
+      } else {
+        alerts.push({
+          type: 'warning',
+          message: `📈 You're spending ${priceAccuracy.toFixed(1)}% more than planned. Consider more realistic budgeting.`,
+          category: 'Price Planning',
+          icon: CheckCircle
+        });
+      }
+    } else if (priceAccuracy < -20) {
+      if (humorEngine) {
+        const humorMessage = humorEngine.generateMessage('surplus', { amount: Math.abs(priceAccuracy) });
+        alerts.push({
+          type: 'success',
+          message: humorMessage.message,
+          category: 'Price Planning',
+          icon: CheckCircle
+        });
+      } else {
+        alerts.push({
+          type: 'success',
+          message: `🎉 You're spending ${Math.abs(priceAccuracy).toFixed(1)}% less than planned! Great budgeting!`,
+          category: 'Price Planning',
+          icon: CheckCircle
+        });
+      }
+    }
+    
+    // Purchase frequency insights with humor
+    if (purchaseFrequency > 5) {
+      if (humorEngine) {
+        const humorMessage = humorEngine.generateMessage('deficit', { amount: purchaseFrequency });
+        alerts.push({
+          type: 'warning',
+          message: humorMessage.message,
+          category: 'Purchase Rhythm',
+          icon: CheckCircle
+        });
+      } else {
+        alerts.push({
+          type: 'warning',
+          message: `🛒 High purchase frequency (${purchaseFrequency.toFixed(1)}/week). Consider spacing out purchases.`,
+          category: 'Purchase Rhythm',
+          icon: CheckCircle
+        });
+      }
+    } else if (purchaseFrequency > 0 && purchaseFrequency <= 2) {
+      if (humorEngine) {
+        const humorMessage = humorEngine.generateMessage('surplus', { amount: purchaseFrequency });
+        alerts.push({
+          type: 'success',
+          message: humorMessage.message,
+          category: 'Purchase Rhythm',
+          icon: CheckCircle
+        });
+      } else {
+        alerts.push({
+          type: 'success',
+          message: `👍 Good purchase rhythm! ${purchaseFrequency.toFixed(1)} purchases per week shows thoughtful spending.`,
+          category: 'Purchase Rhythm',
+          icon: CheckCircle
+        });
+      }
+    }
+    
+    // Category success insights with humor
+    if (bestCategory && bestCategory.successRate >= 80) {
+      if (humorEngine) {
+        const humorMessage = humorEngine.generateMessage('surplus', { amount: bestCategory.successRate });
+        alerts.push({
+          type: 'success',
+          message: humorMessage.message,
+          category: 'Category Performance',
+          icon: Trophy
+        });
+      } else {
+        alerts.push({
+          type: 'success',
+          message: `🏆 Your best category is ${bestCategory.category} with ${bestCategory.successRate.toFixed(1)}% success rate!`,
+          category: 'Category Performance',
+          icon: Trophy
+        });
+      }
+    }
+    
+    if (purchaseCount === 0 && totalPlanned === 0) {
+      if (humorEngine) {
+        const humorMessage = humorEngine.generateMessage('general', {});
+        alerts.push({
+          type: 'info',
+          message: humorMessage.message,
+          category: 'General',
+          icon: ShoppingBag
+        });
+      } else {
+        alerts.push({
+          type: 'info',
+          message: `📈 No purchase data found for ${selectedCurrency} in this period. Start planning some purchases to see insights!`,
+          category: 'General',
+          icon: ShoppingBag
+        });
+      }
+    }
+    
+    return alerts;
+  };
+
+  const purchaseAlerts = generatePurchaseAlerts();
+
+  // L&B Analytics Functions
+  
+  // Generate real data from actual L&B records
+  const lbRealData = useMemo(() => {
+    const now = new Date();
+    const currencyRecords = lendBorrowRecords.filter(r => r.currency === selectedCurrency);
+    
+    // Separate records that affect account balance from standalone records
+    const recordsAffectingBalance = currencyRecords.filter(r => (r as any).affect_account_balance === true);
+    
+    // Calculate loan aging data
+    const agingData = [
+      { age: '0-30d', count: 0, amount: 0, color: '#10B981' },
+      { age: '31-60d', count: 0, amount: 0, color: '#F59E0B' },
+      { age: '61+d', count: 0, amount: 0, color: '#EF4444' }
+    ];
+    
+    // Only include records that affect account balance in aging analysis
+    recordsAffectingBalance.forEach(record => {
+      if (record.due_date && record.due_date !== '') {
+        try {
+          const dueDate = new Date(record.due_date);
+          const daysDiff = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (daysDiff <= 30) {
+            agingData[0].count++;
+            agingData[0].amount += record.amount;
+          } else if (daysDiff <= 60) {
+            agingData[1].count++;
+            agingData[1].amount += record.amount;
+          } else {
+            agingData[2].count++;
+            agingData[2].amount += record.amount;
+          }
+        } catch (error) {
+          // Skip invalid dates
+        }
+      }
+    });
+    
+    // Generate upcoming due dates from real records (only those affecting balance)
+    const upcomingDue = recordsAffectingBalance
+      .filter(record => record.due_date && record.due_date !== '' && record.status === 'active')
+      .map(record => {
+        try {
+          const dueDate = new Date(record.due_date!);
+          return {
+            id: record.id,
+            type: record.type,
+            person: record.person_name,
+            amount: record.amount,
+            dueDate: dueDate,
+            icon: record.type === 'lend' ? '🤝' : '💼'
+          };
+        } catch (error) {
+          return null;
+        }
+      })
+      .filter(item => item !== null && item.dueDate > now) // Only future due dates
+      .sort((a, b) => a!.dueDate.getTime() - b!.dueDate.getTime()) // Sort by due date
+      .slice(0, 5); // Take top 5
+    
+    // Calculate real milestones based on actual data (only records affecting balance)
+    const totalRecords = recordsAffectingBalance.length;
+    const settledRecords = recordsAffectingBalance.filter(r => r.status === 'settled').length;
+    const totalLent = recordsAffectingBalance.filter(r => r.type === 'lend').reduce((sum, r) => sum + r.amount, 0);
+    const repaymentRate = totalRecords > 0 ? (settledRecords / totalRecords) * 100 : 0;
+    
+    const milestones = [
+      { 
+        id: 1, 
+        title: 'Loan Round-Trip', 
+        description: 'Completed 5 full loan cycles', 
+        icon: Trophy, 
+        achieved: settledRecords >= 5, 
+        color: '#F59E0B' 
+      },
+      { 
+        id: 2, 
+        title: 'Super Lender', 
+        description: 'Lent over $10,000 total', 
+        icon: Award, 
+        achieved: totalLent >= 10000, 
+        color: '#10B981' 
+      },
+      { 
+        id: 3, 
+        title: 'Trust Builder', 
+        description: 'Maintained 100% repayment rate', 
+        icon: Star, 
+        achieved: repaymentRate >= 100, 
+        color: '#3B82F6' 
+      },
+      { 
+        id: 4, 
+        title: 'Quick Settler', 
+        description: 'Settled 3 loans within 30 days', 
+        icon: CheckCircle, 
+        achieved: settledRecords >= 3, 
+        color: '#8B5CF6' 
+      }
+    ];
+    
+    return {
+      agingData,
+      upcomingDue,
+      milestones
+    };
+  }, [lendBorrowRecords, selectedCurrency]);
+  
+  // Calculate KPIs from real data (only records affecting account balance)
+  const currencyRecords = useMemo(() => {
+    const now = new Date();
+    let startDate: Date;
+    let endDate = now;
+
+    switch (selectedPeriod) {
+      case 'current':
+        startDate = startOfMonth(now);
+        endDate = endOfMonth(now);
+        break;
+      case 'last3':
+        startDate = subMonths(now, 3);
+        endDate = now;
+        break;
+      case 'last6':
+        startDate = subMonths(now, 6);
+        endDate = now;
+        break;
+      case 'last12':
+        startDate = subMonths(now, 12);
+        endDate = now;
+        break;
+      default:
+        startDate = subMonths(now, 12);
+        endDate = now;
+    }
+
+    return lendBorrowRecords.filter(r => {
+      if (r.currency !== selectedCurrency) return false;
+      // Temporarily remove period filtering to debug
+      return true;
+    });
+  }, [lendBorrowRecords, selectedCurrency, selectedPeriod]);
+
+  const recordsAffectingBalance = currencyRecords.filter(r => (r as any).affect_account_balance === true);
+  const standaloneRecords = currencyRecords.filter(r => (r as any).affect_account_balance === false);
+  
+  const totalLent = recordsAffectingBalance.filter(r => r.type === 'lend').reduce((sum, r) => sum + r.amount, 0);
+  const totalBorrowed = recordsAffectingBalance.filter(r => r.type === 'borrow').reduce((sum, r) => sum + r.amount, 0);
+  const outstandingLent = recordsAffectingBalance.filter(r => r.type === 'lend' && r.status === 'active').reduce((sum, r) => sum + r.amount, 0);
+  const outstandingBorrowed = recordsAffectingBalance.filter(r => r.type === 'borrow' && r.status === 'active').reduce((sum, r) => sum + r.amount, 0);
+  const overdueCount = recordsAffectingBalance.filter(r => r.status === 'overdue').length;
+  const activeLentCount = recordsAffectingBalance.filter(r => r.type === 'lend' && r.status === 'active').length;
+  const activeBorrowedCount = recordsAffectingBalance.filter(r => r.type === 'borrow' && r.status === 'active').length;
+  
+  // Standalone records stats
+  const standaloneLent = standaloneRecords.filter(r => r.type === 'lend').reduce((sum, r) => sum + r.amount, 0);
+  const standaloneBorrowed = standaloneRecords.filter(r => r.type === 'borrow').reduce((sum, r) => sum + r.amount, 0);
+  const standaloneCount = standaloneRecords.length;
+  
+  // Calculate net position and percentages
+  const netPosition = totalLent - totalBorrowed;
+  const isNetPositive = netPosition >= 0;
+  const lentRepaidPercent = totalLent > 0 ? ((totalLent - outstandingLent) / totalLent) * 100 : 0;
+  const borrowRepaidPercent = totalBorrowed > 0 ? ((totalBorrowed - outstandingBorrowed) / totalBorrowed) * 100 : 0;
+
+  const getDaysUntilDue = (dueDate: Date) => {
+    const diffTime = dueDate.getTime() - new Date().getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  // Purchase Analytics Components
+  const PurchaseKPICards: React.FC = () => {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Purchase Completion Rate */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Completion Rate</h3>
+          <div className="space-y-2">
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{completionRate.toFixed(1)}%</p>
+            <p className="text-sm text-gray-500 dark:text-gray-300">
+              {purchaseCount} of {totalPlanned} planned
+            </p>
+          </div>
+        </div>
+
+        {/* Price Accuracy */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Price Accuracy</h3>
+          <div className="space-y-2">
+            <p className={`text-2xl font-bold ${priceAccuracy >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {priceAccuracy >= 0 ? '+' : ''}{priceAccuracy.toFixed(1)}%
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-300">
+              vs planned price
+            </p>
+          </div>
+        </div>
+
+        {/* Purchase Frequency */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Purchase Frequency</h3>
+          <div className="space-y-2">
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{purchaseFrequency.toFixed(1)}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-300">per week</p>
+          </div>
+        </div>
+
+        {/* Best Category Success */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Best Category</h3>
+          <div className="space-y-2">
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              {bestCategory ? bestCategory.successRate.toFixed(1) : '0'}%
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-300">
+              {bestCategory ? bestCategory.category : 'No data'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const PurchaseSpendingTrend: React.FC = () => {
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Spending Trend ({selectedPeriod === 'current' ? '30 Days' : selectedPeriod === 'last3' ? '3 Months' : selectedPeriod === 'last6' ? '6 Months' : '12 Months'})</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <ComposedChart data={trendData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis 
+              dataKey="date" 
+              tick={{ fontSize: 12 }} 
+              tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            />
+            <YAxis tick={{ fontSize: 12 }} />
+            <Tooltip 
+              formatter={(value: any) => [formatCurrency(value, selectedCurrency), 'Amount']} 
+              labelFormatter={(label) => new Date(label).toLocaleDateString()}
+              contentStyle={{
+                backgroundColor: 'white',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              }}
+            />
+            <Area 
+              dataKey="spend" 
+              fill="rgba(59, 130, 246, 0.1)" 
+              stroke="none" 
+              fillOpacity={0.3} 
+            />
+            <Line 
+              type="monotone" 
+              dataKey="spend" 
+              stroke="#3B82F6" 
+              strokeWidth={2} 
+              dot={false} 
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  };
+
+  const PurchaseCategoryBreakdown: React.FC = () => {
+    if (categoryData.length === 0) {
+      return (
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Category Breakdown ({selectedCurrency})</h3>
+          <div className="text-center text-gray-500 dark:text-gray-400">No purchase data available</div>
+        </div>
+      );
+    }
+
+    const highestCategory = categoryData.reduce((max, item) => item.value > max.value ? item : max);
+    
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Category Breakdown ({selectedCurrency})</h3>
+        <div className="flex items-center space-x-6">
+          <div className="flex-1">
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={categoryData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={40}
+                  outerRadius={80}
+                  paddingAngle={2}
+                  dataKey="value"
+                >
+                  {categoryData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.name === highestCategory.name ? '#F59E0B' : entry.color}
+                      stroke={entry.name === highestCategory.name ? '#D97706' : entry.color}
+                      strokeWidth={entry.name === highestCategory.name ? 2 : 1}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value: number, name: string) => [
+                    formatCurrency(value, selectedCurrency),
+                    name
+                  ]}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+                          <p className="font-semibold text-gray-900 dark:text-white">{data.name}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                            {formatCurrency(data.value, selectedCurrency)} ({data.count} items)
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex-1">
+            <div className="space-y-3">
+              {categoryData.map((category, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div 
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: category.name === highestCategory.name ? '#F59E0B' : category.color }}
+                    />
+                    <span className={`text-sm text-gray-900 dark:text-white ${category.name === highestCategory.name ? 'font-semibold' : ''}`}>
+                      {category.name}
+                    </span>
+                    {category.name === highestCategory.name && (
+                      <span className="text-xs bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded-full">
+                        Highest
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(category.value, selectedCurrency)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const PurchaseAlertsComponent: React.FC = () => {
+    if (purchaseAlerts.length === 0) return null;
+    
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Insights & Alerts ({selectedCurrency})</h3>
+        <div className="space-y-3">
+          {purchaseAlerts.map((alert, index) => (
+            <div 
+              key={index}
+              className={`p-3 rounded-lg border ${
+                alert.type === 'success' 
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700 text-green-800 dark:text-green-300' 
+                  : alert.type === 'warning'
+                  ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700 text-yellow-800 dark:text-yellow-300'
+                  : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 text-blue-800 dark:text-blue-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <alert.icon className="w-4 h-4" />
+                <span className="text-sm font-medium">{alert.message}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // L&B Analytics Components
+  const LBKPICards: React.FC = () => {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Total Lent Out Card */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                <Handshake className="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Lent Out</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">৳{totalLent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">• {activeLentCount} active loans</p>
+          </div>
+        </div>
+
+        {/* Total Borrowed Card */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Borrowed</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">৳{totalBorrowed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">• {activeBorrowedCount} active debts</p>
+          </div>
+        </div>
+
+        {/* Net Position Card */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isNetPositive ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'}`}>
+                {isNetPositive ? (
+                  <ThumbsUp className="w-5 h-5 text-green-600 dark:text-green-400" />
+                ) : (
+                  <ThumbsDown className="w-5 h-5 text-red-600 dark:text-red-400" />
+                )}
+              </div>
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Net Position</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className={`text-3xl font-bold ${isNetPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {isNetPositive ? '+' : ''}৳{Math.abs(netPosition).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className={`text-sm ${isNetPositive ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+              {isNetPositive ? 'Net lender' : 'Net borrower'}
+            </p>
+          </div>
+        </div>
+
+        {/* Overdue Loans Card */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Overdue Loans</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-3xl font-bold text-red-600 dark:text-red-400">{overdueCount}</span>
+              {overdueCount > 0 && (
+                <div className="bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 text-xs px-2 py-1 rounded-full font-medium">
+                  Action needed
+                </div>
+              )}
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {overdueCount > 0 ? 'Requires attention' : 'All loans current'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const LBRepaymentProgress: React.FC = () => {
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Repayment Progress</h3>
+        <div className="space-y-6">
+          {/* Lent Repaid Progress */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Lent Repaid</span>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">{lentRepaidPercent.toFixed(1)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+              <div 
+                className="bg-green-500 h-3 rounded-full transition-all duration-300"
+                style={{ width: `${lentRepaidPercent}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {formatCurrency(totalLent - outstandingLent, selectedCurrency)} repaid of {formatCurrency(totalLent, selectedCurrency)}
+            </p>
+          </div>
+
+          {/* Borrow Repaid Progress */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Borrow Repaid</span>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">{borrowRepaidPercent.toFixed(1)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+              <div 
+                className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+                style={{ width: `${borrowRepaidPercent}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {formatCurrency(totalBorrowed - outstandingBorrowed, selectedCurrency)} repaid of {formatCurrency(totalBorrowed, selectedCurrency)}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
+  const LBMilestones: React.FC = () => {
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Trophy Case</h3>
+        <div className="grid grid-cols-2 gap-4">
+          {lbRealData.milestones.map((milestone: any) => (
+            <div
+              key={milestone.id}
+              className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+                milestone.achieved 
+                  ? 'border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20' 
+                  : 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div 
+                  className={`p-2 rounded-full ${
+                    milestone.achieved 
+                      ? 'bg-green-100 dark:bg-green-900/40' 
+                      : 'bg-gray-100 dark:bg-gray-700'
+                  }`}
+                >
+                  <milestone.icon 
+                    className={`w-5 h-5 ${
+                      milestone.achieved 
+                        ? milestone.color === '#F59E0B' ? 'text-yellow-600' : 'text-green-600'
+                        : 'text-gray-400'
+                    }`} 
+                  />
+                </div>
+                <div className="flex-1">
+                  <h4 className={`font-medium text-sm ${
+                    milestone.achieved ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
+                  }`}>
+                    {milestone.title}
+                  </h4>
+                  <p className={`text-xs ${
+                    milestone.achieved ? 'text-gray-600 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'
+                  }`}>
+                    {milestone.description}
+                  </p>
+                </div>
+                {milestone.achieved && (
+                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const LBUpcomingDue: React.FC = () => {
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Upcoming Due Dates</h3>
+        <div className="flex gap-4 overflow-x-auto pb-2">
+          {lbRealData.upcomingDue.map((item: any) => {
+            const daysUntilDue = getDaysUntilDue(item.dueDate);
+            const isUrgent = daysUntilDue <= 7;
+            const isWarning = daysUntilDue <= 14;
+            
+            return (
+              <div
+                key={item.id}
+                className={`flex-shrink-0 p-4 rounded-lg border-2 min-w-[200px] transition-all duration-200 group cursor-pointer ${
+                  isUrgent 
+                    ? 'border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40' 
+                    : isWarning 
+                    ? 'border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40'
+                    : 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+                title={`${item.person} — ${formatCurrency(item.amount, selectedCurrency)} — Due ${item.dueDate.toLocaleDateString()}`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{item.icon}</span>
+                  <div className="flex-1">
+                    <h4 className="font-medium text-sm text-gray-900 dark:text-white">{item.person}</h4>
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      {formatCurrency(item.amount, selectedCurrency)}
+                    </p>
+                    <p className={`text-xs ${
+                      isUrgent ? 'text-red-600 dark:text-red-400' : isWarning ? 'text-orange-600 dark:text-orange-400' : 'text-gray-500 dark:text-gray-400'
+                    }`}>
+                      {daysUntilDue === 0 ? 'Due today' : 
+                       daysUntilDue === 1 ? 'Due tomorrow' : 
+                       `Due in ${daysUntilDue} days`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
 
   // Human-perceivable comparisons for better understanding
   const getHumanComparison = (amount: number, type: 'expense' | 'income' | 'savings') => {
@@ -194,18 +1222,93 @@ export const AnalyticsView: React.FC = () => {
     return stats.byCurrency;
   }, [profile?.selected_currencies, stats.byCurrency]);
 
-  // Generate monthly trends data
+  // Generate trends data based on selected period and currency
   const monthlyTrendsData = useMemo(() => {
+    const now = new Date();
+    let startDate: Date;
+    let endDate = now;
+    let isDailyView = false;
+
+    // Calculate date range based on selected period
+    switch (selectedPeriod) {
+      case 'current':
+        startDate = startOfMonth(now);
+        endDate = endOfMonth(now);
+        isDailyView = true;
+        break;
+      case 'last3':
+        startDate = subMonths(now, 3);
+        endDate = now;
+        break;
+      case 'last6':
+        startDate = subMonths(now, 6);
+        endDate = now;
+        break;
+      case 'last12':
+        startDate = subMonths(now, 12);
+        endDate = now;
+        break;
+      default:
+        startDate = subMonths(now, 12);
+        endDate = now;
+    }
+
+    // Filter transactions by currency and period
+    const periodTransactions = currencyTransactions.filter(t => {
+      const transactionDate = parseISO(t.date);
+      return transactionDate >= startDate && transactionDate <= endDate;
+    });
+
+    if (isDailyView) {
+      // For 1 month: show daily data
+      const days = [];
+      const currentMonth = startDate;
+      const daysInMonth = endOfMonth(currentMonth).getDate();
+      
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+        const dayEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day, 23, 59, 59);
+        
+        const dayTransactions = periodTransactions.filter(t => {
+          const transactionDate = parseISO(t.date);
+          return transactionDate >= dayDate && transactionDate <= dayEnd;
+        });
+
+        const income = dayTransactions
+          .filter(t => t.type === 'income')
+          .reduce((sum, t) => sum + t.amount, 0);
+
+        const expenses = dayTransactions
+          .filter(t => {
+            const isExpense = t.type === 'expense';
+            const isTransferTag = t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
+            const isTransferCategory = (t.category || '').toLowerCase() === 'transfer';
+            return isExpense && !isTransferTag && !isTransferCategory;
+          })
+          .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+        days.push({
+          month: day.toString(),
+          income,
+          expenses,
+          net: income - expenses,
+          date: dayDate
+        });
+      }
+      
+      return days;
+    } else {
+      // For 3+ months: show monthly data
     const months = eachMonthOfInterval({
-      start: subMonths(new Date(), 11),
-      end: new Date()
+        start: startDate,
+        end: endDate
     });
 
     return months.map(month => {
       const monthStart = startOfMonth(month);
       const monthEnd = endOfMonth(month);
       
-      const monthTransactions = currencyTransactions.filter(t => {
+      const monthTransactions = periodTransactions.filter(t => {
         const transactionDate = parseISO(t.date);
         return transactionDate >= monthStart && transactionDate <= monthEnd;
       });
@@ -231,7 +1334,8 @@ export const AnalyticsView: React.FC = () => {
         date: month
       };
     });
-  }, [currencyTransactions]);
+    }
+  }, [currencyTransactions, selectedPeriod]);
 
   // Calculate trends
   const trends = useMemo(() => {
@@ -249,7 +1353,61 @@ export const AnalyticsView: React.FC = () => {
 
   // Net Cash Flow Gauge Component
   const NetCashFlowGauge: React.FC = () => {
-    if (!currentCurrencyStats) {
+    // Calculate real-time data based on selected currency and period
+    const periodData = useMemo(() => {
+      const now = new Date();
+      let startDate: Date;
+      let endDate = now;
+
+      switch (selectedPeriod) {
+        case 'current':
+          startDate = startOfMonth(now);
+          endDate = endOfMonth(now);
+          break;
+        case 'last3':
+          startDate = subMonths(now, 3);
+          endDate = now;
+          break;
+        case 'last6':
+          startDate = subMonths(now, 6);
+          endDate = now;
+          break;
+        case 'last12':
+          startDate = subMonths(now, 12);
+          endDate = now;
+          break;
+        default:
+          startDate = startOfMonth(now);
+          endDate = endOfMonth(now);
+      }
+
+      const periodTransactions = currencyTransactions.filter(t => {
+        const transactionDate = parseISO(t.date);
+        return transactionDate >= startDate && transactionDate <= endDate;
+      });
+
+      const income = periodTransactions
+        .filter(t => {
+          const isIncome = t.type === 'income';
+          const isTransferTag = t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
+          const isTransferCategory = (t.category || '').toLowerCase() === 'transfer';
+          return isIncome && !isTransferTag && !isTransferCategory;
+        })
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const expenses = periodTransactions
+        .filter(t => {
+          const isExpense = t.type === 'expense';
+          const isTransferTag = t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
+          const isTransferCategory = (t.category || '').toLowerCase() === 'transfer';
+          return isExpense && !isTransferTag && !isTransferCategory;
+        })
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+      return { income, expenses, startDate, endDate };
+    }, [currencyTransactions, selectedPeriod]);
+
+    if (periodData.income === 0 && periodData.expenses === 0) {
       return (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Cash Flow Health</h3>
@@ -258,18 +1416,28 @@ export const AnalyticsView: React.FC = () => {
       );
     }
 
-    const { monthlyIncome, monthlyExpenses } = currentCurrencyStats;
+    const { income: monthlyIncome, expenses: monthlyExpenses } = periodData;
     const surplus = monthlyIncome - monthlyExpenses;
     const isSurplus = surplus >= 0;
     const savingsRate = monthlyIncome > 0 ? (surplus / monthlyIncome) * 100 : 0;
     const healthScore = Math.max(0, Math.min(100, savingsRate + 50));
+    
+    const getPeriodLabel = () => {
+      switch (selectedPeriod) {
+        case 'current': return 'This Month';
+        case 'last3': return 'Last 3 Months';
+        case 'last6': return 'Last 6 Months';
+        case 'last12': return 'Last 12 Months';
+        default: return 'This Month';
+      }
+    };
     
     return (
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
           <div>
             <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Cash Flow Health</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{selectedCurrency} • This Month</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{selectedCurrency} • {getPeriodLabel()}</p>
           </div>
           <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
             healthScore >= 70 ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300' :
@@ -291,7 +1459,7 @@ export const AnalyticsView: React.FC = () => {
                 <TrendingDown className="w-6 h-6 text-red-600 dark:text-red-400 mr-2" />
               )}
               <div className={`text-xl sm:text-2xl font-bold ${isSurplus ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {formatCurrency(Math.abs(surplus), selectedCurrency)}
+                {selectedCurrency === 'BDT' ? `৳${Math.abs(surplus).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : formatCurrency(Math.abs(surplus), selectedCurrency)}
               </div>
             </div>
             <div className={`text-sm font-semibold ${isSurplus ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
@@ -311,7 +1479,7 @@ export const AnalyticsView: React.FC = () => {
               </div>
               <div className="text-right">
                 <div className="font-semibold text-green-600 dark:text-green-400 text-sm sm:text-base">
-                  {formatCurrency(monthlyIncome, selectedCurrency)}
+                  {selectedCurrency === 'BDT' ? `৳${monthlyIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : formatCurrency(monthlyIncome, selectedCurrency)}
                 </div>
                 {trends && (
                   <div className={`text-xs ${trends.incomeChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -328,7 +1496,7 @@ export const AnalyticsView: React.FC = () => {
               </div>
               <div className="text-right">
                 <div className="font-semibold text-red-600 dark:text-red-400 text-sm sm:text-base">
-                  {formatCurrency(monthlyExpenses, selectedCurrency)}
+                  {selectedCurrency === 'BDT' ? `৳${monthlyExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : formatCurrency(monthlyExpenses, selectedCurrency)}
                 </div>
                 {trends && (
                   <div className={`text-xs ${trends.expenseChange <= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -369,10 +1537,21 @@ export const AnalyticsView: React.FC = () => {
 
   // Monthly Trends Chart Component
   const MonthlyTrendsChart: React.FC = () => {
+    // Generate title based on selected period
+    const getPeriodLabel = () => {
+      switch (selectedPeriod) {
+        case 'current': return '1 month';
+        case 'last3': return '3 months';
+        case 'last6': return '6 months';
+        case 'last12': return '1 year';
+        default: return '1 year';
+      }
+    };
+
     if (monthlyTrendsData.length === 0) {
       return (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Monthly Trends ({selectedCurrency})</h3>
+          <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Cash Flow ({selectedCurrency} - {getPeriodLabel()})</h3>
           <div className="text-center text-gray-500 dark:text-gray-400">No trend data available</div>
         </div>
       );
@@ -380,7 +1559,7 @@ export const AnalyticsView: React.FC = () => {
 
     return (
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Monthly Trends ({selectedCurrency})</h3>
+        <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Cash Flow ({selectedCurrency} - {getPeriodLabel()})</h3>
         <ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={monthlyTrendsData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -439,13 +1618,46 @@ export const AnalyticsView: React.FC = () => {
 
   // Spending by Category Donut Component
   const SpendingByCategoryDonut: React.FC = () => {
-    // Calculate spending by category for the selected currency
-    const categorySpending = currencyTransactions
+    // Calculate spending by category for the selected currency and period
+    const categorySpending = useMemo(() => {
+      const now = new Date();
+      let startDate: Date;
+      let endDate = now;
+
+      switch (selectedPeriod) {
+        case 'current':
+          startDate = startOfMonth(now);
+          endDate = endOfMonth(now);
+          break;
+        case 'last3':
+          startDate = subMonths(now, 3);
+          endDate = now;
+          break;
+        case 'last6':
+          startDate = subMonths(now, 6);
+          endDate = now;
+          break;
+        case 'last12':
+          startDate = subMonths(now, 12);
+          endDate = now;
+          break;
+        default:
+          startDate = startOfMonth(now);
+          endDate = endOfMonth(now);
+      }
+
+      const periodTransactions = currencyTransactions.filter(t => {
+        const transactionDate = parseISO(t.date);
+        return transactionDate >= startDate && transactionDate <= endDate;
+      });
+
+      return periodTransactions
       .filter(t => {
         const isExpense = t.type === 'expense';
         const isTransferTag = t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
         const isTransferCategory = (t.category || '').toLowerCase() === 'transfer';
-        return isExpense && !isTransferTag && !isTransferCategory;
+        const isLendBorrowCategory = (t.category || '').toLowerCase().includes('lend') || (t.category || '').toLowerCase().includes('borrow');
+        return isExpense && !isTransferTag && !isTransferCategory && !isLendBorrowCategory;
       })
       .reduce((acc, transaction) => {
         const category = transaction.category || 'Uncategorized';
@@ -455,21 +1667,21 @@ export const AnalyticsView: React.FC = () => {
         acc[category] += Math.abs(transaction.amount);
         return acc;
       }, {} as Record<string, number>);
+    }, [currencyTransactions, selectedPeriod]);
 
     const totalSpending = Object.values(categorySpending).reduce((sum, value) => sum + value, 0);
     
-    // Enhanced color palette for better visual distinction
-    const colorPalette = [
-      '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', 
-      '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'
-    ];
+    const getCategoryColor = (categoryName: string) => {
+      const category = categories.find(cat => cat.name.toLowerCase() === categoryName.toLowerCase());
+      return category?.color || '#3B82F6'; // Default blue color
+    };
 
     const data = Object.entries(categorySpending)
       .map(([name, value], index) => ({
         name,
         value,
         percentage: ((value / totalSpending) * 100),
-        color: colorPalette[index % colorPalette.length],
+        color: getCategoryColor(name),
         current: value,
         average: value * 0.9 // Dummy average for now
       }))
@@ -485,17 +1697,15 @@ export const AnalyticsView: React.FC = () => {
     }
 
     const highestCategory = data[0]; // Already sorted, so first is highest
-    const getCategoryEmoji = (categoryName: string) => {
-      const name = categoryName.toLowerCase();
-      if (name.includes('food') || name.includes('restaurant') || name.includes('groceries')) return '🍽️';
-      if (name.includes('transport') || name.includes('gas') || name.includes('fuel')) return '🚗';
-      if (name.includes('entertainment') || name.includes('movie') || name.includes('fun')) return '🎬';
-      if (name.includes('shopping') || name.includes('clothes') || name.includes('retail')) return '🛍️';
-      if (name.includes('health') || name.includes('medical') || name.includes('doctor')) return '🏥';
-      if (name.includes('education') || name.includes('school') || name.includes('course')) return '📚';
-      if (name.includes('utilities') || name.includes('electric') || name.includes('water')) return '🏠';
-      if (name.includes('subscription') || name.includes('software') || name.includes('service')) return '📱';
-      return '💰';
+    
+    const getPeriodLabel = () => {
+      switch (selectedPeriod) {
+        case 'current': return 'This Month';
+        case 'last3': return 'Last 3 Months';
+        case 'last6': return 'Last 6 Months';
+        case 'last12': return 'Last 12 Months';
+        default: return 'This Month';
+      }
     };
     
     return (
@@ -503,109 +1713,16 @@ export const AnalyticsView: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
           <div>
             <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Spending Breakdown</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{selectedCurrency} • This Month</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{selectedCurrency} • {getPeriodLabel()}</p>
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-300">
-            Total: <span className="font-semibold">{formatCurrency(totalSpending, selectedCurrency)}</span>
+            Total: <span className="font-semibold">{selectedCurrency === 'BDT' ? `৳${totalSpending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : formatCurrency(totalSpending, selectedCurrency)}</span>
           </div>
         </div>
         
-        {/* Mobile-First Layout */}
-        <div className="flex flex-col lg:flex-row lg:items-start lg:space-x-6 space-y-4 lg:space-y-0">
-          {/* Chart Section - Responsive sizing */}
-          <div className="flex-shrink-0 mx-auto lg:mx-0">
-            <ResponsiveContainer width="100%" height={180} className="sm:hidden">
-              <PieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={30}
-                  outerRadius={60}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {data.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={entry.color}
-                      stroke={entry.color}
-                      strokeWidth={index === 0 ? 3 : 1}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload;
-                      return (
-                        <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
-                          <p className="font-semibold flex items-center">
-                            {getCategoryEmoji(data.name)} {data.name}
-                          </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">
-                            {formatCurrency(data.current, selectedCurrency)} ({data.percentage.toFixed(1)}%)
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {getHumanComparison(data.current, 'expense')}
-                          </p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            
-            {/* Larger chart for desktop */}
-            <ResponsiveContainer width={240} height={200} className="hidden sm:block">
-              <PieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={80}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {data.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={entry.color}
-                      stroke={entry.color}
-                      strokeWidth={index === 0 ? 3 : 1}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload;
-                      return (
-                        <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
-                          <p className="font-semibold flex items-center">
-                            {getCategoryEmoji(data.name)} {data.name}
-                          </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">
-                            {formatCurrency(data.current, selectedCurrency)} ({data.percentage.toFixed(1)}%)
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {getHumanComparison(data.current, 'expense')}
-                          </p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          
-          {/* Categories List - Mobile Optimized */}
-          <div className="flex-1 min-w-0">
+        {/* Bottom Section - Categories and Chart/Insights Side by Side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Categories List */}
             <div className="space-y-2">
               {data.slice(0, 6).map((category, index) => (
                 <div key={index} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
@@ -617,7 +1734,7 @@ export const AnalyticsView: React.FC = () => {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center space-x-2">
                         <span className="text-sm font-medium truncate">
-                          {getCategoryEmoji(category.name)} {category.name}
+                          {category.name}
                         </span>
                         {index === 0 && (
                           <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 px-2 py-0.5 rounded-full flex-shrink-0">
@@ -642,7 +1759,7 @@ export const AnalyticsView: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-right ml-2">
-                    <div className="text-sm font-semibold">{formatCurrency(category.value, selectedCurrency)}</div>
+                    <div className="text-sm font-semibold">{selectedCurrency === 'BDT' ? `৳${category.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : formatCurrency(category.value, selectedCurrency)}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
                       {category.percentage.toFixed(1)}%
                     </div>
@@ -659,197 +1776,68 @@ export const AnalyticsView: React.FC = () => {
               )}
             </div>
             
-            {/* Top Category Insight */}
-            <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700 rounded-lg">
-              <div className="flex items-center space-x-2 mb-1">
-                <Lightbulb className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                <span className="text-sm font-medium text-amber-800 dark:text-amber-300">Spending Insight</span>
-              </div>
-              <p className="text-xs text-amber-700 dark:text-amber-300">
-                Your biggest expense is <strong>{highestCategory.name}</strong> at {highestCategory.percentage.toFixed(1)}% of total spending.
-                <br />
-                <span className="text-amber-600 dark:text-amber-400">
-                  {getHumanComparison(highestCategory.value, 'expense')}
-                </span>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Debt Payoff Progress Component
-  const DebtPayoffProgress: React.FC = () => {
-    // Calculate debt-related transactions for the selected currency
-    const debtTransactions = currencyTransactions.filter(t => 
-      t.type === 'expense' && 
-      (t.category?.toLowerCase().includes('debt') || 
-       t.category?.toLowerCase().includes('loan') ||
-       t.description?.toLowerCase().includes('debt') ||
-       t.description?.toLowerCase().includes('loan'))
-    );
-
-    const totalDebt = debtTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    const paidOff = totalDebt * 0.7; // Dummy calculation - in real app, this would track actual debt payments
-    const remaining = totalDebt - paidOff;
-    const percentage = totalDebt > 0 ? (paidOff / totalDebt) * 100 : 0;
-    const milestone = Math.floor(percentage / 10) * 10;
-    
-    if (totalDebt === 0) {
+          {/* Right Column - Chart and Spending Insights */}
+          <div className="space-y-6">
+            {/* Chart Section */}
+            <div className="w-full">
+              <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={data}
+                      cx="50%"
+                      cy="50%"
+                    innerRadius={60}
+                    outerRadius={120}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {data.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.color}
+                          stroke={entry.color}
+                          strokeWidth={index === 0 ? 3 : 1}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
       return (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Debt Payoff Progress ({selectedCurrency})</h3>
-          <div className="text-center text-gray-500 dark:text-gray-400">No debt transactions found</div>
+                            <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+                            <p className="font-semibold flex items-center">
+                              {data.name}
+                            </p>
+                              <p className="text-sm text-gray-600 dark:text-gray-300">
+                                {formatCurrency(data.current, selectedCurrency)} ({data.percentage.toFixed(1)}%)
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {getHumanComparison(data.current, 'expense')}
+                              </p>
         </div>
       );
     }
-    
-    return (
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Debt Payoff Progress ({selectedCurrency})</h3>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Total Debt</p>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(totalDebt, selectedCurrency)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Remaining</p>
-              <p className="text-xl font-bold text-red-600">{formatCurrency(remaining, selectedCurrency)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Paid Off</p>
-              <p className="text-xl font-bold text-green-600">{formatCurrency(paidOff, selectedCurrency)}</p>
-            </div>
-          </div>
-          
-          <div className="relative">
-            <div className="w-full bg-gray-200 rounded-full h-4">
-              <div 
-                className="bg-gradient-to-r from-green-500 to-green-600 h-4 rounded-full transition-all duration-1000"
-                style={{ width: `${percentage}%` }}
-              />
-            </div>
-            <div className="absolute -top-8 left-0 right-0 flex justify-between text-xs text-gray-500">
-              <span>0%</span>
-              <span>25%</span>
-              <span>50%</span>
-              <span>75%</span>
-              <span>100%</span>
-            </div>
-          </div>
-          
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">{formatPercentage(percentage)}</div>
-            <p className="text-sm text-gray-600">Complete</p>
-          </div>
-          
-          {milestone > 0 && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-              <div className="text-2xl">🎉</div>
-              <div className="font-semibold text-green-800">{milestone}% paid off!</div>
-            </div>
-          )}
-          
-          <div className="mt-4">
-            <h4 className="text-sm font-semibold mb-2">Monthly Debt Payments</h4>
-            <div className="text-sm text-gray-600">
-              Based on {debtTransactions.length} debt-related transactions
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Savings Goal Thermometer Component
-  const SavingsGoalThermometer: React.FC = () => {
-    // Calculate savings-related transactions for the selected currency
-    const savingsTransactions = currencyTransactions.filter(t => 
-      t.type === 'income' && 
-      (t.category?.toLowerCase().includes('savings') || 
-       t.category?.toLowerCase().includes('investment') ||
-       t.description?.toLowerCase().includes('savings') ||
-       t.description?.toLowerCase().includes('investment'))
-    );
-
-    const totalSaved = savingsTransactions.reduce((sum, t) => sum + t.amount, 0);
-    const target = totalSaved * 1.5; // Dummy target - in real app, this would come from savings goals
-    const percentage = target > 0 ? (totalSaved / target) * 100 : 0;
-    const monthlyContribution = totalSaved / 12; // Average monthly contribution
-    const projectedCompletion = target > totalSaved ? Math.ceil((target - totalSaved) / monthlyContribution) : 0;
-    
-    if (totalSaved === 0) {
-      return (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Savings Goal ({selectedCurrency})</h3>
-          <div className="text-center text-gray-500 dark:text-gray-400">No savings transactions found</div>
-        </div>
-      );
-    }
-    
-    return (
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Savings Goal ({selectedCurrency})</h3>
-        <div className="flex items-center space-x-6">
-          <div className="flex-1">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">Target</p>
-                  <p className="text-xl font-bold text-gray-900">{formatCurrency(target, selectedCurrency)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">Current</p>
-                  <p className="text-xl font-bold text-blue-600">{formatCurrency(totalSaved, selectedCurrency)}</p>
-                </div>
+                        return null;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
               
-              <div className="relative">
-                <div className="w-full bg-gray-200 rounded-full h-6">
-                  <div 
-                    className="bg-gradient-to-r from-blue-500 to-blue-600 h-6 rounded-full transition-all duration-1000"
-                    style={{ width: `${percentage}%` }}
-                  />
-                </div>
-                <div className="absolute -top-6 left-0 right-0 flex justify-between text-xs text-gray-500">
-                  <span>0%</span>
-                  <span>25%</span>
-                  <span>50%</span>
-                  <span>75%</span>
-                  <span>100%</span>
-                </div>
-              </div>
-              
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatPercentage(percentage)}</div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">Complete</p>
-              </div>
-              
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+            {/* Spending Insights */}
+            <div>
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700 rounded-lg">
                 <div className="flex items-center space-x-2 mb-2">
-                  <Target className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <span className="text-sm font-semibold text-blue-800 dark:text-blue-300">Projection</span>
+                <Lightbulb className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span className="text-sm font-medium text-amber-800 dark:text-amber-300">Top Category</span>
                 </div>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  At this rate, you'll hit 100% in {projectedCompletion} months
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                Your biggest expense is <strong>{highestCategory.name}</strong> at {highestCategory.percentage.toFixed(1)}% of total spending.
                 </p>
-                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                  Monthly contribution: {formatCurrency(monthlyContribution, selectedCurrency)}
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                  {getHumanComparison(highestCategory.value, 'expense')}
                 </p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex-shrink-0">
-            <div className="w-20 h-32 bg-gray-100 dark:bg-gray-800 rounded-full border-4 border-gray-200 dark:border-gray-600 relative overflow-hidden">
-              <div 
-                className="absolute bottom-0 w-full bg-gradient-to-t from-blue-500 to-blue-600 transition-all duration-1000"
-                style={{ height: `${percentage}%` }}
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <PiggyBank className="w-8 h-8 text-gray-400 dark:text-gray-500" />
               </div>
             </div>
           </div>
@@ -858,112 +1846,34 @@ export const AnalyticsView: React.FC = () => {
     );
   };
 
-  // Smart Recommendations Component
-  const SmartRecommendations: React.FC = () => {
-    const recommendations = [];
-    
-    if (currentCurrencyStats) {
-      const { monthlyIncome, monthlyExpenses } = currentCurrencyStats;
-      const netIncome = monthlyIncome - monthlyExpenses;
-      const savingsRate = monthlyIncome > 0 ? (netIncome / monthlyIncome) * 100 : 0;
-      
-      // Savings recommendations
-      if (savingsRate < 20) {
-        recommendations.push({
-          type: 'savings',
-          title: 'Increase Savings Rate',
-          description: `Your current savings rate is ${formatPercentage(savingsRate)}. Aim for 20% to build wealth faster.`,
-          action: 'Set up automatic transfers',
-          priority: 'high'
-        });
-      }
-      
-      // Spending recommendations
-      if (monthlyExpenses > monthlyIncome * 0.8) {
-        recommendations.push({
-          type: 'spending',
-          title: 'Review High Spending',
-          description: 'Your expenses are high relative to income. Consider reviewing discretionary spending.',
-          action: 'Analyze spending categories',
-          priority: 'medium'
-        });
-      }
-      
-      // Debt recommendations
-      const debtTransactions = currencyTransactions.filter(t => 
-        t.type === 'expense' && 
-        (t.category?.toLowerCase().includes('debt') || 
-         t.category?.toLowerCase().includes('loan'))
-      );
-      
-      if (debtTransactions.length > 0) {
-        recommendations.push({
-          type: 'debt',
-          title: 'Focus on Debt Payoff',
-          description: 'You have debt payments. Consider prioritizing high-interest debt first.',
-          action: 'Create debt payoff plan',
-          priority: 'high'
-        });
-      }
-    }
-    
-    if (recommendations.length === 0) {
-      recommendations.push({
-        type: 'general',
-        title: 'Great Financial Health!',
-        description: 'Your finances look healthy. Keep up the good work!',
-        action: 'Continue current habits',
-        priority: 'low'
-      });
-    }
-    
-    return (
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center space-x-2 mb-4">
-          <Lightbulb className="w-5 h-5 text-yellow-600" />
-          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Smart Recommendations</h3>
-        </div>
-        <div className="space-y-3">
-          {recommendations.map((rec, index) => (
-            <div 
-              key={index}
-              className={`p-4 rounded-lg border ${
-                rec.priority === 'high' 
-                  ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700' 
-                  : rec.priority === 'medium'
-                  ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700'
-                  : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-1">{rec.title}</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{rec.description}</p>
-                  <button className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
-                    {rec.action} →
-                  </button>
-                </div>
-                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  rec.priority === 'high' 
-                    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' 
-                    : rec.priority === 'medium'
-                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                    : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                }`}>
-                  {rec.priority}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
+  
   // Positive Reinforcement Alerts Component
   const PositiveReinforcementAlerts: React.FC = () => {
     // Generate alerts based on real data
     const alerts = [];
+    
+    // Always detect user context for balanced humor
+    let userContext = null;
+    let humorEngine = null;
+    
+    if (currencyTransactions.length > 0) {
+      try {
+        userContext = detectUserContext({
+          monthlyIncome: currentCurrencyStats?.monthlyIncome,
+          monthlyExpenses: currentCurrencyStats?.monthlyExpenses,
+          transactions: currencyTransactions.map(t => ({
+            amount: t.amount,
+            type: t.type,
+            category: t.category,
+            tags: t.tags,
+            date: t.date
+          }))
+        });
+        humorEngine = new HumorEngine(userContext, 'medium', 'auto');
+      } catch (error) {
+        console.warn('HumorEngine failed to initialize:', error);
+      }
+    }
     
     if (currentCurrencyStats) {
       const { monthlyIncome, monthlyExpenses } = currentCurrencyStats;
@@ -971,39 +1881,66 @@ export const AnalyticsView: React.FC = () => {
       
       // Surplus alert
       if (netIncome > 0) {
-        alerts.push({
-          type: 'success',
-          message: `👍 Great job! You have a ${formatCurrency(netIncome, selectedCurrency)} surplus this month!`,
-          category: 'Cash Flow'
-        });
+        if (humorEngine) {
+          const humorMessage = humorEngine.generateMessage('surplus', { amount: netIncome, currency: selectedCurrency });
+          alerts.push({
+            type: 'success',
+            message: humorMessage.message,
+            category: 'Cash Flow'
+          });
+        } else {
+          alerts.push({
+            type: 'success',
+            message: `👍 Great job! You have a ${formatCurrency(netIncome, selectedCurrency)} surplus this month!`,
+            category: 'Cash Flow'
+          });
+        }
       } else {
-        alerts.push({
-          type: 'warning',
-          message: `⚠️ You have a ${formatCurrency(Math.abs(netIncome), selectedCurrency)} deficit this month.`,
-          category: 'Cash Flow'
-        });
+        if (humorEngine) {
+          const humorMessage = humorEngine.generateMessage('deficit', { amount: Math.abs(netIncome), currency: selectedCurrency });
+          alerts.push({
+            type: 'warning',
+            message: humorMessage.message,
+            category: 'Cash Flow'
+          });
+        } else {
+          alerts.push({
+            type: 'warning',
+            message: `⚠️ You have a ${formatCurrency(Math.abs(netIncome), selectedCurrency)} deficit this month.`,
+            category: 'Cash Flow'
+          });
+        }
       }
       
       // Savings rate alert
       const savingsRate = monthlyIncome > 0 ? (netIncome / monthlyIncome) * 100 : 0;
-      if (savingsRate >= 20) {
+      if (humorEngine) {
+        const humorMessage = humorEngine.generateMessage('savings_rate', { rate: savingsRate });
         alerts.push({
-          type: 'success',
-          message: `🎉 Excellent! You're saving ${formatPercentage(savingsRate)} of your income!`,
-          category: 'Savings'
-        });
-      } else if (savingsRate >= 10) {
-        alerts.push({
-          type: 'success',
-          message: `💪 Good progress! You're saving ${formatPercentage(savingsRate)} of your income.`,
+          type: savingsRate >= 10 ? 'success' : 'warning',
+          message: humorMessage.message,
           category: 'Savings'
         });
       } else {
-        alerts.push({
-          type: 'warning',
-          message: `📈 Consider increasing your savings rate. Currently at ${formatPercentage(savingsRate)}.`,
-          category: 'Savings'
-        });
+        if (savingsRate >= 20) {
+          alerts.push({
+            type: 'success',
+            message: `🎉 Excellent! You're saving ${formatPercentage(savingsRate)} of your income!`,
+            category: 'Savings'
+          });
+        } else if (savingsRate >= 10) {
+          alerts.push({
+            type: 'success',
+            message: `💪 Good progress! You're saving ${formatPercentage(savingsRate)} of your income.`,
+            category: 'Savings'
+          });
+        } else {
+          alerts.push({
+            type: 'warning',
+            message: `📈 Consider increasing your savings rate. Currently at ${formatPercentage(savingsRate)}.`,
+            category: 'Savings'
+          });
+        }
       }
     }
     
@@ -1028,19 +1965,43 @@ export const AnalyticsView: React.FC = () => {
       .sort(([,a], [,b]) => b - a)[0];
     
     if (highestSpendingCategory) {
-      alerts.push({
-        type: 'warning',
-        message: `📊 Your highest spending category is ${highestSpendingCategory[0]} at ${formatCurrency(highestSpendingCategory[1], selectedCurrency)}`,
-        category: 'Spending'
-      });
+      if (humorEngine) {
+        const humorMessage = humorEngine.generateMessage('category_spending', { 
+          category: highestSpendingCategory[0], 
+          amount: highestSpendingCategory[1], 
+          currency: selectedCurrency 
+        });
+        alerts.push({
+          type: 'warning',
+          message: humorMessage.message,
+          category: 'Spending'
+        });
+      } else {
+        alerts.push({
+          type: 'warning',
+          message: `📊 Your highest spending category is ${highestSpendingCategory[0]} at ${formatCurrency(highestSpendingCategory[1], selectedCurrency)}`,
+          category: 'Spending'
+        });
+      }
     }
     
     if (alerts.length === 0) {
-      alerts.push({
-        type: 'success',
-        message: `📈 No transactions found for ${selectedCurrency}. Add some transactions to see insights!`,
-        category: 'General'
-      });
+      if (humorEngine) {
+        const humorMessage = humorEngine.generateMessage('general', {});
+        alerts.push({
+          type: 'success',
+          message: humorMessage.message,
+          category: 'General',
+          icon: ShoppingBag
+        });
+      } else {
+        alerts.push({
+          type: 'success',
+          message: `📈 No transactions found for ${selectedCurrency}. Add some transactions to see insights!`,
+          category: 'General',
+          icon: ShoppingBag
+        });
+      }
     }
     
     return (
@@ -1072,111 +2033,117 @@ export const AnalyticsView: React.FC = () => {
   };
 
   return (
-    <div data-tour="analytics-overview" className="space-y-6">
-      {/* Controls - Mobile First */}
-      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
-        <CustomDropdown
-          options={currencyOptions.map(({ currency }) => ({ value: currency, label: `💱 ${currency}` }))}
-          value={selectedCurrency}
-          onChange={setSelectedCurrency}
-          fullWidth={false}
-        />
-        <CustomDropdown
-          options={[
-            { value: 'current', label: '📅 This Month' },
-            { value: 'last3', label: '📊 Last 3M' },
-            { value: 'last6', label: '📈 Last 6M' },
-            { value: 'last12', label: '📉 Last Year' },
-          ]}
-          value={selectedPeriod}
-          onChange={val => setSelectedPeriod(val as any)}
-          fullWidth={false}
-        />
-        <button 
-          onClick={() => setShowTrends(!showTrends)}
-          className={`px-3 py-2 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm ${
-            showTrends 
-              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' 
-              : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-          }`}
-        >
-          <TrendingUpIcon className="w-4 h-4" />
-          <span className="hidden sm:inline">{showTrends ? 'Hide' : 'Show'} Trends</span>
-          <span className="sm:hidden">Trends</span>
-        </button>
-        <button 
-          onClick={() => navigate('/currency-analytics')}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm"
-        >
-          <Globe className="w-4 h-4" />
-          <span className="hidden sm:inline">Currency Analytics</span>
-          <span className="sm:hidden">Currency</span>
-        </button>
-        <div className="relative col-span-2 sm:col-span-1 export-menu-container">
-          <button 
-            data-tour="export-data"
-            onClick={() => setShowExportMenu(!showExportMenu)}
-            className="bg-gradient-primary hover:bg-gradient-primary-hover text-white px-3 py-2 rounded-lg transition-colors flex items-center justify-center space-x-1 text-sm w-full"
-            aria-expanded={showExportMenu}
-            aria-label="Export data options"
-          >
-            <Download className="w-4 h-4" />
-            <span>Export Data</span>
-            <svg className={`w-4 h-4 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+    <div data-tour="analytics-overview" className="space-y-4 sm:space-y-6 px-2 sm:px-0">
 
-          {showExportMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-              <div className="py-1">
-                <button
-                  onClick={() => handleExportData('csv')}
-                  className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Export as CSV
-                </button>
-                <button
-                  onClick={() => handleExportData('pdf')}
-                  className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                  Export as PDF
-                </button>
-                <button
-                  onClick={() => handleExportData('excel')}
-                  className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Export as Excel
-                </button>
+      {/* Accordion Structure */}
+      <div className="space-y-4">
+        {/* Tab-Style Navigation */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="flex border-b border-gray-200 dark:border-gray-700">
+            <button 
+              onClick={() => toggleAccordion('total')}
+              className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-center font-medium transition-colors text-sm sm:text-base ${
+                expandedAccordions.total 
+                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              <span className="hidden sm:inline">Total Analytics</span>
+              <span className="sm:hidden">Total</span>
+            </button>
+            <button 
+              onClick={() => toggleAccordion('purchase')}
+              className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-center font-medium transition-colors text-sm sm:text-base ${
+                expandedAccordions.purchase 
+                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              <span className="hidden sm:inline">Purchase Analytics</span>
+              <span className="sm:hidden">Purchase</span>
+            </button>
+          </div>
+
+          {/* Shared Filter Bar */}
+          <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50/30 to-purple-50/30 dark:from-blue-900/10 dark:to-purple-900/10">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+                {/* Currency Filter */}
+                <div className="flex-1 sm:flex-none">
+                  <CustomDropdown
+                    value={selectedCurrency}
+                    onChange={setSelectedCurrency}
+                    options={currencyOptions.map(currency => ({
+                      value: currency.currency,
+                      label: currency.currency
+                    }))}
+                    placeholder="Select Currency"
+                    className="w-full sm:w-auto"
+                  />
+                </div>
+
+                {/* Period Filter */}
+                <div className="flex-1 sm:flex-none">
+                  <CustomDropdown
+                    value={selectedPeriod}
+                    onChange={setSelectedPeriod}
+                    options={[
+                      { value: 'current', label: 'This Month' },
+                      { value: 'last3', label: 'Last 3 Months' },
+                      { value: 'last6', label: 'Last 6 Months' },
+                      { value: 'last12', label: 'Last 12 Months' }
+                    ]}
+                    placeholder="Select Period"
+                    className="w-full sm:w-auto"
+                  />
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      </div>
 
+              {/* Hide Trends Toggle */}
+              <button
+                onClick={() => setShowTrends(!showTrends)}
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors w-full sm:w-auto ${
+                  showTrends 
+                    ? 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-700 dark:text-blue-300' 
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                <span className="hidden sm:inline">{showTrends ? 'Hide Trends' : 'Show Trends'}</span>
+                <span className="sm:hidden">{showTrends ? 'Hide' : 'Show'} Trends</span>
+              </button>
+            </div>
+          </div>
+
+          {expandedAccordions.total && (
+            <div className="px-3 sm:px-6 pb-4 sm:pb-6 space-y-4 sm:space-y-6" style={{ marginTop: '10px' }}>
       {/* Monthly Trends Chart - Full Width */}
-      {showTrends && <div data-tour="balance-trend"><MonthlyTrendsChart /></div>}
+      {showTrends && <div data-tour="balance-trend" style={{ marginTop: '10px' }}><MonthlyTrendsChart /></div>}
 
       {/* Main Analytics Grid - Enhanced Mobile Layout */}
-      <div data-tour="spending-chart" className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+      <div data-tour="spending-chart" className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <NetCashFlowGauge />
         <SpendingByCategoryDonut />
       </div>
 
-      {/* Smart Recommendations */}
-      <SmartRecommendations />
-
       {/* Positive Reinforcement Alerts */}
       <PositiveReinforcementAlerts />
+            </div>
+          )}
+
+          {expandedAccordions.purchase && (
+            <div className="px-3 sm:px-6 pb-4 sm:pb-6 space-y-4 sm:space-y-6" style={{ marginTop: '10px' }}>
+              {/* KPI Cards */}
+              <PurchaseKPICards />
+
+              {/* Main Analytics Grid - Removed charts as requested */}
+
+              {/* Alerts */}
+              <PurchaseAlertsComponent />
+            </div>
+          )}
+        </div>
+
+      </div>
     </div>
   );
 }; 

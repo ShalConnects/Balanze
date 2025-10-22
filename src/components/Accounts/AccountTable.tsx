@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Edit2, Trash2, InfoIcon, PlusCircle, Wallet, ChevronUp, ChevronDown } from 'lucide-react';
 import { Account, Transaction } from '../../types';
 import { getAccountColor } from '../../utils/accountIcons';
+import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 
 interface AccountTableProps {
   accounts: Account[];
@@ -337,7 +338,7 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
                         <div className="text-xs text-gray-600 space-y-1">
                           {accountTransactions.slice(0, 3).map((transaction) => (
                             <div key={transaction.id} className="flex justify-between">
-                              <span className="truncate">{transaction.description}</span>
+                              <span className="truncate">{formatTransactionDescription(transaction.description)}</span>
                               <span className={`font-medium ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
                                 {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount, account.currency)}
                               </span>

@@ -3,6 +3,7 @@ import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown } from 'lucide-r
 import { Transaction } from '../../types/index';
 import { format } from 'date-fns';
 import { useFinanceStore } from '../../store/useFinanceStore';
+import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 
 export const RecentTransactions: React.FC = () => {
   const { getActiveAccounts } = useFinanceStore();
@@ -55,7 +56,7 @@ export const RecentTransactions: React.FC = () => {
                   )}
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{transaction.description}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{formatTransactionDescription(transaction.description)}</p>
                   <p className="text-xs text-gray-500">
                     {format(new Date(transaction.created_at), 'MMM d, h:mm a')}
                   </p>

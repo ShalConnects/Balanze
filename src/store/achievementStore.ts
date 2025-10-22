@@ -95,6 +95,11 @@ export const useAchievementStore = create<AchievementStore>((set, get) => ({
           currentNotification: result.notifications[0] || null
         });
 
+        // Create notification for each earned achievement
+        for (const earnedAchievement of result.earned) {
+          await this.createAchievementNotification(userId, earnedAchievement);
+        }
+
         // Auto-hide notification after 5 seconds
         setTimeout(() => {
           set({ showAchievementNotification: false, currentNotification: null });
@@ -141,6 +146,27 @@ export const useAchievementStore = create<AchievementStore>((set, get) => ({
   // UI state management
   setShowAchievementNotification: (show: boolean) => {
     set({ showAchievementNotification: show });
+  },
+
+  // Create achievement notification
+  createAchievementNotification: async (userId: string, achievement: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: userId,
+          type: 'success',
+          title: '🏆 Achievement Unlocked!',
+          body: `You earned "${achievement.name}" - ${achievement.description}`,
+          is_read: false
+        });
+
+      if (error) {
+        console.error('Error creating achievement notification:', error);
+      }
+    } catch (error) {
+      console.error('Error creating achievement notification:', error);
+    }
   }
 }));
 

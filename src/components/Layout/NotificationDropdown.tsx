@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, X, Check, ExternalLink, Sparkles, Zap, Bug, Megaphone, Lightbulb } from 'lucide-react';
+import { Bell, X, Check, ExternalLink, Sparkles, Zap, Bug, Megaphone, Lightbulb, Trophy } from 'lucide-react';
 import { useNotificationsStore } from '../../stores/notificationsStore';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +21,8 @@ const getNotificationIcon = (type: Notification['type']) => {
       return <Megaphone className="w-4 h-4 text-orange-500" />;
     case 'tip':
       return <Lightbulb className="w-4 h-4 text-yellow-500" />;
+    case 'success':
+      return <Trophy className="w-4 h-4 text-yellow-500" />;
     default:
       return <Bell className="w-4 h-4 text-gray-500" />;
   }
@@ -37,6 +39,8 @@ const getNotificationColor = (type: Notification['type']) => {
     case 'announcement':
       return 'border-l-orange-500 bg-orange-50 dark:bg-orange-900/10';
     case 'tip':
+      return 'border-l-yellow-500 bg-yellow-50 dark:bg-yellow-900/10';
+    case 'success':
       return 'border-l-yellow-500 bg-yellow-50 dark:bg-yellow-900/10';
     default:
       return 'border-l-gray-500 bg-gray-50 dark:bg-gray-900/10';
@@ -106,6 +110,13 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
   const handleNotificationClick = (notification: any) => {
     if (!notification.is_read) {
       markAsRead(notification.id);
+    }
+    
+    // Handle achievement notifications (success type with trophy title)
+    if (notification.type === 'success' && notification.title.includes('Achievement')) {
+      navigate('/achievements');
+      onClose();
+      return;
     }
     
     if (notification.action_url) {

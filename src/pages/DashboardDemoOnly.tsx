@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ArrowRight, CheckCircle, X, AlertTriangle, Eye, Settings, Calendar, Users, ArrowUpRight, ArrowDownRight, Globe, Check } from 'lucide-react';
 import { StatCard } from '../components/Dashboard/StatCard';
 import { formatCurrency } from '../utils/currency';
+import { formatTransactionDescription } from '../utils/transactionDescriptionFormatter';
 import { FloatingActionButton } from '../components/Layout/FloatingActionButton';
 import { TransferModal } from '../components/Transfers/TransferModal';
 import { useNavigate } from 'react-router-dom';
@@ -1275,7 +1276,7 @@ const MockRecentTransactions: React.FC = () => {
                   )}
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{transaction.description}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{formatTransactionDescription(transaction.description)}</p>
                   <p className="text-xs text-gray-500">
                     {new Date(transaction.created_at).toLocaleDateString('en-US', { 
                       month: 'short', 

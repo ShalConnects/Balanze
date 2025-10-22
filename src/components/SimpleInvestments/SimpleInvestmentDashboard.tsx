@@ -10,6 +10,7 @@ import {
 import { SimpleInvestmentStats, SimpleInvestmentGoal } from '../../types/simple-investment';
 import { formatCurrency } from '../../utils/currency';
 import { SkeletonCard } from '../common/Skeleton';
+import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 
 interface SimpleInvestmentDashboardProps {
   stats: SimpleInvestmentStats;
@@ -256,7 +257,7 @@ export const SimpleInvestmentDashboard: React.FC<SimpleInvestmentDashboardProps>
                     transaction.type === 'income' ? 'bg-green-500' : 'bg-red-500'
                   }`} />
                   <div>
-                    <p className="font-medium text-gray-900">{transaction.description}</p>
+                    <p className="font-medium text-gray-900">{formatTransactionDescription(transaction.description)}</p>
                     <p className="text-sm text-gray-500">{transaction.date}</p>
                   </div>
                 </div>

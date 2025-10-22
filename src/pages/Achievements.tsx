@@ -5,6 +5,7 @@ import React, { useEffect } from 'react';
 import { useAchievementStore } from '../store/achievementStore';
 import { useAuthStore } from '../store/authStore';
 import { BadgeCollection } from '../components/Achievements/BadgeCollection';
+import { AchievementSkeleton } from '../components/Achievements/AchievementSkeleton';
 import { Trophy, Star, Award, Crown, Sparkles, TrendingUp } from 'lucide-react';
 
 const Achievements: React.FC = () => {
@@ -27,14 +28,7 @@ const Achievements: React.FC = () => {
   }, [user, fetchUserAchievements, fetchAchievementSummary]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading achievements...</p>
-        </div>
-      </div>
-    );
+    return <AchievementSkeleton />;
   }
 
   if (error) {
