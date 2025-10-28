@@ -1681,6 +1681,15 @@ export const AccountsView: React.FC = () => {
                                     <PlusCircle className="w-4 h-4" />
                                   </button>
                                 )}
+                                {!isDpsSavingsAccount && account.type !== 'cash' && (
+                                  <button
+                                    onClick={() => handleDeleteAccount(account)}
+                                    className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                    title="Delete Account"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
