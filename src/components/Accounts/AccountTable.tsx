@@ -95,7 +95,8 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
   }
 
   return (
-    <table className="hidden md:table min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900 text-[14px]">
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900 text-[14px]">
       <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10 shadow-sm">
         <tr>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -357,7 +358,8 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
           );
         })}
       </tbody>
-    </table>
+      </table>
+    </div>
   );
 });
 

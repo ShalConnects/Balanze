@@ -1011,7 +1011,7 @@ const useMockFinanceStore = () => {
 const useMockAuthStore = () => ({
   user: {
     id: 'demo-user',
-    email: 'demo@balanze.com',
+    email: 'hello@shalconnects.com',
     created_at: '2024-01-01T00:00:00Z'
   },
   profile: {
@@ -1766,26 +1766,12 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Fetch purchases data when dashboard loads
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Mock implementation
-      } catch (error) {
-        console.error('Error fetching purchases:', error);
-      }
-    };
-    fetchData();
-  }, []);
-
   // Initial data fetch when dashboard loads
   useEffect(() => {
     const refreshData = async () => {
       try {
         if (!user) {
-          console.log('User not authenticated yet, skipping data fetch');
-          setDashboardLoading(false);
-          setInitialDataFetched(true);
+          // Keep showing skeleton while waiting for user authentication
           return;
         }
 
@@ -1797,7 +1783,8 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
           fetchAccounts(),
           fetchCategories(),
           fetchPurchaseCategories(),
-          fetchDonationSavingRecords()
+          fetchDonationSavingRecords(),
+          useFinanceStore.getState().fetchPurchases()
         ]);
 
         setDashboardLoading(false);
@@ -1911,7 +1898,8 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
   };
 
   // Show loading skeleton while data is being fetched or until initial fetch completes
-  if (dashboardLoading || !initialDataFetched) {
+  // Show skeleton if: user is not authenticated, data is loading, or initial fetch hasn't completed
+  if (!user || dashboardLoading || !initialDataFetched) {
     return (
       <>
         <DashboardSkeleton />

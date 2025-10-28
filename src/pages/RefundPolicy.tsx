@@ -238,7 +238,7 @@ const RefundPolicy: React.FC = () => {
                 <div className="flex items-start">
                   <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-1 flex-shrink-0">1</div>
                   <p className="text-gray-700 dark:text-gray-300">
-                    <strong>Contact Us:</strong> Send an email to <a href="mailto:shalconnects007@gmail.com" className="text-blue-600 hover:underline">shalconnects007@gmail.com</a> with the subject line "Refund Request".
+                    <strong>Contact Us:</strong> Send an email to <a href="mailto:hello@shalconnects.com" className="text-blue-600 hover:underline">hello@shalconnects.com</a> with the subject line "Refund Request".
                   </p>
                 </div>
                 <div className="flex items-start">
@@ -297,7 +297,7 @@ const RefundPolicy: React.FC = () => {
               </p>
               <p className="text-gray-700 dark:text-gray-300">
                 If you have any questions about our refund policy or need assistance with your account, 
-                please don't hesitate to contact us at <a href="mailto:shalconnects007@gmail.com" className="text-blue-600 hover:underline">shalconnects007@gmail.com</a>. 
+                please don't hesitate to contact us at <a href="mailto:hello@shalconnects.com" className="text-blue-600 hover:underline">hello@shalconnects.com</a>. 
                 We're here to help!
               </p>
             </div>
@@ -354,7 +354,7 @@ const RefundPolicy: React.FC = () => {
                   </h3>
                   <p className="text-gray-700 dark:text-gray-300">
                     Before requesting a refund, please contact our support team at{' '}
-                    <a href="mailto:shalconnects007@gmail.com" className="text-blue-600 hover:underline">shalconnects007@gmail.com</a>. 
+                    <a href="mailto:hello@shalconnects.com" className="text-blue-600 hover:underline">hello@shalconnects.com</a>. 
                     We're committed to resolving any technical issues you may encounter.
                   </p>
                 </div>

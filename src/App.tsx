@@ -22,9 +22,12 @@ import { MainLayout } from './components/Layout/MainLayout';
 import { AccountsView } from './components/Accounts/AccountsView';
 import { TransactionsView } from './components/Transactions/TransactionsView';
 import { TransfersView } from './components/Transfers/TransfersView';
+import { TransfersTableView } from './components/Transfers/TransfersTableView';
+import { Transfer_new } from './components/Transfers/Transfer_new';
 import { SavingsView } from './components/Savings/SavingsView';
 import { PurchaseTracker } from './components/Purchases/PurchaseTracker';
 import LendBorrowPage from './pages/LendBorrow';
+import { LendBorrowTableView } from './components/LendBorrow/LendBorrowTableView';
 import { PurchaseCategories } from './components/Purchases/PurchaseCategories';
 import { PurchaseAnalytics } from './components/Purchases/PurchaseAnalytics';
 import { LendBorrowAnalytics } from './components/LendBorrow/LendBorrowAnalytics';
@@ -52,7 +55,7 @@ import { AchievementIntegration } from './components/Achievements/AchievementInt
 import ContextualTourTrigger from './components/ContextualTourTrigger';
 import { Analytics } from '@vercel/analytics/react';
 import { useNotificationStore } from './store/notificationStore';
-import { useNotificationsStore } from './stores/notificationsStore';
+import { useNotificationsStore } from './store/notificationsStore';
 import { urgentNotificationService } from './lib/urgentNotifications';
 import { MobileSidebarProvider } from './context/MobileSidebarContext';
 import KBArticlePage from './pages/KBArticlePage';
@@ -65,7 +68,6 @@ import DashboardDemoOnly from './pages/DashboardDemoOnly';
 import ShortUrlRedirect from './pages/ShortUrlRedirect';
 import { useThemeStore } from './store/themeStore';
 import { AppInstallBanner } from './components/AppInstallBanner';
-import { PullToRefresh } from './components/PullToRefresh';
 
 function AppContent() {
   const user = useAuthStore((state) => state.user);
@@ -143,50 +145,12 @@ function AppContent() {
       setBodyHeight();
       window.addEventListener('resize', setBodyHeight);
       
-      // SMART REFRESH LOGIC
-      let startY = 0;
-      let isPulling = false;
-      const rootElement = document.getElementById('root');
-      
-      const handleTouchStart = (e: TouchEvent) => {
-        if (!rootElement) return;
-        startY = e.touches[0].clientY;
-        isPulling = rootElement.scrollTop === 0; // Only allow refresh at top
-      };
-      
-      const handleTouchMove = (e: TouchEvent) => {
-        if (!rootElement || !isPulling) return;
-        
-        const currentY = e.touches[0].clientY;
-        const deltaY = currentY - startY;
-        const isAtTop = rootElement.scrollTop === 0;
-        
-        // Smart behavior:
-        // - At top + pulling down (deltaY > 0) → Allow refresh
-        // - Not at top → Normal scroll (no refresh)
-        if (isAtTop && deltaY > 80) {
-          // User pulled down more than 80px at top
-          // Allow the overscroll to trigger browser refresh
-          // Don't preventDefault - let it happen naturally
-        }
-      };
-      
-      const handleTouchEnd = () => {
-        isPulling = false;
-      };
-      
-      if (rootElement) {
-        rootElement.addEventListener('touchstart', handleTouchStart, { passive: true });
-        rootElement.addEventListener('touchmove', handleTouchMove, { passive: true });
-        rootElement.addEventListener('touchend', handleTouchEnd, { passive: true });
-      }
+      // Note: Custom Pull-to-Refresh is disabled
       
       return () => {
         window.removeEventListener('resize', setBodyHeight);
+        const rootElement = document.getElementById('root');
         if (rootElement) {
-          rootElement.removeEventListener('touchstart', handleTouchStart);
-          rootElement.removeEventListener('touchmove', handleTouchMove);
-          rootElement.removeEventListener('touchend', handleTouchEnd);
           rootElement.style.height = '';
           rootElement.style.overflowY = '';
           rootElement.style.overflowX = '';
@@ -428,8 +392,6 @@ function AppContent() {
 
   return (
     <AchievementIntegration>
-      {/* Pull-to-Refresh Component - Only for logged-in users */}
-      {user && <PullToRefresh onRefresh={handleRefresh} />}
       
       {/* App Install Banner - Bottom Banner (Option B) */}
       {/* Only shows on Android mobile browsers, not in app or desktop */}
@@ -472,10 +434,13 @@ function AppContent() {
         {/* Dashboard routes - all protected */}
         <Route path="/accounts" element={user ? <MainLayout><AccountsView /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/transactions" element={user ? <MainLayout><TransactionsView /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/transfers" element={user ? <MainLayout><TransfersView /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/transfers" element={user ? <MainLayout><Transfer_new /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/transfers-table" element={user ? <MainLayout><TransfersTableView /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/transfers-new" element={user ? <MainLayout><TransfersView /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/savings" element={user ? <MainLayout><SavingsView /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/purchases" element={user ? <MainLayout><PurchaseTracker /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/lent-borrow" element={user ? <MainLayout><LendBorrowPage /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/lent-borrow" element={user ? <MainLayout><LendBorrowTableView /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/lent-borrow-table" element={user ? <MainLayout><LendBorrowPage /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/investments" element={user ? <MainLayout><Investments /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/simple-investments" element={user ? <MainLayout><SimpleInvestments /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/purchase-categories" element={user ? <MainLayout><PurchaseCategories /></MainLayout> : <Navigate to="/login" />} />

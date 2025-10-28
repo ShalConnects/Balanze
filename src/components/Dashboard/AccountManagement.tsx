@@ -9,6 +9,7 @@ import { getUserArticleStats } from '../../lib/articleHistory';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ProfileEditModal } from '../Layout/ProfileEditModal';
+import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 interface AccountManagementProps {
   hideTitle?: boolean;
@@ -42,6 +43,15 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
     totalTimeSpent: 0
   });
   const [loadingArticleStats, setLoadingArticleStats] = useState(false);
+  const { isMobile } = useMobileDetection();
+  
+  // Android detection
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const isCapacitor = !!(window as any).Capacitor;
+  const isAndroidApp = isAndroid && isCapacitor;
+  
+  // Android download modal state
+  const [showAndroidDownloadModal, setShowAndroidDownloadModal] = useState(false);
 
   // Fetch all data on component mount
   useEffect(() => {
@@ -454,7 +464,13 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
           <div className="space-y-2">
             <button
-              onClick={handleExportPDF}
+              onClick={() => {
+                if (isAndroidApp) {
+                  setShowAndroidDownloadModal(true);
+                } else {
+                  handleExportPDF();
+                }
+              }}
               className="w-full flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors border border-blue-200 dark:border-blue-800"
             >
               <div className="flex items-center min-w-0">
@@ -537,11 +553,14 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
 
       {/* Account Management - Danger Zone */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-red-200 dark:border-red-800 p-4 shadow-sm">
-        <div className="flex items-start">
-          <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg mr-3 flex-shrink-0">
-            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
-          </div>
-          <div className="flex-1 min-w-0">
+        {isMobile ? (
+          // Mobile Layout - Icon at top
+          <div className="text-center">
+            <div className="flex justify-center mb-4">
+              <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+            </div>
             <h3 className="text-base font-semibold text-red-900 dark:text-red-100 mb-2">Danger Zone</h3>
             <p className="text-sm text-red-700 dark:text-red-300 mb-3">
               Permanently delete your account and all associated data. This action cannot be undone.
@@ -564,7 +583,37 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
               Delete My Account
             </button>
           </div>
-        </div>
+        ) : (
+          // Desktop Layout - Icon on left
+          <div className="flex items-start">
+            <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg mr-3 flex-shrink-0">
+              <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base font-semibold text-red-900 dark:text-red-100 mb-2">Danger Zone</h3>
+              <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+                Permanently delete your account and all associated data. This action cannot be undone.
+              </p>
+              <div className="bg-red-50 dark:bg-red-900/10 rounded-lg p-3 mb-3">
+                <p className="text-xs font-medium text-red-800 dark:text-red-200 mb-1">This will delete:</p>
+                <ul className="text-xs text-red-700 dark:text-red-300 space-y-0.5">
+                  <li>• All accounts and balances</li>
+                  <li>• All transaction history</li>
+                  <li>• All purchase records</li>
+                  <li>• All settings and preferences</li>
+                  <li>• Your user profile and data</li>
+                </ul>
+              </div>
+              <button
+                onClick={handleStartDeletion}
+                className="inline-flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+              >
+                <UserX className="w-4 h-4 mr-1.5" />
+                Delete My Account
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Deletion Modal */}
@@ -710,6 +759,49 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
           open={showProfileEdit}
           onClose={() => setShowProfileEdit(false)}
         />
+      )}
+
+      {/* Android Download Modal */}
+      {showAndroidDownloadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-full flex items-center justify-center">
+                  <Download className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Download Not Available
+                </h3>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-600 dark:text-gray-300 mb-4">
+                  File downloads are not supported in the Android app due to security restrictions.
+                </p>
+                
+                <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-2">
+                    💡 Alternative Solutions:
+                  </h4>
+                  <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                    <li>• Open Balanze in your web browser</li>
+                    <li>• Use the web version for downloads</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="flex">
+                <button
+                  onClick={() => setShowAndroidDownloadModal(false)}
+                  className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

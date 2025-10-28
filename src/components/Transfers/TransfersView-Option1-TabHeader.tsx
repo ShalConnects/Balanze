@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
+import { formatTimeUTC } from '../../utils/timezoneUtils';
 import { ArrowRight, Plus, Search, Copy } from 'lucide-react';
 import { formatCurrency } from '../../utils/currency';
 import { supabase } from '../../lib/supabase';
@@ -346,7 +347,7 @@ export const TransfersView: React.FC = () => {
                             </button>
                           )}
                           <div className="text-xs text-gray-400">
-                            {format(new Date(transfer.date), 'MMM d')} • {format(new Date(transfer.date), 'h:mm a')}
+                            {format(new Date(transfer.date), 'MMM d')} • {formatTimeUTC(transfer.created_at, 'h:mm a')}
                           </div>
                         </div>
                       </div>
@@ -408,7 +409,7 @@ export const TransfersView: React.FC = () => {
                           </button>
                         )}
                         <div className="text-xs text-gray-400">
-                          {format(new Date(transfer.date), 'MMM d')} • {format(new Date(transfer.date), 'h:mm a')}
+                          {format(new Date(transfer.date), 'MMM d')} • {formatTimeUTC(transfer.created_at, 'h:mm a')}
                         </div>
                       </div>
                     </div>

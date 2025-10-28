@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Plus, Edit2, Trash2, DollarSign, Info, PlusCircle, InfoIcon, Search, ArrowLeft, Wallet, ChevronUp, ChevronDown, CreditCard, Filter } from 'lucide-react';
+import { Plus, Edit2, Trash2, DollarSign, Info, PlusCircle, InfoIcon, Search, ArrowLeft, Wallet, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { AccountForm } from './AccountForm';
 import { TransactionForm } from '../Transactions/TransactionForm';
@@ -11,17 +11,22 @@ import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { getAccountIcon, getAccountColor } from '../../utils/accountIcons';
 import { useAuthStore } from '../../store/authStore';
 import { useLoadingContext } from '../../context/LoadingContext';
+import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { AccountCardSkeleton, AccountTableSkeleton, AccountSummaryCardsSkeleton, AccountFiltersSkeleton } from './AccountSkeleton';
+import { CurrencyPortfolioSummary } from './CurrencyPortfolioSummary';
+import { AccountSummaryCards } from './AccountSummaryCards';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
 import { searchService, SEARCH_CONFIGS } from '../../utils/searchService';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
+import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 export const AccountsView: React.FC = () => {
   const { accounts, deleteAccount, getTransactionsByAccount, transactions, loading, error, updateAccount, updateAccountPosition, fetchAccounts, showTransactionForm, setShowTransactionForm, categories, purchaseCategories } = useFinanceStore();
   const { wrapAsync, setLoadingMessage } = useLoadingContext();
   const { user } = useAuthStore();
+  const { isPremiumPlan } = usePlanFeatures();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [showAccountForm, setShowAccountForm] = useState(false);
@@ -31,6 +36,14 @@ export const AccountsView: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [hoveredDpsAccount, setHoveredDpsAccount] = useState<string | null>(null);
   const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
+  
+  // Android detection
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const isCapacitor = !!(window as any).Capacitor;
+  const isAndroidApp = isAndroid && isCapacitor;
+  
+  // Android download modal state
+  const [showAndroidDownloadModal, setShowAndroidDownloadModal] = useState(false);
 
   // Memoize fetchAccounts to prevent infinite loops
   const fetchAccountsCallback = useCallback(() => {
@@ -695,24 +708,27 @@ export const AccountsView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        {/* Smooth skeleton for accounts page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
+      <div className="space-y-6 animate-fade-in">
+        {/* Enhanced skeleton for accounts page */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0 relative overflow-hidden">
+          {/* Shimmer effect for the entire container */}
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+          
           {/* Filters skeleton */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 relative z-10">
             <AccountFiltersSkeleton />
           </div>
           
           {/* Summary cards skeleton */}
-          <div className="p-4">
+          <div className="p-4 relative z-10">
             <AccountSummaryCardsSkeleton />
           </div>
           
           {/* Responsive skeleton - Desktop table, Mobile cards */}
-          <div className="hidden md:block p-4">
+          <div className="hidden md:block p-4 relative z-10">
             <AccountTableSkeleton rows={6} />
           </div>
-          <div className="md:hidden">
+          <div className="md:hidden relative z-10">
             <AccountCardSkeleton count={4} />
           </div>
         </div>
@@ -732,6 +748,14 @@ export const AccountsView: React.FC = () => {
 
       {/* Unified Table View - New Section */}
       <div className="space-y-6">
+
+        {/* Currency Portfolio Summary - Commented out for now */}
+        {/* <CurrencyPortfolioSummary
+          accounts={accounts}
+          transactions={transactions}
+          userProfile={profile}
+        /> */}
+
 
         {/* Unified Filters and Table */}
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0">
@@ -973,6 +997,18 @@ export const AccountsView: React.FC = () => {
               {/* Action Buttons in filter row */}
               <div className="hidden md:flex items-center gap-2">
                 <button
+                  onClick={() => setIsRearrangeMode(!isRearrangeMode)}
+                  className={`hidden md:flex px-3 py-1.5 h-8 rounded-md transition-colors items-center text-[13px] ${
+                    isRearrangeMode 
+                      ? 'bg-gradient-primary text-white hover:bg-gradient-primary-hover' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                  title={isRearrangeMode ? 'Exit Re-arrange Mode' : 'Re-arrange Accounts'}
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                </button>
+                
+                <button
                   data-tour="add-account"
                   onClick={() => {
                     setEditingAccount(null);
@@ -983,27 +1019,12 @@ export const AccountsView: React.FC = () => {
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Account</span>
                 </button>
-                
-                <button
-                  onClick={() => setIsRearrangeMode(!isRearrangeMode)}
-                  className={`hidden md:flex px-3 py-1.5 h-8 rounded-md transition-colors items-center space-x-1.5 text-[13px] ${
-                    isRearrangeMode 
-                      ? 'bg-gradient-primary text-white hover:bg-gradient-primary-hover' 
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                  title={isRearrangeMode ? 'Exit Re-arrange Mode' : 'Re-arrange Accounts'}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
-                  </svg>
-                  <span>{isRearrangeMode ? 'Done' : 'Re-arrange'}</span>
-                </button>
               </div>
             </div>
           </div>
 
           {/* Summary Cards - Now dynamic and after filters */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 p-3">
             {(() => {
               const filteredTransactions = transactions.filter(t => filteredAccounts.some(a => a.id === t.account_id));
               // Use the first account's currency or fallback
@@ -1079,6 +1100,42 @@ export const AccountsView: React.FC = () => {
                       <svg className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2l4 -4m5.618 -4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176 -1.332 9 -6.03 9 -11.622 0 -1.042 -.133 -2.052 -.382 -3.016z" /></svg>
                     </div>
                   </div>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-left">
+                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Currencies</p>
+                        <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
+                          {(() => {
+                            const currencies = [...new Set(filteredAccounts.map(account => account.currency))];
+                            return currencies.length;
+                          })()}
+                        </p>
+                        <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                          {(() => {
+                            const currencies = [...new Set(filteredAccounts.map(account => account.currency))];
+                            return currencies.length > 1 ? currencies.join(', ') : currencies[0] || 'No currencies';
+                          })()}
+                        </p>
+                      </div>
+                      <svg className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" /></svg>
+                    </div>
+                  </div>
+                  {!isPremiumPlan && (
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
+                      <div className="flex items-center justify-between">
+                        <div className="text-left">
+                          <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Account Limit</p>
+                          <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
+                            {filteredAccounts.length}/3
+                          </p>
+                          <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                            Free plan limit
+                          </p>
+                        </div>
+                        <svg className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2l4 -4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      </div>
+                    </div>
+                  )}
                 </>
               );
             })()}
@@ -2034,8 +2091,14 @@ export const AccountsView: React.FC = () => {
                         {/* Print Statement Button */}
                         <div className="mt-4">
                           <button 
-                            onClick={() => window.print()}
-                            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                            onClick={() => {
+                              if (isAndroidApp) {
+                                setShowAndroidDownloadModal(true);
+                              } else {
+                                window.print();
+                              }
+                            }}
+                            className="w-full px-4 py-3 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors text-sm font-medium"
                           >
                             Print Statement
                           </button>
@@ -2185,8 +2248,14 @@ export const AccountsView: React.FC = () => {
                     {/* Print Statement Button */}
                     <div className="mt-2 sm:mt-3">
                       <button 
-                        onClick={() => window.print()}
-                        className="w-full px-2 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs"
+                        onClick={() => {
+                          if (isAndroidApp) {
+                            setShowAndroidDownloadModal(true);
+                          } else {
+                            window.print();
+                          }
+                        }}
+                        className="w-full px-2 py-1.5 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors text-xs"
                       >
                         Print Statement
                       </button>

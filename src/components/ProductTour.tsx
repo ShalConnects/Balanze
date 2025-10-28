@@ -91,6 +91,9 @@ const TOUR_STEPS: Record<string, Step[]> = {
 };
 
 export default function ProductTour({ stepToStart = null, onClose, isOpen = false }: ProductTourProps) {
+  // HIDDEN - Return null to hide component
+  return null;
+  
   const [run, setRun] = useState(false);
   const [steps, setSteps] = useState<Step[]>([]);
   const [tourKey, setTourKey] = useState(0);

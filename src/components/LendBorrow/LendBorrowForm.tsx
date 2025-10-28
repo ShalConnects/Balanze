@@ -207,13 +207,14 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
     }
 
     // Auto-set due date to 7 days from today if not provided (only for account-linked records)
+    let updatedForm = { ...form };
     if (form.affect_account_balance && (!form.due_date || form.due_date === '')) {
       const sevenDaysFromNow = new Date();
       sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
       const dueDateString = sevenDaysFromNow.getFullYear() + '-' + 
         String(sevenDaysFromNow.getMonth() + 1).padStart(2, '0') + '-' + 
         String(sevenDaysFromNow.getDate()).padStart(2, '0');
-      setForm(prev => ({ ...prev, due_date: dueDateString }));
+      updatedForm = { ...updatedForm, due_date: dueDateString };
     }
     
     if (!validateForm()) {
@@ -223,7 +224,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
     try {
       // Add a small delay to ensure loading animation is visible
       await new Promise(resolve => setTimeout(resolve, 500));
-      await onSubmit(form);
+      await onSubmit(updatedForm);
       // Add a small delay before closing to show success state
       await new Promise(resolve => setTimeout(resolve, 300));
       onClose();
@@ -280,7 +281,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
         />
         {/* Modal Container */}
         <div
-          className="relative bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-[38rem] max-h-[90vh] overflow-visible z-50 shadow-2xl transition-all"
+          className="relative bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-[38rem] max-h-[90vh] overflow-y-auto z-50 shadow-2xl transition-all"
           onClick={e => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-6">

@@ -4,9 +4,12 @@ import { Skeleton, SkeletonCard, SkeletonTable } from '../common/Skeleton';
 // Transfer card skeleton - matches real transfer card structure
 export const TransferCardSkeleton: React.FC = () => {
   return (
-    <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 bg-white dark:bg-gray-800">
+    <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 bg-white dark:bg-gray-800 relative overflow-hidden">
+      {/* Shimmer effect */}
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+      
       {/* Transfer Header skeleton */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 relative">
         <div className="flex items-center gap-2 flex-wrap">
           <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded-full w-20 animate-pulse"></div>
           <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
@@ -18,7 +21,7 @@ export const TransferCardSkeleton: React.FC = () => {
       </div>
 
       {/* Transfer Details skeleton */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center relative">
         {/* From Account skeleton */}
         <div className="text-center sm:text-left">
           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-2 w-24 animate-pulse"></div>
@@ -108,7 +111,10 @@ export const TransfersSkeleton: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Unified Transfers Container skeleton */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden relative">
+        {/* Shimmer effect */}
+        <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+        
         {/* Header Section skeleton */}
         <TransfersHeaderSkeleton />
         
@@ -119,7 +125,7 @@ export const TransfersSkeleton: React.FC = () => {
         <TransfersDesktopTabSkeleton />
         
         {/* Content Area skeleton */}
-        <div className="p-4 max-h-[calc(100vh-200px)] sm:max-h-96 overflow-y-auto bg-white dark:bg-gray-900">
+        <div className="p-4 max-h-[calc(100vh-200px)] sm:max-h-96 overflow-y-auto bg-white dark:bg-gray-900 relative">
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, index) => (
               <div

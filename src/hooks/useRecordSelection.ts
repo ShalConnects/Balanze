@@ -19,7 +19,7 @@ export const useRecordSelection = ({
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [isFromSearch, setIsFromSearch] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selectedRecordRef = useRef<HTMLDivElement>(null);
+  const selectedRecordRef = useRef<HTMLTableRowElement>(null);
 
   const urlSelectedId = searchParams.get('selected');
   const fromSearch = searchParams.get('from') === 'search';

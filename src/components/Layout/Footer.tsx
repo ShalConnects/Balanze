@@ -54,9 +54,9 @@ export const Footer: React.FC = () => {
               © 2025 Balanze. All rights reserved.
             </p>
             <div className="flex items-center space-x-4 mt-4 md:mt-0">
-              <a href="mailto:shalconnects007@gmail.com" className="text-gray-400 hover:text-white transition-colors text-sm">
+              <a href="mailto:hello@shalconnects.com" className="text-gray-400 hover:text-white transition-colors text-sm">
                 <Mail className="w-4 h-4 inline mr-2" />
-                shalconnects007@gmail.com
+                hello@shalconnects.com
               </a>
             </div>
           </div>

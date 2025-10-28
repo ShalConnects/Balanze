@@ -1,7 +1,7 @@
 import React from 'react';
 import { Account, Transaction } from '../../types';
 import { StatCard } from '../Dashboard/StatCard';
-import { Wallet, TrendingUp, Target, Users, Calendar } from 'lucide-react';
+import { Wallet, TrendingUp, Target, Users, Calendar, Globe } from 'lucide-react';
 
 interface AccountSummaryCardsProps {
   filteredAccounts: Account[];
@@ -77,8 +77,14 @@ export const AccountSummaryCards: React.FC<AccountSummaryCardsProps> = ({
     ? `${monthlyChange > 0 ? '+' : ''}${monthlyChange}% vs last month`
     : 'Same as last month';
 
+  // Calculate currencies
+  const currencies = [...new Set(filteredAccounts.map(account => account.currency))];
+  const currencyInsight = currencies.length > 1 
+    ? currencies.join(', ') 
+    : currencies[0] || 'No currencies';
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 p-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 p-3">
       <StatCard
         title="Active Accounts"
         value={activeAccounts.length.toString()}
@@ -117,6 +123,14 @@ export const AccountSummaryCards: React.FC<AccountSummaryCardsProps> = ({
         icon={<Calendar />}
         color="blue"
         insight={monthlyInsight}
+      />
+
+      <StatCard
+        title="Currencies"
+        value={currencies.length.toString()}
+        icon={<Globe />}
+        color="blue"
+        insight={currencyInsight}
       />
     </div>
   );

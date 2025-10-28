@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, Filter, Search, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, Handshake, Eye } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
@@ -6,12 +6,12 @@ import { useAuthStore } from '../../store/authStore';
 import { LendBorrow, LendBorrowInput } from '../../types/index';
 import { LendBorrowForm } from './LendBorrowForm';
 import { LendBorrowList } from './LendBorrowList';
+import { SettledRecordInfoModal } from './SettledRecordInfoModal';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { LendBorrowCardSkeleton, LendBorrowTableSkeleton, LendBorrowSummaryCardsSkeleton, LendBorrowFiltersSkeleton } from './LendBorrowSkeleton';
 import { toast } from 'sonner';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getPreference, setPreference } from '../../lib/userPreferences';
-import { ShowOnDashboardBanner } from '../common/ShowOnDashboardBanner';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
 
@@ -33,6 +33,15 @@ export const LendBorrowView: React.FC = () => {
   const { t } = useTranslation();
   const { user, profile } = useAuthStore();
   
+  // Check if Lend & Borrow widget is hidden
+  const [isLendBorrowWidgetHidden, setIsLendBorrowWidgetHidden] = useState(() => {
+    const saved = localStorage.getItem('showLendBorrowWidget');
+    const isHidden = saved !== null ? !JSON.parse(saved) : false;
+    console.log('Lend & Borrow widget hidden state:', isHidden, 'saved value:', saved);
+    return isHidden;
+  });
+  const [isRestoringWidget, setIsRestoringWidget] = useState(false);
+  
   // Check if user has Premium plan for Lend & Borrow
   const isPremium = profile?.subscription?.plan === 'premium';
   
@@ -41,12 +50,16 @@ export const LendBorrowView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<LendBorrow | null>(null);
+  const [settledRecordInfoModal, setSettledRecordInfoModal] = useState<{
+    isOpen: boolean;
+    record: LendBorrow | null;
+  }>({ isOpen: false, record: null });
   const [selectedCurrency, setSelectedCurrency] = useState<string>('');
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(false);
   const currencyMenuRef = useRef<HTMLDivElement>(null);
   const [filters, setFilters] = useState({
     type: 'all' as 'all' | 'lend' | 'borrow',
-    status: 'active' as 'all' | 'active' | 'settled' | 'overdue',
+    status: 'active' as 'all' | 'active' | 'settled',
     search: '',
     currency: '' as string,
     dateRange: { start: '', end: '' }
@@ -56,7 +69,7 @@ export const LendBorrowView: React.FC = () => {
   const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
   const [tempFilters, setTempFilters] = useState({
     type: 'all' as 'all' | 'lend' | 'borrow',
-    status: 'active' as 'all' | 'active' | 'settled' | 'overdue',
+    status: 'active' as 'all' | 'active' | 'settled',
     search: '',
     currency: '' as string,
     dateRange: { start: '', end: '' }
@@ -109,7 +122,7 @@ export const LendBorrowView: React.FC = () => {
   }, [user?.id]);
 
   // Show Lend & Borrow widget on dashboard
-  const handleShowLendBorrowWidget = async () => {
+  const handleShowLendBorrowWidget = useCallback(async () => {
     // Update localStorage immediately for instant UI response
     localStorage.setItem('showLendBorrowWidget', JSON.stringify(true));
     setShowLendBorrowWidget(true);
@@ -132,7 +145,25 @@ export const LendBorrowView: React.FC = () => {
         description: 'Sign in to sync preferences across devices'
       });
     }
-  };
+  }, [user?.id, setShowLendBorrowWidget]);
+
+  // Function to restore Lend & Borrow widget to dashboard
+  const handleShowLendBorrowWidgetFromPage = useCallback(async () => {
+    console.log('Restoring Lend & Borrow widget to dashboard');
+    setIsRestoringWidget(true);
+    
+    try {
+      // Use the existing function that has proper database sync
+      await handleShowLendBorrowWidget();
+      
+      // Update local state
+      setIsLendBorrowWidgetHidden(false);
+      
+      console.log('Lend & Borrow widget restored, new state:', false);
+    } finally {
+      setIsRestoringWidget(false);
+    }
+  }, [handleShowLendBorrowWidget]);
 
   // Date filter functions
   const getThisMonthDateRange = () => {
@@ -341,7 +372,9 @@ export const LendBorrowView: React.FC = () => {
 
     return lendBorrowRecords.filter(record => {
       if (filters.type !== 'all' && record.type !== filters.type) return false;
-      if (filters.status !== 'all' && record.status !== filters.status) return false;
+      if (filters.status !== 'all' && 
+          !(filters.status === 'active' && (record.status === 'active' || record.status === 'overdue')) &&
+          !(filters.status === 'settled' && record.status === 'settled')) return false;
       if (filters.search && !record.person_name.toLowerCase().includes(filters.search.toLowerCase()) && 
           !record.notes?.toLowerCase().includes(filters.search.toLowerCase())) return false;
       if (filters.currency && record.currency !== filters.currency) return false;
@@ -698,6 +731,11 @@ export const LendBorrowView: React.FC = () => {
     }
   };
 
+  // Show settled record info modal
+  const handleShowSettledInfo = (record: LendBorrow) => {
+    setSettledRecordInfoModal({ isOpen: true, record });
+  };
+
 
   // Update loading state when records change
   useEffect(() => {
@@ -814,25 +852,32 @@ export const LendBorrowView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        {/* Smooth skeleton for lend & borrow page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0">
+      <div>
+        <div className="space-y-6 animate-fade-in">
+          <div className="space-y-6">
+            {/* Enhanced skeleton for lend & borrow page */}
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0 relative overflow-hidden">
+          {/* Shimmer effect for the entire container */}
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+          
           {/* Filters skeleton */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 relative z-10">
             <LendBorrowFiltersSkeleton />
           </div>
           
           {/* Summary cards skeleton */}
-          <div className="p-4">
+          <div className="p-4 relative z-10">
             <LendBorrowSummaryCardsSkeleton />
           </div>
           
           {/* Responsive skeleton - Desktop table, Mobile cards */}
-          <div className="hidden md:block p-4">
+          <div className="hidden md:block p-4 relative z-10">
             <LendBorrowTableSkeleton rows={6} />
           </div>
-          <div className="md:hidden">
+          <div className="md:hidden relative z-10">
             <LendBorrowCardSkeleton count={4} />
+          </div>
+        </div>
           </div>
         </div>
       </div>
@@ -873,21 +918,12 @@ export const LendBorrowView: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <ShowOnDashboardBanner
-        isVisible={!showLendBorrowWidget}
-        onShow={handleShowLendBorrowWidget}
-        title="Lend & Borrow Widget Hidden"
-        description="The Lend & Borrow widget is currently hidden on your dashboard."
-        buttonText="Show on Dashboard"
-        icon={Eye}
-      />
-
-          {/* Unified Table View - New Section */}
-          <div className="space-y-6">
-
-        {/* Unified Filters and Table */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0">
+    <div>
+      {/* Unified Table View - New Section */}
+      <div className="space-y-6">
+        <div className="space-y-6">
+          {/* Unified Filters and Table */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0">
           {/* Filters Section */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-start" style={{ marginBottom: 0 }}>
@@ -933,6 +969,21 @@ export const LendBorrowView: React.FC = () => {
                   >
                     <Filter className="w-4 h-4" />
                   </button>
+                  {isLendBorrowWidgetHidden && (
+                    <button
+                      onClick={handleShowLendBorrowWidgetFromPage}
+                      disabled={isRestoringWidget}
+                      className="bg-gray-100 text-gray-700 px-3 py-2 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center text-[13px] min-h-[44px] min-w-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Show Lend & Borrow Widget on Dashboard"
+                      aria-label="Show Lend & Borrow Widget on Dashboard"
+                    >
+                      {isRestoringWidget ? (
+                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Eye className="w-4 h-4" aria-hidden="true" />
+                      )}
+                    </button>
+                  )}
                   <button
                     onClick={() => setShowForm(true)}
                     className="bg-gradient-primary text-white px-2 py-1.5 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center justify-center text-[13px] h-8 w-8"
@@ -1063,12 +1114,6 @@ export const LendBorrowView: React.FC = () => {
                         >
                           {t('lendBorrow.settled')}
                         </button>
-                        <button
-                          onClick={() => { setFilters({ ...filters, status: 'overdue' }); setShowStatusMenu(false); }}
-                          className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 ${filters.status === 'overdue' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : ''}`}
-                        >
-                          {t('lendBorrow.overdue')}
-                        </button>
                       </div>
                     )}
                   </div>
@@ -1156,13 +1201,28 @@ export const LendBorrowView: React.FC = () => {
                   </button>
                 )}
 
-                <div className="ml-auto hidden md:block">
+                <div className="ml-auto hidden md:flex items-center gap-2">
+                  {isLendBorrowWidgetHidden && (
+                    <button
+                      onClick={handleShowLendBorrowWidgetFromPage}
+                      disabled={isRestoringWidget}
+                      className="bg-gray-100 text-gray-700 px-3 py-1.5 h-8 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Show Lend & Borrow Widget on Dashboard"
+                      aria-label="Show Lend & Borrow Widget on Dashboard"
+                    >
+                      {isRestoringWidget ? (
+                        <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Eye className="w-3.5 h-3.5" aria-hidden="true" />
+                      )}
+                    </button>
+                  )}
                   <button
                     onClick={() => setShowForm(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-primary text-white rounded-md hover:bg-gradient-primary-hover transition-colors whitespace-nowrap h-8 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
+                    className="bg-gradient-primary text-white px-3 py-1.5 h-8 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Add Lent/Borrow
+                    <span>Add Lent/Borrow</span>
                   </button>
                 </div>
               </div>
@@ -1244,6 +1304,7 @@ export const LendBorrowView: React.FC = () => {
                 onDelete={handleDeleteRecord}
                 onUpdateStatus={handleUpdateStatus}
                 onSettle={handleSettle}
+                onShowSettledInfo={handleShowSettledInfo}
                 selectedId={selectedId}
                 isFromSearch={isFromSearch}
                 selectedRecordRef={selectedRecordRef}
@@ -1251,33 +1312,34 @@ export const LendBorrowView: React.FC = () => {
             </div>
           </div>
         </div>
+        </div>
       </div>
 
-      {/* Form Modal */}
-      {showForm && (
-        <LendBorrowForm
-          onClose={() => setShowForm(false)}
-          onSubmit={handleAddRecord}
-        />
-      )}
+      <>
+        {/* Form Modal */}
+        {showForm && (
+          <LendBorrowForm
+            onClose={() => setShowForm(false)}
+            onSubmit={handleAddRecord}
+          />
+        )}
 
-      {/* Edit Form Modal */}
-      {editingRecord && (
-        <LendBorrowForm
-          record={editingRecord}
-          onClose={() => setEditingRecord(null)}
-          onSubmit={async (updates) => {
-            try {
-              await handleUpdateRecord(editingRecord.id, updates);
-            } catch (error) {
+        {/* Edit Form Modal */}
+        {editingRecord && (
+          <LendBorrowForm
+            record={editingRecord}
+            onClose={() => setEditingRecord(null)}
+            onSubmit={async (updates) => {
+              try {
+                await handleUpdateRecord(editingRecord.id, updates);
+              } catch (error) {
 
-            }
-          }}
-        />
-      )}
-
-      {/* Mobile Filter Modal */}
-      {showMobileFilterMenu && (
+              }
+            }}
+          />
+        )}
+        {/* Mobile Filter Modal */}
+        {showMobileFilterMenu && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999] md:hidden">
           <div 
             className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-[calc(100vw-2rem)] max-w-xs p-4"
@@ -1444,19 +1506,6 @@ export const LendBorrowView: React.FC = () => {
                   >
                     {t('lendBorrow.settled')}
                   </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTempFilters({ ...tempFilters, status: 'overdue' });
-                    }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
-                      tempFilters.status === 'overdue'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    {t('lendBorrow.overdue')}
-                  </button>
                 </div>
               </div>
 
@@ -1475,7 +1524,7 @@ export const LendBorrowView: React.FC = () => {
                         : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                     }`}
                   >
-                    All Dates
+                    All
                   </button>
                   <button
                     onClick={(e) => {
@@ -1512,6 +1561,13 @@ export const LendBorrowView: React.FC = () => {
         </div>
       )}
 
+      {/* Settled Record Info Modal */}
+      <SettledRecordInfoModal
+        isOpen={settledRecordInfoModal.isOpen}
+        onClose={() => setSettledRecordInfoModal({ isOpen: false, record: null })}
+        record={settledRecordInfoModal.record}
+      />
+      </>
     </div>
   );
 }; 

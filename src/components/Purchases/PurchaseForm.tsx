@@ -67,6 +67,47 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   const [itemNameSuggestions, setItemNameSuggestions] = useState<string[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
 
+  // Load linked transaction data when editing a purchase
+  useEffect(() => {
+    const loadLinkedTransactionData = async () => {
+      if (record?.transaction_id) {
+        try {
+          console.log('🔍 Loading linked transaction data for purchase:', record.id);
+          const { data: linkedTransaction, error } = await supabase
+            .from('transactions')
+            .select('account_id, category, description, amount')
+            .eq('id', record.transaction_id)
+            .single();
+          
+          if (linkedTransaction && !error) {
+            console.log('✅ Found linked transaction:', linkedTransaction);
+            // Update form data with transaction data
+            setFormData(prev => ({
+              ...prev,
+              category: linkedTransaction.category || prev.category,
+              item_name: linkedTransaction.description || prev.item_name,
+              price: linkedTransaction.amount ? String(linkedTransaction.amount) : prev.price
+            }));
+            
+            // Set the account ID
+            if (linkedTransaction.account_id) {
+              setSelectedAccountId(linkedTransaction.account_id);
+            }
+            
+            // Set excludeFromCalculation to false since it's linked to a transaction
+            setExcludeFromCalculation(false);
+          } else {
+            console.log('❌ No linked transaction found or error:', error);
+          }
+        } catch (err) {
+          console.error('❌ Error loading linked transaction data:', err);
+        }
+      }
+    };
+
+    loadLinkedTransactionData();
+  }, [record?.transaction_id, record?.id]);
+
   // Autofocus on first field when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -396,12 +437,37 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
               await fetchAccounts();
               toast.success('Purchase added successfully (excluded from calculation)!');
             } else {
-              // Create purchase directly without creating transaction
+              // Create purchase and transaction when From Account is selected
               const selectedAccount = accounts.find(a => a.id === selectedAccountId);
               if (!selectedAccount) throw new Error('Selected account not found');
               
-              console.log('🔍 PurchaseForm calling addPurchase...');
+              console.log('🔍 PurchaseForm creating transaction first...');
               try {
+                // First create the transaction to get its ID
+                const { data: transactionData, error: transactionError } = await supabase
+                  .from('transactions')
+                  .insert({
+                    account_id: selectedAccountId,
+                    amount: parseFloat(formData.price),
+                    type: 'expense',
+                    category: formData.category,
+                    description: formData.item_name,
+                    date: formData.purchase_date,
+                    tags: ['purchase'],
+                    user_id: user?.id || '',
+                  })
+                  .select('id')
+                  .single();
+                
+                if (transactionError) {
+                  console.log('❌ Transaction creation failed:', transactionError);
+                  throw new Error(transactionError.message);
+                }
+                
+                console.log('✅ Transaction created with ID:', transactionData.id);
+                
+                // Then create the purchase with the transaction_id
+                console.log('🔍 PurchaseForm creating purchase with transaction_id...');
                 await addPurchase({
                   item_name: formData.item_name,
                   category: formData.category,
@@ -411,14 +477,14 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                   status: formData.status || 'planned',
                   priority: formData.priority || 'medium',
                   notes: formData.notes || '',
-                  exclude_from_calculation: excludeFromCalculation
+                  exclude_from_calculation: excludeFromCalculation,
+                  transaction_id: transactionData.id
                 });
                 
-                console.log('✅ PurchaseForm addPurchase successful');
-                // Only show success toast if no error occurred
+                console.log('✅ PurchaseForm purchase created with transaction link');
                 toast.success('Purchase added successfully!');
               } catch (error) {
-                console.log('❌ PurchaseForm addPurchase error:', error);
+                console.log('❌ PurchaseForm error:', error);
                 throw error; // Re-throw to be caught by the outer try-catch
               }
             }

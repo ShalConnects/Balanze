@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, X, Check, ExternalLink, Sparkles, Zap, Bug, Megaphone, Lightbulb, Trophy } from 'lucide-react';
-import { useNotificationsStore } from '../../stores/notificationsStore';
+import { useNotificationsStore } from '../../store/notificationsStore';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 

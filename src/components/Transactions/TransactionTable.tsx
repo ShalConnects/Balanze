@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Edit2, Trash2, Copy, ArrowUpRight, ArrowDownRight, Calendar, Tag, Info } from 'lucide-react';
+import { Edit2, Trash2, Copy, ArrowUpRight, ArrowDownRight, Calendar, Tag, Info, Link } from 'lucide-react';
 import { Transaction, Account } from '../../types';
 import { formatCurrency } from '../../utils/accountUtils';
 import { format } from 'date-fns';
@@ -20,6 +20,11 @@ interface TransactionTableProps {
 // Helper function to check if a transaction is related to lend/borrow
 const isLendBorrowTransaction = (transaction: Transaction): boolean => {
   return transaction.tags?.includes('lend_borrow') || false;
+};
+
+// Helper function to check if a transaction is linked to a purchase
+const isPurchaseTransaction = (transaction: Transaction): boolean => {
+  return transaction.tags?.includes('purchase') || false;
 };
 
 export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
@@ -45,8 +50,9 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
         account,
         isTransfer,
         isLendBorrow: isLendBorrowTransaction(transaction),
+        isPurchase: isPurchaseTransaction(transaction),
         formattedDate: format(new Date(transaction.date), 'MMM dd, yyyy'),
-        formattedTime: format(new Date(transaction.date), 'HH:mm'),
+        formattedTime: format(new Date(transaction.created_at), 'h:mm a'),
         isExpanded: expandedRows.has(transaction.id)
       };
     });
@@ -96,7 +102,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
         </thead>
         <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
           {transactionData.map((data, index) => {
-            const { transaction, account, isTransfer, formattedDate, formattedTime, isExpanded } = data;
+            const { transaction, account, isTransfer, formattedDate, formattedTime, isExpanded, isPurchase } = data;
             const isEven = index % 2 === 0;
             
             return (
@@ -184,6 +190,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
                       >
                         <Copy className="w-4 h-4" />
                       </button>
+                      {isPurchase && (
+                        <div
+                          className="text-gray-500 dark:text-gray-400"
+                          title="Linked to Purchase"
+                        >
+                          <Link className="w-4 h-4" />
+                        </div>
+                      )}
                        {data.isLendBorrow ? (
                          <button
                            onClick={() => setShowLendBorrowInfo(true)}

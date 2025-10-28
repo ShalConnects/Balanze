@@ -4,7 +4,7 @@ import { useFinanceStore } from '../../store/useFinanceStore';
 import { useThemeStore } from '../../store/themeStore';
 import { useAuthStore } from '../../store/authStore';
 import { NotificationDropdown } from './NotificationDropdown';
-import { useNotificationsStore } from '../../stores/notificationsStore';
+import { useNotificationsStore } from '../../store/notificationsStore';
 import { ProfileEditModal } from './ProfileEditModal';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { GlobalSearchDropdown } from './GlobalSearchDropdown';
@@ -19,157 +19,199 @@ import { useSmartRefresh } from '../../utils/smartRefresh';
 import { useAccessibility } from '../../utils/accessibilityEnhancements';
 
 interface HeaderProps {
-  onMenuToggle: () => void;
-  title: string;
-  subtitle?: string | React.ReactNode;
+    onMenuToggle: () => void;
+    title: string;
+    subtitle?: string | React.ReactNode;
 }
 
 const navigation = [
-  { name: 'Dashboard', href: '/' },
-  { name: 'Transactions', href: '/transactions' },
-  { name: 'Accounts', href: '/accounts' },
-  { name: 'Reports', href: '/reports' },
-  { name: 'Savings', href: '/savings' },
+    { name: 'Dashboard', href: '/' },
+    { name: 'Transactions', href: '/transactions' },
+    { name: 'Accounts', href: '/accounts' },
+    { name: 'Reports', href: '/reports' },
+    { name: 'Savings', href: '/savings' },
 ];
 
 export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle }) => {
-  const { setGlobalSearchTerm, globalSearchTerm, fetchTransactions, fetchAccounts, fetchCategories, fetchPurchaseCategories, fetchDonationSavingRecords, fetchPurchases } = useFinanceStore();
-  const { isDarkMode, toggleTheme } = useThemeStore();
-  const { user, profile, signOut, isLoading } = useAuthStore();
-  const { unreadCount } = useNotificationsStore();
-  const { i18n, t } = useTranslation();
-  const { isMobile } = useMobileDetection();
-  const location = useLocation();
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showSearchOverlay, setShowSearchOverlay] = useState(false);
-  const [showHelpBanner, setShowHelpBanner] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const navigate = useNavigate();
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const profileBtnRef = useRef<HTMLButtonElement>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-  const languageBtnRef = useRef<HTMLButtonElement>(null);
-  const languageMenuRef = useRef<HTMLDivElement>(null);
-  
-  // Atomic refresh lock to prevent race conditions
-  const refreshLock = useRef(false);
-  
-  // Granular loading state management
-  const { loadingState, initialize, startStep, completeStep, failStep, complete } = useGranularLoading();
-  
-  // Smart refresh with data staleness detection
-  const { 
-    analytics, 
-    recommendations, 
-    recordRefreshAttempt, 
-    recordRefreshSuccess, 
-    recordRefreshError,
-    isDataStale,
-    getFormattedTimeSinceLastRefresh 
-  } = useSmartRefresh();
-  
-  // Accessibility enhancements
-  const { 
-    announceRefresh, 
-    getRefreshButtonProps, 
-    getProgressDescription,
-    getHighContrastStyles,
-    getFocusStyles 
-  } = useAccessibility();
+    const { setGlobalSearchTerm, globalSearchTerm, fetchTransactions, fetchAccounts, fetchCategories, fetchPurchaseCategories, fetchDonationSavingRecords, fetchPurchases } = useFinanceStore();
+    const { isDarkMode, toggleTheme } = useThemeStore();
+    const { user, profile, signOut, isLoading } = useAuthStore();
+    const { unreadCount } = useNotificationsStore();
+    const { i18n, t } = useTranslation();
+    const { isMobile } = useMobileDetection();
+    const location = useLocation();
+    const [showUserMenu, setShowUserMenu] = useState(false);
+    const [showProfileModal, setShowProfileModal] = useState(false);
+    const [showLanguageMenu, setShowLanguageMenu] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [showSearchOverlay, setShowSearchOverlay] = useState(false);
+    const [showHelpBanner, setShowHelpBanner] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const navigate = useNavigate();
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const profileBtnRef = useRef<HTMLButtonElement>(null);
+    const userMenuRef = useRef<HTMLDivElement>(null);
+    const languageBtnRef = useRef<HTMLButtonElement>(null);
+    const languageMenuRef = useRef<HTMLDivElement>(null);
+    
+    const refreshLock = useRef(false);
+    
+    const { loadingState, initialize, startStep, completeStep, failStep, complete } = useGranularLoading();
+    
+    const { 
+        analytics, 
+        recommendations, 
+        recordRefreshAttempt, 
+        recordRefreshSuccess, 
+        recordRefreshError,
+        isDataStale,
+        getFormattedTimeSinceLastRefresh 
+    } = useSmartRefresh();
+    
+    const { 
+        announceRefresh, 
+        getRefreshButtonProps, 
+        getProgressDescription,
+        getHighContrastStyles,
+        getFocusStyles 
+    } = useAccessibility();
 
-  // Enhanced refresh handler with granular loading and retry mechanism
-  const handleRefresh = async () => {
-    // Atomic check and set to prevent race conditions
-    if (refreshLock.current || isRefreshing) return;
-    
-    refreshLock.current = true;
-    setIsRefreshing(true);
-    triggerHapticFeedback('medium');
-    
-    // Record refresh attempt and announce to screen readers
-    recordRefreshAttempt();
-    announceRefresh('Refresh started', 'assertive');
-    
-    // Initialize granular loading with refresh steps
-    initialize([
-      { id: 'transactions', name: 'Fetching transactions' },
-      { id: 'accounts', name: 'Fetching accounts' },
-      { id: 'categories', name: 'Fetching categories' },
-      { id: 'purchase-categories', name: 'Fetching purchase categories' },
-      { id: 'donation-saving', name: 'Fetching donation & saving records' },
-      { id: 'purchases', name: 'Fetching purchases' }
-    ]);
-    
-    try {
-      // Execute refresh functions with retry mechanism and staggered execution
-      const refreshFunctions = [
-        () => fetchTransactions(),
-        () => fetchAccounts(),
-        () => fetchCategories(),
-        () => fetchPurchaseCategories(),
-        () => fetchDonationSavingRecords(),
-        () => fetchPurchases()
-      ];
-      
-      const stepIds = ['transactions', 'accounts', 'categories', 'purchase-categories', 'donation-saving', 'purchases'];
-      
-      // Execute functions with retry and granular progress tracking
-      for (let i = 0; i < refreshFunctions.length; i++) {
-        const stepId = stepIds[i];
-        startStep(stepId);
-        
-        const result = await RetryMechanism.execute(refreshFunctions[i], {
-          maxRetries: 2,
-          baseDelay: 1000,
-          retryCondition: (error) => {
-            // Retry on network errors and 5xx server errors
-            return !error.response || error.response.status >= 500;
-          }
-        });
-        
-        if (result.success) {
-          completeStep(stepId);
-          // Announce progress to screen readers
-          announceRefresh(`Completed: ${stepId}`, 'polite');
-        } else {
-          failStep(stepId, result.error?.message || 'Unknown error');
-          // Announce error to screen readers
-          announceRefresh(`Failed: ${stepId} - ${result.error?.message || 'Unknown error'}`, 'assertive');
+    const handleRefresh = async () => {
+        if (refreshLock.current || isRefreshing) {
+            console.log('🔄 Refresh already in progress, skipping...');
+            return;
         }
-      }
-      
-      // Dispatch custom event to notify components that need to refresh
-      window.dispatchEvent(new CustomEvent('dataRefreshed'));
-      
-      // Complete the loading process
-      complete();
-      
-      // Record successful refresh and announce completion
-      const duration = Date.now() - (loadingState.startTime || 0);
-      recordRefreshSuccess(duration);
-      announceRefresh('Data refreshed successfully', 'assertive');
-      
-      toast.success('Data refreshed successfully');
-      triggerHapticFeedback('success');
-    } catch (error) {
-      complete(); // Complete loading even on error
-      
-      // Record failed refresh and announce error
-      recordRefreshError(error instanceof Error ? error.message : 'Unknown error');
-      announceRefresh('Failed to refresh data', 'assertive');
-      
-      toast.error('Failed to refresh data');
-      triggerHapticFeedback('error');
-    } finally {
-      setIsRefreshing(false);
-      refreshLock.current = false; // Release the atomic lock
-    }
-  };
+        
+        console.log('🚀 Starting refresh process...');
+        const startTime = Date.now();
+        refreshLock.current = true;
+        setIsRefreshing(true);
+        triggerHapticFeedback('medium');
+        
+        recordRefreshAttempt();
+        announceRefresh('Refresh started', 'assertive');
+        
+        initialize([
+            { id: 'transactions', name: 'Fetching transactions' },
+            { id: 'accounts', name: 'Fetching accounts' },
+            { id: 'categories', name: 'Fetching categories' },
+            { id: 'purchase-categories', name: 'Fetching purchase categories' },
+            { id: 'donation-saving', name: 'Fetching donation & saving records' },
+            { id: 'purchases', name: 'Fetching purchases' }
+        ]);
+        
+        try {
+            // Add overall timeout to prevent infinite refreshing
+            const overallTimeout = setTimeout(() => {
+                console.log('⏰ Overall refresh timeout reached (15 seconds)');
+                refreshLock.current = false;
+                setIsRefreshing(false);
+                complete();
+                toast.error('Refresh timed out - please try again');
+            }, 15000); // 15 second overall timeout
+            
+            const refreshFunctions = [
+                { fn: () => fetchTransactions(), id: 'transactions' },
+                { fn: () => fetchAccounts(), id: 'accounts' },
+                { fn: () => fetchCategories(), id: 'categories' },
+                { fn: () => fetchPurchaseCategories(), id: 'purchase-categories' },
+                { fn: () => fetchDonationSavingRecords(), id: 'donation-saving' },
+                { fn: () => fetchPurchases(), id: 'purchases' }
+            ];
+            
+            // Start all steps immediately
+            console.log('📋 Starting all refresh steps...');
+            refreshFunctions.forEach(({ id }) => {
+                console.log(`🔄 Starting step: ${id}`);
+                startStep(id);
+            });
+            
+            // Execute all functions in parallel with timeout protection
+            console.log('⚡ Executing all functions in parallel...');
+            const results = await Promise.allSettled(
+                refreshFunctions.map(async ({ fn, id }) => {
+                    const functionStartTime = Date.now();
+                    console.log(`🚀 Starting function: ${id}`);
+                    
+                    try {
+                        // Add 8-second timeout per function
+                        const timeoutPromise = new Promise((_, reject) => {
+                            setTimeout(() => {
+                                console.log(`⏰ Timeout for function: ${id}`);
+                                reject(new Error('Function timeout'));
+                            }, 8000);
+                        });
+                        
+                        const result = await Promise.race([
+                            RetryMechanism.execute(fn, {
+                                maxRetries: 1, // Reduced from 2 to 1
+                                baseDelay: 200, // Reduced from 1000ms to 200ms
+                                maxDelay: 2000, // Reduced max delay
+                                retryCondition: (error) => {
+                                    return !error.response || error.response.status >= 500;
+                                }
+                            }),
+                            timeoutPromise
+                        ]);
+                        
+                        const functionDuration = Date.now() - functionStartTime;
+                        console.log(`✅ Function ${id} completed in ${functionDuration}ms`);
+                        
+                        if (result.success) {
+                            completeStep(id);
+                            announceRefresh(`Completed: ${id}`, 'polite');
+                            return { success: true, id };
+                        } else {
+                            console.log(`❌ Function ${id} failed:`, result.error);
+                            failStep(id, result.error?.message || 'Unknown error');
+                            announceRefresh(`Failed: ${id} - ${result.error?.message || 'Unknown error'}`, 'assertive');
+                            return { success: false, id, error: result.error };
+                        }
+                    } catch (error) {
+                        const functionDuration = Date.now() - functionStartTime;
+                        console.log(`💥 Function ${id} threw error after ${functionDuration}ms:`, error);
+                        failStep(id, error?.message || 'Unknown error');
+                        announceRefresh(`Failed: ${id} - ${error?.message || 'Unknown error'}`, 'assertive');
+                        return { success: false, id, error };
+                    }
+                })
+            );
+            
+            const totalDuration = Date.now() - startTime;
+            console.log(`🎉 All refresh functions completed in ${totalDuration}ms`);
+            console.log('📊 Results:', results);
+            
+            window.dispatchEvent(new CustomEvent('dataRefreshed'));
+            complete();
+            
+            const duration = Date.now() - (loadingState.startTime || 0);
+            recordRefreshSuccess(duration);
+            announceRefresh('Data refreshed successfully', 'assertive');
+            
+            toast.success('Data refreshed successfully');
+            triggerHapticFeedback('success');
+        } catch (error) {
+            const totalDuration = Date.now() - startTime;
+            console.log(`💥 Refresh failed after ${totalDuration}ms:`, error);
+            complete();
+            
+            recordRefreshError(error instanceof Error ? error.message : 'Unknown error');
+            announceRefresh('Failed to refresh data', 'assertive');
+            
+            toast.error('Failed to refresh data');
+            triggerHapticFeedback('error');
+        } finally {
+            // Clear the overall timeout
+            if (typeof overallTimeout !== 'undefined') {
+                clearTimeout(overallTimeout);
+            }
+            setIsRefreshing(false);
+            refreshLock.current = false;
+            console.log('🏁 Refresh process finished');
+        }
+    };
 
   const languages = [
     { code: 'en', name: 'English', flag: '🇺🇸' },

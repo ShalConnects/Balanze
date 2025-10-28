@@ -18,6 +18,14 @@ import { useAuthStore } from './authStore';
 import { showToast } from '../lib/toast';
 import { createNotification } from '../lib/notifications';
 import { logTransactionEvent, createAuditLog } from '../lib/auditLogging';
+
+// Utility function to get local time in ISO format
+function getLocalISOString() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset();
+  const localTime = new Date(now.getTime() - (offset * 60000));
+  return localTime.toISOString();
+}
 import { generateTransactionId } from '../utils/transactionId';
 import { useAchievementStore } from './achievementStore';
 import { userActivityService } from '../lib/userActivityService';
@@ -294,21 +302,23 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     
     const { user } = useAuthStore.getState();
     if (!user) {
-      // No user found
       return set({ loading: false, error: 'Not authenticated' });
     }
     
-    // Use account_balances view instead of accounts table to get calculated balances
-    const { data, error } = await supabase
-      .from('account_balances')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('position', { ascending: true })
-      .order('created_at', { ascending: false });
+    try {
+      // Use account_balances view instead of accounts table to get calculated balances
+      // Added limit to prevent large data fetches
+      const { data, error } = await supabase
+        .from('account_balances')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('position', { ascending: true })
+        .order('created_at', { ascending: false })
+        .limit(50); // Limit to 50 accounts max
 
-    if (error) {
-      return set({ loading: false, error: error.message });
-    }
+      if (error) {
+        return set({ loading: false, error: error.message });
+      }
 
 
     // Do not filter out DPS savings accounts; include all accounts
@@ -334,6 +344,9 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     // Mock data (commented out):
     // const mockAccounts = [...];
     // set({ accounts: mockAccounts, loading: false });
+    } catch (error: any) {
+      set({ loading: false, error: error.message });
+    }
   },
 
   addAccount: async (account: Omit<AccountInput, 'id' | 'user_id' | 'created_at'> & { dps_initial_balance?: number, transaction_id?: string }) => {
@@ -541,7 +554,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           // Update the existing DPS savings account's initial_balance
           const { data: updatedDpsAccount, error: dpsUpdateError } = await supabase
             .from('accounts')
-            .update({ initial_balance: dps_initial_balance, updated_at: new Date().toISOString() })
+            .update({ initial_balance: dps_initial_balance, updated_at: getLocalISOString() })
             .eq('id', currentAccount.dps_savings_account_id)
             .select()
             .single();
@@ -645,20 +658,26 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     
     const { user } = useAuthStore.getState();
     if (!user) {
-      // No user found
       return set({ loading: false, error: 'Not authenticated' });
     }
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false });
-    
-    if (error) {
-      return set({ loading: false, error: error.message });
-    }
 
-    set({ transactions: data || [], loading: false });
+    try {
+      // Optimized query with limit and specific date range for better performance
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+        .limit(1000); // Limit to 1000 most recent transactions
+      
+      if (error) {
+        return set({ loading: false, error: error.message });
+      }
+
+      set({ transactions: data || [], loading: false });
+    } catch (error: any) {
+      set({ loading: false, error: error.message });
+    }
   },
 
   addTransaction: async (transaction: Omit<Transaction, 'id' | 'created_at'> & { transaction_id?: string }, purchaseDetails?: {
@@ -743,7 +762,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
                     file_size: attachment.file_size,
                     file_type: attachment.file_type,
                     mime_type: attachment.mime_type,
-                    created_at: new Date().toISOString(),
+                    created_at: getLocalISOString(),
                   };
                   const { error: insertError } = await supabase.from('purchase_attachments').insert(attachmentData);
                   if (insertError) {
@@ -852,7 +871,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       const backgroundOperations: Promise<any>[] = [];
       
       // Update purchase record if needed
-      if ((transaction.type === 'expense' || transaction.amount !== undefined) && currentTransaction?.transaction_id) {
+      if ((transaction.type === 'expense' || transaction.amount !== undefined)) {
         const purchaseUpdateData: any = {
           item_name: transaction.description || 'Purchase',
           price: transaction.amount,
@@ -864,16 +883,17 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           purchaseUpdateData.notes = purchaseDetails.notes;
         }
         
-        const transactionIdString = String(currentTransaction.transaction_id);
-        
+        // Use the transaction's id to find linked purchases
         backgroundOperations.push(
           supabase
             .from('purchases')
             .update(purchaseUpdateData)
-            .eq('transaction_id', transactionIdString)
+            .eq('transaction_id', id)
             .then(({ error }) => {
               if (error) {
                 console.error('Error updating purchase record:', error);
+              } else {
+                console.log('✅ Purchase record updated successfully');
               }
             })
         );
@@ -952,10 +972,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     
     const { user, profile } = useAuthStore.getState();
     if (!user) {
-      // No user found
       return set({ loading: false, error: 'Not authenticated' });
     }
-    
     const { data, error } = await supabase
       .from('categories')
       .select('*')
@@ -1110,7 +1128,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       .from('categories')
       .update({
         ...category,
-        updated_at: new Date().toISOString()
+        updated_at: getLocalISOString()
       })
       .eq('id', id);
       
@@ -1261,8 +1279,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       }
 
       const transferId = crypto.randomUUID();
-      const now = new Date().toISOString();
+      const now = getLocalISOString();
       const finalTransactionId = transaction_id || generateTransactionId();
+
+      // Calculate balances after transfer
+      const fromBalanceAfter = fromAcc.calculated_balance - from_amount;
+      const toBalanceAfter = toAcc.calculated_balance + to_amount;
 
       // Create expense transaction for source account
       const { error: sourceError } = await supabase.from('transactions').insert({
@@ -1274,7 +1296,9 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         date: now,
         category: 'Transfer',
         tags: ['transfer', transferId, to_account_id, to_amount.toString()],
-        transaction_id: finalTransactionId
+        transaction_id: finalTransactionId,
+        balance_after_transfer: fromBalanceAfter,
+        transfer_time: now
       });
 
       if (sourceError) {
@@ -1291,7 +1315,9 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         date: now,
         category: 'Transfer',
         tags: ['transfer', transferId, from_account_id, from_amount.toString()],
-        transaction_id: finalTransactionId
+        transaction_id: finalTransactionId,
+        balance_after_transfer: toBalanceAfter,
+        transfer_time: now
       });
 
       if (destError) {
@@ -1458,7 +1484,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
       // Create the transfer
       const transferId = crypto.randomUUID();
-      const now = new Date().toISOString();
+      const now = getLocalISOString();
       const { user } = useAuthStore.getState();
       if (!user) throw new Error('Not authenticated');
 
@@ -1533,8 +1559,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       // Create transaction records
       // Creating transaction records
       const transferId = crypto.randomUUID();
-      const now = new Date().toISOString();
+      const now = getLocalISOString();
       const finalTransactionId = transaction_id || generateTransactionId();
+
+      // Calculate balances after DPS transfer
+      const fromBalanceAfter = sourceAccount.calculated_balance - amount;
+      const toBalanceAfter = destAccount.calculated_balance + amount;
 
       // Create expense transaction for source account
       const { error: sourceTransactionError } = await supabase
@@ -1548,7 +1578,9 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           date: now,
           category: 'DPS',
           tags: [`dps_transfer_${transferId}`],
-          transaction_id: finalTransactionId
+          transaction_id: finalTransactionId,
+          balance_after_transfer: fromBalanceAfter,
+          transfer_time: now
         });
 
       if (sourceTransactionError) {
@@ -1568,7 +1600,9 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           date: now,
           category: 'DPS',
           tags: [`dps_transfer_${transferId}`],
-          transaction_id: finalTransactionId
+          transaction_id: finalTransactionId,
+          balance_after_transfer: toBalanceAfter,
+          transfer_time: now
         });
 
       if (destTransactionError) {
@@ -1627,19 +1661,26 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       return set({ loading: false, error: 'Not authenticated' });
     }
 
-    const { data, error } = await supabase
-      .from('purchases')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('purchase_date', { ascending: false });
+    try {
+      // Optimized query with limit for better performance
+      const { data, error } = await supabase
+        .from('purchases')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('purchase_date', { ascending: false })
+        .limit(500); // Limit to 500 most recent purchases
 
-    if (error) {
+      if (error) {
+        console.error('Error fetching purchases:', error);
+        const errorMessage = error.message ? error.message : 'An unknown error occurred.';
+        return set({ loading: false, error: errorMessage });
+      }
+
+      set({ purchases: data || [], loading: false });
+    } catch (error: any) {
       console.error('Error fetching purchases:', error);
-      const errorMessage = error.message ? error.message : 'An unknown error occurred.';
-      return set({ loading: false, error: errorMessage });
+      set({ loading: false, error: error.message || 'An unknown error occurred.' });
     }
-
-    set({ purchases: data || [], loading: false });
   },
 
   addPurchase: async (purchase: Omit<Purchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
@@ -1708,6 +1749,20 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   updatePurchase: async (id: string, purchase: Partial<Purchase>) => {
     set({ loading: true, error: null });
     
+    // First get the current purchase to check if it has a linked transaction
+    const { data: currentPurchase, error: fetchError } = await supabase
+      .from('purchases')
+      .select('transaction_id, price, item_name, category')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError) {
+      const errorMessage = fetchError.message ? fetchError.message : 'Failed to fetch purchase';
+      set({ loading: false, error: errorMessage });
+      return undefined;
+    }
+    
+    // Update the purchase record
     const { error } = await supabase
       .from('purchases')
       .update(purchase)
@@ -1719,23 +1774,88 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       return undefined;
     }
     
+    // If purchase has a linked transaction, sync the changes back to the transaction
+    if (currentPurchase?.transaction_id) {
+      const transactionUpdateData: any = {};
+      
+      // Map purchase fields to transaction fields
+      if (purchase.price !== undefined) {
+        transactionUpdateData.amount = purchase.price;
+      }
+      if (purchase.item_name !== undefined) {
+        transactionUpdateData.description = purchase.item_name;
+      }
+      if (purchase.category !== undefined) {
+        transactionUpdateData.category = purchase.category;
+      }
+      
+      // Only update transaction if there are relevant changes
+      if (Object.keys(transactionUpdateData).length > 0) {
+        const { error: transactionError } = await supabase
+          .from('transactions')
+          .update(transactionUpdateData)
+          .eq('id', currentPurchase.transaction_id);
+          
+        if (transactionError) {
+          console.error('Error syncing purchase changes to transaction:', transactionError);
+          // Don't fail the purchase update if transaction sync fails
+        }
+      }
+    }
+    
     // Add a small delay to ensure the loading animation is visible
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    await get().fetchPurchases();
+    // Refetch both purchases and transactions to ensure UI is in sync
+    await Promise.all([
+      get().fetchPurchases(),
+      get().fetchTransactions(),
+      get().fetchAccounts() // Also refetch accounts in case amount changed
+    ]);
     set({ loading: false });
   },
   
   deletePurchase: async (id) => {
     set({ loading: true, error: null });
     
+    // First, get the current purchase to check if it has a linked transaction
+    const { data: currentPurchase, error: fetchError } = await supabase
+      .from('purchases')
+      .select('transaction_id')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError) {
+      console.error('Error fetching purchase for deletion:', fetchError);
+      // Continue with purchase deletion even if fetch fails
+    }
+    
+    // Delete the purchase record
     const { error } = await supabase.from('purchases').delete().eq('id', id);
     if (error) {
       console.error('Error deleting purchase:', error);
       return set({ loading: false, error: error.message });
     }
     
-    await get().fetchPurchases();
+    // If purchase had a linked transaction, delete it too
+    if (currentPurchase?.transaction_id) {
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', currentPurchase.transaction_id);
+        
+      if (transactionError) {
+        console.error('Error deleting linked transaction:', transactionError);
+        // Continue even if transaction deletion fails
+      }
+    }
+    
+    // Refresh both purchases and transactions to get updated data
+    await Promise.all([
+      get().fetchPurchases(),
+      get().fetchTransactions(),
+      get().fetchAccounts() // Also refetch accounts in case transaction deletion affected balances
+    ]);
     set({ loading: false });
   },
 
@@ -1767,10 +1887,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     
     const { user, profile } = useAuthStore.getState();
     if (!user) {
-      // No user found
       return set({ loading: false, error: 'Not authenticated' });
     }
-    
     const { data, error } = await supabase
       .from('purchase_categories')
       .select('*')
@@ -1850,7 +1968,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       .from('purchase_categories')
       .update({
         ...category,
-        updated_at: new Date().toISOString()
+        updated_at: getLocalISOString()
       })
       .eq('id', id);
       
@@ -2036,15 +2154,14 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
   fetchAllData: async () => {
     set({ loading: true, error: null });
+    
     try {
       // Add a flag to prevent multiple simultaneous calls
       const currentState = get();
       if (currentState.loading) {
-        // fetchAllData already in progress, skipping
         return;
       }
-      
-      await Promise.all([
+      const results = await Promise.allSettled([
         get().fetchCategories(),
         get().fetchAccounts(),
         get().fetchTransactions(),
@@ -2052,6 +2169,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         get().fetchPurchaseCategories(),
         get().fetchDonationSavingRecords(),
       ]);
+      
+      
       // Sync existing expense categories with purchase categories
       await get().syncExpenseCategoriesWithPurchaseCategories();
     } catch (error: any) {
@@ -2259,17 +2378,18 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       
       const { user } = useAuthStore.getState();
       if (!user) {
-        // No user found
         return set({ loading: false, error: 'Not authenticated' });
       }
-      
       const { data, error } = await supabase
         .from('donation_saving_records')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
+      
       set({ donationSavingRecords: data || [], loading: false });
     } catch (err: any) {
       set({ error: err.message || 'Failed to fetch donation/saving records', loading: false });
@@ -2510,6 +2630,26 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         throw error;
       }
 
+      // Create audit log for lend/borrow record creation
+      if (data && data[0]) {
+        await createAuditLog({
+          action_type: 'create',
+          entity_type: 'lend_borrow',
+          entity_id: data[0].id,
+          old_values: null,
+          new_values: {
+            person_name: data[0].person_name,
+            amount: data[0].amount,
+            type: data[0].type,
+            currency: data[0].currency,
+            due_date: data[0].due_date
+          },
+          metadata: {
+            summary: `${data[0].type === 'lend' ? 'Lent' : 'Borrowed'} ${data[0].amount} ${data[0].currency} ${data[0].type === 'lend' ? 'to' : 'from'} ${data[0].person_name}`
+          }
+        });
+      }
+
       // Refresh both lend/borrow records and accounts to get updated balances
       await Promise.all([
         get().fetchLendBorrowRecords(),
@@ -2527,15 +2667,59 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   updateLendBorrowRecord: async (id: string, updates: Partial<LendBorrow>) => {
     try {
       set({ loading: true, error: null });
-      const { error } = await supabase
+      const { user } = useAuthStore.getState();
+      if (!user) throw new Error('User not authenticated');
+      
+      // Get the current record before updating for audit log
+      const { data: currentRecord } = await supabase
+        .from('lend_borrow')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single();
+      
+      // Clean the updates data - convert empty strings to null for date fields
+      const cleanedUpdates = { ...updates } as any;
+      if (cleanedUpdates.due_date === '') cleanedUpdates.due_date = null;
+      if (cleanedUpdates.partial_return_date === '') cleanedUpdates.partial_return_date = null;
+      
+      const { data: updatedData, error } = await supabase
         .from('lend_borrow')
         .update({
-          ...updates,
-          updated_at: new Date().toISOString()
+          ...cleanedUpdates,
+          updated_at: getLocalISOString()
         })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select();
 
       if (error) throw error;
+      
+      // Create audit log for lend/borrow record update
+      if (currentRecord && updatedData && updatedData[0]) {
+        await createAuditLog({
+          action_type: 'update',
+          entity_type: 'lend_borrow',
+          entity_id: id,
+          old_values: {
+            person_name: currentRecord.person_name,
+            amount: currentRecord.amount,
+            type: currentRecord.type,
+            currency: currentRecord.currency,
+            due_date: currentRecord.due_date
+          },
+          new_values: {
+            person_name: updatedData[0].person_name,
+            amount: updatedData[0].amount,
+            type: updatedData[0].type,
+            currency: updatedData[0].currency,
+            due_date: updatedData[0].due_date
+          },
+          metadata: {
+            summary: `Updated ${updatedData[0].type === 'lend' ? 'loan to' : 'borrowing from'} ${updatedData[0].person_name}`
+          }
+        });
+      }
       
       // Refresh all related data when updating lend/borrow records
       await Promise.all([
@@ -2553,12 +2737,41 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   deleteLendBorrowRecord: async (id: string) => {
     try {
       set({ loading: true, error: null });
+      
+      // Get the record before deleting for audit log
+      const { data: recordToDelete } = await supabase
+        .from('lend_borrow')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
       const { error } = await supabase
         .from('lend_borrow')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+      
+      // Create audit log for lend/borrow record deletion
+      if (recordToDelete) {
+        await createAuditLog({
+          action_type: 'delete',
+          entity_type: 'lend_borrow',
+          entity_id: id,
+          old_values: {
+            person_name: recordToDelete.person_name,
+            amount: recordToDelete.amount,
+            type: recordToDelete.type,
+            currency: recordToDelete.currency,
+            due_date: recordToDelete.due_date
+          },
+          new_values: null,
+          metadata: {
+            summary: `Deleted ${recordToDelete.type === 'lend' ? 'loan to' : 'borrowing from'} ${recordToDelete.person_name}`
+          }
+        });
+      }
+      
       await get().fetchLendBorrowRecords();
       set({ loading: false });
     } catch (err: any) {

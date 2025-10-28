@@ -133,24 +133,27 @@ export const TransactionsView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        {/* Smooth skeleton for transactions page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden pb-[13px] lg:pb-0">
+      <div className="space-y-6 animate-fade-in">
+        {/* Enhanced skeleton for transactions page */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden pb-[13px] lg:pb-0 relative overflow-hidden">
+          {/* Shimmer effect for the entire container */}
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+          
           {/* Filters skeleton */}
-          <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+          <div className="p-3 border-b border-gray-200 dark:border-gray-700 relative z-10">
             <TransactionFiltersSkeleton />
           </div>
           
           {/* Summary cards skeleton */}
-          <div className="p-4">
+          <div className="p-4 relative z-10">
             <TransactionSummaryCardsSkeleton />
           </div>
           
           {/* Responsive skeleton - Desktop table, Mobile cards */}
-          <div className="hidden md:block p-4">
+          <div className="hidden md:block p-4 relative z-10">
             <TransactionTableSkeleton rows={6} />
           </div>
-          <div className="md:hidden">
+          <div className="md:hidden relative z-10">
             <TransactionMobileSkeleton count={4} />
           </div>
         </div>

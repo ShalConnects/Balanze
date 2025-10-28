@@ -1,17 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { format } from 'date-fns';
-import { Search, Filter, Download, TrendingUp, Heart, PiggyBank, CheckCircle, HelpCircle, Clock, Plus, Copy, ChevronUp, ChevronDown, Calendar, Trash2, Eye } from 'lucide-react';
+import { Search, Filter, Download, TrendingUp, Heart, PiggyBank, CheckCircle, HelpCircle, Clock, Plus, Copy, ChevronUp, ChevronDown, Trash2, Eye, Star, FileText, Info } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Tooltip } from '../components/common/Tooltip';
 import { useAuthStore } from '../store/authStore';
 import { DonationCardSkeleton, DonationTableSkeleton, DonationSummaryCardsSkeleton, DonationFiltersSkeleton } from '../components/Donations/DonationSkeleton';
 import { ManualDonationModal } from '../components/common/ManualDonationModal';
+import { DonationInfoModal } from '../components/Donations/DonationInfoModal';
+import { DeleteConfirmationModal } from '../components/common/DeleteConfirmationModal';
 import { toast } from 'sonner';
 import { getPreference, setPreference } from '../lib/userPreferences';
-import { ShowOnDashboardBanner } from '../components/common/ShowOnDashboardBanner';
 import { useRecordSelection } from '../hooks/useRecordSelection';
 import { SelectionFilter } from '../components/common/SelectionFilter';
+import { useMobileDetection } from '../hooks/useMobileDetection';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const DonationsSavingsPage: React.FC = () => {
   const { 
@@ -44,7 +48,15 @@ const DonationsSavingsPage: React.FC = () => {
   // Manual donation modal state
   const [showManualDonationModal, setShowManualDonationModal] = useState(false);
   
-  // Delete confirmation state
+  // Donation info modal state
+  const [showDonationInfo, setShowDonationInfo] = useState(false);
+  
+  // Android download modal state
+  const [showAndroidDownloadModal, setShowAndroidDownloadModal] = useState(false);
+  
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [donationToDelete, setDonationToDelete] = useState<any>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Add sorting state
@@ -58,6 +70,13 @@ const DonationsSavingsPage: React.FC = () => {
     const saved = localStorage.getItem('showDonationsSavingsWidget');
     return saved !== null ? JSON.parse(saved) : true;
   });
+
+  // Check if donations widget is hidden
+  const [isDonationsSavingsWidgetHidden, setIsDonationsSavingsWidgetHidden] = useState(() => {
+    const saved = localStorage.getItem('showDonationsSavingsWidget');
+    return saved !== null ? !JSON.parse(saved) : false;
+  });
+  const [isRestoringWidget, setIsRestoringWidget] = useState(false);
 
   // Record selection functionality
   const {
@@ -78,12 +97,14 @@ const DonationsSavingsPage: React.FC = () => {
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const currencyMenuRef = useRef<HTMLDivElement>(null);
   const dateMenuRef = useRef<HTMLDivElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   // State for dropdown menus
   const [showModeMenu, setShowModeMenu] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(false);
   const [showDateMenu, setShowDateMenu] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   // Sorting function
   const handleSort = (key: string) => {
@@ -151,6 +172,12 @@ const DonationsSavingsPage: React.FC = () => {
 
   const user = useAuthStore(state => state.user);
   const profile = useAuthStore(state => state.profile);
+  const { isMobile } = useMobileDetection();
+  
+  // Android detection
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const isCapacitor = !!(window as any).Capacitor;
+  const isAndroidApp = isAndroid && isCapacitor;
 
   // Memoize fetch function to prevent infinite loops
   const fetchDonationSavingRecordsCallback = useCallback(() => {
@@ -213,7 +240,7 @@ const DonationsSavingsPage: React.FC = () => {
   }, [user?.id]);
 
   // Show Donations & Savings widget on dashboard
-  const handleShowDonationsSavingsWidget = async () => {
+  const handleShowDonationsSavingsWidget = useCallback(async () => {
     // Update localStorage immediately for instant UI response
     localStorage.setItem('showDonationsSavingsWidget', JSON.stringify(true));
     setShowDonationsSavingsWidget(true);
@@ -236,7 +263,25 @@ const DonationsSavingsPage: React.FC = () => {
         description: 'Sign in to sync preferences across devices'
       });
     }
-  };
+  }, [user?.id, setShowDonationsSavingsWidget]);
+
+  // Function to restore donations widget to dashboard
+  const handleShowDonationsSavingsWidgetFromPage = useCallback(async () => {
+    console.log('Restoring Donations & Savings widget to dashboard');
+    setIsRestoringWidget(true);
+    
+    try {
+      // Use the existing function that has proper database sync
+      await handleShowDonationsSavingsWidget();
+      
+      // Update local state
+      setIsDonationsSavingsWidgetHidden(false);
+      
+      console.log('Donations & Savings widget restored, new state:', false);
+    } finally {
+      setIsRestoringWidget(false);
+    }
+  }, [handleShowDonationsSavingsWidget]);
 
   // Click outside handlers for dropdowns
   useEffect(() => {
@@ -275,6 +320,17 @@ const DonationsSavingsPage: React.FC = () => {
     function handleClickOutside(event: MouseEvent) {
       if (dateMenuRef.current && !dateMenuRef.current.contains(event.target as Node)) {
         setShowDateMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Add click outside handler for export menu
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -484,7 +540,7 @@ const DonationsSavingsPage: React.FC = () => {
     );
   };
 
-  const exportData = () => {
+  const exportData = async (exportFormat: 'csv' | 'pdf' = 'csv') => {
     const data = filteredRecords.map(record => ({
       Date: formatDate(record.created_at),
       Type: record.type,
@@ -494,18 +550,191 @@ const DonationsSavingsPage: React.FC = () => {
       Note: record.note || '-'
     }));
 
-    const csvContent = [
-      Object.keys(data[0] || {}).join(','),
-      ...data.map(row => Object.values(row).join(','))
-    ].join('\n');
+    if (exportFormat === 'csv') {
+      const csvContent = [
+        Object.keys(data[0] || {}).join(','),
+        ...data.map(row => Object.values(row).join(','))
+      ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `donations-savings-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      
+      // Check if we're in a Capacitor app (Android/iOS)
+      const isCapacitor = !!(window as any).Capacitor;
+      
+      if (isCapacitor) {
+        // For Android/iOS apps, open in system browser for download
+        try {
+          const capacitorBrowser = (window as any).Capacitor?.Plugins?.Browser;
+          
+          if (capacitorBrowser && typeof capacitorBrowser.open === 'function') {
+            // Use Capacitor Browser plugin to open in system browser
+            await capacitorBrowser.open({ url });
+            toast.success('CSV opened in browser for download');
+          } else {
+            // For Android WebView, open in system browser using window.open
+            const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+            if (newWindow) {
+              toast.info('CSV opened in browser. Use browser menu to download.');
+            } else {
+              throw new Error('Unable to open CSV in browser');
+            }
+          }
+        } catch (capacitorError) {
+          console.error('Capacitor CSV export error:', capacitorError);
+          // Fallback to regular download
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `donations-savings-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+          link.click();
+          URL.revokeObjectURL(url);
+          toast.success('CSV exported successfully!');
+        }
+      } else {
+        // For regular browsers, use standard download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `donations-savings-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+        toast.success('CSV exported successfully!');
+      }
+    } else if (exportFormat === 'pdf') {
+      await exportToPDF(data);
+    }
+  };
+
+  const exportToPDF = async (data: any[]) => {
+    try {
+      const doc = new jsPDF();
+      
+      // Add title
+      doc.setFontSize(16);
+      doc.text('Donations & Savings Report', 14, 22);
+      
+      // Add export metadata
+      let yPosition = 30;
+      doc.setFontSize(10);
+      doc.text(`Exported: ${new Date().toLocaleString()}`, 14, yPosition);
+      yPosition += 6;
+      doc.text(`Records: ${data.length}`, 14, yPosition);
+      
+      // Add filter information if filters are active
+      const hasActiveFilters = searchTerm || filterMode !== 'all' || filterStatus !== 'all' || filterCurrency || filterDateRange !== '1month';
+      if (hasActiveFilters) {
+        yPosition += 6;
+        doc.text('Applied Filters:', 14, yPosition);
+        yPosition += 6;
+        
+        if (searchTerm) {
+          doc.text(`• Search: "${searchTerm}"`, 20, yPosition);
+          yPosition += 5;
+        }
+        if (filterMode !== 'all') {
+          doc.text(`• Mode: ${filterMode}`, 20, yPosition);
+          yPosition += 5;
+        }
+        if (filterStatus !== 'all') {
+          doc.text(`• Status: ${filterStatus}`, 20, yPosition);
+          yPosition += 5;
+        }
+        if (filterCurrency) {
+          doc.text(`• Currency: ${filterCurrency}`, 20, yPosition);
+          yPosition += 5;
+        }
+        if (filterDateRange !== '1month') {
+          doc.text(`• Date Range: ${filterDateRange}`, 20, yPosition);
+          yPosition += 5;
+        }
+        
+        yPosition += 10;
+      }
+      
+      // Add financial summary
+      const totalDonations = data.filter(d => d.Type === 'donation').length;
+      const totalSavings = data.filter(d => d.Type === 'saving').length;
+      const totalAmount = data.reduce((sum, record) => {
+        const amount = parseFloat(record.Amount.replace(/[^0-9.-]/g, ''));
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0);
+      
+      yPosition += 10;
+      doc.setFontSize(12);
+      doc.text('Summary:', 14, yPosition);
+      yPosition += 8;
+      
+      doc.setFontSize(10);
+      doc.text(`Total Donations: ${totalDonations}`, 20, yPosition);
+      yPosition += 5;
+      doc.text(`Total Savings: ${totalSavings}`, 20, yPosition);
+      yPosition += 5;
+      doc.text(`Total Amount: ${formatCurrency(totalAmount)}`, 20, yPosition);
+      yPosition += 10;
+      
+      // Prepare table data
+      const headers = [['Date', 'Type', 'Amount', 'Mode', 'Transaction', 'Note']];
+      const rows = data.map(record => [
+        record.Date,
+        record.Type,
+        record.Amount,
+        record.Mode,
+        record.Transaction,
+        record.Note
+      ]);
+      
+      autoTable(doc, {
+        head: headers,
+        body: rows,
+        startY: yPosition,
+        margin: { top: yPosition },
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [66, 139, 202] },
+        alternateRowStyles: { fillColor: [245, 245, 245] }
+      });
+      
+      const filename = `donations-savings-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      
+      // Check if we're in a Capacitor app (Android/iOS)
+      const isCapacitor = !!(window as any).Capacitor;
+      
+      if (isCapacitor) {
+        // For Android/iOS apps, use system browser for downloads
+        try {
+          // Generate PDF as blob
+          const pdfBlob = doc.output('blob');
+          const pdfUrl = URL.createObjectURL(pdfBlob);
+          
+          // Check if Capacitor Browser is available
+          const capacitorBrowser = (window as any).Capacitor?.Plugins?.Browser;
+          
+          if (capacitorBrowser && typeof capacitorBrowser.open === 'function') {
+            // Use Capacitor Browser plugin to open in system browser
+            await capacitorBrowser.open({ url: pdfUrl });
+            toast.success('PDF opened in browser for download');
+          } else {
+            // For Android WebView, open in system browser using window.open
+            const newWindow = window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+            if (newWindow) {
+              toast.info('PDF opened in browser. Use browser menu to download.');
+            } else {
+              throw new Error('Unable to open PDF in browser');
+            }
+          }
+        } catch (capacitorError) {
+          console.error('Capacitor PDF export error:', capacitorError);
+          // Fallback to regular download
+          doc.save(filename);
+          toast.success('PDF exported successfully!');
+        }
+      } else {
+        // For regular browsers, use standard download
+        doc.save(filename);
+        toast.success('PDF exported successfully!');
+      }
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast.error('Failed to export PDF. Please try again.');
+    }
   };
 
   // Add a helper function at the top of the component
@@ -589,14 +818,6 @@ const DonationsSavingsPage: React.FC = () => {
 
   return (
     <div className="dark:bg-gray-900">
-      <ShowOnDashboardBanner
-        isVisible={!showDonationsSavingsWidget}
-        onShow={handleShowDonationsSavingsWidget}
-        title="Donations & Savings Widget Hidden"
-        description="The Donations & Savings widget is currently hidden on your dashboard."
-        buttonText="Show on Dashboard"
-        icon={Eye}
-      />
 
       {/* Unified Table View */}
       <div className="space-y-6">
@@ -648,13 +869,61 @@ const DonationsSavingsPage: React.FC = () => {
                   >
                     <Filter className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={exportData}
-                    className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 px-2 py-1.5 h-8 w-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
-                    title="Export"
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
+                  {isDonationsSavingsWidgetHidden && (
+                    <button
+                      onClick={handleShowDonationsSavingsWidgetFromPage}
+                      disabled={isRestoringWidget}
+                      className="px-2 py-1.5 text-[13px] h-8 w-8 rounded-md transition-colors flex items-center justify-center text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' }}
+                      title="Show Donations & Savings Widget on Dashboard"
+                      aria-label="Show Donations & Savings Widget on Dashboard"
+                    >
+                      {isRestoringWidget ? (
+                        <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Eye className="w-4 h-4" aria-hidden="true" />
+                      )}
+                    </button>
+                  )}
+                  <div className="relative hidden md:block" ref={exportMenuRef}>
+                    <button
+                      onClick={() => {
+                        if (isAndroidApp) {
+                          setShowAndroidDownloadModal(true);
+                        } else {
+                          setShowExportMenu(!showExportMenu);
+                        }
+                      }}
+                      className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 px-2 py-1.5 h-8 w-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
+                      title="Export"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                    {showExportMenu && !isAndroidApp && (
+                      <div className="absolute right-0 top-9 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 min-w-[120px]">
+                        <button
+                          onClick={() => {
+                            exportData('csv');
+                            setShowExportMenu(false);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                        >
+                          <Download className="w-4 h-4" />
+                          CSV
+                        </button>
+                        <button
+                          onClick={() => {
+                            exportData('pdf');
+                            setShowExportMenu(false);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                        >
+                          <FileText className="w-4 h-4" />
+                          PDF
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <button
                     onClick={() => setShowManualDonationModal(true)}
                     className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-2 py-1.5 rounded-md hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center text-[13px] h-8 w-8 shadow-sm hover:shadow-md"
@@ -852,13 +1121,60 @@ const DonationsSavingsPage: React.FC = () => {
             <div className="flex-grow" />
             {/* Action Buttons in filter row */}
             <div className="hidden md:flex items-center gap-2">
-              <button
-                onClick={exportData}
-                className="bg-gray-100 text-gray-700 px-3 py-1.5 h-8 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center"
-                aria-label="Export"
-              >
-                <Download className="w-3.5 h-3.5" />
-              </button>
+              {isDonationsSavingsWidgetHidden && (
+                <button
+                  onClick={handleShowDonationsSavingsWidgetFromPage}
+                  disabled={isRestoringWidget}
+                  className="bg-gray-100 text-gray-700 px-3 py-1.5 h-8 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Show Donations & Savings Widget on Dashboard"
+                  aria-label="Show Donations & Savings Widget on Dashboard"
+                >
+                  {isRestoringWidget ? (
+                    <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Eye className="w-3.5 h-3.5" aria-hidden="true" />
+                  )}
+                </button>
+              )}
+              <div className="relative" ref={exportMenuRef}>
+                <button
+                  onClick={() => {
+                    if (isAndroidApp) {
+                      setShowAndroidDownloadModal(true);
+                    } else {
+                      setShowExportMenu(!showExportMenu);
+                    }
+                  }}
+                  className="bg-gray-100 text-gray-700 px-3 py-1.5 h-8 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center"
+                  aria-label="Export"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </button>
+                {showExportMenu && !isAndroidApp && (
+                  <div className="absolute right-0 top-9 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 min-w-[120px]">
+                    <button
+                      onClick={() => {
+                        exportData('csv');
+                        setShowExportMenu(false);
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      CSV
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportData('pdf');
+                        setShowExportMenu(false);
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                    >
+                      <FileText className="w-4 h-4" />
+                      PDF
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => setShowManualDonationModal(true)}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1.5 h-8 rounded-md hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center space-x-1.5 text-[13px] shadow-sm hover:shadow-md"
@@ -870,173 +1186,78 @@ const DonationsSavingsPage: React.FC = () => {
             </div>
       </div>
 
-          {/* Enhanced Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3 p-3">
-            {/* Total Donated Card with Animation */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg border border-blue-200/50 dark:border-blue-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
+          {/* Summary Cards - Matching Account Page Style */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 p-3">
+            {/* Total Donated Card */}
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Total Donated</p>
-                  <p className="font-bold text-blue-600 dark:text-blue-400 text-lg group-hover:scale-105 transition-transform duration-200">
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Donated</p>
+                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
                     {currencySymbol}{analytics.total_donated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
-                  <div className="mt-1 text-xs text-blue-600/70 dark:text-blue-400/70">
+                  <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
                     {donatedRecords.length} donations
+                  </p>
                   </div>
-                </div>
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <Heart className="text-blue-600 dark:text-blue-400 w-5 h-5" />
-                </div>
+                <Heart className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
               </div>
             </div>
 
             {/* Total Pending Card */}
-            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 rounded-lg border border-indigo-200/50 dark:border-indigo-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mb-1">Total Pending</p>
-                  <p className="font-bold text-indigo-600 dark:text-indigo-400 text-lg group-hover:scale-105 transition-transform duration-200">
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Pending</p>
+                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
                     {currencySymbol}{pendingRecords.reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
-                  <div className="mt-1 text-xs text-indigo-600/70 dark:text-indigo-400/70">
+                  <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
                     {pendingRecords.length} pending
+                  </p>
                   </div>
-                </div>
-                <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <Clock className="text-indigo-600 dark:text-indigo-400 w-5 h-5" />
-                </div>
+                <Clock className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
               </div>
             </div>
 
             {/* Top Month Card */}
-            <div className="bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/20 dark:to-violet-800/20 rounded-lg border border-violet-200/50 dark:border-violet-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <p className="text-xs font-medium text-violet-700 dark:text-violet-300 mb-1">Top Month</p>
-                  <p className="font-bold text-violet-600 dark:text-violet-400 text-lg group-hover:scale-105 transition-transform duration-200">
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Top Month</p>
+                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
                     {analytics.top_month ? format(new Date(analytics.top_month + '-01'), 'MMM yyyy') : '-'}
                   </p>
-                  <div className="mt-1 text-xs text-violet-600/70 dark:text-violet-400/70">
+                  <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
                     Best performance
+                  </p>
                   </div>
-                </div>
-                <div className="w-10 h-10 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <TrendingUp className="text-violet-600 dark:text-violet-400 w-5 h-5" />
-                </div>
+                <TrendingUp className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
               </div>
             </div>
-
 
             {/* Impact Card */}
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg border border-purple-200/50 dark:border-purple-600/50 py-3 px-3 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <p className="text-xs font-medium text-purple-700 dark:text-purple-300 mb-1">Impact</p>
-                  <p className="font-bold text-purple-600 dark:text-purple-400 text-lg group-hover:scale-105 transition-transform duration-200">
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Impact</p>
+                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
                     {Math.floor(donatedRecords.length * 2.5)}
                   </p>
-                  <div className="mt-1 text-xs text-purple-600/70 dark:text-purple-400/70">
+                  <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
                     people helped
+                  </p>
                   </div>
-                </div>
-                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <span className="text-purple-600 dark:text-purple-400 text-lg">🌟</span>
-                </div>
+                <Star className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
               </div>
+            </div>
+
+            {/* Hidden placeholder to maintain 5-grid layout */}
+            <div className="hidden">
             </div>
           </div>
 
 
-          {/* Achievement Badges Section */}
-          <div className="p-3">
-            <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200/50 dark:border-blue-600/50 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-blue-700 dark:text-blue-300">Achievements</h3>
-                <span className="text-blue-600 dark:text-blue-400 text-lg">🏆</span>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {(() => {
-                  const achievements = [];
-                  
-                  // First donation badge
-                  if (donatedRecords.length >= 1) {
-                    achievements.push({
-                      icon: "🎯",
-                      title: "First Step",
-                      description: "First donation made",
-                      earned: true
-                    });
-                  }
-                  
-                  // Regular donor badge
-                  if (donatedRecords.length >= 5) {
-                    achievements.push({
-                      icon: "💝",
-                      title: "Regular Donor",
-                      description: "5+ donations",
-                      earned: true
-                    });
-                  }
-                  
-                  // Generous donor badge
-                  if (analytics.total_donated >= 100) {
-                    achievements.push({
-                      icon: "🌟",
-                      title: "Generous Heart",
-                      description: "$100+ donated",
-                      earned: true
-                    });
-                  }
-                  
-                  // Monthly consistency badge
-                  const currentMonth = new Date().getMonth();
-                  const currentYear = new Date().getFullYear();
-                  const thisMonthDonations = donatedRecords.filter(r => {
-                    const recordDate = new Date(r.created_at);
-                    return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
-                  });
-                  
-                  if (thisMonthDonations.length >= 2) {
-                    achievements.push({
-                      icon: "📅",
-                      title: "Monthly Hero",
-                      description: "2+ donations this month",
-                      earned: true
-                    });
-                  }
-                  
-                  // Add placeholder achievements if less than 4
-                  while (achievements.length < 4) {
-                    achievements.push({
-                      icon: "🔒",
-                      title: "Coming Soon",
-                      description: "Keep donating to unlock",
-                      earned: false
-                    });
-                  }
-                  
-                  return achievements.map((achievement, index) => (
-                    <div 
-                      key={index} 
-                      className={`text-center p-2 rounded-lg transition-all duration-200 ${
-                        achievement.earned 
-                          ? 'bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700' 
-                          : 'bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 opacity-60'
-                      }`}
-                    >
-                      <div className="text-2xl mb-1">{achievement.icon}</div>
-                      <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">
-                        {achievement.title}
-                      </div>
-                      <div className="text-xs text-blue-600/70 dark:text-blue-400/70">
-                        {achievement.description}
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-          </div>
 
           {/* Recent Activity Timeline - Hidden */}
           {/* <div className="p-3">
@@ -1322,34 +1543,30 @@ const DonationsSavingsPage: React.FC = () => {
                             )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center">
-                            {!record.transaction_id && (
-                              <div className="flex items-center justify-center">
-                                {deleteConfirmId === record.id ? (
-                                  <div className="flex items-center space-x-2">
-                                    <button
-                                      onClick={() => handleDeleteDonation(record.id)}
-                                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-md transition-colors"
-                                    >
-                                      Confirm
-                                    </button>
-                                    <button
-                                      onClick={() => setDeleteConfirmId(null)}
-                                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button
-                                    onClick={() => setDeleteConfirmId(record.id)}
-                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
-                                    title="Delete manual donation"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                )}
-                              </div>
-                            )}
+                            <div className="flex items-center justify-center space-x-2">
+                              {record.transaction_id && (
+                                <button
+                                  onClick={() => setShowDonationInfo(true)}
+                                  className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                                  title="Transaction-linked donation info"
+                                  aria-label="Transaction-linked donation info"
+                                >
+                                  <Info className="w-4 h-4" />
+                                </button>
+                              )}
+                              {!record.transaction_id && (
+                                <button
+                                  onClick={() => {
+                                    setDonationToDelete(record);
+                                    setShowDeleteModal(true);
+                                  }}
+                                  className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                                  title="Delete manual donation"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1514,31 +1731,33 @@ const DonationsSavingsPage: React.FC = () => {
                       {!record.transaction_id && (
                         <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
                           <div className="flex items-center justify-end">
-                            {deleteConfirmId === record.id ? (
-                              <div className="flex items-center space-x-2">
-                                <button
-                                  onClick={() => handleDeleteDonation(record.id)}
-                                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-md transition-colors"
-                                >
-                                  Confirm Delete
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirmId(null)}
-                                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setDeleteConfirmId(record.id)}
-                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
-                                title="Delete manual donation"
-                              >
-                                <Trash2 className="w-4 h-4 mr-1" />
-                                Delete
-                              </button>
-                            )}
+                            <button
+                              onClick={() => {
+                                setDonationToDelete(record);
+                                setShowDeleteModal(true);
+                              }}
+                              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                              title="Delete manual donation"
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Info Button for Transaction-linked Donations */}
+                      {record.transaction_id && (
+                        <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+                          <div className="flex items-center justify-end">
+                            <button
+                              onClick={() => setShowDonationInfo(true)}
+                              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                              title="Transaction-linked donation info"
+                            >
+                              <Info className="w-4 h-4 mr-1" />
+                              Info
+                            </button>
                           </div>
                         </div>
                       )}
@@ -1576,165 +1795,101 @@ const DonationsSavingsPage: React.FC = () => {
                 }
                 
                 return (
-                  <div key={record.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                    {/* Card Header */}
-                    <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {formatDate(record.created_at)}
-                          </span>
+                  <div 
+                    key={record.id}
+                    id={`donation-${record.id}`}
+                    className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                    role="article"
+                    aria-labelledby={`donation-${record.id}`}
+                  >
+                    {/* Card Header - Item Name and Date */}
+                    <div className="flex items-center justify-between p-4 pb-2">
+                      <div className="flex-1">
+                        <div className="text-base font-medium text-gray-900 dark:text-white mb-1">
+                          {record.mode === 'fixed' ? 'Fixed' : 'Percentage'}
                         </div>
-                        {!record.transaction_id ? (
-                          // Manual donations - show static status
-                          <span
-                            className={
-                              record.status === 'donated'
-                                ? "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold text-xs"
-                                : "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 font-semibold text-xs"
-                            }
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {formatDate(record.created_at)}
+                        </div>
+                      </div>
+                      <div>
+                        <span className={`inline-flex items-center justify-center text-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          record.status === 'donated'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                        }`}>
+                          {record.status === 'donated' ? 'Donated' : 'Pending'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Card Body - Amount and Details */}
+                    <div className="px-4 pb-3">
+                      <div className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                        {`${currencySymbols[currency] || currency}${record.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        {transaction ? `#${transaction.transaction_id}` : record.custom_transaction_id ? `#${record.custom_transaction_id}` : 'Manual Donation'}
+                      </div>
+                      {!record.transaction_id && record.note && (
+                        <div className="text-xs text-gray-600 dark:text-gray-400 italic">
+                          Note: {record.note}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Card Footer - Actions */}
+                    <div className="flex items-center justify-between px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800">
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        {!record.transaction_id && (
+                          <span 
+                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                            role="status"
+                            aria-label="Manual donation"
                           >
-                            {record.status === 'donated' ? (
-                              <>
-                                <CheckCircle className="w-3 h-3 text-green-500 dark:text-green-400" />
-                                Donated
-                              </>
-                            ) : (
-                              <>
-                                <Clock className="w-3 h-3 text-yellow-500 dark:text-yellow-400" />
-                                Pending
-                              </>
-                            )}
+                            Manual
                           </span>
-                        ) : (
-                          // Regular donations - show clickable button
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        {record.transaction_id && (
+                          <>
+                            <button
+                              onClick={() => handleToggleStatus(record)}
+                              className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                              title={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
+                              aria-label={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
+                            >
+                              {record.status === 'donated' ? (
+                                <Clock className="w-3.5 h-3.5" />
+                              ) : (
+                                <CheckCircle className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => setShowDonationInfo(true)}
+                              className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                              title="Transaction-linked donation info"
+                              aria-label="Transaction-linked donation info"
+                            >
+                              <Info className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                        {!record.transaction_id && (
                           <button
-                            type="button"
-                            onClick={() => handleToggleStatus(record)}
-                            className={
-                              record.status === 'donated'
-                                ? "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold text-xs hover:bg-green-100 dark:hover:bg-green-900/50 transition"
-                                : "inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 font-semibold text-xs hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition"
-                            }
-                            aria-label={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
-                            title={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
+                            onClick={() => {
+                              setDonationToDelete(record);
+                              setShowDeleteModal(true);
+                            }}
+                            className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            title="Delete manual donation"
+                            aria-label="Delete manual donation"
                           >
-                            {record.status === 'donated' ? (
-                              <>
-                                <CheckCircle className="w-3 h-3 text-green-500 dark:text-green-400" />
-                                Donated
-                              </>
-                            ) : (
-                              <>
-                                <Clock className="w-3 h-3 text-yellow-500 dark:text-yellow-400" />
-                                Pending
-                              </>
-                            )}
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
-                    </div>
-
-                    {/* Card Body */}
-                    <div className="px-4 py-3 space-y-3">
-                      {/* Amounts Row */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Original Amount</div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {transaction ? `${currencySymbols[currency] || currency}${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 
-                              record.note ? 
-                                <span title={record.note.replace(/\(?Currency:\s*[A-Z]{3}\)?/, '').trim()}>
-                                  {(record.note.replace(/\(?Currency:\s*[A-Z]{3}\)?/, '').trim() || 'Manual Donation').substring(0, 20)}
-                                  {(record.note.replace(/\(?Currency:\s*[A-Z]{3}\)?/, '').trim() || 'Manual Donation').length > 20 ? '...' : ''}
-                                </span>
-                                : 'Manual Donation'
-                            }
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Donation Amount</div>
-                          <div className="text-sm font-bold text-green-600 dark:text-green-400">
-                            {`${currencySymbols[currency] || currency}${record.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Mode */}
-                      <div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Mode</div>
-                        <div>{!record.transaction_id ? '-' : getModeBadge(record.mode, record.mode_value, currency)}</div>
-                      </div>
-
-                      {/* Transaction ID */}
-                      <div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Transaction ID</div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400 font-mono">
-                          {transaction ? (
-                            <span className="inline-flex items-center gap-1">
-                              #{transaction.transaction_id}
-                              <button
-                                type="button"
-                                onClick={() => transaction.transaction_id && handleCopyTransactionId(transaction.transaction_id)}
-                                className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none"
-                                title="Copy transaction ID"
-                                aria-label="Copy transaction ID"
-                              >
-                                <Copy className="w-3 h-3" />
-                              </button>
-                            </span>
-                          ) : record.custom_transaction_id ? (
-                            <span className="inline-flex items-center gap-1">
-                              <span className="text-blue-600 dark:text-blue-400">#{record.custom_transaction_id}</span>
-                              <button
-                                type="button"
-                                onClick={() => record.custom_transaction_id && handleCopyTransactionId(record.custom_transaction_id)}
-                                className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none"
-                                title="Copy manual donation ID"
-                                aria-label="Copy manual donation ID"
-                              >
-                                <Copy className="w-3 h-3" />
-                              </button>
-                            </span>
-                          ) : (
-                            '-'
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Delete Button for Manual Donations */}
-                      {!record.transaction_id && (
-                        <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
-                          <div className="flex items-center justify-end">
-                            {deleteConfirmId === record.id ? (
-                              <div className="flex items-center space-x-2">
-                                <button
-                                  onClick={() => handleDeleteDonation(record.id)}
-                                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-md transition-colors"
-                                >
-                                  Confirm Delete
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirmId(null)}
-                                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setDeleteConfirmId(record.id)}
-                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
-                                title="Delete manual donation"
-                              >
-                                <Trash2 className="w-4 h-4 mr-1" />
-                                Delete
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 );
@@ -1746,14 +1901,15 @@ const DonationsSavingsPage: React.FC = () => {
 
       {/* Mobile Filter Modal */}
       {showMobileFilterMenu && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999] md:hidden">
-          <div 
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-[calc(100vw-2rem)] max-w-xs p-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Filters</h3>
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-full max-w-xs overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Header with Check and Cross */}
+            <div className="bg-white dark:bg-gray-900 px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">Filters</span>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Select filters and click ✓ to apply</div>
+                </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
@@ -1764,10 +1920,10 @@ const DonationsSavingsPage: React.FC = () => {
                     setFilterDateRange(tempFilters.filterDateRange);
                     setShowMobileFilterMenu(false);
                   }}
-                  className={`p-1 rounded-full transition-colors ${
+                  className={`p-1 transition-colors ${
                     (tempFilters.filterMode !== 'all' || tempFilters.filterStatus !== 'all' || tempFilters.filterCurrency || tempFilters.filterDateRange !== '1month')
-                      ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
-                      : 'text-gray-400'
+                      ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                   }`}
                   title="Apply Filters"
                 >
@@ -1776,9 +1932,16 @@ const DonationsSavingsPage: React.FC = () => {
                   </svg>
                 </button>
                 <button
-                  onClick={handleCloseModal}
-                  className="p-1 rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  title="Clear All"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterMode('all');
+                    setFilterStatus('all');
+                    setFilterCurrency('');
+                    setFilterDateRange('1month');
+                    setShowMobileFilterMenu(false);
+                  }}
+                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1"
+                  title="Clear All Filters"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1787,23 +1950,19 @@ const DonationsSavingsPage: React.FC = () => {
               </div>
             </div>
 
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select filters and click ✓ to apply</p>
-
-            {/* Filter Options */}
-            <div className="space-y-4">
-              {/* Currency Filter */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Currency</h4>
+            {/* Currency Filter */}
+            <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Currency</div>
                 <div className="flex flex-wrap gap-1">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setTempFilters({ ...tempFilters, filterCurrency: '' });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       tempFilters.filterCurrency === ''
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     All Currencies
@@ -1815,10 +1974,10 @@ const DonationsSavingsPage: React.FC = () => {
                         e.stopPropagation();
                         setTempFilters({ ...tempFilters, filterCurrency: currency });
                       }}
-                      className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                      className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                         tempFilters.filterCurrency === currency
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                          ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                          : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                       }`}
                     >
                       {currency}
@@ -1827,19 +1986,19 @@ const DonationsSavingsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Mode Filter */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Mode</h4>
+            {/* Mode Filter */}
+            <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Mode</div>
                 <div className="flex flex-wrap gap-1">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setTempFilters({ ...tempFilters, filterMode: 'all' });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       tempFilters.filterMode === 'all'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     All Modes
@@ -1849,10 +2008,10 @@ const DonationsSavingsPage: React.FC = () => {
                       e.stopPropagation();
                       setTempFilters({ ...tempFilters, filterMode: 'fixed' });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       tempFilters.filterMode === 'fixed'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     Fixed
@@ -1862,10 +2021,10 @@ const DonationsSavingsPage: React.FC = () => {
                       e.stopPropagation();
                       setTempFilters({ ...tempFilters, filterMode: 'percent' });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       tempFilters.filterMode === 'percent'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     Percentage
@@ -1873,19 +2032,19 @@ const DonationsSavingsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Status Filter */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Status</h4>
+            {/* Status Filter */}
+            <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Status</div>
                 <div className="flex flex-wrap gap-1">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setTempFilters({ ...tempFilters, filterStatus: 'all' });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       tempFilters.filterStatus === 'all'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     All Status
@@ -1895,10 +2054,10 @@ const DonationsSavingsPage: React.FC = () => {
                       e.stopPropagation();
                       setTempFilters({ ...tempFilters, filterStatus: 'donated' });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       tempFilters.filterStatus === 'donated'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     Donated
@@ -1908,10 +2067,10 @@ const DonationsSavingsPage: React.FC = () => {
                       e.stopPropagation();
                       setTempFilters({ ...tempFilters, filterStatus: 'pending' });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       tempFilters.filterStatus === 'pending'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     Pending
@@ -1919,19 +2078,19 @@ const DonationsSavingsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Date Range Filter */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Date Range</h4>
+            {/* Date Range Filter */}
+            <div className="px-3 py-2">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Date Range</div>
                 <div className="flex flex-wrap gap-1">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setTempFilters({ ...tempFilters, filterDateRange: '1month' });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       tempFilters.filterDateRange === '1month'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     1 Month
@@ -1941,10 +2100,10 @@ const DonationsSavingsPage: React.FC = () => {
                       e.stopPropagation();
                       setTempFilters({ ...tempFilters, filterDateRange: '3months' });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       tempFilters.filterDateRange === '3months'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     3 Months
@@ -1954,10 +2113,10 @@ const DonationsSavingsPage: React.FC = () => {
                       e.stopPropagation();
                       setTempFilters({ ...tempFilters, filterDateRange: '6months' });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       tempFilters.filterDateRange === '6months'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     6 Months
@@ -1967,10 +2126,10 @@ const DonationsSavingsPage: React.FC = () => {
                       e.stopPropagation();
                       setTempFilters({ ...tempFilters, filterDateRange: '1year' });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       tempFilters.filterDateRange === '1year'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     1 Year
@@ -1980,13 +2139,13 @@ const DonationsSavingsPage: React.FC = () => {
                       e.stopPropagation();
                       setTempFilters({ ...tempFilters, filterDateRange: 'allTime' });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       tempFilters.filterDateRange === 'allTime'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
-                    All Time
+                    All
                   </button>
                 </div>
               </div>
@@ -1999,6 +2158,95 @@ const DonationsSavingsPage: React.FC = () => {
       <ManualDonationModal 
         isOpen={showManualDonationModal} 
         onClose={() => setShowManualDonationModal(false)} 
+      />
+
+      {/* Android Download Modal */}
+      {showAndroidDownloadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-full flex items-center justify-center">
+                  <Download className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Download Not Available
+                </h3>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-600 dark:text-gray-300 mb-4">
+                  File downloads are not supported in the Android app due to security restrictions.
+                </p>
+                
+                <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-2">
+                    💡 Alternative Solutions:
+                  </h4>
+                  <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                    <li>• Open Balanze in your web browser</li>
+                    <li>• Use the web version for downloads</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="flex">
+                <button
+                  onClick={() => setShowAndroidDownloadModal(false)}
+                  className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Donation Info Modal */}
+      <DonationInfoModal
+        isOpen={showDonationInfo}
+        onClose={() => setShowDonationInfo(false)}
+      />
+      
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal && !!donationToDelete}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={async () => {
+          if (donationToDelete) await handleDeleteDonation(donationToDelete.id);
+          setShowDeleteModal(false);
+          setDonationToDelete(null);
+        }}
+        title="Delete Manual Donation"
+        message={`Are you sure you want to delete this manual donation? This action cannot be undone.`}
+        recordDetails={
+          <>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="font-medium text-red-800 dark:text-red-300">Donation Details:</span>
+            </div>
+            <div className="text-xs sm:text-sm text-red-700 dark:text-red-300 space-y-1">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <span className="font-medium min-w-[60px]">Amount:</span>
+                <span>{donationToDelete?.amount ? `$${donationToDelete.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'N/A'}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <span className="font-medium min-w-[60px]">Mode:</span>
+                <span className="capitalize">{donationToDelete?.mode || 'N/A'}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <span className="font-medium min-w-[60px]">Status:</span>
+                <span className="capitalize">{donationToDelete?.status || 'N/A'}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <span className="font-medium min-w-[60px]">Date:</span>
+                <span>{donationToDelete?.created_at ? formatDate(donationToDelete.created_at) : 'N/A'}</span>
+              </div>
+            </div>
+          </>
+        }
+        confirmLabel="Delete Donation"
+        cancelLabel="Cancel"
       />
     </div>
   );

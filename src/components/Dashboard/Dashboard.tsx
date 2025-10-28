@@ -18,6 +18,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LendBorrowSingleReminder } from './LendBorrowSingleReminder';
 import { LendBorrowSummaryCard } from './LendBorrowSummaryCard';
+import { TransferSummaryCard } from './TransferSummaryCard';
 import { CurrencyOverviewCard } from './CurrencyOverviewCard';
 import { DonationSavingsOverviewCard } from './DonationSavingsOverviewCard';
 import { StickyNote } from '../StickyNote';
@@ -32,7 +33,7 @@ import { MobileAccordionWidget } from './MobileAccordionWidget';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { toast } from 'sonner';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
-import PullToRefresh from '../PullToRefresh';
+import PullToRefreshDashboard from './PullToRefreshDashboard';
 
 
 interface DashboardProps {
@@ -68,6 +69,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   const [dashboardLoading, setDashboardLoading] = useState(true);
   // Track if initial data fetch has completed
   const [initialDataFetched, setInitialDataFetched] = useState(false);
+  // Track if there was an error during initial load
+  const [hasLoadError, setHasLoadError] = useState(false);
+  // Track retry attempts
+  const [retryCount, setRetryCount] = useState(0);
   
 
 
@@ -92,8 +97,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     useFinanceStore.getState().fetchDonationSavingRecords();
   }, []);
 
-  // Combined refresh handler for PullToRefresh
-  const handleRefresh = useCallback(async () => {
+  // Retry function for failed data loads
+  const retryDataLoad = useCallback(async () => {
+    if (retryCount >= 3) {
+      console.warn('Max retry attempts reached, giving up');
+      return;
+    }
+    
+    setRetryCount(prev => prev + 1);
+    setHasLoadError(false);
+    setDashboardLoading(true);
+    
     try {
       await Promise.all([
         fetchTransactions(),
@@ -101,10 +115,59 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         fetchCategories(),
         fetchPurchaseCategories(),
         fetchDonationSavingRecords(),
-        useFinanceStore.getState().fetchPurchases() // Add missing fetchPurchases
+        useFinanceStore.getState().fetchPurchases()
       ]);
+      
+      setDashboardLoading(false);
+      setInitialDataFetched(true);
+      setRetryCount(0); // Reset retry count on success
+    } catch (error) {
+      console.error('Retry failed:', error);
+      setDashboardLoading(false);
+      setHasLoadError(true);
+    }
+  }, [retryCount, fetchTransactions, fetchAccounts, fetchCategories, fetchPurchaseCategories, fetchDonationSavingRecords]);
+
+  // Combined refresh handler for PullToRefresh with timeout protection
+  const handleRefresh = useCallback(async () => {
+    const startTime = Date.now();
+    
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    try {
+      // Add 10-second overall timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('Refresh timeout'));
+        }, 10000);
+      });
+      const results = await Promise.race([
+        Promise.allSettled([
+          fetchTransactions(),
+          fetchAccounts(),
+          fetchCategories(),
+          fetchPurchaseCategories(),
+          fetchDonationSavingRecords(),
+          useFinanceStore.getState().fetchPurchases()
+        ]),
+        timeoutPromise
+      ]);
+      
+      // Clear the timeout since we completed successfully
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      
+      return;
+      
     } catch (error) {
       console.error('Error refreshing dashboard data:', error);
+      
+      // Clear timeout on error as well
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      
       throw error; // Re-throw to let PullToRefresh handle error state
     }
   }, [fetchTransactions, fetchAccounts, fetchCategories, fetchPurchaseCategories, fetchDonationSavingRecords]);
@@ -118,15 +181,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   const transactions = getActiveTransactions();
   const allTransactions = storeTransactions; // Use reactive store data
   
-  // Debug logging for currency cards
-  useEffect(() => {
-    console.log('Dashboard Debug:', {
-      statsByCurrency: stats.byCurrency,
-      activeAccountsCount: activeAccounts.length,
-      transactionsCount: allTransactions.length,
-      accounts: storeAccounts.length
-    });
-  }, [stats.byCurrency, activeAccounts.length, allTransactions.length, storeAccounts.length]);
+  
   
   
   // Debug logging for currency card issue
@@ -277,49 +332,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     .slice(0, 5);
 
 
-  // Fetch purchases data when dashboard loads
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        await useFinanceStore.getState().fetchPurchases();
-      } catch (error) {
-      }
-    };
-    fetchData();
-  }, []);
-
   // Initial data fetch when dashboard loads
   useEffect(() => {
     const refreshData = async () => {
       try {
         // Wait for user to be authenticated
         if (!user) {
-          setDashboardLoading(false);
-          setInitialDataFetched(true);
+          // Keep showing skeleton while waiting for user authentication
           return;
         }
 
-        // Keep loading true while fetching
+        // Reset error state and start loading
+        setHasLoadError(false);
         setDashboardLoading(true);
-        setLoadingMessage('Loading dashboard data...'); // Show loading message for data fetch
+        setLoadingMessage('Loading dashboard data...');
 
         await Promise.all([
           fetchTransactions(),
           fetchAccounts(),
           fetchCategories(),
           fetchPurchaseCategories(),
-          fetchDonationSavingRecords()
+          fetchDonationSavingRecords(),
+          useFinanceStore.getState().fetchPurchases()
         ]);
 
+        // Success - hide loading
         setDashboardLoading(false);
         setInitialDataFetched(true);
-        setLoadingMessage(''); // Clear loading message
+        setLoadingMessage('');
 
       } catch (error) {
+        console.error('Dashboard data fetch error:', error);
+        // Error - still show dashboard but mark as having an error
         setDashboardLoading(false);
         setInitialDataFetched(true);
-        setLoadingMessage(''); // Clear loading message even on error
-        // Don't let errors break the dashboard
+        setHasLoadError(true);
+        setLoadingMessage('');
       }
     };
     
@@ -333,8 +381,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   useEffect(() => {
     if (dashboardLoading && user) {
       const timeoutId = setTimeout(() => {
+        console.warn('Dashboard loading timeout reached, showing dashboard anyway');
         setDashboardLoading(false);
-      }, 10000); // 10 second timeout
+        setInitialDataFetched(true);
+        setHasLoadError(true);
+        setLoadingMessage('');
+      }, 8000); // 8 second timeout (reduced from 10)
       
       return () => clearTimeout(timeoutId);
     }
@@ -444,10 +496,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   };
 
   // Show loading skeleton while data is being fetched or until initial fetch completes
-  if (dashboardLoading || !initialDataFetched) {
+  // Show skeleton if: user is not authenticated, data is loading, or initial fetch hasn't completed
+  if (!user || dashboardLoading || !initialDataFetched) {
     return (
       <>
         <DashboardSkeleton />
+        {hasLoadError && (
+          <div className="fixed bottom-4 right-4 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg p-4 shadow-lg">
+            <div className="flex items-center space-x-3">
+              <div className="text-red-600 dark:text-red-400">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                  Failed to load dashboard data
+                </p>
+                <p className="text-xs text-red-600 dark:text-red-400">
+                  Retry attempt {retryCount}/3
+                </p>
+              </div>
+              <button
+                onClick={retryDataLoad}
+                disabled={retryCount >= 3}
+                className="text-xs bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-3 py-1 rounded transition-colors"
+              >
+                {retryCount >= 3 ? 'Max Retries' : 'Retry'}
+              </button>
+            </div>
+          </div>
+        )}
         <FloatingActionButton />
       </>
     );
@@ -455,7 +534,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
   return (
     <>
-      <PullToRefresh onRefresh={handleRefresh} />
+      <PullToRefreshDashboard onRefresh={handleRefresh} />
       {/* Main Dashboard Content */}
       <div data-tour="dashboard" className="flex flex-col lg:flex-row gap-6">
         {/* Main Content - Full width on mobile, flex-1 on desktop */}
@@ -494,10 +573,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
 
           {/* Currency Sections & Donations & Savings - Responsive grid */}
-          <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6">
+          <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6 items-stretch">
             {stats.byCurrency.length > 0 ? (
               stats.byCurrency.map(({ currency }) => (
-                <div key={currency} className="w-full">
+                <div key={currency} className="w-full h-full">
                   <CurrencyOverviewCard
                     currency={currency}
                     transactions={allTransactions}
@@ -510,7 +589,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
             ) : (
               // Fallback: Show currency cards for all active accounts if stats.byCurrency is empty
               Array.from(new Set(rawAccounts.filter(acc => acc.isActive).map(acc => acc.currency))).map(currency => (
-                <div key={currency} className="w-full">
+                <div key={currency} className="w-full h-full">
                   <CurrencyOverviewCard
                     currency={currency}
                     transactions={allTransactions}
@@ -522,7 +601,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
               ))
             )}
             {/* Donations & Savings Overview Card - Place after currency cards */}
-            <div className="w-full">
+            <div className="w-full h-full">
               <DonationSavingsOverviewCard
                 t={t}
                 formatCurrency={formatCurrency}
@@ -551,9 +630,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                     <X className="w-4 h-4" />
                     {/* Tooltip - only on desktop */}
                     {showPurchaseCrossTooltip && !isMobile && (
-                      <div className="absolute top-full right-0 mt-1 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded shadow-lg whitespace-nowrap z-20">
+                      <div className="absolute bottom-full right-0 mb-1 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded shadow-lg whitespace-nowrap z-20">
                         Click to hide this widget
-                        <div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 dark:bg-gray-100 rotate-45"></div>
+                        <div className="absolute -bottom-1 right-2 w-2 h-2 bg-gray-900 dark:bg-gray-100 rotate-45"></div>
                       </div>
                     )}
                   </button>
@@ -588,6 +667,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
             {/* Lend & Borrow Summary Card */}
             <div className="w-full">
               <LendBorrowSummaryCard />
+            </div>
+            
+            {/* Transfer Summary Card */}
+            <div className="w-full">
+              <TransferSummaryCard />
             </div>
           </div>
 

@@ -151,7 +151,7 @@ const PrivacyPolicy: React.FC = () => {
         <h2 className="text-2xl font-bold mb-4">3. Data Security</h2>
         <p className="mb-4">We use industry-standard encryption and security practices to protect your data, both in transit and at rest. Access to your data is strictly controlled.</p>
         <h2 className="text-2xl font-bold mb-4">4. User Rights</h2>
-                        <p>You have the right to access, update, or delete your personal data at any time. Contact us at shalconnects007@gmail.com for any privacy-related requests.</p>
+                        <p>You have the right to access, update, or delete your personal data at any time. Contact us at hello@shalconnects.com for any privacy-related requests.</p>
       </div>
                   <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mt-8">
               <p className="text-center text-yellow-800 dark:text-yellow-200 font-medium">

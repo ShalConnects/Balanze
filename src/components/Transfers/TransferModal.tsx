@@ -4,6 +4,7 @@ import { useFinanceStore } from '../../store/useFinanceStore';
 import { Account } from '../../types';
 import { formatCurrency } from '../../utils/currency';
 import { format } from 'date-fns';
+import { formatTimeUTC } from '../../utils/timezoneUtils';
 import { supabase } from '../../lib/supabase';
 import { ArrowRight, Info, RefreshCw } from 'lucide-react';
 import { getSuggestedRate, formatExchangeRate, isValidExchangeRate } from '../../utils/exchangeRate';
@@ -176,10 +177,8 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
         note: ''
       });
       
-      // Refresh transfer history (only for DPS transfers)
-      if (mode === 'dps') {
-        fetchTransferHistory();
-      }
+      // Refresh transfer history for all transfer types
+      fetchTransferHistory();
       
       // Only close modal after success
       onClose();
@@ -489,7 +488,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
                                 <span className="font-medium text-gray-900 dark:text-white">{toAcc?.name}</span>
                               </div>
                               <span className="text-gray-500 dark:text-gray-400">
-                                {format(new Date(transfer.date), 'MMM d, h:mm a')}
+                                {format(new Date(transfer.date), 'MMM d')} • {formatTimeUTC(transfer.created_at, 'h:mm a')}
                               </span>
                             </div>
                             <div className="flex items-center space-x-2 mt-1">
@@ -522,7 +521,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
                               <span className="font-medium text-gray-900 dark:text-white">{transfer.to_account?.name}</span>
                             </div>
                             <span className="text-gray-500 dark:text-gray-400">
-                              {format(new Date(transfer.date), 'MMM d, h:mm a')}
+                              {format(new Date(transfer.date), 'MMM d')} • {formatTimeUTC(transfer.created_at, 'h:mm a')}
                             </span>
                           </div>
                           <div className="mt-1">

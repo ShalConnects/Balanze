@@ -1,20 +1,55 @@
 import React from 'react';
-import { SkeletonMobileCard, SkeletonStaggered, SkeletonMobileFilters, SkeletonMobileSummaryCards } from '../common/Skeleton';
 
 // Enhanced skeleton for account cards (mobile view) - matches real AccountCard structure
 export const AccountCardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => {
   return (
-    <div className="skeleton-mobile-list">
+    <div className="space-y-4">
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={index}
-          className="skeleton-mobile-card"
+          className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm relative overflow-hidden"
           style={{ 
             animationDelay: `${index * 0.1}s`,
             animationDuration: '2.5s'
           }}
         >
-          <SkeletonMobileCard />
+          {/* Shimmer effect */}
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+          
+          {/* Header with icon and name */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center animate-pulse">
+                <div className="w-5 h-5 bg-gray-300 dark:bg-gray-600 rounded"></div>
+              </div>
+              <div className="flex-1">
+                <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-1 animate-pulse"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div>
+              </div>
+            </div>
+            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-16 animate-pulse"></div>
+          </div>
+
+          {/* Balance and stats */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
+              <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700 mt-4">
+            <div className="flex space-x-2">
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+            </div>
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
+          </div>
         </div>
       ))}
     </div>
@@ -24,13 +59,13 @@ export const AccountCardSkeleton: React.FC<{ count?: number }> = ({ count = 3 })
 // Enhanced skeleton for account table (desktop view) - matches real table structure
 export const AccountTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) => {
   return (
-    <div className="overflow-x-auto skeleton-mobile">
-      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900 text-[14px]">
         {/* Table Header - matches real header structure */}
-        <thead className="bg-gray-50 dark:bg-gray-800">
+        <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10 shadow-sm">
           <tr>
-            {['Account Name', 'Type', 'Balance', 'Currency', 'Status', 'Actions'].map((header, index) => (
-              <th key={index} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            {['Account Name', 'Type', 'Currency', 'Balance', 'Transactions', 'DPS', 'Actions'].map((_, index) => (
+              <th key={index} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16 animate-pulse"></div>
               </th>
             ))}
@@ -40,12 +75,15 @@ export const AccountTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) 
         {/* Table Body - matches real row structure */}
         <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
           {Array.from({ length: rows }).map((_, rowIndex) => (
-            <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}>
+            <tr key={rowIndex} className={`${rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'} relative overflow-hidden`}>
+              {/* Shimmer effect for each row */}
+              <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+              
               {/* Account Name - matches real account name structure */}
-              <td className="px-6 py-4">
+              <td className="px-6 py-4 relative z-10">
                 <div className="flex items-center">
-                  <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center mr-3">
-                    <div className="w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
+                  <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center mr-3 animate-pulse">
+                    <div className="w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded"></div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-1 w-32 animate-pulse"></div>
@@ -55,27 +93,32 @@ export const AccountTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) 
               </td>
               
               {/* Type - matches real type badge */}
-              <td className="px-6 py-4">
+              <td className="px-6 py-4 relative z-10">
                 <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-20 animate-pulse"></div>
               </td>
               
-              {/* Balance - matches real balance display */}
-              <td className="px-6 py-4 text-center">
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse mx-auto"></div>
-              </td>
-              
               {/* Currency - matches real currency display */}
-              <td className="px-6 py-4 text-center">
+              <td className="px-6 py-4 text-center relative z-10">
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 animate-pulse mx-auto"></div>
               </td>
               
-              {/* Status - matches real status badge */}
-              <td className="px-6 py-4 text-center">
-                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-20 animate-pulse mx-auto"></div>
+              {/* Balance - matches real balance display */}
+              <td className="px-6 py-4 text-center relative z-10">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse mx-auto"></div>
+              </td>
+              
+              {/* Transactions - matches real transaction count */}
+              <td className="px-6 py-4 text-center relative z-10">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-12 animate-pulse mx-auto"></div>
+              </td>
+              
+              {/* DPS - matches real DPS status */}
+              <td className="px-6 py-4 text-center relative z-10">
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-16 animate-pulse mx-auto"></div>
               </td>
               
               {/* Actions - matches real action buttons */}
-              <td className="px-6 py-4 text-center">
+              <td className="px-6 py-4 text-center relative z-10">
                 <div className="flex justify-center gap-2">
                   <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
                   <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
@@ -92,69 +135,112 @@ export const AccountTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) 
 
 // Enhanced skeleton for account summary cards - matches real summary cards structure
 export const AccountSummaryCardsSkeleton: React.FC = () => {
-  return <SkeletonMobileSummaryCards />;
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-3 px-4 relative overflow-hidden">
+          {/* Shimmer effect */}
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+          
+          <div className="flex items-center justify-between relative z-10">
+            <div className="text-left flex-1">
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded mb-1 w-16 animate-pulse"></div>
+              <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-8 animate-pulse mb-1"></div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
+            </div>
+            <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded-lg ml-3 animate-pulse"></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 };
 
 // Enhanced skeleton for account filters - matches real filter structure
 export const AccountFiltersSkeleton: React.FC = () => {
-  return <SkeletonMobileFilters />;
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-wrap md:flex-nowrap justify-between items-center w-full gap-3">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-2 flex-1">
+            {/* Search */}
+            <div className="flex-1 min-w-[200px] relative">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
+              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg pl-10 animate-pulse"></div>
+            </div>
+            
+            {/* Currency Filter */}
+            <div className="relative">
+              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
+            </div>
+            
+            {/* Type Filter */}
+            <div className="relative">
+              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-28 animate-pulse"></div>
+            </div>
+            
+            {/* Status Filter */}
+            <div className="relative">
+              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
+            </div>
+            
+            {/* Mobile Filter Button */}
+            <div className="md:hidden">
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse"></div>
+            </div>
+          </div>
+          
+          {/* Desktop Action Buttons */}
+          <div className="hidden md:flex items-center gap-2">
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // Enhanced skeleton for transaction filters - matches real transaction filter structure
 export const TransactionFiltersSkeleton: React.FC = () => {
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-      {/* Search Filter */}
-      <div>
-        <div className="relative">
-          <div className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-md pl-8 animate-pulse w-48"></div>
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-wrap md:flex-nowrap justify-between items-center w-full gap-3">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-2 flex-1">
+            {/* Search Filter */}
+            <div className="flex-1 min-w-[200px] relative">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
+              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg pl-10 animate-pulse"></div>
+            </div>
+            
+            {/* Type Filter */}
+            <div className="relative">
+              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-28 animate-pulse"></div>
+            </div>
+            
+            {/* Category Filter */}
+            <div className="relative">
+              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
+            </div>
+            
+            {/* Account Filter */}
+            <div className="relative">
+              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
+            </div>
+            
+            {/* Mobile Filter Button */}
+            <div className="md:hidden">
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse"></div>
+            </div>
+          </div>
+          
+          {/* Desktop Action Buttons */}
+          <div className="hidden md:flex items-center gap-2">
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
+          </div>
         </div>
-      </div>
-
-      {/* Mobile Filter Button */}
-      <div className="md:hidden">
-        <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse"></div>
-      </div>
-
-      {/* Mobile Download Button */}
-      <div className="md:hidden">
-        <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse"></div>
-      </div>
-
-      {/* Mobile Add Transaction Button */}
-      <div className="md:hidden">
-        <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse"></div>
-      </div>
-
-      {/* Currency Filter */}
-      <div className="hidden md:block">
-        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-md w-32 animate-pulse"></div>
-      </div>
-
-      {/* Type Filter */}
-      <div className="hidden md:block">
-        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-md w-28 animate-pulse"></div>
-      </div>
-
-      {/* Account Filter */}
-      <div className="hidden md:block">
-        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-md w-32 animate-pulse"></div>
-      </div>
-
-      {/* Date Range Filter */}
-      <div className="hidden md:block">
-        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-md w-32 animate-pulse"></div>
-      </div>
-
-      {/* Desktop Download Button */}
-      <div className="hidden md:block">
-        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-md w-20 animate-pulse"></div>
-      </div>
-
-      {/* Desktop Add Transaction Button */}
-      <div className="hidden md:block">
-        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-md w-32 animate-pulse"></div>
       </div>
     </div>
   );
@@ -162,19 +248,37 @@ export const TransactionFiltersSkeleton: React.FC = () => {
 
 // Enhanced skeleton for transaction summary cards - matches real transaction summary structure
 export const TransactionSummaryCardsSkeleton: React.FC = () => {
-  return <SkeletonMobileSummaryCards />;
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-3 px-4 relative overflow-hidden">
+          {/* Shimmer effect */}
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+          
+          <div className="flex items-center justify-between relative z-10">
+            <div className="text-left flex-1">
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded mb-1 w-16 animate-pulse"></div>
+              <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-8 animate-pulse mb-1"></div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
+            </div>
+            <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded-lg ml-3 animate-pulse"></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 };
 
 // Enhanced skeleton for transaction table - matches real transaction table structure
 export const TransactionTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) => {
   return (
-    <div className="overflow-x-auto skeleton-mobile">
-      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900 text-[14px]">
         {/* Table Header - matches real header structure */}
-        <thead className="bg-gray-50 dark:bg-gray-800">
+        <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10 shadow-sm">
           <tr>
-            {['Date', 'Description', 'Category', 'Account', 'Type', 'Amount', 'Actions'].map((header, index) => (
-              <th key={index} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            {['Date', 'Description', 'Category', 'Account', 'Type', 'Amount', 'Actions'].map((_, index) => (
+              <th key={index} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16 animate-pulse"></div>
               </th>
             ))}
@@ -184,12 +288,15 @@ export const TransactionTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5
         {/* Table Body - matches real row structure */}
         <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
           {Array.from({ length: rows }).map((_, rowIndex) => (
-            <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}>
+            <tr key={rowIndex} className={`${rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'} relative overflow-hidden`}>
+              {/* Shimmer effect for each row */}
+              <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+              
               {/* Date - matches real date structure */}
-              <td className="px-6 py-4">
+              <td className="px-6 py-4 relative z-10">
                 <div className="flex items-center">
-                  <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center mr-3">
-                    <div className="w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
+                  <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center mr-3 animate-pulse">
+                    <div className="w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded"></div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-1 w-32 animate-pulse"></div>
@@ -199,32 +306,32 @@ export const TransactionTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5
               </td>
               
               {/* Description - matches real description display */}
-              <td className="px-6 py-4">
+              <td className="px-6 py-4 relative z-10">
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
               </td>
               
               {/* Category - matches real category badge */}
-              <td className="px-6 py-4">
+              <td className="px-6 py-4 relative z-10">
                 <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-20 animate-pulse"></div>
               </td>
               
               {/* Account - matches real account display */}
-              <td className="px-6 py-4 text-center">
+              <td className="px-6 py-4 text-center relative z-10">
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse mx-auto"></div>
               </td>
               
               {/* Type - matches real type badge */}
-              <td className="px-6 py-4 text-center">
+              <td className="px-6 py-4 text-center relative z-10">
                 <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-20 animate-pulse mx-auto"></div>
               </td>
               
               {/* Amount - matches real amount display */}
-              <td className="px-6 py-4 text-center">
+              <td className="px-6 py-4 text-center relative z-10">
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse mx-auto"></div>
               </td>
               
               {/* Actions - matches real action buttons */}
-              <td className="px-6 py-4 text-center">
+              <td className="px-6 py-4 text-center relative z-10">
                 <div className="flex justify-center gap-2">
                   <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
                   <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
@@ -242,17 +349,53 @@ export const TransactionTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5
 // Enhanced skeleton for transaction mobile view - matches real transaction mobile structure
 export const TransactionMobileSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => {
   return (
-    <div className="skeleton-mobile-list">
+    <div className="space-y-4">
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={index}
-          className="skeleton-mobile-card"
+          className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm relative overflow-hidden"
           style={{ 
             animationDelay: `${index * 0.1}s`,
             animationDuration: '2.5s'
           }}
         >
-          <SkeletonMobileCard />
+          {/* Shimmer effect */}
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+          
+          {/* Header with date and amount */}
+          <div className="flex items-center justify-between mb-3 relative z-10">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center animate-pulse">
+                <div className="w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded"></div>
+              </div>
+              <div className="flex-1">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-1 animate-pulse"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-20 mb-1 animate-pulse"></div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16 animate-pulse"></div>
+            </div>
+          </div>
+
+          {/* Description and category */}
+          <div className="space-y-2 mb-3 relative z-10">
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full animate-pulse"></div>
+            <div className="flex items-center justify-between">
+              <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-20 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 animate-pulse"></div>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700 relative z-10">
+            <div className="flex space-x-2">
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+            </div>
+            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-16 animate-pulse"></div>
+          </div>
         </div>
       ))}
     </div>

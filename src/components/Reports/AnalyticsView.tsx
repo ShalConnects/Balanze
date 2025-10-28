@@ -5,8 +5,6 @@ import {
   Cell, 
   ResponsiveContainer, 
   Tooltip, 
-  BarChart, 
-  Bar, 
   XAxis, 
   YAxis, 
   CartesianGrid,
@@ -23,8 +21,6 @@ import {
   AlertTriangle,
   BarChart3,
   Lightbulb,
-  ChevronDown,
-  ChevronRight,
   ShoppingBag,
   Handshake,
   Sparkles,
@@ -32,8 +28,7 @@ import {
   Award,
   Star,
   ThumbsUp,
-  ThumbsDown,
-  Eye
+  ThumbsDown
 } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
@@ -41,6 +36,8 @@ import { format, startOfMonth, endOfMonth, subMonths, eachMonthOfInterval, parse
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { detectUserContext } from '../../utils/humorContext';
 import { HumorEngine } from '../../utils/humorEngine';
+import BudgetChart from '../charts/BudgetChart';
+import { supabase } from '../../lib/supabase';
 
 export const AnalyticsView: React.FC = () => {
   const { getActiveTransactions, getDashboardStats, getActiveAccounts, purchases, lendBorrowRecords, getCategories } = useFinanceStore();
@@ -55,9 +52,103 @@ export const AnalyticsView: React.FC = () => {
   const [showTrends, setShowTrends] = useState(true);
   const [expandedAccordions, setExpandedAccordions] = useState({
     total: true,
+    budget: false,
     purchase: false,
     lendBorrow: false
   });
+  
+  // Budget data state
+  const [budgetData, setBudgetData] = useState<any[]>([]);
+  const [budgetSummary, setBudgetSummary] = useState({
+    totalBudget: 0,
+    totalSpent: 0,
+    remainingBudget: 0,
+    overBudgetCount: 0,
+    onTrackCount: 0
+  });
+  const [budgetLoading, setBudgetLoading] = useState(false);
+
+  // Fetch budget data
+  const fetchBudgetData = async () => {
+    if (!profile?.id) return;
+    
+    setBudgetLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('purchase_categories')
+        .select(`
+          category_name,
+          monthly_budget,
+          category_color,
+          currency,
+          user_id
+        `)
+        .eq('currency', selectedCurrency)
+        .eq('user_id', profile.id);
+
+      if (error) {
+        console.error('Error fetching budget data:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        // Get purchases for this month to calculate actual spending
+        const { data: purchases, error: purchaseError } = await supabase
+          .from('purchases')
+          .select('category, price, currency')
+          .eq('user_id', profile.id)
+          .eq('currency', selectedCurrency)
+          .eq('status', 'purchased')
+          .gte('purchase_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
+          .lt('purchase_date', new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString());
+
+        if (purchaseError) {
+          console.error('Error fetching purchases:', purchaseError);
+          return;
+        }
+
+        // Calculate spent amount per category
+        const spentByCategory = (purchases || []).reduce((acc, purchase) => {
+          acc[purchase.category] = (acc[purchase.category] || 0) + purchase.price;
+          return acc;
+        }, {} as Record<string, number>);
+
+        // Transform data for BudgetChart component
+        const chartData = data.map(item => {
+          const spent = spentByCategory[item.category_name] || 0;
+          const variance = spent - item.monthly_budget;
+          const variancePercent = item.monthly_budget > 0 ? (spent / item.monthly_budget) * 100 : 0;
+          
+          return {
+            category: item.category_name,
+            budgeted: item.monthly_budget,
+            actual: spent,
+            variance: variance,
+            variancePercent: variancePercent
+          };
+        });
+
+        setBudgetData(chartData);
+
+        // Calculate summary
+        const totalBudget = data.reduce((sum, item) => sum + item.monthly_budget, 0);
+        const totalSpent = Object.values(spentByCategory).reduce((sum, spent) => sum + spent, 0);
+        const overBudgetCount = chartData.filter(item => item.variance > 0).length;
+        
+        setBudgetSummary({
+          totalBudget,
+          totalSpent,
+          remainingBudget: totalBudget - totalSpent,
+          overBudgetCount,
+          onTrackCount: data.length - overBudgetCount
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching budget data:', error);
+    } finally {
+      setBudgetLoading(false);
+    }
+  };
 
   // Close export menu when clicking outside
   useEffect(() => {
@@ -72,6 +163,11 @@ export const AnalyticsView: React.FC = () => {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showExportMenu]);
+
+  // Fetch budget data when currency changes
+  useEffect(() => {
+    fetchBudgetData();
+  }, [selectedCurrency, profile?.id]);
 
   // Export functionality
   const handleExportData = (format: 'csv' | 'pdf' | 'excel') => {
@@ -170,18 +266,20 @@ ${accounts.map(a =>
   };
 
   // Accordion toggle function - only one section can be open at a time
-  const toggleAccordion = (accordion: 'total' | 'purchase' | 'lendBorrow') => {
+  const toggleAccordion = (accordion: 'total' | 'budget' | 'purchase' | 'lendBorrow') => {
     setExpandedAccordions(prev => {
       // If clicking the same section, keep it open (no toggle behavior)
       if (prev[accordion]) {
         return prev; // Keep current state unchanged
       }
       // If clicking a different section, close all others and open the clicked one
-      return {
+      const newState = {
         total: accordion === 'total',
+        budget: accordion === 'budget',
         purchase: accordion === 'purchase',
         lendBorrow: accordion === 'lendBorrow'
       };
+      return newState;
     });
   };
 
@@ -727,51 +825,41 @@ ${accounts.map(a =>
   // Purchase Analytics Components
   const PurchaseKPICards: React.FC = () => {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {/* Purchase Completion Rate */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Completion Rate</h3>
-          <div className="space-y-2">
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{completionRate.toFixed(1)}%</p>
-            <p className="text-sm text-gray-500 dark:text-gray-300">
-              {purchaseCount} of {totalPlanned} planned
-            </p>
-          </div>
+        <div className="p-3 bg-gray-50 rounded-lg">
+          <p className="text-xs text-gray-500 font-medium">COMPLETION RATE</p>
+          <p className="text-lg font-semibold text-gray-900">{completionRate.toFixed(1)}%</p>
+          <p className="text-xs text-gray-500">
+            {purchaseCount} of {totalPlanned} planned
+          </p>
         </div>
 
         {/* Price Accuracy */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Price Accuracy</h3>
-          <div className="space-y-2">
-            <p className={`text-2xl font-bold ${priceAccuracy >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {priceAccuracy >= 0 ? '+' : ''}{priceAccuracy.toFixed(1)}%
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-300">
-              vs planned price
-            </p>
-          </div>
+        <div className="p-3 bg-gray-50 rounded-lg">
+          <p className="text-xs text-gray-500 font-medium">PRICE ACCURACY</p>
+          <p className={`text-lg font-semibold ${priceAccuracy >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {priceAccuracy >= 0 ? '+' : ''}{priceAccuracy.toFixed(1)}%
+          </p>
+          <p className="text-xs text-gray-500">vs planned price</p>
         </div>
 
         {/* Purchase Frequency */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Purchase Frequency</h3>
-          <div className="space-y-2">
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{purchaseFrequency.toFixed(1)}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-300">per week</p>
-          </div>
+        <div className="p-3 bg-gray-50 rounded-lg">
+          <p className="text-xs text-gray-500 font-medium">PURCHASE FREQUENCY</p>
+          <p className="text-lg font-semibold text-gray-900">{purchaseFrequency.toFixed(1)}</p>
+          <p className="text-xs text-gray-500">per week</p>
         </div>
 
         {/* Best Category Success */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Best Category</h3>
-          <div className="space-y-2">
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {bestCategory ? bestCategory.successRate.toFixed(1) : '0'}%
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-300">
-              {bestCategory ? bestCategory.category : 'No data'}
-            </p>
-          </div>
+        <div className="p-3 bg-gray-50 rounded-lg">
+          <p className="text-xs text-gray-500 font-medium">BEST CATEGORY</p>
+          <p className="text-lg font-semibold text-gray-900">
+            {bestCategory ? bestCategory.successRate.toFixed(1) : '0'}%
+          </p>
+          <p className="text-xs text-gray-500">
+            {bestCategory ? bestCategory.category : 'No data'}
+          </p>
         </div>
       </div>
     );
@@ -1848,6 +1936,123 @@ ${accounts.map(a =>
 
   
   // Positive Reinforcement Alerts Component
+  // Budget Summary Cards Component
+  const BudgetSummaryCards: React.FC = () => {
+    const formatCurrency = (amount: number) => {
+      const currencySymbols: Record<string, string> = {
+        USD: '$',
+        BDT: '৳',
+        EUR: '€',
+        GBP: '£',
+        JPY: '¥',
+        ALL: 'L',
+        INR: '₹',
+        CAD: '$',
+        AUD: '$',
+      };
+      const symbol = currencySymbols[selectedCurrency] || '$';
+      return `${symbol}${Math.abs(amount).toLocaleString()}`;
+    };
+
+    if (budgetLoading) {
+      return (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 animate-pulse">
+              <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
+              <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded"></div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (budgetData.length === 0) {
+      return (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+          <div className="flex items-center space-x-2">
+            <Lightbulb className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
+              No budget data available for {selectedCurrency}. Set up purchase categories with monthly budgets to see budget analytics.
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Budget</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                {formatCurrency(budgetSummary.totalBudget)}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+              <BarChart3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Spent</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                {formatCurrency(budgetSummary.totalSpent)}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+              <CreditCard className="w-4 h-4 text-green-600 dark:text-green-400" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Remaining</p>
+              <p className={`text-lg font-semibold ${
+                budgetSummary.remainingBudget >= 0 
+                  ? 'text-green-600 dark:text-green-400' 
+                  : 'text-red-600 dark:text-red-400'
+              }`}>
+                {formatCurrency(budgetSummary.remainingBudget)}
+              </p>
+            </div>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+              budgetSummary.remainingBudget >= 0 
+                ? 'bg-green-100 dark:bg-green-900/30' 
+                : 'bg-red-100 dark:bg-red-900/30'
+            }`}>
+              {budgetSummary.remainingBudget >= 0 ? (
+                <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">On Track</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                {budgetSummary.onTrackCount}/{budgetData.length}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+              <Trophy className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const PositiveReinforcementAlerts: React.FC = () => {
     // Generate alerts based on real data
     const alerts = [];
@@ -2052,6 +2257,17 @@ ${accounts.map(a =>
               <span className="sm:hidden">Total</span>
             </button>
             <button 
+              onClick={() => toggleAccordion('budget')}
+              className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-center font-medium transition-colors text-sm sm:text-base ${
+                expandedAccordions.budget 
+                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              <span className="hidden sm:inline">Budget Analytics</span>
+              <span className="sm:hidden">Budget</span>
+            </button>
+            <button 
               onClick={() => toggleAccordion('purchase')}
               className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-center font-medium transition-colors text-sm sm:text-base ${
                 expandedAccordions.purchase 
@@ -2064,55 +2280,82 @@ ${accounts.map(a =>
             </button>
           </div>
 
-          {/* Shared Filter Bar */}
-          <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50/30 to-purple-50/30 dark:from-blue-900/10 dark:to-purple-900/10">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
-                {/* Currency Filter */}
-                <div className="flex-1 sm:flex-none">
-                  <CustomDropdown
-                    value={selectedCurrency}
-                    onChange={setSelectedCurrency}
-                    options={currencyOptions.map(currency => ({
-                      value: currency.currency,
-                      label: currency.currency
-                    }))}
-                    placeholder="Select Currency"
-                    className="w-full sm:w-auto"
-                  />
+          {/* Shared Filter Bar - Hidden for Budget Analytics */}
+          {!expandedAccordions.budget && (
+            <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50/30 to-purple-50/30 dark:from-blue-900/10 dark:to-purple-900/10">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+                  {/* Currency Filter */}
+                  <div className="flex-1 sm:flex-none">
+                    <CustomDropdown
+                      value={selectedCurrency}
+                      onChange={setSelectedCurrency}
+                      options={currencyOptions.map(currency => ({
+                        value: currency.currency,
+                        label: currency.currency
+                      }))}
+                      placeholder="Select Currency"
+                      className="w-full sm:w-auto"
+                    />
+                  </div>
+
+                  {/* Period Filter */}
+                  <div className="flex-1 sm:flex-none">
+                    <CustomDropdown
+                      value={selectedPeriod}
+                      onChange={(value) => setSelectedPeriod(value as 'current' | 'last3' | 'last6' | 'last12')}
+                      options={[
+                        { value: 'current', label: 'This Month' },
+                        { value: 'last3', label: 'Last 3 Months' },
+                        { value: 'last6', label: 'Last 6 Months' },
+                        { value: 'last12', label: 'Last 12 Months' }
+                      ]}
+                      placeholder="Select Period"
+                      className="w-full sm:w-auto"
+                    />
+                  </div>
                 </div>
 
-                {/* Period Filter */}
-                <div className="flex-1 sm:flex-none">
-                  <CustomDropdown
-                    value={selectedPeriod}
-                    onChange={setSelectedPeriod}
-                    options={[
-                      { value: 'current', label: 'This Month' },
-                      { value: 'last3', label: 'Last 3 Months' },
-                      { value: 'last6', label: 'Last 6 Months' },
-                      { value: 'last12', label: 'Last 12 Months' }
-                    ]}
-                    placeholder="Select Period"
-                    className="w-full sm:w-auto"
-                  />
+                {/* Hide Trends Toggle - Hidden for Purchase Analytics */}
+                {!expandedAccordions.purchase && (
+                  <button
+                    onClick={() => setShowTrends(!showTrends)}
+                    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors w-full sm:w-auto ${
+                      showTrends 
+                        ? 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-700 dark:text-blue-300' 
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    <span className="hidden sm:inline">{showTrends ? 'Hide Trends' : 'Show Trends'}</span>
+                    <span className="sm:hidden">{showTrends ? 'Hide' : 'Show'} Trends</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Budget Analytics Filter Bar - Only Currency Filter */}
+          {expandedAccordions.budget && (
+            <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50/30 to-purple-50/30 dark:from-blue-900/10 dark:to-purple-900/10">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+                  {/* Currency Filter Only */}
+                  <div className="flex-1 sm:flex-none">
+                    <CustomDropdown
+                      value={selectedCurrency}
+                      onChange={setSelectedCurrency}
+                      options={currencyOptions.map(currency => ({
+                        value: currency.currency,
+                        label: currency.currency
+                      }))}
+                      placeholder="Select Currency"
+                      className="w-full sm:w-auto"
+                    />
+                  </div>
                 </div>
               </div>
-
-              {/* Hide Trends Toggle */}
-              <button
-                onClick={() => setShowTrends(!showTrends)}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors w-full sm:w-auto ${
-                  showTrends 
-                    ? 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-700 dark:text-blue-300' 
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                }`}
-              >
-                <span className="hidden sm:inline">{showTrends ? 'Hide Trends' : 'Show Trends'}</span>
-                <span className="sm:hidden">{showTrends ? 'Hide' : 'Show'} Trends</span>
-              </button>
             </div>
-          </div>
+          )}
 
           {expandedAccordions.total && (
             <div className="px-3 sm:px-6 pb-4 sm:pb-6 space-y-4 sm:space-y-6" style={{ marginTop: '10px' }}>
@@ -2127,6 +2370,13 @@ ${accounts.map(a =>
 
       {/* Positive Reinforcement Alerts */}
       <PositiveReinforcementAlerts />
+            </div>
+          )}
+
+          {expandedAccordions.budget && (
+            <div>
+              {/* Budget Chart */}
+              <BudgetChart data={budgetData} currency={selectedCurrency} />
             </div>
           )}
 

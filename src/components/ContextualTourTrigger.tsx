@@ -60,6 +60,9 @@ export default function ContextualTourTrigger({
   onTourStart, 
   onTourDismiss 
 }: ContextualTourTriggerProps) {
+  // HIDDEN - Return null to hide component
+  return null;
+  
   const [activeTrigger, setActiveTrigger] = useState<TourTrigger | null>(null);
   const [showTour, setShowTour] = useState(false);
   const [dismissedTriggers, setDismissedTriggers] = useState<Set<string>>(new Set());

@@ -3,7 +3,7 @@ import {
   TrendingUp, Wallet, Target, Handshake, PiggyBank, Bell, Shield, Heart,
   Check, ChevronDown, ChevronUp, Star, ArrowRight, BarChart3, PieChart,
   Users, Globe, Mail, Phone, Facebook, Twitter, Instagram, Linkedin, Github, ArrowUp, Moon, Sun, LogOut, Menu, X,
-  Zap, MessageSquare, Download, Settings, CreditCard
+  Zap, MessageSquare, Download, Settings, CreditCard, Smartphone, Clock, AlertCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import InteractiveBackground from '../components/InteractiveBackground';
@@ -567,6 +567,126 @@ const LandingPage: React.FC = () => {
                   <div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">Goal Progress</div>
                     <div className="text-lg font-bold text-blue-600 dark:text-blue-400">78%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Android App Coming Soon Section */}
+      <section className="py-20 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 relative overflow-hidden">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            {/* Left Side - Content */}
+            <div className="text-center lg:text-left">
+              {/* Coming Soon Badge */}
+              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-green-100 to-blue-100 dark:from-green-900/50 dark:to-blue-900/50 text-green-800 dark:text-green-300 px-6 py-3 rounded-full text-sm font-bold mb-6 shadow-lg">
+                <Clock className="w-4 h-4" />
+                <span>COMING SOON</span>
+              </div>
+              
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
+                Take Balanze{' '}
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  On the Go
+                </span>
+              </h2>
+              
+              <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0">
+                Our Android app is coming soon! Manage your finances, track spending, and stay on top of your goals wherever you are.
+              </p>
+
+              {/* Key Features */}
+              <div className="space-y-4 mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                    <Smartphone className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Full Mobile Experience</h3>
+                    <p className="text-gray-600 dark:text-gray-400">All features available on your Android device</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-lg flex items-center justify-center">
+                    <AlertCircle className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Smart Notifications</h3>
+                    <p className="text-gray-600 dark:text-gray-400">Get alerts for spending limits and goal progress</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Secure & Sync</h3>
+                    <p className="text-gray-600 dark:text-gray-400">Bank-level security with real-time sync across devices</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Email Notification Signup - Hidden for now */}
+              {/* <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  Get Notified When It's Ready
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
+                  Be the first to know when our Android app launches. No spam, just updates.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="email"
+                    placeholder="Enter your email address"
+                    className="flex-1 px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center justify-center gap-2">
+                    <Bell className="w-4 h-4" />
+                    Notify Me
+                  </button>
+                </div>
+              </div> */}
+            </div>
+
+            {/* Right Side - Mobile Mockup */}
+            <div className="flex justify-center lg:justify-end">
+              <div className="relative">
+                {/* Phone Frame */}
+                <div className="relative w-80 h-[600px] bg-gray-900 rounded-[3rem] p-2 shadow-2xl">
+                  {/* Screen */}
+                  <div className="w-full h-full bg-white dark:bg-gray-800 rounded-[2.5rem] overflow-hidden relative">
+                    
+                    
+                    {/* Dashboard Image */}
+                    <div className="w-full h-full flex items-center justify-center">
+                      <img 
+                        src="/android_view.png"
+                        alt="Balanze Android App Demo"
+                        className="w-full h-full object-cover rounded-[2.5rem]"
+                        loading="lazy"
+                        decoding="async"
+                        style={{ padding: '15px' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Floating Elements */}
+                
+                <div className="absolute -bottom-4 -left-4 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 transform -rotate-6 hover:rotate-0 transition-transform duration-300" style={{left: '30px', padding: '1rem 3.1rem'}}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-600 rounded-full flex items-center justify-center">
+                      <Download className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Android App</div>
+                      <div className="text-lg font-bold text-gray-900 dark:text-white">Coming Soon</div>
+                    </div>
                   </div>
                 </div>
               </div>

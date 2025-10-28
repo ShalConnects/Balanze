@@ -8,12 +8,14 @@ export const DonationCardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={index}
-          className="skeleton-mobile-card"
+          className="skeleton-mobile-card relative overflow-hidden"
           style={{ 
             animationDelay: `${index * 0.1}s`,
             animationDuration: '2.5s'
           }}
         >
+          {/* Shimmer effect */}
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
           <SkeletonMobileCard />
         </div>
       ))}
@@ -24,8 +26,11 @@ export const DonationCardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }
 // Enhanced skeleton for donation table (desktop view) - matches real table structure
 export const DonationTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) => {
   return (
-    <div className="overflow-x-auto skeleton-mobile">
-      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
+    <div className="overflow-x-auto skeleton-mobile relative">
+      {/* Shimmer effect */}
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+      
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900 relative">
         {/* Table Header - matches real header structure */}
         <thead className="bg-gray-50 dark:bg-gray-800">
           <tr>
@@ -40,7 +45,14 @@ export const DonationTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 })
         {/* Table Body - matches real row structure */}
         <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
           {Array.from({ length: rows }).map((_, rowIndex) => (
-            <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}>
+            <tr 
+              key={rowIndex} 
+              className={rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}
+              style={{ 
+                animationDelay: `${rowIndex * 0.1}s`,
+                animationDuration: '2s'
+              }}
+            >
               {/* Date - matches real date structure */}
               <td className="px-6 py-4">
                 <div className="flex items-center">

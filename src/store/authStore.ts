@@ -5,209 +5,175 @@ import { User } from '@supabase/supabase-js';
 import { userPreferencesManager } from '../lib/userPreferences';
 import { favoriteQuotesService } from '../lib/favoriteQuotesService';
 
-// This is our custom user profile stored in our own "profiles" table.
 export type AppUser = {
-  id: string;
-  fullName?: string;
-  profilePicture?: string;
-  local_currency?: string;
-  selected_currencies?: string[];
-  default_account_id?: string;
-  subscription?: {
-    plan: 'free' | 'premium';
-    status: 'active' | 'inactive' | 'cancelled';
-    validUntil: string | null;
-  };
+    id: string;
+    fullName?: string;
+    profilePicture?: string;
+    local_currency?: string;
+    selected_currencies?: string[];
+    default_account_id?: string;
+    subscription?: {
+        plan: 'free' | 'premium';
+        status: 'active' | 'inactive' | 'cancelled';
+        validUntil: string | null;
+    };
 };
 
 interface AuthStore {
-  user: User | null;
-  profile: AppUser | null;
-  isLoading: boolean;
-  error: string | null;
-  success: string | null;
-  setUserAndProfile: (user: User | null, profile: AppUser | null) => void;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ success: boolean; message?: string }>;
-  signOut: () => Promise<void>;
-  signInWithProvider: (provider: 'google' | 'apple') => Promise<{ success: boolean; message?: string }>;
-  updateProfile: (updates: Partial<AppUser>) => Promise<{ data: AppUser | null; error: any }>;
-  logout: () => Promise<void>;
-  deleteAccount: () => Promise<{ success: boolean; error?: string }>;
-  clearMessages: () => void;
-  handleEmailConfirmation: () => Promise<void>;
-  resendEmailConfirmation: (email: string) => Promise<{ success: boolean; message?: string }>;
-  resetPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
-  checkAuthState: () => Promise<void>;
+    user: User | null;
+    profile: AppUser | null;
+    isLoading: boolean;
+    error: string | null;
+    success: string | null;
+    setUserAndProfile: (user: User | null, profile: AppUser | null) => void;
+    signIn: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+    signUp: (email: string, password: string, fullName?: string) => Promise<{ success: boolean; message?: string }>;
+    signOut: () => Promise<void>;
+    signInWithProvider: (provider: 'google' | 'apple') => Promise<{ success: boolean; message?: string }>;
+    updateProfile: (updates: Partial<AppUser>) => Promise<{ data: AppUser | null; error: any }>;
+    logout: () => Promise<void>;
+    deleteAccount: () => Promise<{ success: boolean; error?: string }>;
+    clearMessages: () => void;
+    handleEmailConfirmation: () => Promise<void>;
+    resendEmailConfirmation: (email: string) => Promise<{ success: boolean; message?: string }>;
+    resetPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
+    checkAuthState: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>()((set, get) => ({
-  user: null,
-  profile: null,
-  isLoading: false,
-  error: null,
-  success: null,
-  setUserAndProfile: async (user, profile) => {
-
-    
-    // If no user, just set null and return (no profile creation)
-    if (!user) {
-      set({ user: null, profile: null, isLoading: false });
-      return;
-    }
-    
-    // If we already have a profile for this user, don't fetch again
-    const currentState = get();
-    if (currentState.user?.id === user.id && currentState.profile) {
-
-      return;
-    }
-    
-    // If we have a user but no profile, set user immediately and fetch profile in background
-    if (!profile) {
-
-      
-      // Set user immediately to ensure login works, but keep loading true for profile
-      set({ user, profile: null, isLoading: true });
-      
-      // Fetch profile in background (completely non-blocking)
-      setTimeout(async () => {
-        try {
-
-          const { data: existingProfile, error: fetchError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-          
-          if (existingProfile && !fetchError) {
-
-            // Map database fields to AppUser format
-            const profileData: AppUser = {
-              id: existingProfile.id,
-              fullName: existingProfile.full_name,
-              profilePicture: existingProfile.profile_picture,
-              local_currency: existingProfile.local_currency,
-              selected_currencies: existingProfile.selected_currencies,
-              default_account_id: existingProfile.default_account_id,
-              subscription: existingProfile.subscription
-            };
-            set({ user, profile: profileData, isLoading: false });
+    user: null,
+    profile: null,
+    isLoading: false,
+    error: null,
+    success: null,
+    setUserAndProfile: async (user, profile) => {
+        if (!user) {
+            set({ user: null, profile: null, isLoading: false });
             return;
-          } else if (fetchError && fetchError.code === 'PGRST116') {
-            // PGRST116 means "no rows returned" - profile doesn't exist
-
-            // Create a new profile
-            const newProfile: AppUser = {
-              id: user.id,
-              fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
-              local_currency: 'USD',
-              selected_currencies: ['USD'],
-              default_account_id: undefined,
-              subscription: { plan: 'free', status: 'active', validUntil: null }
-            };
-            
-            // Save to database
-            const { error: saveError } = await supabase
-              .from('profiles')
-              .upsert({
-                id: user.id,
-                full_name: newProfile.fullName,
-                local_currency: newProfile.local_currency,
-                selected_currencies: newProfile.selected_currencies,
-                subscription: newProfile.subscription,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              }, {
-                onConflict: 'id'
-              });
-            
-            if (!saveError) {
-
-              set({ user, profile: newProfile, isLoading: false });
-            } else {
-
-            }
-          } else {
-
-            // Create a new profile on any error
-            const newProfile: AppUser = {
-              id: user.id,
-              fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
-              local_currency: 'USD',
-              selected_currencies: ['USD'],
-              default_account_id: undefined,
-              subscription: { plan: 'free', status: 'active', validUntil: null }
-            };
-            
-            // Save to database
-            const { error: saveError } = await supabase
-              .from('profiles')
-              .upsert({
-                id: user.id,
-                full_name: newProfile.fullName,
-                local_currency: newProfile.local_currency,
-                selected_currencies: newProfile.selected_currencies,
-                subscription: newProfile.subscription,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              }, {
-                onConflict: 'id'
-              });
-            
-            if (!saveError) {
-
-              set({ user, profile: newProfile, isLoading: false });
-            } else {
-
-            }
-          }
-        } catch (error) {
-
-          // Create a new profile on any exception
-          const newProfile: AppUser = {
-            id: user.id,
-            fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
-            local_currency: 'USD',
-            selected_currencies: ['USD'],
-            default_account_id: undefined,
-            subscription: { plan: 'free', status: 'active', validUntil: null }
-          };
-          
-          // Save to database
-          try {
-            const { error: saveError } = await supabase
-              .from('profiles')
-              .upsert({
-                id: user.id,
-                full_name: newProfile.fullName,
-                local_currency: newProfile.local_currency,
-                selected_currencies: newProfile.selected_currencies,
-                subscription: newProfile.subscription,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              }, {
-                onConflict: 'id'
-              });
-            
-            if (!saveError) {
-
-              set({ user, profile: newProfile, isLoading: false });
-            } else {
-
-            }
-          } catch (saveException) {
-
-          }
         }
-      }, 100); // 100ms delay to ensure login completes first
-      
-      return;
-    }
-    
-    // For all other cases, set the user and profile as provided
-    set({ user, profile, isLoading: false });
-  },
+        
+        const currentState = get();
+        if (currentState.user?.id === user.id && currentState.profile) {
+            return;
+        }
+        
+        if (!profile) {
+            set({ user, profile: null, isLoading: true });
+            
+            setTimeout(async () => {
+                try {
+                    const { data: existingProfile, error: fetchError } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', user.id)
+                        .single();
+                    
+                    if (existingProfile && !fetchError) {
+                        const profileData: AppUser = {
+                            id: existingProfile.id,
+                            fullName: existingProfile.full_name,
+                            profilePicture: existingProfile.profile_picture,
+                            local_currency: existingProfile.local_currency,
+                            selected_currencies: existingProfile.selected_currencies,
+                            default_account_id: existingProfile.default_account_id,
+                            subscription: existingProfile.subscription
+                        };
+                        set({ user, profile: profileData, isLoading: false });
+                        return;
+                    } else if (fetchError && fetchError.code === 'PGRST116') {
+                        const newProfile: AppUser = {
+                            id: user.id,
+                            fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
+                            local_currency: 'USD',
+                            selected_currencies: ['USD'],
+                            default_account_id: undefined,
+                            subscription: { plan: 'free', status: 'active', validUntil: null }
+                        };
+                        
+                        const { error: saveError } = await supabase
+                            .from('profiles')
+                            .upsert({
+                                id: user.id,
+                                full_name: newProfile.fullName,
+                                local_currency: newProfile.local_currency,
+                                selected_currencies: newProfile.selected_currencies,
+                                subscription: newProfile.subscription,
+                                created_at: new Date().toISOString(),
+                                updated_at: new Date().toISOString()
+                            }, {
+                                onConflict: 'id'
+                            });
+                        
+                        if (!saveError) {
+                            set({ user, profile: newProfile, isLoading: false });
+                        }
+                    } else {
+                        const newProfile: AppUser = {
+                            id: user.id,
+                            fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
+                            local_currency: 'USD',
+                            selected_currencies: ['USD'],
+                            default_account_id: undefined,
+                            subscription: { plan: 'free', status: 'active', validUntil: null }
+                        };
+                        
+                        const { error: saveError } = await supabase
+                            .from('profiles')
+                            .upsert({
+                                id: user.id,
+                                full_name: newProfile.fullName,
+                                local_currency: newProfile.local_currency,
+                                selected_currencies: newProfile.selected_currencies,
+                                subscription: newProfile.subscription,
+                                created_at: new Date().toISOString(),
+                                updated_at: new Date().toISOString()
+                            }, {
+                                onConflict: 'id'
+                            });
+                        
+                        if (!saveError) {
+                            set({ user, profile: newProfile, isLoading: false });
+                        }
+                    }
+                } catch (error) {
+                    const newProfile: AppUser = {
+                        id: user.id,
+                        fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
+                        local_currency: 'USD',
+                        selected_currencies: ['USD'],
+                        default_account_id: undefined,
+                        subscription: { plan: 'free', status: 'active', validUntil: null }
+                    };
+                    
+                    try {
+                        const { error: saveError } = await supabase
+                            .from('profiles')
+                            .upsert({
+                                id: user.id,
+                                full_name: newProfile.fullName,
+                                local_currency: newProfile.local_currency,
+                                selected_currencies: newProfile.selected_currencies,
+                                subscription: newProfile.subscription,
+                                created_at: new Date().toISOString(),
+                                updated_at: new Date().toISOString()
+                            }, {
+                                onConflict: 'id'
+                            });
+                        
+                        if (!saveError) {
+                            set({ user, profile: newProfile, isLoading: false });
+                        }
+                    } catch (saveException) {
+                        // Handle save exception
+                    }
+                }
+            }, 100);
+            
+            return;
+        }
+        
+        set({ user, profile, isLoading: false });
+    },
   updateProfile: async (updates) => {
     const { user } = get();
     if (!user) {

@@ -174,7 +174,7 @@ const PublicHelpCenter: React.FC = () => {
                     <p className="text-blue-100 dark:text-blue-200 text-lg">
                       Discover guides, tutorials, and tips to master Balanze. Can't find what you're looking for? 
                       <button 
-                        onClick={() => window.open('mailto:shalconnects007@gmail.com', '_blank')}
+                        onClick={() => window.open('mailto:hello@shalconnects.com', '_blank')}
                         className="underline hover:text-white dark:hover:text-blue-100 ml-1 font-semibold"
                       >
                         Contact our support team

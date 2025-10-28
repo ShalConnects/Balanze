@@ -321,7 +321,7 @@ const MOCK_ARTICLES: Record<string, KBArticle> = {
       </li>
       <li class="flex items-start">
         <span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:hello@shalconnects.com" class="text-blue-600 dark:text-blue-400 hover:underline">hello@shalconnects.com</a></span>
       </li>
     </ul>
   </div>
@@ -770,7 +770,7 @@ const MOCK_ARTICLES: Record<string, KBArticle> = {
       </li>
       <li class="flex items-start">
         <span class="text-blue-600 dark:text-blue-400 mr-3 mt-1">•</span>
-        <span>Contact support at <a href="mailto:support@balanze.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@balanze.com</a></span>
+        <span>Contact support at <a href="mailto:hello@shalconnects.com" class="text-blue-600 dark:text-blue-400 hover:underline">hello@shalconnects.com</a></span>
       </li>
     </ul>
   </div>

@@ -163,6 +163,9 @@ export default function ArticleBasedTour({
   isOpen = false, 
   customSteps 
 }: ArticleBasedTourProps) {
+  // HIDDEN - Return null to hide component
+  return null;
+  
   console.log('ArticleBasedTour: Component props:', { articleSlug, isOpen, customSteps });
   const [run, setRun] = useState(false);
   const [steps, setSteps] = useState<Step[]>([]);

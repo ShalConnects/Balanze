@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
+import { BarChart3 } from 'lucide-react';
 import { chartColors, getCategoryColor, getAccessibleTextColor } from '../../styles/colors';
 
 interface BudgetDataPoint {
@@ -45,12 +46,26 @@ const generateMockBudgetData = (): BudgetDataPoint[] => {
   });
 };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, currency = 'INR' }: any) => {
   if (active && payload && payload.length >= 2) {
     const budgeted = payload.find((p: any) => p.dataKey === 'budgeted')?.value || 0;
     const actual = payload.find((p: any) => p.dataKey === 'actual')?.value || 0;
     const variance = actual - budgeted;
     const variancePercent = ((variance / budgeted) * 100).toFixed(1);
+    
+    // Currency symbol mapping
+    const currencySymbols: Record<string, string> = {
+      USD: '$',
+      BDT: '৳',
+      EUR: '€',
+      GBP: '£',
+      JPY: '¥',
+      ALL: 'L',
+      INR: '₹',
+      CAD: '$',
+      AUD: '$',
+    };
+    const symbol = currencySymbols[currency] || currency;
     
     return (
       <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg min-w-48">
@@ -58,11 +73,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <div className="space-y-1">
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-600">Budgeted:</span>
-            <span className="font-medium">₹{budgeted.toLocaleString()}</span>
+            <span className="font-medium">{symbol}{budgeted.toLocaleString()}</span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-600">Actual:</span>
-            <span className="font-medium">₹{actual.toLocaleString()}</span>
+            <span className="font-medium">{symbol}{actual.toLocaleString()}</span>
           </div>
           <div className="border-t pt-1 mt-2">
             <div className="flex justify-between items-center">
@@ -70,7 +85,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
               <span className={`font-medium ${
                 variance > 0 ? 'text-red-600' : 'text-green-600'
               }`}>
-                {variance > 0 ? '+' : ''}₹{variance.toLocaleString()} ({variancePercent}%)
+                {variance > 0 ? '+' : ''}{symbol}{variance.toLocaleString()} ({variancePercent}%)
               </span>
             </div>
           </div>
@@ -85,28 +100,31 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const BudgetChart: React.FC<BudgetChartProps> = ({ 
-  data = generateMockBudgetData(),
+  data,
   className = '',
   currency = '₹'
 }) => {
-  const [viewMode, setViewMode] = useState<'grouped' | 'stacked'>('grouped');
-  const [sortBy, setSortBy] = useState<'category' | 'variance' | 'actual'>('variance');
 
   const sortedData = useMemo(() => {
+    if (!data || data.length === 0) return [];
     const sorted = [...data];
     
-    switch (sortBy) {
-      case 'variance':
-        return sorted.sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance));
-      case 'actual':
-        return sorted.sort((a, b) => b.actual - a.actual);
-      case 'category':
-      default:
-        return sorted.sort((a, b) => a.category.localeCompare(b.category));
-    }
-  }, [data, sortBy]);
+    // Always sort by variance (highest absolute variance first)
+    return sorted.sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance));
+  }, [data]);
 
   const summary = useMemo(() => {
+    if (!data || data.length === 0) {
+      return {
+        totalBudgeted: 0,
+        totalActual: 0,
+        totalVariance: 0,
+        totalVariancePercent: 0,
+        overBudgetCount: 0,
+        onTrackCount: 0
+      };
+    }
+    
     const totalBudgeted = data.reduce((sum, item) => sum + item.budgeted, 0);
     const totalActual = data.reduce((sum, item) => sum + item.actual, 0);
     const totalVariance = totalActual - totalBudgeted;
@@ -116,13 +134,27 @@ const BudgetChart: React.FC<BudgetChartProps> = ({
       totalBudgeted,
       totalActual,
       totalVariance,
-      totalVariancePercent: (totalVariance / totalBudgeted) * 100,
+      totalVariancePercent: totalBudgeted > 0 ? (totalVariance / totalBudgeted) * 100 : 0,
       overBudgetCount,
       onTrackCount: data.length - overBudgetCount
     };
   }, [data]);
 
-  const formatCurrency = (value: number) => `${currency}${Math.abs(value).toLocaleString()}`;
+  const formatCurrency = (value: number) => {
+    const currencySymbols: Record<string, string> = {
+      USD: '$',
+      BDT: '৳',
+      EUR: '€',
+      GBP: '£',
+      JPY: '¥',
+      ALL: 'L',
+      INR: '₹',
+      CAD: '$',
+      AUD: '$',
+    };
+    const symbol = currencySymbols[currency] || currency;
+    return `${symbol}${Math.abs(value).toLocaleString()}`;
+  };
 
   const getBarColor = (variance: number, index: number) => {
     if (variance > 0) return chartColors.budget.over;
@@ -130,8 +162,25 @@ const BudgetChart: React.FC<BudgetChartProps> = ({
     return getCategoryColor(index).color;
   };
 
+  // Show empty state if no data
+  if (!data || data.length === 0) {
+    return (
+      <div className={`bg-white rounded-lg border border-gray-200 p-6 ${className}`}>
+        <div className="text-center py-8">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+            <BarChart3 className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Budget Data Available</h3>
+          <p className="text-gray-500 mb-4">
+            Set up purchase categories with monthly budgets to see budget analytics.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 p-6 ${className}`}>
+    <div className={`bg-white rounded-lg border border-gray-200 p-6 sm:border sm:border-gray-200 border-0 ${className}`}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
@@ -143,28 +192,6 @@ const BudgetChart: React.FC<BudgetChartProps> = ({
           </p>
         </div>
         
-        {/* Controls */}
-        <div className="flex flex-wrap gap-2 mt-3 sm:mt-0">
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-            className="px-3 py-1 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label="Sort categories by"
-          >
-            <option value="variance">Sort by Variance</option>
-            <option value="actual">Sort by Actual</option>
-            <option value="category">Sort by Category</option>
-          </select>
-          
-          <button
-            type="button"
-            onClick={() => setViewMode(viewMode === 'grouped' ? 'stacked' : 'grouped')}
-            className="px-3 py-1 text-xs font-medium rounded-md border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label={`Switch to ${viewMode === 'grouped' ? 'stacked' : 'grouped'} view`}
-          >
-            {viewMode === 'grouped' ? 'Stack Bars' : 'Group Bars'}
-          </button>
-        </div>
       </div>
 
       {/* Summary Cards */}
@@ -219,7 +246,7 @@ const BudgetChart: React.FC<BudgetChartProps> = ({
               tickFormatter={formatCurrency}
               stroke="#6b7280"
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip currency={currency} />} />
             <Legend />
             
             <Bar 
@@ -244,40 +271,6 @@ const BudgetChart: React.FC<BudgetChartProps> = ({
         </ResponsiveContainer>
       </div>
 
-      {/* Category Insights */}
-      <div className="mt-6 space-y-3">
-        <h3 className="text-sm font-medium text-gray-900">Category Insights</h3>
-        <div className="space-y-2">
-          {sortedData.slice(0, 3).map((item, index) => {
-            const isOverBudget = item.variance > 0;
-            const absVariancePercent = Math.abs(item.variancePercent).toFixed(0);
-            
-            return (
-              <div key={item.category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: getBarColor(item.variance, index) }}
-                  />
-                  <span className="text-sm font-medium text-gray-900">
-                    {item.category}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <p className={`text-sm font-medium ${
-                    isOverBudget ? 'text-red-600' : 'text-green-600'
-                  }`}>
-                    {isOverBudget ? '+' : '-'}{absVariancePercent}%
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {isOverBudget ? 'over' : 'under'} budget
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
       {/* Hidden data table for screen readers */}
       <div className="sr-only">

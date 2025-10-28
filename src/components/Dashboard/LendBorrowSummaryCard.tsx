@@ -35,6 +35,37 @@ export const LendBorrowSummaryCard: React.FC = () => {
     return saved !== null ? JSON.parse(saved) : true;
   });
   
+  // Listen for localStorage changes to sync with other pages
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'showLendBorrowWidget' && e.newValue !== null) {
+        console.log('Dashboard: Storage event received, new value:', e.newValue);
+        setShowLendBorrowWidget(JSON.parse(e.newValue));
+      }
+    };
+
+    // Listen for storage events (changes from other tabs)
+    window.addEventListener('storage', handleStorageChange);
+
+    // Also listen for custom events (changes from same tab)
+    const handleCustomStorageChange = () => {
+      console.log('Dashboard: Custom event received');
+      const saved = localStorage.getItem('showLendBorrowWidget');
+      console.log('Dashboard: localStorage value:', saved);
+      if (saved !== null) {
+        setShowLendBorrowWidget(JSON.parse(saved));
+        console.log('Dashboard: Widget state updated to:', JSON.parse(saved));
+      }
+    };
+
+    window.addEventListener('showLendBorrowWidgetChanged', handleCustomStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('showLendBorrowWidgetChanged', handleCustomStorageChange);
+    };
+  }, []);
+  
   // Refs for responsive positioning
   const tooltipRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -195,9 +226,9 @@ export const LendBorrowSummaryCard: React.FC = () => {
   // Filter records by currency
   const filteredRecords = records.filter(r => r.currency === filterCurrency);
 
-  // Group by person for tooltips (only active records)
+  // Group by person for tooltips (active and overdue records)
   const lentByPerson = filteredRecords
-    .filter(r => r.type === 'lend' && r.status === 'active')
+    .filter(r => r.type === 'lend' && (r.status === 'active' || r.status === 'overdue'))
     .reduce((acc, record) => {
       const person = record.person_name || 'Unknown';
       acc[person] = (acc[person] || 0) + record.amount;
@@ -205,7 +236,7 @@ export const LendBorrowSummaryCard: React.FC = () => {
     }, {} as Record<string, number>);
 
   const borrowedByPerson = filteredRecords
-    .filter(r => r.type === 'borrow' && r.status === 'active')
+    .filter(r => r.type === 'borrow' && (r.status === 'active' || r.status === 'overdue'))
     .reduce((acc, record) => {
       const person = record.person_name || 'Unknown';
       acc[person] = (acc[person] || 0) + record.amount;
@@ -242,9 +273,9 @@ export const LendBorrowSummaryCard: React.FC = () => {
           <X className="w-4 h-4" />
           {/* Tooltip - only on desktop */}
           {showCrossTooltip && !isMobile && (
-            <div className="absolute top-full right-0 mt-1 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded shadow-lg whitespace-nowrap z-20">
+            <div className="absolute bottom-full right-0 mb-1 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded shadow-lg whitespace-nowrap z-20">
               Click to hide this widget
-              <div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 dark:bg-gray-100 rotate-45"></div>
+              <div className="absolute -bottom-1 right-2 w-2 h-2 bg-gray-900 dark:bg-gray-100 rotate-45"></div>
             </div>
           )}
         </button>

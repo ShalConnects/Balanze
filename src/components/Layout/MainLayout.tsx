@@ -108,6 +108,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   };
 
+
   // Prevent background scroll when mobile sidebar is open
   useEffect(() => {
     if (isMobile && isSidebarOpen) {
@@ -159,13 +160,19 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   ? 'Manage your financial accounts'
                   : currentView === 'transactions'
                     ? 'Track and manage all your financial transactions'
-                    : currentView === 'purchases'
-                      ? 'Track and manage all your purchases.'
-                      : currentView === 'lent-borrow'
-                        ? 'Track and manage all your lending and borrowing activities'
-                        : currentView === 'history'
-                          ? 'Track all your financial activities and changes'
-                          : undefined
+                    : currentView === 'transfers'
+                      ? 'Track and manage all your money transfers between accounts'
+                      : currentView === 'purchases'
+                        ? 'Track and manage all your purchases.'
+                        : currentView === 'lent-borrow'
+                          ? 'Track and manage all your lending and borrowing activities'
+                          : currentView === 'history'
+                            ? 'Track all your financial activities and changes'
+                            : currentView === 'favorite-quotes'
+                              ? 'Manage your favorite motivational quotes and inspiration'
+                              : currentView === 'achievements'
+                                ? 'Unlock badges and track your financial journey progress'
+                                : undefined
             )}
           />
           <main className={`flex-1 p-1 sm:p-2 lg:p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 max-w-full pb-safe-bottom ${isBrowser && isMobile ? 'browser-bottom-nav-spacing' : ''}`}>

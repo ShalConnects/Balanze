@@ -71,6 +71,14 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
     }
   }, [donationSavingRecords]);
 
+  // Additional effect to handle initial data loading state
+  useEffect(() => {
+    // If we have user but no donationSavingRecords data yet, keep loading
+    if (user && donationSavingRecords === undefined) {
+      setLoading(true);
+    }
+  }, [user, donationSavingRecords]);
+
   // Load user preferences for Donations & Savings widget visibility
   useEffect(() => {
     if (user?.id) {
@@ -287,11 +295,11 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 sm:p-4 lg:p-5 shadow-sm border border-blue-200/50 dark:border-blue-800/50">
+      <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 sm:p-4 lg:p-5 shadow-sm border border-blue-200/50 dark:border-blue-800/50 h-full flex flex-col">
         <div className="flex items-center justify-between mb-3">
           {/* <h2 className="text-lg font-bold text-gray-900 dark:text-white">Donations & Savings</h2> */}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 flex-1">
           <div className="w-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
             <div className="animate-pulse">
               <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-24 mb-2"></div>
@@ -321,7 +329,7 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
 
   return (
     <div 
-      className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 sm:p-4 lg:p-5 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative"
+      className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 sm:p-4 lg:p-5 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative h-full flex flex-col"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -335,9 +343,9 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
           <X className="w-4 h-4" />
           {/* Tooltip - only on desktop */}
           {showCrossTooltip && !isMobile && (
-            <div className="absolute top-full right-0 mt-1 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded shadow-lg whitespace-nowrap z-20">
+            <div className="absolute bottom-full right-0 mb-1 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded shadow-lg whitespace-nowrap z-20">
               Click to hide this widget
-              <div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 dark:bg-gray-100 rotate-45"></div>
+              <div className="absolute -bottom-1 right-2 w-2 h-2 bg-gray-900 dark:bg-gray-100 rotate-45"></div>
             </div>
           )}
         </button>
@@ -428,7 +436,7 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
           </Link>
         </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 flex-1">
         <div className="w-full">
           <StatCard
             title="Total Donated"

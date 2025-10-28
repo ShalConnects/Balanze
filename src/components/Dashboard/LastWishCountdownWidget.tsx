@@ -381,7 +381,7 @@ export const LastWishCountdownWidget: React.FC = () => {
             </p>
             <button
               onClick={() => navigate('/settings?tab=lw')}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors duration-200 text-sm font-medium"
             >
               <Settings className="w-4 h-4" />
               Set Up Now

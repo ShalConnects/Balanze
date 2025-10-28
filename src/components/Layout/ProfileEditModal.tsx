@@ -172,11 +172,11 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ open, onClos
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-0 right-0 bg-blue-600 text-white rounded-full p-1 border-2 border-white dark:border-gray-800 hover:bg-blue-700 focus:outline-none"
+                className="absolute bottom-0 right-0 bg-gradient-primary text-white rounded-full p-1 border-2 border-white dark:border-gray-800 hover:bg-gradient-primary-hover focus:outline-none"
                 disabled={uploading}
                 title="Change profile picture"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2a2.828 2.828 0 11-4-4 2.828 2.828 0 014 4z" /></svg>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
               </button>
               <input
                 ref={fileInputRef}
@@ -222,7 +222,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ open, onClos
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+              className="px-4 py-2 rounded-lg bg-gradient-primary text-white hover:bg-gradient-primary-hover disabled:opacity-60"
               disabled={loading}
             >
               {loading ? 'Saving...' : 'Save'}

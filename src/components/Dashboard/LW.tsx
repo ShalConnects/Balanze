@@ -14,6 +14,7 @@ import {
   Check
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 interface LWProps {
   setActiveTab?: (tab: string) => void;
@@ -85,6 +86,7 @@ export const LW: React.FC<LWProps> = () => {
   const [useSimpleEditor, setUseSimpleEditor] = useState(true); // Default to simple on mobile
   const [simpleText, setSimpleText] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const { isMobile: isMobileDevice } = useMobileDetection();
 
   // Mobile detection with touch support
   useEffect(() => {
@@ -1089,17 +1091,6 @@ These memories are my gift to you.`
             </div>
           </div>
           
-          {/* System Status Badge */}
-          <div className="flex items-center space-x-3">
-            <div className={`px-4 py-2 rounded-full text-sm font-semibold flex items-center space-x-2 ${
-              settings.isEnabled 
-                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' 
-                : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-            }`}>
-              <div className={`w-2 h-2 rounded-full ${settings.isEnabled ? 'bg-blue-500' : 'bg-gray-400'}`} />
-              <span>{settings.isEnabled ? 'System Active' : 'System Inactive'}</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -1220,11 +1211,14 @@ These memories are my gift to you.`
       {/* Delivery Status Section - Only show if delivered */}
       {settings.deliveryTriggered && (
         <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-xl border border-green-200 dark:border-green-700 p-6 mb-6 shadow-sm">
-          <div className="flex items-start space-x-4">
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center flex-shrink-0">
-              <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
-            <div className="flex-1">
+          {isMobileDevice ? (
+            // Mobile Layout - Icon at top center
+            <div className="text-center">
+              <div className="flex justify-center mb-4">
+                <div className="w-14 h-14 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-7 h-7 text-green-600 dark:text-green-400" />
+                </div>
+              </div>
               <h3 className="text-xl font-bold text-green-900 dark:text-green-100 mb-2">Last Wish Successfully Delivered</h3>
               <p className="text-green-700 dark:text-green-300 mb-4">
                 Your financial data has been successfully delivered to {settings.recipients.length} recipient{settings.recipients.length !== 1 ? 's' : ''}. 
@@ -1266,7 +1260,56 @@ These memories are my gift to you.`
                 </p>
               </div>
             </div>
-          </div>
+          ) : (
+            // Desktop Layout - Icon on left
+            <div className="flex items-start space-x-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-green-900 dark:text-green-100 mb-2">Last Wish Successfully Delivered</h3>
+                <p className="text-green-700 dark:text-green-300 mb-4">
+                  Your financial data has been successfully delivered to {settings.recipients.length} recipient{settings.recipients.length !== 1 ? 's' : ''}. 
+                  Your Last Wish system has completed its mission.
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white/70 dark:bg-gray-800/50 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Mail className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Recipients Notified</span>
+                    </div>
+                    <div className="space-y-1">
+                      {settings.recipients.map((recipient, index) => (
+                        <div key={index} className="text-sm text-gray-600 dark:text-gray-400">
+                          ✅ {recipient.email}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white/70 dark:bg-gray-800/50 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Clock className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">System Status</span>
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      <div>✅ Email delivery completed</div>
+                      <div>✅ All recipients notified</div>
+                      <div>✅ Mission accomplished</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    💡 <strong>What's next?</strong> Your Last Wish system has successfully delivered your financial data. 
+                    If you'd like to reactivate the system or make changes, please contact support.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

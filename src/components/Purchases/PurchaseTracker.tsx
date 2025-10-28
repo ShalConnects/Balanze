@@ -23,14 +23,15 @@ import {
   Edit2,
   ChevronUp,
   ChevronDown,
+  Link,
   ShoppingBag,
 } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Purchase, PurchaseCategory } from '../../types';
+import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { format, parseISO } from 'date-fns';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { toast } from 'sonner';
-import { ShowOnDashboardBanner } from '../common/ShowOnDashboardBanner';
 import { PurchaseDetailsSection } from '../Transactions/PurchaseDetailsSection';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
@@ -46,7 +47,7 @@ import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
 import { getDefaultAccountId } from '../../utils/defaultAccount';
 
-import { useNotificationsStore } from '../../stores/notificationsStore';
+import { useNotificationsStore } from '../../store/notificationsStore';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { CategoryModal } from '../common/CategoryModal';
 import { PurchaseCardSkeleton, PurchaseTableSkeleton, PurchaseSummaryCardsSkeleton, PurchaseFiltersSkeleton } from './PurchaseSkeleton';
@@ -113,6 +114,7 @@ export const PurchaseTracker: React.FC = () => {
   const { t } = useTranslation();
   const { fetchNotifications } = useNotificationsStore();
   const { wrapAsync, setLoadingMessage, loadingMessage } = useLoadingContext();
+  const { usageStats, isFreePlan, isPremiumPlan } = usePlanFeatures();
   const [formSubmitted, setFormSubmitted] = useState(false);
   const { showPurchaseForm, setShowPurchaseForm } = useFinanceStore();
   const navigate = useNavigate();
@@ -122,6 +124,13 @@ export const PurchaseTracker: React.FC = () => {
     const saved = localStorage.getItem('showPurchasesWidget');
     return saved !== null ? JSON.parse(saved) : true;
   });
+
+  // Check if purchases widget is hidden
+  const [isPurchasesWidgetHidden, setIsPurchasesWidgetHidden] = useState(() => {
+    const saved = localStorage.getItem('showPurchasesWidget');
+    return saved !== null ? !JSON.parse(saved) : false;
+  });
+  const [isRestoringWidget, setIsRestoringWidget] = useState(false);
 
   // Memoize fetch functions to prevent infinite loops
   const fetchPurchasesCallback = useCallback(() => {
@@ -182,7 +191,7 @@ export const PurchaseTracker: React.FC = () => {
   }, [user?.id]);
 
   // Show Purchases widget on dashboard
-  const handleShowPurchasesWidget = async () => {
+  const handleShowPurchasesWidget = useCallback(async () => {
     // Update localStorage immediately for instant UI response
     localStorage.setItem('showPurchasesWidget', JSON.stringify(true));
     setShowPurchasesWidget(true);
@@ -205,7 +214,25 @@ export const PurchaseTracker: React.FC = () => {
         description: 'Sign in to sync preferences across devices'
       });
     }
-  };
+  }, [user?.id, setShowPurchasesWidget]);
+
+  // Function to restore purchases widget to dashboard
+  const handleShowPurchasesWidgetFromPage = useCallback(async () => {
+    console.log('Restoring Purchases widget to dashboard');
+    setIsRestoringWidget(true);
+    
+    try {
+      // Use the existing function that has proper database sync
+      await handleShowPurchasesWidget();
+      
+      // Update local state
+      setIsPurchasesWidgetHidden(false);
+      
+      console.log('Purchases widget restored, new state:', false);
+    } finally {
+      setIsRestoringWidget(false);
+    }
+  }, [handleShowPurchasesWidget]);
 
   // Fetch attachment counts for all purchases
   useEffect(() => {
@@ -829,17 +856,6 @@ export const PurchaseTracker: React.FC = () => {
         if (editingPurchase.status === 'planned' && formData.status === 'purchased') {
           const selectedAccount = accounts.find(a => a.id === selectedAccountId);
           if (selectedAccount) {
-            const transactionData = {
-              account_id: selectedAccountId,
-              amount: parseFloat(formData.price),
-              type: 'expense' as 'expense',
-              category: formData.category,
-              description: formData.item_name,
-              date: formData.purchase_date,
-              tags: ['purchase'],
-              user_id: user?.id || '',
-            };
-            
             // Don't create transactions automatically
             // Users can manually create transactions if they want to affect account balance
             // This prevents conflicts with transaction limits
@@ -982,22 +998,33 @@ export const PurchaseTracker: React.FC = () => {
             const selectedAccount = accounts.find(a => a.id === selectedAccountId);
             console.log('🔍 Selected account found:', selectedAccount);
             if (!selectedAccount) throw new Error('Selected account not found');
-            const transactionData = {
-              account_id: selectedAccountId,
-              amount: parseFloat(formData.price),
-              type: 'expense' as 'expense',
-              category: formData.category,
-              description: formData.item_name,
-              date: formData.purchase_date,
-              tags: ['purchase'],
-              user_id: user?.id || '',
-            };
-            // Don't create transactions automatically
-            // Users can manually create transactions if they want to affect account balance
-            // This prevents conflicts with transaction limits
-            console.log('🔍 Skipping transaction creation - calling addPurchase directly');
+            // Create both purchase and transaction when From Account is selected
+            console.log('🔍 Creating transaction first for From Account flow');
             
-            // Create purchase directly without creating transaction
+            // First create the transaction to get its ID
+            const { data: newTransaction, error: transactionError } = await supabase
+              .from('transactions')
+              .insert({
+                account_id: selectedAccountId,
+                amount: parseFloat(formData.price),
+                type: 'expense',
+                category: formData.category,
+                description: formData.item_name,
+                date: formData.purchase_date,
+                tags: ['purchase'],
+                user_id: user?.id || '',
+              })
+              .select('id')
+              .single();
+            
+            if (transactionError) {
+              console.log('❌ Transaction creation failed:', transactionError);
+              throw new Error(transactionError.message);
+            }
+            
+            console.log('✅ Transaction created with ID:', newTransaction.id);
+            
+            // Then create the purchase with the transaction_id
             const purchaseData = {
               item_name: formData.item_name,
               category: formData.category,
@@ -1006,12 +1033,13 @@ export const PurchaseTracker: React.FC = () => {
               status: formData.status || 'purchased',
               priority: formData.priority || 'medium',
               notes: formData.notes || '',
-              currency: formData.currency
+              currency: formData.currency,
+              transaction_id: newTransaction.id
             };
             
-            console.log('🔍 Calling addPurchase with data:', purchaseData);
+            console.log('🔍 Calling addPurchase with transaction_id:', purchaseData);
             await addPurchase(purchaseData);
-            console.log('✅ Purchase created successfully!');
+            console.log('✅ Purchase created with transaction link!');
             toast.success('Purchase added successfully!');
           }
         }
@@ -1477,24 +1505,27 @@ export const PurchaseTracker: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        {/* Smooth skeleton for purchases page */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0">
+      <div className="space-y-6 animate-fade-in">
+        {/* Enhanced skeleton for purchases page */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0 relative overflow-hidden">
+          {/* Shimmer effect for the entire container */}
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+          
           {/* Filters skeleton */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 relative z-10">
             <PurchaseFiltersSkeleton />
           </div>
           
           {/* Summary cards skeleton */}
-          <div className="p-4">
+          <div className="p-4 relative z-10">
             <PurchaseSummaryCardsSkeleton />
           </div>
           
           {/* Responsive skeleton - Desktop table, Mobile cards */}
-          <div className="hidden md:block p-4">
+          <div className="hidden md:block p-4 relative z-10">
             <PurchaseTableSkeleton rows={6} />
           </div>
-          <div className="md:hidden">
+          <div className="md:hidden relative z-10">
             <PurchaseCardSkeleton count={4} />
           </div>
         </div>
@@ -1585,14 +1616,6 @@ export const PurchaseTracker: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <ShowOnDashboardBanner
-        isVisible={!showPurchasesWidget}
-        onShow={handleShowPurchasesWidget}
-        title="Purchases Widget Hidden"
-        description="The Purchases widget is currently hidden on your dashboard."
-        buttonText="Show on Dashboard"
-        icon={Eye}
-      />
 
       {/* Unified Filters and Table */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden pb-[13px] lg:pb-0">
@@ -1641,6 +1664,22 @@ export const PurchaseTracker: React.FC = () => {
             >
               <Filter className="w-4 h-4" />
             </button>
+            {isPurchasesWidgetHidden && (
+              <button
+                onClick={handleShowPurchasesWidgetFromPage}
+                disabled={isRestoringWidget}
+                className="px-2 py-1.5 text-[13px] h-8 w-8 rounded-md transition-colors flex items-center justify-center text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' }}
+                title="Show Purchases Widget on Dashboard"
+                aria-label="Show Purchases Widget on Dashboard"
+              >
+                {isRestoringWidget ? (
+                  <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Eye className="w-4 h-4" aria-hidden="true" />
+                )}
+              </button>
+            )}
             <button
               onClick={() => {
                 // Purchase form button clicked - removed for production
@@ -1873,7 +1912,22 @@ export const PurchaseTracker: React.FC = () => {
             )}
 
             {/* Add Purchase Button moved here */}
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="hidden md:flex items-center gap-2 ml-auto">
+              {isPurchasesWidgetHidden && (
+                <button
+                  onClick={handleShowPurchasesWidgetFromPage}
+                  disabled={isRestoringWidget}
+                  className="bg-gray-100 text-gray-700 px-3 py-1.5 h-8 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Show Purchases Widget on Dashboard"
+                  aria-label="Show Purchases Widget on Dashboard"
+                >
+                  {isRestoringWidget ? (
+                    <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Eye className="w-3.5 h-3.5" aria-hidden="true" />
+                  )}
+                </button>
+              )}
               {/* Desktop Add Purchase Button */}
               <button
                 onClick={() => {
@@ -1951,6 +2005,31 @@ export const PurchaseTracker: React.FC = () => {
               <Clock className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
             </div>
           </div>
+          {!isPremiumPlan && (
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Purchase Limit</p>
+                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
+                    {(() => {
+                      if (isPremiumPlan) return '∞';
+                      if (usageStats && 'purchases' in usageStats) {
+                        const current = (usageStats as any).purchases?.current || 0;
+                        const limit = (usageStats as any).purchases?.limit || 50;
+                        return `${current}/${limit}`;
+                      }
+                      // Fallback for free users
+                      return `${purchases.length}/50`;
+                    })()}
+                  </p>
+                  <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                    {isPremiumPlan ? 'Unlimited purchases' : 'Free plan limit'}
+                  </p>
+                </div>
+                <svg className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2l4 -4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+            </div>
+          )}
         </div>
         {/* Desktop Table View */}
         <div className="xl:block hidden overflow-x-auto lg:rounded-b-xl" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
@@ -2159,7 +2238,7 @@ export const PurchaseTracker: React.FC = () => {
                                 setPurchaseAttachments([]);
                               }
                               
-                              // Load account information from linked transaction or purchase record
+                              // Load account and category information from linked transaction or purchase record
                               if (purchase.account_id) {
                                 // For excluded purchases, use the account_id stored in the purchase record
                                 setSelectedAccountId(purchase.account_id);
@@ -2169,13 +2248,22 @@ export const PurchaseTracker: React.FC = () => {
                                 try {
                                   const { data: linkedTransaction, error } = await supabase
                                     .from('transactions')
-                                    .select('account_id')
-                                    .eq('transaction_id', purchase.transaction_id)
+                                    .select('account_id, category, description, amount')
+                                    .eq('id', purchase.transaction_id)
                                     .single();
                                   
                                   if (linkedTransaction && !error) {
                                     setSelectedAccountId(linkedTransaction.account_id);
-                                    // Loaded account from linked transaction - removed for production
+                                    // Update form data with transaction data
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      category: linkedTransaction.category || prev.category,
+                                      item_name: linkedTransaction.description || prev.item_name,
+                                      price: linkedTransaction.amount ? String(linkedTransaction.amount) : prev.price
+                                    }));
+                                    // Set excludeFromCalculation to false since it's linked to a transaction
+                                    setExcludeFromCalculation(false);
+                                    // Loaded account and category from linked transaction - removed for production
                                   } else {
                                     // No linked transaction found for purchase - removed for production
                                     setSelectedAccountId('');
@@ -2195,6 +2283,14 @@ export const PurchaseTracker: React.FC = () => {
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
+                          {purchase.transaction_id && (
+                            <div
+                              className="text-gray-500 dark:text-gray-400"
+                              title="Linked to Transaction"
+                            >
+                              <Link className="w-4 h-4" />
+                            </div>
+                          )}
                           <button
                             onClick={() => { setPurchaseToDelete(purchase); setShowDeleteModal(true); }}
                             className="text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
@@ -2360,7 +2456,7 @@ export const PurchaseTracker: React.FC = () => {
                               setPurchaseAttachments([]);
                             }
                             
-                            // Load account information from linked transaction or purchase record
+                            // Load account and category information from linked transaction or purchase record
                             if (purchase.account_id) {
                               // For excluded purchases, use the account_id stored in the purchase record
                               setSelectedAccountId(purchase.account_id);
@@ -2370,13 +2466,22 @@ export const PurchaseTracker: React.FC = () => {
                               try {
                                 const { data: linkedTransaction, error } = await supabase
                                   .from('transactions')
-                                  .select('account_id')
-                                  .eq('transaction_id', purchase.transaction_id)
+                                  .select('account_id, category, description, amount')
+                                  .eq('id', purchase.transaction_id)
                                   .single();
                                 
                                 if (linkedTransaction && !error) {
                                   setSelectedAccountId(linkedTransaction.account_id);
-                                  // Loaded account from linked transaction - removed for production
+                                  // Update form data with transaction data
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    category: linkedTransaction.category || prev.category,
+                                    item_name: linkedTransaction.description || prev.item_name,
+                                    price: linkedTransaction.amount ? String(linkedTransaction.amount) : prev.price
+                                  }));
+                                  // Set excludeFromCalculation to false since it's linked to a transaction
+                                  setExcludeFromCalculation(false);
+                                  // Loaded account and category from linked transaction - removed for production
                                 } else {
                                   // No linked transaction found for purchase - removed for production
                                   setSelectedAccountId('');
@@ -2396,6 +2501,14 @@ export const PurchaseTracker: React.FC = () => {
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
+                        {purchase.transaction_id && (
+                          <div
+                            className="p-1.5 text-gray-500 dark:text-gray-400"
+                            title="Linked to Transaction"
+                          >
+                            <Link className="w-3.5 h-3.5" />
+                          </div>
+                        )}
                         <button
                           onClick={() => { setPurchaseToDelete(purchase); setShowDeleteModal(true); }}
                           className="p-1.5 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
@@ -2521,6 +2634,14 @@ export const PurchaseTracker: React.FC = () => {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
+                        {purchase.transaction_id && (
+                          <div
+                            className="text-gray-500 dark:text-gray-400"
+                            title="Linked to Transaction"
+                          >
+                            <Link className="w-4 h-4" />
+                          </div>
+                        )}
                         <button
                           onClick={() => { setPurchaseToDelete(purchase); setShowDeleteModal(true); }}
                           className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
@@ -2556,6 +2677,97 @@ export const PurchaseTracker: React.FC = () => {
                 );
               })
             )}
+          </div>
+        </div>
+
+        {/* Summary Bar - Sticky on desktop, regular section on mobile */}
+        <div className="hidden lg:block sticky bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg">
+          <div className="px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-4 text-sm">
+              {/* Financial Summary */}
+              <div className="flex flex-wrap items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600 dark:text-gray-400">Total Spent:</span>
+                  <span className="font-semibold text-red-600 dark:text-red-400">
+                    {formatCurrency(totalSpent, analyticsCurrency)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600 dark:text-gray-400">Monthly:</span>
+                  <span className="font-semibold text-orange-600 dark:text-orange-400">
+                    {formatCurrency(monthlySpent, analyticsCurrency)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Status Summary */}
+              <div className="flex flex-wrap items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600 dark:text-gray-400">Purchased:</span>
+                  <span className="font-semibold text-green-600 dark:text-green-400">
+                    {purchasedCount}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600 dark:text-gray-400">Planned:</span>
+                  <span className="font-semibold text-blue-600 dark:text-blue-400">
+                    {plannedCount}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600 dark:text-gray-400">Total:</span>
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">
+                    {filteredPurchases.length}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Summary Section - Regular section at bottom */}
+        <div className="lg:hidden mt-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" style={{ margin: '10px' }}>
+          <div className="p-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Summary</h3>
+            <div className="space-y-4">
+              {/* Financial Summary */}
+              <div className="grid grid-cols-1 gap-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Total Spent:</span>
+                  <span className="font-semibold text-red-600 dark:text-red-400">
+                    {formatCurrency(totalSpent, analyticsCurrency)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Monthly:</span>
+                  <span className="font-semibold text-orange-600 dark:text-orange-400">
+                    {formatCurrency(monthlySpent, analyticsCurrency)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Status Summary */}
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Purchased:</span>
+                  <span className="font-semibold text-green-600 dark:text-green-400">
+                    {purchasedCount}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Planned:</span>
+                  <span className="font-semibold text-blue-600 dark:text-blue-400">
+                    {plannedCount}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Total:</span>
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">
+                    {filteredPurchases.length}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -3268,199 +3480,198 @@ export const PurchaseTracker: React.FC = () => {
 
       {/* Mobile Filter Modal */}
       {showMobileFilterMenu && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999] md:hidden">
-          <div 
-            className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-[calc(100vw-2rem)] max-w-xs p-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filters</h3>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setFilters(tempFilters);
-                    setShowMobileFilterMenu(false);
-                  }}
-                  className={`p-1 rounded-full transition-colors ${
-                    (tempFilters.category !== 'all' || tempFilters.priority !== 'all' || tempFilters.currency || tempFilters.dateRange.start || tempFilters.dateRange.end)
-                      ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
-                      : 'text-gray-400'
-                  }`}
-                  title="Apply Filters"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </button>
-                <button
-                  onClick={handleCloseModal}
-                  className="p-1 rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  title="Clear All"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black bg-opacity-50" onClick={() => setShowMobileFilterMenu(false)}>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-full max-w-xs overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Header with Check and Cross */}
+            <div className="bg-white dark:bg-gray-900 px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">Filters</span>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Select filters and click ✓ to apply</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setFilters(tempFilters);
+                      setShowMobileFilterMenu(false);
+                    }}
+                    className={`p-1 transition-colors ${
+                      (tempFilters.category !== 'all' || tempFilters.priority !== 'all' || tempFilters.currency || tempFilters.dateRange.start || tempFilters.dateRange.end)
+                        ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
+                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    }`}
+                    title="Apply Filters"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFilters({ search: '', category: 'all', priority: 'all', currency: '', dateRange: { start: '', end: '' } });
+                      setShowMobileFilterMenu(false);
+                    }}
+                    className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1"
+                    title="Clear All Filters"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             </div>
-
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select filters and click ✓ to apply</p>
-
-            {/* Filter Options */}
-            <div className="space-y-4">
-              {/* Currency Filter */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Currency</h4>
-                <div className="flex flex-wrap gap-1">
+            {/* Currency Filter */}
+            <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Currency</div>
+              <div className="flex flex-wrap gap-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTempFilters({ ...tempFilters, currency: '' });
+                  }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.currency === '' 
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  All
+                </button>
+                {currencyOptions.map(currency => (
                   <button
+                    key={currency}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setTempFilters({ ...tempFilters, currency: '' });
+                      setTempFilters({ ...tempFilters, currency });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
-                      tempFilters.currency === ''
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                      tempFilters.currency === currency 
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
-                    All
+                    {currency}
                   </button>
-                  {currencyOptions.map(currency => (
-                    <button
-                      key={currency}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTempFilters({ ...tempFilters, currency });
-                      }}
-                      className={`rounded-full px-2 py-1 text-xs transition-colors ${
-                        tempFilters.currency === currency
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      {currency}
-                    </button>
-                  ))}
+                ))}
                 </div>
               </div>
 
-              {/* Category Filter */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Category</h4>
-                <div className="flex flex-wrap gap-1">
+            {/* Category Filter */}
+            <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Category</div>
+              <div className="flex flex-wrap gap-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTempFilters({ ...tempFilters, category: 'all' });
+                  }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.category === 'all' 
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  All
+                </button>
+                {purchaseCategories.map(category => (
                   <button
+                    key={category.id}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setTempFilters({ ...tempFilters, category: 'all' });
+                      setTempFilters({ ...tempFilters, category: category.category_name });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
-                      tempFilters.category === 'all'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                      tempFilters.category === category.category_name 
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
-                    All Categories
+                    {category.category_name}
                   </button>
-                  {purchaseCategories.map(category => (
-                    <button
-                      key={category.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTempFilters({ ...tempFilters, category: category.category_name });
-                      }}
-                      className={`rounded-full px-2 py-1 text-xs transition-colors ${
-                        tempFilters.category === category.category_name
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      {category.category_name}
-                    </button>
-                  ))}
+                ))}
                 </div>
               </div>
 
-              {/* Priority Filter */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Priority</h4>
-                <div className="flex flex-wrap gap-1">
+            {/* Priority Filter */}
+            <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Priority</div>
+              <div className="flex flex-wrap gap-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTempFilters({ ...tempFilters, priority: 'all' });
+                  }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.priority === 'all' 
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  All
+                </button>
+                {(['low', 'medium', 'high'] as const).map(priority => (
                   <button
+                    key={priority}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setTempFilters({ ...tempFilters, priority: 'all' });
+                      setTempFilters({ ...tempFilters, priority });
                     }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
-                      tempFilters.priority === 'all'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                      tempFilters.priority === priority 
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
-                    All Priorities
+                    {priority.charAt(0).toUpperCase() + priority.slice(1)}
                   </button>
-                  {(['low', 'medium', 'high'] as const).map(priority => (
-                    <button
-                      key={priority}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTempFilters({ ...tempFilters, priority });
-                      }}
-                      className={`rounded-full px-2 py-1 text-xs transition-colors ${
-                        tempFilters.priority === priority
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                    </button>
-                  ))}
+                ))}
                 </div>
               </div>
 
-              {/* Date Range Filter */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Date Range</h4>
-                <div className="flex flex-wrap gap-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTempFilters({ ...tempFilters, dateRange: { start: '', end: '' } });
-                    }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
-                      !tempFilters.dateRange.start && !tempFilters.dateRange.end
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    All Dates
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const today = new Date().toISOString().slice(0, 10);
-                      setTempFilters({ ...tempFilters, dateRange: { start: today, end: today } });
-                    }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
-                      tempFilters.dateRange.start === new Date().toISOString().slice(0, 10) && tempFilters.dateRange.end === new Date().toISOString().slice(0, 10)
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    Today
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const { start, end } = getThisMonthDateRange();
-                      setTempFilters({ ...tempFilters, dateRange: { start, end } });
-                    }}
-                    className={`rounded-full px-2 py-1 text-xs transition-colors ${
-                      tempFilters.dateRange.start === getThisMonthDateRange().start && tempFilters.dateRange.end === getThisMonthDateRange().end
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    This Month
-                  </button>
-                </div>
+            {/* Date Range Filter */}
+            <div className="px-3 py-2">
+              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Date Range</div>
+              <div className="flex flex-wrap gap-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTempFilters({ ...tempFilters, dateRange: { start: '', end: '' } });
+                  }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    !tempFilters.dateRange.start && !tempFilters.dateRange.end 
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  All Dates
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const today = new Date().toISOString().slice(0, 10);
+                    setTempFilters({ ...tempFilters, dateRange: { start: today, end: today } });
+                  }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.dateRange.start === new Date().toISOString().slice(0, 10) && tempFilters.dateRange.end === new Date().toISOString().slice(0, 10) 
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const { start, end } = getThisMonthDateRange();
+                    setTempFilters({ ...tempFilters, dateRange: { start, end } });
+                  }}
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    tempFilters.dateRange.start === getThisMonthDateRange().start && tempFilters.dateRange.end === getThisMonthDateRange().end 
+                      ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
+                      : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  This Month
+                </button>
               </div>
             </div>
           </div>

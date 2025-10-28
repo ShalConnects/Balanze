@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { ArrowUpRight, ArrowDownRight, Copy, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Copy, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -24,6 +24,7 @@ import { LendBorrowInfoModal } from './LendBorrowInfoModal';
 import { useExport } from '../../hooks/useExport';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { FinancialHealthCard } from './FinancialHealthCard';
+import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 
 // Helper function to check if a transaction is related to lend/borrow
 const isLendBorrowTransaction = (transaction: Transaction): boolean => {
@@ -57,6 +58,7 @@ export const TransactionList: React.FC<{
   const { profile } = useAuthStore();
   const { wrapAsync, setLoadingMessage } = useLoadingContext();
   const navigate = useNavigate();
+  const { usageStats, isFreePlan, isPremiumPlan } = usePlanFeatures();
 
   // Mobile filter modal state
   const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
@@ -273,8 +275,8 @@ export const TransactionList: React.FC<{
   const getTransactionVelocity = () => {
     const filterType = getDateFilterType();
     
-    // Get transactions in the current period
-    const currentTransactions = transactions.filter(t => {
+    // Get transactions in the current period - use filteredTransactions to match what's displayed
+    const currentTransactions = filteredTransactions.filter(t => {
       const transactionDate = new Date(t.date);
       const startDate = new Date(filters.dateRange.start);
       const endDate = new Date(filters.dateRange.end);
@@ -405,6 +407,27 @@ export const TransactionList: React.FC<{
   // Add export menu state and ref
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Android detection
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const isCapacitor = !!(window as any).Capacitor;
+  const isAndroidApp = isAndroid && isCapacitor;
+  
+  // Debug Android detection
+  console.log('TransactionList Android Detection:', {
+    userAgent: navigator.userAgent,
+    isAndroid,
+    isCapacitor,
+    isAndroidApp
+  });
+  
+  // Android download modal state
+  const [showAndroidDownloadModal, setShowAndroidDownloadModal] = useState(false);
+  
+  // Debug modal state changes
+  useEffect(() => {
+    console.log('TransactionList Modal State Changed:', showAndroidDownloadModal);
+  }, [showAndroidDownloadModal]);
 
   // Sorting function
   const handleSort = (key: string) => {
@@ -1319,7 +1342,20 @@ export const TransactionList: React.FC<{
             <div className="hidden md:flex items-center gap-2">
               <div className="relative" ref={exportMenuRef}>
                 <button
-                  onClick={() => setShowExportMenu(v => !v)}
+                  onClick={() => {
+                    if (isExporting) return; // Prevent execution when exporting
+                    
+                    console.log('TransactionList Export Button Clicked:', {
+                      isAndroidApp,
+                      showAndroidDownloadModal
+                    });
+                    if (isAndroidApp) {
+                      console.log('Setting Android modal to true');
+                      setShowAndroidDownloadModal(true);
+                    } else {
+                      setShowExportMenu(v => !v);
+                    }
+                  }}
                   disabled={isExporting}
                   className={`bg-gray-100 text-gray-700 px-3 py-1.5 h-8 rounded-md transition-colors flex items-center justify-center ${
                     isExporting 
@@ -1335,7 +1371,7 @@ export const TransactionList: React.FC<{
                     <Download className="w-3.5 h-3.5" />
                   )}
                 </button>
-                {showExportMenu && !isExporting && (
+                {showExportMenu && !isExporting && !isAndroidApp && (
                   <div 
                     className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
                     role="menu"
@@ -1545,6 +1581,37 @@ export const TransactionList: React.FC<{
             transactions={filteredTransactions} 
             selectedCurrency={selectedCurrency} 
           />
+          {!isPremiumPlan && (
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Monthly Limit</p>
+                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
+                    {(() => {
+                      if (isPremiumPlan) return '∞';
+                      if (usageStats && 'current_month_transactions' in usageStats) {
+                        const current = (usageStats as any).current_month_transactions || 0;
+                        const limit = (usageStats as any).max_transactions_per_month || 25;
+                        return `${current}/${limit}`;
+                      }
+                      // Fallback for free users
+                      const currentMonthTransactions = filteredTransactions.filter(t => {
+                        const transactionDate = new Date(t.date);
+                        const currentMonth = new Date();
+                        return transactionDate.getMonth() === currentMonth.getMonth() && 
+                               transactionDate.getFullYear() === currentMonth.getFullYear();
+                      }).length;
+                      return `${currentMonthTransactions}/25`;
+                    })()}
+                  </p>
+                  <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                    {isPremiumPlan ? 'Unlimited transactions' : 'Free plan limit'}
+                  </p>
+                </div>
+                <svg className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2l4 -4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+            </div>
+          )}
         </div>
         {/* Desktop Table View */}
         <div className="lg:block hidden overflow-x-auto lg:rounded-b-xl" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
@@ -1715,8 +1782,19 @@ export const TransactionList: React.FC<{
                                  >
                                    <Edit2 className="w-4 h-4" />
                                  </button>
+                                 {transaction.tags?.includes('purchase') && (
+                                   <div
+                                     className="text-gray-500 dark:text-gray-400"
+                                     title="Linked to Purchase"
+                                   >
+                                     <Link className="w-4 h-4" />
+                                   </div>
+                                 )}
                                  <button
-                                   onClick={() => setTransactionToDelete(transaction) && setShowDeleteModal(true)}
+                                   onClick={() => {
+                                     setTransactionToDelete(transaction);
+                                     setShowDeleteModal(true);
+                                   }}
                                    className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
                                    title="Delete"
                                  >
@@ -1759,13 +1837,7 @@ export const TransactionList: React.FC<{
                     key={transaction.id} 
                     id={`transaction-${transaction.transaction_id || transaction.id}`}
                     ref={isSelected ? selectedRecordRef : null}
-                    className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow ${
-                      isSelected 
-                        ? isFromSearchSelection 
-                          ? 'ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20' 
-                          : 'ring-2 ring-blue-500 ring-opacity-50'
-                        : ''
-                    }`}
+                    className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
                   >
                     {/* Card Header - Date and Type Badge */}
                     <div className="flex items-center justify-between p-3 pb-2">
@@ -1840,8 +1912,19 @@ export const TransactionList: React.FC<{
                              >
                                <Edit2 className="w-3.5 h-3.5" />
                              </button>
+                             {transaction.tags?.includes('purchase') && (
+                               <div
+                                 className="p-1.5 text-gray-500 dark:text-gray-400"
+                                 title="Linked to Purchase"
+                               >
+                                 <Link className="w-3.5 h-3.5" />
+                               </div>
+                             )}
                              <button
-                               onClick={() => setTransactionToDelete(transaction) && setShowDeleteModal(true)}
+                               onClick={() => {
+                                 setTransactionToDelete(transaction);
+                                 setShowDeleteModal(true);
+                               }}
                                className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                                title="Delete"
                              >
@@ -1936,8 +2019,21 @@ export const TransactionList: React.FC<{
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
+                          {transaction.tags?.includes('purchase') && (
+                            <div
+                              className="text-gray-500 dark:text-gray-400"
+                              title="Linked to Purchase"
+                            >
+                              <Link className="w-4 h-4" />
+                            </div>
+                          )}
                           <button
-                            onClick={() => !isLendBorrowTransaction(transaction) && setTransactionToDelete(transaction) && setShowDeleteModal(true)}
+                            onClick={() => {
+                              if (!isLendBorrowTransaction(transaction)) {
+                                setTransactionToDelete(transaction);
+                                setShowDeleteModal(true);
+                              }
+                            }}
                             className={`text-gray-500 dark:text-gray-400 ${
                               isLendBorrowTransaction(transaction)
                                 ? 'cursor-not-allowed opacity-50'
@@ -2322,6 +2418,48 @@ export const TransactionList: React.FC<{
                   }`}
                 >
                   30 Days
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Android Download Modal */}
+      {showAndroidDownloadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-full flex items-center justify-center">
+                  <Download className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Download Not Available
+                </h3>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-600 dark:text-gray-300 mb-4">
+                  File downloads are not supported in the Android app due to security restrictions.
+                </p>
+                
+                <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-2">
+                    💡 Alternative Solutions:
+                  </h4>
+                  <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                    <li>• Open Balanze in your web browser</li>
+                    <li>• Use the web version for downloads</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="flex">
+                <button
+                  onClick={() => setShowAndroidDownloadModal(false)}
+                  className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Got it
                 </button>
               </div>
             </div>

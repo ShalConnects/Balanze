@@ -55,34 +55,23 @@ const Achievements: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 dark:from-gray-900 dark:via-blue-900/20 dark:to-purple-900/20">
-      <div className="container mx-auto px-4 py-8">
-        {/* Hero Section - Split Layout */}
-        <div className="glassmorphism-container rounded-2xl p-4 sm:p-6 lg:p-8 border border-white/20 dark:border-gray-700/50 mb-6 sm:mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-8">
-            {/* Left Side - Title & Description */}
-            <div className="flex-1">
-              <div className="flex items-center space-x-3 sm:space-x-4 mb-3 sm:mb-4">
-                <div className="p-2 sm:p-3 bg-gradient-primary rounded-xl shadow-lg">
-                  <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-                </div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white">
-                  Achievement Badges
-                </h1>
-              </div>
-              <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg leading-relaxed">
-                Unlock badges by using Balanze features and building good financial habits.
-                Each badge represents a milestone in your financial journey.
-              </p>
-            </div>
-
-            {/* Right Side - Stats & Progress */}
-            {summary && (
-              <div className="flex-1 lg:max-w-md">
+      <div className="container mx-auto">
+        {/* Unified Achievement Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 lg:p-8 border border-gray-200 dark:border-gray-700/50 mb-6 sm:mb-8">
+          {/* Stats & Progress Section */}
+          {summary && (
+            <div className="flex justify-center mb-8">
+              <div className="max-w-md w-full">
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
                   <div className="text-center">
                     <div className="text-xl sm:text-2xl font-bold text-gradient-primary">{summary.total_achievements}</div>
                     <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Badges Earned</div>
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <div className="p-2 sm:p-3 bg-gradient-primary rounded-xl">
+                      <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-xl sm:text-2xl font-bold text-gradient-primary">{summary.total_points}</div>
@@ -111,13 +100,10 @@ const Achievements: React.FC = () => {
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
 
-
-        {/* Badge Collection */}
-        <div className="glassmorphism-container rounded-2xl p-4 sm:p-6 lg:p-8 border border-white/20 dark:border-gray-700/50 mb-6 sm:mb-8">
+          {/* Badge Collection */}
           <BadgeCollection
             achievements={userAchievements}
             showProgress={true}

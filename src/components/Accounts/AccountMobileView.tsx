@@ -53,6 +53,18 @@ export const AccountMobileView: React.FC<AccountMobileViewProps> = React.memo(({
         {accounts.map((account) => {
           const accountTransactions = transactions.filter(t => t.account_id === account.id);
           const isDpsSavingsAccount = account.dps_savings_account_id ? true : false;
+          // Alternative condition - check if it's a DPS account
+          const isDpsAccount = account.has_dps || account.dps_savings_account_id;
+          
+          // Debug logging
+          console.log('Account:', account.name, {
+            type: account.type,
+            isDpsSavingsAccount,
+            isDpsAccount,
+            has_dps: account.has_dps,
+            dps_savings_account_id: account.dps_savings_account_id,
+            shouldShowDelete: !isDpsAccount && account.type !== 'cash'
+          });
 
           return (
             <div
@@ -131,7 +143,7 @@ export const AccountMobileView: React.FC<AccountMobileViewProps> = React.memo(({
                     <Edit2 className="w-4 h-4" />
                   </button>
                   
-                  {!isDpsSavingsAccount && account.type !== 'cash' && (
+                  {!isDpsAccount && account.type !== 'cash' && (
                     <button
                       onClick={() => onDeleteAccount(account)}
                       className="p-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"

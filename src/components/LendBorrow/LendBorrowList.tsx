@@ -6,7 +6,6 @@ import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { SettlementModal } from './SettlementModal';
 import { supabase } from '../../lib/supabase';
 import { EnhancedTooltip } from '../common/EnhancedTooltip';
-import { SettledRecordInfoModal } from './SettledRecordInfoModal';
 import { useFinanceStore } from '../../store/useFinanceStore';
 
 interface LendBorrowListProps {
@@ -16,6 +15,7 @@ interface LendBorrowListProps {
   onDelete: (id: string) => void;
   onUpdateStatus: (id: string, status: LendBorrow['status']) => void;
   onSettle: (record: LendBorrow, accountId: string) => void;
+  onShowSettledInfo: (record: LendBorrow) => void;
   analytics?: any;
   formatCurrency?: (amount: number, currency: string) => string;
   selectedId?: string | null;
@@ -23,7 +23,7 @@ interface LendBorrowListProps {
   selectedRecordRef?: React.RefObject<HTMLDivElement>;
 }
 
-export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading, onEdit, onDelete, onUpdateStatus, onSettle, analytics, formatCurrency, selectedId, isFromSearch, selectedRecordRef }) => {
+export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading, onEdit, onDelete, onUpdateStatus, onSettle, onShowSettledInfo, analytics, formatCurrency, selectedId, isFromSearch, selectedRecordRef }) => {
   const { t } = useTranslation();
   const { fetchLendBorrowRecords, accounts } = useFinanceStore();
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -66,13 +66,6 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
     record: null
   });
 
-  const [settledRecordInfoModal, setSettledRecordInfoModal] = useState<{
-    isOpen: boolean;
-    record: LendBorrow | null;
-  }>({
-    isOpen: false,
-    record: null
-  });
 
   // Sorting function
   const handleSort = (key: string) => {
@@ -243,110 +236,113 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                   key={record.id}
                   className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
                 >
-                {/* Row 1: Person Name, Type, Amount, Actions */}
-                <div className="grid grid-cols-12 gap-2 p-3 border-b border-gray-100 dark:border-gray-800">
-                  <div className="col-span-5">
-                    <div className="font-medium text-gray-900 dark:text-white truncate">
-                      {record.person_name}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {record.type === 'lend' ? 'Lent' : 'Borrowed'}
-                    </div>
-                  </div>
-                  <div className="col-span-5 flex flex-col justify-center">
-                    <div className="text-sm text-gray-600 dark:text-gray-300">
-                      {formatCurrency ? formatCurrency(record.amount, record.currency) : defaultFormatCurrency(record.amount, record.currency)}
-                    </div>
-                    {record.partial_return_amount && record.partial_return_amount > 0 && (
-                      <div className="text-xs text-green-600 dark:text-green-400">
-                        Partial: {formatCurrency ? formatCurrency(record.partial_return_amount, record.currency) : defaultFormatCurrency(record.partial_return_amount, record.currency)}
+                  {/* Row 1: Person Name, Type, Amount, Actions */}
+                  <div className="grid grid-cols-12 gap-2 p-3 border-b border-gray-100 dark:border-gray-800">
+                    <div className="col-span-5">
+                      <div className="font-medium text-gray-900 dark:text-white truncate">
+                        {record.person_name}
                       </div>
-                    )}
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {record.type === 'lend' ? 'Lent' : 'Borrowed'}
+                      </div>
+                    </div>
+                    <div className="col-span-5 flex flex-col justify-center">
+                      <div className="text-sm text-gray-600 dark:text-gray-300">
+                        {formatCurrency ? formatCurrency(record.amount, record.currency) : defaultFormatCurrency(record.amount, record.currency)}
+                      </div>
+                      {record.partial_return_amount && record.partial_return_amount > 0 && (
+                        <div className="text-xs text-green-600 dark:text-green-400">
+                          Partial: {formatCurrency ? formatCurrency(record.partial_return_amount, record.currency) : defaultFormatCurrency(record.partial_return_amount, record.currency)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="col-span-2 flex items-center justify-end gap-1">
+                      {record.status === 'active' && (
+                        <button
+                          onClick={() => {
+                            setSettlementModal({ isOpen: true, record });
+                          }}
+                          className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                          title="Settle"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                        </button>
+                      )}
+                      {record.status === 'settled' ? (
+                        <button
+                          onClick={() => onShowSettledInfo(record)}
+                          className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          title="Settled record info"
+                        >
+                          <Info className="w-4 h-4" />
+                        </button>
+                      ) : record.account_id ? (
+                        <button
+                          onClick={() => onShowSettledInfo(record)}
+                          className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          title="Account-linked record info"
+                        >
+                          <Info className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => onEdit(record)}
+                            className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            title="Edit"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(record)}
+                            className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="col-span-2 flex items-center justify-end gap-1">
-                    {record.status === 'active' && (
-                      <button
-                        onClick={() => {
-                          setSettlementModal({ isOpen: true, record });
-                        }}
-                        className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                        title="Settle"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                      </button>
-                    )}
-                    {record.status === 'settled' ? (
-                      <button
-                        onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
-                        className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        title="Settled record info"
-                      >
-                        <Info className="w-4 h-4" />
-                      </button>
-                    ) : record.account_id ? (
-                      <button
-                        onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
-                        className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        title="Account-linked record info"
-                      >
-                        <Info className="w-4 h-4" />
-                      </button>
-                    ) : (
-                      <>
-                    <button
-                      onClick={() => onEdit(record)}
-                      className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                      title="Edit"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteClick(record)}
-                      className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                      </>
-                    )}
-                  </div>
-                </div>
                 
-                {/* Row 2: Status, Due Date, Currency */}
-                <div className="grid grid-cols-12 gap-2 p-3">
-                  <div className="col-span-4 flex flex-col">
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Status</div>
-                    <div className="text-sm text-gray-900 dark:text-white flex items-center">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        record.status === 'active' 
-                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                          : record.status === 'settled' 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                          : record.status === 'overdue'
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                          : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                      }`}>
-                        {getStatusIcon(record.status)}
-                        <span className="ml-1">{record.status}</span>
-                      </span>
+                  {/* Row 2: Status, Due Date, Currency */}
+                  <div className="grid grid-cols-12 gap-2 p-3">
+                    <div className="col-span-4 flex flex-col">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Status</div>
+                      <div className="text-sm text-gray-900 dark:text-white flex items-center">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          record.status === 'active' 
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                            : record.status === 'settled' 
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            : record.status === 'overdue'
+                            ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                        }`}>
+                          {getStatusIcon(record.status)}
+                          <span className="ml-1">{record.status}</span>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="col-span-4 flex flex-col">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Due Date</div>
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {record.due_date ? formatDate(record.due_date) : '-'}
+                      </div>
+                      {record.due_date && getDaysUntilDue(record.due_date) < 0 && (
+                        <div className="text-xs text-orange-600 dark:text-orange-400 font-medium">Overdue</div>
+                      )}
+                    </div>
+                    <div className="col-span-4 flex flex-col">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Currency</div>
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {record.currency}
+                      </div>
                     </div>
                   </div>
-                  <div className="col-span-4 flex flex-col">
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Due Date</div>
-                    <div className="text-sm text-gray-900 dark:text-white">
-                      {record.due_date ? formatDate(record.due_date) : '-'}
-                    </div>
-                  </div>
-                  <div className="col-span-4 flex flex-col">
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Currency</div>
-                    <div className="text-sm text-gray-900 dark:text-white">
-                      {record.currency}
-                    </div>
-                  </div>
-                </div>
 
-                {/* Expandable Record Details */}
-                <div className="border-t border-gray-100 dark:border-gray-800">
+                  {/* Expandable Record Details */}
+                  <div className="border-t border-gray-100 dark:border-gray-800">
                   <button
                     onClick={() => toggleRowExpansion(record.id)}
                     className="w-full px-3 py-2 text-left text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between"
@@ -519,7 +515,8 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
       </div>
       
       {/* Desktop Table View */}
-      <table className="hidden lg:table min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900 text-[14px]">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900 text-[14px]">
                   <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10 shadow-sm">
         <tr>
           <th 
@@ -740,7 +737,7 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                     <div className="flex justify-center gap-2 items-center" onClick={(e) => e.stopPropagation()}>
                       {record.status === 'settled' ? (
                         <button
-                          onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
+                          onClick={() => onShowSettledInfo(record)}
                           className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           title="Settled record info"
                         >
@@ -748,7 +745,7 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                         </button>
                       ) : record.account_id ? (
                         <button
-                          onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
+                          onClick={() => onShowSettledInfo(record)}
                           className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           title="Account-linked record info"
                         >
@@ -888,7 +885,8 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
           })
         )}
       </tbody>
-    </table>
+        </table>
+      </div>
 
     {/* Delete Confirmation Modal */}
     <DeleteConfirmationModal
@@ -932,12 +930,6 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
       />
     )}
 
-    {/* Settled Record Info Modal */}
-    <SettledRecordInfoModal
-      isOpen={settledRecordInfoModal.isOpen}
-      onClose={() => setSettledRecordInfoModal({ isOpen: false, record: null })}
-      record={settledRecordInfoModal.record}
-    />
     
     </>
   );
