@@ -305,7 +305,7 @@ export const LendBorrowTable: React.FC<LendBorrowTableProps> = React.memo(({
                               <Edit2 className="w-4 h-4" />
                               <span>Edit Record</span>
                             </button>
-                            {record.status === 'active' && (
+                            {(record.status === 'active' || record.status === 'overdue') && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();

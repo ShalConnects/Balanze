@@ -1541,8 +1541,8 @@ export const LendBorrowTableView: React.FC = () => {
                                 </button>
                               )}
                               
-                              {/* Settlement button for active records */}
-                              {record.status === 'active' && (
+                              {/* Settlement button for active and overdue records */}
+                              {(record.status === 'active' || record.status === 'overdue') && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -1735,8 +1735,8 @@ export const LendBorrowTableView: React.FC = () => {
                         </button>
                       )}
                       
-                      {/* Settlement button for active records */}
-                      {record.status === 'active' && (
+                      {/* Settlement button for active and overdue records */}
+                      {(record.status === 'active' || record.status === 'overdue') && (
                         <button
                           onClick={() => handleOpenSettlementModal(record)}
                           className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"

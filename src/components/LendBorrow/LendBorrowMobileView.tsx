@@ -185,8 +185,8 @@ export const LendBorrowMobileView: React.FC<LendBorrowMobileViewProps> = React.m
                     </button>
                   )}
                   
-                  {/* Settlement button for active records */}
-                  {record.status === 'active' && (
+                  {/* Settlement button for active and overdue records */}
+                  {(record.status === 'active' || record.status === 'overdue') && (
                     <button
                       onClick={() => onSettle(record)}
                       className="p-1.5 text-gray-400 hover:text-purple-600 transition-colors"

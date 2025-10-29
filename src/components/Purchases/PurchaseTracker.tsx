@@ -1542,10 +1542,20 @@ export const PurchaseTracker: React.FC = () => {
 
   // For analytics cards, use the table filter currency:
   const analyticsCurrency = filters.currency || profile?.local_currency || profile?.selected_currencies?.[0] || '';
-  const totalSpent = filteredPurchases.reduce((sum, p) => sum + (p.status === 'purchased' ? Number(p.price) : 0), 0);
-  const monthlySpent = filteredPurchases.filter(p => p.status === 'purchased' && new Date(p.purchase_date).getMonth() === new Date().getMonth() && new Date(p.purchase_date).getFullYear() === new Date().getFullYear()).reduce((sum, p) => sum + Number(p.price), 0);
+  
+  // Lifetime totals (not affected by filters)
+  const totalSpent = purchases.reduce((sum, p) => sum + (p.status === 'purchased' ? Number(p.price) : 0), 0);
+  
+  // Calculate monthly average (lifetime average per month)
+  const purchasedPurchases = purchases.filter(p => p.status === 'purchased');
+  const monthlySpent = purchasedPurchases.length > 0 ? totalSpent / Math.max(1, Math.ceil((new Date().getTime() - Math.min(...purchasedPurchases.map(p => new Date(p.purchase_date).getTime()))) / (1000 * 60 * 60 * 24 * 30))) : 0;
+  
+  // Filtered counts for display (affected by filters)
   const purchasedCount = filteredPurchases.filter(p => p.status === 'purchased').length;
   const plannedCount = filteredPurchases.filter(p => p.status === 'planned').length;
+  
+  // Lifetime counts (not affected by filters)
+  const lifetimeTotalCount = purchases.length;
 
   // Sorting function
   const handleSort = (key: string) => {
@@ -2689,11 +2699,11 @@ export const PurchaseTracker: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className="text-gray-600 dark:text-gray-400">Total Spent:</span>
                   <span className="font-semibold text-red-600 dark:text-red-400">
-                    {formatCurrency(totalSpent, analyticsCurrency)}
+                    {formatCurrency(totalSpent, analyticsCurrency)} (lifetime)
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Monthly:</span>
+                  <span className="text-gray-600 dark:text-gray-400">Monthly Spent:</span>
                   <span className="font-semibold text-orange-600 dark:text-orange-400">
                     {formatCurrency(monthlySpent, analyticsCurrency)}
                   </span>
@@ -2703,21 +2713,9 @@ export const PurchaseTracker: React.FC = () => {
               {/* Status Summary */}
               <div className="flex flex-wrap items-center gap-6">
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Purchased:</span>
-                  <span className="font-semibold text-green-600 dark:text-green-400">
-                    {purchasedCount}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Planned:</span>
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">
-                    {plannedCount}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
                   <span className="text-gray-600 dark:text-gray-400">Total:</span>
                   <span className="font-semibold text-gray-700 dark:text-gray-300">
-                    {filteredPurchases.length}
+                    {lifetimeTotalCount} Purchases
                   </span>
                 </div>
               </div>
@@ -2726,20 +2724,19 @@ export const PurchaseTracker: React.FC = () => {
         </div>
 
         {/* Mobile Summary Section - Regular section at bottom */}
-        <div className="lg:hidden mt-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" style={{ margin: '10px' }}>
+        <div className="lg:hidden mt-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" style={{ margin: '10px', marginBottom: '0px' }}>
           <div className="p-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Summary</h3>
             <div className="space-y-4">
               {/* Financial Summary */}
               <div className="grid grid-cols-1 gap-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">Total Spent:</span>
                   <span className="font-semibold text-red-600 dark:text-red-400">
-                    {formatCurrency(totalSpent, analyticsCurrency)}
+                    {formatCurrency(totalSpent, analyticsCurrency)} (lifetime)
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Monthly:</span>
+                  <span className="text-gray-600 dark:text-gray-400">Monthly Spent:</span>
                   <span className="font-semibold text-orange-600 dark:text-orange-400">
                     {formatCurrency(monthlySpent, analyticsCurrency)}
                   </span>
@@ -2747,23 +2744,11 @@ export const PurchaseTracker: React.FC = () => {
               </div>
 
               {/* Status Summary */}
-              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Purchased:</span>
-                  <span className="font-semibold text-green-600 dark:text-green-400">
-                    {purchasedCount}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Planned:</span>
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">
-                    {plannedCount}
-                  </span>
-                </div>
+              <div className="grid grid-cols-1 gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">Total:</span>
                   <span className="font-semibold text-gray-700 dark:text-gray-300">
-                    {filteredPurchases.length}
+                    {lifetimeTotalCount} Purchases
                   </span>
                 </div>
               </div>

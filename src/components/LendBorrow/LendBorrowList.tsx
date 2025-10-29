@@ -257,7 +257,7 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                       )}
                     </div>
                     <div className="col-span-2 flex items-center justify-end gap-1">
-                      {record.status === 'active' && (
+                      {(record.status === 'active' || record.status === 'overdue') && (
                         <button
                           onClick={() => {
                             setSettlementModal({ isOpen: true, record });

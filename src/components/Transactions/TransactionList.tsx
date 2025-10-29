@@ -789,6 +789,24 @@ export const TransactionList: React.FC<{
   const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const transactionCount = filteredTransactions.length;
 
+  // Lifetime summary calculations (not affected by filters)
+  const allTransactions = transactions; // Use all transactions for lifetime calculations
+  const lifetimeTotalSpent = allTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  
+  // Calculate monthly average (lifetime average per month)
+  const expenseTransactions = allTransactions.filter(t => t.type === 'expense');
+  const monthlySpent = expenseTransactions.length > 0 ? lifetimeTotalSpent / Math.max(1, Math.ceil((new Date().getTime() - Math.min(...expenseTransactions.map(t => new Date(t.date).getTime()))) / (1000 * 60 * 60 * 24 * 30))) : 0;
+  
+  // Income vs Expense (lifetime)
+  const lifetimeIncome = allTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const lifetimeExpense = allTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  
+  // Average per transaction (lifetime)
+  const averagePerTransaction = allTransactions.length > 0 ? (lifetimeIncome + lifetimeExpense) / allTransactions.length : 0;
+  
+  // Lifetime total count
+  const lifetimeTotalCount = allTransactions.length;
+
 
 
 
@@ -2073,6 +2091,96 @@ export const TransactionList: React.FC<{
                 );
               })
             )}
+          </div>
+        </div>
+
+        {/* Summary Bar - Sticky on desktop, regular section on mobile */}
+        <div className="hidden lg:block sticky bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg">
+          <div className="px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-4 text-sm">
+              {/* Financial Summary */}
+              <div className="flex flex-wrap items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600 dark:text-gray-400">Total Spent:</span>
+                  <span className="font-semibold text-red-600 dark:text-red-400">
+                    {formatCurrency(lifetimeTotalSpent, selectedCurrency)} (lifetime)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600 dark:text-gray-400">Monthly Spent:</span>
+                  <span className="font-semibold text-orange-600 dark:text-orange-400">
+                    {formatCurrency(monthlySpent, selectedCurrency)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Status Summary */}
+              <div className="flex flex-wrap items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600 dark:text-gray-400">Income vs Expense:</span>
+                  <span className="font-semibold text-green-600 dark:text-green-400">
+                    {formatCurrency(lifetimeIncome, selectedCurrency)} / {formatCurrency(lifetimeExpense, selectedCurrency)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600 dark:text-gray-400">Average per Transaction:</span>
+                  <span className="font-semibold text-blue-600 dark:text-blue-400">
+                    {formatCurrency(averagePerTransaction, selectedCurrency)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600 dark:text-gray-400">Total:</span>
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">
+                    {lifetimeTotalCount} Transactions
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Summary Section - Regular section at bottom */}
+        <div className="lg:hidden mt-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" style={{ margin: '10px', marginBottom: '0px' }}>
+          <div className="p-4">
+            <div className="space-y-4">
+              {/* Financial Summary */}
+              <div className="grid grid-cols-1 gap-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Total Spent:</span>
+                  <span className="font-semibold text-red-600 dark:text-red-400">
+                    {formatCurrency(lifetimeTotalSpent, selectedCurrency)} (lifetime)
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Monthly Spent:</span>
+                  <span className="font-semibold text-orange-600 dark:text-orange-400">
+                    {formatCurrency(monthlySpent, selectedCurrency)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Status Summary */}
+              <div className="grid grid-cols-1 gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Income vs Expense:</span>
+                  <span className="font-semibold text-green-600 dark:text-green-400">
+                    {formatCurrency(lifetimeIncome, selectedCurrency)} / {formatCurrency(lifetimeExpense, selectedCurrency)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Average per Transaction:</span>
+                  <span className="font-semibold text-blue-600 dark:text-blue-400">
+                    {formatCurrency(averagePerTransaction, selectedCurrency)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Total:</span>
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">
+                    {lifetimeTotalCount} Transactions
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
