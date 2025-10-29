@@ -8,7 +8,7 @@ import InteractiveBackground from '../components/InteractiveBackground';
 export const ResetPassword: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { isDarkMode } = useThemeStore();
+  const { } = useThemeStore();
   
   // Form states
   const [password, setPassword] = useState('');
@@ -28,7 +28,6 @@ export const ResetPassword: React.FC = () => {
 
   // Get token from URL
   const accessToken = searchParams.get('access_token');
-  const refreshToken = searchParams.get('refresh_token');
 
   // Password strength meter component
   const PasswordStrengthMeter: React.FC<{ password: string }> = ({ password }) => {

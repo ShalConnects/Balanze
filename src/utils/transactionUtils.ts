@@ -1,4 +1,4 @@
-import { Transaction, Account, Category } from '../types';
+import { Transaction, Account } from '../types';
 
 export const TRANSACTION_TYPES = ['income', 'expense'] as const;
 
@@ -231,7 +231,7 @@ export const getTransactionTypeDisplayName = (type: string): string => {
 };
 
 export const isRecurringTransaction = (transaction: Transaction): boolean => {
-    return transaction.is_recurring || false;
+    return (transaction as any).is_recurring || false;
 };
 
 export const getRecurringFrequencyDisplayName = (frequency?: string): string => {

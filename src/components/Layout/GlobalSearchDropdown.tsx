@@ -5,6 +5,28 @@ import { supabase } from '../../lib/supabase';
 import Fuse from 'fuse.js';
 import { useNavigate } from 'react-router-dom';
 import { SearchSkeleton } from '../common/SearchSkeleton';
+import { formatCurrency } from '../../utils/currency';
+
+// Date formatting utility
+const formatSearchDate = (dateString: string): string => {
+  if (!dateString) return '';
+  
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (diffInDays === 0) return 'Today';
+  if (diffInDays === 1) return 'Yesterday';
+  if (diffInDays < 7) return `${diffInDays} days ago`;
+  if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
+  
+  return date.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined 
+  });
+};
+
 
 // Removed unused TABS constant
 
@@ -479,48 +501,26 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
   const { fuzzyTransactions, fuzzyAccounts, fuzzyTransfers, fuzzyPurchases, fuzzyLendBorrow, fuzzyDonations } = searchResults;
 
-  // Enhanced result ranking function
-  const rankSearchResults = (results: any[], type: string) => {
-    return results.map(result => {
-      let score = result.score || 0;
+  // Simple date-based sorting function - latest first within each category
+  const sortByLatest = (results: any[]) => {
+    return results.sort((a, b) => {
+      // Get the most relevant date for each item
+      const dateA = new Date(a.item.date || a.item.created_at || a.item.updated_at || 0);
+      const dateB = new Date(b.item.date || b.item.created_at || b.item.updated_at || 0);
       
-      // Recency boost (more recent items get higher scores)
-      const itemDate = new Date(result.item.date || result.item.created_at || result.item.updated_at || 0);
-      const now = new Date();
-      const daysDiff = (now.getTime() - itemDate.getTime()) / (1000 * 60 * 60 * 24);
-      const recencyBoost = Math.max(0, 1 - (daysDiff / 365)); // Boost decreases over a year
-      score += recencyBoost * 0.2;
-      
-      // Frequency boost (items with higher amounts or more activity)
-      if (result.item.amount) {
-        const amountBoost = Math.min(0.1, Math.log10(parseFloat(result.item.amount) || 1) / 10);
-        score += amountBoost;
-      }
-      
-      // User behavior boost (if we had click tracking)
-      // This would be enhanced with actual user behavior data
-      const behaviorBoost = 0; // Placeholder for future enhancement
-      score += behaviorBoost;
-      
-      // Type-specific boosts
-      if (type === 'transaction' && result.item.type === 'income') {
-        score += 0.05; // Slightly boost income transactions
-      }
-      if (type === 'account' && result.item.isActive) {
-        score += 0.1; // Boost active accounts
-      }
-      
-      return { ...result, finalScore: score };
-    }).sort((a, b) => a.finalScore - b.finalScore); // Lower score = better match in Fuse.js
+      // Sort by date descending (most recent first)
+      return dateB.getTime() - dateA.getTime();
+    });
   };
 
-  // Apply ranking to all result sets
-  const rankedTransactions = search ? rankSearchResults(fuzzyTransactions, 'transaction') : [];
-  const rankedAccounts = search ? rankSearchResults(fuzzyAccounts, 'account') : [];
-  const rankedTransfers = search ? rankSearchResults(fuzzyTransfers, 'transfer') : [];
-  const rankedPurchases = search ? rankSearchResults(fuzzyPurchases, 'purchase') : [];
-  const rankedLendBorrow = search ? rankSearchResults(fuzzyLendBorrow, 'lendborrow') : [];
-  const rankedDonations = search ? rankSearchResults(fuzzyDonations, 'donation') : [];
+  // Apply simple date sorting to all result sets - latest first within each category
+  const rankedTransactions = search ? sortByLatest(fuzzyTransactions) : [];
+  const rankedAccounts = search ? sortByLatest(fuzzyAccounts) : [];
+  const rankedTransfers = search ? sortByLatest(fuzzyTransfers) : [];
+  const rankedPurchases = search ? sortByLatest(fuzzyPurchases) : [];
+  const rankedLendBorrow = search ? sortByLatest(fuzzyLendBorrow) : [];
+  const rankedDonations = search ? sortByLatest(fuzzyDonations) : [];
+
 
   // Debug logging - REMOVED to prevent console flooding
 
@@ -551,6 +551,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     }
     return result.length > 0 ? result : text;
   }
+
 
   // Enhanced keyboard navigation with accessibility
   useEffect(() => {
@@ -827,7 +828,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                         {highlight(res.item.description || '', (res.matches?.filter((m: any) => m.key === 'description') ?? []) as any[])}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {highlight(res.item.category || '', (res.matches?.filter((m: any) => m.key === 'category') ?? []) as any[])} • {res.item.amount} • {res.item.type}
+                        {formatCurrency(res.item.amount, accounts.find(acc => acc.id === res.item.account_id)?.currency || 'USD')} • {formatSearchDate(res.item.date || res.item.created_at)}
                       </div>
                     </div>
                   </div>
@@ -872,7 +873,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                         {highlight(res.item.item_name || '', (res.matches?.filter((m: any) => m.key === 'item_name') ?? []) as any[])}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {highlight(res.item.category || '', (res.matches?.filter((m: any) => m.key === 'category') ?? []) as any[])} • {res.item.price} • {res.item.status}
+                        {formatCurrency(res.item.price, res.item.currency || 'USD')} • {formatSearchDate(res.item.created_at || res.item.updated_at)}
                       </div>
                     </div>
                   </div>
@@ -919,7 +920,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                         {highlight(res.item.toAccount?.name || res.item.to_account?.name || 'To', (res.matches?.filter((m: any) => m.key === 'toAccount' || m.key === 'to_account') ?? []) as any[])}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {res.item.fromAmount || res.item.amount} {res.item.fromCurrency || res.item.currency || ''} → {res.item.toAmount || res.item.amount} {res.item.toCurrency || res.item.currency || ''} • {res.item.note || ''}
+                        {formatSearchDate(res.item.date || res.item.created_at)} • {formatCurrency(res.item.fromAmount || res.item.amount, res.item.fromCurrency || res.item.currency || 'USD')} → {formatCurrency(res.item.toAmount || res.item.amount, res.item.toCurrency || res.item.currency || 'USD')}
                       </div>
                     </div>
                   </div>
@@ -1009,7 +1010,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                         {highlight(res.item.person_name || '', (res.matches?.filter((m: any) => m.key === 'person_name') ?? []) as any[])}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {res.item.type} • {res.item.amount} {res.item.currency} • {res.item.status}
+                        {formatCurrency(res.item.amount, res.item.currency || 'USD')} • {formatSearchDate(res.item.created_at || res.item.updated_at)}
                       </div>
                     </div>
                   </div>
@@ -1046,8 +1047,27 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                         {highlight(res.item.type || '', (res.matches?.filter((m: any) => m.key === 'type') ?? []) as any[])}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        ${res.item.amount} • {res.item.mode} • {res.item.status}
-                        {res.item.note && typeof res.item.note === 'string' && res.item.note.trim() && ` • ${res.item.note.substring(0, 30)}${res.item.note.length > 30 ? '...' : ''}`}
+                        {(() => {
+                          // For donations, we need to find the currency from the linked transaction
+                          let currency = 'USD';
+                          if (res.item.transaction_id) {
+                            const transaction = transactions.find(t => t.id === res.item.transaction_id);
+                            if (transaction) {
+                              const account = accounts.find(a => a.id === transaction.account_id);
+                              currency = account?.currency || 'USD';
+                            }
+                          } else if (res.item.note) {
+                            // For manual donations, extract currency from note
+                            const currencyMatch = res.item.note.match(/Currency:\s*([A-Z]{3})/);
+                            currency = currencyMatch ? currencyMatch[1] : 'USD';
+                          }
+                          return formatCurrency(res.item.amount, currency);
+                        })()} • {formatSearchDate(res.item.created_at || res.item.updated_at)}
+                        {res.item.note && typeof res.item.note === 'string' && res.item.note.trim() && (() => {
+                          // Remove currency information from note for cleaner display
+                          const cleanNote = res.item.note.replace(/\(?Currency:\s*[A-Z]{3}\)?/g, '').trim();
+                          return cleanNote ? ` • ${cleanNote.substring(0, 30)}${cleanNote.length > 30 ? '...' : ''}` : '';
+                        })()}
                       </div>
                     </div>
                   </div>

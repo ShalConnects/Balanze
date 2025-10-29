@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { format } from 'date-fns';
-import { Search, Filter, Download, TrendingUp, Heart, PiggyBank, CheckCircle, HelpCircle, Clock, Plus, Copy, ChevronUp, ChevronDown, Trash2, Eye, Star, FileText, Info } from 'lucide-react';
+import { Search, Filter, Download, TrendingUp, Heart, CheckCircle, HelpCircle, Clock, Plus, Copy, ChevronUp, ChevronDown, Trash2, Eye, Star, FileText, Info } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Tooltip } from '../components/common/Tooltip';
 import { useAuthStore } from '../store/authStore';
@@ -13,20 +13,17 @@ import { toast } from 'sonner';
 import { getPreference, setPreference } from '../lib/userPreferences';
 import { useRecordSelection } from '../hooks/useRecordSelection';
 import { SelectionFilter } from '../components/common/SelectionFilter';
-import { useMobileDetection } from '../hooks/useMobileDetection';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const DonationsSavingsPage: React.FC = () => {
   const { 
     donationSavingRecords, 
-    fetchDonationSavingRecords, 
-    getDonationSavingAnalytics,
     deleteDonationSavingRecord,
     transactions,
     accounts,
     loading,
-    setDonationSavingRecords // Added setDonationSavingRecords
+    setDonationSavingRecords
   } = useFinanceStore();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -57,7 +54,7 @@ const DonationsSavingsPage: React.FC = () => {
   // Delete modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [donationToDelete, setDonationToDelete] = useState<any>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [, setDeleteConfirmId] = useState<string | null>(null);
 
   // Add sorting state
   const [sortConfig, setSortConfig] = useState<{
@@ -66,7 +63,7 @@ const DonationsSavingsPage: React.FC = () => {
   } | null>(null);
 
   // Widget visibility state - hybrid approach (localStorage + database)
-  const [showDonationsSavingsWidget, setShowDonationsSavingsWidget] = useState(() => {
+  const [, setShowDonationsSavingsWidget] = useState(() => {
     const saved = localStorage.getItem('showDonationsSavingsWidget');
     return saved !== null ? JSON.parse(saved) : true;
   });
@@ -172,7 +169,6 @@ const DonationsSavingsPage: React.FC = () => {
 
   const user = useAuthStore(state => state.user);
   const profile = useAuthStore(state => state.profile);
-  const { isMobile } = useMobileDetection();
   
   // Android detection
   const isAndroid = /Android/i.test(navigator.userAgent);
@@ -519,13 +515,6 @@ const DonationsSavingsPage: React.FC = () => {
     return format(new Date(dateString), 'MMM dd, yyyy');
   };
 
-  const getTypeIcon = (type: 'saving' | 'donation') => {
-    return type === 'saving' ? <PiggyBank className="w-4 h-4" /> : <Heart className="w-4 h-4" />;
-  };
-
-  const getTypeColor = (type: 'saving' | 'donation') => {
-    return type === 'saving' ? 'text-blue-600' : 'text-green-600';
-  };
 
   const getModeBadge = (mode: 'fixed' | 'percent', modeValue?: number, currency?: string) => {
     if (mode === 'percent') {
