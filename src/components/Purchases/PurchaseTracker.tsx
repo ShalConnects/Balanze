@@ -2677,27 +2677,29 @@ export const PurchaseTracker: React.FC = () => {
         {/* Mobile Summary Section - Regular section at bottom */}
         <div className="lg:hidden mt-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" style={{ margin: '10px', marginBottom: '0px' }}>
           <div className="p-4 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2">
+            <div>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">All Time Summary</span>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Total Spent</span>
-                <span className="ml-auto font-semibold text-gray-900 dark:text-white">
+                <span className="font-semibold text-gray-900 dark:text-white">
                   {formatCurrency(lifetimeTotalSpent, analyticsCurrency)}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Monthly Spent</span>
-                <span className="ml-auto font-semibold text-gray-900 dark:text-white">
+                <span className="font-semibold text-gray-900 dark:text-white">
                   {formatCurrency(monthlySpent, analyticsCurrency)}
                 </span>
               </div>
-              <div className="flex items-center gap-2 col-span-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-gray-600 dark:text-gray-400">Total</span>
-                <span className="ml-auto font-semibold text-gray-900 dark:text-white">
+                <span className="font-semibold text-gray-900 dark:text-white">
                   {lifetimeTotalCount} Purchases
                 </span>
               </div>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">(lifetime)</p>
           </div>
         </div>
       </div>
