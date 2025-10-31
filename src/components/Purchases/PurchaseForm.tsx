@@ -70,7 +70,10 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   // Load linked transaction data when editing a purchase
   useEffect(() => {
     const loadLinkedTransactionData = async () => {
-      if (record?.transaction_id) {
+      // Helper to check if string is a UUID
+      const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+      
+      if (record?.transaction_id && isUUID(record.transaction_id)) {
         try {
           console.log('🔍 Loading linked transaction data for purchase:', record.id);
           const { data: linkedTransaction, error } = await supabase

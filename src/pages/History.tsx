@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
 import { formatTimeUTC } from '../utils/timezoneUtils';
@@ -97,6 +98,8 @@ export const History: React.FC = () => {
   const entityTypeMenuRef = useRef<HTMLDivElement>(null);
   const activityTypeMenuRef = useRef<HTMLDivElement>(null);
   const timeMenuRef = useRef<HTMLDivElement>(null);
+  const timeButtonRef = useRef<HTMLDivElement>(null);
+  const [timeMenuPos, setTimeMenuPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
   
   // Temporary filter state for mobile modal
   const [tempFilters, setTempFilters] = useState(tableFilters);
@@ -138,6 +141,14 @@ export const History: React.FC = () => {
       document.removeEventListener('keydown', handleEscape);
     };
   }, [showMobileFilterMenu]);
+
+  // Position the time filter menu when opened
+  useEffect(() => {
+    if (showTimeMenu && timeButtonRef.current) {
+      const rect = timeButtonRef.current.getBoundingClientRect();
+      setTimeMenuPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width });
+    }
+  }, [showTimeMenu]);
 
   // Sorting function
   const handleSort = (key: string) => {
@@ -578,7 +589,7 @@ export const History: React.FC = () => {
               </div>
 
               {/* Time Filter */}
-              <div className="hidden md:block relative" ref={timeMenuRef}>
+              <div className="hidden md:block relative" ref={timeButtonRef}>
                 <button
                   onClick={() => setShowTimeMenu(v => !v)}
                   className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
@@ -599,8 +610,8 @@ export const History: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
-                {showTimeMenu && (
-                  <div className="absolute left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
+                {showTimeMenu && createPortal(
+                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-[100]" ref={timeMenuRef} style={{ position: 'absolute', top: timeMenuPos.top + 8, left: timeMenuPos.left, width: timeMenuPos.width }}>
                     {[
                       { value: 'this-month', label: 'This Month' },
                       { value: '3-months', label: '3 Months' },
@@ -616,7 +627,7 @@ export const History: React.FC = () => {
                         {time.label}
                       </button>
                     ))}
-                  </div>
+                  </div>, document.body
                 )}
               </div>
 

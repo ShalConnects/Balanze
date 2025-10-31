@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Plus, 
   Search, 
@@ -7,17 +8,12 @@ import {
   CheckCircle, 
   XCircle, 
   Clock, 
-  DollarSign,
-  Calendar,
-  Tag,
-  Edit,
   Trash2,
   Eye,
   Image,
   FileText,
   File,
   X,
-  Info,
   AlertTriangle,
   AlertCircle,
   Edit2,
@@ -27,7 +23,7 @@ import {
   ShoppingBag,
 } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
-import { Purchase, PurchaseCategory } from '../../types';
+import { Purchase } from '../../types';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { format, parseISO } from 'date-fns';
 import { getPreference, setPreference } from '../../lib/userPreferences';
@@ -36,7 +32,6 @@ import { PurchaseDetailsSection } from '../Transactions/PurchaseDetailsSection';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
 import { PurchaseAttachment } from '../../types';
-import { useTranslation } from 'react-i18next';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { CustomDropdown } from './CustomDropdown';
@@ -47,7 +42,6 @@ import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
 import { getDefaultAccountId } from '../../utils/defaultAccount';
 
-import { useNotificationsStore } from '../../store/notificationsStore';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { CategoryModal } from '../common/CategoryModal';
 import { PurchaseCardSkeleton, PurchaseTableSkeleton, PurchaseSummaryCardsSkeleton, PurchaseFiltersSkeleton } from './PurchaseSkeleton';
@@ -98,29 +92,23 @@ export const PurchaseTracker: React.FC = () => {
     loading,
     error,
     fetchPurchases,
-    fetchPurchaseCategories,
     addPurchase,
     updatePurchase,
     deletePurchase,
-    bulkUpdatePurchases,
     getMultiCurrencyPurchaseAnalytics,
     accounts,
     fetchAccounts,
-    addTransaction,
     deleteTransaction,
     transactions,
   } = useFinanceStore();
   const { user, profile } = useAuthStore();
-  const { t } = useTranslation();
-  const { fetchNotifications } = useNotificationsStore();
   const { wrapAsync, setLoadingMessage, loadingMessage } = useLoadingContext();
-  const { usageStats, isFreePlan, isPremiumPlan } = usePlanFeatures();
-  const [formSubmitted, setFormSubmitted] = useState(false);
+  const { usageStats, isPremiumPlan } = usePlanFeatures();
   const { showPurchaseForm, setShowPurchaseForm } = useFinanceStore();
   const navigate = useNavigate();
 
   // Widget visibility state - hybrid approach (localStorage + database)
-  const [showPurchasesWidget, setShowPurchasesWidget] = useState(() => {
+  const [, setShowPurchasesWidget] = useState(() => {
     const saved = localStorage.getItem('showPurchasesWidget');
     return saved !== null ? JSON.parse(saved) : true;
   });
@@ -181,7 +169,7 @@ export const PurchaseTracker: React.FC = () => {
           const showWidget = await getPreference(user.id, 'showPurchasesWidget', true);
           setShowPurchasesWidget(showWidget);
           localStorage.setItem('showPurchasesWidget', JSON.stringify(showWidget));
-        } catch (error) {
+        } catch (error: unknown) {
 
           // Keep current localStorage value if database fails
         }
@@ -218,7 +206,6 @@ export const PurchaseTracker: React.FC = () => {
 
   // Function to restore purchases widget to dashboard
   const handleShowPurchasesWidgetFromPage = useCallback(async () => {
-    console.log('Restoring Purchases widget to dashboard');
     setIsRestoringWidget(true);
     
     try {
@@ -227,8 +214,6 @@ export const PurchaseTracker: React.FC = () => {
       
       // Update local state
       setIsPurchasesWidgetHidden(false);
-      
-      console.log('Purchases widget restored, new state:', false);
     } finally {
       setIsRestoringWidget(false);
     }
@@ -279,16 +264,25 @@ export const PurchaseTracker: React.FC = () => {
   };
 
   const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
-  const [selectedPurchases, setSelectedPurchases] = useState<string[]>([]);
   const [selectedCurrency, setSelectedCurrency] = useState<string>('');
+  
+  // Helper to format dates as YYYY-MM-DD in local timezone (avoid UTC conversion issues)
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  
   // Initialize date range for "This Month" by default
   const getThisMonthDateRange = () => {
     const today = new Date();
     const first = new Date(today.getFullYear(), today.getMonth(), 1);
     const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
     return {
-      start: first.toISOString().slice(0, 10),
-      end: last.toISOString().slice(0, 10)
+      start: formatLocalDate(first),
+      end: formatLocalDate(last)
     };
   };
 
@@ -325,8 +319,8 @@ export const PurchaseTracker: React.FC = () => {
     const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     
-    const firstOfMonthStr = firstOfMonth.toISOString().slice(0, 10);
-    const lastOfMonthStr = lastOfMonth.toISOString().slice(0, 10);
+    const firstOfMonthStr = formatLocalDate(firstOfMonth);
+    const lastOfMonthStr = formatLocalDate(lastOfMonth);
     
     if (filters.dateRange.start === firstOfMonthStr && filters.dateRange.end === lastOfMonthStr) {
       return 'This Month';
@@ -394,7 +388,6 @@ export const PurchaseTracker: React.FC = () => {
   });
 
   const [showNotesModal, setShowNotesModal] = useState(false);
-  const [notesToView, setNotesToView] = useState<string>('');
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   
   // Autocomplete state for item name
@@ -405,6 +398,54 @@ export const PurchaseTracker: React.FC = () => {
   const [selectedAccountId, setSelectedAccountId] = useState<string>(getDefaultAccountId());
   const [purchasePriority, setPurchasePriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [purchaseAttachments, setPurchaseAttachments] = useState<PurchaseAttachment[]>([]);
+  // Light fix: resolve account to preselect when editing an older purchase
+  const resolveAccountForEditing = useCallback(async (purchase: Purchase): Promise<string | null> => {
+    
+    // Helper to check if string is a UUID
+    const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+    
+    try {
+      // Try transaction lookup only if transaction_id is a valid UUID
+      if (purchase.transaction_id && isUUID(purchase.transaction_id)) {
+        try {
+          const { data, error } = await supabase
+            .from('transactions')
+            .select('account_id')
+            .eq('id', purchase.transaction_id)
+            .single();
+          if (!error && data?.account_id) {
+            setSelectedAccountId(data.account_id);
+            return data.account_id;
+          }
+        } catch (txError) {
+          // Continue to fallback logic
+        }
+      }
+      if ((purchase as any).account_id) {
+        setSelectedAccountId((purchase as any).account_id);
+        return (purchase as any).account_id;
+      }
+      const matchingAccounts = accounts.filter(acc => acc.isActive && acc.currency === purchase.currency);
+      const fallback = matchingAccounts[0];
+      if (fallback) {
+        setSelectedAccountId(fallback.id);
+        return fallback.id;
+      } else {
+        return null;
+      }
+    } catch (error) {
+      // best-effort: try currency fallback even on error
+      try {
+        const matchingAccounts = accounts.filter(acc => acc.isActive && acc.currency === purchase.currency);
+        if (matchingAccounts[0]) {
+          setSelectedAccountId(matchingAccounts[0].id);
+          return matchingAccounts[0].id;
+        }
+      } catch (fallbackError) {
+      }
+      return null;
+    }
+  }, [accounts]);
   const [showPurchaseDetails, setShowPurchaseDetails] = useState(true);
 
   // Add state for the selected purchase for the modal
@@ -507,19 +548,7 @@ export const PurchaseTracker: React.FC = () => {
     };
   }, [showMobileFilterMenu]);
   
-  // Get analytics for selected currency or all currencies combined
-  const getAnalyticsForCurrency = (currency: string) => {
-    const analytics = multiCurrencyAnalytics.byCurrency.find(a => a.currency === currency);
-    return analytics || {
-      total_spent: 0,
-      monthly_spent: 0,
-      planned_count: 0,
-      purchased_count: 0,
-      currency: currency
-    };
-  };
 
-  const currentAnalytics = getAnalyticsForCurrency(selectedCurrency);
 
   // Filter purchases
   const filteredPurchases = useMemo(() => {
@@ -527,6 +556,7 @@ export const PurchaseTracker: React.FC = () => {
     if (hasSelection && isFromSearch && selectedRecord) {
       return [selectedRecord];
     }
+
 
     return purchases.filter(purchase => {
       const matchesSearch = purchase.item_name.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -537,10 +567,13 @@ export const PurchaseTracker: React.FC = () => {
       
       let matchesDate = true;
       if (filters.dateRange.start && filters.dateRange.end) {
-        const purchaseDate = new Date(purchase.purchase_date);
-        const startDate = new Date(filters.dateRange.start);
-        const endDate = new Date(filters.dateRange.end);
-        matchesDate = purchaseDate >= startDate && purchaseDate <= endDate;
+        // Compare date strings directly to avoid timezone conversion issues
+        // purchase.purchase_date is in YYYY-MM-DD format, same as filters.dateRange.start/end
+        const purchaseDateStr = purchase.purchase_date.slice(0, 10); // Ensure we only use date part
+        const isAfterStart = purchaseDateStr >= filters.dateRange.start;
+        const isBeforeEnd = purchaseDateStr <= filters.dateRange.end;
+        matchesDate = isAfterStart && isBeforeEnd;
+        
       }
 
       return matchesSearch && matchesCategory && matchesPriority && matchesCurrency && matchesDate;
@@ -727,7 +760,7 @@ export const PurchaseTracker: React.FC = () => {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormSubmitted(true); // Mark form as submitted
+    // Mark form as submitted
     // Mark all fields as touched
     const newTouched = { item_name: true, category: true, status: true, price: true, account: true, purchase_date: true };
     setTouched(newTouched);
@@ -743,21 +776,14 @@ export const PurchaseTracker: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('🔍 handleSubmit called');
-    // handleSubmit called - removed for production
     if (submitting) return; // Prevent double submission
     
-    // Form validation data - removed for production
-    
-    console.log('🔍 Form data:', formData);
+    // Form validation data
     // Basic validation for all purchases
     if (!formData.item_name || !formData.category || !formData.purchase_date) {
-      console.log('❌ Validation failed - missing required fields');
-      // Basic validation failed - removed for production
       alert('Please fill all required fields.');
       return;
     }
-    console.log('✅ Basic validation passed');
     
     // Additional validation for non-planned purchases
     if (formData.status !== 'planned' && formData.status !== 'cancelled') {
@@ -766,7 +792,6 @@ export const PurchaseTracker: React.FC = () => {
         alert('Please fill all required fields (Price is required for non-planned purchases).');
         return;
       }
-      console.log('✅ Price validation passed');
       
       // Only require account if not excluding from calculation
       if (!excludeFromCalculation && !selectedAccountId) {
@@ -776,16 +801,13 @@ export const PurchaseTracker: React.FC = () => {
       }
     }
     
-    // All validation passed - removed for production
+    // All validation passed
     
-    console.log('✅ All validation passed - proceeding with purchase creation');
     setSubmitting(true);
     setLoadingMessage(editingPurchase ? 'Updating purchase...' : 'Saving purchase...');
     
     try {
-      console.log('🔍 Inside try block - editingPurchase:', editingPurchase);
       if (editingPurchase) {
-        console.log('🔍 Updating existing purchase');
         // Handle updating existing purchase
         const updateData: Partial<Purchase> = {
           item_name: formData.item_name,
@@ -875,11 +897,8 @@ export const PurchaseTracker: React.FC = () => {
           toast.success('Purchase updated successfully!');
         }
       } else {
-        console.log('🔍 Creating new purchase');
         // Handle creating new purchase
-        console.log('🔍 Form status:', formData.status);
         if (formData.status === 'planned') {
-          console.log('🔍 Creating planned purchase');
           // For planned purchases, use the store's addPurchase function
           const purchaseData = {
             item_name: formData.item_name,
@@ -893,19 +912,14 @@ export const PurchaseTracker: React.FC = () => {
           };
           
           try {
-            console.log('🔍 Attempting to add purchase...');
           await addPurchase(purchaseData);
-            console.log('✅ Purchase added successfully!');
           toast.success('Planned purchase added successfully!');
-          } catch (error) {
-            console.log('❌ Error adding purchase:', error);
+          } catch (error: unknown) {
             // Check if it's a plan limit error and show upgrade prompt
             if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
               const errorMessage = error.message;
-              console.log('🔍 Error message:', errorMessage);
               
               if (errorMessage && errorMessage.includes('PURCHASE_LIMIT_EXCEEDED')) {
-                console.log('🚫 Purchase limit exceeded!');
                 // Show toast and navigate to plans
                 const currentCount = purchases.length;
                 const limit = 50; // Updated to 50 for free plan
@@ -919,16 +933,12 @@ export const PurchaseTracker: React.FC = () => {
               }
             }
             
-            console.log('❌ Generic error - showing generic error message');
             toast.error('Failed to add purchase. Please try again.');
             return;
           }
         } else {
-          console.log('🔍 Creating purchased/cancelled purchase');
           // For purchased/cancelled items, handle excludeFromCalculation
-          console.log('🔍 excludeFromCalculation:', excludeFromCalculation);
           if (excludeFromCalculation) {
-            console.log('🔍 Creating purchase with excludeFromCalculation');
             // Add purchase only, no transaction
             const purchaseData = {
               item_name: formData.item_name,
@@ -992,14 +1002,10 @@ export const PurchaseTracker: React.FC = () => {
             await fetchPurchases();
             // Success toast moved inside try-catch block
           } else {
-            console.log('🔍 Creating purchase with normal flow (no excludeFromCalculation)');
             // Normal flow: create transaction and link purchase
-            console.log('🔍 Finding selected account:', selectedAccountId);
             const selectedAccount = accounts.find(a => a.id === selectedAccountId);
-            console.log('🔍 Selected account found:', selectedAccount);
             if (!selectedAccount) throw new Error('Selected account not found');
             // Create both purchase and transaction when From Account is selected
-            console.log('🔍 Creating transaction first for From Account flow');
             
             // First create the transaction to get its ID
             const { data: newTransaction, error: transactionError } = await supabase
@@ -1018,11 +1024,8 @@ export const PurchaseTracker: React.FC = () => {
               .single();
             
             if (transactionError) {
-              console.log('❌ Transaction creation failed:', transactionError);
               throw new Error(transactionError.message);
             }
-            
-            console.log('✅ Transaction created with ID:', newTransaction.id);
             
             // Then create the purchase with the transaction_id
             const purchaseData = {
@@ -1037,9 +1040,7 @@ export const PurchaseTracker: React.FC = () => {
               transaction_id: newTransaction.id
             };
             
-            console.log('🔍 Calling addPurchase with transaction_id:', purchaseData);
             await addPurchase(purchaseData);
-            console.log('✅ Purchase created with transaction link!');
             toast.success('Purchase added successfully!');
           }
         }
@@ -1093,72 +1094,7 @@ export const PurchaseTracker: React.FC = () => {
     }
   };
 
-  const handleBulkAction = async (action: 'mark_purchased' | 'mark_cancelled' | 'delete') => {
-    if (selectedPurchases.length === 0) return;
 
-    if (action === 'delete') {
-      if (!window.confirm(`Are you sure you want to delete ${selectedPurchases.length} purchase(s)?`)) {
-        return;
-      }
-      
-      // Wrap the bulk delete process with loading state
-      const wrappedBulkDelete = wrapAsync(async () => {
-        setLoadingMessage('Deleting purchases...');
-        let allSucceeded = true;
-        for (const id of selectedPurchases) {
-          try {
-            const purchase = purchases.find(p => p.id === id);
-            if (purchase && purchase.transaction_id) {
-              const linkedTransaction = transactions.find(t => t.transaction_id === purchase.transaction_id);
-              if (linkedTransaction) {
-                await deleteTransaction(linkedTransaction.id);
-              }
-            }
-            await deletePurchase(id);
-          } catch (err) {
-            allSucceeded = false;
-          }
-        }
-        if (allSucceeded) {
-          toast.success('Selected purchases deleted successfully!');
-        } else {
-          toast.error('Failed to delete some purchases. Please try again.');
-        }
-      });
-      
-      // Execute the wrapped bulk delete function
-      await wrappedBulkDelete();
-    } else {
-      const status = action === 'mark_purchased' ? 'purchased' : 'cancelled';
-      
-      // Wrap the bulk update process with loading state
-      const wrappedBulkUpdate = wrapAsync(async () => {
-        setLoadingMessage('Updating purchases...');
-        await bulkUpdatePurchases(selectedPurchases, { status });
-        toast.success('Selected purchases updated successfully!');
-      });
-      
-      // Execute the wrapped bulk update function
-      await wrappedBulkUpdate();
-    }
-    setSelectedPurchases([]);
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedPurchases(filteredPurchases.map(p => p.id));
-    } else {
-      setSelectedPurchases([]);
-    }
-  };
-
-  const handleSelectPurchase = (id: string, checked: boolean) => {
-    if (checked) {
-      setSelectedPurchases([...selectedPurchases, id]);
-    } else {
-      setSelectedPurchases(selectedPurchases.filter(p => p !== id));
-    }
-  };
 
   const getStatusBadge = (status: Purchase['status']) => {
     const config = {
@@ -1213,13 +1149,43 @@ export const PurchaseTracker: React.FC = () => {
   const categoryMenuRef = useRef<HTMLDivElement>(null);
   const priorityMenuRef = useRef<HTMLDivElement>(null);
   const filterCurrencyMenuRef = useRef<HTMLDivElement>(null);
+  const categoryMenuPortalRef = useRef<HTMLDivElement>(null);
+  const priorityMenuPortalRef = useRef<HTMLDivElement>(null);
+  const filterCurrencyMenuPortalRef = useRef<HTMLDivElement>(null);
+
+  // Portal menu positions
+  const [filterCurrencyMenuPos, setFilterCurrencyMenuPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
+  const [categoryMenuPos, setCategoryMenuPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
+  const [priorityMenuPos, setPriorityMenuPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
 
   // Hide filter dropdowns on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-          if (categoryMenuRef.current && !categoryMenuRef.current.contains(event.target as Node)) setShowCategoryMenu(false);
-    if (priorityMenuRef.current && !priorityMenuRef.current.contains(event.target as Node)) setShowPriorityMenu(false);
-    if (filterCurrencyMenuRef.current && !filterCurrencyMenuRef.current.contains(event.target as Node)) setShowFilterCurrencyMenu(false);
+      const target = event.target as Node;
+      // Check category menu - close if click is outside both button container and portaled dropdown
+      if (showCategoryMenu) {
+        const inButton = categoryMenuRef.current?.contains(target);
+        const inPortal = categoryMenuPortalRef.current?.contains(target);
+        if (!inButton && !inPortal) {
+          setShowCategoryMenu(false);
+        }
+      }
+      // Check priority menu - close if click is outside both button container and portaled dropdown
+      if (showPriorityMenu) {
+        const inButton = priorityMenuRef.current?.contains(target);
+        const inPortal = priorityMenuPortalRef.current?.contains(target);
+        if (!inButton && !inPortal) {
+          setShowPriorityMenu(false);
+        }
+      }
+      // Check currency menu - close if click is outside both button container and portaled dropdown
+      if (showFilterCurrencyMenu) {
+        const inButton = filterCurrencyMenuRef.current?.contains(target);
+        const inPortal = filterCurrencyMenuPortalRef.current?.contains(target);
+        if (!inButton && !inPortal) {
+          setShowFilterCurrencyMenu(false);
+        }
+      }
     }
     if (showCategoryMenu || showPriorityMenu || showFilterCurrencyMenu) {
       document.addEventListener('mousedown', handleClickOutside);
@@ -1228,6 +1194,28 @@ export const PurchaseTracker: React.FC = () => {
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showCategoryMenu, showPriorityMenu, showFilterCurrencyMenu]);
+
+  // Calculate positions for portaled menus
+  useEffect(() => {
+    if (showFilterCurrencyMenu && filterCurrencyMenuRef.current) {
+      const rect = filterCurrencyMenuRef.current.getBoundingClientRect();
+      setFilterCurrencyMenuPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width });
+    }
+  }, [showFilterCurrencyMenu]);
+
+  useEffect(() => {
+    if (showCategoryMenu && categoryMenuRef.current) {
+      const rect = categoryMenuRef.current.getBoundingClientRect();
+      setCategoryMenuPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width });
+    }
+  }, [showCategoryMenu]);
+
+  useEffect(() => {
+    if (showPriorityMenu && priorityMenuRef.current) {
+      const rect = priorityMenuRef.current.getBoundingClientRect();
+      setPriorityMenuPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width });
+    }
+  }, [showPriorityMenu]);
 
   // State for delete confirmation modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -1381,7 +1369,7 @@ export const PurchaseTracker: React.FC = () => {
       }
     } catch (error) {
 
-      toast.error(`Download failed: ${error.message}. Please try opening the file in a new tab.`);
+      toast.error(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try opening the file in a new tab.`);
     }
   };
 
@@ -1420,11 +1408,16 @@ export const PurchaseTracker: React.FC = () => {
   const [customStart, setCustomStart] = useState(filters.dateRange.start ? filters.dateRange.start.slice(0, 10) : '');
   const [customEnd, setCustomEnd] = useState(filters.dateRange.end ? filters.dateRange.end.slice(0, 10) : '');
   const presetDropdownRef = useRef<HTMLDivElement>(null);
+  const dateMenuButtonRef = useRef<HTMLDivElement>(null);
+  const [presetMenuPos, setPresetMenuPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
 
   // Click outside handler for preset dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (presetDropdownRef.current && !presetDropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const inButton = dateMenuButtonRef.current?.contains(target);
+      const inPortal = presetDropdownRef.current?.contains(target);
+      if (showPresetDropdown && !inButton && !inPortal) {
         setShowPresetDropdown(false);
       }
     }
@@ -1434,6 +1427,13 @@ export const PurchaseTracker: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPresetDropdown]);
+
+  useEffect(() => {
+    if (showPresetDropdown && dateMenuButtonRef.current) {
+      const rect = dateMenuButtonRef.current.getBoundingClientRect();
+      setPresetMenuPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width });
+    }
   }, [showPresetDropdown]);
 
   // Preset date range handler
@@ -1467,8 +1467,8 @@ export const PurchaseTracker: React.FC = () => {
       case 'thisMonth': {
         const first = new Date(today.getFullYear(), today.getMonth(), 1);
         const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        start = first.toISOString().slice(0, 10);
-        end = last.toISOString().slice(0, 10);
+        start = formatLocalDate(first);
+        end = formatLocalDate(last);
         break;
       }
       case 'lastMonth': {
@@ -1543,19 +1543,21 @@ export const PurchaseTracker: React.FC = () => {
   // For analytics cards, use the table filter currency:
   const analyticsCurrency = filters.currency || profile?.local_currency || profile?.selected_currencies?.[0] || '';
   
-  // Lifetime totals (not affected by filters)
-  const totalSpent = purchases.reduce((sum, p) => sum + (p.status === 'purchased' ? Number(p.price) : 0), 0);
+  // Financial totals for top summary card (affected by table filters)
+  const summaryTotalSpent = filteredPurchases.reduce((sum, p) => sum + (p.status === 'purchased' ? Number(p.price) : 0), 0);
   
-  // Calculate monthly average (lifetime average per month)
-  const purchasedPurchases = purchases.filter(p => p.status === 'purchased');
-  const monthlySpent = purchasedPurchases.length > 0 ? totalSpent / Math.max(1, Math.ceil((new Date().getTime() - Math.min(...purchasedPurchases.map(p => new Date(p.purchase_date).getTime()))) / (1000 * 60 * 60 * 24 * 30))) : 0;
+  // Currency-scoped lifetime analytics (unaffected by other table filters)
+  const currencyFilteredPurchases = analyticsCurrency ? purchases.filter(p => p.currency === analyticsCurrency) : purchases;
+  const lifetimeTotalSpent = currencyFilteredPurchases.reduce((sum, p) => sum + (p.status === 'purchased' ? Number(p.price) : 0), 0);
+  const monthlySpent = currencyFilteredPurchases.filter(p => p.status === 'purchased').length > 0
+    ? lifetimeTotalSpent / Math.max(1, Math.ceil((new Date().getTime() - Math.min(...currencyFilteredPurchases.filter(p => p.status === 'purchased').map(p => new Date(p.purchase_date).getTime()))) / (1000 * 60 * 60 * 24 * 30)))
+    : 0;
   
   // Filtered counts for display (affected by filters)
   const purchasedCount = filteredPurchases.filter(p => p.status === 'purchased').length;
-  const plannedCount = filteredPurchases.filter(p => p.status === 'planned').length;
   
-  // Lifetime counts (not affected by filters)
-  const lifetimeTotalCount = purchases.length;
+  // Total count (affected by currency filter)
+  const lifetimeTotalCount = currencyFilteredPurchases.length;
 
   // Sorting function
   const handleSort = (key: string) => {
@@ -1720,8 +1722,9 @@ export const PurchaseTracker: React.FC = () => {
                   <span>{filters.currency || currencyOptions[0]}</span>
                   <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                 </button>
-                {showFilterCurrencyMenu && (
-                  <div className="absolute left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                {showFilterCurrencyMenu && createPortal(
+                  <div ref={filterCurrencyMenuPortalRef} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-[100] max-h-48 overflow-y-auto"
+                       style={{ position: 'absolute', top: filterCurrencyMenuPos.top + 8, left: filterCurrencyMenuPos.left, width: filterCurrencyMenuPos.width }}>
                     {currencyOptions.map(currency => (
                       <button
                         key={currency}
@@ -1731,7 +1734,7 @@ export const PurchaseTracker: React.FC = () => {
                         {currency}
                       </button>
                     ))}
-                  </div>
+                  </div>, document.body
                 )}
           </div>
           </div>
@@ -1752,24 +1755,25 @@ export const PurchaseTracker: React.FC = () => {
                   <span>{filters.category === 'all' ? 'All Categories' : filters.category}</span>
                   <svg className="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                 </button>
-                {showCategoryMenu && (
-                  <div className="absolute left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                {showCategoryMenu && createPortal(
+                  <div ref={categoryMenuPortalRef} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-[100] max-h-48 overflow-y-auto"
+                       style={{ position: 'absolute', top: categoryMenuPos.top + 8, left: categoryMenuPos.left, width: categoryMenuPos.width }}>
                     <button
                       onClick={() => { setFilters({ ...filters, category: 'all' }); setShowCategoryMenu(false); }}
                       className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 ${filters.category === 'all' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : ''}`}
                     >
                       All Categories
                     </button>
-              {purchaseCategories.map(category => (
+            {purchaseCategories.map(category => (
                       <button
                         key={category.id}
                         onClick={() => { setFilters({ ...filters, category: category.category_name }); setShowCategoryMenu(false); }}
                         className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 ${filters.category === category.category_name ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : ''}`}
                       >
-                  {category.category_name}
+                {category.category_name}
                       </button>
-              ))}
-                  </div>
+            ))}
+                  </div>, document.body
                 )}
               </div>
           </div>
@@ -1788,8 +1792,9 @@ export const PurchaseTracker: React.FC = () => {
                   <span>{filters.priority === 'all' ? 'All Priorities' : filters.priority.charAt(0).toUpperCase() + filters.priority.slice(1)}</span>
                   <svg className="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                 </button>
-                {showPriorityMenu && (
-                  <div className="absolute left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
+                {showPriorityMenu && createPortal(
+                  <div ref={priorityMenuPortalRef} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-[100]"
+                       style={{ position: 'absolute', top: priorityMenuPos.top + 8, left: priorityMenuPos.left, width: priorityMenuPos.width }}>
                     {(['all', 'low', 'medium', 'high'] as const).map(priority => (
                       <button
                         key={priority}
@@ -1799,19 +1804,17 @@ export const PurchaseTracker: React.FC = () => {
                         {priority === 'all' ? 'All Priorities' : priority.charAt(0).toUpperCase() + priority.slice(1)}
                       </button>
                     ))}
-                  </div>
+                  </div>, document.body
                 )}
               </div>
           </div>
             {/* Date Filter Dropdown and Modal (matches Transactions page) */}
-            <div className="relative hidden md:block">
+            <div className="relative hidden md:block" ref={dateMenuButtonRef}>
               <button
                 className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
-                  filters.dateRange.start && filters.dateRange.end 
-                    ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700' 
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
                 } ${showPresetDropdown ? 'ring-2 ring-blue-500' : ''}`}
-                style={filters.dateRange.start && filters.dateRange.end ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+                style={{ background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' }}
                 onClick={() => setShowPresetDropdown(v => !v)}
                 type="button"
               >
@@ -1820,8 +1823,9 @@ export const PurchaseTracker: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {showPresetDropdown && (
-                <div ref={presetDropdownRef} className="absolute left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 min-w-[140px]">
+              {showPresetDropdown && createPortal(
+                <div ref={presetDropdownRef} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-[100] min-w-[140px]"
+                     style={{ position: 'absolute', top: presetMenuPos.top + 8, left: presetMenuPos.left, width: presetMenuPos.width }}>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('today'); setShowPresetDropdown(false); }}>Today</button>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('thisWeek'); setShowPresetDropdown(false); }}>This Week</button>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('thisMonth'); setShowPresetDropdown(false); }}>This Month</button>
@@ -1829,7 +1833,7 @@ export const PurchaseTracker: React.FC = () => {
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('thisYear'); setShowPresetDropdown(false); }}>This Year</button>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('allTime'); setShowPresetDropdown(false); }}>All Time</button>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('custom'); }}>Custom Range…</button>
-                </div>
+                </div>, document.body
               )}
               {/* Custom Range Modal */}
               {showCustomModal && (
@@ -1839,7 +1843,7 @@ export const PurchaseTracker: React.FC = () => {
                       font-family: 'Manrope', sans-serif !important;
                     }
                   `}</style>
-                  <div className="fixed inset-0 z-50 flex items-center justify-center">
+                  <div className="fixed inset-0 z-[100] flex items-center justify-center">
                     <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setShowCustomModal(false)} />
                     <div className="relative bg-white dark:bg-gray-800 rounded-lg p-6 max-w-xs w-full mx-4 shadow-xl flex flex-col items-center">
                       <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Select Custom Date Range</h3>
@@ -1966,11 +1970,11 @@ export const PurchaseTracker: React.FC = () => {
               <div className="text-left">
                                         <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Spent</p>
                 <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
-                  {formatCurrency(totalSpent, analyticsCurrency)}
+                  {formatCurrency(summaryTotalSpent, analyticsCurrency)}
                 </p>
                 <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
                   {(() => {
-                    const avgSpent = purchasedCount > 0 ? totalSpent / purchasedCount : 0;
+                    const avgSpent = purchasedCount > 0 ? summaryTotalSpent / purchasedCount : 0;
                     return `Avg ${formatCurrency(avgSpent, analyticsCurrency)} per purchase`;
                   })()}
                 </p>
@@ -2163,8 +2167,8 @@ export const PurchaseTracker: React.FC = () => {
                       <td className="px-6 py-2 text-center">
                         <div className="flex justify-center gap-2 items-center">
                           {(() => {
-                            const hasNotes = purchase.notes && purchase.notes.trim().length > 0;
-                            const hasAttachments = purchaseAttachmentCounts[purchase.id] > 0;
+                            const hasNotes = Boolean(purchase.notes && purchase.notes.trim().length > 0);
+                            const hasAttachments = Boolean(purchaseAttachmentCounts[purchase.id] > 0);
                             const shouldShow = shouldShowEyeIcon(hasNotes, hasAttachments);
                             const tooltipText = getTooltipText(hasNotes, hasAttachments);
                             
@@ -2222,6 +2226,14 @@ export const PurchaseTracker: React.FC = () => {
                                 priority: purchase.priority,
                                 notes: purchase.notes || ''
                               });
+
+                              // Preselect account for editing (older records support)
+                              const resolvedAccountId = await resolveAccountForEditing(purchase);
+                              
+                              // Set account synchronously to ensure it's set before modal renders
+                              if (resolvedAccountId) {
+                                setSelectedAccountId(resolvedAccountId);
+                              }
                               
                               // Set the exclude from calculation state based on the purchase data
                               setExcludeFromCalculation(purchase.exclude_from_calculation || false);
@@ -2248,43 +2260,7 @@ export const PurchaseTracker: React.FC = () => {
                                 setPurchaseAttachments([]);
                               }
                               
-                              // Load account and category information from linked transaction or purchase record
-                              if (purchase.account_id) {
-                                // For excluded purchases, use the account_id stored in the purchase record
-                                setSelectedAccountId(purchase.account_id);
-                                // Loaded account from purchase record - removed for production
-                              } else if (purchase.transaction_id) {
-                                // For normal purchases, load from linked transaction
-                                try {
-                                  const { data: linkedTransaction, error } = await supabase
-                                    .from('transactions')
-                                    .select('account_id, category, description, amount')
-                                    .eq('id', purchase.transaction_id)
-                                    .single();
-                                  
-                                  if (linkedTransaction && !error) {
-                                    setSelectedAccountId(linkedTransaction.account_id);
-                                    // Update form data with transaction data
-                                    setFormData(prev => ({
-                                      ...prev,
-                                      category: linkedTransaction.category || prev.category,
-                                      item_name: linkedTransaction.description || prev.item_name,
-                                      price: linkedTransaction.amount ? String(linkedTransaction.amount) : prev.price
-                                    }));
-                                    // Set excludeFromCalculation to false since it's linked to a transaction
-                                    setExcludeFromCalculation(false);
-                                    // Loaded account and category from linked transaction - removed for production
-                                  } else {
-                                    // No linked transaction found for purchase - removed for production
-                                    setSelectedAccountId('');
-                                  }
-                                } catch (err) {
-
-                                  setSelectedAccountId('');
-                                }
-                              } else {
-                                setSelectedAccountId('');
-                              }
+                              // Account resolution is now handled by resolveAccountForEditing above
                               
                               setShowPurchaseForm(true);
                             }}
@@ -2376,8 +2352,8 @@ export const PurchaseTracker: React.FC = () => {
                     {/* Card Footer - Actions */}
                     <div className="flex items-center justify-between px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800">
                       {(() => {
-                        const hasNotes = purchase.notes && purchase.notes.trim().length > 0;
-                        const hasAttachments = purchaseAttachmentCounts[purchase.id] > 0;
+                        const hasNotes = Boolean(purchase.notes && purchase.notes.trim().length > 0);
+                        const hasAttachments = Boolean(purchaseAttachmentCounts[purchase.id] > 0);
                         const shouldShow = shouldShowEyeIcon(hasNotes, hasAttachments);
                         const tooltipText = getTooltipText(hasNotes, hasAttachments);
                         
@@ -2427,7 +2403,7 @@ export const PurchaseTracker: React.FC = () => {
                                   </div>
                                 </div>
                               )}
-                              <button
+                          <button
                           onClick={async () => {
                             setEditingPurchase(purchase);
                             setFormData({
@@ -2440,6 +2416,12 @@ export const PurchaseTracker: React.FC = () => {
                               priority: purchase.priority,
                               notes: purchase.notes || ''
                             });
+                            const resolvedAccountId = await resolveAccountForEditing(purchase);
+                            
+                            // Set account synchronously to ensure it's set before modal renders
+                            if (resolvedAccountId) {
+                              setSelectedAccountId(resolvedAccountId);
+                            }
                             
                             // Set the exclude from calculation state based on the purchase data
                             setExcludeFromCalculation(purchase.exclude_from_calculation || false);
@@ -2466,43 +2448,7 @@ export const PurchaseTracker: React.FC = () => {
                               setPurchaseAttachments([]);
                             }
                             
-                            // Load account and category information from linked transaction or purchase record
-                            if (purchase.account_id) {
-                              // For excluded purchases, use the account_id stored in the purchase record
-                              setSelectedAccountId(purchase.account_id);
-                              // Loaded account from purchase record - removed for production
-                            } else if (purchase.transaction_id) {
-                              // For normal purchases, load from linked transaction
-                              try {
-                                const { data: linkedTransaction, error } = await supabase
-                                  .from('transactions')
-                                  .select('account_id, category, description, amount')
-                                  .eq('id', purchase.transaction_id)
-                                  .single();
-                                
-                                if (linkedTransaction && !error) {
-                                  setSelectedAccountId(linkedTransaction.account_id);
-                                  // Update form data with transaction data
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    category: linkedTransaction.category || prev.category,
-                                    item_name: linkedTransaction.description || prev.item_name,
-                                    price: linkedTransaction.amount ? String(linkedTransaction.amount) : prev.price
-                                  }));
-                                  // Set excludeFromCalculation to false since it's linked to a transaction
-                                  setExcludeFromCalculation(false);
-                                  // Loaded account and category from linked transaction - removed for production
-                                } else {
-                                  // No linked transaction found for purchase - removed for production
-                                  setSelectedAccountId('');
-                                }
-                              } catch (err) {
-
-                                setSelectedAccountId('');
-                              }
-                            } else {
-                              setSelectedAccountId('');
-                            }
+                            // Account resolution is now handled by resolveAccountForEditing above
                             
                             setShowPurchaseForm(true);
                           }}
@@ -2553,7 +2499,6 @@ export const PurchaseTracker: React.FC = () => {
               </div>
             ) : (
               filteredPurchases.map((purchase) => {
-                const category = purchaseCategories.find(c => c.category_name === purchase.category);
                 const isSelected = selectedId === purchase.id;
                 const isFromSearchSelection = isFromSearch && isSelected;
                 
@@ -2636,6 +2581,13 @@ export const PurchaseTracker: React.FC = () => {
                               priority: purchase.priority,
                               notes: purchase.notes || ''
                             });
+                            const resolvedAccountId = await resolveAccountForEditing(purchase);
+                            
+                            // Set account synchronously to ensure it's set before modal renders
+                            if (resolvedAccountId) {
+                              setSelectedAccountId(resolvedAccountId);
+                            }
+                            
                             setExcludeFromCalculation(purchase.exclude_from_calculation || false);
                             setShowPurchaseForm(true);
                           }}
@@ -2693,31 +2645,30 @@ export const PurchaseTracker: React.FC = () => {
         {/* Summary Bar - Sticky on desktop, regular section on mobile */}
         <div className="hidden lg:block sticky bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg">
           <div className="px-4 py-3">
-            <div className="flex flex-wrap items-center justify-between gap-4 text-sm">
-              {/* Financial Summary */}
-              <div className="flex flex-wrap items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Total Spent:</span>
-                  <span className="font-semibold text-red-600 dark:text-red-400">
-                    {formatCurrency(totalSpent, analyticsCurrency)} (lifetime)
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Monthly Spent:</span>
-                  <span className="font-semibold text-orange-600 dark:text-orange-400">
-                    {formatCurrency(monthlySpent, analyticsCurrency)}
-                  </span>
-                </div>
+            <div className="grid grid-cols-3 items-center text-sm">
+              {/* Total Spent (lifetime) */}
+              <div className="flex items-center gap-2 border-r border-gray-200 dark:border-gray-700 pr-4">
+                <span className="text-gray-600 dark:text-gray-400">Total Spent</span>
+                <span className="ml-auto font-semibold text-gray-900 dark:text-white">
+                  {formatCurrency(lifetimeTotalSpent, analyticsCurrency)}
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">(lifetime)</span>
               </div>
 
-              {/* Status Summary */}
-              <div className="flex flex-wrap items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Total:</span>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">
-                    {lifetimeTotalCount} Purchases
-                  </span>
-                </div>
+              {/* Monthly Spent */}
+              <div className="flex items-center gap-2 border-r border-gray-200 dark:border-gray-700 pr-4 pl-4">
+                <span className="text-gray-600 dark:text-gray-400">Monthly Spent</span>
+                <span className="ml-auto font-semibold text-gray-900 dark:text-white">
+                  {formatCurrency(monthlySpent, analyticsCurrency)}
+                </span>
+              </div>
+
+              {/* Total Purchases */}
+              <div className="flex items-center gap-2 pl-4">
+                <span className="text-gray-600 dark:text-gray-400">Total</span>
+                <span className="ml-auto font-semibold text-gray-900 dark:text-white">
+                  {lifetimeTotalCount} Purchases
+                </span>
               </div>
             </div>
           </div>
@@ -2725,34 +2676,28 @@ export const PurchaseTracker: React.FC = () => {
 
         {/* Mobile Summary Section - Regular section at bottom */}
         <div className="lg:hidden mt-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" style={{ margin: '10px', marginBottom: '0px' }}>
-          <div className="p-4">
-            <div className="space-y-4">
-              {/* Financial Summary */}
-              <div className="grid grid-cols-1 gap-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Total Spent:</span>
-                  <span className="font-semibold text-red-600 dark:text-red-400">
-                    {formatCurrency(totalSpent, analyticsCurrency)} (lifetime)
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Monthly Spent:</span>
-                  <span className="font-semibold text-orange-600 dark:text-orange-400">
-                    {formatCurrency(monthlySpent, analyticsCurrency)}
-                  </span>
-                </div>
+          <div className="p-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-600 dark:text-gray-400">Total Spent</span>
+                <span className="ml-auto font-semibold text-gray-900 dark:text-white">
+                  {formatCurrency(lifetimeTotalSpent, analyticsCurrency)}
+                </span>
               </div>
-
-              {/* Status Summary */}
-              <div className="grid grid-cols-1 gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Total:</span>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">
-                    {lifetimeTotalCount} Purchases
-                  </span>
-                </div>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-600 dark:text-gray-400">Monthly Spent</span>
+                <span className="ml-auto font-semibold text-gray-900 dark:text-white">
+                  {formatCurrency(monthlySpent, analyticsCurrency)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 col-span-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-gray-600 dark:text-gray-400">Total</span>
+                <span className="ml-auto font-semibold text-gray-900 dark:text-white">
+                  {lifetimeTotalCount} Purchases
+                </span>
               </div>
             </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">(lifetime)</p>
           </div>
         </div>
       </div>

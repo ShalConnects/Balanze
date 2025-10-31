@@ -20,6 +20,8 @@ import { SelectionFilter } from '../common/SelectionFilter';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useTranslation } from 'react-i18next';
 import { getPreference, setPreference } from '../../lib/userPreferences';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const currencySymbols: Record<string, string> = {
   USD: '$',
@@ -128,7 +130,8 @@ export const LendBorrowTableView: React.FC = () => {
   const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
-  
+  const [customStart, setCustomStart] = useState(tableFilters.dateRange.start ? tableFilters.dateRange.start.slice(0, 10) : '');
+  const [customEnd, setCustomEnd] = useState(tableFilters.dateRange.end ? tableFilters.dateRange.end.slice(0, 10) : '');
   
   // Temporary filter state for mobile modal
   const [tempFilters, setTempFilters] = useState(tableFilters);
@@ -373,8 +376,10 @@ export const LendBorrowTableView: React.FC = () => {
   const handlePresetRange = (preset: string) => {
     const today = new Date();
     if (preset === 'custom') {
-      setShowCustomModal(true);
       setShowPresetDropdown(false);
+      setShowCustomModal(true);
+      setCustomStart(tableFilters.dateRange.start ? tableFilters.dateRange.start.slice(0, 10) : '');
+      setCustomEnd(tableFilters.dateRange.end ? tableFilters.dateRange.end.slice(0, 10) : '');
       return;
     }
     setShowCustomModal(false);
@@ -819,6 +824,21 @@ export const LendBorrowTableView: React.FC = () => {
     };
   }, [filteredRecords]);
 
+  // Lifetime totals strictly by selected currency (unaffected by other filters)
+  const lifetimeTotalsByCurrency = useMemo(() => {
+    const currencyFiltered = (lendBorrowRecords || []).filter(record => record.currency === tableFilters.currency);
+    const totals = currencyFiltered.reduce(
+      (acc, record) => {
+        if (record.type === 'lend') acc.lent += record.amount || 0;
+        if (record.type === 'borrow') acc.borrowed += record.amount || 0;
+        acc.count += 1;
+        return acc;
+      },
+      { lent: 0, borrowed: 0, count: 0 }
+    );
+    return totals;
+  }, [lendBorrowRecords, tableFilters.currency]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -1167,6 +1187,85 @@ export const LendBorrowTableView: React.FC = () => {
                     )}
                   </div>
                 </div>
+                
+                {/* Custom Range Modal */}
+                {showCustomModal && (
+                  <>
+                    <style>{`
+                      .react-datepicker, .react-datepicker * {
+                        font-family: 'Manrope', sans-serif !important;
+                      }
+                    `}</style>
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+                      <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setShowCustomModal(false)} />
+                      <div className="relative bg-white dark:bg-gray-800 rounded-lg p-6 max-w-xs w-full mx-4 shadow-xl flex flex-col items-center">
+                        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Select Custom Date Range</h3>
+                        <div className="flex flex-col gap-3 w-full">
+                          <div className="flex flex-col">
+                            <label className="text-xs text-gray-600 dark:text-gray-400 mb-1">Start Date</label>
+                            <DatePicker
+                              selected={customStart ? new Date(customStart) : null}
+                              onChange={date => setCustomStart(date ? date.toISOString().slice(0, 10) : '')}
+                              selectsStart
+                              startDate={customStart ? new Date(customStart) : null}
+                              endDate={customEnd ? new Date(customEnd) : null}
+                              maxDate={customEnd ? new Date(customEnd) : undefined}
+                              dateFormat="MM/dd/yyyy"
+                              className="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded w-full font-sans text-gray-900 dark:text-gray-100"
+                              placeholderText="Select start date"
+                              isClearable
+                              showPopperArrow={false}
+                              popperPlacement="bottom"
+                              autoComplete="off"
+                            />
+                          </div>
+                          <div className="flex flex-col">
+                            <label className="text-xs text-gray-600 dark:text-gray-400 mb-1">End Date</label>
+                            <DatePicker
+                              selected={customEnd ? new Date(customEnd) : null}
+                              onChange={date => setCustomEnd(date ? date.toISOString().slice(0, 10) : '')}
+                              selectsEnd
+                              startDate={customStart ? new Date(customStart) : null}
+                              endDate={customEnd ? new Date(customEnd) : null}
+                              minDate={customStart ? new Date(customStart) : undefined}
+                              dateFormat="MM/dd/yyyy"
+                              className="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded w-full font-sans text-gray-900 dark:text-gray-100"
+                              placeholderText="Select end date"
+                              isClearable
+                              showPopperArrow={false}
+                              popperPlacement="bottom"
+                              autoComplete="off"
+                            />
+                          </div>
+                          {customStart && customEnd && new Date(customEnd) < new Date(customStart) && (
+                            <div className="text-xs text-red-500 mt-1">End date cannot be before start date.</div>
+                          )}
+                        </div>
+                        <div className="flex gap-2 mt-6 w-full">
+                          <button
+                            className="flex-1 py-2 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-100"
+                            onClick={() => setShowCustomModal(false)}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            className="flex-1 py-2 rounded bg-gradient-primary hover:bg-gradient-primary-hover text-white disabled:opacity-50"
+                            disabled={!!(customStart && customEnd && new Date(customEnd) < new Date(customStart))}
+                            onClick={() => {
+                              setTableFilters(f => ({ ...f, dateRange: {
+                                start: customStart ? new Date(customStart).toISOString() : '',
+                                end: customEnd ? new Date(customEnd).toISOString() : ''
+                              }}));
+                              setShowCustomModal(false);
+                            }}
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Clear Filters */}
                 {(tableFilters.search || (tableFilters.currency && tableFilters.currency !== (profile?.local_currency || currencyOptions[0] || '')) || tableFilters.type !== 'all' || tableFilters.status !== 'active' || (tableFilters.dateRange.start && tableFilters.dateRange.end)) && (
@@ -1441,7 +1540,7 @@ export const LendBorrowTableView: React.FC = () => {
                           }`} 
                           onClick={() => toggleRowExpansion(record.id)}
                         >
-                          <td className="px-6 py-[0.7rem]">
+                          <td className="px-6 py-[0.5rem]">
                             <div className="flex items-center">
                               <div className="flex-1">
                                 <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -1460,24 +1559,24 @@ export const LendBorrowTableView: React.FC = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-[0.7rem]">
+                          <td className="px-6 py-[0.5rem]">
                             <span className={`inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRecordTypeColor(record.type)}`}>
                               {record.type === 'lend' ? 'Lend' : 'Borrow'}
                             </span>
                           </td>
-                          <td className="px-6 py-[0.7rem] text-center">
+                          <td className="px-6 py-[0.5rem] text-center">
                             <span className="text-sm font-semibold text-gray-900 dark:text-white">
                               {formatCurrency(record.amount, record.currency)}
                             </span>
                           </td>
-                          <td className="px-6 py-[0.7rem] text-center">
+                          <td className="px-6 py-[0.5rem] text-center">
                             <span className={`inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               isOverdue ? 'bg-red-100 text-red-800' : getRecordStatusColor(record.status)
                             }`}>
                               {isOverdue ? 'Overdue' : record.status.charAt(0).toUpperCase() + record.status.slice(1)}
                             </span>
                           </td>
-                          <td className="px-6 py-[0.7rem] text-center">
+                          <td className="px-6 py-[0.5rem] text-center">
                             <div className="text-sm text-gray-900 dark:text-white font-medium">
                               {new Date(record.due_date).toLocaleDateString()}
                             </div>
@@ -1485,7 +1584,7 @@ export const LendBorrowTableView: React.FC = () => {
                               <div className={`text-xs font-medium mt-1 ${
                                 record.status === 'settled' 
                                   ? 'text-green-600 dark:text-green-400' 
-                                  : isOverdue 
+                                  : daysDiff < 0 
                                     ? 'text-red-600 dark:text-red-400' 
                                     : daysDiff <= 7 
                                       ? 'text-orange-600 dark:text-orange-400' 
@@ -1493,7 +1592,7 @@ export const LendBorrowTableView: React.FC = () => {
                               }`}>
                                 {record.status === 'settled' 
                                   ? 'Settled' 
-                                  : isOverdue 
+                                  : daysDiff < 0 
                                     ? `${Math.abs(daysDiff)} days overdue` 
                                     : daysDiff === 0 
                                       ? 'Due today' 
@@ -1503,7 +1602,7 @@ export const LendBorrowTableView: React.FC = () => {
                               </div>
                             )}
                           </td>
-                          <td className="px-6 py-[0.7rem] text-center">
+                          <td className="px-6 py-[0.5rem] text-center">
                             <div className="flex items-center justify-center space-x-1">
                               {/* Info/Edit button based on record status */}
                               {record.status === 'settled' ? (
@@ -1517,7 +1616,7 @@ export const LendBorrowTableView: React.FC = () => {
                                 >
                                   <Info className="w-4 h-4" />
                                 </button>
-                              ) : record.account_id ? (
+                              ) : (record.account_id && record.affect_account_balance) ? (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -1597,13 +1696,24 @@ export const LendBorrowTableView: React.FC = () => {
                                 <div className="space-y-2">
                                   <h4 className="font-semibold text-gray-900 dark:text-white">Status Information</h4>
                                   <div className="space-y-1 text-sm" style={{ fontSize: '12px' }}>
-                                    {record.status === 'active' && (
-                                      <div style={{ marginTop: 0 }} className={`font-medium ${
-                                        isOverdue ? 'text-red-600' : daysDiff <= 7 ? 'text-orange-600' : 'text-gray-600'
+                                    <div style={{ marginTop: 0 }}><span className="font-medium">Status:</span> 
+                                      <span className={`ml-1 inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                                        isOverdue ? 'bg-red-100 text-red-800' : getRecordStatusColor(record.status)
                                       }`}>
-                                        {isOverdue ? `${Math.abs(daysDiff)} days overdue` : 
-                                         daysDiff <= 7 ? `${daysDiff} days remaining` : 
-                                         `${daysDiff} days remaining`}
+                                        {isOverdue ? 'Overdue' : record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+                                      </span>
+                                    </div>
+                                    {record.due_date && record.status !== 'settled' && (
+                                      <div style={{ marginTop: 0 }} className={`font-medium ${
+                                        daysDiff < 0 
+                                          ? 'text-red-600 dark:text-red-400' 
+                                          : daysDiff <= 7 
+                                            ? 'text-orange-600 dark:text-orange-400' 
+                                            : 'text-blue-600 dark:text-blue-400'
+                                      }`}>
+                                        {daysDiff < 0 ? `${Math.abs(daysDiff)} days overdue` : 
+                                         daysDiff > 0 ? `${daysDiff} days left` : 
+                                         'Due today'}
                                       </div>
                                     )}
                                     {record.partial_return_amount > 0 && (
@@ -1717,7 +1827,7 @@ export const LendBorrowTableView: React.FC = () => {
                         >
                           <Info className="w-3.5 h-3.5" />
                         </button>
-                      ) : record.account_id ? (
+                      ) : (record.account_id && record.affect_account_balance) ? (
                         <button
                           onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
                           className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
@@ -2171,135 +2281,46 @@ export const LendBorrowTableView: React.FC = () => {
         )}
 
         {/* Summary Bar - Sticky on desktop, regular section on mobile */}
-        <div className="hidden lg:block sticky bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg">
+        <div className="hidden lg:block sticky bottom-0 left-0 right-0 z-30 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
           <div className="px-4 py-3">
-            <div className="flex flex-wrap items-center justify-between gap-4 text-sm">
-              {/* Financial Summary */}
-              <div className="flex flex-wrap items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Net Position:</span>
-                  <span className={`font-semibold ${
-                    currentAnalytics.total_lent > currentAnalytics.total_borrowed 
-                      ? 'text-green-600 dark:text-green-400' 
-                      : currentAnalytics.total_borrowed > currentAnalytics.total_lent 
-                        ? 'text-red-600 dark:text-red-400' 
-                        : 'text-gray-600 dark:text-gray-400'
-                  }`}>
-                    {formatCurrency(currentAnalytics.total_lent - currentAnalytics.total_borrowed, currentAnalytics.currency)}
-                  </span>
-                </div>
+            <div>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">All Time Summary</span>
+            </div>
+            <div className="flex items-center text-sm">
+              <div className="flex items-center gap-2 pr-4 border-r border-gray-200 dark:border-gray-700">
+                <span className="text-gray-600 dark:text-gray-400">Lent:</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(lifetimeTotalsByCurrency.lent, tableFilters.currency)}</span>
               </div>
-
-              {/* Outstanding Summary */}
-              <div className="flex flex-wrap items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Outstanding Lent:</span>
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">
-                    {formatCurrency(currentAnalytics.outstanding_lent, currentAnalytics.currency)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Outstanding Borrowed:</span>
-                  <span className="font-semibold text-orange-600 dark:text-orange-400">
-                    {formatCurrency(currentAnalytics.outstanding_borrowed, currentAnalytics.currency)}
-                  </span>
-                </div>
+              <div className="flex items-center gap-2 px-4 border-r border-gray-200 dark:border-gray-700">
+                <span className="text-gray-600 dark:text-gray-400">Borrowed:</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(lifetimeTotalsByCurrency.borrowed, tableFilters.currency)}</span>
               </div>
-
-              {/* Status Summary */}
-              <div className="flex flex-wrap items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Active:</span>
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">
-                    {filteredRecords.filter(r => r.status === 'active').length}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Settled:</span>
-                  <span className="font-semibold text-green-600 dark:text-green-400">
-                    {filteredRecords.filter(r => r.status === 'settled').length}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Total:</span>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">
-                    {filteredRecords.length}
-                  </span>
-                </div>
-                {currentAnalytics.overdue_count > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-600 dark:text-gray-400">Overdue:</span>
-                    <span className="font-semibold text-red-600 dark:text-red-400">
-                      {currentAnalytics.overdue_count} ({formatCurrency(currentAnalytics.overdue_amount, currentAnalytics.currency)})
-                    </span>
-                  </div>
-                )}
+              <div className="flex items-center gap-2 pl-4">
+                <span className="text-gray-600 dark:text-gray-400">Records:</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{lifetimeTotalsByCurrency.count}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Mobile Summary Section - Regular section at bottom */}
-        <div className="lg:hidden mt-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" style={{ margin: '10px' }}>
-          <div className="p-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Summary</h3>
-            <div className="space-y-4">
-              {/* Financial Summary */}
-              <div className="grid grid-cols-1 gap-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Net Position:</span>
-                  <span className={`font-semibold ${
-                    currentAnalytics.total_lent > currentAnalytics.total_borrowed 
-                      ? 'text-green-600 dark:text-green-400' 
-                      : currentAnalytics.total_borrowed > currentAnalytics.total_lent 
-                        ? 'text-red-600 dark:text-red-400' 
-                        : 'text-gray-600 dark:text-gray-400'
-                  }`}>
-                    {formatCurrency(currentAnalytics.total_lent - currentAnalytics.total_borrowed, currentAnalytics.currency)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Outstanding Lent:</span>
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">
-                    {formatCurrency(currentAnalytics.outstanding_lent, currentAnalytics.currency)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Outstanding Borrowed:</span>
-                  <span className="font-semibold text-orange-600 dark:text-orange-400">
-                    {formatCurrency(currentAnalytics.outstanding_borrowed, currentAnalytics.currency)}
-                  </span>
-                </div>
+        <div className="lg:hidden mt-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" style={{ margin: '10px', marginBottom: '0px' }}>
+          <div className="p-4 space-y-3">
+            <div>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">All Time Summary</span>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600 dark:text-gray-400">Lent</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(lifetimeTotalsByCurrency.lent, tableFilters.currency)}</span>
               </div>
-
-              {/* Status Summary */}
-              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Active:</span>
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">
-                    {filteredRecords.filter(r => r.status === 'active').length}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Settled:</span>
-                  <span className="font-semibold text-green-600 dark:text-green-400">
-                    {filteredRecords.filter(r => r.status === 'settled').length}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Total:</span>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">
-                    {filteredRecords.length}
-                  </span>
-                </div>
-                {currentAnalytics.overdue_count > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">Overdue:</span>
-                    <span className="font-semibold text-red-600 dark:text-red-400">
-                      {currentAnalytics.overdue_count} ({formatCurrency(currentAnalytics.overdue_amount, currentAnalytics.currency)})
-                    </span>
-                  </div>
-                )}
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600 dark:text-gray-400">Borrowed</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(lifetimeTotalsByCurrency.borrowed, tableFilters.currency)}</span>
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-gray-600 dark:text-gray-400">Records</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{lifetimeTotalsByCurrency.count}</span>
               </div>
             </div>
           </div>

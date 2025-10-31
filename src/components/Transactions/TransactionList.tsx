@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowUpRight, ArrowDownRight, Copy, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
@@ -586,6 +587,24 @@ export const TransactionList: React.FC<{
   // Always use a valid currency code for formatting
   const selectedCurrency = filters.currency || accountCurrencies[0] || 'USD';
 
+  // Lifetime totals strictly by selected currency (unaffected by filters)
+  const lifetimeTotalsByCurrency = useMemo(() => {
+    const currencyFiltered = (activeTransactions || []).filter(t => {
+      const account = accounts.find(a => a.id === t.account_id);
+      return account?.currency === selectedCurrency;
+    });
+    const totals = currencyFiltered.reduce(
+      (acc, t) => {
+        if (t.type === 'income') acc.income += t.amount || 0;
+        if (t.type === 'expense') acc.expense += t.amount || 0;
+        acc.count += 1;
+        return acc;
+      },
+      { income: 0, expense: 0, count: 0 }
+    );
+    return totals;
+  }, [activeTransactions, selectedCurrency, accounts]);
+
   // Set default currency filter to user's local_currency if available and valid
   React.useEffect(() => {
     if (!filters.currency && profile?.local_currency && accountCurrencies.includes(profile.local_currency)) {
@@ -789,24 +808,6 @@ export const TransactionList: React.FC<{
   const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const transactionCount = filteredTransactions.length;
 
-  // Lifetime summary calculations (not affected by filters)
-  const allTransactions = transactions; // Use all transactions for lifetime calculations
-  const lifetimeTotalSpent = allTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-  
-  // Calculate monthly average (lifetime average per month)
-  const expenseTransactions = allTransactions.filter(t => t.type === 'expense');
-  const monthlySpent = expenseTransactions.length > 0 ? lifetimeTotalSpent / Math.max(1, Math.ceil((new Date().getTime() - Math.min(...expenseTransactions.map(t => new Date(t.date).getTime()))) / (1000 * 60 * 60 * 24 * 30))) : 0;
-  
-  // Income vs Expense (lifetime)
-  const lifetimeIncome = allTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-  const lifetimeExpense = allTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-  
-  // Average per transaction (lifetime)
-  const averagePerTransaction = allTransactions.length > 0 ? (lifetimeIncome + lifetimeExpense) / allTransactions.length : 0;
-  
-  // Lifetime total count
-  const lifetimeTotalCount = allTransactions.length;
-
 
 
 
@@ -873,6 +874,8 @@ export const TransactionList: React.FC<{
 
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
   const presetDropdownRef = React.useRef<HTMLDivElement>(null);
+  const dateMenuButtonRef = useRef<HTMLDivElement>(null);
+  const [presetMenuPos, setPresetMenuPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
 
   // Click outside handler for preset dropdown
   React.useEffect(() => {
@@ -887,6 +890,13 @@ export const TransactionList: React.FC<{
       document.removeEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPresetDropdown]);
+
+  useEffect(() => {
+    if (showPresetDropdown && dateMenuButtonRef.current) {
+      const rect = dateMenuButtonRef.current.getBoundingClientRect();
+      setPresetMenuPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width });
+    }
   }, [showPresetDropdown]);
 
   const [showCustomModal, setShowCustomModal] = useState(false);
@@ -1160,7 +1170,7 @@ export const TransactionList: React.FC<{
             </div>
             </div>
             {/* Date Preset Dropdown styled as filter button */}
-            <div className="hidden md:block relative">
+            <div className="hidden md:block relative" ref={dateMenuButtonRef}>
               <button
                 className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
                   filters.dateRange.start && filters.dateRange.end 
@@ -1181,8 +1191,9 @@ export const TransactionList: React.FC<{
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {showPresetDropdown && (
-                <div ref={presetDropdownRef} className="absolute left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 min-w-[140px]">
+              {showPresetDropdown && createPortal(
+                <div ref={presetDropdownRef} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-[100] min-w-[140px]"
+                     style={{ position: 'absolute', top: presetMenuPos.top + 8, left: presetMenuPos.left, width: presetMenuPos.width }}>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('today'); setShowPresetDropdown(false); }}>Today</button>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('thisWeek'); setShowPresetDropdown(false); }}>This Week</button>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('thisMonth'); setShowPresetDropdown(false); }}>This Month</button>
@@ -1190,7 +1201,7 @@ export const TransactionList: React.FC<{
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('thisYear'); setShowPresetDropdown(false); }}>This Year</button>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('allTime'); setShowPresetDropdown(false); }}>All Time</button>
                   <button className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" onClick={() => { handlePresetRange('custom'); }}>Custom Range…</button>
-                </div>
+                </div>, document.body
               )}
             </div>
             
@@ -1329,7 +1340,7 @@ export const TransactionList: React.FC<{
                         Cancel
                       </button>
                       <button
-                        className="flex-1 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 border border-blue-700 dark:border-blue-800"
+                        className="flex-1 py-2 rounded bg-gradient-primary hover:bg-gradient-primary-hover text-white disabled:opacity-50"
                         disabled={!!(customStart && customEnd && new Date(customEnd) < new Date(customStart))}
                         onClick={() => {
                           setFilters(f => ({ ...f, dateRange: {
@@ -2093,92 +2104,57 @@ export const TransactionList: React.FC<{
             )}
           </div>
         </div>
+        
+        {/* Summary Bar - Integrated with table */}
+        <div className="lg:block hidden bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-3" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
+          <div>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">All Time Summary</span>
+          </div>
+          <div className="flex items-center text-sm">
+            {/* Total Income */}
+            <div className="flex items-center gap-2 pr-4 border-r border-gray-200 dark:border-gray-700">
+              <span className="text-gray-600 dark:text-gray-400">Income:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {formatCurrency(lifetimeTotalsByCurrency.income, selectedCurrency)}
+              </span>
+            </div>
 
-        {/* Summary Bar - Sticky on desktop, regular section on mobile */}
-        <div className="hidden lg:block sticky bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg">
-          <div className="px-4 py-3">
-            <div className="flex flex-wrap items-center justify-between gap-4 text-sm">
-              {/* Financial Summary */}
-              <div className="flex flex-wrap items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Total Spent:</span>
-                  <span className="font-semibold text-red-600 dark:text-red-400">
-                    {formatCurrency(lifetimeTotalSpent, selectedCurrency)} (lifetime)
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Monthly Spent:</span>
-                  <span className="font-semibold text-orange-600 dark:text-orange-400">
-                    {formatCurrency(monthlySpent, selectedCurrency)}
-                  </span>
-                </div>
-              </div>
+            {/* Total Expense */}
+            <div className="flex items-center gap-2 px-4 border-r border-gray-200 dark:border-gray-700">
+              <span className="text-gray-600 dark:text-gray-400">Expense:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {formatCurrency(lifetimeTotalsByCurrency.expense, selectedCurrency)}
+              </span>
+            </div>
 
-              {/* Status Summary */}
-              <div className="flex flex-wrap items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Income vs Expense:</span>
-                  <span className="font-semibold text-green-600 dark:text-green-400">
-                    {formatCurrency(lifetimeIncome, selectedCurrency)} / {formatCurrency(lifetimeExpense, selectedCurrency)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Average per Transaction:</span>
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">
-                    {formatCurrency(averagePerTransaction, selectedCurrency)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-600 dark:text-gray-400">Total:</span>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">
-                    {lifetimeTotalCount} Transactions
-                  </span>
-                </div>
-              </div>
+            {/* Total Transactions */}
+            <div className="flex items-center gap-2 pl-4">
+              <span className="text-gray-600 dark:text-gray-400">Transactions:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {lifetimeTotalsByCurrency.count}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Mobile Summary Section - Regular section at bottom */}
         <div className="lg:hidden mt-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" style={{ margin: '10px', marginBottom: '0px' }}>
-          <div className="p-4">
-            <div className="space-y-4">
-              {/* Financial Summary */}
-              <div className="grid grid-cols-1 gap-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Total Spent:</span>
-                  <span className="font-semibold text-red-600 dark:text-red-400">
-                    {formatCurrency(lifetimeTotalSpent, selectedCurrency)} (lifetime)
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Monthly Spent:</span>
-                  <span className="font-semibold text-orange-600 dark:text-orange-400">
-                    {formatCurrency(monthlySpent, selectedCurrency)}
-                  </span>
-                </div>
+          <div className="p-4 space-y-3">
+            <div>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">All Time Summary</span>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600 dark:text-gray-400">Income</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(lifetimeTotalsByCurrency.income, selectedCurrency)}</span>
               </div>
-
-              {/* Status Summary */}
-              <div className="grid grid-cols-1 gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Income vs Expense:</span>
-                  <span className="font-semibold text-green-600 dark:text-green-400">
-                    {formatCurrency(lifetimeIncome, selectedCurrency)} / {formatCurrency(lifetimeExpense, selectedCurrency)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Average per Transaction:</span>
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">
-                    {formatCurrency(averagePerTransaction, selectedCurrency)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Total:</span>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">
-                    {lifetimeTotalCount} Transactions
-                  </span>
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600 dark:text-gray-400">Expense</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(lifetimeTotalsByCurrency.expense, selectedCurrency)}</span>
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-gray-600 dark:text-gray-400">Transactions</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{lifetimeTotalsByCurrency.count}</span>
               </div>
             </div>
           </div>

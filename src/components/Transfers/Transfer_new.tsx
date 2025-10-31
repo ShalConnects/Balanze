@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Search, ChevronUp, ChevronDown, Filter, ArrowUpDown, TrendingUp, ArrowRight, Eye } from 'lucide-react';
+import { Plus, Search, ChevronUp, ChevronDown, Filter, TrendingUp, ArrowRight, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatTimeUTC } from '../../utils/timezoneUtils';
 import { useFinanceStore } from '../../store/useFinanceStore';
@@ -471,14 +471,14 @@ export const Transfer_new: React.FC = () => {
   };
 
    // Get sort icon for table headers
-   const getSortIcon = (key: string) => {
-     if (sortConfig?.key !== key) {
-       return <ArrowUpDown className="w-4 h-4 text-gray-400" />;
-     }
-     return sortConfig.direction === 'asc' 
-       ? <ChevronUp className="w-4 h-4 text-blue-600" />
-       : <ChevronDown className="w-4 h-4 text-blue-600" />;
-   };
+  const getSortIcon = (key: string) => {
+    if (sortConfig?.key !== key) {
+      return <ChevronUp className="w-4 h-4 text-gray-400" />;
+    }
+    return sortConfig.direction === 'asc' 
+      ? <ChevronUp className="w-4 h-4 text-blue-600" />
+      : <ChevronDown className="w-4 h-4 text-blue-600" />;
+  };
 
    // Row expansion functions
    const toggleRowExpansion = (transferId: string) => {

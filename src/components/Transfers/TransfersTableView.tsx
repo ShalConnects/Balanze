@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, ArrowRight, Search, ChevronUp, ChevronDown, Filter, Copy } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -79,6 +80,9 @@ export const TransfersTableView: React.FC = () => {
   const [showTypeMenu, setShowTypeMenu] = useState(false);
   const [showDateMenu, setShowDateMenu] = useState(false);
   const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
+  const dateMenuButtonRef = useRef<HTMLDivElement>(null);
+  const dateMenuRef = useRef<HTMLDivElement>(null);
+  const [dateMenuPos, setDateMenuPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
 
   // Row expansion state
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -87,6 +91,14 @@ export const TransfersTableView: React.FC = () => {
   useEffect(() => {
     fetchTransferHistory();
   }, []);
+
+  // Position the date menu when opened
+  useEffect(() => {
+    if (showDateMenu && dateMenuButtonRef.current) {
+      const rect = dateMenuButtonRef.current.getBoundingClientRect();
+      setDateMenuPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width });
+    }
+  }, [showDateMenu]);
 
   // Force loading state to false after a timeout to prevent infinite loading
   useEffect(() => {
@@ -511,7 +523,7 @@ export const TransfersTableView: React.FC = () => {
 
                 {/* Date Filter */}
                 <div>
-                  <div className="relative">
+                  <div className="relative" ref={dateMenuButtonRef}>
                      <button
                        onClick={() => setShowDateMenu(v => !v)}
                        className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
@@ -530,8 +542,8 @@ export const TransfersTableView: React.FC = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
-                    {showDateMenu && (
-                      <div className="absolute left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                    {showDateMenu && createPortal(
+                      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-[100] max-h-48 overflow-y-auto" ref={dateMenuRef} style={{ position: 'absolute', top: dateMenuPos.top + 8, left: dateMenuPos.left, width: dateMenuPos.width }}>
                         <button
                           onClick={() => { setTableFilters({ ...tableFilters, dateRange: 'all' }); setShowDateMenu(false); }}
                           className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 ${tableFilters.dateRange === 'all' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200' : ''}`}
@@ -562,7 +574,7 @@ export const TransfersTableView: React.FC = () => {
                         >
                           1 Year
                         </button>
-                      </div>
+                      </div>, document.body
                     )}
                   </div>
                 </div>
