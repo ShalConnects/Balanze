@@ -1,5 +1,5 @@
 // src/components/ArticleBasedTour.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Joyride, { STATUS, CallBackProps, Step } from 'react-joyride';
 import { track, trackOnboardingStep } from '../lib/analytics';
 import { MOCK_ARTICLES } from '../pages/KBArticlePage';
@@ -44,7 +44,7 @@ function extractTourStepsFromArticle(article: any): TourStep[] {
     steps.push({
       target: 'body', // Use body as fallback target
       content: `Welcome to the tour for: ${article.title}. This interactive guide will help you get started with Balanze.`,
-      placement: 'center',
+      placement: 'auto',
       disableBeacon: true
     });
 
@@ -53,37 +53,37 @@ function extractTourStepsFromArticle(article: any): TourStep[] {
       steps.push({
         target: 'body',
         content: 'To get started, you\'ll need to: 1) Create your first account, 2) Add your first transaction, 3) Explore your dashboard. Let\'s navigate to the accounts page to begin!',
-        placement: 'center'
+        placement: 'auto'
       });
       steps.push({
         target: 'body',
         content: 'Click on "Accounts" in the sidebar to create your first account, or use the quick action buttons on the dashboard.',
-        placement: 'center'
+        placement: 'auto'
       });
     } else if (article.slug === 'create-first-account') {
       steps.push({
         target: 'body',
         content: 'To create your first account: 1) Go to the Accounts page, 2) Click "Add Account", 3) Choose account type, 4) Fill in details and save.',
-        placement: 'center'
+        placement: 'auto'
       });
     } else if (article.slug === 'create-first-transaction') {
       steps.push({
         target: 'body',
         content: 'To add your first transaction: 1) Go to the Transactions page, 2) Click "Add Transaction", 3) Select income/expense, 4) Enter amount and details.',
-        placement: 'center'
+        placement: 'auto'
       });
     } else if (article.slug === 'analytics-overview') {
       steps.push({
         target: 'body',
         content: 'To explore analytics: 1) Go to the Analytics page, 2) View your spending patterns, 3) Check trends and insights, 4) Export data if needed.',
-        placement: 'center'
+        placement: 'auto'
       });
     } else {
       // Generic tour step for other articles
       steps.push({
         target: 'body',
         content: `This tour will help you understand: ${article.title}. Navigate to the relevant page to follow along with the guide.`,
-        placement: 'center'
+        placement: 'auto'
       });
     }
   }
@@ -104,7 +104,7 @@ function generateTourFromArticle(articleSlug: string): Step[] {
 
   const tourSteps = extractTourStepsFromArticle(article);
   
-  return tourSteps.map((step, index) => ({
+  return tourSteps.map((step) => ({
     target: step.target,
     content: step.content,
     placement: step.placement || 'bottom',
@@ -210,7 +210,7 @@ export default function ArticleBasedTour({
       timestamp: new Date().toISOString()
     });
 
-    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
+    if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
       setRun(false);
       trackOnboardingStep(articleSlug || 'article-tour', status === STATUS.FINISHED ? 'tour_complete' : 'tour_skip');
       onClose?.();
