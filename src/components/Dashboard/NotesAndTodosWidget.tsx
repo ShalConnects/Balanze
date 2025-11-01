@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { Star, StickyNote as StickyNoteIcon, Plus, AlertTriangle } from 'lucide-react';
+import { Star, StickyNote as StickyNoteIcon, Plus, AlertTriangle, Timer, Play, Pause, RotateCcw, Settings } from 'lucide-react';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import Modal from 'react-modal';
 
@@ -42,6 +42,38 @@ export const NotesAndTodosWidget: React.FC = () => {
   const [showAllNotes, setShowAllNotes] = useState(false);
   const [showAllTasks, setShowAllTasks] = useState(false);
   const [lastWishCountdown, setLastWishCountdown] = useState<null | { daysLeft: number, nextCheckIn: string }>(null);
+  
+  // Pomodoro state
+  const [pomodoroTimer, setPomodoroTimer] = useState<{
+    taskId: string | null;
+    timeRemaining: number; // in seconds
+    isRunning: boolean;
+  } | null>(null);
+  const [pomodoroCounts, setPomodoroCounts] = useState<Record<string, number>>(() => {
+    // Load from localStorage
+    const saved = localStorage.getItem('pomodoroCounts');
+    return saved ? JSON.parse(saved) : {};
+  });
+  
+  // Pomodoro duration state (in minutes, stored in localStorage)
+  // Global default duration (used as fallback)
+  const [pomodoroDuration, setPomodoroDuration] = useState<number>(() => {
+    const saved = localStorage.getItem('pomodoroDuration');
+    return saved ? parseInt(saved, 10) : 20; // Default 20 minutes
+  });
+  // Per-task durations (taskId -> minutes)
+  const [taskPomodoroDurations, setTaskPomodoroDurations] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('taskPomodoroDurations');
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [showPomodoroSettings, setShowPomodoroSettings] = useState(false);
+  const [tempDurationInput, setTempDurationInput] = useState<string>('');
+  const [editingTaskDuration, setEditingTaskDuration] = useState<string | null>(null);
+  const [tempTaskDurationInput, setTempTaskDurationInput] = useState<string>('');
+  const [completedTaskId, setCompletedTaskId] = useState<string | null>(null);
+  
+  // Guard to prevent double counting on completion
+  const completionProcessedRef = useRef<{ taskId: string | null; processed: boolean }>({ taskId: null, processed: false });
 
   // Fetch notes from Supabase - Fixed to prevent infinite calls
   useEffect(() => {
@@ -280,6 +312,329 @@ export const NotesAndTodosWidget: React.FC = () => {
     if (!error) {
       setTasks(tasks.filter(t => t.id !== id));
       setConfirmDeleteTaskId(null);
+    }
+  };
+
+  // Helper to get duration for a task (per-task or fallback to default)
+  const getTaskDuration = (taskId: string): number => {
+    return taskPomodoroDurations[taskId] || pomodoroDuration;
+  };
+
+  // Pomodoro functions
+  const startPomodoro = (taskId: string) => {
+    const durationInSeconds = getTaskDuration(taskId) * 60;
+    // Reset completion guard for new timer
+    completionProcessedRef.current = { taskId, processed: false };
+    // If there's already a timer running for a different task, stop it first
+    if (pomodoroTimer && pomodoroTimer.taskId !== taskId) {
+      // If starting a new task, stop the old timer completely
+      setPomodoroTimer({
+        taskId,
+        timeRemaining: durationInSeconds,
+        isRunning: true,
+      });
+    } else {
+      // Same task - just start/reset
+      setPomodoroTimer({
+        taskId,
+        timeRemaining: durationInSeconds,
+        isRunning: true,
+      });
+    }
+  };
+
+  const pausePomodoro = () => {
+    if (pomodoroTimer) {
+      setPomodoroTimer({ ...pomodoroTimer, isRunning: false });
+    }
+  };
+
+  const resumePomodoro = () => {
+    if (pomodoroTimer && !pomodoroTimer.isRunning) {
+      setPomodoroTimer({ ...pomodoroTimer, isRunning: true });
+    }
+  };
+
+  const resetPomodoro = () => {
+    if (pomodoroTimer && pomodoroTimer.taskId) {
+      const durationInSeconds = getTaskDuration(pomodoroTimer.taskId) * 60;
+      // Reset completion guard when resetting timer
+      completionProcessedRef.current = { taskId: pomodoroTimer.taskId, processed: false };
+      setPomodoroTimer({
+        ...pomodoroTimer,
+        timeRemaining: durationInSeconds,
+        isRunning: false,
+      });
+    }
+  };
+
+  const stopPomodoro = () => {
+    // Reset completion guard when stopping timer
+    completionProcessedRef.current = { taskId: null, processed: false };
+    setPomodoroTimer(null);
+  };
+
+  // Pomodoro settings functions
+  const handlePresetDuration = (minutes: number) => {
+    setPomodoroDuration(minutes);
+    localStorage.setItem('pomodoroDuration', minutes.toString());
+    // If timer is running, pause it and reset with new duration
+    if (pomodoroTimer && pomodoroTimer.isRunning) {
+      setPomodoroTimer({
+        ...pomodoroTimer,
+        timeRemaining: minutes * 60,
+        isRunning: false,
+      });
+    } else if (pomodoroTimer) {
+      // Timer exists but paused - just update duration
+      setPomodoroTimer({
+        ...pomodoroTimer,
+        timeRemaining: minutes * 60,
+      });
+    }
+    setShowPomodoroSettings(false);
+  };
+
+  const handleCustomDuration = () => {
+    const minutes = parseInt(tempDurationInput, 10);
+    if (minutes > 0 && minutes <= 999) {
+      setPomodoroDuration(minutes);
+      localStorage.setItem('pomodoroDuration', minutes.toString());
+      // If timer is running, pause it and reset with new duration
+      if (pomodoroTimer && pomodoroTimer.isRunning) {
+        setPomodoroTimer({
+          ...pomodoroTimer,
+          timeRemaining: minutes * 60,
+          isRunning: false,
+        });
+      } else if (pomodoroTimer) {
+        // Timer exists but paused - just update duration
+        setPomodoroTimer({
+          ...pomodoroTimer,
+          timeRemaining: minutes * 60,
+        });
+      }
+      setTempDurationInput('');
+      setShowPomodoroSettings(false);
+    }
+  };
+
+  const openSettings = () => {
+    setTempDurationInput(pomodoroDuration.toString());
+    setShowPomodoroSettings(true);
+  };
+
+  // Per-task duration functions
+  const openTaskDurationEditor = (taskId: string) => {
+    setEditingTaskDuration(taskId);
+    setTempTaskDurationInput(getTaskDuration(taskId).toString());
+  };
+
+  const handleTaskPresetDuration = (taskId: string, minutes: number) => {
+    const newDurations = { ...taskPomodoroDurations, [taskId]: minutes };
+    setTaskPomodoroDurations(newDurations);
+    localStorage.setItem('taskPomodoroDurations', JSON.stringify(newDurations));
+    
+    // If timer is running for this task, update it
+    if (pomodoroTimer && pomodoroTimer.taskId === taskId) {
+      if (pomodoroTimer.isRunning) {
+        setPomodoroTimer({
+          ...pomodoroTimer,
+          timeRemaining: minutes * 60,
+          isRunning: false,
+        });
+      } else {
+        setPomodoroTimer({
+          ...pomodoroTimer,
+          timeRemaining: minutes * 60,
+        });
+      }
+    }
+    
+    setEditingTaskDuration(null);
+  };
+
+  const handleTaskCustomDuration = (taskId: string) => {
+    const minutes = parseInt(tempTaskDurationInput, 10);
+    if (minutes > 0 && minutes <= 999) {
+      const newDurations = { ...taskPomodoroDurations, [taskId]: minutes };
+      setTaskPomodoroDurations(newDurations);
+      localStorage.setItem('taskPomodoroDurations', JSON.stringify(newDurations));
+      
+      // If timer is running for this task, update it
+      if (pomodoroTimer && pomodoroTimer.taskId === taskId) {
+        if (pomodoroTimer.isRunning) {
+          setPomodoroTimer({
+            ...pomodoroTimer,
+            timeRemaining: minutes * 60,
+            isRunning: false,
+          });
+        } else {
+          setPomodoroTimer({
+            ...pomodoroTimer,
+            timeRemaining: minutes * 60,
+          });
+        }
+      }
+      
+      setTempTaskDurationInput('');
+      setEditingTaskDuration(null);
+    }
+  };
+
+  const removeTaskDuration = (taskId: string) => {
+    const newDurations = { ...taskPomodoroDurations };
+    delete newDurations[taskId];
+    setTaskPomodoroDurations(newDurations);
+    localStorage.setItem('taskPomodoroDurations', JSON.stringify(newDurations));
+    
+    // If timer is running for this task, reset to default
+    if (pomodoroTimer && pomodoroTimer.taskId === taskId) {
+      if (pomodoroTimer.isRunning) {
+        setPomodoroTimer({
+          ...pomodoroTimer,
+          timeRemaining: pomodoroDuration * 60,
+          isRunning: false,
+        });
+      } else {
+        setPomodoroTimer({
+          ...pomodoroTimer,
+          timeRemaining: pomodoroDuration * 60,
+        });
+      }
+    }
+    
+    setEditingTaskDuration(null);
+  };
+
+  // Timer countdown effect
+  useEffect(() => {
+    if (!pomodoroTimer || !pomodoroTimer.isRunning) return;
+
+    // Initialize guard if not already set for this timer
+    if (pomodoroTimer.taskId && 
+        (completionProcessedRef.current.taskId !== pomodoroTimer.taskId || 
+         completionProcessedRef.current.processed)) {
+      completionProcessedRef.current = { taskId: pomodoroTimer.taskId, processed: false };
+    }
+
+    const interval = setInterval(() => {
+      setPomodoroTimer(prev => {
+        if (!prev || !prev.isRunning) return prev;
+        
+        if (prev.timeRemaining <= 1) {
+          // Timer completed
+          const taskId = prev.taskId;
+          
+          // Guard: Only process completion once per timer instance
+          if (taskId && !completionProcessedRef.current.processed && 
+              completionProcessedRef.current.taskId === taskId) {
+            // Mark as processed to prevent double counting
+            completionProcessedRef.current.processed = true;
+            
+            // Increment pomodoro count
+            setPomodoroCounts(prevCounts => {
+              const newCounts = { ...prevCounts, [taskId]: (prevCounts[taskId] || 0) + 1 };
+              localStorage.setItem('pomodoroCounts', JSON.stringify(newCounts));
+              return newCounts;
+            });
+            
+            // Highlight the completed task
+            setCompletedTaskId(taskId);
+            setTimeout(() => setCompletedTaskId(null), 3000); // Remove highlight after 3 seconds
+            
+            // Play sound notification
+            playCompletionSound();
+            
+            // Show browser notification
+            const task = tasks.find(t => t.id === taskId);
+            const taskName = task?.text || 'Task';
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification('Pomodoro Complete! 🍅', {
+                body: `Great work on "${taskName}"! Take a short break.`,
+                icon: '/favicon.ico',
+              });
+            }
+          }
+          
+          return { ...prev, timeRemaining: 0, isRunning: false };
+        }
+        
+        return { ...prev, timeRemaining: prev.timeRemaining - 1 };
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [pomodoroTimer?.isRunning, pomodoroTimer?.timeRemaining]);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Close settings dropdown when clicking outside
+  useEffect(() => {
+    if (!showPomodoroSettings && !editingTaskDuration) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.pomodoro-settings-container') && !target.closest('.task-duration-container')) {
+        setShowPomodoroSettings(false);
+        setEditingTaskDuration(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showPomodoroSettings, editingTaskDuration]);
+
+  // Format time helper (MM:SS)
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Play sound notification when timer completes
+  const playCompletionSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Pleasant completion sound (chime)
+      oscillator.frequency.value = 800; // Higher frequency for pleasant chime
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 1);
+
+      // Play second tone for double chime effect
+      setTimeout(() => {
+        const oscillator2 = audioContext.createOscillator();
+        const gainNode2 = audioContext.createGain();
+        oscillator2.connect(gainNode2);
+        gainNode2.connect(audioContext.destination);
+        oscillator2.frequency.value = 1000;
+        oscillator2.type = 'sine';
+        gainNode2.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+        oscillator2.start(audioContext.currentTime);
+        oscillator2.stop(audioContext.currentTime + 1);
+      }, 200);
+    } catch (error) {
+      // Fallback: silent failure if audio context is not available
+      console.log('Audio notification not available');
     }
   };
 
@@ -538,15 +893,86 @@ export const NotesAndTodosWidget: React.FC = () => {
           {/* All Tasks Modal */}
           <Modal
             isOpen={showAllTasks}
-            onRequestClose={() => setShowAllTasks(false)}
+            onRequestClose={() => {
+              setShowAllTasks(false);
+              setShowPomodoroSettings(false);
+              setEditingTaskDuration(null);
+            }}
             className="fixed inset-0 flex items-center justify-center z-50"
             overlayClassName="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-md z-40"
             ariaHideApp={false}
           >
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto shadow-lg">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto shadow-lg relative">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">All Tasks</h2>
+                <div className="flex items-center gap-2">
+                  {/* Pomodoro Settings */}
+                  <div className="relative pomodoro-settings-container">
+                    <button
+                      onClick={openSettings}
+                      className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      title="Pomodoro Settings"
+                    >
+                      <Settings className="w-4 h-4" />
+                    </button>
+                    {showPomodoroSettings && (
+                      <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 z-10">
+                        <div className="mb-3">
+                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <span className="text-gradient-primary">Default Pomodoro Duration (minutes)</span>
+                            <span className="block text-xs text-gray-500 dark:text-gray-400 font-normal mt-0.5">
+                              Used for tasks without custom duration
+                            </span>
+                          </label>
+                          <div className="flex gap-2 mb-3">
+                            <input
+                              type="number"
+                              min="1"
+                              max="999"
+                              value={tempDurationInput}
+                              onChange={(e) => setTempDurationInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleCustomDuration();
+                                }
+                              }}
+                              className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-400 dark:focus:border-purple-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-purple-800"
+                              placeholder="Custom"
+                            />
+                            <button
+                              onClick={handleCustomDuration}
+                              className="px-3 py-1 text-xs bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded transition-all duration-200 shadow-sm hover:shadow-md"
+                            >
+                              Set
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {[15, 25, 30, 45, 60].map((preset) => (
+                              <button
+                                key={preset}
+                                onClick={() => handlePresetDuration(preset)}
+                                className={`px-2 py-1 text-xs rounded transition-all duration-200 ${
+                                  pomodoroDuration === preset
+                                    ? 'bg-gradient-primary text-white shadow-md'
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-100 hover:to-purple-100 dark:hover:from-blue-900/30 dark:hover:to-purple-900/30 hover:text-gray-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {preset}m
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setShowPomodoroSettings(false)}
+                          className="w-full px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 hover:text-gray-900 dark:hover:text-gray-100 transition-all duration-200"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 <button className="text-gray-400 hover:text-red-500" onClick={() => setShowAllTasks(false)}>&times;</button>
+                </div>
               </div>
               <div className="space-y-2">
                 {tasks
@@ -556,7 +982,14 @@ export const NotesAndTodosWidget: React.FC = () => {
                     return a.completed ? 1 : -1;
                   })
                   .map(task => (
-                  <div key={task.id} className="bg-blue-50 dark:bg-blue-900/20 rounded p-2 flex items-center">
+                  <div 
+                    key={task.id} 
+                    className={`bg-blue-50 dark:bg-blue-900/20 rounded p-2 flex items-center gap-2 transition-all duration-500 ${
+                      completedTaskId === task.id 
+                        ? 'ring-2 ring-green-400 dark:ring-green-500 bg-green-100 dark:bg-green-900/40 shadow-lg' 
+                        : ''
+                    }`}
+                  >
                     {confirmDeleteTaskId === task.id ? (
                       <div className="flex-1 flex items-center gap-2">
                         <span className="text-sm text-red-600">Delete this task?</span>
@@ -577,7 +1010,137 @@ export const NotesAndTodosWidget: React.FC = () => {
                       onChange={e => editTask(task.id, e.target.value)}
                       disabled={saving}
                     />
-                    <button className="ml-2 text-gray-400 hover:text-red-500 flex-shrink-0" onClick={() => setConfirmDeleteTaskId(task.id)} disabled={saving}>&times;</button>
+                    {/* Pomodoro Controls */}
+                    <div className="flex items-center gap-1">
+                      {/* Duration Badge - Hidden when timer is active for this task */}
+                      {!(pomodoroTimer?.taskId === task.id && (pomodoroTimer.timeRemaining > 0 || pomodoroTimer.isRunning)) && (
+                        <div className="relative task-duration-container">
+                          <button
+                            onClick={() => openTaskDurationEditor(task.id)}
+                            className={`text-xs px-1.5 py-0.5 rounded ${
+                              taskPomodoroDurations[task.id] 
+                                ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' 
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                            } hover:opacity-80`}
+                            title="Set Pomodoro Duration"
+                          >
+                            {getTaskDuration(task.id)}m
+                          </button>
+                        {editingTaskDuration === task.id && (
+                          <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 z-20">
+                            <div className="mb-2">
+                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Duration (minutes)
+                              </label>
+                              <div className="flex gap-2 mb-2">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="999"
+                                  value={tempTaskDurationInput}
+                                  onChange={(e) => setTempTaskDurationInput(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleTaskCustomDuration(task.id);
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  placeholder="Custom"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleTaskCustomDuration(task.id)}
+                                  className="px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded"
+                                >
+                                  Set
+                                </button>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5 mb-2">
+                                {[7, 15, 20, 25, 30, 45, 60].map((preset) => (
+                                  <button
+                                    key={preset}
+                                    onClick={() => handleTaskPresetDuration(task.id, preset)}
+                                    className={`px-1.5 py-0.5 text-xs rounded ${
+                                      getTaskDuration(task.id) === preset
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                    }`}
+                                  >
+                                    {preset}m
+                                  </button>
+                                ))}
+                              </div>
+                              {taskPomodoroDurations[task.id] && (
+                                <button
+                                  onClick={() => removeTaskDuration(task.id)}
+                                  className="w-full px-2 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50"
+                                >
+                                  Reset to Default ({pomodoroDuration}m)
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        </div>
+                      )}
+                      {/* Pomodoro Count Badge - Hidden when timer is active, shown when timer completes */}
+                      {pomodoroCounts[task.id] > 0 && 
+                       (pomodoroTimer?.taskId !== task.id || 
+                        (pomodoroTimer?.taskId === task.id && pomodoroTimer?.timeRemaining === 0 && !pomodoroTimer?.isRunning)) && (
+                        <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded flex items-center gap-1">
+                          🍅 {pomodoroCounts[task.id]}
+                        </span>
+                      )}
+                      {/* Timer Display or Start Button */}
+                      {pomodoroTimer?.taskId === task.id && (pomodoroTimer.timeRemaining > 0 || pomodoroTimer.isRunning) ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-mono text-gray-600 dark:text-gray-300">
+                            {formatTime(pomodoroTimer.timeRemaining)}
+                          </span>
+                          {pomodoroTimer.isRunning ? (
+                            <button
+                              onClick={pausePomodoro}
+                              className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                              title="Pause"
+                            >
+                              <Pause className="w-3.5 h-3.5" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={resumePomodoro}
+                              className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                              title="Resume"
+                            >
+                              <Play className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={resetPomodoro}
+                            className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                            title="Reset"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={stopPomodoro}
+                            className="p-1 text-gray-500 hover:text-red-500"
+                            title="Stop"
+                          >
+                            <span className="text-xs">×</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => startPomodoro(task.id)}
+                          className="p-1 text-gray-500 hover:text-red-500 dark:hover:text-red-400"
+                          title="Start Pomodoro"
+                          disabled={task.completed}
+                        >
+                          <Timer className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    <button className="ml-1 text-gray-400 hover:text-red-500 flex-shrink-0" onClick={() => setConfirmDeleteTaskId(task.id)} disabled={saving}>&times;</button>
                     </>}
                   </div>
                 ))}
