@@ -549,7 +549,13 @@ export const NotesAndTodosWidget: React.FC = () => {
                 <button className="text-gray-400 hover:text-red-500" onClick={() => setShowAllTasks(false)}>&times;</button>
               </div>
               <div className="space-y-2">
-                {tasks.map(task => (
+                {tasks
+                  .sort((a, b) => {
+                    // Sort by unfinished first (completed: false comes before completed: true)
+                    if (a.completed === b.completed) return 0;
+                    return a.completed ? 1 : -1;
+                  })
+                  .map(task => (
                   <div key={task.id} className="bg-blue-50 dark:bg-blue-900/20 rounded p-2 flex items-center">
                     {confirmDeleteTaskId === task.id ? (
                       <div className="flex-1 flex items-center gap-2">
