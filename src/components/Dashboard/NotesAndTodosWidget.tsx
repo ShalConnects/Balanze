@@ -857,7 +857,95 @@ export const NotesAndTodosWidget: React.FC = () => {
               <Plus className="w-5 h-5" />
             </button>
           </div>
-          {/* Tasks List (show only first 3) */}
+          {/* Large Circular Timer - Replaces task list when timer is active and modal is closed */}
+          {pomodoroTimer && pomodoroTimer.taskId && !showAllTasks ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              {/* Circular Progress Timer */}
+              <div className="relative w-48 h-48 mb-6">
+                {/* SVG Circle for Progress */}
+                <svg className="transform -rotate-90 w-full h-full">
+                  {/* Background circle */}
+                  <circle
+                    cx="96"
+                    cy="96"
+                    r="88"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    fill="none"
+                    className="text-gray-200 dark:text-gray-700"
+                  />
+                  {/* Progress circle */}
+                  <circle
+                    cx="96"
+                    cy="96"
+                    r="88"
+                    stroke="url(#pomodoroGradient)"
+                    strokeWidth="8"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 88}`}
+                    strokeDashoffset={
+                      2 * Math.PI * 88 * (1 - 
+                        (pomodoroTimer.taskId 
+                          ? (getTaskDuration(pomodoroTimer.taskId) * 60 - pomodoroTimer.timeRemaining) / (getTaskDuration(pomodoroTimer.taskId) * 60)
+                          : 0
+                        )
+                      )
+                    }
+                    className="transition-all duration-1000 ease-linear"
+                  />
+                  {/* Gradient definition */}
+                  <defs>
+                    <linearGradient id="pomodoroGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#3b82f6" />
+                      <stop offset="100%" stopColor="#8b5cf6" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                {/* Time Display in Center */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <div className="text-4xl font-bold text-gradient-primary">
+                    {formatTime(pomodoroTimer.timeRemaining)}
+                  </div>
+                  {pomodoroTimer.taskId && (
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-2 text-center px-4 max-w-[180px] truncate">
+                      {tasks.find(t => t.id === pomodoroTimer.taskId)?.text || 'Task'}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* Timer Controls */}
+              <div className="flex items-center gap-3">
+                {pomodoroTimer.isRunning ? (
+                  <button
+                    onClick={pausePomodoro}
+                    className="px-4 py-2 bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded-lg flex items-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg"
+                    title="Pause"
+                  >
+                    <Pause className="w-4 h-4" />
+                    <span className="text-sm font-medium">Pause</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={resumePomodoro}
+                    className="px-4 py-2 bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded-lg flex items-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg"
+                    title="Resume"
+                  >
+                    <Play className="w-4 h-4" />
+                    <span className="text-sm font-medium">Resume</span>
+                  </button>
+                )}
+                <button
+                  onClick={stopPomodoro}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200 flex items-center gap-2"
+                  title="Stop"
+                >
+                  <span className="text-sm font-medium">Stop</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Tasks List (show only first 3) - Hidden when timer is active */
           <div className="space-y-2">
             {tasksToShow.length === 0 && <div className="text-gray-400 text-sm">No tasks yet.</div>}
             {tasksToShow.map(task => (
@@ -886,10 +974,11 @@ export const NotesAndTodosWidget: React.FC = () => {
                 </>}
               </div>
             ))}
-            {tasks.length > 3 && (
+            {tasks.length > 0 && (
               <button className="w-full text-gradient-primary hover:underline text-xs mt-2" onClick={() => setShowAllTasks(true)}>View All Tasks</button>
             )}
           </div>
+          )}
           {/* All Tasks Modal */}
           <Modal
             isOpen={showAllTasks}
@@ -1030,7 +1119,7 @@ export const NotesAndTodosWidget: React.FC = () => {
                           <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 z-20">
                             <div className="mb-2">
                               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Duration (minutes)
+                                <span className="text-gradient-primary">Duration (minutes)</span>
                               </label>
                               <div className="flex gap-2 mb-2">
                                 <input
@@ -1044,13 +1133,13 @@ export const NotesAndTodosWidget: React.FC = () => {
                                       handleTaskCustomDuration(task.id);
                                     }
                                   }}
-                                  className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-400 dark:focus:border-purple-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-purple-800"
                                   placeholder="Custom"
                                   autoFocus
                                 />
                                 <button
                                   onClick={() => handleTaskCustomDuration(task.id)}
-                                  className="px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded"
+                                  className="px-2 py-1 text-xs bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded transition-all duration-200 shadow-sm hover:shadow-md"
                                 >
                                   Set
                                 </button>
@@ -1060,10 +1149,10 @@ export const NotesAndTodosWidget: React.FC = () => {
                                   <button
                                     key={preset}
                                     onClick={() => handleTaskPresetDuration(task.id, preset)}
-                                    className={`px-1.5 py-0.5 text-xs rounded ${
+                                    className={`px-1.5 py-0.5 text-xs rounded transition-all duration-200 ${
                                       getTaskDuration(task.id) === preset
-                                        ? 'bg-blue-500 text-white'
-                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                        ? 'bg-gradient-primary text-white shadow-md'
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-100 hover:to-purple-100 dark:hover:from-blue-900/30 dark:hover:to-purple-900/30 hover:text-gray-900 dark:hover:text-white'
                                     }`}
                                   >
                                     {preset}m
