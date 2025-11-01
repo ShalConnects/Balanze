@@ -41,6 +41,7 @@ import { Loader } from '../common/Loader';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
 import { getDefaultAccountId } from '../../utils/defaultAccount';
+import { generateTransactionId } from '../../utils/transactionId';
 
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { CategoryModal } from '../common/CategoryModal';
@@ -1007,6 +1008,9 @@ export const PurchaseTracker: React.FC = () => {
             if (!selectedAccount) throw new Error('Selected account not found');
             // Create both purchase and transaction when From Account is selected
             
+            // Generate transaction_id for the transaction
+            const transactionId = generateTransactionId();
+            
             // First create the transaction to get its ID
             const { data: newTransaction, error: transactionError } = await supabase
               .from('transactions')
@@ -1019,6 +1023,7 @@ export const PurchaseTracker: React.FC = () => {
                 date: formData.purchase_date,
                 tags: ['purchase'],
                 user_id: user?.id || '',
+                transaction_id: transactionId,
               })
               .select('id')
               .single();

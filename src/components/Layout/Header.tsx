@@ -530,9 +530,10 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
                   </div>
                 ) : profile?.profilePicture ? (
                   <img
-                    src={supabase.storage.from('avatars').getPublicUrl(profile.profilePicture + '?t=' + Date.now()).data.publicUrl}
+                    src={supabase.storage.from('avatars').getPublicUrl(profile.profilePicture).data.publicUrl}
                     alt={profile.fullName}
                     className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full object-cover"
+                    loading="lazy"
                   />
                 ) : (
                   <span className="text-xs sm:text-sm md:text-lg font-bold">

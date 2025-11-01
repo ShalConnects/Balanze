@@ -15,6 +15,7 @@ import { Loader } from '../../components/common/Loader';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { CategoryModal } from '../common/CategoryModal';
 import { getDefaultAccountId } from '../../utils/defaultAccount';
+import { generateTransactionId } from '../../utils/transactionId';
 
 
 interface PurchaseFormProps {
@@ -446,6 +447,9 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
               
               console.log('🔍 PurchaseForm creating transaction first...');
               try {
+                // Generate transaction_id for the transaction
+                const transactionId = generateTransactionId();
+                
                 // First create the transaction to get its ID
                 const { data: transactionData, error: transactionError } = await supabase
                   .from('transactions')
@@ -458,6 +462,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                     date: formData.purchase_date,
                     tags: ['purchase'],
                     user_id: user?.id || '',
+                    transaction_id: transactionId,
                   })
                   .select('id')
                   .single();

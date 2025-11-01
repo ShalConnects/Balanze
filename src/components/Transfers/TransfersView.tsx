@@ -248,8 +248,7 @@ export const TransfersView: React.FC = () => {
 
 
 
-      // Fetch regular transfers
-
+      // Fetch regular transfers with limit to reduce egress
       const { data: transferData, error: transferError } = await supabase
 
         .from('transactions')
@@ -258,7 +257,8 @@ export const TransfersView: React.FC = () => {
 
         .contains('tags', ['transfer'])
 
-        .order('date', { ascending: false });
+        .order('date', { ascending: false })
+        .limit(500);
 
 
 
@@ -266,8 +266,7 @@ export const TransfersView: React.FC = () => {
 
 
 
-      // Fetch DPS transfers with account details
-
+      // Fetch DPS transfers with account details (with limit)
       const { data: dpsData, error: dpsError } = await supabase
 
         .from('dps_transfers')
@@ -282,7 +281,8 @@ export const TransfersView: React.FC = () => {
 
         `)
 
-        .order('date', { ascending: false });
+        .order('date', { ascending: false })
+        .limit(500);
 
 
 
@@ -290,15 +290,16 @@ export const TransfersView: React.FC = () => {
 
 
 
-      // Fetch all transactions for before/after balance calculation
-
+      // Fetch only recent transactions for before/after balance calculation
+      // Limit to last 1000 transactions to reduce egress usage
       const { data: allTx, error: allTxError } = await supabase
 
         .from('transactions')
 
-        .select('*')
+        .select('id, account_id, amount, date, type, tags')
 
-        .order('date', { ascending: true }); // ascending for before/after logic
+        .order('date', { ascending: true }) // ascending for before/after logic
+        .limit(1000);
 
       if (allTxError) throw allTxError;
 

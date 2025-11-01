@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUpRight, ArrowDownRight, Copy, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Copy, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -1752,8 +1752,17 @@ export const TransactionList: React.FC<{
                             {transaction.updated_at && transaction.updated_at !== transaction.created_at ? (
                               <>
                                 <div>{format(new Date(transaction.updated_at), 'MMM dd, yyyy')}</div>
-                                <div className="text-xs text-blue-500 dark:text-blue-400">
-                                  {format(new Date(transaction.updated_at), 'h:mm a')} ✏️
+                                <div className="text-xs text-gradient-primary flex items-center gap-1">
+                                  {format(new Date(transaction.updated_at), 'h:mm a')}
+                                  <Edit2 
+                                    className="w-3 h-3" 
+                                    style={{
+                                      background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                                      WebkitBackgroundClip: 'text',
+                                      WebkitTextFillColor: 'transparent',
+                                      backgroundClip: 'text'
+                                    }}
+                                  />
                                 </div>
                               </>
                             ) : (
@@ -1861,6 +1870,8 @@ export const TransactionList: React.FC<{
                 const currency = account?.currency || 'USD';
                 const isSelected = selectedId === transaction.transaction_id;
                 const isFromSearchSelection = isFromSearch && isSelected;
+                const isTransfer = transaction.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
+                const isRecurring = transaction.is_recurring;
                 return (
                   <div 
                     key={transaction.id} 
@@ -1868,59 +1879,133 @@ export const TransactionList: React.FC<{
                     ref={isSelected ? selectedRecordRef : null}
                     className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
                   >
-                    {/* Card Header - Date and Type Badge */}
+                    {/* Card Header - Date, Type Badge, and Indicators */}
                     <div className="flex items-center justify-between p-3 pb-2">
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        <div>{format(new Date(transaction.date), 'MMM dd, yyyy')}</div>
-                        <div className="text-xs text-gray-400 dark:text-gray-500 flex items-center">
-                          {format(new Date(transaction.created_at), 'h:mm a')}
-                          {transaction.updated_at && transaction.updated_at !== transaction.created_at && (
-                            <span className="ml-2 text-blue-500" title={`Last modified: ${format(new Date(transaction.updated_at), 'MMM dd, h:mm a')}`}>
-                              ✏️
-                            </span>
-                          )}
+                      <div className="text-xs text-gray-500 dark:text-gray-400 flex-1">
+                        <div className="font-medium flex items-center gap-1.5">
+                          <span>{format(new Date(transaction.date), 'MMM dd, yyyy')}</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">
+                            {format(new Date(transaction.created_at), 'h:mm a')}
+                          </span>
                         </div>
                         {transaction.updated_at && transaction.updated_at !== transaction.created_at && (
-                          <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                            Modified: {format(new Date(transaction.updated_at), 'MMM dd, h:mm a')}
+                          <div className="text-xs text-gradient-primary mt-1 flex items-center gap-1">
+                            <Edit2 
+                              className="w-3 h-3" 
+                              style={{
+                                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                backgroundClip: 'text'
+                              }}
+                            />
+                            <span>{format(new Date(transaction.updated_at), 'MMM dd, h:mm a')}</span>
                           </div>
                         )}
                       </div>
-                      <div>
-                        {transaction.type === 'income' ? (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
-                            <ArrowDownRight className="w-2.5 h-2.5" /> Income
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300">
-                            <ArrowUpRight className="w-2.5 h-2.5" /> Expense
+                      <div className="flex flex-col items-end gap-1.5">
+                        <div>
+                          {transaction.type === 'income' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
+                              <ArrowDownRight className="w-3 h-3" /> Income
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300">
+                              <ArrowUpRight className="w-3 h-3" /> Expense
+                            </span>
+                          )}
+                        </div>
+                        {/* Transfer Indicator */}
+                        {isTransfer && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300">
+                            <ArrowUpRight className="w-2.5 h-2.5" /> Transfer
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Card Body - Description and Amount */}
+                    {/* Card Body - Two Column Layout: Description + Transaction ID (Left) | Amount + Category (Right) */}
                     <div className="px-3 pb-2">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                        {formatTransactionDescription(transaction.description)}
+                      {/* Description and Amount on Same Row */}
+                      <div className="flex items-center justify-between gap-3" style={{ marginTop: '0px', marginBottom: '10px' }}>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white flex-1 min-w-0">
+                          {formatTransactionDescription(transaction.description)}
+                        </div>
+                        <div className={`text-sm font-bold flex-shrink-0 ${
+                          transaction.type === 'income' 
+                            ? 'text-green-600 dark:text-green-400' 
+                            : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {transaction.type === 'income' ? '+' : '-'}
+                          {formatCurrency(transaction.amount, selectedCurrency)}
+                        </div>
                       </div>
-                      {transaction.transaction_id && (
-                        <button
-                          onClick={() => handleCopyTransactionId(transaction.transaction_id!)}
-                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors mb-1"
-                        >
-                          <span className="font-mono">#{formatTransactionId(transaction.transaction_id)}</span>
-                          <Copy className="w-2.5 h-2.5" />
-                        </button>
-                      )}
-                      <div className="text-base font-bold text-gray-900 dark:text-white">
-                        {formatCurrency(transaction.amount, selectedCurrency)}
+
+                      <div className="flex items-start gap-3">
+                        {/* Left Column: Transaction ID */}
+                        <div className="flex-1 min-w-0">
+                          {transaction.transaction_id && (
+                            <button
+                              onClick={() => handleCopyTransactionId(transaction.transaction_id!)}
+                              className="flex items-center gap-1.5 text-xs font-mono text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded"
+                              title="Click to copy Transaction ID"
+                            >
+                              <span>#{formatTransactionId(transaction.transaction_id)}</span>
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Right Column: Category */}
+                        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                          {transaction.category && (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
+                              {transaction.category}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Additional Indicators - Below Two Column Layout */}
+                    <div className="px-3 pb-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Recurring Indicator */}
+                        {isRecurring && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200">
+                            <Repeat className="w-3 h-3" />
+                            Recurring
+                          </span>
+                        )}
+
+                        {/* Tags Display */}
+                        {transaction.tags && transaction.tags.length > 0 && (() => {
+                          const displayTags = transaction.tags.filter((tag: string) => 
+                            !tag.includes('transfer') && 
+                            !tag.includes('dps_transfer') && 
+                            tag !== 'dps_deletion' && 
+                            tag !== 'lend_borrow'
+                          );
+                          return displayTags.length > 0 ? (
+                            <>
+                              {displayTags.map((tag: string, index: number) => (
+                                <span 
+                                  key={index} 
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
+                                >
+                                  <Tag className="w-2.5 h-2.5" />
+                                  {tag}
+                                </span>
+                              ))}
+                            </>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
 
                     {/* Card Footer - Account and Actions */}
                     <div className="flex items-center justify-between px-3 pb-3 pt-2 border-t border-gray-100 dark:border-gray-800">
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                      <div className="text-xs text-gray-600 dark:text-gray-400 font-medium">
                         {getAccountName(transaction.account_id)}
                       </div>
                       <div className="flex gap-1">
@@ -2010,8 +2095,16 @@ export const TransactionList: React.FC<{
                         <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                           {format(new Date(transaction.created_at), 'h:mm a')}
                           {transaction.updated_at && transaction.updated_at !== transaction.created_at && (
-                            <span className="ml-2 text-blue-500" title={`Last modified: ${format(new Date(transaction.updated_at), 'MMM dd, h:mm a')}`}>
-                              ✏️
+                            <span className="ml-2 text-gradient-primary flex items-center" title={`Last modified: ${format(new Date(transaction.updated_at), 'MMM dd, h:mm a')}`}>
+                              <Edit2 
+                                className="w-3 h-3" 
+                                style={{
+                                  background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                                  WebkitBackgroundClip: 'text',
+                                  WebkitTextFillColor: 'transparent',
+                                  backgroundClip: 'text'
+                                }}
+                              />
                             </span>
                           )}
                         </div>

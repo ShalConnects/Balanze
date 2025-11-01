@@ -89,8 +89,8 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ open, onClos
       }
       
       // Finally, get the public URL to display the new image in the modal.
-      // We add a timestamp to ensure the browser doesn't show a cached version.
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(`${fileName}?t=${new Date().getTime()}`);
+      // Only add timestamp when uploading new image, not for regular display
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
       setProfilePicture(urlData.publicUrl);
 
     } catch (err: any) {
