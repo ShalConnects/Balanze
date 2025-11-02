@@ -1,0 +1,70 @@
+Take control of your finances with Balanze—the comprehensive personal finance management app designed to help you make smarter money decisions. Whether you're tracking daily expenses, planning for the future, or managing complex financial portfolios, Balanze provides all the tools you need in one beautiful, secure platform.
+
+📊 COMPREHENSIVE FINANCIAL TRACKING
+• Multiple Accounts: Manage checking, savings, credit cards, investments—all in one place
+• Transaction Management: Record and categorize every transaction with notes
+• Multi-Currency: Track balances across currencies (USD, BDT, EUR, and more)
+• Real-Time Updates: Account balances updated automatically with every transaction
+
+💰 BUDGET PLANNING & SPENDING ANALYSIS
+• Budget Planner: Set monthly budgets and track spending against limits
+• Spending Tracker: Visualize where your money goes with detailed analytics
+• Category Management: Organize expenses with custom categories
+• Smart Alerts: Get notified when approaching budget limits
+
+🎯 SAVINGS GOALS & INVESTMENT TRACKING
+• Savings Goals: Set targets with visual progress indicators
+• Goal Tracking: Monitor multiple savings goals simultaneously
+• Investment Portfolio: Track stocks, bonds, funds, and investments
+• Investment Analytics: View portfolio performance and returns
+
+🤝 LEND & BORROW MANAGEMENT
+• Loan Tracking: Track money lent or borrowed from friends/family
+• IOU Management: Never forget who owes you or who you owe
+• Loan Settlement: Track partial and full repayments
+• Complete History: All activities appear in transaction history
+
+📈 POWERFUL ANALYTICS & INSIGHTS
+• Financial Dashboard: At-a-glance view of financial health with interactive charts
+• Spending Insights: Understand spending patterns with detailed analytics
+• Income vs. Expenses: Visualize cash flow with comprehensive reports
+• Custom Reports: Generate reports by date range, category, or account
+
+🔔 SMART ALERTS & NOTIFICATIONS
+• Bill Reminders: Get notified when bills are due or overdue
+• Low Balance Alerts: Stay informed when balances drop below thresholds
+• Budget Warnings: Alerts when approaching spending limits
+• Customizable Settings: Control notification frequency and preferences
+
+💾 DATA EXPORT & BACKUP
+• PDF Reports: Export comprehensive financial reports in PDF
+• CSV Export: Download transaction data for spreadsheet analysis
+• Data Backup: Secure backup accessible across devices
+
+🔒 SECURITY & PRIVACY
+• Bank-Level Security: Enterprise-grade encryption protects your data
+• Secure Authentication: Multi-factor authentication and secure login
+• Privacy First: Encrypted data storage—we never share your information
+• Regular Updates: Continuous security improvements and updates
+
+👨‍👩‍👧‍👦 MULTI-USER SUPPORT
+• Family Accounts: Share financial management with family
+• Individual Profiles: Each user maintains their own secure account
+• Collaborative Planning: Plan budgets and track goals together
+
+🎨 BEAUTIFUL & INTUITIVE INTERFACE
+• Modern Design: Clean, user-friendly interface
+• Responsive Layout: Works on phones, tablets, and desktops
+• Dark Mode: Comfortable viewing in any lighting
+• Accessibility: Built with best practices for all users
+
+📱 CROSS-PLATFORM ACCESS
+• Sync Across Devices: Your data syncs automatically across all your devices
+• Mobile & Web: Access your finances anywhere with seamless synchronization
+
+✨ PREMIUM FEATURES
+Upgrade to Premium for unlimited accounts, transactions, advanced analytics, custom categories, lend & borrow tracking, priority support, and exclusive features.
+
+Whether you're a student managing your first budget, a professional tracking complex finances, or a family planning for the future, Balanze adapts to your needs. Start your journey to better financial health today—download Balanze and take control of your money.
+
+Join thousands of users who are already managing their finances smarter with Balanze. Your financial future starts here.

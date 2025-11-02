@@ -3,7 +3,7 @@ import {
   TrendingUp, Wallet, Target, Handshake, PiggyBank, Bell, Shield, Heart,
   Check, ChevronDown, ChevronUp, Star, ArrowRight, BarChart3, PieChart,
   Users, Globe, Mail, Phone, Facebook, Twitter, Instagram, Linkedin, Github, ArrowUp, Moon, Sun, LogOut, Menu, X,
-  Zap, MessageSquare, Download, Settings, CreditCard, Smartphone, Clock, AlertCircle
+  Zap, MessageSquare, Download, Settings, CreditCard, Smartphone, Clock, AlertCircle, Repeat
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import InteractiveBackground from '../components/InteractiveBackground';
@@ -231,6 +231,7 @@ const LandingPage: React.FC = () => {
       'Advanced analytics',
       'Priority email support (4-8h response)',
       'Custom categories',
+      'Recurring transactions',
       'Lent & borrow tracking',
       'Data export (PDF/CSV)',
       'Last Wish - Digital Time Capsule'
@@ -249,6 +250,7 @@ const LandingPage: React.FC = () => {
   const features = [
     { icon: TrendingUp, title: "Spending Tracker", description: "See exactly where your money goes." },
     { icon: Wallet, title: "Budget Planner", description: "Set budgets and beat overspending." },
+    { icon: Repeat, title: "Recurring Transactions", description: "Automate recurring income and expenses with smart scheduling." },
     { icon: Handshake, title: "Lent & Borrow", description: "Keep tabs on loans and IOUs." },
     { icon: PiggyBank, title: "Savings Goals", description: "Visualize your progress with goal thermometers." },
     { icon: Bell, title: "Smart Alerts", description: "Get nudges when you're off track." },
@@ -1298,6 +1300,7 @@ const LandingPage: React.FC = () => {
               {/* Comparison Rows */}
               {[
                 { feature: 'Multi-currency support', balanze: true, others: false },
+                { feature: 'Recurring transactions', balanze: true, others: false },
                 { feature: 'Lend & borrow tracking', balanze: true, others: false },
                 { feature: 'Unlimited accounts', balanze: true, others: false },
                 { feature: 'Last Wish feature', balanze: true, others: false },
@@ -1466,6 +1469,12 @@ const LandingPage: React.FC = () => {
                 </li>
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
+                    <Repeat className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-500 dark:text-gray-500 line-through">Recurring transactions</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
                     <Users className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
                     <span className="text-sm text-gray-500 dark:text-gray-500 line-through">Lend & borrow tracking</span>
                   </div>
@@ -1583,6 +1592,12 @@ const LandingPage: React.FC = () => {
                   <div className="flex items-center flex-1">
                     <Settings className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
                     <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Custom categories</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Repeat className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Recurring transactions</span>
                   </div>
                 </li>
                 <li className="flex items-start">

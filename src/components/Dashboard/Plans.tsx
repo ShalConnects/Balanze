@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, Heart, Zap, Download, BarChart3, Users, Globe, MessageSquare, Settings, CreditCard, Loader2, AlertTriangle } from 'lucide-react';
+import { Check, Heart, Zap, Download, BarChart3, Users, Globe, MessageSquare, Settings, CreditCard, Loader2, AlertTriangle, Repeat } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { initializePaddle, Paddle } from '@paddle/paddle-js';
 import { toast } from 'react-hot-toast';
@@ -42,6 +42,7 @@ const plans: Plan[] = [
       { text: 'Email support (24-48h response)', included: true, icon: MessageSquare },
       { text: 'Basic analytics', included: true, icon: BarChart3 },
       { text: 'Custom categories', included: false, icon: Settings },
+      { text: 'Recurring transactions', included: false, icon: Repeat },
       { text: 'Lend & borrow tracking', included: false, icon: Users },
       { text: 'Data export', included: false, icon: Download },
       { text: 'Last Wish - Digital Time Capsule', included: false, icon: Heart, highlight: true },
@@ -65,6 +66,7 @@ const plans: Plan[] = [
       { text: 'Advanced analytics', included: true, icon: BarChart3 },
       { text: 'Priority email support (4-8h response)', included: true, icon: MessageSquare },
       { text: 'Custom categories', included: true, icon: Settings },
+      { text: 'Recurring transactions', included: true, icon: Repeat },
       { text: 'Lend & borrow tracking', included: true, icon: Users },
       { text: 'Advanced reporting', included: true, icon: BarChart3 },
       { text: 'Data export (CSV, Excel, PDF)', included: true, icon: Download },

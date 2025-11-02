@@ -19,6 +19,7 @@ import { CategoryModal } from '../common/CategoryModal';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getFilteredCategoriesForTransaction } from '../../utils/categoryFiltering';
 import { useDescriptionSuggestions } from '../../hooks/useDescriptionSuggestions';
+import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 
 interface TransactionFormProps {
   accountId?: string;
@@ -40,6 +41,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
 
   const { user } = useAuthStore();
   const { wrapAsync, setLoadingMessage, isLoading } = useLoadingContext();
+  const { isPremiumPlan } = usePlanFeatures();
   const isEditMode = !!transactionToEdit;
 
   const [data, setData] = useState({
@@ -58,6 +60,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   // Add state for donation
   const [donationType, setDonationType] = useState<'fixed' | 'percent'>('fixed');
   const [donationValue, setDonationValue] = useState<number | undefined>(undefined);
+  // Add state for recurring transaction end date
+  const [recurringEndDate, setRecurringEndDate] = useState<string | undefined>(undefined);
 
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [newCategory, setNewCategory] = useState({
@@ -221,13 +225,41 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       }
           
           // Initialize donation values if this is an income transaction with donation
+          // Fetch the actual donation record to get mode (fixed/percent) and mode_value
           if (transactionToEdit.type === 'income' && transactionToEdit.donation_amount) {
-            setDonationType('fixed');
-            setDonationValue(transactionToEdit.donation_amount);
+            // Use async IIFE to handle async donation record fetch
+            (async () => {
+              try {
+                const { data: donationRecord } = await supabase
+                  .from('donation_saving_records')
+                  .select('mode, mode_value, amount')
+                  .eq('transaction_id', transactionToEdit.id)
+                  .eq('type', 'donation')
+                  .limit(1)
+                  .maybeSingle();
+
+                if (donationRecord) {
+                  setDonationType(donationRecord.mode || 'fixed');
+                  // Use mode_value if available, otherwise use amount
+                  setDonationValue(donationRecord.mode_value || donationRecord.amount || transactionToEdit.donation_amount);
+                } else {
+                  // Fallback to fixed if no donation record found
+                  setDonationType('fixed');
+                  setDonationValue(transactionToEdit.donation_amount);
+                }
+              } catch (error) {
+                // Fallback to fixed if error fetching donation record
+                setDonationType('fixed');
+                setDonationValue(transactionToEdit.donation_amount);
+              }
+            })();
           } else {
             setDonationType('fixed');
             setDonationValue(undefined);
           }
+          
+          // Initialize recurring end date
+          setRecurringEndDate(transactionToEdit.recurring_end_date || undefined);
           
           // Reset purchase details
           setPurchasePriority('medium');
@@ -248,6 +280,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           setIsExpenseType('');
           setDonationType('fixed');
           setDonationValue(undefined);
+          setRecurringEndDate(undefined);
           setPurchasePriority('medium');
           setPurchaseNotes('');
         }
@@ -321,6 +354,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       setShowCategoryModal(false);
       setShowPurchaseDetails(false);
       setPurchaseAttachments([]);
+      setRecurringEndDate(undefined);
       setNewCategory({
         category_name: '',
         description: '',
@@ -434,6 +468,40 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
 
       throw error;
     }
+  };
+
+  // Helper to calculate next occurrence date based on frequency
+  // Handles edge cases like month-end dates properly (matches backend logic)
+  const calculateNextOccurrenceDate = (currentDate: string, frequency: 'daily' | 'weekly' | 'monthly' | 'yearly'): string => {
+    const date = new Date(currentDate);
+    const originalDay = date.getDate();
+    
+    switch (frequency) {
+      case 'daily':
+        date.setDate(date.getDate() + 1);
+        break;
+      case 'weekly':
+        date.setDate(date.getDate() + 7);
+        break;
+      case 'monthly':
+        // Preserve the day of month, handling month-end dates
+        date.setMonth(date.getMonth() + 1);
+        // If the day doesn't exist in the new month (e.g., Jan 31 -> Feb), adjust to last day of month
+        if (date.getDate() !== originalDay) {
+          date.setDate(0); // Go to last day of previous month (which is the target month)
+        }
+        break;
+      case 'yearly':
+        // Preserve month and day, handling leap years
+        const originalMonth = date.getMonth();
+        date.setFullYear(date.getFullYear() + 1);
+        // Handle Feb 29 -> Feb 28 in non-leap years
+        if (originalMonth === 1 && originalDay === 29 && date.getMonth() === 2) {
+          date.setDate(0); // Go to last day of February
+        }
+        break;
+    }
+    return date.toISOString().split('T')[0];
   };
 
   // Helper to upsert donation/saving records
@@ -592,7 +660,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         } else {
 
           // Handle regular transaction
-          const transactionData = {
+          const transactionData: any = {
             account_id: data.account_id,
             amount: parseFloat(data.amount),
             type: data.type as 'income' | 'expense',
@@ -605,6 +673,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             recurring_frequency: data.is_recurring ? data.recurring_frequency : undefined,
             user_id: user?.id || ''
           };
+          
+          // Add recurring transaction tracking fields if recurring
+          if (data.is_recurring) {
+            transactionData.next_occurrence_date = calculateNextOccurrenceDate(data.date, data.recurring_frequency);
+            transactionData.recurring_end_date = recurringEndDate || undefined;
+            transactionData.occurrence_count = isEditMode && transactionToEdit?.occurrence_count ? transactionToEdit.occurrence_count : 0;
+            transactionData.is_paused = isEditMode && transactionToEdit?.is_paused ? transactionToEdit.is_paused : false;
+          }
 
 
 
@@ -627,7 +703,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               const modeValue = donationType === 'percent' ? donationValue : donation_amount;
               await upsertDonationSavingRecords({
                 userId: user.id,
-                transactionId: transactionToEdit.transaction_id || transactionToEdit.id,
+                transactionId: transactionToEdit.id, // Use UUID id to match donation record's transaction_id foreign key
+                customTransactionId: transactionToEdit.transaction_id, // Use transaction_id string for custom_transaction_id
                 donation: donation_amount,
                 donationMode: donationType,
                 modeValue
@@ -743,6 +820,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         data-tour="transaction-form"
         className="relative bg-white dark:bg-gray-800 rounded-[1rem] border border-gray-200 dark:border-gray-700 p-6 w-full max-w-[38rem] max-h-[90vh] overflow-y-auto z-50 shadow-xl transition-all"
         onClick={e => e.stopPropagation()}
+        style={{ isolation: 'isolate' }}
       >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -1060,6 +1138,92 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             </div>
           </div>
 
+          {/* Recurring Transaction Section - Moved to be more visible */}
+          {/* Only show for premium users and not for purchase transactions */}
+          {data.type && isPremiumPlan && isExpenseType !== 'purchase' && (
+            <div className="border border-gray-100 dark:border-gray-700 rounded-lg p-4 mb-2 bg-gray-50 dark:bg-gray-800">
+              <div className="relative">
+                <div className="flex items-center gap-2 mb-0">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <span className="relative flex items-center">
+                      <input
+                        type="checkbox"
+                        id="recurring"
+                        checked={data.is_recurring}
+                        onChange={(e) => setData({ ...data, is_recurring: e.target.checked })}
+                        className="sr-only"
+                      />
+                      <span className={`block w-5 h-5 rounded border-2 transition-all ${
+                        data.is_recurring
+                          ? 'border-blue-600 bg-blue-600 dark:border-blue-500 dark:bg-blue-500'
+                          : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-700'
+                      }`}>
+                        {data.is_recurring && (
+                          <svg className="w-3 h-3 text-white absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </span>
+                    </span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Recurring Transaction
+                    </span>
+                  </label>
+                </div>
+              </div>
+              
+              {data.is_recurring && (
+                <div className="space-y-3 mt-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                      Frequency *
+                    </label>
+                    <CustomDropdown
+                      value={data.recurring_frequency}
+                      onChange={(value: string) => setData({ ...data, recurring_frequency: value as 'daily' | 'weekly' | 'monthly' | 'yearly' })}
+                      options={[
+                        { value: 'daily', label: 'Daily' },
+                        { value: 'weekly', label: 'Weekly' },
+                        { value: 'monthly', label: 'Monthly' },
+                        { value: 'yearly', label: 'Yearly' },
+                      ]}
+                      placeholder="Select frequency"
+                      fullWidth={true}
+                      className="relative"
+                      style={{ position: 'relative', zIndex: 100000 }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                      End Date (Optional)
+                    </label>
+                    <div className={getInputClasses('recurring_end_date') + ' flex items-center bg-gray-100 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full'}>
+                      <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <DatePicker
+                        selected={recurringEndDate ? parseISO(recurringEndDate) : null}
+                        onChange={date => setRecurringEndDate(date ? format(date, 'yyyy-MM-dd') : undefined)}
+                        placeholderText="No end date (recur forever)"
+                        dateFormat="yyyy-MM-dd"
+                        className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px]"
+                        calendarClassName="z-[100000] shadow-lg border border-gray-200 rounded-lg !font-sans"
+                        popperPlacement="bottom-start"
+                        showPopperArrow={false}
+                        wrapperClassName="w-full"
+                        isClearable
+                        minDate={parseISO(data.date)}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Leave empty for unlimited recurring transactions</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Donation Option */}
           {data.type === 'income' && (
             <div className="border border-gray-100 dark:border-gray-700 rounded-lg p-4 mb-2 bg-gray-50 dark:bg-gray-800">
@@ -1162,20 +1326,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             />
           )}
 
-          {/* Recurring Transaction (hidden for now) */}
-          {/* <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-[1.40rem] mt-[20px]">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="recurring"
-                checked={data.is_recurring}
-                onChange={(e) => setData({ ...data, is_recurring: e.target.checked })}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
-              />
-              <label htmlFor="recurring" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Recurring Transaction
-              </label>
-            </div> */}
             <div className="flex justify-end gap-3">
               <button
                 type="button"

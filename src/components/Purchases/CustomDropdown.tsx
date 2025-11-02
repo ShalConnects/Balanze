@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 interface Option {
@@ -25,6 +26,8 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
   const [open, setOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
   const [dropdownAlign, setDropdownAlign] = useState<'left' | 'right'>('left');
+  const [usePortal, setUsePortal] = useState(false);
+  const [portalPosition, setPortalPosition] = useState({ top: 0, left: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { isMobile } = useMobileDetection();
@@ -96,6 +99,28 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
   const handleToggle = () => {
     if (!open) {
       calculatePosition();
+      // Check if we need to use portal (inside scrollable container)
+      if (buttonRef.current) {
+        let parent = buttonRef.current.parentElement;
+        let needsPortal = false;
+        while (parent && parent !== document.body) {
+          const overflow = window.getComputedStyle(parent).overflow;
+          if (overflow === 'auto' || overflow === 'scroll' || overflow === 'hidden') {
+            const rect = parent.getBoundingClientRect();
+            const buttonRect = buttonRef.current.getBoundingClientRect();
+            if (rect.top <= buttonRect.top && rect.bottom >= buttonRect.bottom) {
+              needsPortal = true;
+              break;
+            }
+          }
+          parent = parent.parentElement;
+        }
+        setUsePortal(needsPortal);
+        if (needsPortal) {
+          const rect = buttonRef.current.getBoundingClientRect();
+          setPortalPosition({ top: rect.bottom + 8, left: rect.left });
+        }
+      }
     }
     setOpen(v => !v);
   };
@@ -167,6 +192,45 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
             </div>
           ) : (
             /* Desktop: Traditional Dropdown */
+            usePortal && open ? (
+              createPortal(
+                <div
+                  ref={menuRef}
+                  className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 shadow-xl rounded-xl z-[99999] max-h-60 overflow-y-auto text-xs p-1 animate-fadein ${dropdownMenuClassName || ''}`}
+                  style={{ 
+                    position: 'fixed',
+                    top: `${portalPosition.top}px`,
+                    left: `${portalPosition.left}px`,
+                    minWidth: 140, 
+                    maxWidth: 320,
+                  }}
+                  tabIndex={-1}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {options.filter(opt => opt.value !== '').map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`w-full flex items-center text-left text-xs rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors px-3 py-2 ${value === opt.value ? 'bg-gradient-primary text-white font-semibold' : 'text-gray-700 dark:text-gray-100'}`}
+                      onClick={() => {
+                        onChange(opt.value);
+                        setOpen(false);
+                        if (onBlur) onBlur();
+                      }}
+                      role="option"
+                      aria-selected={value === opt.value}
+                    >
+                      {opt.icon && <span className="mr-2">{opt.icon}</span>}
+                      <span className="flex-1">{opt.label}</span>
+                      {value === opt.value && (
+                        <svg className="w-4 h-4 text-white ml-2" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      )}
+                    </button>
+                  ))}
+                </div>,
+                document.body
+              )
+            ) : (
             <div
               ref={menuRef}
               className={`absolute ${dropdownAlign === 'left' ? 'left-0' : 'right-0'} w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 shadow-xl rounded-xl z-[99999] max-h-60 overflow-y-auto text-xs p-1 animate-fadein ${dropdownMenuClassName || ''} ${
@@ -203,6 +267,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
                 </button>
               ))}
             </div>
+            )
           )}
         </>
       )}

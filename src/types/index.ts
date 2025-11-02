@@ -57,6 +57,12 @@ export interface Transaction {
   tags?: string[];
   to_account_id?: string;
   transaction_id?: string;
+  // Recurring transaction tracking fields
+  next_occurrence_date?: string;
+  is_paused?: boolean;
+  occurrence_count?: number;
+  recurring_end_date?: string;
+  parent_recurring_id?: string;
 }
 
 export interface Category {

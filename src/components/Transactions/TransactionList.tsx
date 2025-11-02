@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUpRight, ArrowDownRight, Copy, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Copy, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -53,7 +53,7 @@ export const TransactionList: React.FC<{
   // Record selection functionality is now passed as props from parent component
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | undefined>();
-  const { getActiveAccounts, getActiveTransactions, deleteTransaction, categories, purchaseCategories } = useFinanceStore();
+  const { getActiveAccounts, getActiveTransactions, deleteTransaction, updateTransaction, fetchTransactions, categories, purchaseCategories } = useFinanceStore();
   const accounts = getActiveAccounts();
   const activeTransactions = getActiveTransactions();
   const { profile } = useAuthStore();
@@ -70,7 +70,8 @@ export const TransactionList: React.FC<{
     currency: '',
     dateRange: { start: '', end: '' },
     showModifiedOnly: false,
-    recentlyModifiedDays: 7
+    recentlyModifiedDays: 7,
+    showRecurringOnly: false
   });
 
   // Enhanced search state
@@ -382,7 +383,8 @@ export const TransactionList: React.FC<{
     currency: '', // <-- add currency filter
     dateRange: getThisMonthDateRange(),
     showModifiedOnly: false, // New: Show only recently modified transactions
-    recentlyModifiedDays: 7 // New: Number of days for "recently modified"
+    recentlyModifiedDays: 7, // New: Number of days for "recently modified"
+    showRecurringOnly: false // New: Show only recurring transactions
   });
   
   // Add sorting state - default to most recent first
@@ -404,6 +406,7 @@ export const TransactionList: React.FC<{
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [showLendBorrowInfo, setShowLendBorrowInfo] = useState(false);
+  const [expandedRecurringIds, setExpandedRecurringIds] = useState<Set<string>>(new Set());
 
   // Add export menu state and ref
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -639,9 +642,73 @@ export const TransactionList: React.FC<{
     return account?.name || 'Unknown Account';
   };
 
+  // Helper function to get frequency label
+  const getFrequencyLabel = (frequency?: string) => {
+    if (!frequency) return 'N/A';
+    const labels: { [key: string]: string } = {
+      daily: 'Daily',
+      weekly: 'Weekly',
+      biweekly: 'Bi-weekly',
+      monthly: 'Monthly',
+      quarterly: 'Quarterly',
+      yearly: 'Yearly',
+      annually: 'Annually',
+    };
+    return labels[frequency.toLowerCase()] || frequency;
+  };
+
+  // Toggle expand/collapse for recurring transaction details
+  const toggleRecurringExpand = (transactionId: string) => {
+    setExpandedRecurringIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(transactionId)) {
+        newSet.delete(transactionId);
+      } else {
+        newSet.add(transactionId);
+      }
+      return newSet;
+    });
+  };
+
+  // Helper function to render expanded recurring details
+  const renderExpandedRecurringDetails = (transaction: Transaction) => {
+    if (!expandedRecurringIds.has(transaction.id) || (!transaction.is_recurring && !transaction.parent_recurring_id)) {
+      return null;
+    }
+
+    const isParentRecurring = transaction.is_recurring;
+    const parentTransaction = isParentRecurring ? transaction : activeTransactions.find(t => t.id === transaction.parent_recurring_id);
+    const displayTransaction = parentTransaction || transaction;
+    const childInstances = isParentRecurring ? activeTransactions.filter(t => t.parent_recurring_id === transaction.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : [];
+
+    if (!displayTransaction) return null;
+
+    return {
+      isParentRecurring,
+      parentTransaction,
+      displayTransaction,
+      childInstances
+    };
+  };
+
   const handleEdit = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
     setIsFormOpen(true);
+  };
+
+  // Handle pause/resume for recurring transactions
+  const handleTogglePause = async (transaction: Transaction) => {
+    if (!transaction.is_recurring) return;
+    
+    const wrappedAction = wrapAsync(async () => {
+      setLoadingMessage(transaction.is_paused ? 'Resuming recurring transaction...' : 'Pausing recurring transaction...');
+      await updateTransaction(transaction.id, {
+        is_paused: !transaction.is_paused
+      } as any);
+      toast.success(`Recurring transaction ${transaction.is_paused ? 'resumed' : 'paused'} successfully`);
+      await fetchTransactions();
+    });
+    await wrappedAction();
   };
 
   const handleDelete = async (transactionId: string) => {
@@ -742,6 +809,7 @@ export const TransactionList: React.FC<{
         if (filters.type !== 'all' && t.type !== filters.type) return false;
         if (filters.account !== 'all' && t.account_id !== filters.account) return false;
         if (filters.currency && accounts.find(a => a.id === t.account_id)?.currency !== filters.currency) return false;
+        if (filters.showRecurringOnly && !t.is_recurring) return false;
         
         // New: Filter by recently modified transactions
         if (filters.showModifiedOnly) {
@@ -972,11 +1040,11 @@ export const TransactionList: React.FC<{
               <button
                 onClick={() => setShowMobileFilterMenu(v => !v)}
                 className={`px-2 py-1.5 text-[13px] h-8 w-8 rounded-md transition-colors flex items-center justify-center ${
-                  (filters.type !== 'all' || filters.account !== 'all' || filters.currency || filters.dateRange.start || filters.dateRange.end || filters.showModifiedOnly)
+                  (filters.type !== 'all' || filters.account !== 'all' || filters.currency || filters.dateRange.start || filters.dateRange.end || filters.showModifiedOnly || filters.showRecurringOnly)
                     ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
-                style={(filters.type !== 'all' || filters.account !== 'all' || filters.currency || filters.dateRange.start || filters.dateRange.end || filters.showModifiedOnly) ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+                style={(filters.type !== 'all' || filters.account !== 'all' || filters.currency || filters.dateRange.start || filters.dateRange.end || filters.showModifiedOnly || filters.showRecurringOnly) ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                 title="Filters"
               >
                 <Filter className="w-4 h-4" />
@@ -1127,6 +1195,32 @@ export const TransactionList: React.FC<{
               )}
             </div>
             </div>
+
+            {/* Recurring Filter Toggle */}
+            {isPremiumPlan && (
+              <div className="hidden md:block">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilters({ ...filters, showRecurringOnly: !filters.showRecurringOnly });
+                    setShowTypeMenu(false);
+                    setShowAccountMenu(false);
+                    setShowDateMenu(false);
+                    setShowCurrencyMenu(false);
+                  }}
+                  className={`px-3 py-1.5 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
+                    filters.showRecurringOnly
+                      ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/40' 
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                  style={filters.showRecurringOnly ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+                  title={filters.showRecurringOnly ? 'Show all transactions' : 'Show only recurring transactions'}
+                >
+                  <Repeat className={`w-3.5 h-3.5 ${filters.showRecurringOnly ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <span>Recurring</span>
+                </button>
+              </div>
+            )}
 
             <div className="hidden md:block">
             <div className="relative">
@@ -1357,9 +1451,9 @@ export const TransactionList: React.FC<{
                 </div>
               </>
             )}
-            {(filters.search || filters.type !== 'all' || filters.account !== 'all' || (filters.currency && filters.currency !== (profile?.local_currency || 'USD')) || getDateRangeLabel() !== 'This Month' || filters.showModifiedOnly) && (
+            {(filters.search || filters.type !== 'all' || filters.account !== 'all' || (filters.currency && filters.currency !== (profile?.local_currency || 'USD')) || getDateRangeLabel() !== 'This Month' || filters.showModifiedOnly || filters.showRecurringOnly) && (
               <button
-                onClick={() => setFilters({ search: '', type: 'all', account: 'all', currency: '', dateRange: getThisMonthDateRange(), showModifiedOnly: false, recentlyModifiedDays: 7 })}
+                onClick={() => setFilters({ search: '', type: 'all', account: 'all', currency: '', dateRange: getThisMonthDateRange(), showModifiedOnly: false, recentlyModifiedDays: 7, showRecurringOnly: false })}
                 className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
                 title="Clear all filters"
               >
@@ -1727,8 +1821,8 @@ export const TransactionList: React.FC<{
                 
                     
                     return (
+                      <React.Fragment key={transaction.id}>
                       <tr 
-                        key={transaction.id} 
                         id={`transaction-${transaction.transaction_id || transaction.id}`}
                         ref={isSelected ? selectedRecordRef : null}
                         className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${
@@ -1791,15 +1885,34 @@ export const TransactionList: React.FC<{
                           <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(transaction.amount, selectedCurrency)}</span>
                         </td>
                         <td className="px-6 py-2 text-center">
-                          {transaction.type === 'income' ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
-                              <ArrowDownRight className="w-3 h-3" /> Income
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300">
-                              <ArrowUpRight className="w-3 h-3" /> Expense
-                            </span>
-                          )}
+                          <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                            {transaction.type === 'income' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
+                                <ArrowDownRight className="w-3 h-3" /> Income
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300">
+                                <ArrowUpRight className="w-3 h-3" /> Expense
+                              </span>
+                            )}
+                            {(transaction.is_recurring || transaction.parent_recurring_id) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleRecurringExpand(transaction.id);
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors cursor-pointer"
+                                title={expandedRecurringIds.has(transaction.id) ? 'Collapse recurring details' : 'Expand recurring details'}
+                              >
+                                <Repeat className="w-3 h-3" />
+                                {expandedRecurringIds.has(transaction.id) ? (
+                                  <ChevronUp className="w-3 h-3" />
+                                ) : (
+                                  <ChevronDown className="w-3 h-3" />
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-2 text-center">
                           <div className="flex justify-center gap-2 items-center">
@@ -1813,6 +1926,19 @@ export const TransactionList: React.FC<{
                                </button>
                              ) : (
                                <>
+                                 {transaction.is_recurring && (
+                                   <button
+                                     onClick={() => handleTogglePause(transaction)}
+                                     className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                     title={transaction.is_paused ? 'Resume recurring transaction' : 'Pause recurring transaction'}
+                                   >
+                                     {transaction.is_paused ? (
+                                       <Play className="w-4 h-4" />
+                                     ) : (
+                                       <Pause className="w-4 h-4" />
+                                     )}
+                                   </button>
+                                 )}
                                  <button
                                    onClick={() => handleEdit(transaction)}
                                    className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
@@ -1843,6 +1969,109 @@ export const TransactionList: React.FC<{
                           </div>
                         </td>
                       </tr>
+                      {/* Expanded Recurring Details Row */}
+                      {(() => {
+                        const details = renderExpandedRecurringDetails(transaction);
+                        if (!details) return null;
+
+                        const { isParentRecurring, parentTransaction, displayTransaction, childInstances } = details;
+
+                        return (
+                          <tr className="bg-gray-50 dark:bg-gray-800/50">
+                            <td colSpan={8} className="px-6 py-4">
+                              <div className="space-y-4">
+                                {/* Recurring Schedule Details */}
+                                {isParentRecurring && (
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Frequency</p>
+                                      <p className="text-sm text-gray-900 dark:text-white">{getFrequencyLabel(displayTransaction.recurring_frequency)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Occurrence</p>
+                                      <p className="text-sm text-gray-900 dark:text-white">
+                                        {displayTransaction.next_occurrence_date
+                                          ? format(new Date(displayTransaction.next_occurrence_date), 'MMM dd, yyyy')
+                                          : 'N/A'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
+                                      <p className={`text-sm font-medium ${displayTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                        {displayTransaction.is_paused ? 'Paused' : 'Active'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">End Date</p>
+                                      <p className="text-sm text-gray-900 dark:text-white">
+                                        {displayTransaction.recurring_end_date
+                                          ? format(new Date(displayTransaction.recurring_end_date), 'MMM dd, yyyy')
+                                          : 'No end date'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Occurrence Count</p>
+                                      <p className="text-sm text-gray-900 dark:text-white">
+                                        {displayTransaction.occurrence_count || 0} {displayTransaction.occurrence_count === 1 ? 'time' : 'times'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
+                                {!isParentRecurring && parentTransaction && (
+                                  <div className="border-l-4 border-blue-500 pl-4">
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Parent Recurring Transaction</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                      <div>
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Frequency</p>
+                                        <p className="text-sm text-gray-900 dark:text-white">{getFrequencyLabel(parentTransaction.recurring_frequency)}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Occurrence</p>
+                                        <p className="text-sm text-gray-900 dark:text-white">
+                                          {parentTransaction.next_occurrence_date
+                                            ? format(new Date(parentTransaction.next_occurrence_date), 'MMM dd, yyyy')
+                                            : 'N/A'}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
+                                        <p className={`text-sm font-medium ${parentTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                          {parentTransaction.is_paused ? 'Paused' : 'Active'}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Occurrence Count</p>
+                                        <p className="text-sm text-gray-900 dark:text-white">
+                                          {parentTransaction.occurrence_count || 0} {parentTransaction.occurrence_count === 1 ? 'time' : 'times'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {/* Generated Instances List */}
+                                {isParentRecurring && childInstances.length > 0 && (
+                                  <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Generated Instances ({childInstances.length})</p>
+                                    <div className="max-h-48 overflow-y-auto space-y-2">
+                                      {childInstances.map((instance) => (
+                                        <div key={instance.id} className="bg-white dark:bg-gray-700/50 rounded p-2 flex items-center justify-between text-sm">
+                                          <span className="text-gray-900 dark:text-white">
+                                            {format(new Date(instance.date), 'MMM dd, yyyy')}
+                                          </span>
+                                          <span className="text-gray-600 dark:text-gray-300">
+                                            {formatCurrency(instance.amount, selectedCurrency)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })()}
+                      </React.Fragment>
                     );
                   })
                 )}
@@ -1871,7 +2100,7 @@ export const TransactionList: React.FC<{
                 const isSelected = selectedId === transaction.transaction_id;
                 const isFromSearchSelection = isFromSearch && isSelected;
                 const isTransfer = transaction.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
-                const isRecurring = transaction.is_recurring;
+                const isRecurring = transaction.is_recurring || transaction.parent_recurring_id;
                 return (
                   <div 
                     key={transaction.id} 
@@ -1972,10 +2201,22 @@ export const TransactionList: React.FC<{
                       <div className="flex flex-wrap items-center gap-2">
                         {/* Recurring Indicator */}
                         {isRecurring && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleRecurringExpand(transaction.id);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors cursor-pointer"
+                            title={expandedRecurringIds.has(transaction.id) ? 'Collapse recurring details' : 'Expand recurring details'}
+                          >
                             <Repeat className="w-3 h-3" />
                             Recurring
-                          </span>
+                            {expandedRecurringIds.has(transaction.id) ? (
+                              <ChevronUp className="w-3 h-3" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3" />
+                            )}
+                          </button>
                         )}
 
                         {/* Tags Display */}
@@ -2019,13 +2260,26 @@ export const TransactionList: React.FC<{
                            </button>
                          ) : (
                            <>
-                             <button
-                               onClick={() => handleEdit(transaction)}
-                               className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                               title="Edit"
-                             >
-                               <Edit2 className="w-3.5 h-3.5" />
-                             </button>
+                               {transaction.is_recurring && (
+                                 <button
+                                   onClick={() => handleTogglePause(transaction)}
+                                   className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                   title={transaction.is_paused ? 'Resume recurring transaction' : 'Pause recurring transaction'}
+                                 >
+                                   {transaction.is_paused ? (
+                                     <Play className="w-3.5 h-3.5" />
+                                   ) : (
+                                     <Pause className="w-3.5 h-3.5" />
+                                   )}
+                                 </button>
+                               )}
+                               <button
+                                 onClick={() => handleEdit(transaction)}
+                                 className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                 title="Edit"
+                               >
+                                 <Edit2 className="w-3.5 h-3.5" />
+                               </button>
                              {transaction.tags?.includes('purchase') && (
                                <div
                                  className="p-1.5 text-gray-500 dark:text-gray-400"
@@ -2048,6 +2302,101 @@ export const TransactionList: React.FC<{
                          )}
                       </div>
                     </div>
+
+                    {/* Expanded Recurring Details */}
+                    {expandedRecurringIds.has(transaction.id) && (transaction.is_recurring || transaction.parent_recurring_id) && (() => {
+                      const isParentRecurring = transaction.is_recurring;
+                      const parentTransaction = isParentRecurring ? transaction : activeTransactions.find(t => t.id === transaction.parent_recurring_id);
+                      const displayTransaction = parentTransaction || transaction;
+                      const childInstances = isParentRecurring ? activeTransactions.filter(t => t.parent_recurring_id === transaction.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : [];
+
+                      if (!displayTransaction) return null;
+
+                      return (
+                        <div className="px-3 pb-3 border-t border-gray-200 dark:border-gray-700 pt-3 space-y-3">
+                          {/* Recurring Schedule Details */}
+                          {isParentRecurring && (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Frequency</p>
+                                <p className="text-sm text-gray-900 dark:text-white">{getFrequencyLabel(displayTransaction.recurring_frequency)}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Occurrence</p>
+                                <p className="text-sm text-gray-900 dark:text-white">
+                                  {displayTransaction.next_occurrence_date
+                                    ? format(new Date(displayTransaction.next_occurrence_date), 'MMM dd, yyyy')
+                                    : 'N/A'}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
+                                <p className={`text-sm font-medium ${displayTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                  {displayTransaction.is_paused ? 'Paused' : 'Active'}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">End Date</p>
+                                <p className="text-sm text-gray-900 dark:text-white">
+                                  {displayTransaction.recurring_end_date
+                                    ? format(new Date(displayTransaction.recurring_end_date), 'MMM dd, yyyy')
+                                    : 'No end date'}
+                                </p>
+                              </div>
+                              <div className="col-span-2">
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Occurrence Count</p>
+                                <p className="text-sm text-gray-900 dark:text-white">
+                                  {displayTransaction.occurrence_count || 0} {displayTransaction.occurrence_count === 1 ? 'time' : 'times'}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          {!isParentRecurring && parentTransaction && (
+                            <div className="border-l-4 border-blue-500 pl-3">
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Parent Recurring Transaction</p>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Frequency</p>
+                                  <p className="text-sm text-gray-900 dark:text-white">{getFrequencyLabel(parentTransaction.recurring_frequency)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Occurrence</p>
+                                  <p className="text-sm text-gray-900 dark:text-white">
+                                    {parentTransaction.next_occurrence_date
+                                      ? format(new Date(parentTransaction.next_occurrence_date), 'MMM dd, yyyy')
+                                      : 'N/A'}
+                                  </p>
+                                </div>
+                                <div className="col-span-2">
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
+                                  <p className={`text-sm font-medium ${parentTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                    {parentTransaction.is_paused ? 'Paused' : 'Active'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {/* Generated Instances List */}
+                          {isParentRecurring && childInstances.length > 0 && (
+                            <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Generated Instances ({childInstances.length})</p>
+                              <div className="max-h-32 overflow-y-auto space-y-1.5">
+                                {childInstances.map((instance) => (
+                                  <div key={instance.id} className="bg-gray-50 dark:bg-gray-700/50 rounded p-2 flex items-center justify-between text-xs">
+                                    <span className="text-gray-900 dark:text-white">
+                                      {format(new Date(instance.date), 'MMM dd, yyyy')}
+                                    </span>
+                                    <span className="text-gray-600 dark:text-gray-300">
+                                      {formatCurrency(instance.amount, selectedCurrency)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })
@@ -2127,20 +2476,33 @@ export const TransactionList: React.FC<{
                         <div className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(transaction.amount, selectedCurrency)}</div>
                       </div>
                       <div className="col-span-1">
-                        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</div>
-                        <div className="flex gap-2 items-center">
-                          <button
-                            onClick={() => !isLendBorrowTransaction(transaction) && handleEdit(transaction)}
-                            className={`text-gray-500 dark:text-gray-400 ${
-                              isLendBorrowTransaction(transaction)
-                                ? 'cursor-not-allowed opacity-50'
-                                : 'hover:text-blue-600 dark:hover:text-blue-400'
-                            }`}
-                            title={isLendBorrowTransaction(transaction) ? "This transaction is managed by the Lend & Borrow page. Please make changes there instead." : "Edit"}
-                            disabled={isLendBorrowTransaction(transaction)}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
+                          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</div>
+                          <div className="flex gap-2 items-center">
+                            {transaction.is_recurring && (
+                              <button
+                                onClick={() => handleTogglePause(transaction)}
+                                className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                title={transaction.is_paused ? 'Resume recurring transaction' : 'Pause recurring transaction'}
+                              >
+                                {transaction.is_paused ? (
+                                  <Play className="w-4 h-4" />
+                                ) : (
+                                  <Pause className="w-4 h-4" />
+                                )}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => !isLendBorrowTransaction(transaction) && handleEdit(transaction)}
+                              className={`text-gray-500 dark:text-gray-400 ${
+                                isLendBorrowTransaction(transaction)
+                                  ? 'cursor-not-allowed opacity-50'
+                                  : 'hover:text-blue-600 dark:hover:text-blue-400'
+                              }`}
+                              title={isLendBorrowTransaction(transaction) ? "This transaction is managed by the Lend & Borrow page. Please make changes there instead." : "Edit"}
+                              disabled={isLendBorrowTransaction(transaction)}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
                           {transaction.tags?.includes('purchase') && (
                             <div
                               className="text-gray-500 dark:text-gray-400"
@@ -2191,6 +2553,101 @@ export const TransactionList: React.FC<{
                         </div>
                       </div>
                     </div>
+
+                    {/* Expanded Recurring Details */}
+                    {expandedRecurringIds.has(transaction.id) && (transaction.is_recurring || transaction.parent_recurring_id) && (() => {
+                      const isParentRecurring = transaction.is_recurring;
+                      const parentTransaction = isParentRecurring ? transaction : activeTransactions.find(t => t.id === transaction.parent_recurring_id);
+                      const displayTransaction = parentTransaction || transaction;
+                      const childInstances = isParentRecurring ? activeTransactions.filter(t => t.parent_recurring_id === transaction.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : [];
+
+                      if (!displayTransaction) return null;
+
+                      return (
+                        <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-3 space-y-3">
+                          {/* Recurring Schedule Details */}
+                          {isParentRecurring && (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Frequency</p>
+                                <p className="text-sm text-gray-900 dark:text-white">{getFrequencyLabel(displayTransaction.recurring_frequency)}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Occurrence</p>
+                                <p className="text-sm text-gray-900 dark:text-white">
+                                  {displayTransaction.next_occurrence_date
+                                    ? format(new Date(displayTransaction.next_occurrence_date), 'MMM dd, yyyy')
+                                    : 'N/A'}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
+                                <p className={`text-sm font-medium ${displayTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                  {displayTransaction.is_paused ? 'Paused' : 'Active'}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">End Date</p>
+                                <p className="text-sm text-gray-900 dark:text-white">
+                                  {displayTransaction.recurring_end_date
+                                    ? format(new Date(displayTransaction.recurring_end_date), 'MMM dd, yyyy')
+                                    : 'No end date'}
+                                </p>
+                              </div>
+                              <div className="col-span-2">
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Occurrence Count</p>
+                                <p className="text-sm text-gray-900 dark:text-white">
+                                  {displayTransaction.occurrence_count || 0} {displayTransaction.occurrence_count === 1 ? 'time' : 'times'}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          {!isParentRecurring && parentTransaction && (
+                            <div className="border-l-4 border-blue-500 pl-3">
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Parent Recurring Transaction</p>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Frequency</p>
+                                  <p className="text-sm text-gray-900 dark:text-white">{getFrequencyLabel(parentTransaction.recurring_frequency)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Occurrence</p>
+                                  <p className="text-sm text-gray-900 dark:text-white">
+                                    {parentTransaction.next_occurrence_date
+                                      ? format(new Date(parentTransaction.next_occurrence_date), 'MMM dd, yyyy')
+                                      : 'N/A'}
+                                  </p>
+                                </div>
+                                <div className="col-span-2">
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
+                                  <p className={`text-sm font-medium ${parentTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                    {parentTransaction.is_paused ? 'Paused' : 'Active'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {/* Generated Instances List */}
+                          {isParentRecurring && childInstances.length > 0 && (
+                            <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Generated Instances ({childInstances.length})</p>
+                              <div className="max-h-32 overflow-y-auto space-y-1.5">
+                                {childInstances.map((instance) => (
+                                  <div key={instance.id} className="bg-gray-50 dark:bg-gray-700/50 rounded p-2 flex items-center justify-between text-xs">
+                                    <span className="text-gray-900 dark:text-white">
+                                      {format(new Date(instance.date), 'MMM dd, yyyy')}
+                                    </span>
+                                    <span className="text-gray-600 dark:text-gray-300">
+                                      {formatCurrency(instance.amount, selectedCurrency)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })
@@ -2313,7 +2770,7 @@ export const TransactionList: React.FC<{
                       setShowMobileFilterMenu(false);
                     }}
                     className={`p-1 transition-colors ${
-                      (tempFilters.type !== 'all' || tempFilters.account !== 'all' || tempFilters.currency || tempFilters.dateRange.start || tempFilters.dateRange.end || tempFilters.showModifiedOnly)
+                      (tempFilters.type !== 'all' || tempFilters.account !== 'all' || tempFilters.currency || tempFilters.dateRange.start || tempFilters.dateRange.end || tempFilters.showModifiedOnly || tempFilters.showRecurringOnly)
                         ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
                         : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                     }`}
@@ -2332,7 +2789,8 @@ export const TransactionList: React.FC<{
                         currency: '',
                         dateRange: { start: '', end: '' },
                         showModifiedOnly: false,
-                        recentlyModifiedDays: 7
+                        recentlyModifiedDays: 7,
+                        showRecurringOnly: false
                       });
                       setShowMobileFilterMenu(false);
                     }}
@@ -2383,6 +2841,36 @@ export const TransactionList: React.FC<{
                 </button>
               </div>
             </div>
+
+            {/* Recurring Filter - Mobile */}
+            {isPremiumPlan && (
+              <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Recurring</div>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, showRecurringOnly: false }); }}
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors flex items-center gap-1 ${
+                      !tempFilters.showRecurringOnly
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, showRecurringOnly: true }); }}
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors flex items-center gap-1 ${
+                      tempFilters.showRecurringOnly
+                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <Repeat className="w-3 h-3" />
+                    Recurring Only
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Account Filter */}
             <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">

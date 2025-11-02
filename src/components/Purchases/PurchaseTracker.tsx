@@ -2034,7 +2034,11 @@ export const PurchaseTracker: React.FC = () => {
                       if (isPremiumPlan) return '∞';
                       if (usageStats && 'purchases' in usageStats) {
                         const current = (usageStats as any).purchases?.current || 0;
-                        const limit = (usageStats as any).purchases?.limit || 50;
+                        let limit = (usageStats as any).purchases?.limit;
+                        // If limit is -1 (unlimited) or invalid, default to 50 for free users
+                        if (!limit || limit === -1 || limit < 0) {
+                          limit = 50;
+                        }
                         return `${current}/${limit}`;
                       }
                       // Fallback for free users

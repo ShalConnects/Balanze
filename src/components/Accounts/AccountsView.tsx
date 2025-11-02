@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Plus, Edit2, Trash2, DollarSign, Info, PlusCircle, InfoIcon, Search, ArrowLeft, Wallet, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown } from 'lucide-react';
+import { Plus, Edit2, Trash2, DollarSign, Info, PlusCircle, InfoIcon, Search, ArrowLeft, Wallet, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown, Eye, EyeOff } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { AccountForm } from './AccountForm';
 import { TransactionForm } from '../Transactions/TransactionForm';
@@ -93,6 +93,55 @@ export const AccountsView: React.FC = () => {
   
   // Temporary filter state for mobile modal
   const [tempFilters, setTempFilters] = useState(tableFilters);
+
+  // Hidden currencies state (premium users only, persisted to localStorage)
+  const [hiddenCurrencies, setHiddenCurrencies] = useState<Set<string>>(new Set());
+
+  // Initialize hidden currencies from localStorage (premium users only)
+  useEffect(() => {
+    if (isPremiumPlan) {
+      try {
+        const stored = localStorage.getItem('accounts_page_hidden_currencies');
+        if (stored) {
+          setHiddenCurrencies(new Set(JSON.parse(stored)));
+        }
+      } catch {
+        // Ignore localStorage errors
+      }
+    } else {
+      // Clear hidden currencies if user is not premium
+      setHiddenCurrencies(new Set());
+    }
+  }, [isPremiumPlan]);
+
+  // Sync hidden currencies to localStorage when changed (premium users only)
+  useEffect(() => {
+    if (isPremiumPlan) {
+      try {
+        localStorage.setItem('accounts_page_hidden_currencies', JSON.stringify(Array.from(hiddenCurrencies)));
+      } catch (error) {
+        console.error('Failed to save hidden currencies to localStorage:', error);
+      }
+    }
+  }, [hiddenCurrencies, isPremiumPlan]);
+
+  // Toggle currency visibility (premium users only)
+  const toggleCurrencyVisibility = useCallback((currency: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation(); // Prevent dropdown from closing
+    }
+    if (!isPremiumPlan) return;
+    
+    setHiddenCurrencies(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(currency)) {
+        newSet.delete(currency);
+      } else {
+        newSet.add(currency);
+      }
+      return newSet;
+    });
+  }, [isPremiumPlan]);
 
   // Refs for dropdown menus
   const currencyMenuRef = useRef<HTMLDivElement>(null);
@@ -360,13 +409,19 @@ export const AccountsView: React.FC = () => {
 
   // Get all unique currencies from accounts
   const accountCurrencies = Array.from(new Set(accounts.map(a => a.currency)));
-  // Only show selected_currencies if available, else all from accounts
+  // Show all currencies that have accounts (for premium users to hide/show)
+  // For free users, still respect selected_currencies if set
   const currencyOptions = useMemo(() => {
+    if (isPremiumPlan) {
+      // Premium: show all currencies with accounts (can be hidden via toggle)
+      return accountCurrencies;
+    }
+    // Free: only show selected_currencies if available, else all from accounts
     if (profile?.selected_currencies && profile.selected_currencies.length > 0) {
       return accountCurrencies.filter(c => profile.selected_currencies?.includes?.(c));
     }
     return accountCurrencies;
-  }, [profile?.selected_currencies, accountCurrencies]);
+  }, [isPremiumPlan, profile?.selected_currencies, accountCurrencies]);
   const accountTypes = Array.from(new Set(accounts.map(a => a.type)));
 
 
@@ -431,6 +486,10 @@ export const AccountsView: React.FC = () => {
 
     // First apply basic filters
     let filtered = accounts.filter(account => {
+      // Exclude accounts with hidden currencies (premium users only)
+      const isCurrencyHidden = isPremiumPlan && hiddenCurrencies.has(account.currency);
+      if (isCurrencyHidden) return false;
+      
       const matchesCurrency = tableFilters.currency === '' || account.currency === tableFilters.currency;
       const matchesType = tableFilters.type === 'all' || account.type === tableFilters.type;
       const matchesStatus = tableFilters.status === 'all' || (tableFilters.status === 'active' && account.isActive);
@@ -453,7 +512,7 @@ export const AccountsView: React.FC = () => {
     }
 
     return filtered;
-  }, [accounts, tableFilters, hasSelection, isFromSearch, selectedRecord]);
+  }, [accounts, tableFilters, hasSelection, isFromSearch, selectedRecord, isPremiumPlan, hiddenCurrencies]);
 
   // Sort filtered accounts for table display only
   const filteredAccountsForTable = useMemo(() => {
@@ -886,22 +945,48 @@ export const AccountsView: React.FC = () => {
                       </svg>
                     </button>
                     {showCurrencyMenu && (
-                      <div className="absolute left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                      <div className="absolute left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto min-w-[200px]">
                         <button
                           onClick={() => { setTableFilters({ ...tableFilters, currency: '' }); setShowCurrencyMenu(false); }}
-                          className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 ${tableFilters.currency === '' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200' : ''}`}
+                          className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center ${tableFilters.currency === '' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200' : ''}`}
                         >
                           All Currencies
                         </button>
-                        {currencyOptions.map(currency => (
-                          <button
-                            key={currency}
-                            onClick={() => { setTableFilters({ ...tableFilters, currency }); setShowCurrencyMenu(false); }}
-                            className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 ${tableFilters.currency === currency ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200' : ''}`}
-                          >
-                            {currency}
-                          </button>
-                        ))}
+                        {currencyOptions.map(currency => {
+                          const isHidden = isPremiumPlan && hiddenCurrencies.has(currency);
+                          return (
+                            <div
+                              key={currency}
+                              className={`flex items-center justify-between px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                                tableFilters.currency === currency ? 'bg-blue-50 dark:bg-blue-900/40' : ''
+                              }`}
+                            >
+                              <button
+                                onClick={() => { setTableFilters({ ...tableFilters, currency }); setShowCurrencyMenu(false); }}
+                                className={`flex-1 text-left text-gray-900 dark:text-gray-100 ${
+                                  tableFilters.currency === currency ? 'text-blue-700 dark:text-blue-200 font-medium' : ''
+                                } ${isHidden ? 'opacity-50' : ''}`}
+                              >
+                                {currency}
+                              </button>
+                              {isPremiumPlan && (
+                                <button
+                                  onClick={(e) => toggleCurrencyVisibility(currency, e)}
+                                  className={`ml-2 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${
+                                    isHidden ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'
+                                  }`}
+                                  title={isHidden ? 'Show accounts with this currency' : 'Hide accounts with this currency'}
+                                >
+                                  {isHidden ? (
+                                    <EyeOff className="w-4 h-4" />
+                                  ) : (
+                                    <Eye className="w-4 h-4" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
