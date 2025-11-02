@@ -75,7 +75,7 @@
     },
     {
       "path": "/api/process-recurring-transactions",
-      "schedule": "0 * * * *"
+      "schedule": "0 1 * * *"
     }
   ]
 } 
