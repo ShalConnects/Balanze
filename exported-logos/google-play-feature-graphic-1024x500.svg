@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+  <defs>
+    <!-- Main gradient background -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9333ea;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Text gradient -->
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e0e7ff;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Subtle overlay gradient for depth -->
+    <linearGradient id="overlayGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.1" />
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:0.1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1024" height="500" fill="url(#bgGradient)"/>
+  <rect width="1024" height="500" fill="url(#overlayGradient)"/>
+  
+  <!-- Decorative circles for depth -->
+  <circle cx="850" cy="100" r="120" fill="#ffffff" opacity="0.05"/>
+  <circle cx="900" cy="400" r="80" fill="#ffffff" opacity="0.05"/>
+  <circle cx="150" cy="400" r="100" fill="#ffffff" opacity="0.05"/>
+  
+  <!-- Logo B Icon -->
+  <g transform="translate(150, 200)">
+    <rect x="0" y="0" width="100" height="100" rx="12" fill="#ffffff" opacity="0.15"/>
+    <rect x="5" y="5" width="90" height="90" rx="10" fill="url(#bgGradient)"/>
+    <text x="50" y="65" font-family="Arial, sans-serif" font-size="60" font-weight="bold" text-anchor="middle" fill="white">B</text>
+  </g>
+  
+  <!-- App Name -->
+  <text x="270" y="260" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="white">Balanze</text>
+  
+  <!-- Tagline -->
+  <text x="150" y="310" font-family="Arial, sans-serif" font-size="32" font-weight="normal" fill="url(#textGradient)">Personal Finance Management</text>
+  
+  <!-- Key Features (right side) -->
+  <g transform="translate(600, 150)">
+    <!-- Feature 1 -->
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white">✓ Track Accounts & Budgets</text>
+    <text x="0" y="40" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white">✓ Savings Goals & Investments</text>
+    <text x="0" y="80" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white">✓ Smart Analytics & Insights</text>
+    <text x="0" y="120" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white">✓ Secure & Multi-Currency</text>
+  </g>
+  
+  <!-- Bottom decorative element -->
+  <rect x="0" y="480" width="1024" height="20" fill="#ffffff" opacity="0.1"/>
+</svg>
+

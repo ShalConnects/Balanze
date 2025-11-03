@@ -1266,12 +1266,8 @@ export const TransactionList: React.FC<{
             {/* Date Preset Dropdown styled as filter button */}
             <div className="hidden md:block relative" ref={dateMenuButtonRef}>
               <button
-                className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
-                  filters.dateRange.start && filters.dateRange.end 
-                    ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700' 
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
-                } ${showPresetDropdown ? 'ring-2 ring-blue-500' : ''}`}
-                style={filters.dateRange.start && filters.dateRange.end ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+                className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 ${showPresetDropdown ? 'ring-2 ring-blue-500' : ''}`}
+                style={{ background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' }}
                 onClick={() => {
                   setShowPresetDropdown(v => !v);
                   setShowTypeMenu(false);

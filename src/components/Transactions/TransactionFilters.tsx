@@ -314,11 +314,8 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
             <div className="relative" ref={datePickerRef}>
               <button
                 onClick={() => setShowDatePicker(v => !v)}
-                className={`px-3 py-2 text-sm rounded-lg transition-colors flex items-center space-x-2 ${
-                  filters.dateRange.start || filters.dateRange.end
-                    ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700' 
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
-                }`}
+                className="px-3 py-2 text-sm rounded-lg transition-colors flex items-center space-x-2 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700"
+                style={{ background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' }}
               >
                 <Calendar className="w-4 h-4" />
                 <span>{getDateRangeLabel()}</span>
