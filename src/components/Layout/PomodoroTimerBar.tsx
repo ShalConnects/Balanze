@@ -3,6 +3,9 @@ import { Timer, Play, Pause, Square, X, Minimize2, Maximize2 } from 'lucide-reac
 import { supabase } from '../../lib/supabase';
 
 export const PomodoroTimerBar: React.FC = () => {
+  // Detect Android device
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  
   const [isExpanded, setIsExpanded] = useState<boolean>(() => {
     // Restore expanded state from localStorage
     const saved = localStorage.getItem('pomodoroTimerExpanded');
@@ -265,26 +268,64 @@ export const PomodoroTimerBar: React.FC = () => {
     window.dispatchEvent(new CustomEvent('pomodoroTimerStateChange'));
   };
 
+  // Sync isExpanded state with localStorage changes (only on mount and storage events)
+  useEffect(() => {
+    const checkExpandedState = () => {
+      const saved = localStorage.getItem('pomodoroTimerExpanded');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setIsExpanded(parsed);
+      }
+    };
+    
+    // Check immediately on mount
+    checkExpandedState();
+    
+    // Listen for storage events (from other tabs)
+    window.addEventListener('storage', checkExpandedState);
+    
+    return () => {
+      window.removeEventListener('storage', checkExpandedState);
+    };
+  }, []); // Only run on mount
+
   const toggleExpand = () => {
     const newState = !isExpanded;
+    // Update state immediately
     setIsExpanded(newState);
+    // Update localStorage
     localStorage.setItem('pomodoroTimerExpanded', JSON.stringify(newState));
   };
 
   if (!pomodoroTimer || isAllTasksModalOpen) return null;
 
+  // On Android, hide timer bar when modal is closed (no minimized/expanded view)
+  if (isAndroid && !isAllTasksModalOpen) return null;
+
   const progress = getProgress();
 
-  // Minimized badge view
-  if (!isExpanded) {
-    
-    return (
-      <div className="fixed bottom-12 left-4 z-50">
+  // Use React state directly (more reliable for immediate updates)
+  const currentExpanded = isExpanded;
+
+  return (
+    <>
+      {/* Minimized badge view - always rendered, visibility toggled */}
+      <div className={`fixed bottom-12 left-4 z-[9998] transition-all duration-300 ${!currentExpanded ? 'opacity-100 pointer-events-auto visible' : 'opacity-0 pointer-events-none invisible'}`}>
         <div className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full shadow-lg hover:shadow-xl transition-all cursor-pointer group">
           <button
-            onClick={toggleExpand}
-            className="flex items-center gap-2 px-4 py-3 text-white"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleExpand();
+            }}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleExpand();
+            }}
+            className="flex items-center gap-2 px-4 py-3 text-white touch-manipulation"
             title="Expand timer"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
             <Timer className="w-5 h-5" />
             <span className="font-bold text-sm">
@@ -294,12 +335,9 @@ export const PomodoroTimerBar: React.FC = () => {
           </button>
         </div>
       </div>
-    );
-  }
 
-  // Expanded modal view
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg transition-all duration-300">
+      {/* Expanded modal view - always rendered, visibility toggled */}
+      <div className={`fixed bottom-0 left-0 right-0 z-[9999] bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg transition-all duration-300 ${currentExpanded ? 'opacity-100 pointer-events-auto visible translate-y-0' : 'opacity-0 pointer-events-none invisible translate-y-full'}`} style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0), 8px)', WebkitTransform: 'translateZ(0)', transform: 'translateZ(0)' }}>
       {/* Progress Bar */}
       <div className="h-1 bg-gray-200 dark:bg-gray-700">
         <div 
@@ -352,7 +390,8 @@ export const PomodoroTimerBar: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

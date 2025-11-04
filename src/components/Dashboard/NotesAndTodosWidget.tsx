@@ -678,9 +678,36 @@ export const NotesAndTodosWidget: React.FC = () => {
         ));
       }
     } catch (error) {
-      // Error handling
+      console.error('Error resetting section override:', error);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
+  };
+
+  // Global reset function - reset all tasks' section_override
+  const resetAllSectionOverrides = async () => {
+    if (!user?.id) return;
+    setSaving(true);
+    try {
+      // Get all tasks with section_override set
+      const tasksWithOverride = tasks.filter(t => t.section_override !== null);
+      if (tasksWithOverride.length === 0) return;
+
+      // Update all tasks with section_override
+      const taskIds = tasksWithOverride.map(t => t.id);
+      const { error } = await supabase
+        .from('tasks')
+        .update({ section_override: null })
+        .in('id', taskIds);
+      
+      if (!error) {
+        setTasks(tasks.map(t => ({ ...t, section_override: null })));
+      }
+    } catch (error) {
+      console.error('Error resetting all section overrides:', error);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Helper to render a single task item
@@ -907,16 +934,6 @@ export const NotesAndTodosWidget: React.FC = () => {
         )}
       </div>
       <button className="ml-1 text-gray-400 hover:text-red-500 flex-shrink-0" onClick={() => setConfirmDeleteTaskId(task.id)} disabled={saving}>&times;</button>
-      {task.section_override && (
-        <button 
-          className="ml-1 text-gray-400 hover:text-blue-500 flex-shrink-0" 
-          onClick={() => resetSectionOverride(task.id)} 
-          disabled={saving}
-          title="Reset to date-based grouping"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-        </button>
-      )}
       </>}
     </div>
   );
@@ -1611,6 +1628,17 @@ export const NotesAndTodosWidget: React.FC = () => {
                   >
                     <Plus className="w-4 h-4" />
                   </button>
+                  {/* Reset All Section Overrides - only show if any task has section_override */}
+                  {tasks.some(t => t.section_override !== null) && (
+                    <button
+                      onClick={resetAllSectionOverrides}
+                      disabled={saving}
+                      className="p-1.5 text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                      title="Reset all tasks to date-based grouping"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                  )}
                   {/* Pomodoro Settings */}
                   <div className="relative pomodoro-settings-container">
                     <button
