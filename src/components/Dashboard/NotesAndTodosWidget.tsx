@@ -56,8 +56,9 @@ export const NotesAndTodosWidget: React.FC = () => {
   // Pomodoro state
   const [pomodoroTimer, setPomodoroTimer] = useState<{
     taskId: string | null;
-    timeRemaining: number; // in seconds
+    timeRemaining: number; // in seconds (calculated from endTime)
     isRunning: boolean;
+    endTime: number | null; // timestamp when timer should end (null when paused)
   } | null>(null);
   const [pomodoroCounts, setPomodoroCounts] = useState<Record<string, number>>(() => {
     // Load from localStorage
@@ -852,6 +853,7 @@ export const NotesAndTodosWidget: React.FC = () => {
   // Pomodoro functions
   const startPomodoro = (taskId: string) => {
     const durationInSeconds = getTaskDuration(taskId) * 60;
+    const endTime = Date.now() + (durationInSeconds * 1000);
     // Reset completion guard for new timer
     completionProcessedRef.current = { taskId, processed: false };
     // If there's already a timer running for a different task, stop it first
@@ -861,6 +863,7 @@ export const NotesAndTodosWidget: React.FC = () => {
         taskId,
         timeRemaining: durationInSeconds,
         isRunning: true,
+        endTime,
       });
     } else {
       // Same task - just start/reset
@@ -868,19 +871,23 @@ export const NotesAndTodosWidget: React.FC = () => {
         taskId,
         timeRemaining: durationInSeconds,
         isRunning: true,
+        endTime,
       });
     }
   };
 
   const pausePomodoro = () => {
-    if (pomodoroTimer) {
-      setPomodoroTimer({ ...pomodoroTimer, isRunning: false });
+    if (pomodoroTimer && pomodoroTimer.isRunning) {
+      // When pausing, set endTime to null (we'll recalculate on resume)
+      setPomodoroTimer({ ...pomodoroTimer, isRunning: false, endTime: null });
     }
   };
 
   const resumePomodoro = () => {
-    if (pomodoroTimer && !pomodoroTimer.isRunning) {
-      setPomodoroTimer({ ...pomodoroTimer, isRunning: true });
+    if (pomodoroTimer && !pomodoroTimer.isRunning && pomodoroTimer.timeRemaining > 0) {
+      // Recalculate endTime based on current timeRemaining
+      const endTime = Date.now() + (pomodoroTimer.timeRemaining * 1000);
+      setPomodoroTimer({ ...pomodoroTimer, isRunning: true, endTime });
     }
   };
 
@@ -893,6 +900,7 @@ export const NotesAndTodosWidget: React.FC = () => {
         ...pomodoroTimer,
         timeRemaining: durationInSeconds,
         isRunning: false,
+        endTime: null,
       });
     }
   };
@@ -913,12 +921,14 @@ export const NotesAndTodosWidget: React.FC = () => {
         ...pomodoroTimer,
         timeRemaining: minutes * 60,
         isRunning: false,
+        endTime: null,
       });
     } else if (pomodoroTimer) {
       // Timer exists but paused - just update duration
       setPomodoroTimer({
         ...pomodoroTimer,
         timeRemaining: minutes * 60,
+        endTime: null,
       });
     }
     setShowPomodoroSettings(false);
@@ -935,12 +945,14 @@ export const NotesAndTodosWidget: React.FC = () => {
           ...pomodoroTimer,
           timeRemaining: minutes * 60,
           isRunning: false,
+          endTime: null,
         });
       } else if (pomodoroTimer) {
         // Timer exists but paused - just update duration
         setPomodoroTimer({
           ...pomodoroTimer,
           timeRemaining: minutes * 60,
+          endTime: null,
         });
       }
       setTempDurationInput('');
@@ -971,11 +983,13 @@ export const NotesAndTodosWidget: React.FC = () => {
           ...pomodoroTimer,
           timeRemaining: minutes * 60,
           isRunning: false,
+          endTime: null,
         });
       } else {
         setPomodoroTimer({
           ...pomodoroTimer,
           timeRemaining: minutes * 60,
+          endTime: null,
         });
       }
     }
@@ -997,11 +1011,13 @@ export const NotesAndTodosWidget: React.FC = () => {
             ...pomodoroTimer,
             timeRemaining: minutes * 60,
             isRunning: false,
+            endTime: null,
           });
         } else {
           setPomodoroTimer({
             ...pomodoroTimer,
             timeRemaining: minutes * 60,
+            endTime: null,
           });
         }
       }
@@ -1024,11 +1040,13 @@ export const NotesAndTodosWidget: React.FC = () => {
           ...pomodoroTimer,
           timeRemaining: pomodoroDuration * 60,
           isRunning: false,
+          endTime: null,
         });
       } else {
         setPomodoroTimer({
           ...pomodoroTimer,
           timeRemaining: pomodoroDuration * 60,
+          endTime: null,
         });
       }
     }
@@ -1036,9 +1054,9 @@ export const NotesAndTodosWidget: React.FC = () => {
     setEditingTaskDuration(null);
   };
 
-  // Timer countdown effect
+  // Timer countdown effect - Date-based calculation for accuracy
   useEffect(() => {
-    if (!pomodoroTimer || !pomodoroTimer.isRunning) return;
+    if (!pomodoroTimer || !pomodoroTimer.isRunning || !pomodoroTimer.endTime) return;
 
     // Initialize guard if not already set for this timer
     if (pomodoroTimer.taskId && 
@@ -1049,9 +1067,13 @@ export const NotesAndTodosWidget: React.FC = () => {
 
     const interval = setInterval(() => {
       setPomodoroTimer(prev => {
-        if (!prev || !prev.isRunning) return prev;
+        if (!prev || !prev.isRunning || !prev.endTime) return prev;
         
-        if (prev.timeRemaining <= 1) {
+        // Calculate time remaining from endTime (more accurate than decrementing)
+        const now = Date.now();
+        const timeRemaining = Math.max(0, Math.floor((prev.endTime - now) / 1000));
+        
+        if (timeRemaining <= 0) {
           // Timer completed
           const taskId = prev.taskId;
           
@@ -1086,15 +1108,15 @@ export const NotesAndTodosWidget: React.FC = () => {
             }
           }
           
-          return { ...prev, timeRemaining: 0, isRunning: false };
+          return { ...prev, timeRemaining: 0, isRunning: false, endTime: null };
         }
         
-        return { ...prev, timeRemaining: prev.timeRemaining - 1 };
+        return { ...prev, timeRemaining };
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [pomodoroTimer?.isRunning, pomodoroTimer?.timeRemaining]);
+  }, [pomodoroTimer?.isRunning, pomodoroTimer?.endTime, tasks]);
 
   // Request notification permission on mount
   useEffect(() => {
