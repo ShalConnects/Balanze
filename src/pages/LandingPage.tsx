@@ -490,6 +490,24 @@ const LandingPage: React.FC = () => {
               )}
             </div>
             
+            {/* Product Hunt Badge */}
+            <div className="mt-8 flex justify-center">
+              <a 
+                href="https://www.producthunt.com/products/balanze?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-balanze" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-block hover:scale-105 transition-transform duration-300"
+              >
+                <img 
+                  src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1033754&theme=light&t=1762271112892" 
+                  alt="Balanze - Personal finance management | Product Hunt" 
+                  style={{ width: '250px', height: '54px' }} 
+                  width="250" 
+                  height="54" 
+                />
+              </a>
+            </div>
+            
             {/* Trust indicators - Enhanced with animated counters */}
             <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
               <div className="flex flex-col items-center p-4 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:scale-105 hover:shadow-lg">
