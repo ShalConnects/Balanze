@@ -3,8 +3,7 @@
 ## ✅ Setup Complete!
 
 Your Android app has been configured with **Capacitor** and includes:
-- ✅ **Pull-to-refresh DISABLED** in native code
-- ✅ **Overscroll behavior set to NEVER**
+- ✅ **Smart overscroll behavior** - Allows overscroll when content can scroll (enables pull-to-refresh at top)
 - ✅ **Smooth scrolling enabled**
 - ✅ **Proper WebView configuration**
 
@@ -121,11 +120,12 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 
 ## 🔧 Key Features Configured
 
-### **1. No Pull-to-Refresh** ✅
+### **1. Smart Overscroll Behavior** ✅
 ```java
 // MainActivity.java
-this.bridge.getWebView().setOverScrollMode(View.OVER_SCROLL_NEVER);
+this.bridge.getWebView().setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
 ```
+Allows overscroll when content can scroll, enabling pull-to-refresh at the top while maintaining smooth scrolling behavior.
 
 ### **2. Smooth Scrolling** ✅
 ```java
@@ -137,19 +137,19 @@ webView.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
 ```typescript
 // capacitor.config.ts
 android: {
-  overscrollMode: 'never',
+  overscrollMode: 'auto',
   captureInput: true
 }
 ```
 
 ---
 
-## 🎯 Testing the Fix
+## 🎯 Testing the App
 
 After installing the APK:
 
-1. ✅ **Scroll to top** → Try pulling down → Should NOT refresh
-2. ✅ **Scroll to bottom** → Try pulling up → Should NOT refresh
+1. ✅ **Scroll to top** → Pull down → Should allow pull-to-refresh at top
+2. ✅ **Scroll to bottom** → Pull up → Should scroll smoothly (no refresh)
 3. ✅ **Scroll up from bottom** → Should work smoothly
 4. ✅ **Scroll down from top** → Should work smoothly
 5. ✅ **Release finger while scrolling** → Should continue momentum
@@ -170,8 +170,8 @@ cd android
 - Enable "Install from Unknown Sources"
 - Check APK isn't corrupted
 
-### **Still refreshing?**
-Check that `MainActivity.java` has the overscroll fix:
+### **Overscroll behavior issues?**
+Check that `MainActivity.java` has the correct overscroll configuration:
 ```bash
 cat android/app/src/main/java/com/balanze/app/MainActivity.java
 ```
@@ -216,8 +216,8 @@ When you make changes to your web app:
 
 ---
 
-## ✨ The Fix is Applied!
+## ✨ Configuration Complete!
 
-Your Android app now has **native-level control** over scroll behavior. The pull-to-refresh issue is **completely eliminated** because we're controlling it at the Android WebView level, not just CSS/JavaScript.
+Your Android app now has **native-level control** over scroll behavior. The overscroll behavior is configured to allow pull-to-refresh at the top while maintaining smooth scrolling throughout the app.
 
-**Build your APK and test it - the refresh issue will be GONE!** 🎉
+**Build your APK and test it!** 🎉

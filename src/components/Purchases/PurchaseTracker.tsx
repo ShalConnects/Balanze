@@ -631,12 +631,15 @@ export const PurchaseTracker: React.FC = () => {
       newErrors.purchase_date = 'Purchase date is required.';
     }
     
-    // For non-planned purchases, also validate price and account
-    if (data.status !== 'planned' && data.status !== 'cancelled') {
+    // For planned and purchased purchases, validate price
+    if (data.status === 'planned' || data.status === 'purchased') {
       if (!data.price || isNaN(Number(data.price)) || Number(data.price) <= 0) {
         newErrors.price = 'Price is required.';
       }
-      
+    }
+    
+    // For purchased purchases, also validate account
+    if (data.status === 'purchased') {
       // Only require account if not excluding from calculation
       if (!excludeFromCalculation && !accountId) {
         newErrors.account = 'Account is required.';
@@ -745,15 +748,22 @@ export const PurchaseTracker: React.FC = () => {
 
   // Check if form is valid (all required fields filled)
   const isFormValid = () => {
-    const hasRequiredFields = formData.item_name && formData.category && formData.status && formData.purchase_date;
+    const hasRequiredFields = formData.item_name && formData.item_name.trim() && formData.category && formData.status && formData.purchase_date;
     
-    // For non-planned purchases, also require price and account
-    if (formData.status !== 'planned' && formData.status !== 'cancelled') {
+    // For planned purchases, require price as well
+    if (formData.status === 'planned') {
+      const isValid = hasRequiredFields && formData.price && !isNaN(Number(formData.price)) && Number(formData.price) > 0;
+      return isValid;
+    }
+    
+    // For purchased purchases, also require price and account
+    if (formData.status === 'purchased') {
+      const hasValidPrice = formData.price && !isNaN(Number(formData.price)) && Number(formData.price) > 0;
       // If excluding from calculation, account is not required
       if (excludeFromCalculation) {
-        return hasRequiredFields && formData.price;
+        return hasRequiredFields && hasValidPrice;
       }
-      return hasRequiredFields && formData.price && selectedAccountId;
+      return hasRequiredFields && hasValidPrice && selectedAccountId;
     }
     
     return hasRequiredFields;
@@ -786,18 +796,18 @@ export const PurchaseTracker: React.FC = () => {
       return;
     }
     
-    // Additional validation for non-planned purchases
-    if (formData.status !== 'planned' && formData.status !== 'cancelled') {
-      if (!formData.price) {
-        // Price validation failed - removed for production
-        alert('Please fill all required fields (Price is required for non-planned purchases).');
+    // Additional validation for planned and purchased purchases
+    if (formData.status === 'planned' || formData.status === 'purchased') {
+      if (!formData.price || isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
+        alert('Please fill all required fields (Price is required).');
         return;
       }
-      
-      // Only require account if not excluding from calculation
+    }
+    
+    // For purchased purchases, also require account if not excluding from calculation
+    if (formData.status === 'purchased') {
       if (!excludeFromCalculation && !selectedAccountId) {
-        // Account validation failed - removed for production
-        alert('Please fill all required fields (Account is required for non-planned purchases).');
+        alert('Please fill all required fields (Account is required for purchased purchases).');
         return;
       }
     }
@@ -821,12 +831,7 @@ export const PurchaseTracker: React.FC = () => {
           exclude_from_calculation: excludeFromCalculation
         };
 
-        // If changing from planned to purchased/cancelled, add price
-        if (formData.status !== 'planned') {
-          updateData.price = parseFloat(formData.price);
-        } else {
-          updateData.price = 0; // Reset price for planned purchases
-        }
+        updateData.price = parseFloat(formData.price);
 
         // Update the purchase
         await updatePurchase(editingPurchase.id, updateData);
@@ -904,7 +909,7 @@ export const PurchaseTracker: React.FC = () => {
           const purchaseData = {
             item_name: formData.item_name,
             category: formData.category,
-            price: 0, // No price for planned purchases
+            price: parseFloat(formData.price),
             purchase_date: formData.purchase_date,
             status: 'planned' as const,
             priority: formData.priority,
@@ -2898,157 +2903,163 @@ export const PurchaseTracker: React.FC = () => {
                     <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.status}</span>
                   )}
                 </div>
-                {/* Account & Price (only if not planned/cancelled) */}
-                {(formData.status !== 'planned' && formData.status !== 'cancelled') && (
-                  <>
-                    {/* Account field - only show if not excluding from calculation */}
-                    {!excludeFromCalculation && (
-                      <div className="relative">
-                        <CustomDropdown
-                          options={accounts.filter(acc => acc.isActive && !acc.name.includes('(DPS)')).map(acc => ({
-                            label: `${acc.name} (${getCurrencySymbol(acc.currency)}${Number(acc.calculated_balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`,
-                            value: acc.id
-                          }))}
-                          value={selectedAccountId}
-                          onChange={val => {
-                            handleAccountChange(val);
-                          }}
-                          onBlur={() => {
-                            setTouched(t => ({ ...t, account: true }));
-                          }}
-                          placeholder="Select Account *"
-                          disabled={isExcluded}
-                          fullWidth={true}
-                        />
-                        {fieldErrors.account && touched.account && (
-                          <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.account}</span>
-                        )}
-                      </div>
+                {/* Account field - only show for purchased (not planned, not cancelled) */}
+                {(formData.status !== 'planned' && formData.status !== 'cancelled') && !excludeFromCalculation && (
+                  <div className="relative">
+                    <CustomDropdown
+                      options={accounts.filter(acc => acc.isActive && !acc.name.includes('(DPS)')).map(acc => ({
+                        label: `${acc.name} (${getCurrencySymbol(acc.currency)}${Number(acc.calculated_balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`,
+                        value: acc.id
+                      }))}
+                      value={selectedAccountId}
+                      onChange={val => {
+                        handleAccountChange(val);
+                      }}
+                      onBlur={() => {
+                        setTouched(t => ({ ...t, account: true }));
+                      }}
+                      placeholder="Select Account *"
+                      disabled={isExcluded}
+                      fullWidth={true}
+                    />
+                    {fieldErrors.account && touched.account && (
+                      <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.account}</span>
                     )}
-                    
-                    {/* Currency dropdown - only show when excluding from calculation */}
-                    {excludeFromCalculation && (
-                      <div className="relative">
-                        <CustomDropdown
-                          options={
-                            profile?.selected_currencies && profile.selected_currencies.length > 0
-                              ? profile.selected_currencies.map(currency => ({
-                                  value: currency,
-                                  label: `${currency} (${getCurrencySymbol(currency)})`
-                                }))
-                              : profile?.local_currency ? [
-                                  { 
-                                    value: profile.local_currency, 
-                                    label: `${profile.local_currency} (${getCurrencySymbol(profile.local_currency)})` 
-                                  }
-                                ] : []
-                          }
-                          value={formData.currency}
-                          onChange={val => {
-                            setFormData(f => ({ ...f, currency: val, category: '' }));
-                          }}
-                          placeholder="Select Currency *"
-                          fullWidth={true}
-                          disabled={submitting}
-                        />
-                      </div>
-                    )}
-                    
-                    {/* Category */}
-                    <div className="relative">
-                      <CustomDropdown
-                        options={[
-                          { value: '', label: 'Select category' },
-                          ...purchaseCategories
-                            .filter(cat => {
-                              // When excluding from calculation, filter by manually selected currency
-                              // Otherwise, filter by account currency
-                              const targetCurrency = excludeFromCalculation ? formData.currency : accounts.find(a => a.id === selectedAccountId)?.currency;
-                              return cat.currency === targetCurrency;
-                            })
-                            .map(cat => ({ label: cat.category_name, value: cat.category_name })),
-                          { value: '__add_new__', label: '+ Add New Category' },
-                        ]}
-                        value={formData.category}
-                        onChange={val => {
-                          if (val === '__add_new__') {
-                            setShowCategoryModal(true);
-                          } else {
-                            setFormData(f => {
-                              const next = { ...f, category: val };
-                              validateForm(next);
-                              return next;
-                            });
-                            setTouched(t => ({ ...t, category: true }));
-                          }
-                        }}
-                        onBlur={() => {
+                  </div>
+                )}
+                
+                {/* Currency dropdown - show for planned purchases or when excluding from calculation */}
+                {(formData.status === 'planned' || excludeFromCalculation) && (
+                  <div className="relative">
+                    <CustomDropdown
+                      options={
+                        profile?.selected_currencies && profile.selected_currencies.length > 0
+                          ? profile.selected_currencies.map(currency => ({
+                              value: currency,
+                              label: `${currency} (${getCurrencySymbol(currency)})`
+                            }))
+                          : profile?.local_currency ? [
+                              { 
+                                value: profile.local_currency, 
+                                label: `${profile.local_currency} (${getCurrencySymbol(profile.local_currency)})` 
+                              }
+                            ] : []
+                      }
+                      value={formData.currency}
+                      onChange={val => {
+                        setFormData(f => ({ ...f, currency: val, category: '' }));
+                      }}
+                      placeholder="Select Currency *"
+                      fullWidth={true}
+                      disabled={submitting}
+                    />
+                  </div>
+                )}
+                
+                {/* Category - show for planned and purchased (not cancelled) */}
+                {formData.status !== 'cancelled' && (
+                  <div className="relative">
+                    <CustomDropdown
+                      options={[
+                        { value: '', label: 'Select category' },
+                        ...purchaseCategories
+                          .filter(cat => {
+                            // For planned purchases or when excluding from calculation, use formData.currency
+                            // Otherwise, filter by account currency
+                            const targetCurrency = (formData.status === 'planned' || excludeFromCalculation) 
+                              ? formData.currency 
+                              : accounts.find(a => a.id === selectedAccountId)?.currency;
+                            return cat.currency === targetCurrency;
+                          })
+                          .map(cat => ({ label: cat.category_name, value: cat.category_name })),
+                        { value: '__add_new__', label: '+ Add New Category' },
+                      ]}
+                      value={formData.category}
+                      onChange={val => {
+                        if (val === '__add_new__') {
+                          setShowCategoryModal(true);
+                        } else {
+                          setFormData(f => {
+                            const next = { ...f, category: val };
+                            validateForm(next);
+                            return next;
+                          });
                           setTouched(t => ({ ...t, category: true }));
-                        }}
-                        placeholder="Select category *"
-                        disabled={isExcluded}
-                        fullWidth={true}
-                        summaryMode={true}
-                      />
-                      {fieldErrors.category && touched.category && (
-                        <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.category}</span>
-                      )}
-                      {(() => {
-                        const targetCurrency = excludeFromCalculation ? formData.currency : accounts.find(a => a.id === selectedAccountId)?.currency;
-                        const hasMatchingCategories = purchaseCategories.some(cat => cat.currency === targetCurrency);
-                        
-                        if (targetCurrency && !hasMatchingCategories) {
-                          return (
-                            <div className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
-                              <span>⚠️</span>
-                              No categories found for {targetCurrency}. 
-                              <button 
-                                type="button" 
-                                onClick={() => setShowCategoryModal(true)}
-                                className="text-blue-600 hover:text-blue-800 underline"
-                              >
-                                Add a category in {targetCurrency}
-                              </button>
-                            </div>
-                          );
                         }
-                        
-                        
-                        return null;
-                      })()}
-                    </div>
-                    
-                    <div className="relative flex-1 min-w-0">
-                      <input
-                        id="price"
-                        name="price"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.price}
-                        onChange={e => {
-                          handleFormChange('price', e.target.value);
-                        }}
-                        onBlur={handleBlur}
-                        className={`w-full px-4 pr-[32px] text-[14px] h-10 border rounded-lg focus:ring-2 focus-ring-gradient outline-none transition-colors bg-gray-100 font-medium ${fieldErrors.price && touched.price ? 'border-red-500 ring-red-200' : 'border-gray-300'}`}
-                        placeholder="0.00 *"
-                        required
-                        disabled={isExcluded}
-                        autoComplete="off"
-                      />
-                      {formData.price && !isExcluded && (
-                        <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onClick={() => handleFormChange('price', '')} tabIndex={-1} aria-label="Clear price">
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                      <span className="text-gray-500 text-sm absolute right-8 top-2">
-                        {excludeFromCalculation ? formData.currency : (accounts.find(a => a.id === selectedAccountId)?.currency || '')}
-                      </span>
-                      {fieldErrors.price && touched.price && (
-                        <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.price}</span>
-                      )}
-                    </div>
-                  </>
+                      }}
+                      onBlur={() => {
+                        setTouched(t => ({ ...t, category: true }));
+                      }}
+                      placeholder="Select category *"
+                      disabled={isExcluded}
+                      fullWidth={true}
+                      summaryMode={true}
+                    />
+                    {fieldErrors.category && touched.category && (
+                      <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.category}</span>
+                    )}
+                    {(() => {
+                      const targetCurrency = (formData.status === 'planned' || excludeFromCalculation) 
+                        ? formData.currency 
+                        : accounts.find(a => a.id === selectedAccountId)?.currency;
+                      const hasMatchingCategories = purchaseCategories.some(cat => cat.currency === targetCurrency);
+                      
+                      if (targetCurrency && !hasMatchingCategories) {
+                        return (
+                          <div className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                            <span>⚠️</span>
+                            No categories found for {targetCurrency}. 
+                            <button 
+                              type="button" 
+                              onClick={() => setShowCategoryModal(true)}
+                              className="text-blue-600 hover:text-blue-800 underline"
+                            >
+                              Add a category in {targetCurrency}
+                            </button>
+                          </div>
+                        );
+                      }
+                      
+                      
+                      return null;
+                    })()}
+                  </div>
+                )}
+                
+                {/* Price field - show for planned and purchased (not cancelled) */}
+                {(formData.status === 'planned' || formData.status === 'purchased') && (
+                  <div className="relative flex-1 min-w-0">
+                    <input
+                      id="price"
+                      name="price"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.price}
+                      onChange={e => {
+                        handleFormChange('price', e.target.value);
+                      }}
+                      onBlur={handleBlur}
+                      className={`w-full px-4 pr-[32px] text-[14px] h-10 border rounded-lg focus:ring-2 focus-ring-gradient outline-none transition-colors bg-gray-100 font-medium ${fieldErrors.price && touched.price ? 'border-red-500 ring-red-200' : 'border-gray-300'}`}
+                      placeholder="0.00 *"
+                      required
+                      disabled={isExcluded}
+                      autoComplete="off"
+                    />
+                    {formData.price && !isExcluded && (
+                      <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onClick={() => handleFormChange('price', '')} tabIndex={-1} aria-label="Clear price">
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    <span className="text-gray-500 text-sm absolute right-8 top-2">
+                      {formData.status === 'planned' || excludeFromCalculation 
+                        ? formData.currency 
+                        : (accounts.find(a => a.id === selectedAccountId)?.currency || '')}
+                    </span>
+                    {fieldErrors.price && touched.price && (
+                      <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.price}</span>
+                    )}
+                  </div>
                 )}
                 {/* Purchase Date (if not cancelled) */}
                 {formData.status !== 'cancelled' && (

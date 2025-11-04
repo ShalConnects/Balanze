@@ -34,9 +34,6 @@ public class MainActivity extends BridgeActivity {
         webView.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
         webView.setNestedScrollingEnabled(true);
         
-        // Allow overscroll for pull-to-refresh at top
-        webView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
-        
         // Apply gradient status bar (matching website)
         Window window = getWindow();
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);

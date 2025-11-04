@@ -1632,9 +1632,16 @@ export const NotesAndTodosWidget: React.FC = () => {
                   {tasks.some(t => t.section_override !== null) && (
                     <button
                       onClick={resetAllSectionOverrides}
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        if (!saving) {
+                          resetAllSectionOverrides();
+                        }
+                      }}
                       disabled={saving}
-                      className="p-1.5 text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                      className="p-1.5 text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors touch-manipulation"
                       title="Reset all tasks to date-based grouping"
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
                     >
                       <RefreshCw className="w-4 h-4" />
                     </button>

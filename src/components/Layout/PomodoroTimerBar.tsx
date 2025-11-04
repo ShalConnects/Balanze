@@ -299,9 +299,6 @@ export const PomodoroTimerBar: React.FC = () => {
 
   if (!pomodoroTimer || isAllTasksModalOpen) return null;
 
-  // On Android, hide timer bar when modal is closed (no minimized/expanded view)
-  if (isAndroid && !isAllTasksModalOpen) return null;
-
   const progress = getProgress();
 
   // Use React state directly (more reliable for immediate updates)
@@ -310,7 +307,10 @@ export const PomodoroTimerBar: React.FC = () => {
   return (
     <>
       {/* Minimized badge view - always rendered, visibility toggled */}
-      <div className={`fixed bottom-12 left-4 z-[9998] transition-all duration-300 ${!currentExpanded ? 'opacity-100 pointer-events-auto visible' : 'opacity-0 pointer-events-none invisible'}`}>
+      <div 
+        className={`fixed ${isAndroid ? '' : 'bottom-12'} left-4 z-[9998] transition-all duration-300 ${!currentExpanded ? 'opacity-100 pointer-events-auto visible' : 'opacity-0 pointer-events-none invisible'}`}
+        style={isAndroid ? { bottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)))' } : undefined}
+      >
         <div className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full shadow-lg hover:shadow-xl transition-all cursor-pointer group">
           <button
             onClick={(e) => {
