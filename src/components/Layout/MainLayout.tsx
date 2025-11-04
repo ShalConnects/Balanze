@@ -3,6 +3,7 @@ import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { GlobalSearchDropdown } from './GlobalSearchDropdown';
+import { PomodoroTimerBar } from './PomodoroTimerBar';
 import { Dashboard } from '../Dashboard/Dashboard';
 import { AccountsView } from '../Accounts/AccountsView';
 import { TransactionsView } from '../Transactions/TransactionsView';
@@ -180,6 +181,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </main>
         </div>
       </div>
+      
+      {/* Pomodoro Timer Bottom Bar */}
+      <PomodoroTimerBar />
       
       {/* Home Button - Show on both mobile and desktop when not on dashboard */}
       {currentView !== 'dashboard' && location.pathname !== '/' && <HomeButton />}

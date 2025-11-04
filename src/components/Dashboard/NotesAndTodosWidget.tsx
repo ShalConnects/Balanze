@@ -45,6 +45,9 @@ export const NotesAndTodosWidget: React.FC = () => {
   const [showAllTasks, setShowAllTasks] = useState(false);
   const [showAddTaskInput, setShowAddTaskInput] = useState(false);
   
+  // Force re-render every second to sync timer display with PomodoroTimerBar
+  const [, setTick] = useState(0);
+  
   // Accordion section states (Today open by default)
   const [expandedSections, setExpandedSections] = useState({
     today: true,
@@ -53,13 +56,39 @@ export const NotesAndTodosWidget: React.FC = () => {
   });
   const [lastWishCountdown, setLastWishCountdown] = useState<null | { daysLeft: number, nextCheckIn: string }>(null);
   
-  // Pomodoro state
+  // Pomodoro state - with localStorage persistence
   const [pomodoroTimer, setPomodoroTimer] = useState<{
     taskId: string | null;
     timeRemaining: number; // in seconds (calculated from endTime)
     isRunning: boolean;
     endTime: number | null; // timestamp when timer should end (null when paused)
-  } | null>(null);
+  } | null>(() => {
+    // Restore timer state from localStorage on mount
+    const saved = localStorage.getItem('pomodoroTimerState');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // If timer was running, check if it's still valid (not expired)
+        if (parsed.endTime && parsed.isRunning) {
+          const now = Date.now();
+          const timeRemaining = Math.max(0, Math.floor((parsed.endTime - now) / 1000));
+          if (timeRemaining <= 0) {
+            // Timer expired while away, return null
+            localStorage.removeItem('pomodoroTimerState');
+            return null;
+          }
+          return {
+            ...parsed,
+            timeRemaining,
+          };
+        }
+        return parsed;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
   const [pomodoroCounts, setPomodoroCounts] = useState<Record<string, number>>(() => {
     // Load from localStorage
     const saved = localStorage.getItem('pomodoroCounts');
@@ -790,9 +819,51 @@ export const NotesAndTodosWidget: React.FC = () => {
         {pomodoroTimer?.taskId === task.id && (pomodoroTimer.timeRemaining > 0 || pomodoroTimer.isRunning) ? (
           <div className="flex items-center gap-1">
             <span className="text-xs font-mono text-gray-600 dark:text-gray-300">
-              {formatTime(pomodoroTimer.timeRemaining)}
+              {(() => {
+                // Read from localStorage to ensure sync with PomodoroTimerBar
+                const saved = localStorage.getItem('pomodoroTimerState');
+                if (saved) {
+                  try {
+                    const parsed = JSON.parse(saved);
+                    // Calculate time remaining from endTime in real-time when running
+                    if (parsed.endTime && parsed.isRunning && parsed.taskId === task.id) {
+                      const now = Date.now();
+                      const timeRemaining = Math.max(0, Math.floor((parsed.endTime - now) / 1000));
+                      return formatTime(timeRemaining);
+                    }
+                    // When paused, use stored timeRemaining from localStorage (matches PomodoroTimerBar)
+                    if (!parsed.isRunning && parsed.taskId === task.id) {
+                      return formatTime(parsed.timeRemaining || 0);
+                    }
+                  } catch (e) {
+                    // Fallback to React state if localStorage parse fails
+                  }
+                }
+                // Fallback: Calculate from React state
+                if (pomodoroTimer.endTime && pomodoroTimer.isRunning) {
+                  const now = Date.now();
+                  const timeRemaining = Math.max(0, Math.floor((pomodoroTimer.endTime - now) / 1000));
+                  return formatTime(timeRemaining);
+                }
+                return formatTime(pomodoroTimer.timeRemaining);
+              })()}
             </span>
-            {pomodoroTimer.isRunning ? (
+            {(() => {
+              // Check localStorage to determine if timer is running (same source as display)
+              const saved = localStorage.getItem('pomodoroTimerState');
+              if (saved) {
+                try {
+                  const parsed = JSON.parse(saved);
+                  if (parsed.taskId === task.id) {
+                    return parsed.isRunning;
+                  }
+                } catch (e) {
+                  // Fallback to React state
+                }
+              }
+              // Fallback to React state
+              return pomodoroTimer.isRunning;
+            })() ? (
               <button
                 onClick={pausePomodoro}
                 className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
@@ -850,6 +921,20 @@ export const NotesAndTodosWidget: React.FC = () => {
     </div>
   );
 
+  // Helper to save timer state to localStorage
+  const saveTimerState = (timer: typeof pomodoroTimer) => {
+    if (timer) {
+      localStorage.setItem('pomodoroTimerState', JSON.stringify(timer));
+    } else {
+      localStorage.removeItem('pomodoroTimerState');
+    }
+  };
+
+  // Effect to persist timer state to localStorage whenever it changes
+  useEffect(() => {
+    saveTimerState(pomodoroTimer);
+  }, [pomodoroTimer]);
+
   // Pomodoro functions
   const startPomodoro = (taskId: string) => {
     const durationInSeconds = getTaskDuration(taskId) * 60;
@@ -877,9 +962,18 @@ export const NotesAndTodosWidget: React.FC = () => {
   };
 
   const pausePomodoro = () => {
-    if (pomodoroTimer && pomodoroTimer.isRunning) {
-      // When pausing, set endTime to null (we'll recalculate on resume)
-      setPomodoroTimer({ ...pomodoroTimer, isRunning: false, endTime: null });
+    if (pomodoroTimer && pomodoroTimer.isRunning && pomodoroTimer.endTime) {
+      // Calculate current timeRemaining from endTime before pausing
+      const now = Date.now();
+      const timeRemaining = Math.max(0, Math.floor((pomodoroTimer.endTime - now) / 1000));
+      // Create updated timer state
+      const updatedTimer = { ...pomodoroTimer, isRunning: false, endTime: null, timeRemaining };
+      // Update React state
+      setPomodoroTimer(updatedTimer);
+      // Save to localStorage immediately (before useEffect runs) to ensure button condition reads correct value
+      localStorage.setItem('pomodoroTimerState', JSON.stringify(updatedTimer));
+      // Dispatch event to sync with PomodoroTimerBar
+      window.dispatchEvent(new CustomEvent('pomodoroTimerStateChange'));
     }
   };
 
@@ -887,7 +981,14 @@ export const NotesAndTodosWidget: React.FC = () => {
     if (pomodoroTimer && !pomodoroTimer.isRunning && pomodoroTimer.timeRemaining > 0) {
       // Recalculate endTime based on current timeRemaining
       const endTime = Date.now() + (pomodoroTimer.timeRemaining * 1000);
-      setPomodoroTimer({ ...pomodoroTimer, isRunning: true, endTime });
+      // Create updated timer state
+      const updatedTimer = { ...pomodoroTimer, isRunning: true, endTime };
+      // Update React state
+      setPomodoroTimer(updatedTimer);
+      // Save to localStorage immediately (before useEffect runs) to ensure button condition reads correct value
+      localStorage.setItem('pomodoroTimerState', JSON.stringify(updatedTimer));
+      // Dispatch event to sync with PomodoroTimerBar
+      window.dispatchEvent(new CustomEvent('pomodoroTimerStateChange'));
     }
   };
 
@@ -908,7 +1009,11 @@ export const NotesAndTodosWidget: React.FC = () => {
   const stopPomodoro = () => {
     // Reset completion guard when stopping timer
     completionProcessedRef.current = { taskId: null, processed: false };
+    // Remove from localStorage and sync with PomodoroTimerBar
+    localStorage.removeItem('pomodoroTimerState');
     setPomodoroTimer(null);
+    // Dispatch event to notify PomodoroTimerBar
+    window.dispatchEvent(new CustomEvent('pomodoroTimerStateChange'));
   };
 
   // Pomodoro settings functions
@@ -1054,6 +1159,38 @@ export const NotesAndTodosWidget: React.FC = () => {
     setEditingTaskDuration(null);
   };
 
+  // Listen for timer state changes from PomodoroTimerBar
+  useEffect(() => {
+    const handleTimerStateChange = () => {
+      const saved = localStorage.getItem('pomodoroTimerState');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.endTime && parsed.isRunning) {
+            const now = Date.now();
+            const timeRemaining = Math.max(0, Math.floor((parsed.endTime - now) / 1000));
+            if (timeRemaining <= 0) {
+              setPomodoroTimer(null);
+              return;
+            }
+            setPomodoroTimer({ ...parsed, timeRemaining });
+          } else {
+            setPomodoroTimer(parsed);
+          }
+        } catch (e) {
+          // Error handling
+        }
+      } else {
+        setPomodoroTimer(null);
+      }
+    };
+    
+    window.addEventListener('pomodoroTimerStateChange', handleTimerStateChange);
+    return () => {
+      window.removeEventListener('pomodoroTimerStateChange', handleTimerStateChange);
+    };
+  }, []);
+
   // Timer countdown effect - Date-based calculation for accuracy
   useEffect(() => {
     if (!pomodoroTimer || !pomodoroTimer.isRunning || !pomodoroTimer.endTime) return;
@@ -1117,6 +1254,29 @@ export const NotesAndTodosWidget: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [pomodoroTimer?.isRunning, pomodoroTimer?.endTime, tasks]);
+
+  // Force re-render every second when timer is running (for sync with PomodoroTimerBar)
+  // Also re-render when timer state changes (pause/resume) to sync with PomodoroTimerBar
+  useEffect(() => {
+    if (!pomodoroTimer) return;
+    
+    // When running, update every second
+    if (pomodoroTimer.isRunning && pomodoroTimer.endTime) {
+      const interval = setInterval(() => {
+        setTick(prev => prev + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      // When paused, trigger one update to sync display
+      setTick(prev => prev + 1);
+    }
+  }, [pomodoroTimer?.isRunning, pomodoroTimer?.endTime, pomodoroTimer?.timeRemaining]);
+
+  // Sync showAllTasks state with localStorage for PomodoroTimerBar
+  useEffect(() => {
+    localStorage.setItem('showAllTasksModal', showAllTasks ? 'true' : 'false');
+    window.dispatchEvent(new CustomEvent('pomodoroModalStateChange'));
+  }, [showAllTasks]);
 
   // Request notification permission on mount
   useEffect(() => {
@@ -1390,95 +1550,7 @@ export const NotesAndTodosWidget: React.FC = () => {
       {/* To-Do Tab */}
       {tab === 'todos' && (
         <div>
-          {/* Large Circular Timer - Replaces task list when timer is active and modal is closed */}
-          {pomodoroTimer && pomodoroTimer.taskId && !showAllTasks ? (
-            <div className="flex flex-col items-center justify-center py-8">
-              {/* Circular Progress Timer */}
-              <div className="relative w-48 h-48 mb-6">
-                {/* SVG Circle for Progress */}
-                <svg className="transform -rotate-90 w-full h-full">
-                  {/* Background circle */}
-                  <circle
-                    cx="96"
-                    cy="96"
-                    r="88"
-                    stroke="currentColor"
-                    strokeWidth="8"
-                    fill="none"
-                    className="text-gray-200 dark:text-gray-700"
-                  />
-                  {/* Progress circle */}
-                  <circle
-                    cx="96"
-                    cy="96"
-                    r="88"
-                    stroke="url(#pomodoroGradient)"
-                    strokeWidth="8"
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeDasharray={`${2 * Math.PI * 88}`}
-                    strokeDashoffset={
-                      2 * Math.PI * 88 * (1 - 
-                        (pomodoroTimer.taskId 
-                          ? (getTaskDuration(pomodoroTimer.taskId) * 60 - pomodoroTimer.timeRemaining) / (getTaskDuration(pomodoroTimer.taskId) * 60)
-                          : 0
-                        )
-                      )
-                    }
-                    className="transition-all duration-1000 ease-linear"
-                  />
-                  {/* Gradient definition */}
-                  <defs>
-                    <linearGradient id="pomodoroGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#3b82f6" />
-                      <stop offset="100%" stopColor="#8b5cf6" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-                {/* Time Display in Center */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <div className="text-4xl font-bold text-gradient-primary">
-                    {formatTime(pomodoroTimer.timeRemaining)}
-                  </div>
-                  {pomodoroTimer.taskId && (
-                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-2 text-center px-4 max-w-[180px] truncate">
-                      {tasks.find(t => t.id === pomodoroTimer.taskId)?.text || 'Task'}
-                    </div>
-                  )}
-                </div>
-              </div>
-              {/* Timer Controls */}
-              <div className="flex items-center gap-3">
-                {pomodoroTimer.isRunning ? (
-                  <button
-                    onClick={pausePomodoro}
-                    className="px-4 py-2 bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded-lg flex items-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg"
-                    title="Pause"
-                  >
-                    <Pause className="w-4 h-4" />
-                    <span className="text-sm font-medium">Pause</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={resumePomodoro}
-                    className="px-4 py-2 bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded-lg flex items-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg"
-                    title="Resume"
-                  >
-                    <Play className="w-4 h-4" />
-                    <span className="text-sm font-medium">Resume</span>
-                  </button>
-                )}
-                <button
-                  onClick={stopPomodoro}
-                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200 flex items-center gap-2"
-                  title="Stop"
-                >
-                  <span className="text-sm font-medium">Stop</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* Tasks List (show only first 3) - Hidden when timer is active */
+          {/* Tasks List (show only first 3) */}
           <div className="space-y-2">
             {tasksToShow.length === 0 && <div className="text-gray-400 text-sm">No tasks yet.</div>}
             {tasksToShow.map(task => (
@@ -1511,7 +1583,6 @@ export const NotesAndTodosWidget: React.FC = () => {
               <button className="w-full text-gradient-primary hover:underline text-xs mt-2" onClick={() => setShowAllTasks(true)}>View All Tasks</button>
             )}
           </div>
-          )}
           {/* All Tasks Modal */}
           <Modal
             isOpen={showAllTasks}

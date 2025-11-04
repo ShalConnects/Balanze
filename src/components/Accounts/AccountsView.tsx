@@ -1679,15 +1679,23 @@ export const AccountsView: React.FC = () => {
                     );
                     
                     return (
-                      <div key={account.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                      <div key={account.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden relative">
+                        {/* DPS Active Badge - Top Right Corner */}
+                        {account.has_dps && (
+                          <div className="absolute top-2 right-2 z-10">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200">
+                              DPS Active
+                            </span>
+                          </div>
+                        )}
                         {/* Stacked Table Row */}
                         <div 
                           className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                           onClick={() => toggleRowExpansion(account.id)}
                         >
-                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {/* Account Name */}
-                            <div className="col-span-2 sm:col-span-1 lg:col-span-1">
+                            <div className="col-span-2 md:col-span-1">
                               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Account Name</div>
                               <div className="flex items-center gap-2">
                                 <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -1705,7 +1713,7 @@ export const AccountsView: React.FC = () => {
                             </div>
 
                             {/* Type */}
-                            <div className="col-span-1">
+                            <div>
                               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Type</div>
                               <div>
                                 <span className={`inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAccountColor(account.type)}`}>
@@ -1715,53 +1723,15 @@ export const AccountsView: React.FC = () => {
                             </div>
 
                             {/* Balance */}
-                            <div className="col-span-1">
+                            <div>
                               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Balance</div>
                               <div className="text-sm font-semibold text-gray-900 dark:text-white">
                                 {formatCurrency(account.calculated_balance, account.currency)}
                               </div>
                             </div>
 
-                            {/* Currency */}
-                            <div className="col-span-1">
-                              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Currency</div>
-                              <div className="text-sm text-gray-900 dark:text-white">{account.currency}</div>
-                            </div>
-
-                            {/* Transactions */}
-                            <div className="col-span-1">
-                              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Transactions</div>
-                              <div className="text-sm text-gray-900 dark:text-white">
-                                {accountTransactions.length}
-                                <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 hidden sm:inline">
-                                  ({incomeTransactions.length} income, {expenseTransactions.length} expense)
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* DPS */}
-                            <div className="col-span-1">
-                              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">DPS</div>
-                              <div>
-                                {account.has_dps ? (
-                                  <div className="flex flex-col gap-1">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 w-fit">
-                                      Active
-                                    </span>
-                                    {dpsSavingsAccount && (
-                                      <span className="text-xs text-gray-500 dark:text-gray-400 break-words">
-                                        {formatCurrency(dpsSavingsAccount.calculated_balance, dpsSavingsAccount.currency)}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="text-sm text-gray-400 dark:text-gray-500">-</span>
-                                )}
-                              </div>
-                            </div>
-
                             {/* Actions */}
-                            <div className="col-span-2 sm:col-span-1 lg:col-span-1">
+                            <div className="col-span-2 md:col-span-1">
                               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Actions</div>
                               <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                                 {(!isDpsSavingsAccount && account.type !== 'cash') && (
@@ -1812,6 +1782,23 @@ export const AccountsView: React.FC = () => {
                                     <Trash2 className="w-4 h-4" />
                                   </button>
                                 )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Additional Info Row */}
+                          <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                            <div>
+                              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Currency</div>
+                              <div className="text-sm text-gray-900 dark:text-white">{account.currency}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Transactions</div>
+                              <div className="text-sm text-gray-900 dark:text-white">
+                                {accountTransactions.length}
+                                <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                                  ({incomeTransactions.length} income, {expenseTransactions.length} expense)
+                                </span>
                               </div>
                             </div>
                           </div>
