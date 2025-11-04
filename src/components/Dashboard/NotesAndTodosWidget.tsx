@@ -80,6 +80,9 @@ export const NotesAndTodosWidget: React.FC = () => {
   
   // Guard to prevent double counting on completion
   const completionProcessedRef = useRef<{ taskId: string | null; processed: boolean }>({ taskId: null, processed: false });
+  
+  // Ref for add task input field
+  const addTaskInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch notes from Supabase - Fixed to prevent infinite calls
   useEffect(() => {
@@ -280,6 +283,10 @@ export const NotesAndTodosWidget: React.FC = () => {
     if (!error && data && data[0]) {
       setTasks([data[0], ...tasks]);
       setTodoInput('');
+      // Keep focus on input field after adding task
+      setTimeout(() => {
+        addTaskInputRef.current?.focus();
+      }, 0);
     }
   };
 
@@ -423,6 +430,17 @@ export const NotesAndTodosWidget: React.FC = () => {
     setDraggedTaskId(null);
     setDragOverTaskId(null);
   };
+
+  // Auto-focus input field when it appears
+  useEffect(() => {
+    if (showAddTaskInput && addTaskInputRef.current) {
+      // Small delay to ensure the animation has started
+      const timer = setTimeout(() => {
+        addTaskInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [showAddTaskInput]);
 
   // Helper to get duration for a task (per-task or fallback to default)
   const getTaskDuration = (taskId: string): number => {
@@ -1180,6 +1198,7 @@ export const NotesAndTodosWidget: React.FC = () => {
                   showAddTaskInput ? 'translate-y-0' : '-translate-y-2'
                 }`}>
                   <input
+                    ref={addTaskInputRef}
                     className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
                     placeholder="Add a task..."
                     value={todoInput}
@@ -1191,7 +1210,6 @@ export const NotesAndTodosWidget: React.FC = () => {
                       }
                     }}
                     disabled={saving}
-                    autoFocus={showAddTaskInput}
                   />
                   <button
                     className="p-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex-shrink-0"
