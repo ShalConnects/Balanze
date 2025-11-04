@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { Star, StickyNote as StickyNoteIcon, Plus, AlertTriangle, Timer, Play, Pause, RotateCcw, Settings, GripVertical } from 'lucide-react';
+import { Star, StickyNote as StickyNoteIcon, Plus, AlertTriangle, Timer, Play, Pause, RotateCcw, Settings, GripVertical, X } from 'lucide-react';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import Modal from 'react-modal';
 
@@ -42,6 +42,7 @@ export const NotesAndTodosWidget: React.FC = () => {
   const [confirmDeleteTaskId, setConfirmDeleteTaskId] = useState<string | null>(null);
   const [showAllNotes, setShowAllNotes] = useState(false);
   const [showAllTasks, setShowAllTasks] = useState(false);
+  const [showAddTaskInput, setShowAddTaskInput] = useState(false);
   const [lastWishCountdown, setLastWishCountdown] = useState<null | { daysLeft: number, nextCheckIn: string }>(null);
   
   // Pomodoro state
@@ -947,24 +948,6 @@ export const NotesAndTodosWidget: React.FC = () => {
       {/* To-Do Tab */}
       {tab === 'todos' && (
         <div>
-          <div className="flex mb-2">
-            <input
-              className="flex-1 rounded-l px-3 py-2 border border-gray-200 dark:border-gray-700 focus:outline-none bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-              placeholder="Add a task..."
-              value={todoInput}
-              onChange={e => setTodoInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && addTask()}
-              disabled={saving}
-            />
-            <button
-              className="rounded-r bg-gradient-primary text-white px-3 py-2 font-bold flex items-center justify-center hover:bg-gradient-primary-hover transition-colors"
-              onClick={addTask}
-              disabled={saving}
-              style={{ minWidth: 40 }}
-            >
-              <Plus className="w-5 h-5" />
-            </button>
-          </div>
           {/* Large Circular Timer - Replaces task list when timer is active and modal is closed */}
           {pomodoroTimer && pomodoroTimer.taskId && !showAllTasks ? (
             <div className="flex flex-col items-center justify-center py-8">
@@ -1094,6 +1077,7 @@ export const NotesAndTodosWidget: React.FC = () => {
               setShowAllTasks(false);
               setShowPomodoroSettings(false);
               setEditingTaskDuration(null);
+              setShowAddTaskInput(false);
             }}
             className="fixed inset-0 flex items-center justify-center z-50"
             overlayClassName="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-md z-40"
@@ -1102,12 +1086,23 @@ export const NotesAndTodosWidget: React.FC = () => {
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto shadow-lg relative">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">All Tasks</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-0">
+                  <button
+                    onClick={() => setShowAddTaskInput(!showAddTaskInput)}
+                    className={`p-1.5 transition-colors ${
+                      showAddTaskInput 
+                        ? 'text-blue-600 dark:text-blue-400' 
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                    title={showAddTaskInput ? "Hide add task" : "Add new task"}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
                   {/* Pomodoro Settings */}
                   <div className="relative pomodoro-settings-container">
                     <button
                       onClick={openSettings}
-                      className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
                       title="Pomodoro Settings"
                     >
                       <Settings className="w-4 h-4" />
@@ -1168,7 +1163,47 @@ export const NotesAndTodosWidget: React.FC = () => {
                       </div>
                     )}
                   </div>
-                <button className="text-gray-400 hover:text-red-500" onClick={() => setShowAllTasks(false)}>&times;</button>
+                <button 
+                  className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors" 
+                  onClick={() => setShowAllTasks(false)}
+                  title="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                </div>
+              </div>
+              {/* Add Task Input - Toggleable */}
+              <div className={`mb-2 overflow-hidden transition-all duration-300 ease-in-out ${
+                showAddTaskInput ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'
+              }`}>
+                <div className={`bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded p-2 flex items-center gap-2 shadow-sm transform transition-all duration-300 ${
+                  showAddTaskInput ? 'translate-y-0' : '-translate-y-2'
+                }`}>
+                  <input
+                    className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                    placeholder="Add a task..."
+                    value={todoInput}
+                    onChange={e => setTodoInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        addTask();
+                        setTodoInput('');
+                      }
+                    }}
+                    disabled={saving}
+                    autoFocus={showAddTaskInput}
+                  />
+                  <button
+                    className="p-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex-shrink-0"
+                    onClick={() => {
+                      addTask();
+                      setTodoInput('');
+                    }}
+                    disabled={saving}
+                    title="Add task"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
               <div className="space-y-2">
