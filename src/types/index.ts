@@ -131,6 +131,7 @@ export interface Task {
   user_id: string;
   created_at: string;
   position?: number;
+  section_override?: 'today' | 'this_week' | 'this_month' | null;
 }
 
 // Purchase Management Types

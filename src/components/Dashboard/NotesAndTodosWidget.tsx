@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { Star, StickyNote as StickyNoteIcon, Plus, AlertTriangle, Timer, Play, Pause, RotateCcw, Settings, GripVertical, X } from 'lucide-react';
+import { Star, StickyNote as StickyNoteIcon, Plus, AlertTriangle, Timer, Play, Pause, RotateCcw, Settings, GripVertical, X, ChevronDown, RefreshCw } from 'lucide-react';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import Modal from 'react-modal';
 
@@ -27,6 +27,7 @@ interface Task {
   user_id: string;
   created_at: string;
   position?: number;
+  section_override?: 'today' | 'this_week' | 'this_month' | null;
 }
 
 export const NotesAndTodosWidget: React.FC = () => {
@@ -43,6 +44,13 @@ export const NotesAndTodosWidget: React.FC = () => {
   const [showAllNotes, setShowAllNotes] = useState(false);
   const [showAllTasks, setShowAllTasks] = useState(false);
   const [showAddTaskInput, setShowAddTaskInput] = useState(false);
+  
+  // Accordion section states (Today open by default)
+  const [expandedSections, setExpandedSections] = useState({
+    today: true,
+    thisWeek: false,
+    thisMonth: false,
+  });
   const [lastWishCountdown, setLastWishCountdown] = useState<null | { daysLeft: number, nextCheckIn: string }>(null);
   
   // Pomodoro state
@@ -77,6 +85,7 @@ export const NotesAndTodosWidget: React.FC = () => {
   // Drag and drop state for task reordering
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
+  const [dragOverSection, setDragOverSection] = useState<'today' | 'this_week' | 'this_month' | null>(null);
   
   // Guard to prevent double counting on completion
   const completionProcessedRef = useRef<{ taskId: string | null; processed: boolean }>({ taskId: null, processed: false });
@@ -265,10 +274,10 @@ export const NotesAndTodosWidget: React.FC = () => {
     if (!todoInput.trim() || !user) return;
     setSaving(true);
     // Calculate position for new task (should be at the top)
-    const maxPosition = tasks.length > 0 
-      ? Math.max(...tasks.map(t => t.position || 0), 0)
+    const minPosition = tasks.length > 0 
+      ? Math.min(...tasks.map(t => t.position || 0))
       : 0;
-    const newPosition = maxPosition + 1;
+    const newPosition = minPosition - 1;
     
     const { data, error } = await supabase
       .from('tasks')
@@ -355,16 +364,42 @@ export const NotesAndTodosWidget: React.FC = () => {
     e.dataTransfer.dropEffect = 'move';
     if (draggedTaskId && draggedTaskId !== taskId) {
       setDragOverTaskId(taskId);
+      setDragOverSection(null);
     }
   };
 
   const handleDragLeave = () => {
     setDragOverTaskId(null);
+    setDragOverSection(null);
+  };
+
+  const handleSectionDragOver = (e: React.DragEvent, sectionKey: 'today' | 'this_week' | 'this_month') => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedTaskId) {
+      setDragOverSection(sectionKey);
+      setDragOverTaskId(null);
+      // Auto-expand section when dragging over it
+      const sectionKeyMap = {
+        'today': 'today' as const,
+        'this_week': 'thisWeek' as const,
+        'this_month': 'thisMonth' as const,
+      };
+      const expandedKey = sectionKeyMap[sectionKey];
+      if (!expandedSections[expandedKey]) {
+        setExpandedSections(prev => ({ ...prev, [expandedKey]: true }));
+      }
+    }
+  };
+
+  const handleSectionDragLeave = () => {
+    setDragOverSection(null);
   };
 
   const handleDrop = async (e: React.DragEvent, targetTaskId: string) => {
     e.preventDefault();
     setDragOverTaskId(null);
+    setDragOverSection(null);
     
     if (!draggedTaskId || draggedTaskId === targetTaskId) {
       setDraggedTaskId(null);
@@ -426,9 +461,85 @@ export const NotesAndTodosWidget: React.FC = () => {
     setSaving(false);
   };
 
+  const handleSectionDrop = async (e: React.DragEvent, targetSection: 'today' | 'this_week' | 'this_month') => {
+    e.preventDefault();
+    setDragOverSection(null);
+    setDragOverTaskId(null);
+    
+    if (!draggedTaskId) {
+      setDraggedTaskId(null);
+      return;
+    }
+
+    const draggedTask = tasks.find(t => t.id === draggedTaskId);
+    if (!draggedTask) {
+      setDraggedTaskId(null);
+      return;
+    }
+
+    // Check if task is already in this section
+    const currentSection = getTaskSection(draggedTask);
+    if (currentSection === targetSection) {
+      setDraggedTaskId(null);
+      return;
+    }
+
+    // Update section_override
+    const sectionMap = {
+      'today': 'today' as const,
+      'this_week': 'this_week' as const,
+      'this_month': 'this_month' as const,
+    };
+    
+    const newSectionOverride = sectionMap[targetSection];
+    
+    // Optimistically update UI
+    setTasks(tasks.map(t => 
+      t.id === draggedTaskId 
+        ? { ...t, section_override: newSectionOverride }
+        : t
+    ));
+    setDraggedTaskId(null);
+    
+    // Save to database
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ section_override: newSectionOverride })
+        .eq('id', draggedTaskId);
+      
+      if (error) {
+        // Revert on error
+        const { data, error: fetchError } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('user_id', user?.id)
+          .order('position', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: false });
+        if (!fetchError && data) {
+          setTasks(data);
+        }
+      }
+    } catch (error) {
+      // Revert on error
+      const { data, error: fetchError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('position', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: false });
+      if (!fetchError && data) {
+        setTasks(data);
+      }
+    }
+    setSaving(false);
+  };
+
   const handleDragEnd = () => {
     setDraggedTaskId(null);
     setDragOverTaskId(null);
+    setDragOverSection(null);
   };
 
   // Auto-focus input field when it appears
@@ -446,6 +557,297 @@ export const NotesAndTodosWidget: React.FC = () => {
   const getTaskDuration = (taskId: string): number => {
     return taskPomodoroDurations[taskId] || pomodoroDuration;
   };
+
+  // Helper to determine which section a task belongs to
+  const getTaskSection = (task: Task): 'today' | 'this_week' | 'this_month' => {
+    // If section_override is set, use it
+    if (task.section_override) {
+      return task.section_override;
+    }
+    
+    // Otherwise, determine by created_at date
+    const taskDate = new Date(task.created_at);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const taskDay = new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate());
+    
+    // Get start of week (Monday)
+    const dayOfWeek = today.getDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() + diffToMonday);
+    weekStart.setHours(0, 0, 0, 0);
+    
+    // Get start of month
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    if (taskDay.getTime() === today.getTime()) {
+      return 'today';
+    } else if (taskDate >= weekStart && taskDate < today) {
+      return 'this_week';
+    } else if (taskDate >= monthStart && taskDate < weekStart) {
+      return 'this_month';
+    } else {
+      // Older than this month, default to this_month
+      return 'this_month';
+    }
+  };
+
+  // Group tasks by section
+  const groupTasksBySection = (tasks: Task[]) => {
+    const grouped = {
+      today: [] as Task[],
+      this_week: [] as Task[],
+      this_month: [] as Task[],
+    };
+    
+    tasks.forEach(task => {
+      const section = getTaskSection(task);
+      grouped[section].push(task);
+    });
+    
+    // Sort tasks within each section
+    const sortTasks = (taskList: Task[]) => {
+      return taskList.sort((a, b) => {
+        // Sort by unfinished first
+        if (a.completed !== b.completed) {
+          return a.completed ? 1 : -1;
+        }
+        // Within same completion status, sort by position
+        const aPos = a.position || 0;
+        const bPos = b.position || 0;
+        if (aPos !== bPos) {
+          return aPos - bPos;
+        }
+        // Fallback to created_at
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    };
+    
+    return {
+      today: sortTasks(grouped.today),
+      this_week: sortTasks(grouped.this_week),
+      this_month: sortTasks(grouped.this_month),
+    };
+  };
+
+  // Reset section override (return to date-based grouping)
+  const resetSectionOverride = async (taskId: string) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ section_override: null })
+        .eq('id', taskId);
+      
+      if (!error) {
+        setTasks(tasks.map(t => 
+          t.id === taskId 
+            ? { ...t, section_override: null }
+            : t
+        ));
+      }
+    } catch (error) {
+      // Error handling
+    }
+    setSaving(false);
+  };
+
+  // Helper to render a single task item
+  const renderTaskItem = (task: Task) => (
+    <div 
+      key={task.id}
+      onDragOver={(e) => handleDragOver(e, task.id)}
+      onDragLeave={handleDragLeave}
+      onDrop={(e) => handleDrop(e, task.id)}
+      onDragEnd={handleDragEnd}
+      className={`bg-blue-50 dark:bg-blue-900/20 rounded p-2 flex items-center gap-2 transition-all duration-500 ${
+        completedTaskId === task.id 
+          ? 'ring-2 ring-green-400 dark:ring-green-500 bg-green-100 dark:bg-green-900/40 shadow-lg' 
+          : ''
+      } ${
+        draggedTaskId === task.id ? 'opacity-50' : ''
+      } ${
+        dragOverTaskId === task.id ? 'ring-2 ring-blue-400 dark:ring-blue-500 bg-blue-100 dark:bg-blue-900/40' : ''
+      }`}
+    >
+      {confirmDeleteTaskId === task.id ? (
+        <div className="flex-1 flex items-center gap-2">
+          <span className="text-sm text-red-600">Delete this task?</span>
+          <button className="px-2 py-1 text-xs bg-red-500 text-white rounded" onClick={() => deleteTask(task.id)} disabled={saving}>Delete</button>
+          <button className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded" onClick={() => setConfirmDeleteTaskId(null)} disabled={saving}>Cancel</button>
+        </div>
+      ) : <>
+      {/* Drag Handle */}
+      <div 
+        className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0"
+        draggable
+        onDragStart={(e) => {
+          e.stopPropagation();
+          handleDragStart(e, task.id);
+        }}
+      >
+        <GripVertical className="w-4 h-4" />
+      </div>
+      <input
+        type="checkbox"
+        checked={task.completed}
+        onChange={() => toggleTask(task.id, task.completed)}
+        className="mr-2 flex-shrink-0"
+        disabled={saving}
+        draggable={false}
+      />
+      <input
+        className={`flex-1 bg-transparent border-none focus:outline-none text-sm ${task.completed ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}
+        value={task.text}
+        onChange={e => editTask(task.id, e.target.value)}
+        disabled={saving}
+        draggable={false}
+      />
+      {/* Pomodoro Controls */}
+      <div className="flex items-center gap-1" draggable={false}>
+        {/* Duration Badge - Hidden when timer is active for this task */}
+        {!(pomodoroTimer?.taskId === task.id && (pomodoroTimer.timeRemaining > 0 || pomodoroTimer.isRunning)) && (
+          <div className="relative task-duration-container">
+            <button
+              onClick={() => openTaskDurationEditor(task.id)}
+              className={`text-xs px-1.5 py-0.5 rounded ${
+                taskPomodoroDurations[task.id] 
+                  ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' 
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+              } hover:opacity-80`}
+              title="Set Pomodoro Duration"
+            >
+              {getTaskDuration(task.id)}m
+            </button>
+          {editingTaskDuration === task.id && (
+            <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 z-20">
+              <div className="mb-2">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <span className="text-gradient-primary">Duration (minutes)</span>
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="999"
+                    value={tempTaskDurationInput}
+                    onChange={(e) => setTempTaskDurationInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleTaskCustomDuration(task.id);
+                      }
+                    }}
+                    className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-400 dark:focus:border-purple-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-purple-800"
+                    placeholder="Custom"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => handleTaskCustomDuration(task.id)}
+                    className="px-2 py-1 text-xs bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded transition-all duration-200 shadow-sm hover:shadow-md"
+                  >
+                    Set
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[7, 15, 20, 25, 30, 45, 60].map((preset) => (
+                    <button
+                      key={preset}
+                      onClick={() => handleTaskPresetDuration(task.id, preset)}
+                      className={`px-1.5 py-0.5 text-xs rounded transition-all duration-200 ${
+                        getTaskDuration(task.id) === preset
+                          ? 'bg-gradient-primary text-white shadow-md'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-100 hover:to-purple-100 dark:hover:from-blue-900/30 dark:hover:to-purple-900/30 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {preset}m
+                    </button>
+                  ))}
+                </div>
+                {taskPomodoroDurations[task.id] && (
+                  <button
+                    onClick={() => removeTaskDuration(task.id)}
+                    className="w-full px-2 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50"
+                  >
+                    Reset to Default ({pomodoroDuration}m)
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          </div>
+        )}
+        {/* Pomodoro Count Badge */}
+        {pomodoroCounts[task.id] > 0 && 
+         (pomodoroTimer?.taskId !== task.id || 
+          (pomodoroTimer?.taskId === task.id && pomodoroTimer?.timeRemaining === 0 && !pomodoroTimer?.isRunning)) && (
+          <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded flex items-center gap-1">
+            🍅 {pomodoroCounts[task.id]}
+          </span>
+        )}
+        {/* Timer Display or Start Button */}
+        {pomodoroTimer?.taskId === task.id && (pomodoroTimer.timeRemaining > 0 || pomodoroTimer.isRunning) ? (
+          <div className="flex items-center gap-1">
+            <span className="text-xs font-mono text-gray-600 dark:text-gray-300">
+              {formatTime(pomodoroTimer.timeRemaining)}
+            </span>
+            {pomodoroTimer.isRunning ? (
+              <button
+                onClick={pausePomodoro}
+                className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                title="Pause"
+              >
+                <Pause className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <button
+                onClick={resumePomodoro}
+                className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                title="Resume"
+              >
+                <Play className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button
+              onClick={resetPomodoro}
+              className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              title="Reset"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={stopPomodoro}
+              className="p-1 text-gray-500 hover:text-red-500"
+              title="Stop"
+            >
+              <span className="text-xs">×</span>
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => startPomodoro(task.id)}
+            className="p-1 text-gray-500 hover:text-red-500 dark:hover:text-red-400"
+            title="Start Pomodoro"
+            disabled={task.completed}
+          >
+            <Timer className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+      <button className="ml-1 text-gray-400 hover:text-red-500 flex-shrink-0" onClick={() => setConfirmDeleteTaskId(task.id)} disabled={saving}>&times;</button>
+      {task.section_override && (
+        <button 
+          className="ml-1 text-gray-400 hover:text-blue-500 flex-shrink-0" 
+          onClick={() => resetSectionOverride(task.id)} 
+          disabled={saving}
+          title="Reset to date-based grouping"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+        </button>
+      )}
+      </>}
+    </div>
+  );
 
   // Pomodoro functions
   const startPomodoro = (taskId: string) => {
@@ -1224,207 +1626,78 @@ export const NotesAndTodosWidget: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <div className="space-y-2">
-                {tasks
-                  .sort((a, b) => {
-                    // Sort by unfinished first (completed: false comes before completed: true)
-                    if (a.completed !== b.completed) {
-                      return a.completed ? 1 : -1;
-                    }
-                    // Within same completion status, sort by position
-                    const aPos = a.position || 0;
-                    const bPos = b.position || 0;
-                    if (aPos !== bPos) {
-                      return aPos - bPos;
-                    }
-                    // Fallback to created_at if positions are equal
-                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-                  })
-                  .map(task => (
-                  <div 
-                    key={task.id}
-                    onDragOver={(e) => handleDragOver(e, task.id)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, task.id)}
-                    onDragEnd={handleDragEnd}
-                    className={`bg-blue-50 dark:bg-blue-900/20 rounded p-2 flex items-center gap-2 transition-all duration-500 ${
-                      completedTaskId === task.id 
-                        ? 'ring-2 ring-green-400 dark:ring-green-500 bg-green-100 dark:bg-green-900/40 shadow-lg' 
-                        : ''
-                    } ${
-                      draggedTaskId === task.id ? 'opacity-50' : ''
-                    } ${
-                      dragOverTaskId === task.id ? 'ring-2 ring-blue-400 dark:ring-blue-500 bg-blue-100 dark:bg-blue-900/40' : ''
-                    }`}
-                  >
-                    {confirmDeleteTaskId === task.id ? (
-                      <div className="flex-1 flex items-center gap-2">
-                        <span className="text-sm text-red-600">Delete this task?</span>
-                        <button className="px-2 py-1 text-xs bg-red-500 text-white rounded" onClick={() => deleteTask(task.id)} disabled={saving}>Delete</button>
-                        <button className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded" onClick={() => setConfirmDeleteTaskId(null)} disabled={saving}>Cancel</button>
-                      </div>
-                    ) : <>
-                    {/* Drag Handle */}
-                    <div 
-                      className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0"
-                      draggable
-                      onDragStart={(e) => {
-                        e.stopPropagation();
-                        handleDragStart(e, task.id);
-                      }}
-                    >
-                      <GripVertical className="w-4 h-4" />
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={() => toggleTask(task.id, task.completed)}
-                      className="mr-2 flex-shrink-0"
-                      disabled={saving}
-                      draggable={false}
-                    />
-                    <input
-                      className={`flex-1 bg-transparent border-none focus:outline-none text-sm ${task.completed ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}
-                      value={task.text}
-                      onChange={e => editTask(task.id, e.target.value)}
-                      disabled={saving}
-                      draggable={false}
-                    />
-                    {/* Pomodoro Controls */}
-                    <div className="flex items-center gap-1" draggable={false}>
-                      {/* Duration Badge - Hidden when timer is active for this task */}
-                      {!(pomodoroTimer?.taskId === task.id && (pomodoroTimer.timeRemaining > 0 || pomodoroTimer.isRunning)) && (
-                        <div className="relative task-duration-container">
+              {/* Accordion Sections */}
+              {(() => {
+                const groupedTasks = groupTasksBySection(tasks);
+                const sections = [
+                  { key: 'today' as const, label: 'Today', tasks: groupedTasks.today },
+                  { key: 'thisWeek' as const, label: 'This Week', tasks: groupedTasks.this_week },
+                  { key: 'thisMonth' as const, label: 'This Month', tasks: groupedTasks.this_month },
+                ];
+                
+                return (
+                  <div className="space-y-3">
+                    {sections.map(({ key, label, tasks: sectionTasks }) => {
+                      const isExpanded = expandedSections[key];
+                      const sectionMap = {
+                        today: 'today' as const,
+                        thisWeek: 'this_week' as const,
+                        thisMonth: 'this_month' as const,
+                      };
+                      const sectionKey = sectionMap[key];
+                      const isDragOver = dragOverSection === sectionKey;
+                      
+                      return (
+                        <div 
+                          key={key} 
+                          className={`rounded-lg overflow-hidden transition-all ${
+                            isDragOver 
+                              ? 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/40 dark:to-purple-900/40' 
+                              : ''
+                          }`}
+                          onDragOver={(e) => handleSectionDragOver(e, sectionKey)}
+                          onDragLeave={handleSectionDragLeave}
+                          onDrop={(e) => handleSectionDrop(e, sectionKey)}
+                        >
+                          {/* Section Header */}
                           <button
-                            onClick={() => openTaskDurationEditor(task.id)}
-                            className={`text-xs px-1.5 py-0.5 rounded ${
-                              taskPomodoroDurations[task.id] 
-                                ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' 
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                            } hover:opacity-80`}
-                            title="Set Pomodoro Duration"
+                            onClick={() => setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }))}
+                            className="w-full flex items-center justify-between transition-colors"
+                            style={{ background: 'unset', padding: 0 }}
                           >
-                            {getTaskDuration(task.id)}m
+                            <div className="flex items-center gap-2">
+                              <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
+                              <span className="font-semibold text-gray-900 dark:text-white">{label}</span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">({sectionTasks.length})</span>
+                            </div>
                           </button>
-                        {editingTaskDuration === task.id && (
-                          <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 z-20">
-                            <div className="mb-2">
-                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                <span className="text-gradient-primary">Duration (minutes)</span>
-                              </label>
-                              <div className="flex gap-2 mb-2">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max="999"
-                                  value={tempTaskDurationInput}
-                                  onChange={(e) => setTempTaskDurationInput(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      handleTaskCustomDuration(task.id);
-                                    }
-                                  }}
-                                  className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-400 dark:focus:border-purple-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-purple-800"
-                                  placeholder="Custom"
-                                  autoFocus
-                                />
-                                <button
-                                  onClick={() => handleTaskCustomDuration(task.id)}
-                                  className="px-2 py-1 text-xs bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded transition-all duration-200 shadow-sm hover:shadow-md"
+                          
+                          {/* Section Content */}
+                          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                            isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+                          }`}>
+                            <div className="py-[5px] px-0 space-y-2">
+                              {sectionTasks.length === 0 ? (
+                                <div 
+                                  className={`text-center py-4 text-sm transition-colors ${
+                                    isDragOver 
+                                      ? 'text-gradient-primary font-medium' 
+                                      : 'text-gray-400 dark:text-gray-500'
+                                  }`}
                                 >
-                                  Set
-                                </button>
-                              </div>
-                              <div className="flex flex-wrap gap-1.5 mb-2">
-                                {[7, 15, 20, 25, 30, 45, 60].map((preset) => (
-                                  <button
-                                    key={preset}
-                                    onClick={() => handleTaskPresetDuration(task.id, preset)}
-                                    className={`px-1.5 py-0.5 text-xs rounded transition-all duration-200 ${
-                                      getTaskDuration(task.id) === preset
-                                        ? 'bg-gradient-primary text-white shadow-md'
-                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-100 hover:to-purple-100 dark:hover:from-blue-900/30 dark:hover:to-purple-900/30 hover:text-gray-900 dark:hover:text-white'
-                                    }`}
-                                  >
-                                    {preset}m
-                                  </button>
-                                ))}
-                              </div>
-                              {taskPomodoroDurations[task.id] && (
-                                <button
-                                  onClick={() => removeTaskDuration(task.id)}
-                                  className="w-full px-2 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50"
-                                >
-                                  Reset to Default ({pomodoroDuration}m)
-                                </button>
+                                  {isDragOver ? 'Drop task here' : 'No tasks'}
+                                </div>
+                              ) : (
+                                sectionTasks.map(task => renderTaskItem(task))
                               )}
                             </div>
                           </div>
-                        )}
                         </div>
-                      )}
-                      {/* Pomodoro Count Badge - Hidden when timer is active, shown when timer completes */}
-                      {pomodoroCounts[task.id] > 0 && 
-                       (pomodoroTimer?.taskId !== task.id || 
-                        (pomodoroTimer?.taskId === task.id && pomodoroTimer?.timeRemaining === 0 && !pomodoroTimer?.isRunning)) && (
-                        <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded flex items-center gap-1">
-                          🍅 {pomodoroCounts[task.id]}
-                        </span>
-                      )}
-                      {/* Timer Display or Start Button */}
-                      {pomodoroTimer?.taskId === task.id && (pomodoroTimer.timeRemaining > 0 || pomodoroTimer.isRunning) ? (
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs font-mono text-gray-600 dark:text-gray-300">
-                            {formatTime(pomodoroTimer.timeRemaining)}
-                          </span>
-                          {pomodoroTimer.isRunning ? (
-                            <button
-                              onClick={pausePomodoro}
-                              className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                              title="Pause"
-                            >
-                              <Pause className="w-3.5 h-3.5" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={resumePomodoro}
-                              className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                              title="Resume"
-                            >
-                              <Play className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          <button
-                            onClick={resetPomodoro}
-                            className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                            title="Reset"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={stopPomodoro}
-                            className="p-1 text-gray-500 hover:text-red-500"
-                            title="Stop"
-                          >
-                            <span className="text-xs">×</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => startPomodoro(task.id)}
-                          className="p-1 text-gray-500 hover:text-red-500 dark:hover:text-red-400"
-                          title="Start Pomodoro"
-                          disabled={task.completed}
-                        >
-                          <Timer className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                    <button className="ml-1 text-gray-400 hover:text-red-500 flex-shrink-0" onClick={() => setConfirmDeleteTaskId(task.id)} disabled={saving}>&times;</button>
-                    </>}
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
             </div>
           </Modal>
         </div>
