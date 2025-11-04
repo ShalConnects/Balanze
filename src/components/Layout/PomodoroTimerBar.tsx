@@ -38,7 +38,14 @@ export const PomodoroTimerBar: React.FC = () => {
             setPomodoroTimer({ ...parsed, timeRemaining });
           }
         } else {
-          setPomodoroTimer(parsed);
+          // For paused timers, validate they have a taskId and valid timeRemaining
+          if (parsed.taskId && parsed.timeRemaining >= 0) {
+            setPomodoroTimer(parsed);
+          } else {
+            // Invalid timer state, clear it
+            localStorage.removeItem('pomodoroTimerState');
+            setPomodoroTimer(null);
+          }
         }
       } catch (e) {
         setPomodoroTimer(null);
@@ -62,10 +69,18 @@ export const PomodoroTimerBar: React.FC = () => {
             }
             setPomodoroTimer({ ...parsed, timeRemaining });
           } else {
-            setPomodoroTimer(parsed);
+            // For paused timers, validate they have a taskId and valid timeRemaining
+            if (parsed.taskId && parsed.timeRemaining >= 0) {
+              setPomodoroTimer(parsed);
+            } else {
+              // Invalid timer state, clear it
+              localStorage.removeItem('pomodoroTimerState');
+              setPomodoroTimer(null);
+            }
           }
         } catch (e) {
           // Error handling
+          setPomodoroTimer(null);
         }
       } else {
         setPomodoroTimer(null);
@@ -126,10 +141,18 @@ export const PomodoroTimerBar: React.FC = () => {
             }
             setPomodoroTimer({ ...parsed, timeRemaining });
           } else {
-            setPomodoroTimer(parsed);
+            // For paused timers, validate they have a taskId and valid timeRemaining
+            if (parsed.taskId && parsed.timeRemaining >= 0) {
+              setPomodoroTimer(parsed);
+            } else {
+              // Invalid timer state, clear it
+              localStorage.removeItem('pomodoroTimerState');
+              setPomodoroTimer(null);
+            }
           }
         } catch (e) {
           // Error handling
+          setPomodoroTimer(null);
         }
       } else {
         setPomodoroTimer(null);
@@ -299,6 +322,9 @@ export const PomodoroTimerBar: React.FC = () => {
 
   if (!pomodoroTimer || isAllTasksModalOpen) return null;
 
+  // Validate timer state - only show if there's a valid task and time remaining
+  if (!pomodoroTimer.taskId || pomodoroTimer.timeRemaining < 0) return null;
+
   const progress = getProgress();
 
   // Use React state directly (more reliable for immediate updates)
@@ -337,7 +363,7 @@ export const PomodoroTimerBar: React.FC = () => {
       </div>
 
       {/* Expanded modal view - always rendered, visibility toggled */}
-      <div className={`fixed bottom-0 left-0 right-0 z-[9999] bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg transition-all duration-300 ${currentExpanded ? 'opacity-100 pointer-events-auto visible translate-y-0' : 'opacity-0 pointer-events-none invisible translate-y-full'}`} style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0), 8px)', WebkitTransform: 'translateZ(0)', transform: 'translateZ(0)' }}>
+      <div className={`fixed bottom-0 left-0 right-0 z-[9999] bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg transition-all duration-300 ${currentExpanded ? 'opacity-100 pointer-events-auto visible translate-y-0' : 'opacity-0 pointer-events-none invisible translate-y-full'}`} style={{ paddingBottom: 0, WebkitTransform: 'translateZ(0)', transform: 'translateZ(0)' }}>
       {/* Progress Bar */}
       <div className="h-1 bg-gray-200 dark:bg-gray-700">
         <div 
