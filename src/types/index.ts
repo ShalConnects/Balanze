@@ -130,6 +130,7 @@ export interface Task {
   completed: boolean;
   user_id: string;
   created_at: string;
+  position?: number;
 }
 
 // Purchase Management Types

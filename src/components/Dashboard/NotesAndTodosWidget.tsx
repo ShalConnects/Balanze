@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { Star, StickyNote as StickyNoteIcon, Plus, AlertTriangle, Timer, Play, Pause, RotateCcw, Settings } from 'lucide-react';
+import { Star, StickyNote as StickyNoteIcon, Plus, AlertTriangle, Timer, Play, Pause, RotateCcw, Settings, GripVertical } from 'lucide-react';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import Modal from 'react-modal';
 
@@ -26,6 +26,7 @@ interface Task {
   completed: boolean;
   user_id: string;
   created_at: string;
+  position?: number;
 }
 
 export const NotesAndTodosWidget: React.FC = () => {
@@ -71,6 +72,10 @@ export const NotesAndTodosWidget: React.FC = () => {
   const [editingTaskDuration, setEditingTaskDuration] = useState<string | null>(null);
   const [tempTaskDurationInput, setTempTaskDurationInput] = useState<string>('');
   const [completedTaskId, setCompletedTaskId] = useState<string | null>(null);
+  
+  // Drag and drop state for task reordering
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
   
   // Guard to prevent double counting on completion
   const completionProcessedRef = useRef<{ taskId: string | null; processed: boolean }>({ taskId: null, processed: false });
@@ -120,6 +125,7 @@ export const NotesAndTodosWidget: React.FC = () => {
           .from('tasks')
           .select('*')
           .eq('user_id', user.id)
+          .order('position', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: false });
         if (!tasksError && tasksData) setTasks(tasksData);
       } catch (error) {
@@ -236,6 +242,7 @@ export const NotesAndTodosWidget: React.FC = () => {
           .from('tasks')
           .select('*')
           .eq('user_id', user.id)
+          .order('position', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: false });
         if (!error && data && isMounted) setTasks(data);
       } catch (error) {
@@ -253,12 +260,19 @@ export const NotesAndTodosWidget: React.FC = () => {
   const addTask = async () => {
     if (!todoInput.trim() || !user) return;
     setSaving(true);
+    // Calculate position for new task (should be at the top)
+    const maxPosition = tasks.length > 0 
+      ? Math.max(...tasks.map(t => t.position || 0), 0)
+      : 0;
+    const newPosition = maxPosition + 1;
+    
     const { data, error } = await supabase
       .from('tasks')
       .insert({
         user_id: user.id,
         text: todoInput.trim(),
         completed: false,
+        position: newPosition,
       })
       .select();
     setSaving(false);
@@ -313,6 +327,100 @@ export const NotesAndTodosWidget: React.FC = () => {
       setTasks(tasks.filter(t => t.id !== id));
       setConfirmDeleteTaskId(null);
     }
+  };
+
+  // Drag and drop handlers for task reordering
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    // Only allow dragging from the grip handle or task container, not from interactive elements
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.closest('button') || target.closest('input')) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedTaskId(taskId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', taskId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, taskId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedTaskId && draggedTaskId !== taskId) {
+      setDragOverTaskId(taskId);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverTaskId(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetTaskId: string) => {
+    e.preventDefault();
+    setDragOverTaskId(null);
+    
+    if (!draggedTaskId || draggedTaskId === targetTaskId) {
+      setDraggedTaskId(null);
+      return;
+    }
+
+    const draggedTask = tasks.find(t => t.id === draggedTaskId);
+    const targetTask = tasks.find(t => t.id === targetTaskId);
+    
+    if (!draggedTask || !targetTask) {
+      setDraggedTaskId(null);
+      return;
+    }
+
+    // Create new array with reordered tasks
+    const taskList = [...tasks];
+    const draggedIndex = taskList.findIndex(t => t.id === draggedTaskId);
+    const targetIndex = taskList.findIndex(t => t.id === targetTaskId);
+    
+    // Remove dragged task from its current position
+    taskList.splice(draggedIndex, 1);
+    // Insert at target position
+    taskList.splice(targetIndex, 0, draggedTask);
+    
+    // Update positions for all tasks
+    const updatedTasks = taskList.map((task, index) => ({
+      ...task,
+      position: index + 1
+    }));
+    
+    // Optimistically update UI
+    setTasks(updatedTasks);
+    setDraggedTaskId(null);
+    
+    // Save positions to database
+    setSaving(true);
+    try {
+      // Update all positions in batch
+      const updates = updatedTasks.map(task => 
+        supabase
+          .from('tasks')
+          .update({ position: task.position })
+          .eq('id', task.id)
+      );
+      
+      await Promise.all(updates);
+    } catch (error) {
+      // If update fails, revert to original order
+      const { data, error: fetchError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('position', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: false });
+      if (!fetchError && data) {
+        setTasks(data);
+      }
+    }
+    setSaving(false);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTaskId(null);
+    setDragOverTaskId(null);
   };
 
   // Helper to get duration for a task (per-task or fallback to default)
@@ -1067,16 +1175,33 @@ export const NotesAndTodosWidget: React.FC = () => {
                 {tasks
                   .sort((a, b) => {
                     // Sort by unfinished first (completed: false comes before completed: true)
-                    if (a.completed === b.completed) return 0;
-                    return a.completed ? 1 : -1;
+                    if (a.completed !== b.completed) {
+                      return a.completed ? 1 : -1;
+                    }
+                    // Within same completion status, sort by position
+                    const aPos = a.position || 0;
+                    const bPos = b.position || 0;
+                    if (aPos !== bPos) {
+                      return aPos - bPos;
+                    }
+                    // Fallback to created_at if positions are equal
+                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
                   })
                   .map(task => (
                   <div 
-                    key={task.id} 
+                    key={task.id}
+                    onDragOver={(e) => handleDragOver(e, task.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, task.id)}
+                    onDragEnd={handleDragEnd}
                     className={`bg-blue-50 dark:bg-blue-900/20 rounded p-2 flex items-center gap-2 transition-all duration-500 ${
                       completedTaskId === task.id 
                         ? 'ring-2 ring-green-400 dark:ring-green-500 bg-green-100 dark:bg-green-900/40 shadow-lg' 
                         : ''
+                    } ${
+                      draggedTaskId === task.id ? 'opacity-50' : ''
+                    } ${
+                      dragOverTaskId === task.id ? 'ring-2 ring-blue-400 dark:ring-blue-500 bg-blue-100 dark:bg-blue-900/40' : ''
                     }`}
                   >
                     {confirmDeleteTaskId === task.id ? (
@@ -1086,21 +1211,34 @@ export const NotesAndTodosWidget: React.FC = () => {
                         <button className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded" onClick={() => setConfirmDeleteTaskId(null)} disabled={saving}>Cancel</button>
                       </div>
                     ) : <>
+                    {/* Drag Handle */}
+                    <div 
+                      className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0"
+                      draggable
+                      onDragStart={(e) => {
+                        e.stopPropagation();
+                        handleDragStart(e, task.id);
+                      }}
+                    >
+                      <GripVertical className="w-4 h-4" />
+                    </div>
                     <input
                       type="checkbox"
                       checked={task.completed}
                       onChange={() => toggleTask(task.id, task.completed)}
-                      className="mr-2"
+                      className="mr-2 flex-shrink-0"
                       disabled={saving}
+                      draggable={false}
                     />
                     <input
                       className={`flex-1 bg-transparent border-none focus:outline-none text-sm ${task.completed ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}
                       value={task.text}
                       onChange={e => editTask(task.id, e.target.value)}
                       disabled={saving}
+                      draggable={false}
                     />
                     {/* Pomodoro Controls */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" draggable={false}>
                       {/* Duration Badge - Hidden when timer is active for this task */}
                       {!(pomodoroTimer?.taskId === task.id && (pomodoroTimer.timeRemaining > 0 || pomodoroTimer.isRunning)) && (
                         <div className="relative task-duration-container">
