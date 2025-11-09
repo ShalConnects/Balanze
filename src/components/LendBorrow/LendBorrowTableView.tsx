@@ -1725,6 +1725,30 @@ export const LendBorrowTableView: React.FC = () => {
                                   </div>
                                 </div>
 
+                                {/* Account Information */}
+                                <div className="space-y-2">
+                                  <h4 className="font-semibold text-gray-900 dark:text-white">Account Information</h4>
+                                  <div className="space-y-1 text-sm" style={{ fontSize: '12px' }}>
+                                    {record.affect_account_balance && record.account_id ? (
+                                      <>
+                                        {(() => {
+                                          const account = accounts.find(acc => acc.id === record.account_id);
+                                          return account ? (
+                                            <>
+                                              <div style={{ marginTop: 0 }}><span className="font-medium">Account:</span> {account.name}</div>
+                                              <div style={{ marginTop: 0 }}><span className="font-medium">Balance:</span> {formatCurrency(account.calculated_balance || 0, account.currency)}</div>
+                                            </>
+                                          ) : (
+                                            <div style={{ marginTop: 0 }} className="text-gray-500 dark:text-gray-400">Account not found</div>
+                                          );
+                                        })()}
+                                      </>
+                                    ) : (
+                                      <div style={{ marginTop: 0 }} className="text-gray-500 dark:text-gray-400">Record Only</div>
+                                    )}
+                                  </div>
+                                </div>
+
                               </div>
                             </td>
                           </tr>
@@ -1895,6 +1919,30 @@ export const LendBorrowTableView: React.FC = () => {
                           <div style={{ marginTop: 0 }}><span className="font-medium">Currency:</span> {record.currency}</div>
                           <div style={{ marginTop: 0 }}><span className="font-medium">Date:</span> {record.created_at ? (isNaN(new Date(record.created_at).getTime()) ? 'No date' : new Date(record.created_at).toLocaleDateString()) : 'No date'}</div>
                           <div style={{ marginTop: 0 }}><span className="font-medium">Due Date:</span> {record.due_date ? (isNaN(new Date(record.due_date).getTime()) ? 'No date' : new Date(record.due_date).toLocaleDateString()) : 'No date'}</div>
+                        </div>
+                      </div>
+
+                      {/* Account Information */}
+                      <div className="space-y-2 mt-4">
+                        <h4 className="font-semibold text-gray-900 dark:text-white">Account Information</h4>
+                        <div className="space-y-1 text-sm" style={{ fontSize: '12px' }}>
+                          {record.affect_account_balance && record.account_id ? (
+                            <>
+                              {(() => {
+                                const account = accounts.find(acc => acc.id === record.account_id);
+                                return account ? (
+                                  <>
+                                    <div style={{ marginTop: 0 }}><span className="font-medium">Account:</span> {account.name}</div>
+                                    <div style={{ marginTop: 0 }}><span className="font-medium">Balance:</span> {formatCurrency(account.calculated_balance || 0, account.currency)}</div>
+                                  </>
+                                ) : (
+                                  <div style={{ marginTop: 0 }} className="text-gray-500 dark:text-gray-400">Account not found</div>
+                                );
+                              })()}
+                            </>
+                          ) : (
+                            <div style={{ marginTop: 0 }} className="text-gray-500 dark:text-gray-400">Record Only</div>
+                          )}
                         </div>
                       </div>
 

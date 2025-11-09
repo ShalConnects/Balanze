@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 export const LendBorrowSummaryCard: React.FC = () => {
   const { user, profile } = useAuthStore();
   
-  // Check if user has Premium plan for Lend & Borrow
+  // Check if user has Premium plan for L&B
   const isPremium = profile?.subscription?.plan === 'premium';
   
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
@@ -91,7 +91,7 @@ export const LendBorrowSummaryCard: React.FC = () => {
     }
   }, [filteredCurrencies, filterCurrency]);
 
-  // Load user preferences for Lend & Borrow widget visibility
+  // Load user preferences for L&B widget visibility
   useEffect(() => {
     if (user?.id) {
       const loadPreferences = async () => {
@@ -148,18 +148,19 @@ export const LendBorrowSummaryCard: React.FC = () => {
     };
   }, []);
 
-  // Save Lend & Borrow widget visibility preference (hybrid approach)
+  // Save L&B widget visibility preference (hybrid approach)
   const handleLendBorrowWidgetToggle = async (show: boolean) => {
     // Update localStorage immediately for instant UI response
     localStorage.setItem('showLendBorrowWidget', JSON.stringify(show));
     setShowLendBorrowWidget(show);
+    window.dispatchEvent(new CustomEvent('showLendBorrowWidgetChanged'));
     
     // Save to database if user is authenticated
     if (user?.id) {
       try {
         await setPreference(user.id, 'showLendBorrowWidget', show);
         toast.success('Preference saved!', {
-          description: show ? 'Lend & Borrow widget will be shown' : 'Lend & Borrow widget hidden'
+          description: show ? 'L&B widget will be shown' : 'L&B widget hidden'
         });
       } catch (error) {
 
@@ -268,7 +269,7 @@ export const LendBorrowSummaryCard: React.FC = () => {
         <button
           onClick={() => handleLendBorrowWidgetToggle(false)}
           className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors z-10"
-          aria-label="Hide Lend & Borrow widget"
+          aria-label="Hide L&B widget"
         >
           <X className="w-4 h-4" />
           {/* Tooltip - only on desktop */}
@@ -283,7 +284,7 @@ export const LendBorrowSummaryCard: React.FC = () => {
       
       <div className="flex items-center justify-between mb-4 pr-8">
         <div className="flex items-center gap-2 flex-1">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Lent & Borrow</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">L&B</h2>
           <div className="relative flex items-center">
             <button
               type="button"
@@ -356,15 +357,17 @@ export const LendBorrowSummaryCard: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           {/* Currency Filter using CustomDropdown */}
-          <CustomDropdown
-            options={filteredCurrencies.map(currency => ({ value: currency, label: currency }))}
-            value={filterCurrency}
-            onChange={setFilterCurrency}
-            fullWidth={false}
-            className="bg-transparent border shadow-none text-gray-500 text-xs h-7 min-h-0 hover:bg-gray-100 focus:ring-0 focus:outline-none"
-            style={{ padding: '10px', paddingRight: '5px', border: '1px solid rgb(229 231 235 / var(--tw-bg-opacity, 1))' }}
-            dropdownMenuClassName="!bg-[#d3d3d3bf] !top-[20px]"
-          />
+          <div className="relative">
+            <CustomDropdown
+              options={filteredCurrencies.map(currency => ({ value: currency, label: currency }))}
+              value={filterCurrency}
+              onChange={setFilterCurrency}
+              fullWidth={false}
+              className="bg-transparent border shadow-none text-gray-500 text-xs h-7 min-h-0 hover:bg-gray-100 focus:ring-0 focus:outline-none"
+              style={{ padding: '10px', paddingRight: '5px', border: '1px solid rgb(229 231 235 / var(--tw-bg-opacity, 1))' }}
+              dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
+            />
+          </div>
           <Link 
             to="/lent-borrow" 
             className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Timer, Play, Pause, Square, X, Minimize2, Maximize2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -13,6 +13,40 @@ export const PomodoroTimerBar: React.FC = () => {
   });
   
   const [isAllTasksModalOpen, setIsAllTasksModalOpen] = useState<boolean>(false);
+  
+  // Timer position state (for draggable functionality)
+  // Position is stored as { x: left, y: bottom } for desktop, { x: left, y: top } for Android
+  const [position, setPosition] = useState<{ x: number; y: number }>(() => {
+    const saved = localStorage.getItem('pomodoroTimerPosition');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Validate position is within reasonable bounds
+        if (parsed.x >= 0 && parsed.y >= 0 && parsed.x < window.innerWidth && parsed.y < window.innerHeight) {
+          return parsed;
+        }
+      } catch (e) {
+        // Fallback to default position
+      }
+    }
+    // Default: bottom-left (left-4, bottom-12 or bottom with safe area)
+    if (isAndroid) {
+      return { x: 16, y: 24 }; // top: 24px, left: 16px
+    } else {
+      return { x: 16, y: 48 }; // bottom: 48px, left: 16px
+    }
+  });
+  
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [hasDragged, setHasDragged] = useState(false);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [isHidden, setIsHidden] = useState<boolean>(() => {
+    const saved = localStorage.getItem('pomodoroTimerHidden');
+    return saved ? JSON.parse(saved) : false;
+  });
 
   const [pomodoroTimer, setPomodoroTimer] = useState<{
     taskId: string | null;
@@ -169,6 +203,9 @@ export const PomodoroTimerBar: React.FC = () => {
       if (wasOpen && !isOpen) {
         setIsExpanded(false);
         localStorage.setItem('pomodoroTimerExpanded', 'false');
+        // Reset hidden state so timer reappears when modal closes
+        setIsHidden(false);
+        localStorage.setItem('pomodoroTimerHidden', JSON.stringify(false));
         // Reload timer state from localStorage to ensure sync
         loadTimerState();
       }
@@ -312,18 +349,298 @@ export const PomodoroTimerBar: React.FC = () => {
     };
   }, []); // Only run on mount
 
-  const toggleExpand = () => {
-    const newState = !isExpanded;
-    // Update state immediately
-    setIsExpanded(newState);
-    // Update localStorage
-    localStorage.setItem('pomodoroTimerExpanded', JSON.stringify(newState));
+  // Handle right-click context menu
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenuPosition({ x: e.clientX, y: e.clientY });
+    setShowContextMenu(true);
   };
+
+  // Handle long-press for mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    longPressTimerRef.current = setTimeout(() => {
+      setContextMenuPosition({ x: touch.clientX, y: touch.clientY });
+      setShowContextMenu(true);
+    }, 500); // 500ms for long press
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  // Close context menu on click outside or ESC
+  useEffect(() => {
+    if (!showContextMenu) return;
+
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowContextMenu(false);
+      }
+    };
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-timer-container]')) {
+        setShowContextMenu(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleEsc);
+    window.addEventListener('click', handleClickOutside);
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      window.removeEventListener('click', handleClickOutside);
+    };
+  }, [showContextMenu]);
+
+  // Handle hide timer (hide button but don't stop timer)
+  const handleHideTimer = () => {
+    setIsHidden(true);
+    localStorage.setItem('pomodoroTimerHidden', JSON.stringify(true));
+  };
+
+  // Save hidden state to localStorage
+  useEffect(() => {
+    localStorage.setItem('pomodoroTimerHidden', JSON.stringify(isHidden));
+  }, [isHidden]);
+
+  // Save position to localStorage
+  useEffect(() => {
+    localStorage.setItem('pomodoroTimerPosition', JSON.stringify(position));
+  }, [position]);
+
+  // Snap to grid/corners function
+  const snapPosition = (x: number, y: number, windowWidth: number, windowHeight: number) => {
+    const snapThreshold = 50; // pixels
+    const buttonWidth = 120; // approximate button width
+    const buttonHeight = 48; // approximate button height
+    
+    // Convert y coordinate based on coordinate system
+    // For desktop: y is from bottom, for Android: y is from top
+    let actualY: number;
+    if (isAndroid) {
+      actualY = y; // y is already from top
+    } else {
+      actualY = windowHeight - y - buttonHeight; // convert from bottom to top
+    }
+    
+    // Define snap points (corners and edges) - all in top-left coordinate system
+    const snapPoints = [
+      { x: 16, y: 16, label: 'top-left' }, // top-left
+      { x: windowWidth - buttonWidth - 16, y: 16, label: 'top-right' }, // top-right
+      { x: 16, y: windowHeight - buttonHeight - (isAndroid ? 24 : 48), label: 'bottom-left' }, // bottom-left
+      { x: windowWidth - buttonWidth - 16, y: windowHeight - buttonHeight - (isAndroid ? 24 : 48), label: 'bottom-right' }, // bottom-right
+      { x: (windowWidth - buttonWidth) / 2, y: 16, label: 'top-center' }, // top-center
+      { x: (windowWidth - buttonWidth) / 2, y: windowHeight - buttonHeight - (isAndroid ? 24 : 48), label: 'bottom-center' }, // bottom-center
+      { x: 16, y: (windowHeight - buttonHeight) / 2, label: 'left-center' }, // left-center
+      { x: windowWidth - buttonWidth - 16, y: (windowHeight - buttonHeight) / 2, label: 'right-center' }, // right-center
+    ];
+    
+    // Find closest snap point
+    let closestSnap = snapPoints[0];
+    let minDistance = Infinity;
+    
+    for (const snap of snapPoints) {
+      const distance = Math.sqrt(Math.pow(x - snap.x, 2) + Math.pow(actualY - snap.y, 2));
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestSnap = snap;
+      }
+    }
+    
+    // Snap if within threshold
+    if (minDistance < snapThreshold) {
+      if (isAndroid) {
+        return { x: closestSnap.x, y: closestSnap.y };
+      } else {
+        // Convert back to bottom coordinate system
+        return { x: closestSnap.x, y: windowHeight - closestSnap.y - buttonHeight };
+      }
+    }
+    
+    // Keep current position if not close to any snap point, but constrain to viewport
+    const constrainedX = Math.max(0, Math.min(x, windowWidth - buttonWidth));
+    if (isAndroid) {
+      const constrainedY = Math.max(0, Math.min(actualY, windowHeight - buttonHeight));
+      return { x: constrainedX, y: constrainedY };
+    } else {
+      const constrainedY = Math.max(0, Math.min(y, windowHeight - buttonHeight));
+      return { x: constrainedX, y: constrainedY };
+    }
+  };
+
+  // Drag handlers for mouse (desktop)
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+    setIsDragging(true);
+    setHasDragged(false);
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setHasDragged(true);
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      
+      // Get actual button dimensions from the DOM
+      const buttonElement = document.querySelector('[data-timer-container]') as HTMLElement;
+      const buttonWidth = buttonElement ? buttonElement.offsetWidth : 200; // fallback to 200px
+      const buttonHeight = buttonElement ? buttonElement.offsetHeight : 48; // fallback to 48px
+      
+      const newX = e.clientX - dragOffset.x;
+      
+      let newY: number;
+      if (isAndroid) {
+        // For Android, y is from top
+        newY = e.clientY - dragOffset.y;
+      } else {
+        // For desktop, y is from bottom
+        newY = windowHeight - (e.clientY - dragOffset.y) - buttonHeight;
+      }
+      
+      // Constrain to viewport - ensure button stays fully visible
+      const constrainedX = Math.max(0, Math.min(newX, windowWidth - buttonWidth));
+      const constrainedY = Math.max(0, Math.min(newY, windowHeight - buttonHeight));
+      
+      setPosition({ x: constrainedX, y: constrainedY });
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      // Snap on release
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      
+      // Get actual button dimensions for final constraint check
+      const buttonElement = document.querySelector('[data-timer-container]') as HTMLElement;
+      const buttonWidth = buttonElement ? buttonElement.offsetWidth : 200;
+      const buttonHeight = buttonElement ? buttonElement.offsetHeight : 48;
+      
+      // Ensure position is within bounds before snapping
+      const constrainedPosition = {
+        x: Math.max(0, Math.min(position.x, windowWidth - buttonWidth)),
+        y: Math.max(0, Math.min(position.y, windowHeight - buttonHeight))
+      };
+      
+      const snapped = snapPosition(constrainedPosition.x, constrainedPosition.y, windowWidth, windowHeight);
+      setPosition(snapped);
+      setIsDragging(false);
+      // Reset hasDragged after a short delay to allow click handler to check it
+      setTimeout(() => setHasDragged(false), 100);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset, position, isAndroid]);
+
+  // Drag handlers for touch (mobile) - separate from long press
+  const handleTouchStartDrag = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    const touch = e.touches[0];
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setDragOffset({
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top,
+    });
+    setIsDragging(true);
+    setHasDragged(false);
+    // Clear long press timer if dragging starts
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 0) return;
+      e.preventDefault();
+      setHasDragged(true);
+      const touch = e.touches[0];
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      
+      // Get actual button dimensions from the DOM
+      const buttonElement = document.querySelector('[data-timer-container]') as HTMLElement;
+      const buttonWidth = buttonElement ? buttonElement.offsetWidth : 200; // fallback to 200px
+      const buttonHeight = buttonElement ? buttonElement.offsetHeight : 48; // fallback to 48px
+      
+      const newX = touch.clientX - dragOffset.x;
+      
+      // For Android, y is from top
+      const newY = touch.clientY - dragOffset.y;
+      
+      // Constrain to viewport - ensure button stays fully visible
+      const constrainedX = Math.max(0, Math.min(newX, windowWidth - buttonWidth));
+      const constrainedY = Math.max(0, Math.min(newY, windowHeight - buttonHeight));
+      
+      setPosition({ x: constrainedX, y: constrainedY });
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      // Snap on release
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      
+      // Get actual button dimensions for final constraint check
+      const buttonElement = document.querySelector('[data-timer-container]') as HTMLElement;
+      const buttonWidth = buttonElement ? buttonElement.offsetWidth : 200;
+      const buttonHeight = buttonElement ? buttonElement.offsetHeight : 48;
+      
+      // Ensure position is within bounds before snapping
+      const constrainedPosition = {
+        x: Math.max(0, Math.min(position.x, windowWidth - buttonWidth)),
+        y: Math.max(0, Math.min(position.y, windowHeight - buttonHeight))
+      };
+      
+      const snapped = snapPosition(constrainedPosition.x, constrainedPosition.y, windowWidth, windowHeight);
+      setPosition(snapped);
+      setIsDragging(false);
+      // Reset hasDragged after a short delay to allow click handler to check it
+      setTimeout(() => setHasDragged(false), 100);
+      // Clear long press timer
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    };
+
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isDragging, dragOffset, position, isAndroid]);
 
   if (!pomodoroTimer || isAllTasksModalOpen) return null;
 
   // Validate timer state - only show if there's a valid task and time remaining
-  if (!pomodoroTimer.taskId || pomodoroTimer.timeRemaining < 0) return null;
+  // Hide if timer has ended (timeRemaining === 0 and isRunning === false)
+  if (!pomodoroTimer.taskId || pomodoroTimer.timeRemaining < 0 || (pomodoroTimer.timeRemaining === 0 && !pomodoroTimer.isRunning)) return null;
+
+  // Hide if user manually hid the timer (timer continues running in background)
+  if (isHidden) return null;
 
   const progress = getProgress();
 
@@ -332,90 +649,161 @@ export const PomodoroTimerBar: React.FC = () => {
 
   return (
     <>
-      {/* Minimized badge view - always rendered, visibility toggled */}
+      {/* Timer button with inline controls */}
       <div 
-        className={`fixed ${isAndroid ? '' : 'bottom-12'} left-4 z-[9998] transition-all duration-300 ${!currentExpanded ? 'opacity-100 pointer-events-auto visible' : 'opacity-0 pointer-events-none invisible'}`}
-        style={isAndroid ? { bottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)))' } : undefined}
+        data-timer-container
+        className={`fixed z-[9998] transition-all duration-300 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        style={{
+          left: `${position.x}px`,
+          ...(isAndroid 
+            ? { top: `${position.y}px` }
+            : { bottom: `${position.y}px` }
+          ),
+          transform: isDragging ? 'scale(1.05)' : 'scale(1)',
+        }}
       >
-        <div className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full shadow-lg hover:shadow-xl transition-all cursor-pointer group">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              toggleExpand();
-            }}
-            onTouchStart={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              toggleExpand();
-            }}
-            className="flex items-center gap-2 px-4 py-3 text-white touch-manipulation"
-            title="Expand timer"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            <Timer className="w-5 h-5" />
-            <span className="font-bold text-sm">
-              {formatTime(pomodoroTimer.timeRemaining)}
-            </span>
-            <Maximize2 className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </button>
+        {/* Timer button with controls */}
+        <div className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full shadow-lg hover:shadow-xl transition-all group">
+          <div className="flex items-center gap-1 px-3 py-2.5">
+            <button
+              onMouseDown={handleMouseDown}
+              onTouchStart={handleTouchStartDrag}
+              onContextMenu={handleContextMenu}
+              onTouchStartCapture={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="flex items-center gap-2 text-white touch-manipulation select-none flex-1 min-w-0"
+              title="Drag to move, right-click/long-press for menu"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <Timer className="w-4 h-4 flex-shrink-0" />
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="font-bold text-sm leading-tight">
+                  {formatTime(pomodoroTimer.timeRemaining)}
+                </span>
+                {taskName && (
+                  <span className="text-xs text-white/90 truncate leading-tight" title={taskName}>
+                    {taskName}
+                  </span>
+                )}
+              </div>
+            </button>
+            
+            {/* Inline control buttons */}
+            <div className="flex items-center gap-1 border-l border-white/20 pl-1.5">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePauseResume();
+                }}
+                className="p-1.5 hover:bg-white/20 rounded-full transition-colors"
+                title={pomodoroTimer.isRunning ? 'Pause' : 'Resume'}
+              >
+                {pomodoroTimer.isRunning ? (
+                  <Pause className="w-3.5 h-3.5 text-white" />
+                ) : (
+                  <Play className="w-3.5 h-3.5 text-white" />
+                )}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStop();
+                }}
+                className="p-1.5 hover:bg-white/20 rounded-full transition-colors"
+                title="Stop"
+              >
+                <Square className="w-3.5 h-3.5 text-white" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleHideTimer();
+                }}
+                className="p-1.5 hover:bg-white/20 rounded-full transition-colors"
+                title="Hide timer (timer continues running)"
+              >
+                <X className="w-3.5 h-3.5 text-white" />
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Expanded modal view - always rendered, visibility toggled */}
-      <div className={`fixed bottom-0 left-0 right-0 z-[9999] bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg transition-all duration-300 ${currentExpanded ? 'opacity-100 pointer-events-auto visible translate-y-0' : 'opacity-0 pointer-events-none invisible translate-y-full'}`} style={{ paddingBottom: 0, WebkitTransform: 'translateZ(0)', transform: 'translateZ(0)' }}>
-      {/* Progress Bar */}
-      <div className="h-1 bg-gray-200 dark:bg-gray-700">
-        <div 
-          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-      
-      {/* Expanded Timer Content */}
-      <div className="px-2 py-1.5 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            <Timer className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-            <span className="font-semibold text-base text-gray-900 dark:text-white">
-              {formatTime(pomodoroTimer.timeRemaining)}
-            </span>
-            {taskName && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                {taskName}
-              </span>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-1">
-            <button
-              onClick={handlePauseResume}
-              className="px-2.5 py-1.5 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-md transition-all flex items-center gap-1 text-xs font-medium"
-              title={pomodoroTimer.isRunning ? 'Pause' : 'Resume'}
+        {/* Context menu (right-click/long-press) */}
+        {showContextMenu && (
+          <>
+            <div 
+              className="fixed inset-0 z-[9997]"
+              onClick={() => setShowContextMenu(false)}
+            />
+            <div 
+              className="fixed z-[9999] w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 animate-in zoom-in-95"
+              style={{
+                left: `${contextMenuPosition.x}px`,
+                top: `${contextMenuPosition.y}px`,
+                transform: 'translate(-50%, -100%)',
+                marginTop: '-8px',
+              }}
             >
-              {pomodoroTimer.isRunning ? (
-                <Pause className="w-3.5 h-3.5" />
-              ) : (
-                <Play className="w-3.5 h-3.5" />
-              )}
-            </button>
-            <button
-              onClick={handleStop}
-              className="p-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-colors"
-              title="Stop"
-            >
-              <Square className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={toggleExpand}
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-              title="Minimize"
-            >
-              <Minimize2 className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" />
-            </button>
-          </div>
-        </div>
-      </div>
+              {/* Progress Bar */}
+              <div className="h-0.5 bg-gray-200 dark:bg-gray-700 rounded-t-lg">
+                <div 
+                  className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300 rounded-t-lg"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+
+              {/* Timer Display */}
+              <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2">
+                  <Timer className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm text-gray-900 dark:text-white">
+                      {formatTime(pomodoroTimer.timeRemaining)}
+                    </div>
+                    {taskName && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {taskName}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Menu Items */}
+              <div className="py-1">
+                <button
+                  onClick={() => {
+                    handlePauseResume();
+                    setShowContextMenu(false);
+                  }}
+                  className="w-full px-3 py-2 text-left flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  {pomodoroTimer.isRunning ? (
+                    <>
+                      <Pause className="w-4 h-4" />
+                      <span>Pause</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4" />
+                      <span>Resume</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    handleStop();
+                    setShowContextMenu(false);
+                  }}
+                  className="w-full px-3 py-2 text-left flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <Square className="w-4 h-4" />
+                  <span>Stop</span>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </>
   );

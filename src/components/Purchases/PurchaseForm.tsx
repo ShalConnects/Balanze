@@ -3,7 +3,7 @@ import { X, AlertCircle } from 'lucide-react';
 import { CustomDropdown } from './CustomDropdown';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { parseISO } from 'date-fns';
+import { parseISO, format } from 'date-fns';
 import { Purchase, PurchaseAttachment } from '../../types';
 import { PurchaseDetailsSection } from '../Transactions/PurchaseDetailsSection';
 import { useFinanceStore } from '../../store/useFinanceStore';
@@ -23,6 +23,15 @@ interface PurchaseFormProps {
   onClose: () => void;
   isOpen?: boolean;
 }
+
+// Helper function to parse date string as local date (not UTC)
+// This prevents timezone offset issues when displaying dates
+const parseLocalDate = (dateString: string): Date | null => {
+  if (!dateString) return null;
+  const [year, month, day] = dateString.split('-').map(Number);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+  return new Date(year, month - 1, day); // month is 0-indexed in Date constructor
+};
 
 export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isOpen = true }) => {
   // Get data from store
@@ -898,19 +907,18 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <DatePicker
-                      selected={formData.purchase_date ? parseISO(formData.purchase_date) : null}
+                      selected={formData.purchase_date ? parseLocalDate(formData.purchase_date) : null}
                       onChange={date => {
-                        handleFormChange('purchase_date', date ? date.toISOString().split('T')[0] : '');
+                        handleFormChange('purchase_date', date ? format(date, 'yyyy-MM-dd') : '');
                       }}
                       onBlur={() => { setTouched(t => ({ ...t, purchase_date: true })); }}
                       placeholderText="Purchase date *"
                       dateFormat="yyyy-MM-dd"
                       className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400"
-                      calendarClassName="z-50 shadow-lg border border-gray-200 dark:border-gray-700 rounded-lg !font-sans bg-white dark:bg-gray-800"
+                      calendarClassName="z-[60] shadow-lg border border-gray-200 dark:border-gray-700 rounded-lg !font-sans bg-white dark:bg-gray-800"
                       popperPlacement="bottom-start"
                       showPopperArrow={false}
                       wrapperClassName="w-full"
-                      todayButton="Today"
                       highlightDates={[new Date()]}
                       isClearable
                       autoComplete="off"
@@ -926,7 +934,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                     </button>
                   </div>
                   {fieldErrors.purchase_date && touched.purchase_date && (
-                    <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.purchase_date}</span>
+                    <span className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.purchase_date}</span>
                   )}
                 </div>
               )}

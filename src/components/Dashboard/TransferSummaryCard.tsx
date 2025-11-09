@@ -7,6 +7,7 @@ import { StatCard } from './StatCard';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { toast } from 'sonner';
+import { formatCurrency } from '../../utils/currency';
 
 export const TransferSummaryCard: React.FC = () => {
     const { user } = useAuthStore();
@@ -107,6 +108,7 @@ export const TransferSummaryCard: React.FC = () => {
     const handleTransferWidgetToggle = async (show: boolean) => {
         localStorage.setItem('showTransferWidget', JSON.stringify(show));
         setShowTransferWidget(show);
+        window.dispatchEvent(new CustomEvent('showTransferWidgetChanged'));
         
         if (user?.id) {
             try {
@@ -275,6 +277,32 @@ export const TransferSummaryCard: React.FC = () => {
     const inAccountTransfers = allTransfers.filter(t => t.type === 'inbetween').length;
     const dpsTransfersCount = allTransfers.filter(t => t.type === 'dps').length;
 
+    // Calculate total amounts by type
+    const currencyTransfersTotal = useMemo(() => {
+        return allTransfers
+            .filter(t => t.type === 'currency')
+            .reduce((sum, t) => sum + (t.fromAmount || 0), 0);
+    }, [allTransfers]);
+
+    const inAccountTransfersTotal = useMemo(() => {
+        return allTransfers
+            .filter(t => t.type === 'inbetween')
+            .reduce((sum, t) => sum + (t.fromAmount || 0), 0);
+    }, [allTransfers]);
+
+    const dpsTransfersTotal = useMemo(() => {
+        return allTransfers
+            .filter(t => t.type === 'dps')
+            .reduce((sum, t) => sum + (t.fromAmount || 0), 0);
+    }, [allTransfers]);
+
+    // Get recent transfers (last 3)
+    const recentTransfers = useMemo(() => {
+        return allTransfers
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 3);
+    }, [allTransfers]);
+
     if (allTransfers.length === 0) {
         return null;
     }
@@ -338,13 +366,36 @@ export const TransferSummaryCard: React.FC = () => {
                                         : 'right-0'
                                 }`}
                             >
-                                <div className="font-semibold mb-3 text-center">Transfer Summary</div>
+                                <div className="font-semibold mb-1">Transfer Summary:</div>
                                 
-                                <div className="space-y-3">
-                                    <div className="font-medium text-gray-700 dark:text-gray-200">Currency Exchange ({currencyTransfers})</div>
-                                    <div className="font-medium text-gray-700 dark:text-gray-200">In-Account ({inAccountTransfers})</div>
-                                    <div className="font-medium text-gray-700 dark:text-gray-200">DPS (Auto-Save) ({dpsTransfersCount})</div>
+                                <div className="space-y-1 mb-2">
+                                    <div className="text-gray-700 dark:text-gray-200">Currency Exchange ({currencyTransfers})</div>
+                                    <div className="text-gray-700 dark:text-gray-200">In-Account ({inAccountTransfers})</div>
+                                    <div className="text-gray-700 dark:text-gray-200">DPS Auto-Save ({dpsTransfersCount})</div>
                                 </div>
+                                
+                                {recentTransfers.length > 0 && (
+                                    <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+                                        <div className="font-semibold mb-1">Recent Transfers:</div>
+                                        <ul className="space-y-1">
+                                            {recentTransfers.map((transfer, index) => {
+                                                const fromName = transfer.fromAccount?.name || 'Unknown';
+                                                const toName = transfer.toAccount?.name || 'Unknown';
+                                                const currency = transfer.fromCurrency || 'USD';
+                                                return (
+                                                    <li key={index} className="flex justify-between">
+                                                        <span className="truncate max-w-[120px]" title={`${fromName} → ${toName}`}>
+                                                            {fromName} → {toName}
+                                                        </span>
+                                                        <span className="ml-2 tabular-nums">
+                                                            {formatCurrency(transfer.fromAmount || 0, currency)}
+                                                        </span>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -383,22 +434,46 @@ export const TransferSummaryCard: React.FC = () => {
             {showTransferMobileModal && isMobile && (
                 <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
                     <div className="fixed inset-0 bg-black/50" onClick={() => setShowTransferMobileModal(false)} />
-                    <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-64 max-w-[90vw] animate-fadein normal-case">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="font-semibold text-gray-700 dark:text-gray-200 normal-case text-center flex-1">Transfer Summary</div>
+                    <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-80 max-w-[90vw] animate-fadein">
+                        <div className="flex items-center justify-between mb-1">
+                            <div className="font-medium text-gray-700 dark:text-gray-200">Transfer Summary:</div>
                             <button
                                 onClick={() => setShowTransferMobileModal(false)}
-                                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ml-2"
+                                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                aria-label="Close modal"
                             >
                                 <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                             </button>
                         </div>
                         
-                        <div className="space-y-3">
-                            <div className="font-medium text-gray-700 dark:text-gray-200 normal-case">Currency Exchange ({currencyTransfers})</div>
-                            <div className="font-medium text-gray-700 dark:text-gray-200 normal-case">In-Account ({inAccountTransfers})</div>
-                            <div className="font-medium text-gray-700 dark:text-gray-200 normal-case">DPS (Auto-Save) ({dpsTransfersCount})</div>
+                        <div className="space-y-1 mb-2">
+                            <div className="text-xs text-gray-700 dark:text-gray-200">Currency Exchange ({currencyTransfers})</div>
+                            <div className="text-xs text-gray-700 dark:text-gray-200">In-Account ({inAccountTransfers})</div>
+                            <div className="text-xs text-gray-700 dark:text-gray-200">DPS Auto-Save ({dpsTransfersCount})</div>
                         </div>
+                        
+                        {recentTransfers.length > 0 && (
+                            <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+                                <div className="font-medium mb-1 text-xs text-gray-700 dark:text-gray-200">Recent Transfers:</div>
+                                <ul className="space-y-1 max-h-32 overflow-y-auto">
+                                    {recentTransfers.map((transfer, index) => {
+                                        const fromName = transfer.fromAccount?.name || 'Unknown';
+                                        const toName = transfer.toAccount?.name || 'Unknown';
+                                        const currency = transfer.fromCurrency || 'USD';
+                                        return (
+                                            <li key={index} className="flex justify-between text-xs text-gray-700 dark:text-gray-200">
+                                                <span className="truncate max-w-[120px]" title={`${fromName} → ${toName}`}>
+                                                    {fromName} → {toName}
+                                                </span>
+                                                <span className="ml-2 tabular-nums">
+                                                    {formatCurrency(transfer.fromAmount || 0, currency)}
+                                                </span>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

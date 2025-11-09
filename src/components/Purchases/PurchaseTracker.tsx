@@ -61,6 +61,15 @@ const currencySymbols: Record<string, string> = {
 };
 const getCurrencySymbol = (currency: string) => currencySymbols[currency] || currency;
 
+// Helper function to parse date string as local date (not UTC)
+// This prevents timezone offset issues when displaying dates
+const parseLocalDate = (dateString: string): Date | null => {
+  if (!dateString) return null;
+  const [year, month, day] = dateString.split('-').map(Number);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+  return new Date(year, month - 1, day); // month is 0-indexed in Date constructor
+};
+
 // Add this helper function if not present
 function formatFileSize(bytes: number) {
   if (!bytes) return '';
@@ -120,6 +129,30 @@ export const PurchaseTracker: React.FC = () => {
     return saved !== null ? !JSON.parse(saved) : false;
   });
   const [isRestoringWidget, setIsRestoringWidget] = useState(false);
+
+  // Listen for widget visibility changes
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'showPurchasesWidget' && e.newValue !== null) {
+        setIsPurchasesWidgetHidden(!JSON.parse(e.newValue));
+      }
+    };
+    
+    const handleCustomStorageChange = () => {
+      const saved = localStorage.getItem('showPurchasesWidget');
+      if (saved !== null) {
+        setIsPurchasesWidgetHidden(!JSON.parse(saved));
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('showPurchasesWidgetChanged', handleCustomStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('showPurchasesWidgetChanged', handleCustomStorageChange);
+    };
+  }, []);
 
   // Memoize fetch functions to prevent infinite loops
   const fetchPurchasesCallback = useCallback(() => {
@@ -184,6 +217,8 @@ export const PurchaseTracker: React.FC = () => {
     // Update localStorage immediately for instant UI response
     localStorage.setItem('showPurchasesWidget', JSON.stringify(true));
     setShowPurchasesWidget(true);
+    setIsPurchasesWidgetHidden(false);
+    window.dispatchEvent(new CustomEvent('showPurchasesWidgetChanged'));
     
     // Save to database if user is authenticated
     if (user?.id) {
@@ -2657,8 +2692,11 @@ export const PurchaseTracker: React.FC = () => {
         </div>
 
         {/* Summary Bar - Sticky on desktop, regular section on mobile */}
-        <div className="hidden lg:block sticky bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg">
+        <div className="hidden lg:block sticky bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
           <div className="px-4 py-3">
+            <div>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">All Time Summary</span>
+            </div>
             <div className="grid grid-cols-3 items-center text-sm">
               {/* Total Spent (lifetime) */}
               <div className="flex items-center gap-2 border-r border-gray-200 dark:border-gray-700 pr-4">
@@ -3068,9 +3106,9 @@ export const PurchaseTracker: React.FC = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                       <DatePicker
-                        selected={formData.purchase_date ? parseISO(formData.purchase_date) : null}
+                        selected={formData.purchase_date ? parseLocalDate(formData.purchase_date) : null}
                         onChange={date => {
-                          handleFormChange('purchase_date', date ? date.toISOString().split('T')[0] : '');
+                          handleFormChange('purchase_date', date ? format(date, 'yyyy-MM-dd') : '');
                         }}
                         onBlur={() => { setTouched(t => ({ ...t, purchase_date: true })); }}
                         placeholderText="Purchase date *"
@@ -3594,7 +3632,7 @@ export const PurchaseTracker: React.FC = () => {
                       : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}
                 >
-                  All Dates
+                  All
                 </button>
                 <button
                   onClick={(e) => {

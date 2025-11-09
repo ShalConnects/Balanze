@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, CreditCard, Banknote, ArrowRight, ShoppingCart, Clock, CheckCircle, XCircle, PieChart, LineChart, X } from 'lucide-react';
 import { PieChart as RechartsPieChart, Pie, Cell, LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useFinanceStore } from '../../store/useFinanceStore';
@@ -34,6 +34,7 @@ import { getPreference, setPreference } from '../../lib/userPreferences';
 import { toast } from 'sonner';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import PullToRefreshDashboard from './PullToRefreshDashboard';
+import { supabase } from '../../lib/supabase';
 
 
 interface DashboardProps {
@@ -173,7 +174,126 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   }, [fetchTransactions, fetchAccounts, fetchCategories, fetchPurchaseCategories, fetchDonationSavingRecords]);
   
   const { wrapAsync, setLoadingMessage } = useLoadingContext();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
+  
+  // Check if user is premium
+  const isPremium = useMemo(() => {
+    return profile?.subscription?.plan !== 'free';
+  }, [profile?.subscription?.plan]);
+  
+  // Check if there are any transfers in transactions
+  const hasTransfersInTransactions = useMemo(() => {
+    return storeTransactions.some(t => 
+      t.tags?.some((tag: string) => tag.includes('transfer'))
+    );
+  }, [storeTransactions]);
+  
+  // Check if there are any DPS transfers
+  const [hasDpsTransfers, setHasDpsTransfers] = useState(false);
+  useEffect(() => {
+    if (user?.id) {
+      supabase
+        .from('dps_transfers')
+        .select('id', { count: 'exact', head: true })
+        .then(({ count }) => {
+          setHasDpsTransfers((count || 0) > 0);
+        })
+        .catch(() => {
+          setHasDpsTransfers(false);
+        });
+    } else {
+      setHasDpsTransfers(false);
+    }
+  }, [user?.id]);
+  
+  // Combined check for any transfers (regular or DPS)
+  const hasTransfers = hasTransfersInTransactions || hasDpsTransfers;
+  
+  // Check widget visibility from localStorage (reactive)
+  const [showLendBorrowWidget, setShowLendBorrowWidget] = useState(() => {
+    const saved = localStorage.getItem('showLendBorrowWidget');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  
+  const [showTransferWidget, setShowTransferWidget] = useState(() => {
+    const saved = localStorage.getItem('showTransferWidget');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  
+  const [showDonationsSavingsWidget, setShowDonationsSavingsWidget] = useState(() => {
+    const saved = localStorage.getItem('showDonationsSavingsWidget');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  
+  // Listen to localStorage changes for widget visibility
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'showPurchasesWidget' && e.newValue !== null) {
+        setShowPurchasesWidget(JSON.parse(e.newValue));
+      }
+      if (e.key === 'showLendBorrowWidget' && e.newValue !== null) {
+        setShowLendBorrowWidget(JSON.parse(e.newValue));
+      }
+      if (e.key === 'showTransferWidget' && e.newValue !== null) {
+        setShowTransferWidget(JSON.parse(e.newValue));
+      }
+      if (e.key === 'showDonationsSavingsWidget' && e.newValue !== null) {
+        setShowDonationsSavingsWidget(JSON.parse(e.newValue));
+      }
+    };
+    
+    const handleCustomStorageChange = () => {
+      const savedPurchases = localStorage.getItem('showPurchasesWidget');
+      if (savedPurchases !== null) {
+        setShowPurchasesWidget(JSON.parse(savedPurchases));
+      }
+      const savedLendBorrow = localStorage.getItem('showLendBorrowWidget');
+      if (savedLendBorrow !== null) {
+        setShowLendBorrowWidget(JSON.parse(savedLendBorrow));
+      }
+      const savedTransfer = localStorage.getItem('showTransferWidget');
+      if (savedTransfer !== null) {
+        setShowTransferWidget(JSON.parse(savedTransfer));
+      }
+      const savedDonationsSavings = localStorage.getItem('showDonationsSavingsWidget');
+      if (savedDonationsSavings !== null) {
+        setShowDonationsSavingsWidget(JSON.parse(savedDonationsSavings));
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('showPurchasesWidgetChanged', handleCustomStorageChange);
+    window.addEventListener('showLendBorrowWidgetChanged', handleCustomStorageChange);
+    window.addEventListener('showTransferWidgetChanged', handleCustomStorageChange);
+    window.addEventListener('showDonationsSavingsWidgetChanged', handleCustomStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('showPurchasesWidgetChanged', handleCustomStorageChange);
+      window.removeEventListener('showLendBorrowWidgetChanged', handleCustomStorageChange);
+      window.removeEventListener('showTransferWidgetChanged', handleCustomStorageChange);
+      window.removeEventListener('showDonationsSavingsWidgetChanged', handleCustomStorageChange);
+    };
+  }, []);
+  
+  // Check if user has lend_borrow records
+  const [hasLendBorrowRecords, setHasLendBorrowRecords] = useState(false);
+  useEffect(() => {
+    if (isPremium && user?.id) {
+      supabase
+        .from('lend_borrow')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .then(({ count }) => {
+          setHasLendBorrowRecords((count || 0) > 0);
+        })
+        .catch(() => {
+          setHasLendBorrowRecords(false);
+        });
+    } else {
+      setHasLendBorrowRecords(false);
+    }
+  }, [isPremium, user?.id]);
   
   // Calculate stats reactively when store data changes
   const stats = getDashboardStats();
@@ -292,23 +412,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
   // Save Purchases widget visibility preference to database
   const handlePurchasesWidgetToggle = async (show: boolean) => {
+    // Update localStorage immediately for instant UI response
+    localStorage.setItem('showPurchasesWidget', JSON.stringify(show));
+    setShowPurchasesWidget(show);
+    window.dispatchEvent(new CustomEvent('showPurchasesWidgetChanged'));
+    
     if (user?.id) {
       try {
         await setPreference(user.id, 'showPurchasesWidget', show);
-        setShowPurchasesWidget(show);
         toast.success('Preference saved!', {
           description: show ? 'Purchases widget will be shown' : 'Purchases widget hidden'
         });
       } catch (error) {
-        // Still update local state even if database save fails
-        setShowPurchasesWidget(show);
         toast.error('Failed to save preference', {
           description: 'Your preference will be saved locally only'
         });
       }
     } else {
-      // Fallback to localStorage if no user
-      setShowPurchasesWidget(show);
       toast.info('Preference saved locally', {
         description: 'Sign in to sync preferences across devices'
       });
@@ -318,6 +438,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   // Get purchase analytics
   const purchaseAnalytics = useFinanceStore((state) => state.getMultiCurrencyPurchaseAnalytics());
   const purchases = useFinanceStore((state) => state.purchases);
+  
+  // Check if any widget in the Purchase/LendBorrow/Transfer row will be visible
+  const hasAnyWidgetVisible = useMemo(() => {
+    const hasPurchase = purchases.length > 0 && showPurchasesWidget;
+    const hasLendBorrow = isPremium && hasLendBorrowRecords && showLendBorrowWidget;
+    const hasTransfer = hasTransfers && showTransferWidget;
+    return hasPurchase || hasLendBorrow || hasTransfer;
+  }, [purchases.length, showPurchasesWidget, isPremium, hasLendBorrowRecords, showLendBorrowWidget, hasTransfers, showTransferWidget]);
   
   // Calculate purchase overview stats
   const totalPlannedPurchases = purchases.filter(p => p.status === 'planned').length;
@@ -572,7 +700,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
 
 
-          {/* Currency Sections & Donations & Savings - Responsive grid */}
+          {/* Currency Sections & Donations - Responsive grid */}
           <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6 items-stretch">
             {stats.byCurrency.length > 0 ? (
               stats.byCurrency.map(({ currency }) => (
@@ -600,19 +728,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                 </div>
               ))
             )}
-            {/* Donations & Savings Overview Card - Place after currency cards */}
-            <div className="w-full h-full">
-              <DonationSavingsOverviewCard
-                t={t}
-                formatCurrency={formatCurrency}
-              />
-            </div>
+            {/* Donations Overview Card - Place after currency cards */}
+            {showDonationsSavingsWidget && (
+              <div className="w-full h-full">
+                <DonationSavingsOverviewCard
+                  t={t}
+                  formatCurrency={formatCurrency}
+                />
+              </div>
+            )}
             
           </div>
 
 
-          {/* Purchase Overview & Lend & Borrow Summary Row - Responsive grid */}
-          <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6">
+          {/* Purchase Overview & L&B Summary Row - Responsive grid */}
+          {hasAnyWidgetVisible && (
+            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6">
             {/* Purchase Overview */}
             {purchases.length > 0 && showPurchasesWidget && (
               <div 
@@ -664,16 +795,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                 </div>
               </div>
             )}
-            {/* Lend & Borrow Summary Card */}
-            <div className="w-full">
-              <LendBorrowSummaryCard />
-            </div>
+            {/* L&B Summary Card */}
+            {isPremium && hasLendBorrowRecords && showLendBorrowWidget && (
+              <div className="w-full">
+                <LendBorrowSummaryCard />
+              </div>
+            )}
             
             {/* Transfer Summary Card */}
-            <div className="w-full">
-              <TransferSummaryCard />
-            </div>
+            {hasTransfers && showTransferWidget && (
+              <div className="w-full">
+                <TransferSummaryCard />
+              </div>
+            )}
           </div>
+          )}
 
           {/* Motivational Quote - Hidden on mobile, shown on desktop */}
           <div className="hidden lg:block">

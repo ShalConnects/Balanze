@@ -206,9 +206,9 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
       }
     }
 
-    // Auto-set due date to 7 days from today if not provided (only for account-linked records)
+    // Auto-set due date to 7 days from today if not provided (for all records)
     let updatedForm = { ...form };
-    if (form.affect_account_balance && (!form.due_date || form.due_date === '')) {
+    if (!form.due_date || form.due_date === '') {
       const sevenDaysFromNow = new Date();
       sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
       const dueDateString = sevenDaysFromNow.getFullYear() + '-' + 
@@ -533,9 +533,8 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
               </div>
             </div>
 
-            {/* Due Date - Only show for account-linked records */}
-            {form.affect_account_balance && (
-              <div className="w-full" style={{ marginTop: 0, marginBottom: '15px' }}>
+            {/* Due Date - Show for all records */}
+            <div className="w-full" style={{ marginTop: 0, marginBottom: '15px' }}>
               <div className={getInputClasses('due_date') + ' flex items-center bg-gray-100 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full'}>
                 <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 <DatePicker
@@ -569,8 +568,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                   {errors.due_date}
                 </p>
               )}
-              </div>
-            )}
+            </div>
 
             {/* Notes */}
             <div className="relative" style={{ marginTop: 0 }}>

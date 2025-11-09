@@ -1190,7 +1190,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                       placeholder="Select frequency"
                       fullWidth={true}
                       className="relative"
-                      style={{ position: 'relative', zIndex: 100000 }}
+                      style={{ position: 'relative', zIndex: 1 }}
                     />
                   </div>
                   

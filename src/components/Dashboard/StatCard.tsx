@@ -6,7 +6,7 @@ interface StatCardProps {
     change?: string;
     changeType?: 'positive' | 'negative' | 'neutral';
     icon?: React.ReactNode;
-    color?: 'blue' | 'green' | 'red' | 'gray' | 'yellow' | 'purple';
+    color?: 'blue' | 'green' | 'red' | 'gray' | 'yellow' | 'purple' | 'orange';
     trend?: 'up' | 'down';
     insight?: React.ReactNode;
     trendGraph?: React.ReactNode;
@@ -97,7 +97,8 @@ export const StatCard: React.FC<StatCardProps> = ({
         red: 'bg-red-100 dark:bg-red-900/20',
         gray: 'bg-gray-100 dark:bg-gray-700/50',
         yellow: 'bg-yellow-100 dark:bg-yellow-900/20',
-        purple: 'bg-purple-100 dark:bg-purple-900/20'
+        purple: 'bg-purple-100 dark:bg-purple-900/20',
+        orange: 'bg-orange-100 dark:bg-orange-900/20'
     };
 
     const gradientBgColors = {
@@ -106,7 +107,8 @@ export const StatCard: React.FC<StatCardProps> = ({
         red: 'bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20',
         gray: 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700/50 dark:to-gray-600/50',
         yellow: 'bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20',
-        purple: 'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20'
+        purple: 'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20',
+        orange: 'bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20'
     };
 
     const valueColors = {
@@ -116,6 +118,7 @@ export const StatCard: React.FC<StatCardProps> = ({
         gray: 'text-gray-900 dark:text-white',
         yellow: 'text-yellow-600 dark:text-yellow-400',
         purple: 'text-purple-600 dark:text-purple-400',
+        orange: 'text-orange-600 dark:text-orange-400',
     };
 
     const formatAnimatedValue = (val: number, originalValue: string) => {

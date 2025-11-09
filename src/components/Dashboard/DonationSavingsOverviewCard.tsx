@@ -79,7 +79,7 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
     }
   }, [user, donationSavingRecords]);
 
-  // Load user preferences for Donations & Savings widget visibility
+  // Load user preferences for Donations widget visibility
   useEffect(() => {
     if (user?.id) {
       const loadPreferences = async () => {
@@ -135,18 +135,19 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
     };
   }, []);
 
-  // Save Donations & Savings widget visibility preference (hybrid approach)
+  // Save Donations widget visibility preference (hybrid approach)
   const handleDonationsSavingsWidgetToggle = async (show: boolean) => {
     // Update localStorage immediately for instant UI response
     localStorage.setItem('showDonationsSavingsWidget', JSON.stringify(show));
     setShowDonationsSavingsWidget(show);
+    window.dispatchEvent(new CustomEvent('showDonationsSavingsWidgetChanged'));
     
     // Save to database if user is authenticated
     if (user?.id) {
       try {
         await setPreference(user.id, 'showDonationsSavingsWidget', show);
         toast.success('Preference saved!', {
-          description: show ? 'Donations & Savings widget will be shown' : 'Donations & Savings widget hidden'
+          description: show ? 'Donations widget will be shown' : 'Donations widget hidden'
         });
       } catch (error) {
         toast.error('Failed to save preference', {
@@ -177,6 +178,44 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
       const account = transaction ? accounts.find(a => a.id === transaction.account_id) : undefined;
       return account && account.currency === filterCurrency;
     }).reduce((sum, r) => sum + (r.amount || 0), 0);
+  }, [donationSavingRecords, accounts, transactions, filterCurrency]);
+
+  // Calculate totalPending for pending donations
+  const totalPending = useMemo(() => {
+    return donationSavingRecords.filter(record => {
+      if (record.status !== 'pending' || record.type !== 'donation') return false;
+      
+      // For manual donations (no transaction_id), check currency from note
+      if (!record.transaction_id) {
+        const currencyMatch = record.note?.match(/\(?Currency:\s*([A-Z]{3})\)?/);
+        const manualCurrency = currencyMatch ? currencyMatch[1] : 'USD';
+        return manualCurrency === filterCurrency;
+      }
+      
+      // For regular donations, check currency from linked transaction
+      const transaction = transactions.find(t => t.id === record.transaction_id);
+      const account = transaction ? accounts.find(a => a.id === transaction.account_id) : undefined;
+      return account && account.currency === filterCurrency;
+    }).reduce((sum, r) => sum + (r.amount || 0), 0);
+  }, [donationSavingRecords, accounts, transactions, filterCurrency]);
+
+  // Count pending donations
+  const pendingDonationsCount = useMemo(() => {
+    return donationSavingRecords.filter(record => {
+      if (record.status !== 'pending' || record.type !== 'donation') return false;
+      
+      // For manual donations (no transaction_id), check currency from note
+      if (!record.transaction_id) {
+        const currencyMatch = record.note?.match(/\(?Currency:\s*([A-Z]{3})\)?/);
+        const manualCurrency = currencyMatch ? currencyMatch[1] : 'USD';
+        return manualCurrency === filterCurrency;
+      }
+      
+      // For regular donations, check currency from linked transaction
+      const transaction = transactions.find(t => t.id === record.transaction_id);
+      const account = transaction ? accounts.find(a => a.id === transaction.account_id) : undefined;
+      return account && account.currency === filterCurrency;
+    }).length;
   }, [donationSavingRecords, accounts, transactions, filterCurrency]);
 
   // Calculate totalSaved by checking all DPS accounts and their linked savings accounts
@@ -338,7 +377,7 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
         <button
           onClick={() => handleDonationsSavingsWidgetToggle(false)}
           className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors z-10"
-          aria-label="Hide Donations & Savings widget"
+          aria-label="Hide Donations widget"
         >
           <X className="w-4 h-4" />
           {/* Tooltip - only on desktop */}
@@ -355,11 +394,11 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 pr-8 gap-3">
         {/* Left side - Info button */}
         <div className="flex items-center gap-2 flex-1">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Donations & Savings</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Donations</h2>
           <div className="relative flex items-center">
             <button
               type="button"
-              className="ml-1 p-1 rounded-full hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+              className="ml-1 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-110 active:scale-95"
               onMouseEnter={() => !isMobile && setShowTooltip(true)}
               onMouseLeave={() => !isMobile && setShowTooltip(false)}
               onFocus={() => !isMobile && setShowTooltip(true)}
@@ -374,25 +413,10 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
               tabIndex={0}
               aria-label="Show donations & savings info"
             >
-              <Info className="w-4 h-4 text-gray-400" />
+              <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200" />
             </button>
             {showTooltip && !isMobile && (
               <div className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
-                
-                {dpsAccountsForTooltip.length > 0 && (
-                  <div className="mb-2">
-                    <div className="font-semibold mb-1">DPS Accounts ({dpsAccountsForTooltip.length}):</div>
-                    <ul className="space-y-1">
-                      {dpsAccountsForTooltip.map((account, index) => (
-                        <li key={index} className="flex justify-between">
-                          <span className="truncate max-w-[120px]" title={account.name}>{account.name}</span>
-                          <span className="ml-2 tabular-nums">{formatCurrency(account.savingsBalance, filterCurrency || 'USD')}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                
                 {recentDonations.length > 0 && (
                   <div>
                     <div className="font-semibold mb-1">Recent Donations:</div>
@@ -418,15 +442,17 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
         {/* Right side - Controls */}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Currency Filter using CustomDropdown */}
-          <CustomDropdown
-            options={currencyOptions}
-            value={filterCurrency}
-            onChange={setFilterCurrency}
-            fullWidth={false}
-            className="bg-transparent border shadow-none text-gray-500 text-xs h-7 min-h-0 hover:bg-gray-100 focus:ring-0 focus:outline-none"
-            style={{ padding: '10px', paddingRight: '5px', border: '1px solid rgb(229 231 235 / var(--tw-bg-opacity, 1))' }}
-            dropdownMenuClassName="!bg-[#d3d3d3bf] !top-[20px]"
-          />
+          <div className="relative">
+            <CustomDropdown
+              options={currencyOptions}
+              value={filterCurrency}
+              onChange={setFilterCurrency}
+              fullWidth={false}
+              className="bg-transparent border shadow-none text-gray-500 text-xs h-7 min-h-0 hover:bg-gray-100 focus:ring-0 focus:outline-none"
+              style={{ padding: '10px', paddingRight: '5px', border: '1px solid rgb(229 231 235 / var(--tw-bg-opacity, 1))' }}
+              dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
+            />
+          </div>
           <Link 
             to="/donations" 
             className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200 whitespace-nowrap"
@@ -439,6 +465,18 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
       <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 flex-1">
         <div className="w-full">
           <StatCard
+            title="Total Pending"
+            value={formatCurrency(totalPending, filterCurrency || 'USD')}
+            color="orange"
+            insight={
+              <span className="text-[11px] text-gray-500">
+                {pendingDonationsCount > 0 ? `${pendingDonationsCount} pending donations` : 'No pending donations'}
+              </span>
+            }
+          />
+        </div>
+        <div className="w-full">
+          <StatCard
             title="Total Donated"
             value={formatCurrency(totalDonated, filterCurrency || 'USD')}
             color="green"
@@ -449,56 +487,25 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
             }
           />
         </div>
-        <div className="w-full">
-          <StatCard
-            title="Total Saved"
-            value={formatCurrency(totalSaved, filterCurrency || 'USD')}
-            color="green"
-            insight={
-              <span className="text-[11px] text-gray-500">
-                {activeSavingsGoals > 0 
-                  ? `${activeSavingsGoals} active goals` 
-                  : dpsAccountsForTooltip.length > 0 
-                    ? `${dpsAccountsForTooltip.length} DPS accounts` 
-                    : 'No active savings goals'
-                }
-              </span>
-            }
-          />
-        </div>
       </div>
 
-      {/* Mobile Modal for Donations & Savings Info */}
+      {/* Mobile Modal for Donations Info */}
       {showMobileModal && isMobile && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowMobileModal(false)} />
           <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-80 max-w-[90vw] animate-fadein">
-            <div className="flex items-center justify-between mb-2">
-              <button
-                onClick={() => setShowMobileModal(false)}
-                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-              </button>
-            </div>
-            
-            {dpsAccountsForTooltip.length > 0 && (
-              <div className="mb-3">
-                <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">DPS Accounts ({dpsAccountsForTooltip.length}):</div>
-                <ul className="space-y-1 max-h-32 overflow-y-auto">
-                  {dpsAccountsForTooltip.map((account, index) => (
-                    <li key={index} className="flex justify-between text-xs text-gray-700 dark:text-gray-200">
-                      <span className="truncate max-w-[120px]" title={account.name}>{account.name}</span>
-                      <span className="ml-2 tabular-nums">{formatCurrency(account.savingsBalance, filterCurrency || 'USD')}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            
             {recentDonations.length > 0 && (
               <div>
-                <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">Recent Donations:</div>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="font-medium text-gray-700 dark:text-gray-200">Recent Donations:</div>
+                  <button
+                    onClick={() => setShowMobileModal(false)}
+                    className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    aria-label="Close modal"
+                  >
+                    <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                  </button>
+                </div>
                 <ul className="space-y-1 max-h-32 overflow-y-auto">
                   {recentDonations.map((donation, index) => {
                     // Clean up donation note by removing currency information
