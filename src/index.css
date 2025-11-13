@@ -1,5 +1,5 @@
 /* Google Fonts loaded asynchronously in index.html - removed from here to prevent render blocking */
-@import './styles/quill-custom.css';
+/* quill-custom.css loaded dynamically with Quill editor (lazy loaded) */
 @import './styles/skeleton.css';
 
 @tailwind base;

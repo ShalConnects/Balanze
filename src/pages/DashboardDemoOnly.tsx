@@ -2071,7 +2071,7 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
               <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
             <button
-              onClick={() => window.location.href = '/'}
+              onClick={() => window.close()}
               className="bg-transparent border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 w-full sm:w-auto"
             >
               <span className="hidden sm:inline">Back to Landing Page</span>

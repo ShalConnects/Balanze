@@ -24,8 +24,9 @@ import {
 import { useFinanceStore } from '../store/useFinanceStore';
 import { PaymentTransaction } from '../types';
 import { toast } from 'react-hot-toast';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// PDF libraries loaded dynamically to reduce initial bundle size
+// import jsPDF from 'jspdf';
+// import autoTable from 'jspdf-autotable';
 import { Link } from 'react-router-dom';
 import { useMobileDetection } from '../hooks/useMobileDetection';
 
@@ -183,7 +184,13 @@ export const PaymentHistoryPage: React.FC = () => {
   };
 
   // Export to PDF
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
+    // Dynamically import PDF libraries only when needed (lazy load)
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable')
+    ]);
+    
     const doc = new jsPDF();
     let y = 10;
 

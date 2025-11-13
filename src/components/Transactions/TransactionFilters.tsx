@@ -1,8 +1,10 @@
 import React, { useRef, useEffect } from 'react';
 import { Search, Filter, Calendar, X } from 'lucide-react';
 import { Transaction, Account, Category } from '../../types';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+// DatePicker loaded dynamically to reduce initial bundle size
+// import DatePicker from 'react-datepicker';
+// import 'react-datepicker/dist/react-datepicker.css';
+import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 
 interface TransactionFiltersProps {
   filters: {

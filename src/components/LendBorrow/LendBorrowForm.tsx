@@ -5,8 +5,10 @@ import { LendBorrow, LendBorrowInput } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { toast } from 'sonner';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+// DatePicker loaded dynamically to reduce initial bundle size
+// import DatePicker from 'react-datepicker';
+// import 'react-datepicker/dist/react-datepicker.css';
+import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 import { parseISO } from 'date-fns';
 import { useAuthStore } from '../../store/authStore';
 import { Loader } from '../../components/common/Loader';

@@ -32,8 +32,10 @@ import { PurchaseDetailsSection } from '../Transactions/PurchaseDetailsSection';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
 import { PurchaseAttachment } from '../../types';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+// DatePicker loaded dynamically to reduce initial bundle size
+// import DatePicker from 'react-datepicker';
+// import 'react-datepicker/dist/react-datepicker.css';
+import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 import { CustomDropdown } from './CustomDropdown';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useLoadingContext } from '../../context/LoadingContext';

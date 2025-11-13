@@ -12,8 +12,10 @@ import { generateTransactionId } from '../../utils/transactionId';
 import { getCurrencySymbol } from '../../utils/currency';
 import { getDefaultAccountId } from '../../utils/defaultAccount';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+// DatePicker loaded dynamically to reduce initial bundle size
+// import DatePicker from 'react-datepicker';
+// import 'react-datepicker/dist/react-datepicker.css';
+import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 import { parseISO, format } from 'date-fns';
 import { CategoryModal } from '../common/CategoryModal';
 import { useLoadingContext } from '../../context/LoadingContext';

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, Suspense, lazy } from 'react';
+import React, { useEffect, useState, useRef, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { supabase } from './lib/supabase';
@@ -24,6 +24,9 @@ import { urgentNotificationService } from './lib/urgentNotifications';
 import { MobileSidebarProvider } from './context/MobileSidebarContext';
 import { useThemeStore } from './store/themeStore';
 import { AppInstallBanner } from './components/AppInstallBanner';
+import WelcomeOnboarding from './components/WelcomeOnboarding';
+import { isAndroidApp } from './utils/platformDetection';
+import { isFirstLaunch } from './utils/firstLaunch';
 
 // Lazy load non-critical components for code splitting
 const About = lazy(() => import('./pages/About'));
@@ -70,6 +73,29 @@ const FileRenameAdmin = lazy(() => import('./pages/FileRenameAdmin').then(m => (
 const DashboardDemo = lazy(() => import('./pages/DashboardDemo'));
 const DashboardDemoOnly = lazy(() => import('./pages/DashboardDemoOnly'));
 const ShortUrlRedirect = lazy(() => import('./pages/ShortUrlRedirect'));
+
+// HomeRoute component for Options 1 & 2: Platform-aware routing and first launch detection
+const HomeRoute: React.FC = () => {
+  const user = useAuthStore((state) => state.user);
+  
+  // If user is logged in, go to dashboard
+  if (user) {
+    return <Dashboard />;
+  }
+  
+  // Check if this is first launch
+  if (isFirstLaunch()) {
+    return <WelcomeOnboarding />;
+  }
+  
+  // Check if running in Android app
+  if (isAndroidApp()) {
+    return <Navigate to="/auth" replace />;
+  }
+  
+  // Default: show landing page for web users
+  return <LandingPage />;
+};
 
 function AppContent() {
   const user = useAuthStore((state) => state.user);
@@ -426,7 +452,8 @@ function AppContent() {
       />
       <Suspense fallback={<Loader isLoading={true} message="Loading..." />}>
         <Routes>
-          <Route path="/" element={user ? <Dashboard /> : <LandingPage />} />
+          <Route path="/" element={<HomeRoute />} />
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
           <Route path="/login" element={user ? <Navigate to="/" /> : <Auth />} />
           <Route path="/register" element={user ? <Navigate to="/" /> : <Auth />} />

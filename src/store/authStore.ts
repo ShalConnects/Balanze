@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { userPreferencesManager } from '../lib/userPreferences';
 import { favoriteQuotesService } from '../lib/favoriteQuotesService';
+import { saveRememberedEmail, clearRememberedEmail } from '../utils/authStorage';
 
 export type AppUser = {
     id: string;
@@ -26,7 +27,7 @@ interface AuthStore {
     error: string | null;
     success: string | null;
     setUserAndProfile: (user: User | null, profile: AppUser | null) => void;
-    signIn: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+    signIn: (email: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
     signUp: (email: string, password: string, fullName?: string) => Promise<{ success: boolean; message?: string }>;
     signOut: () => Promise<void>;
     signInWithProvider: (provider: 'google' | 'apple') => Promise<{ success: boolean; message?: string }>;
@@ -283,7 +284,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
     }
   },
 
-  signIn: async (email: string, password: string) => {
+  signIn: async (email: string, password: string, rememberMe: boolean = false) => {
     set({ isLoading: true, error: null, success: null });
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -297,7 +298,12 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         return { success: false, message: error.message };
       }
 
-
+      // Handle remember me functionality
+      if (rememberMe) {
+        saveRememberedEmail(email);
+      } else {
+        clearRememberedEmail();
+      }
       
       // Set user immediately to trigger navigation
       set({ user: data.user, isLoading: false });

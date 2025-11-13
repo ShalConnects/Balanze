@@ -1,7 +1,15 @@
-import * as Sentry from '@sentry/react';
+// Sentry is loaded dynamically to reduce initial bundle size
+// Lazy import Sentry to avoid blocking initial page load
+let Sentry: any = null;
+let sentryInitialized = false;
 
-// Initialize Sentry
-export function initSentry() {
+// Initialize Sentry (called lazily after initial render)
+export async function initSentry() {
+  if (sentryInitialized) return;
+  
+  // Dynamically import Sentry only when needed
+  Sentry = await import('@sentry/react');
+  
   // Use your provided DSN or fallback to env variable
   const dsn = "https://9753262d40e8712b9abf19e49ad49b14@o4510187579179008.ingest.us.sentry.io/4510187584946176" || import.meta.env.VITE_SENTRY_DSN;
   
@@ -25,40 +33,79 @@ export function initSentry() {
     // Capture uncaught exceptions
     captureUncaughtException: true,
   });
+  
+  sentryInitialized = true;
 }
 
-// Helper functions for manual error reporting
+// Helper function to ensure Sentry is loaded
+async function ensureSentry() {
+  if (!Sentry) {
+    Sentry = await import('@sentry/react');
+  }
+  if (!sentryInitialized) {
+    await initSentry();
+  }
+  return Sentry;
+}
+
+// Helper functions for manual error reporting (lazy load Sentry when called)
+// Fire-and-forget: don't await to avoid breaking existing code
 export const captureError = (error: Error, context?: string) => {
-  Sentry.captureException(error, {
-    tags: {
-      context: context || 'unknown',
-    },
+  ensureSentry().then(SentryInstance => {
+    SentryInstance.captureException(error, {
+      tags: {
+        context: context || 'unknown',
+      },
+    });
+  }).catch(() => {
+    // Silently fail if Sentry isn't available yet
   });
 };
 
 export const captureMessage = (message: string, level: 'info' | 'warning' | 'error' = 'info') => {
-  Sentry.captureMessage(message, level);
+  ensureSentry().then(SentryInstance => {
+    SentryInstance.captureMessage(message, level);
+  }).catch(() => {
+    // Silently fail if Sentry isn't available yet
+  });
 };
 
 export const addBreadcrumb = (message: string, category?: string, level?: 'info' | 'warning' | 'error') => {
-  Sentry.addBreadcrumb({
-    message,
-    category: category || 'user',
-    level: level || 'info',
+  ensureSentry().then(SentryInstance => {
+    SentryInstance.addBreadcrumb({
+      message,
+      category: category || 'user',
+      level: level || 'info',
+    });
+  }).catch(() => {
+    // Silently fail if Sentry isn't available yet
   });
 };
 
 // Set user context
 export const setUserContext = (user: { id: string; email?: string }) => {
-  Sentry.setUser({
-    id: user.id,
-    email: user.email,
+  ensureSentry().then(SentryInstance => {
+    SentryInstance.setUser({
+      id: user.id,
+      email: user.email,
+    });
+  }).catch(() => {
+    // Silently fail if Sentry isn't available yet
   });
 };
 
 // Clear user context (on logout)
 export const clearUserContext = () => {
-  Sentry.setUser(null);
+  if (Sentry) {
+    Sentry.setUser(null);
+  } else {
+    // If Sentry isn't loaded yet, try to load it and then clear
+    ensureSentry().then(SentryInstance => {
+      SentryInstance.setUser(null);
+    }).catch(() => {
+      // Silently fail if Sentry isn't available yet
+    });
+  }
 };
 
 export default Sentry;

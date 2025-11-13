@@ -113,3 +113,10 @@ playwright-report/
 test-results.xml
 
 .vercel
+
+# Android signing keys (NEVER commit these!)
+*.jks
+*.keystore
+android/keystore.properties
+android/app/keystore.properties
+balanze-release-key.jks

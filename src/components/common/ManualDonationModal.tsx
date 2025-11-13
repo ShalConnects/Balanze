@@ -5,8 +5,10 @@ import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+// DatePicker loaded dynamically to reduce initial bundle size
+// import DatePicker from 'react-datepicker';
+// import 'react-datepicker/dist/react-datepicker.css';
+import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 import { parseISO, format } from 'date-fns';
 import { useLoadingContext } from '../../context/LoadingContext';
 

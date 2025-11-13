@@ -8,13 +8,16 @@ import { TransactionForm } from './TransactionForm';
 import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
 import { formatTransactionId } from '../../utils/transactionId';
 import { toast } from 'sonner';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+// DatePicker loaded dynamically to reduce initial bundle size
+// import DatePicker from 'react-datepicker';
+// import 'react-datepicker/dist/react-datepicker.css';
+import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 import { parseISO } from 'date-fns';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { Tooltip } from '../common/Tooltip';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// PDF libraries are loaded dynamically via exportUtils (lazy load)
+// import jsPDF from 'jspdf';
+// import autoTable from 'jspdf-autotable';
 import { useAuthStore } from '../../store/authStore';
 import { searchService, SEARCH_CONFIGS, highlightMatches } from '../../utils/searchService';
 

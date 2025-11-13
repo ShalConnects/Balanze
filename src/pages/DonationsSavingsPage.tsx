@@ -13,8 +13,9 @@ import { toast } from 'sonner';
 import { getPreference, setPreference } from '../lib/userPreferences';
 import { useRecordSelection } from '../hooks/useRecordSelection';
 import { SelectionFilter } from '../components/common/SelectionFilter';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// PDF libraries loaded dynamically to reduce initial bundle size
+// import jsPDF from 'jspdf';
+// import autoTable from 'jspdf-autotable';
 
 const DonationsSavingsPage: React.FC = () => {
   const { 
@@ -595,6 +596,12 @@ const DonationsSavingsPage: React.FC = () => {
 
   const exportToPDF = async (data: any[]) => {
     try {
+      // Dynamically import PDF libraries only when needed (lazy load)
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable')
+      ]);
+      
       const doc = new jsPDF();
       
       // Add title

@@ -4,6 +4,7 @@ import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
 import { LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import InteractiveBackground from '../components/InteractiveBackground';
+import { getRememberedEmail } from '../utils/authStorage';
 
 
 
@@ -140,6 +141,18 @@ export const Auth: React.FC = () => {
     return () => clearTimeout(timer);
   }, [activeTab, signupStep, clearMessages]);
 
+  // Load saved email when component mounts or when switching to login tab
+  useEffect(() => {
+    if (activeTab === 'login') {
+      const savedEmail = getRememberedEmail();
+      if (savedEmail) {
+        setEmail(savedEmail);
+        // Also set rememberMe to true if email was saved
+        setRememberMe(true);
+      }
+    }
+  }, [activeTab]);
+
   // Email validation
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -274,11 +287,11 @@ export const Auth: React.FC = () => {
     }
 
     try {
-      // Use the auth store's signIn method
-      const result = await signIn(currentEmail, currentPassword);
+      // Use the auth store's signIn method with rememberMe flag
+      const result = await signIn(currentEmail, currentPassword, rememberMe);
       
       if (result.success) {
-        // The auth store will handle navigation
+        // The auth store will handle navigation and saving email if rememberMe is true
       }
     } catch (error) {
 
@@ -364,7 +377,7 @@ export const Auth: React.FC = () => {
           {/* Home Icon - Positioned in center of top border */}
           <div className="absolute -top-6 left-1/2 transform -translate-x-1/2">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/landing')}
               className="p-3 bg-white/20 dark:bg-gray-800/20 backdrop-blur-md border border-white/30 dark:border-gray-700/30 transition-all duration-200 rounded-full shadow-lg hover:shadow-xl hover:bg-white/30 dark:hover:bg-gray-800/30"
               title="Go to Home"
             >

@@ -4,8 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { LendBorrow, LendBorrowReturn } from '../../types/index';
 import { toast } from 'sonner';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+// DatePicker loaded dynamically to reduce initial bundle size
+// import DatePicker from 'react-datepicker';
+// import 'react-datepicker/dist/react-datepicker.css';
+import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 import { Loader } from '../common/Loader';
 import { getCurrencySymbol } from '../../utils/currency';
 

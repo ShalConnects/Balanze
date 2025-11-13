@@ -22,7 +22,8 @@ import { TransferSummaryCard } from './TransferSummaryCard';
 import { CurrencyOverviewCard } from './CurrencyOverviewCard';
 import { DonationSavingsOverviewCard } from './DonationSavingsOverviewCard';
 import { StickyNote } from '../StickyNote';
-import { NotesAndTodosWidget } from './NotesAndTodosWidget';
+// NotesAndTodosWidget loaded dynamically to reduce initial bundle size
+// import { NotesAndTodosWidget } from './NotesAndTodosWidget';
 import { PurchaseForm } from '../Purchases/PurchaseForm';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { SkeletonCard, SkeletonChart } from '../common/Skeleton';
@@ -74,8 +75,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   const [hasLoadError, setHasLoadError] = useState(false);
   // Track retry attempts
   const [retryCount, setRetryCount] = useState(0);
-  
+  // Lazy load NotesAndTodosWidget to reduce initial bundle size
+  const [NotesAndTodosWidget, setNotesAndTodosWidget] = useState<React.ComponentType | null>(null);
 
+  // Lazy load NotesAndTodosWidget after initial render
+  useEffect(() => {
+    if (!NotesAndTodosWidget) {
+      // Load after a short delay to prioritize critical content
+      const timer = setTimeout(() => {
+        import('./NotesAndTodosWidget').then((module) => {
+          setNotesAndTodosWidget(() => module.NotesAndTodosWidget);
+        }).catch(() => {
+          // Silently fail if widget can't be loaded
+        });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [NotesAndTodosWidget]);
 
   // Memoize store functions to prevent infinite loops
   const fetchTransactions = useCallback(() => {
@@ -835,7 +851,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         {/* Right Sidebar - Hidden on mobile, shown on desktop */}
         <div className="hidden lg:block w-72 space-y-6">
           <LastWishCountdownWidget />
-          <NotesAndTodosWidget />
+          {NotesAndTodosWidget ? <NotesAndTodosWidget /> : null}
         </div>
 
         {/* Mobile Bottom Section - Accordion Layout */}

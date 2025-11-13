@@ -11,7 +11,6 @@ import InteractiveBackground from '../components/InteractiveBackground';
 import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
 import { PaddlePaymentModal } from '../components/common/PaddlePaymentModal';
-import { DemoModal } from '../components/common/DemoModal';
 import { Footer } from '../components/Layout/Footer';
 
 const LandingPage: React.FC = () => {
@@ -27,7 +26,6 @@ const LandingPage: React.FC = () => {
     billingCycle: 'monthly' as 'monthly' | 'one-time',
     features: [] as string[]
   });
-  const [showDemoModal, setShowDemoModal] = useState(false);
   
   // Animated counter states
   const [userCount, setUserCount] = useState(0);
@@ -344,9 +342,9 @@ const LandingPage: React.FC = () => {
                 </button>
                 <button
                   className="bg-transparent text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
-                  onClick={() => document.getElementById('testimonials')?.scrollIntoView({ behavior: 'smooth' })}
+                  onClick={() => document.getElementById('last-wish')?.scrollIntoView({ behavior: 'smooth' })}
                 >
-                  Testimonials
+                  Last Wish
                 </button>
                 <button
                   className="bg-transparent text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
@@ -435,11 +433,11 @@ const LandingPage: React.FC = () => {
                   <button
                     className="block w-full text-left px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
                     onClick={() => {
-                      document.getElementById('testimonials')?.scrollIntoView({ behavior: 'smooth' });
+                      document.getElementById('last-wish')?.scrollIntoView({ behavior: 'smooth' });
                       setIsMobileMenuOpen(false);
                     }}
                   >
-                    Testimonials
+                    Last Wish
                   </button>
                   <button
                     className="block w-full text-left px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
@@ -572,8 +570,10 @@ const LandingPage: React.FC = () => {
               
               <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-4 transform rotate-3 hover:rotate-0 transition-all duration-500 group-hover:shadow-3xl">
                 <picture>
-                  {/* WebP format for modern browsers - add when images are converted */}
+                  {/* WebP format for modern browsers - uncomment when images are converted to WebP */}
                   {/* <source srcSet="/main-dashboard-400.webp 400w, /main-dashboard-800.webp 800w, /main-dashboard-1200.webp 1200w, /main-dashboard-1643.webp 1643w" type="image/webp" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1200px" /> */}
+                  {/* PNG fallback with responsive sizes - uncomment when responsive PNGs are created */}
+                  {/* <source srcSet="/main-dashboard-400.png 400w, /main-dashboard-800.png 800w, /main-dashboard-1200.png 1200w, /main-dashboard-1643.png 1643w" type="image/png" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1200px" /> */}
                   <img 
                     src="/main-dashboard.png" 
                     alt="Balanze Dashboard"
@@ -584,15 +584,15 @@ const LandingPage: React.FC = () => {
                     height="1060"
                     style={{ aspectRatio: '1643 / 1060' }}
                     fetchpriority="high"
-                    // srcSet="/main-dashboard-400.png 400w, /main-dashboard-800.png 800w, /main-dashboard-1200.png 1200w, /main-dashboard-1643.png 1643w"
-                    // sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1200px"
+                    srcSet="/main-dashboard-400.png 400w, /main-dashboard-800.png 800w, /main-dashboard-1200.png 1200w, /main-dashboard-1643.png 1643w"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1200px"
                   />
                 </picture>
               </div>
               
               {/* Enhanced Live Demo Badge */}
               <button
-                onClick={() => setShowDemoModal(true)}
+                onClick={() => window.open('/dashboard-demo-only', '_blank')}
                 className="absolute -top-4 -right-4 bg-gradient-to-r from-green-400 to-green-600 rounded-lg shadow-lg p-3 animate-bounce hover:from-green-500 hover:to-green-700 transition-all duration-300 cursor-pointer group"
               >
                 <div className="flex items-center space-x-2">
@@ -615,7 +615,7 @@ const LandingPage: React.FC = () => {
                   </div>
                   <div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">Savings This Month</div>
-                    <div className="text-lg font-bold text-green-600 dark:text-green-500">+$1,250</div>
+                    <div className="text-lg font-bold text-green-600 dark:text-green-400">+$1,250</div>
                   </div>
                 </div>
               </div>
@@ -725,16 +725,24 @@ const LandingPage: React.FC = () => {
                     
                     {/* Dashboard Image */}
                     <div className="w-full h-full flex items-center justify-center">
-                      <img 
-                        src="/android_view.png"
-                        alt="Balanze Android App Demo"
-                        className="w-full h-full object-cover rounded-[2.5rem]"
-                        loading="lazy"
-                        decoding="async"
-                        width="400"
-                        height="800"
-                        style={{ padding: '15px' }}
-                      />
+                      <picture>
+                        {/* WebP format for modern browsers - uncomment when images are converted to WebP */}
+                        {/* <source srcSet="/android_view-200.webp 200w, /android_view-300.webp 300w, /android_view-400.webp 400w" type="image/webp" sizes="(max-width: 640px) 280px, 400px" /> */}
+                        {/* PNG fallback with responsive sizes - uncomment when responsive PNGs are created */}
+                        {/* <source srcSet="/android_view-200.png 200w, /android_view-300.png 300w, /android_view-400.png 400w" type="image/png" sizes="(max-width: 640px) 280px, 400px" /> */}
+                        <img 
+                          src="/android_view.png"
+                          alt="Balanze Android App Demo"
+                          className="w-full h-full object-cover rounded-[2.5rem]"
+                          loading="lazy"
+                          decoding="async"
+                          width="400"
+                          height="800"
+                          style={{ padding: '15px' }}
+                          srcSet="/android_view-200.png 200w, /android_view-300.png 300w, /android_view-400.png 400w"
+                          sizes="(max-width: 640px) 280px, 400px"
+                        />
+                      </picture>
                     </div>
                   </div>
                 </div>
@@ -773,7 +781,7 @@ const LandingPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-12">
               {/* Multi-Currency Card */}
               <button
-                onClick={() => setShowDemoModal(true)}
+                onClick={() => window.open('/dashboard-demo-only', '_blank')}
                 className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 cursor-pointer group text-left w-full"
               >
                 <div className="flex items-center mb-4">
@@ -788,7 +796,7 @@ const LandingPage: React.FC = () => {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">USD Balance</span>
-                    <span className="font-semibold text-green-600 dark:text-green-500">$54,420.50</span>
+                    <span className="font-semibold text-green-600 dark:text-green-400">$54,420.50</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">BDT Balance</span>
@@ -803,7 +811,7 @@ const LandingPage: React.FC = () => {
 
               {/* Recent Transactions Card */}
               <button
-                onClick={() => setShowDemoModal(true)}
+                onClick={() => window.open('/dashboard-demo-only', '_blank')}
                 className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600 cursor-pointer group text-left w-full"
               >
                 <div className="flex items-center mb-4">
@@ -818,14 +826,14 @@ const LandingPage: React.FC = () => {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Salary Payment</span>
-                    <span className="font-semibold text-green-600 dark:text-green-500">+$3,500</span>
+                    <span className="font-semibold text-green-600 dark:text-green-400">+$3,500</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Grocery Shopping</span>
                     <span className="font-semibold text-red-600 dark:text-red-400">-$120.50</span>
                   </div>
                 </div>
-                <div className="mt-4 flex items-center text-green-600 dark:text-green-500 text-sm font-medium group-hover:translate-x-1 transition-transform duration-200">
+                <div className="mt-4 flex items-center text-green-600 dark:text-green-400 text-sm font-medium group-hover:translate-x-1 transition-transform duration-200">
                   <span>Click to explore</span>
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </div>
@@ -833,7 +841,7 @@ const LandingPage: React.FC = () => {
 
               {/* Analytics Card */}
               <button
-                onClick={() => setShowDemoModal(true)}
+                onClick={() => window.open('/dashboard-demo-only', '_blank')}
                 className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 cursor-pointer group text-left w-full"
               >
                 <div className="flex items-center mb-4">
@@ -852,7 +860,7 @@ const LandingPage: React.FC = () => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Savings Rate</span>
-                    <span className="font-semibold text-green-600 dark:text-green-500">23%</span>
+                    <span className="font-semibold text-green-600 dark:text-green-400">23%</span>
                   </div>
                 </div>
                 <div className="mt-4 flex items-center text-purple-600 dark:text-purple-400 text-sm font-medium group-hover:translate-x-1 transition-transform duration-200">
@@ -865,7 +873,7 @@ const LandingPage: React.FC = () => {
             {/* Enhanced Demo CTA */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <button
-                onClick={() => setShowDemoModal(true)}
+                onClick={() => window.open('/dashboard-demo-only', '_blank')}
                 className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center space-x-2 w-full sm:w-auto"
               >
                 <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
@@ -1100,7 +1108,7 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Last Wish Feature Section - Testimonial Integration */}
-      <section className="py-20 bg-white dark:bg-gray-900 relative overflow-hidden">
+      <section id="last-wish" className="py-20 bg-white dark:bg-gray-900 relative overflow-hidden">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           {/* Section Header */}
           <div className="text-center mb-16">
@@ -1186,13 +1194,6 @@ const LandingPage: React.FC = () => {
               Unlock Last Wish with Premium
                   <ArrowRight className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={() => setShowDemoModal(true)}
-                  className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-8 py-4 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300 border border-gray-300 dark:border-gray-600 flex items-center justify-center gap-3"
-                >
-                  <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                  Try Live Demo
-            </button>
               </div>
             </div>
 
@@ -1882,11 +1883,6 @@ const LandingPage: React.FC = () => {
         features={paymentModal.features}
       />
 
-      {/* Demo Modal */}
-      <DemoModal
-        isOpen={showDemoModal}
-        onClose={() => setShowDemoModal(false)}
-      />
       </div>
     </div>
     </>

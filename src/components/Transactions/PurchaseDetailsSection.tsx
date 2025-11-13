@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Upload, X, FileText, Image, File } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { PurchaseAttachment } from '../../types';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+// Quill editor loaded dynamically to reduce initial bundle size
+// import ReactQuill from 'react-quill';
+// import 'react-quill/dist/quill.snow.css';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
@@ -38,6 +39,25 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
   const [currentUploadFile, setCurrentUploadFile] = useState<string | null>(null);
   const notesEditorRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<any>(null);
+  const [ReactQuill, setReactQuill] = useState<any>(null);
+  const [quillLoading, setQuillLoading] = useState(false);
+
+  // Lazy load Quill editor when section is expanded
+  useEffect(() => {
+    if (isExpanded && !ReactQuill && !quillLoading) {
+      setQuillLoading(true);
+          Promise.all([
+            import('react-quill'),
+            import('react-quill/dist/quill.snow.css'),
+            import('../../styles/quill-custom.css')
+          ]).then(([quillModule]) => {
+        setReactQuill(() => quillModule.default);
+        setQuillLoading(false);
+      }).catch(() => {
+        setQuillLoading(false);
+      });
+    }
+  }, [isExpanded, ReactQuill, quillLoading]);
 
   // Sync notes prop to contentEditable only when it changes
   useEffect(() => {
@@ -246,21 +266,30 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
     border-color: #374151 !important;
   }
 `}</style>
-            <ReactQuill
-              ref={quillRef}
-              theme="snow"
-              value={notes}
-              onChange={onNotesChange}
-              placeholder="Take a note..."
-              modules={{
-                toolbar: [
-                  ['bold', 'italic', 'underline', 'strike'],
-                  [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                  ['clean']
-                ]
-              }}
-              className="quill-form-field dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
-            />
+            {ReactQuill ? (
+              <ReactQuill
+                ref={quillRef}
+                theme="snow"
+                value={notes}
+                onChange={onNotesChange}
+                placeholder="Take a note..."
+                modules={{
+                  toolbar: [
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    ['clean']
+                  ]
+                }}
+                className="quill-form-field dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
+              />
+            ) : (
+              <textarea
+                value={notes}
+                onChange={(e) => onNotesChange(e.target.value)}
+                placeholder="Take a note... (Loading rich editor...)"
+                className="w-full min-h-[200px] p-3 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              />
+            )}
             {showClearButtonForNotes && notes && (
               <button
                 type="button"

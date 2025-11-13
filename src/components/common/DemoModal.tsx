@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, ArrowLeft, ArrowRight } from 'lucide-react';
-import { DashboardDemoOnly } from '../../pages/DashboardDemoOnly';
+// DashboardDemoOnly loaded dynamically to reduce initial bundle size
+// import { DashboardDemoOnly } from '../../pages/DashboardDemoOnly';
 
 interface DemoModalProps {
   isOpen: boolean;
@@ -8,6 +9,21 @@ interface DemoModalProps {
 }
 
 export const DemoModal: React.FC<DemoModalProps> = ({ isOpen, onClose }) => {
+  const [DashboardDemoOnly, setDashboardDemoOnly] = useState<React.ComponentType<any> | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Lazy load DashboardDemoOnly when modal opens
+  useEffect(() => {
+    if (isOpen && !DashboardDemoOnly && !loading) {
+      setLoading(true);
+      import('../../pages/DashboardDemoOnly').then((module) => {
+        setDashboardDemoOnly(() => module.DashboardDemoOnly);
+        setLoading(false);
+      }).catch(() => {
+        setLoading(false);
+      });
+    }
+  }, [isOpen, DashboardDemoOnly, loading]);
   // Handle escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -88,7 +104,16 @@ export const DemoModal: React.FC<DemoModalProps> = ({ isOpen, onClose }) => {
         {/* Modal Content */}
         <div className="h-full overflow-y-auto">
           <div className="p-4">
-            <DashboardDemoOnly />
+            {DashboardDemoOnly ? (
+              <DashboardDemoOnly />
+            ) : (
+              <div className="flex items-center justify-center h-full min-h-[400px]">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600 dark:text-gray-400">Loading demo dashboard...</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

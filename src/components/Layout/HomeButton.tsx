@@ -1,16 +1,22 @@
 import React from 'react';
 import { Home } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useMobileSidebar } from '../../context/MobileSidebarContext';
 
 export const HomeButton: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isMobile } = useMobileDetection();
   const { isMobileSidebarOpen } = useMobileSidebar();
 
   const handleHomeClick = () => {
-    navigate('/');
+    // If we're on the demo page, close the tab instead of navigating
+    if (location.pathname === '/dashboard-demo-only') {
+      window.close();
+    } else {
+      navigate('/');
+    }
   };
 
   return (

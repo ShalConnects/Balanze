@@ -15,7 +15,9 @@
     "android:sync": "npm run build && npx cap sync android",
     "android:open": "npx cap open android",
     "android:run": "npm run android:sync && npx cap run android",
-    "android:build": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease"
+    "android:build": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease",
+    "android:generate-keystore": "node generate-keystore.js",
+    "android:aab": "npm run build && npx cap sync android && cd android && (if exist gradlew.bat (call gradlew.bat --stop && call gradlew.bat bundleRelease) else (./gradlew --stop && ./gradlew bundleRelease))"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDown, Calendar, FileText, TrendingUp, Sparkles } from 'lucide-react';
 import { LastWishCountdownWidget } from './LastWishCountdownWidget';
-import { NotesAndTodosWidget } from './NotesAndTodosWidget';
+// NotesAndTodosWidget loaded dynamically to reduce initial bundle size
+// import { NotesAndTodosWidget } from './NotesAndTodosWidget';
 import { MotivationalQuote } from './MotivationalQuote';
 import { RecentTransactions } from './RecentTransactions';
 import { Link } from 'react-router-dom';
@@ -21,6 +22,18 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { profile } = useAuthStore();
+  const [NotesAndTodosWidget, setNotesAndTodosWidget] = useState<React.ComponentType | null>(null);
+
+  // Lazy load NotesAndTodosWidget when accordion is expanded
+  useEffect(() => {
+    if (isExpanded && !NotesAndTodosWidget) {
+      import('./NotesAndTodosWidget').then((module) => {
+        setNotesAndTodosWidget(() => module.NotesAndTodosWidget);
+      }).catch(() => {
+        // Silently fail if widget can't be loaded
+      });
+    }
+  }, [isExpanded, NotesAndTodosWidget]);
   
   // Check if user has Premium plan for Last Wish
   const isPremium = profile?.subscription?.plan === 'premium';
@@ -130,7 +143,7 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
             {/* Notes & Tasks Section */}
             <div>
               <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
-                <NotesAndTodosWidget />
+                {NotesAndTodosWidget ? <NotesAndTodosWidget /> : null}
               </div>
             </div>
           </div>

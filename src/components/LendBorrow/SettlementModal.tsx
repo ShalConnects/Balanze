@@ -6,8 +6,10 @@ import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { toast } from 'sonner';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+// DatePicker loaded dynamically to reduce initial bundle size
+// import DatePicker from 'react-datepicker';
+// import 'react-datepicker/dist/react-datepicker.css';
+import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 import { getCurrencySymbol } from '../../utils/currency';
 import { supabase } from '../../lib/supabase';
 

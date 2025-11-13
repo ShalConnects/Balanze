@@ -1,5 +1,6 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// PDF libraries loaded dynamically to reduce initial bundle size
+// import jsPDF from 'jspdf';
+// import autoTable from 'jspdf-autotable';
 import { FilterState, SortConfig, ExportOptions, ExportResult, FilterSummary } from '../types/export';
 import { formatTransactionDescription } from './transactionDescriptionFormatter';
 
@@ -269,6 +270,12 @@ export const exportToCSV = async (options: ExportOptions): Promise<ExportResult>
  */
 export const exportToPDF = async (options: ExportOptions): Promise<ExportResult> => {
   try {
+    // Dynamically import PDF libraries only when needed (lazy load)
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable')
+    ]);
+    
     const { transactions, accounts, filters, filename } = options;
     const doc = new jsPDF();
     

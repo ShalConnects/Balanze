@@ -21,8 +21,10 @@ import { SelectionFilter } from '../common/SelectionFilter';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useTranslation } from 'react-i18next';
 import { getPreference, setPreference } from '../../lib/userPreferences';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+// DatePicker loaded dynamically to reduce initial bundle size
+// import DatePicker from 'react-datepicker';
+// import 'react-datepicker/dist/react-datepicker.css';
+import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 
 const currencySymbols: Record<string, string> = {
   USD: '$',
