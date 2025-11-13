@@ -7,6 +7,10 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
     include: ['recharts'],
+    esbuildOptions: {
+      // Fix recharts initialization order issues
+      target: 'es2020',
+    },
   },
   build: {
     // Generate source maps for better debugging and Lighthouse insights
@@ -45,10 +49,11 @@ export default defineConfig({
           if (id.includes('node_modules/@sentry')) {
             return 'sentry-vendor';
           }
-          // Charts (lazy load)
-          if (id.includes('node_modules/recharts')) {
-            return 'charts-vendor';
-          }
+          // Recharts - keep in main bundle to avoid initialization order issues
+          // Don't split recharts to prevent "Cannot access 'P' before initialization" error
+          // if (id.includes('node_modules/recharts')) {
+          //   return 'charts-vendor';
+          // }
           // Paddle (lazy load)
           if (id.includes('node_modules/@paddle')) {
             return 'paddle-vendor';

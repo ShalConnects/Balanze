@@ -224,81 +224,81 @@ async function gatherUserData(userId) {
   const metadata = { userId, operation: 'gatherUserData' };
 
   try {
-    // Gather accounts
+  // Gather accounts
     try {
       const { data: accounts, error: accountsError } = await supabase
-        .from('accounts')
-        .select('*')
-        .eq('user_id', userId);
+    .from('accounts')
+    .select('*')
+    .eq('user_id', userId);
       
       if (accountsError) {
         await logError('gatherUserData', accountsError, { ...metadata, table: 'accounts' });
       }
-      data.accounts = accounts || [];
+  data.accounts = accounts || [];
     } catch (error) {
       await logError('gatherUserData', error, { ...metadata, table: 'accounts' });
       data.accounts = [];
     }
 
-    // Gather transactions
+  // Gather transactions
     try {
       const { data: transactions, error: transactionsError } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', userId);
+    .from('transactions')
+    .select('*')
+    .eq('user_id', userId);
       
       if (transactionsError) {
         await logError('gatherUserData', transactionsError, { ...metadata, table: 'transactions' });
       }
-      data.transactions = transactions || [];
+  data.transactions = transactions || [];
     } catch (error) {
       await logError('gatherUserData', error, { ...metadata, table: 'transactions' });
       data.transactions = [];
     }
 
-    // Gather purchases
+  // Gather purchases
     try {
       const { data: purchases, error: purchasesError } = await supabase
-        .from('purchases')
-        .select('*')
-        .eq('user_id', userId);
+    .from('purchases')
+    .select('*')
+    .eq('user_id', userId);
       
       if (purchasesError) {
         await logError('gatherUserData', purchasesError, { ...metadata, table: 'purchases' });
       }
-      data.purchases = purchases || [];
+  data.purchases = purchases || [];
     } catch (error) {
       await logError('gatherUserData', error, { ...metadata, table: 'purchases' });
       data.purchases = [];
     }
 
-    // Gather lend/borrow records
+  // Gather lend/borrow records
     try {
       const { data: lendBorrow, error: lendBorrowError } = await supabase
-        .from('lend_borrow')
-        .select('*')
-        .eq('user_id', userId);
+    .from('lend_borrow')
+    .select('*')
+    .eq('user_id', userId);
       
       if (lendBorrowError) {
         await logError('gatherUserData', lendBorrowError, { ...metadata, table: 'lend_borrow' });
       }
-      data.lendBorrow = lendBorrow || [];
+  data.lendBorrow = lendBorrow || [];
     } catch (error) {
       await logError('gatherUserData', error, { ...metadata, table: 'lend_borrow' });
       data.lendBorrow = [];
     }
 
-    // Gather donation/savings records
+  // Gather donation/savings records
     try {
       const { data: donationSavings, error: donationSavingsError } = await supabase
-        .from('donation_saving_records')
-        .select('*')
-        .eq('user_id', userId);
+    .from('donation_saving_records')
+    .select('*')
+    .eq('user_id', userId);
       
       if (donationSavingsError) {
         await logError('gatherUserData', donationSavingsError, { ...metadata, table: 'donation_saving_records' });
       }
-      data.donationSavings = donationSavings || [];
+  data.donationSavings = donationSavings || [];
     } catch (error) {
       await logError('gatherUserData', error, { ...metadata, table: 'donation_saving_records' });
       data.donationSavings = [];
@@ -320,7 +320,7 @@ async function gatherUserData(userId) {
       data.investmentAssets = [];
     }
 
-    return data;
+  return data;
   } catch (error) {
     await logError('gatherUserData', error, { ...metadata, fatal: true });
     throw error;
@@ -534,7 +534,7 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
       <![endif]-->
       <style>
         /* Reset and Base Styles */
-        body {
+        body { 
           margin: 0;
           padding: 0;
           -webkit-text-size-adjust: 100%;
@@ -975,7 +975,7 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
           .data-summary,
           .attachment-card,
           .privacy-card {
-            padding: 20px;
+          padding: 20px;
           }
           .email-footer {
             padding: 24px 20px;
@@ -1411,7 +1411,7 @@ function createPDFBuffer(user, recipient, data, settings) {
       // Get names
       const recipientName = recipient.name || recipient.email;
       const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Account holder';
-      
+
       // Track total pages (will be updated)
       let totalPages = 1;
       const updateTotalPages = () => {
@@ -1921,60 +1921,60 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
   // Use retry mechanism for sending email
   return await retryWithBackoff(
     async () => {
-      try {
-        // Filter data based on user preferences
-        const filteredData = filterDataBySettings(userData, settings.include_data);
+  try {
+    // Filter data based on user preferences
+    const filteredData = filterDataBySettings(userData, settings.include_data);
 
-        // Create email content
-        const emailContent = createEmailContent(user, recipient, filteredData, settings, isTestMode);
+    // Create email content
+    const emailContent = createEmailContent(user, recipient, filteredData, settings, isTestMode);
 
-        // Generate PDF
-        const pdfBuffer = await createPDFBuffer(user, recipient, filteredData, settings);
+    // Generate PDF
+    const pdfBuffer = await createPDFBuffer(user, recipient, filteredData, settings);
         
         // Generate CSV export
         const csvContent = generateCSVExport(filteredData, settings);
 
-        // Get user's display name for subject
-        const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || user.email;
+    // Get user's display name for subject
+    const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || user.email;
 
-        // Send email
-        const mailOptions = {
-          from: process.env.SMTP_USER,
-          to: recipient.email,
-          subject: `${isTestMode ? '🧪 Test - ' : ''}Last Wish Delivery from ${userName}`,
-          html: emailContent,
-          attachments: [
-            {
-              filename: `${isTestMode ? 'test-' : ''}financial-data-backup.json`,
-              content: JSON.stringify(filteredData, null, 2),
-              contentType: 'application/json'
-            },
-            {
-              filename: `${isTestMode ? 'test-' : ''}financial-data-backup.pdf`,
-              content: pdfBuffer,
-              contentType: 'application/pdf'
+    // Send email
+    const mailOptions = {
+      from: process.env.SMTP_USER,
+      to: recipient.email,
+      subject: `${isTestMode ? '🧪 Test - ' : ''}Last Wish Delivery from ${userName}`,
+      html: emailContent,
+      attachments: [
+        {
+          filename: `${isTestMode ? 'test-' : ''}financial-data-backup.json`,
+          content: JSON.stringify(filteredData, null, 2),
+          contentType: 'application/json'
+        },
+        {
+          filename: `${isTestMode ? 'test-' : ''}financial-data-backup.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
             },
             {
               filename: `${isTestMode ? 'test-' : ''}financial-data-backup.csv`,
               content: csvContent,
               contentType: 'text/csv'
-            }
-          ]
-        };
+        }
+      ]
+    };
 
-        const result = await transporter.sendMail(mailOptions);
+    const result = await transporter.sendMail(mailOptions);
 
         // Log successful delivery
         try {
-          await supabase
-            .from('last_wish_deliveries')
-            .insert({
-              user_id: user.id,
-              recipient_email: recipient.email,
-              delivery_data: filteredData,
-              delivery_status: 'sent',
-              sent_at: new Date().toISOString()
-            });
+    await supabase
+      .from('last_wish_deliveries')
+      .insert({
+        user_id: user.id,
+        recipient_email: recipient.email,
+        delivery_data: filteredData,
+        delivery_status: 'sent',
+        sent_at: new Date().toISOString()
+      });
         } catch (dbError) {
           // Log database error but don't fail the email send
           await logError('sendDataToRecipient', dbError, {
@@ -1984,9 +1984,9 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
           });
         }
 
-        return { success: true, messageId: result.messageId };
+    return { success: true, messageId: result.messageId };
 
-      } catch (error) {
+  } catch (error) {
         // Enhanced error logging with full context
         await logError('sendDataToRecipient', error, {
           ...metadata,
@@ -1996,15 +1996,15 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
 
         // Log failed delivery attempt
         try {
-          await supabase
-            .from('last_wish_deliveries')
-            .insert({
-              user_id: user.id,
-              recipient_email: recipient.email,
-              delivery_data: {},
-              delivery_status: 'failed',
-              error_message: error.message,
-              sent_at: new Date().toISOString()
+    await supabase
+      .from('last_wish_deliveries')
+      .insert({
+        user_id: user.id,
+        recipient_email: recipient.email,
+        delivery_data: {},
+        delivery_status: 'failed',
+        error_message: error.message,
+        sent_at: new Date().toISOString()
             });
         } catch (dbError) {
           // If database logging fails, error is already logged above
@@ -2024,7 +2024,7 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
       ...metadata,
       finalFailure: true,
       allRetriesExhausted: true
-    });
+      });
 
     return { success: false, error: error.message };
   });
@@ -2046,14 +2046,14 @@ async function sendLastWishEmail(userId, testMode = false) {
     const settings = await retryWithBackoff(
       async () => {
         const { data, error: settingsError } = await supabase
-          .from('last_wish_settings')
-          .select('*')
-          .eq('user_id', userId)
-          .single();
+      .from('last_wish_settings')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
 
         if (settingsError || !data) {
-          throw new Error('Last Wish settings not found');
-        }
+      throw new Error('Last Wish settings not found');
+    }
         return data;
       },
       2, // maxRetries for settings fetch
@@ -2100,8 +2100,8 @@ async function sendLastWishEmail(userId, testMode = false) {
       async () => {
         const { data, error: userError } = await supabase.auth.admin.getUserById(userId);
         if (userError || !data) {
-          throw new Error('User not found');
-        }
+      throw new Error('User not found');
+    }
         return data;
       },
       2, // maxRetries for user fetch
@@ -2126,12 +2126,12 @@ async function sendLastWishEmail(userId, testMode = false) {
     const results = [];
     for (const recipient of recipientsToSend) {
       try {
-        const result = await sendDataToRecipient(user.user, recipient, userData, settings, testMode);
-        results.push({
-          recipient: recipient.email,
+      const result = await sendDataToRecipient(user.user, recipient, userData, settings, testMode);
+      results.push({
+        recipient: recipient.email,
           recipientName: recipient.name,
-          success: result.success,
-          messageId: result.messageId,
+        success: result.success,
+        messageId: result.messageId,
           error: result.error,
           validationError: result.validationError || false
         });
@@ -2156,13 +2156,13 @@ async function sendLastWishEmail(userId, testMode = false) {
       const successCount = results.filter(r => r.success).length;
       if (successCount > 0) {
         try {
-          await supabase
-            .from('last_wish_settings')
-            .update({ 
-              is_active: false,
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', userId);
+      await supabase
+        .from('last_wish_settings')
+        .update({ 
+          is_active: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
         } catch (updateError) {
           await logError('sendLastWishEmail', updateError, {
             ...metadata,
