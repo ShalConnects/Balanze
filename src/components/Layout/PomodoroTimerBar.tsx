@@ -40,6 +40,7 @@ export const PomodoroTimerBar: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [hasDragged, setHasDragged] = useState(false);
+  const buttonDimensionsRef = useRef<{ width: number; height: number }>({ width: 200, height: 48 });
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -483,6 +484,14 @@ export const PomodoroTimerBar: React.FC = () => {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
     });
+    // Cache button dimensions once at drag start to avoid forced reflows
+    const buttonElement = document.querySelector('[data-timer-container]') as HTMLElement;
+    if (buttonElement) {
+      buttonDimensionsRef.current = {
+        width: buttonElement.offsetWidth,
+        height: buttonElement.offsetHeight,
+      };
+    }
     setIsDragging(true);
     setHasDragged(false);
   };
@@ -490,15 +499,15 @@ export const PomodoroTimerBar: React.FC = () => {
   useEffect(() => {
     if (!isDragging) return;
 
+    let rafId: number | null = null;
+    let pendingPosition: { x: number; y: number } | null = null;
+
     const handleMouseMove = (e: MouseEvent) => {
       setHasDragged(true);
-      const windowWidth = window.innerWidth;
-      const windowHeight = window.innerHeight;
       
-      // Get actual button dimensions from the DOM
-      const buttonElement = document.querySelector('[data-timer-container]') as HTMLElement;
-      const buttonWidth = buttonElement ? buttonElement.offsetWidth : 200; // fallback to 200px
-      const buttonHeight = buttonElement ? buttonElement.offsetHeight : 48; // fallback to 48px
+      // Use cached dimensions to avoid forced reflows
+      const buttonWidth = buttonDimensionsRef.current.width;
+      const buttonHeight = buttonDimensionsRef.current.height;
       
       const newX = e.clientX - dragOffset.x;
       
@@ -508,43 +517,69 @@ export const PomodoroTimerBar: React.FC = () => {
         newY = e.clientY - dragOffset.y;
       } else {
         // For desktop, y is from bottom
+        const windowHeight = window.innerHeight;
         newY = windowHeight - (e.clientY - dragOffset.y) - buttonHeight;
       }
       
-      // Constrain to viewport - ensure button stays fully visible
-      const constrainedX = Math.max(0, Math.min(newX, windowWidth - buttonWidth));
-      const constrainedY = Math.max(0, Math.min(newY, windowHeight - buttonHeight));
+      // Store pending position
+      pendingPosition = { x: newX, y: newY };
       
-      setPosition({ x: constrainedX, y: constrainedY });
+      // Batch layout reads/writes with requestAnimationFrame
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          if (pendingPosition) {
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            
+            // Constrain to viewport - ensure button stays fully visible
+            const constrainedX = Math.max(0, Math.min(pendingPosition.x, windowWidth - buttonWidth));
+            const constrainedY = Math.max(0, Math.min(pendingPosition.y, windowHeight - buttonHeight));
+            
+            setPosition({ x: constrainedX, y: constrainedY });
+            pendingPosition = null;
+          }
+          rafId = null;
+        });
+      }
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      // Snap on release
-      const windowWidth = window.innerWidth;
-      const windowHeight = window.innerHeight;
+      // Cancel any pending animation frame
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       
-      // Get actual button dimensions for final constraint check
-      const buttonElement = document.querySelector('[data-timer-container]') as HTMLElement;
-      const buttonWidth = buttonElement ? buttonElement.offsetWidth : 200;
-      const buttonHeight = buttonElement ? buttonElement.offsetHeight : 48;
-      
-      // Ensure position is within bounds before snapping
-      const constrainedPosition = {
-        x: Math.max(0, Math.min(position.x, windowWidth - buttonWidth)),
-        y: Math.max(0, Math.min(position.y, windowHeight - buttonHeight))
-      };
-      
-      const snapped = snapPosition(constrainedPosition.x, constrainedPosition.y, windowWidth, windowHeight);
-      setPosition(snapped);
-      setIsDragging(false);
-      // Reset hasDragged after a short delay to allow click handler to check it
-      setTimeout(() => setHasDragged(false), 100);
+      // Snap on release - use requestAnimationFrame to batch layout reads
+      requestAnimationFrame(() => {
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        
+        // Use cached dimensions to avoid forced reflows
+        const buttonWidth = buttonDimensionsRef.current.width;
+        const buttonHeight = buttonDimensionsRef.current.height;
+        
+        // Ensure position is within bounds before snapping
+        const constrainedPosition = {
+          x: Math.max(0, Math.min(position.x, windowWidth - buttonWidth)),
+          y: Math.max(0, Math.min(position.y, windowHeight - buttonHeight))
+        };
+        
+        const snapped = snapPosition(constrainedPosition.x, constrainedPosition.y, windowWidth, windowHeight);
+        setPosition(snapped);
+        setIsDragging(false);
+        // Reset hasDragged after a short delay to allow click handler to check it
+        setTimeout(() => setHasDragged(false), 100);
+      });
     };
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
 
     return () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };

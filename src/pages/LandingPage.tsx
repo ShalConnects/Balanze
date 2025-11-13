@@ -456,6 +456,7 @@ const LandingPage: React.FC = () => {
           </div>
         </nav>
 
+      <main>
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 overflow-hidden landing-page-safe-top">
         
@@ -570,17 +571,23 @@ const LandingPage: React.FC = () => {
               <div className="absolute -inset-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl blur-2xl opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
               
               <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-4 transform rotate-3 hover:rotate-0 transition-all duration-500 group-hover:shadow-3xl">
-                <img 
-                  src="/main-dashboard.png" 
-                  alt="Balanze Dashboard"
-                  className="w-full max-w-4xl rounded-xl"
-                  loading="eager"
-                  decoding="async"
-                  width="1643"
-                  height="1060"
-                  style={{ aspectRatio: '1643 / 1060' }}
-                  fetchpriority="high"
-                />
+                <picture>
+                  {/* WebP format for modern browsers - add when images are converted */}
+                  {/* <source srcSet="/main-dashboard-400.webp 400w, /main-dashboard-800.webp 800w, /main-dashboard-1200.webp 1200w, /main-dashboard-1643.webp 1643w" type="image/webp" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1200px" /> */}
+                  <img 
+                    src="/main-dashboard.png" 
+                    alt="Balanze Dashboard"
+                    className="w-full max-w-4xl rounded-xl"
+                    loading="eager"
+                    decoding="async"
+                    width="1643"
+                    height="1060"
+                    style={{ aspectRatio: '1643 / 1060' }}
+                    fetchpriority="high"
+                    // srcSet="/main-dashboard-400.png 400w, /main-dashboard-800.png 800w, /main-dashboard-1200.png 1200w, /main-dashboard-1643.png 1643w"
+                    // sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1200px"
+                  />
+                </picture>
               </div>
               
               {/* Enhanced Live Demo Badge */}
@@ -608,7 +615,7 @@ const LandingPage: React.FC = () => {
                   </div>
                   <div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">Savings This Month</div>
-                    <div className="text-lg font-bold text-green-600 dark:text-green-400">+$1,250</div>
+                    <div className="text-lg font-bold text-green-600 dark:text-green-500">+$1,250</div>
                   </div>
                 </div>
               </div>
@@ -781,7 +788,7 @@ const LandingPage: React.FC = () => {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">USD Balance</span>
-                    <span className="font-semibold text-green-600 dark:text-green-400">$54,420.50</span>
+                    <span className="font-semibold text-green-600 dark:text-green-500">$54,420.50</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">BDT Balance</span>
@@ -804,21 +811,21 @@ const LandingPage: React.FC = () => {
                     <TrendingUp className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">Recent Activity</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-500 transition-colors">Recent Activity</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Last 5 transactions</p>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Salary Payment</span>
-                    <span className="font-semibold text-green-600 dark:text-green-400">+$3,500</span>
+                    <span className="font-semibold text-green-600 dark:text-green-500">+$3,500</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Grocery Shopping</span>
                     <span className="font-semibold text-red-600 dark:text-red-400">-$120.50</span>
                   </div>
                 </div>
-                <div className="mt-4 flex items-center text-green-600 dark:text-green-400 text-sm font-medium group-hover:translate-x-1 transition-transform duration-200">
+                <div className="mt-4 flex items-center text-green-600 dark:text-green-500 text-sm font-medium group-hover:translate-x-1 transition-transform duration-200">
                   <span>Click to explore</span>
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </div>
@@ -845,7 +852,7 @@ const LandingPage: React.FC = () => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Savings Rate</span>
-                    <span className="font-semibold text-green-600 dark:text-green-400">23%</span>
+                    <span className="font-semibold text-green-600 dark:text-green-500">23%</span>
                   </div>
                 </div>
                 <div className="mt-4 flex items-center text-purple-600 dark:text-purple-400 text-sm font-medium group-hover:translate-x-1 transition-transform duration-200">
@@ -1826,6 +1833,7 @@ const LandingPage: React.FC = () => {
       <div className="landing-page-safe-bottom">
         <Footer />
       </div>
+      </main>
 
       {/* Dark Mode Toggle Button - Always Visible */}
       <button

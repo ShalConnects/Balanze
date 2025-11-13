@@ -71,29 +71,34 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
 
   const selectedOption = options.find(opt => opt.value === value);
 
-  // Calculate dropdown position
+  // Calculate dropdown position - batched with requestAnimationFrame to avoid forced reflows
   const calculatePosition = () => {
     if (!buttonRef.current) return;
-    const buttonRect = buttonRef.current.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const viewportWidth = window.innerWidth;
-    const dropdownHeight = 240; // Approximate max height
-    const dropdownWidth = 240; // Approximate min width
-    // Check if there's enough space below
-    const spaceBelow = viewportHeight - buttonRect.bottom;
-    const spaceAbove = buttonRect.top;
-    // Horizontal alignment
-    const spaceRight = viewportWidth - buttonRect.left;
-    if (spaceRight < dropdownWidth && buttonRect.right > dropdownWidth) {
-      setDropdownAlign('right');
-    } else {
-      setDropdownAlign('left');
-    }
-    if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
-      setDropdownPosition('top');
-    } else {
-      setDropdownPosition('bottom');
-    }
+    
+    // Batch all layout reads together
+    requestAnimationFrame(() => {
+      if (!buttonRef.current) return;
+      const buttonRect = buttonRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      const dropdownHeight = 240; // Approximate max height
+      const dropdownWidth = 240; // Approximate min width
+      // Check if there's enough space below
+      const spaceBelow = viewportHeight - buttonRect.bottom;
+      const spaceAbove = buttonRect.top;
+      // Horizontal alignment
+      const spaceRight = viewportWidth - buttonRect.left;
+      if (spaceRight < dropdownWidth && buttonRect.right > dropdownWidth) {
+        setDropdownAlign('right');
+      } else {
+        setDropdownAlign('left');
+      }
+      if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
+        setDropdownPosition('top');
+      } else {
+        setDropdownPosition('bottom');
+      }
+    });
   };
 
   const handleToggle = () => {
@@ -101,25 +106,29 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
       calculatePosition();
       // Check if we need to use portal (inside scrollable container)
       if (buttonRef.current) {
-        let parent = buttonRef.current.parentElement;
-        let needsPortal = false;
-        while (parent && parent !== document.body) {
-          const overflow = window.getComputedStyle(parent).overflow;
-          if (overflow === 'auto' || overflow === 'scroll' || overflow === 'hidden') {
-            const rect = parent.getBoundingClientRect();
-            const buttonRect = buttonRef.current.getBoundingClientRect();
-            if (rect.top <= buttonRect.top && rect.bottom >= buttonRect.bottom) {
-              needsPortal = true;
-              break;
+        // Batch all layout reads together
+        requestAnimationFrame(() => {
+          if (!buttonRef.current) return;
+          let parent = buttonRef.current.parentElement;
+          let needsPortal = false;
+          while (parent && parent !== document.body) {
+            const overflow = window.getComputedStyle(parent).overflow;
+            if (overflow === 'auto' || overflow === 'scroll' || overflow === 'hidden') {
+              const rect = parent.getBoundingClientRect();
+              const buttonRect = buttonRef.current.getBoundingClientRect();
+              if (rect.top <= buttonRect.top && rect.bottom >= buttonRect.bottom) {
+                needsPortal = true;
+                break;
+              }
             }
+            parent = parent.parentElement;
           }
-          parent = parent.parentElement;
-        }
-        setUsePortal(needsPortal);
-        if (needsPortal) {
-          const rect = buttonRef.current.getBoundingClientRect();
-          setPortalPosition({ top: rect.bottom + 8, left: rect.left });
-        }
+          setUsePortal(needsPortal);
+          if (needsPortal) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setPortalPosition({ top: rect.bottom + 8, left: rect.left });
+          }
+        });
       }
     }
     setOpen(v => !v);

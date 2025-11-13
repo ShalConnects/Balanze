@@ -5,6 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     
+    <!-- Performance: Preconnect early for critical third-parties (must be before other resources) -->
+    <link rel="preconnect" href="https://xgncksougafnfbtusfnf.supabase.co" crossorigin="anonymous">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="anonymous">
+    <link rel="preconnect" href="https://api.producthunt.com" crossorigin="anonymous">
+    
     <!-- SEO Meta Tags -->
     <meta name="description" content="Balanze - Personal Finance Management. Track expenses, manage budgets, set savings goals, and take control of your finances with powerful analytics and multi-currency support." />
     <link rel="canonical" href="https://balanze.cash" />
@@ -107,20 +113,15 @@
     
     <title>Balanze - Personal Finance Management</title>
 
-    <!-- Performance: Preconnect/DNS-Prefetch for critical third-parties -->
-    <link rel="preconnect" href="https://xgncksougafnfbtusfnf.supabase.co" crossorigin>
+    <!-- DNS-Prefetch for additional performance -->
     <link rel="dns-prefetch" href="https://xgncksougafnfbtusfnf.supabase.co">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="dns-prefetch" href="https://fonts.gstatic.com">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="dns-prefetch" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://api.producthunt.com" crossorigin>
     <link rel="dns-prefetch" href="https://api.producthunt.com">
     
     <!-- Optimize Google Fonts - Load with font-display: swap (async) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" as="style">
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.onload=null;this.media='all'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"></noscript>
     
     <!-- Preload critical resources -->

@@ -304,6 +304,22 @@ async function gatherUserData(userId) {
       data.donationSavings = [];
     }
 
+    // Gather investment assets
+    try {
+      const { data: investmentAssets, error: investmentError } = await supabase
+        .from('investment_assets')
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (investmentError) {
+        await logError('gatherUserData', investmentError, { ...metadata, table: 'investment_assets' });
+      }
+      data.investmentAssets = investmentAssets || [];
+    } catch (error) {
+      await logError('gatherUserData', error, { ...metadata, table: 'investment_assets' });
+      data.investmentAssets = [];
+    }
+
     return data;
   } catch (error) {
     await logError('gatherUserData', error, { ...metadata, fatal: true });
@@ -333,6 +349,146 @@ function filterDataBySettings(userData, includeSettings) {
   return filtered;
 }
 
+/**
+ * Calculate financial metrics from user data
+ * @param {object} data - User financial data
+ * @returns {object} - Calculated financial metrics
+ */
+function calculateFinancialMetrics(data) {
+  const accounts = data.accounts || [];
+  const transactions = data.transactions || [];
+  const lendBorrow = data.lendBorrow || [];
+  const investmentAssets = data.investmentAssets || [];
+  
+  // Calculate total account balances
+  const totalAssets = accounts.reduce((sum, account) => {
+    return sum + (parseFloat(account.balance) || 0);
+  }, 0);
+  
+  // Calculate investment portfolio value
+  const investmentPortfolio = investmentAssets.reduce((sum, asset) => {
+    return sum + (parseFloat(asset.current_value || asset.total_value || 0) || 0);
+  }, 0);
+  
+  // Calculate outstanding debts (borrowed amounts that are still active)
+  const outstandingDebts = lendBorrow
+    .filter(lb => lb.type === 'borrowed' && lb.status === 'active')
+    .reduce((sum, lb) => sum + (parseFloat(lb.amount) || 0), 0);
+  
+  // Calculate amounts owed to user (lent amounts that are still active)
+  const amountsOwed = lendBorrow
+    .filter(lb => lb.type === 'lent' && lb.status === 'active')
+    .reduce((sum, lb) => sum + (parseFloat(lb.amount) || 0), 0);
+  
+  // Net worth = Total assets + Investments - Outstanding debts + Amounts owed
+  const netWorth = totalAssets + investmentPortfolio - outstandingDebts + amountsOwed;
+  
+  // Format currency helper
+  const formatCurrency = (amount, currency = 'USD') => {
+    const symbols = { USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', INR: '₹', CAD: '$', AUD: '$' };
+    const symbol = symbols[currency] || currency;
+    return `${symbol}${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+  
+  // Get primary currency
+  const primaryCurrency = accounts.length > 0 ? (accounts[0].currency || 'USD') : 'USD';
+  
+  // Account breakdown
+  const accountBreakdown = accounts.map(acc => ({
+    name: acc.name || 'Unnamed Account',
+    balance: parseFloat(acc.balance) || 0,
+    currency: acc.currency || primaryCurrency,
+    type: acc.type || 'other'
+  }));
+  
+  return {
+    totalAssets,
+    investmentPortfolio,
+    outstandingDebts,
+    amountsOwed,
+    netWorth,
+    primaryCurrency,
+    accountBreakdown,
+    formatCurrency: (amount) => formatCurrency(amount, primaryCurrency)
+  };
+}
+
+/**
+ * Calculate date information for Last Wish context
+ * @param {object} settings - Last Wish settings
+ * @param {object} data - User financial data
+ * @returns {object} - Date information
+ */
+function calculateDateInfo(settings, data) {
+  const now = new Date();
+  
+  // Get Last Wish setup date
+  const setupDate = settings.created_at 
+    ? new Date(settings.created_at)
+    : settings.updated_at 
+      ? new Date(settings.updated_at)
+      : null;
+  
+  // Get last activity date (from most recent transaction or account update)
+  const transactions = data.transactions || [];
+  const accounts = data.accounts || [];
+  
+  let lastActivityDate = null;
+  
+  // Check transactions
+  if (transactions.length > 0) {
+    const transactionDates = transactions
+      .map(t => new Date(t.created_at || t.date))
+      .filter(d => !isNaN(d.getTime()));
+    if (transactionDates.length > 0) {
+      lastActivityDate = new Date(Math.max(...transactionDates.map(d => d.getTime())));
+    }
+  }
+  
+  // Check account updates
+  if (accounts.length > 0) {
+    const accountDates = accounts
+      .map(a => new Date(a.updated_at || a.created_at))
+      .filter(d => !isNaN(d.getTime()));
+    if (accountDates.length > 0) {
+      const latestAccountDate = new Date(Math.max(...accountDates.map(d => d.getTime())));
+      if (!lastActivityDate || latestAccountDate > lastActivityDate) {
+        lastActivityDate = latestAccountDate;
+      }
+    }
+  }
+  
+  // Calculate inactivity period
+  let inactivityPeriod = null;
+  if (lastActivityDate) {
+    const diffTime = now - lastActivityDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    inactivityPeriod = diffDays;
+  }
+  
+  // Format date helper
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+  
+  // Get inactivity threshold from settings
+  const inactivityThreshold = settings.inactivity_days || 30;
+  
+  return {
+    setupDate,
+    lastActivityDate,
+    inactivityPeriod,
+    inactivityThreshold,
+    deliveryDate: now,
+    formatDate
+  };
+}
+
 function createEmailContent(user, recipient, data, settings, isTestMode = false) {
   const totalAccounts = data.accounts?.length || 0;
   const totalTransactions = data.transactions?.length || 0;
@@ -346,217 +502,503 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
   // Get user's display name (from metadata or email)
   const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Account holder';
 
+  // Calculate financial metrics
+  const metrics = calculateFinancialMetrics(data);
+  
+  // Calculate date information
+  const dateInfo = calculateDateInfo(settings, data);
+
+  // Test mode indicator (dark theme compatible)
   const testModeIndicator = isTestMode ? `
-    <div style="background: #d1fae5; border: 2px solid #6ee7b7; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
-      <h3 style="color: #047857; margin: 0 0 10px 0; font-size: 18px;">🧪 TEST MODE</h3>
-      <p style="color: #065f46; margin: 0;">This is a test email from the Last Wish system. No real financial data is being delivered.</p>
+    <div style="background: #1a1f2e; border: 2px solid #6b7280; padding: 20px; border-radius: 6px; margin-bottom: 20px; text-align: center;">
+      <h3 style="color: #9ca3af; margin: 0 0 10px 0; font-size: 18px;">🧪 TEST MODE</h3>
+      <p style="color: #d1d5db; margin: 0;">This is a test email from the Last Wish system. No real financial data is being delivered.</p>
     </div>
   ` : '';
 
   return `
     <!DOCTYPE html>
-    <html>
+    <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
     <head>
-      <meta charset="utf-8">
+      <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta name="x-apple-disable-message-reformatting">
+      <meta name="color-scheme" content="dark">
+      <meta name="supported-color-schemes" content="dark">
       <title>${isTestMode ? 'Test Email - ' : ''}Last Wish Delivery - Important Financial Information</title>
+      <!--[if mso]>
+      <style type="text/css">
+          body, table, td {font-family: Arial, sans-serif !important;}
+      </style>
+      <![endif]-->
       <style>
-        body { 
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-          line-height: 1.6; 
-          color: #333;
+        /* Reset and Base Styles */
+        body {
           margin: 0;
           padding: 0;
-          background: #f5f5f5;
+          -webkit-text-size-adjust: 100%;
+          -ms-text-size-adjust: 100%;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.7;
+          color: #e5e7eb;
+          background: #000000;
         }
+        table {
+          border-collapse: collapse;
+          mso-table-lspace: 0pt;
+          mso-table-rspace: 0pt;
+        }
+        img {
+          border: 0;
+          height: auto;
+          line-height: 100%;
+          outline: none;
+          text-decoration: none;
+          -ms-interpolation-mode: bicubic;
+        }
+        
+        /* Email Wrapper */
         .email-wrapper {
-          background: #f5f5f5;
+          background: #000000;
           padding: 40px 20px;
         }
         .email-container {
-          max-width: 600px;
+          max-width: 650px;
           margin: 0 auto;
-          background: white;
-          border-radius: 12px;
+          background: #111827;
+          border-radius: 8px;
           overflow: hidden;
-          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+          box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+          border: 1px solid #1f2937;
         }
+        
+        /* Header */
         .email-header {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-          color: white;
-          padding: 40px 30px;
+          background: #1f2937;
+          color: #e5e7eb;
+          padding: 50px 40px;
           text-align: center;
+          border-bottom: 2px solid #374151;
         }
         .email-header h1 {
-          margin: 0 0 10px 0;
+          margin: 0 0 12px 0;
           font-size: 28px;
           font-weight: 600;
+          color: #f9fafb;
+          letter-spacing: 1.5px;
+          line-height: 1.3;
         }
         .email-header p {
           margin: 0;
-          opacity: 0.95;
-          font-size: 16px;
+          color: #9ca3af;
+          font-size: 14px;
+          font-weight: 300;
+          letter-spacing: 0.8px;
+          line-height: 1.5;
         }
+        
+        /* Body */
         .email-body {
-          padding: 30px;
+          padding: 45px 40px;
+          background: #111827;
         }
+        
+        /* Typography Improvements */
         .greeting {
-          margin-bottom: 25px;
+          margin-bottom: 35px;
+          padding-bottom: 30px;
+          border-bottom: 1px solid #374151;
         }
         .greeting h2 {
-          color: #1f2937;
-          font-size: 20px;
-          margin: 0 0 10px 0;
-          font-weight: 600;
+          color: #f9fafb;
+          font-size: 24px;
+          margin: 0 0 16px 0;
+          font-weight: 500;
+          letter-spacing: 0.3px;
+          line-height: 1.4;
         }
         .greeting p {
-          color: #6b7280;
+          color: #d1d5db;
           margin: 0;
-          line-height: 1.7;
-        }
-        .context-box {
-          background: #fef3c7;
-          border-left: 4px solid #f59e0b;
-          padding: 20px;
-          border-radius: 8px;
-          margin-bottom: 25px;
-        }
-        .context-box p {
-          margin: 0;
-          color: #92400e;
-          line-height: 1.7;
-        }
-        .context-box strong {
-          display: block;
-          margin-bottom: 8px;
-          color: #78350f;
+          line-height: 1.85;
           font-size: 15px;
+          letter-spacing: 0.2px;
         }
-        .personal-message {
-          background: #f0f9ff;
-          border-left: 4px solid #3b82f6;
-          padding: 20px;
-          border-radius: 8px;
-          margin-bottom: 25px;
+        
+        /* Acknowledgment Section */
+        .acknowledgment {
+          background: #1a1f2e;
+          border-left: 3px solid #6b7280;
+          padding: 28px;
+          border-radius: 6px;
+          margin-bottom: 30px;
         }
-        .personal-message h3 {
-          color: #1e40af;
-          margin: 0 0 12px 0;
-          font-size: 16px;
-          font-weight: 600;
-        }
-        .personal-message p {
-          color: #1e3a8a;
+        .acknowledgment p {
+          color: #d1d5db;
           margin: 0;
-          line-height: 1.7;
-          font-style: italic;
+          line-height: 1.8;
+          font-size: 14px;
+          letter-spacing: 0.1px;
         }
-        .data-summary {
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          padding: 25px;
-          margin-bottom: 25px;
+        
+        /* Info Cards */
+        .info-card {
+          background: #1f2937;
+          border-left: 3px solid #4b5563;
+          padding: 28px;
+          border-radius: 6px;
+          margin-bottom: 28px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
-        .data-summary h3 {
-          color: #111827;
-          margin: 0 0 15px 0;
-          font-size: 18px;
+        .info-card h3 {
+          color: #f3f4f6;
+          margin: 0 0 14px 0;
+          font-size: 17px;
+          font-weight: 600;
+          letter-spacing: 0.3px;
+          line-height: 1.4;
+        }
+        .info-card p {
+          color: #d1d5db;
+          margin: 0;
+          line-height: 1.75;
+          font-size: 14px;
+          letter-spacing: 0.1px;
+        }
+        .info-card strong {
+          color: #f9fafb;
           font-weight: 600;
         }
-        .data-summary ul {
+        .info-card .meta-info {
+          margin-top: 16px;
+          padding-top: 16px;
+          border-top: 1px solid #374151;
+        }
+        .info-card .meta-item {
+          display: flex;
+          justify-content: space-between;
+          padding: 8px 0;
+          font-size: 13px;
+        }
+        .info-card .meta-label {
+          color: #9ca3af;
+        }
+        .info-card .meta-value {
+          color: #e5e7eb;
+          font-weight: 500;
+        }
+        
+        /* Message Card */
+        .message-card {
+          background: #1f2937;
+          border-left: 3px solid #6b7280;
+          padding: 28px;
+          border-radius: 6px;
+          margin-bottom: 28px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .message-card h3 {
+          color: #f3f4f6;
+          margin: 0 0 14px 0;
+          font-size: 17px;
+          font-weight: 600;
+          letter-spacing: 0.3px;
+        }
+        .message-card p {
+          color: #d1d5db;
+          margin: 0;
+          line-height: 1.8;
+          font-size: 15px;
+          font-style: italic;
+          letter-spacing: 0.1px;
+        }
+        
+        /* Financial Metrics */
+        .financial-metrics {
+          background: #1f2937;
+          border: 1px solid #374151;
+          border-radius: 6px;
+          padding: 32px;
+          margin-bottom: 28px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .financial-metrics h3 {
+          color: #f9fafb;
+          margin: 0 0 24px 0;
+          font-size: 19px;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+          line-height: 1.3;
+        }
+        .metrics-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 16px;
+          margin-bottom: 24px;
+        }
+        .metric-item {
+          background: #111827;
+          padding: 20px;
+          border-radius: 6px;
+          border: 1px solid #374151;
+          text-align: center;
+          transition: all 0.2s ease;
+        }
+        .metric-item:hover {
+          background: #1a1f2e;
+          border-color: #4b5563;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        .metric-label {
+          color: #9ca3af;
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 1.2px;
+          margin-bottom: 10px;
+          font-weight: 500;
+          line-height: 1.4;
+        }
+        .metric-value {
+          color: #f9fafb;
+          font-size: 26px;
+          font-weight: 600;
+          line-height: 1.2;
+          letter-spacing: 0.5px;
+        }
+        .metric-subvalue {
+          color: #9ca3af;
+          font-size: 12px;
+          margin-top: 6px;
+          font-weight: 400;
+        }
+        
+        /* Account Breakdown */
+        .account-breakdown {
+          margin-top: 24px;
+          padding-top: 24px;
+          border-top: 1px solid #374151;
+        }
+        .account-breakdown h4 {
+          color: #f3f4f6;
+          margin: 0 0 16px 0;
+          font-size: 15px;
+          font-weight: 600;
+          letter-spacing: 0.3px;
+        }
+        .account-list {
           list-style: none;
           padding: 0;
           margin: 0;
         }
-        .data-summary li {
-          padding: 10px 0;
-          border-bottom: 1px solid #e5e7eb;
+        .account-item {
           display: flex;
           justify-content: space-between;
-          color: #4b5563;
+          align-items: center;
+          padding: 12px 0;
+          border-bottom: 1px solid #374151;
         }
-        .data-summary li:last-child {
+        .account-item:last-child {
           border-bottom: none;
         }
-        .data-summary li strong {
-          color: #111827;
-        }
-        .attachment-info {
-          background: #ecfdf5;
-          border: 1px solid #a7f3d0;
-          border-radius: 8px;
-          padding: 20px;
-          margin-bottom: 25px;
-          text-align: center;
-        }
-        .attachment-info p {
-          margin: 0 0 12px 0;
-          color: #065f46;
-          font-weight: 500;
-        }
-        .attachment-info .filename {
-          font-family: 'Courier New', monospace;
-          background: white;
-          padding: 8px 12px;
-          border-radius: 4px;
-          display: inline-block;
+        .account-name {
+          color: #d1d5db;
           font-size: 14px;
-          color: #047857;
-          margin: 4px;
         }
-        .privacy-notice {
-          background: #f3f4f6;
-          padding: 20px;
-          border-radius: 8px;
-          margin-bottom: 25px;
-        }
-        .privacy-notice h4 {
-          color: #374151;
-          margin: 0 0 10px 0;
+        .account-balance {
+          color: #f9fafb;
           font-size: 15px;
           font-weight: 600;
         }
-        .privacy-notice p {
-          color: #6b7280;
-          margin: 0;
-          line-height: 1.7;
-          font-size: 14px;
+        
+        /* Data Summary */
+        .data-summary {
+          background: #1f2937;
+          border: 1px solid #374151;
+          border-radius: 6px;
+          padding: 32px;
+          margin-bottom: 28px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
-        .email-footer {
-          background: #f9fafb;
-          padding: 25px 30px;
-          border-top: 1px solid #e5e7eb;
+        .data-summary h3 {
+          color: #f9fafb;
+          margin: 0 0 20px 0;
+          font-size: 19px;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+        }
+        .data-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 16px;
+        }
+        .data-item {
+          background: #111827;
+          padding: 18px;
+          border-radius: 6px;
+          border: 1px solid #374151;
           text-align: center;
+          transition: all 0.2s ease;
+        }
+        .data-item:hover {
+          background: #1a1f2e;
+          border-color: #4b5563;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        .data-item-label {
+          color: #9ca3af;
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 1.2px;
+          margin-bottom: 8px;
+          font-weight: 500;
+        }
+        .data-item-value {
+          color: #f9fafb;
+          font-size: 28px;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+        }
+        
+        /* Attachment Card */
+        .attachment-card {
+          background: #1f2937;
+          border: 1px solid #374151;
+          border-left: 3px solid #6b7280;
+          border-radius: 6px;
+          padding: 28px;
+          margin-bottom: 28px;
+          text-align: center;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .attachment-card h3 {
+          color: #f3f4f6;
+          margin: 0 0 18px 0;
+          font-size: 17px;
+          font-weight: 600;
+          letter-spacing: 0.3px;
+        }
+        .file-badge {
+          display: inline-block;
+          background: #111827;
+          padding: 12px 20px;
+          border-radius: 4px;
+          margin: 8px;
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          color: #d1d5db;
+          font-weight: 500;
+          border: 1px solid #374151;
+          transition: all 0.2s ease;
+        }
+        .file-badge:hover {
+          background: #1a1f2e;
+          border-color: #4b5563;
+        }
+        
+        /* Privacy Card */
+        .privacy-card {
+          background: #1f2937;
+          border-left: 3px solid #6b7280;
+          padding: 28px;
+          border-radius: 6px;
+          margin-bottom: 28px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .privacy-card h3 {
+          color: #f3f4f6;
+          margin: 0 0 14px 0;
+          font-size: 17px;
+          font-weight: 600;
+          letter-spacing: 0.3px;
+        }
+        .privacy-card p {
+          color: #d1d5db;
+          margin: 0;
+          line-height: 1.75;
+          font-size: 14px;
+          letter-spacing: 0.1px;
+        }
+        
+        /* Divider */
+        .divider {
+          height: 1px;
+          background: #374151;
+          margin: 32px 0;
+          border: none;
+        }
+        
+        /* Footer */
+        .email-footer {
+          background: #0f172a;
+          color: #9ca3af;
+          padding: 32px 40px;
+          text-align: center;
+          border-top: 1px solid #1f2937;
         }
         .email-footer p {
-          margin: 5px 0;
-          color: #6b7280;
-          font-size: 13px;
-        }
-        .email-footer .date {
-          color: #9ca3af;
+          margin: 8px 0;
           font-size: 12px;
+          line-height: 1.6;
+          letter-spacing: 0.2px;
         }
-        .test-indicator {
-          background: #d1fae5;
-          border: 2px solid #6ee7b7;
-          padding: 20px;
-          border-radius: 8px;
-          margin: 20px 30px;
-          text-align: center;
+        .email-footer strong {
+          font-size: 13px;
+          color: #d1d5db;
+          font-weight: 600;
         }
-        .test-indicator h3 {
-          color: #047857;
-          margin: 0 0 8px 0;
-          font-size: 18px;
+        
+        /* Mobile Responsive */
+        @media only screen and (max-width: 600px) {
+          .email-wrapper {
+            padding: 20px 10px;
+          }
+          .email-body {
+            padding: 30px 20px;
+          }
+          .email-header {
+            padding: 40px 30px;
+          }
+          .email-header h1 {
+            font-size: 24px;
+          }
+          .greeting h2 {
+            font-size: 20px;
+          }
+          .metrics-grid,
+          .data-grid {
+            grid-template-columns: 1fr;
+          }
+          .info-card,
+          .message-card,
+          .financial-metrics,
+          .data-summary,
+          .attachment-card,
+          .privacy-card {
+            padding: 20px;
+          }
+          .email-footer {
+            padding: 24px 20px;
+          }
         }
-        .test-indicator p {
-          color: #065f46;
-          margin: 0;
-          font-size: 14px;
+        
+        /* Dark Mode Support */
+        @media (prefers-color-scheme: dark) {
+          body {
+            background: #000000;
+          }
         }
       </style>
+      <!--[if mso]>
+      <style type="text/css">
+      .email-container {
+        width: 650px !important;
+      }
+      .email-body {
+        padding: 45px 40px !important;
+      }
+      </style>
+      <![endif]-->
     </head>
     <body>
       <div class="email-wrapper">
@@ -565,7 +1007,7 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
           
           <!-- Email Header -->
           <div class="email-header">
-            <h1>💚 Last Wish Delivery</h1>
+            <h1>Last Wish Delivery</h1>
             <p>Important Financial Information</p>
           </div>
 
@@ -575,63 +1017,156 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
             <div class="greeting">
               <h2>Dear ${recipientName},</h2>
               <p>
-                You are receiving this email because someone who trusted you has chosen to share their important financial information with you.
+                We are reaching out to you with important information regarding the financial records of <strong>${userName}</strong>, who designated you as a trusted recipient through the Last Wish system.
               </p>
             </div>
 
-            <!-- Context Box -->
-            <div class="context-box">
-              <strong>Why are you receiving this?</strong>
+            <!-- Acknowledgment -->
+            <div class="acknowledgment">
               <p>
-                <strong>${userName}</strong> set up a Last Wish system to ensure their financial records would be safely delivered to trusted individuals if they were unable to check in for an extended period. This delivery has been automatically triggered as part of that plan.
+                We understand that receiving this information may come during a difficult time. Please know that this delivery is part of a system designed to ensure continuity and care for loved ones, and we extend our deepest sympathies and support.
               </p>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Context Info Card -->
+            <div class="info-card">
+              <h3>About This Delivery</h3>
+              <p>
+                <strong>${userName}</strong> established a Last Wish system to ensure their financial records would be securely delivered to designated individuals in the event they were no longer able to manage their affairs. The Last Wish system is designed to provide peace of mind and ensure that important financial information reaches those who need it most.
+              </p>
+              <div class="meta-info">
+                <div class="meta-item">
+                  <span class="meta-label">Last Wish Established:</span>
+                  <span class="meta-value">${dateInfo.setupDate ? dateInfo.formatDate(dateInfo.setupDate) : 'N/A'}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Last Account Activity:</span>
+                  <span class="meta-value">${dateInfo.lastActivityDate ? dateInfo.formatDate(dateInfo.lastActivityDate) : 'N/A'}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Inactivity Period:</span>
+                  <span class="meta-value">${dateInfo.inactivityPeriod !== null ? dateInfo.inactivityPeriod + ' days' : 'N/A'}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Delivery Trigger:</span>
+                  <span class="meta-value">Extended inactivity (${dateInfo.inactivityThreshold}-day threshold)</span>
+                </div>
+              </div>
             </div>
 
             ${settings.message ? `
-              <!-- Personal Message -->
-              <div class="personal-message">
-                <h3>💌 Personal Message from ${userName}</h3>
+              <!-- Personal Message Card -->
+              <div class="message-card">
+                <h3>Personal Message from ${userName}</h3>
                 <p>${settings.message}</p>
               </div>
             ` : ''}
 
+            <div class="divider"></div>
+
+            <!-- Financial Metrics -->
+            <div class="financial-metrics">
+              <h3>Financial Overview</h3>
+              <div class="metrics-grid">
+                <div class="metric-item">
+                  <div class="metric-label">Total Assets</div>
+                  <div class="metric-value">${metrics.formatCurrency(metrics.totalAssets)}</div>
+                  <div class="metric-subvalue">Across ${totalAccounts} account${totalAccounts !== 1 ? 's' : ''}</div>
+                </div>
+                <div class="metric-item">
+                  <div class="metric-label">Net Worth</div>
+                  <div class="metric-value">${metrics.formatCurrency(metrics.netWorth)}</div>
+                  <div class="metric-subvalue">After liabilities</div>
+                </div>
+                <div class="metric-item">
+                  <div class="metric-label">Outstanding Debts</div>
+                  <div class="metric-value">${metrics.formatCurrency(metrics.outstandingDebts)}</div>
+                  <div class="metric-subvalue">Credit cards & loans</div>
+                </div>
+                <div class="metric-item">
+                  <div class="metric-label">Investment Portfolio</div>
+                  <div class="metric-value">${metrics.formatCurrency(metrics.investmentPortfolio)}</div>
+                  <div class="metric-subvalue">Current value</div>
+                </div>
+              </div>
+              
+              ${metrics.accountBreakdown.length > 0 ? `
+                <div class="account-breakdown">
+                  <h4>Account Breakdown</h4>
+                  <ul class="account-list">
+                    ${metrics.accountBreakdown.map(acc => `
+                      <li class="account-item">
+                        <span class="account-name">${acc.name}</span>
+                        <span class="account-balance">${metrics.formatCurrency(acc.balance, acc.currency)}</span>
+                      </li>
+                    `).join('')}
+                  </ul>
+                </div>
+              ` : ''}
+            </div>
+
             <!-- Data Summary -->
             <div class="data-summary">
               <h3>Financial Records Summary</h3>
-              <ul>
-                ${totalAccounts > 0 ? `<li><span>Bank Accounts</span> <strong>${totalAccounts}</strong></li>` : ''}
-                ${totalTransactions > 0 ? `<li><span>Transactions</span> <strong>${totalTransactions}</strong></li>` : ''}
-                ${totalPurchases > 0 ? `<li><span>Purchases</span> <strong>${totalPurchases}</strong></li>` : ''}
-                ${totalLendBorrow > 0 ? `<li><span>Lend/Borrow Records</span> <strong>${totalLendBorrow}</strong></li>` : ''}
-                ${totalSavings > 0 ? `<li><span>Savings Records</span> <strong>${totalSavings}</strong></li>` : ''}
-              </ul>
+              <div class="data-grid">
+                ${totalAccounts > 0 ? `
+                  <div class="data-item">
+                    <div class="data-item-label">Bank Accounts</div>
+                    <div class="data-item-value">${totalAccounts}</div>
+                  </div>
+                ` : ''}
+                ${totalTransactions > 0 ? `
+                  <div class="data-item">
+                    <div class="data-item-label">Transactions</div>
+                    <div class="data-item-value">${totalTransactions}</div>
+                  </div>
+                ` : ''}
+                ${totalPurchases > 0 ? `
+                  <div class="data-item">
+                    <div class="data-item-label">Purchases</div>
+                    <div class="data-item-value">${totalPurchases}</div>
+                  </div>
+                ` : ''}
+                ${totalLendBorrow > 0 ? `
+                  <div class="data-item">
+                    <div class="data-item-label">Lend/Borrow</div>
+                    <div class="data-item-value">${totalLendBorrow}</div>
+                  </div>
+                ` : ''}
+              </div>
             </div>
 
-            <!-- Attachment Info -->
-            <div class="attachment-info">
-              <p>📎 Complete financial data is attached to this email</p>
-              <div class="filename">financial-data-backup.json</div>
-              <div class="filename">financial-data-backup.pdf</div>
+            <!-- Attachment Card -->
+            <div class="attachment-card">
+              <h3>Complete Financial Data Attached</h3>
+              <div class="file-badge">${isTestMode ? 'test-' : ''}financial-data-backup.json</div>
+              <div class="file-badge">${isTestMode ? 'test-' : ''}financial-data-backup.pdf</div>
+              <p style="margin-top: 16px; color: #9ca3af; font-size: 13px;">
+                These files contain comprehensive financial records, including detailed transaction history, account information, and supporting documents.
+              </p>
             </div>
 
-            <!-- Privacy Notice -->
-            <div class="privacy-notice">
-              <h4>🔒 Please Handle With Care</h4>
+            <div class="divider"></div>
+
+            <!-- Privacy Card -->
+            <div class="privacy-card">
+              <h3>Confidentiality & Privacy</h3>
               <p>
-                This information contains sensitive financial data. Please store it securely, respect the privacy of the account holder, and only use it as intended. If you have any concerns about receiving this information, please disregard this email.
+                This information contains sensitive financial data and personal records. Please store it securely, respect the privacy of the account holder, and only use it as intended. If you have any concerns about receiving this information or need assistance, please contact our support team. This delivery is automated and confidential.
               </p>
             </div>
           </div>
 
           <!-- Email Footer -->
           <div class="email-footer">
-            <p><strong>Last Wish System - FinTrack</strong></p>
+            <p><strong>Last Wish System - Balanze</strong></p>
             <p>Automated delivery • Sent with care and respect</p>
-            <p class="date">Delivery Date: ${new Date().toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}</p>
+            <p>Delivery Date: ${dateInfo.formatDate(dateInfo.deliveryDate)}</p>
+            <p style="margin-top: 16px; font-size: 11px; color: #6b7280;">
+              For support or questions, please contact: hello@shalconnects.com
+            </p>
           </div>
         </div>
       </div>
