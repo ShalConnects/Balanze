@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
     exclude: ['lucide-react'],
+    include: ['recharts'],
   },
   build: {
     // Generate source maps for better debugging and Lighthouse insights

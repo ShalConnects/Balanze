@@ -1143,8 +1143,9 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
               <h3>Complete Financial Data Attached</h3>
               <div class="file-badge">${isTestMode ? 'test-' : ''}financial-data-backup.json</div>
               <div class="file-badge">${isTestMode ? 'test-' : ''}financial-data-backup.pdf</div>
+              <div class="file-badge">${isTestMode ? 'test-' : ''}financial-data-backup.csv</div>
               <p style="margin-top: 16px; color: #9ca3af; font-size: 13px;">
-                These files contain comprehensive financial records, including detailed transaction history, account information, and supporting documents.
+                These files contain comprehensive financial records, including detailed transaction history, account information, and supporting documents. The CSV file is optimized for spreadsheet applications.
               </p>
             </div>
 
@@ -1175,137 +1176,722 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
   `;
 }
 
+/**
+ * Generate CSV export for financial data
+ * @param {object} data - User financial data
+ * @param {object} settings - Last Wish settings
+ * @returns {string} - CSV content
+ */
+function generateCSVExport(data, settings) {
+  const csvRows = [];
+  
+  // Helper to escape CSV values
+  const escapeCSV = (value) => {
+    if (value === null || value === undefined) return '';
+    const str = String(value);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+  
+  // Helper to format currency
+  const formatCurrency = (amount, currency = 'USD') => {
+    const symbols = { USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', INR: '₹', CAD: '$', AUD: '$' };
+    const symbol = symbols[currency] || currency;
+    return `${symbol}${Math.abs(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+  
+  // Header
+  csvRows.push('Last Wish Financial Data Export');
+  csvRows.push(`Generated: ${new Date().toISOString()}`);
+  csvRows.push('');
+  
+  // Accounts Section
+  if (data.accounts && data.accounts.length > 0) {
+    csvRows.push('=== BANK ACCOUNTS ===');
+    csvRows.push('Name,Type,Balance,Currency,Account Number,Institution');
+    data.accounts.forEach(acc => {
+      csvRows.push([
+        escapeCSV(acc.name || 'N/A'),
+        escapeCSV(acc.type || 'N/A'),
+        escapeCSV(acc.balance || 0),
+        escapeCSV(acc.currency || 'USD'),
+        escapeCSV(acc.account_number || 'N/A'),
+        escapeCSV(acc.institution || 'N/A')
+      ].join(','));
+    });
+    csvRows.push('');
+  }
+  
+  // Transactions Section
+  if (data.transactions && data.transactions.length > 0) {
+    csvRows.push('=== TRANSACTIONS ===');
+    csvRows.push('Date,Description,Amount,Currency,Category,Account,Type');
+    data.transactions.forEach(tx => {
+      csvRows.push([
+        escapeCSV(tx.date ? new Date(tx.date).toISOString().split('T')[0] : 'N/A'),
+        escapeCSV(tx.description || 'N/A'),
+        escapeCSV(tx.amount || 0),
+        escapeCSV(tx.currency || 'USD'),
+        escapeCSV(tx.category || 'N/A'),
+        escapeCSV(tx.account_name || 'N/A'),
+        escapeCSV(tx.type || 'N/A')
+      ].join(','));
+    });
+    csvRows.push('');
+  }
+  
+  // Purchases Section
+  if (data.purchases && data.purchases.length > 0) {
+    csvRows.push('=== PURCHASES ===');
+    csvRows.push('Name,Amount,Status,Target Date,Priority,Notes');
+    data.purchases.forEach(purchase => {
+      csvRows.push([
+        escapeCSV(purchase.name || 'N/A'),
+        escapeCSV(purchase.amount || 0),
+        escapeCSV(purchase.status || 'N/A'),
+        escapeCSV(purchase.target_date ? new Date(purchase.target_date).toISOString().split('T')[0] : 'N/A'),
+        escapeCSV(purchase.priority || 'N/A'),
+        escapeCSV(purchase.notes || 'N/A')
+      ].join(','));
+    });
+    csvRows.push('');
+  }
+  
+  // Lend/Borrow Section
+  if (data.lendBorrow && data.lendBorrow.length > 0) {
+    csvRows.push('=== LEND/BORROW RECORDS ===');
+    csvRows.push('Type,Person/Entity,Amount,Currency,Status,Due Date,Notes');
+    data.lendBorrow.forEach(lb => {
+      csvRows.push([
+        escapeCSV(lb.type || 'N/A'),
+        escapeCSV(lb.person || lb.entity || 'N/A'),
+        escapeCSV(lb.amount || 0),
+        escapeCSV(lb.currency || 'USD'),
+        escapeCSV(lb.status || 'N/A'),
+        escapeCSV(lb.due_date ? new Date(lb.due_date).toISOString().split('T')[0] : 'N/A'),
+        escapeCSV(lb.notes || 'N/A')
+      ].join(','));
+    });
+    csvRows.push('');
+  }
+  
+  // Savings/Donation Records Section
+  if (data.donationSavings && data.donationSavings.length > 0) {
+    csvRows.push('=== SAVINGS/DONATION RECORDS ===');
+    csvRows.push('Type,Name,Target Amount,Current Amount,Currency,Status,Target Date,Notes');
+    data.donationSavings.forEach(ds => {
+      csvRows.push([
+        escapeCSV(ds.type || 'N/A'),
+        escapeCSV(ds.name || 'N/A'),
+        escapeCSV(ds.target_amount || 0),
+        escapeCSV(ds.current_amount || 0),
+        escapeCSV(ds.currency || 'USD'),
+        escapeCSV(ds.status || 'N/A'),
+        escapeCSV(ds.target_date ? new Date(ds.target_date).toISOString().split('T')[0] : 'N/A'),
+        escapeCSV(ds.notes || 'N/A')
+      ].join(','));
+    });
+    csvRows.push('');
+  }
+  
+  // Investment Assets Section
+  if (data.investmentAssets && data.investmentAssets.length > 0) {
+    csvRows.push('=== INVESTMENT ASSETS ===');
+    csvRows.push('Name,Type,Current Value,Currency,Purchase Date,Quantity,Notes');
+    data.investmentAssets.forEach(asset => {
+      csvRows.push([
+        escapeCSV(asset.name || 'N/A'),
+        escapeCSV(asset.type || 'N/A'),
+        escapeCSV(asset.current_value || asset.total_value || 0),
+        escapeCSV(asset.currency || 'USD'),
+        escapeCSV(asset.purchase_date ? new Date(asset.purchase_date).toISOString().split('T')[0] : 'N/A'),
+        escapeCSV(asset.quantity || 'N/A'),
+        escapeCSV(asset.notes || 'N/A')
+      ].join(','));
+    });
+    csvRows.push('');
+  }
+  
+  return csvRows.join('\n');
+}
+
 function createPDFBuffer(user, recipient, data, settings) {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ margin: 50 });
+      // Calculate financial metrics and date info
+      const metrics = calculateFinancialMetrics(data);
+      const dateInfo = calculateDateInfo(settings, data);
+      
+      const doc = new PDFDocument({ 
+        margin: 50,
+        size: 'LETTER',
+        info: {
+          Title: 'Last Wish Financial Records',
+          Author: 'Balanze Last Wish System',
+          Subject: 'Confidential Financial Information',
+          Keywords: 'Last Wish, Financial Records, Balanze',
+          Creator: 'Balanze Last Wish System',
+          Producer: 'Balanze'
+        }
+      });
       const buffers = [];
       
       doc.on('data', buffers.push.bind(buffers));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
+      
+      // Helper functions for formatting
+      const formatCurrency = (amount, currency = 'USD') => {
+        const symbols = { USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', INR: '₹', CAD: '$', AUD: '$' };
+        const symbol = symbols[currency] || currency;
+        return `${symbol}${Math.abs(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      };
+      
+      const formatDate = (date) => {
+        if (!date) return 'N/A';
+        try {
+          return new Date(date).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          });
+        } catch {
+          return 'N/A';
+        }
+      };
+      
+      // Store page references for table of contents
+      const pageRefs = {};
+      
+      // Add watermark function
+      const addWatermark = () => {
+        doc.save();
+        doc.opacity(0.1);
+        doc.fontSize(60)
+          .fillColor('#6b7280')
+          .text('CONFIDENTIAL', 0, doc.page.height / 2, {
+            align: 'center',
+            width: doc.page.width,
+            rotate: 45
+          });
+        doc.restore();
+      };
+      
+      // Add header/footer function
+      const addHeaderFooter = (pageNum, totalPages) => {
+        const pageHeight = doc.page.height;
+        const pageWidth = doc.page.width;
+        
+        // Header
+        doc.save();
+        doc.fontSize(8).fillColor('#6b7280');
+        doc.text('Last Wish - Confidential Financial Records', 50, 30);
+        doc.restore();
+        
+        // Footer
+        doc.save();
+        doc.fontSize(8).fillColor('#6b7280');
+        doc.text(
+          `Page ${pageNum} of ${totalPages} | Generated: ${formatDate(new Date())} | Balanze Last Wish System`,
+          50,
+          pageHeight - 30,
+          { align: 'left', width: pageWidth - 100 }
+        );
+        doc.text(
+          'CONFIDENTIAL - For authorized recipient only',
+          pageWidth - 50,
+          pageHeight - 30,
+          { align: 'right' }
+        );
+        doc.restore();
+      };
 
       // Get names
       const recipientName = recipient.name || recipient.email;
       const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Account holder';
-
-      // Header
-      doc.fontSize(24).fillColor('#10b981').text('💚 Last Wish Delivery', { align: 'center' });
-      doc.fontSize(14).fillColor('#6b7280').text('Financial Records Backup', { align: 'center' });
-      doc.moveDown(2);
-
-      // Recipient Info
-      doc.fontSize(16).fillColor('#111827').text(`Dear ${recipientName},`);
-      doc.moveDown();
-      doc.fontSize(11).fillColor('#4b5563').text(
-        `This document contains the financial records from ${userName}, delivered through the Last Wish system.`,
-        { align: 'justify' }
-      );
-      doc.moveDown(2);
-
-      // Personal Message (if exists)
-      if (settings.message) {
-        doc.fontSize(14).fillColor('#1e40af').text('Personal Message');
-        doc.moveDown(0.5);
-        doc.fontSize(10).fillColor('#4b5563').text(settings.message, {
-          align: 'justify',
-          italic: true
-        });
-        doc.moveDown(2);
-      }
-
-      // Data Summary
-      doc.fontSize(14).fillColor('#111827').text('Financial Records Summary');
-      doc.moveDown(0.5);
       
-      const totalAccounts = data.accounts?.length || 0;
-      const totalTransactions = data.transactions?.length || 0;
-      const totalPurchases = data.purchases?.length || 0;
-      const totalLendBorrow = data.lendBorrow?.length || 0;
-      const totalSavings = data.donationSavings?.length || 0;
-
-      if (totalAccounts > 0) {
-        doc.fontSize(11).fillColor('#4b5563').text(`• Bank Accounts: ${totalAccounts}`);
-      }
-      if (totalTransactions > 0) {
-        doc.text(`• Transactions: ${totalTransactions}`);
-      }
-      if (totalPurchases > 0) {
-        doc.text(`• Purchases: ${totalPurchases}`);
-      }
-      if (totalLendBorrow > 0) {
-        doc.text(`• Lend/Borrow Records: ${totalLendBorrow}`);
-      }
-      if (totalSavings > 0) {
-        doc.text(`• Savings Records: ${totalSavings}`);
-      }
+      // Track total pages (will be updated)
+      let totalPages = 1;
+      const updateTotalPages = () => {
+        totalPages = doc.bufferedPageRange().count;
+      };
+      
+      // Helper to draw table
+      const drawTable = (headers, rows, startY, options = {}) => {
+        const tableTop = startY || doc.y;
+        const cellPadding = options.padding || 5;
+        const fontSize = options.fontSize || 9;
+        const headerColor = options.headerColor || '#1f2937';
+        const rowColor = options.rowColor || '#111827';
+        const textColor = options.textColor || '#e5e7eb';
+        const headerTextColor = options.headerTextColor || '#f9fafb';
+        const columnWidths = options.columnWidths || [];
+        const pageWidth = doc.page.width - 100; // 50px margin on each side
+        
+        // Calculate column widths if not provided
+        let widths = columnWidths;
+        if (!widths.length) {
+          const colCount = headers.length;
+          const colWidth = pageWidth / colCount;
+          widths = headers.map(() => colWidth);
+        }
+        
+        let currentY = tableTop;
+        const rowHeight = fontSize + (cellPadding * 2) + 4;
+        
+        // Draw header
+        doc.save();
+        doc.rect(50, currentY, pageWidth, rowHeight)
+          .fillColor(headerColor)
+          .fill();
+        doc.fillColor(headerTextColor).fontSize(fontSize).font('Helvetica-Bold');
+        
+        let xPos = 50;
+        headers.forEach((header, i) => {
+          doc.text(header, xPos + cellPadding, currentY + cellPadding, {
+            width: widths[i] - (cellPadding * 2),
+            align: 'left'
+          });
+          xPos += widths[i];
+        });
+        doc.restore();
+        currentY += rowHeight;
+        
+        // Draw rows
+        rows.forEach((row, rowIndex) => {
+          // Check if we need a new page
+          if (currentY + rowHeight > doc.page.height - 80) {
+            doc.addPage();
+            addWatermark();
+            updateTotalPages();
+            addHeaderFooter(totalPages, totalPages);
+            currentY = 80;
+          }
+          
+          const bgColor = rowIndex % 2 === 0 ? rowColor : '#1a1f2e';
+          doc.save();
+          doc.rect(50, currentY, pageWidth, rowHeight)
+            .fillColor(bgColor)
+            .fill();
+          doc.fillColor(textColor).fontSize(fontSize).font('Helvetica');
+          
+          xPos = 50;
+          row.forEach((cell, i) => {
+            doc.text(String(cell || 'N/A'), xPos + cellPadding, currentY + cellPadding, {
+              width: widths[i] - (cellPadding * 2),
+              align: 'left'
+            });
+            xPos += widths[i];
+          });
+          doc.restore();
+          currentY += rowHeight;
+        });
+        
+        doc.y = currentY + 10;
+        return currentY;
+      };
+      
+      // COVER PAGE
+      addWatermark();
+      doc.fillColor('#f9fafb').fontSize(32).font('Helvetica-Bold')
+        .text('Last Wish Delivery', 50, 150, { align: 'center', width: doc.page.width - 100 });
+      doc.fillColor('#9ca3af').fontSize(16).font('Helvetica')
+        .text('Confidential Financial Records', 50, 190, { align: 'center', width: doc.page.width - 100 });
+      
+      doc.moveDown(3);
+      doc.fillColor('#d1d5db').fontSize(14).font('Helvetica')
+        .text(`Prepared for: ${recipientName}`, 50, doc.y, { align: 'center', width: doc.page.width - 100 });
+      doc.moveDown(1);
+      doc.fillColor('#9ca3af').fontSize(12).font('Helvetica')
+        .text(`Account Holder: ${userName}`, 50, doc.y, { align: 'center', width: doc.page.width - 100 });
       doc.moveDown(2);
+      doc.fillColor('#6b7280').fontSize(10).font('Helvetica')
+        .text(`Generated: ${formatDate(new Date())}`, 50, doc.y, { align: 'center', width: doc.page.width - 100 });
+      
+      // Confidentiality Notice
+      doc.moveDown(3);
+      doc.fillColor('#6b7280').fontSize(9).font('Helvetica')
+        .text('CONFIDENTIAL - FOR AUTHORIZED RECIPIENT ONLY', 50, doc.y, { align: 'center', width: doc.page.width - 100 });
+      doc.moveDown(1);
+      doc.fillColor('#9ca3af').fontSize(8).font('Helvetica')
+        .text('This document contains sensitive financial information. Handle with care and store securely.', 
+          50, doc.y, { align: 'center', width: doc.page.width - 100 });
+      
+      addHeaderFooter(1, 1);
+      updateTotalPages();
+      
+      // TABLE OF CONTENTS
+      doc.addPage();
+      addWatermark();
+      doc.fillColor('#f9fafb').fontSize(20).font('Helvetica-Bold')
+        .text('Table of Contents', 50, 80);
+      doc.moveDown(1);
+      
+      let tocY = doc.y;
+      const tocItems = [];
+      if (true) tocItems.push({ title: 'Executive Summary', page: doc.bufferedPageRange().count + 1 });
+      if (metrics.totalAssets > 0 || metrics.netWorth !== 0) tocItems.push({ title: 'Financial Overview', page: doc.bufferedPageRange().count + 2 });
+      if (data.accounts?.length > 0) tocItems.push({ title: 'Bank Accounts', page: doc.bufferedPageRange().count + 3 });
+      if (data.transactions?.length > 0) tocItems.push({ title: 'Transactions', page: doc.bufferedPageRange().count + 4 });
+      if (data.purchases?.length > 0) tocItems.push({ title: 'Purchases', page: doc.bufferedPageRange().count + 5 });
+      if (data.lendBorrow?.length > 0) tocItems.push({ title: 'Lend/Borrow Records', page: doc.bufferedPageRange().count + 6 });
+      if (data.donationSavings?.length > 0) tocItems.push({ title: 'Savings/Donation Records', page: doc.bufferedPageRange().count + 7 });
+      if (data.investmentAssets?.length > 0) tocItems.push({ title: 'Investment Assets', page: doc.bufferedPageRange().count + 8 });
+      tocItems.push({ title: 'Legal & Compliance', page: doc.bufferedPageRange().count + 9 });
+      
+      tocItems.forEach((item, index) => {
+        doc.fillColor('#d1d5db').fontSize(10).font('Helvetica')
+          .text(item.title, 50, tocY + (index * 20), { continued: true });
+        doc.fillColor('#6b7280').fontSize(9)
+          .text(`........ ${item.page}`, doc.page.width - 100, tocY + (index * 20), { align: 'right' });
+      });
+      
+      addHeaderFooter(2, 2);
+      updateTotalPages();
+      
+      // EXECUTIVE SUMMARY PAGE
+      doc.addPage();
+      addWatermark();
+      doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
+        .text('Executive Summary', 50, 80);
+      doc.moveDown(1);
+      
+      // Context Information
+      doc.fillColor('#d1d5db').fontSize(11).font('Helvetica-Bold')
+        .text('Delivery Context', 50, doc.y);
+      doc.moveDown(0.5);
+      doc.fillColor('#9ca3af').fontSize(9).font('Helvetica')
+        .text(`Last Wish Established: ${dateInfo.setupDate ? formatDate(dateInfo.setupDate) : 'N/A'}`, 50, doc.y);
+      doc.moveDown(0.3);
+      doc.text(`Last Account Activity: ${dateInfo.lastActivityDate ? formatDate(dateInfo.lastActivityDate) : 'N/A'}`, 50, doc.y);
+      doc.moveDown(0.3);
+      doc.text(`Inactivity Period: ${dateInfo.inactivityPeriod !== null ? dateInfo.inactivityPeriod + ' days' : 'N/A'}`, 50, doc.y);
+      doc.moveDown(0.3);
+      doc.text(`Delivery Trigger: Extended inactivity (${dateInfo.inactivityThreshold}-day threshold)`, 50, doc.y);
+      doc.moveDown(1);
+      
+      // Personal Message
+      if (settings.message) {
+        doc.fillColor('#d1d5db').fontSize(11).font('Helvetica-Bold')
+          .text('Personal Message', 50, doc.y);
+        doc.moveDown(0.5);
+        doc.fillColor('#9ca3af').fontSize(9).font('Helvetica-Oblique')
+          .text(settings.message, 50, doc.y, { width: doc.page.width - 100 });
+        doc.moveDown(1.5);
+      }
+      
+      // Financial Metrics Summary
+      doc.fillColor('#f9fafb').fontSize(14).font('Helvetica-Bold')
+        .text('Financial Overview', 50, doc.y);
+      doc.moveDown(0.8);
+      
+      const summaryData = [
+        ['Total Assets', formatCurrency(metrics.totalAssets, metrics.primaryCurrency)],
+        ['Investment Portfolio', formatCurrency(metrics.investmentPortfolio, metrics.primaryCurrency)],
+        ['Outstanding Debts', formatCurrency(metrics.outstandingDebts, metrics.primaryCurrency)],
+        ['Amounts Owed to Account Holder', formatCurrency(metrics.amountsOwed, metrics.primaryCurrency)],
+        ['Net Worth', formatCurrency(metrics.netWorth, metrics.primaryCurrency)]
+      ];
+      
+      drawTable(['Metric', 'Value'], summaryData, doc.y, {
+        columnWidths: [(doc.page.width - 100) * 0.6, (doc.page.width - 100) * 0.4],
+        headerColor: '#1f2937',
+        rowColor: '#111827',
+        textColor: '#e5e7eb',
+        headerTextColor: '#f9fafb'
+      });
+      
+      addHeaderFooter(3, 3);
+      updateTotalPages();
 
-      // Accounts Section
+      // BANK ACCOUNTS SECTION
       if (data.accounts && data.accounts.length > 0) {
         doc.addPage();
-        doc.fontSize(16).fillColor('#111827').text('Bank Accounts', { underline: true });
-        doc.moveDown();
+        addWatermark();
+        updateTotalPages();
+        addHeaderFooter(totalPages, totalPages);
         
-        data.accounts.forEach((account, index) => {
-          doc.fontSize(12).fillColor('#10b981').text(`Account ${index + 1}`);
-          doc.fontSize(10).fillColor('#4b5563');
-          doc.text(`Name: ${account.name || 'N/A'}`);
-          doc.text(`Type: ${account.type || 'N/A'}`);
-          doc.text(`Balance: ${account.balance || 0}`);
-          doc.text(`Currency: ${account.currency || 'USD'}`);
-          doc.moveDown();
-        });
+        doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
+          .text('Bank Accounts', 50, 80);
+        doc.moveDown(1);
+        
+        const accountRows = data.accounts.map(acc => [
+          acc.name || 'Unnamed Account',
+          acc.type || 'N/A',
+          formatCurrency(parseFloat(acc.balance) || 0, acc.currency || 'USD'),
+          acc.currency || 'USD',
+          acc.account_number || 'N/A',
+          acc.institution || 'N/A'
+        ]);
+        
+        drawTable(
+          ['Account Name', 'Type', 'Balance', 'Currency', 'Account Number', 'Institution'],
+          accountRows,
+          doc.y,
+          {
+            columnWidths: [
+              (doc.page.width - 100) * 0.25,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.1,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.2
+            ]
+          }
+        );
       }
 
-      // Transactions Section (show recent)
+      // TRANSACTIONS SECTION
       if (data.transactions && data.transactions.length > 0) {
         doc.addPage();
-        doc.fontSize(16).fillColor('#111827').text('Recent Transactions', { underline: true });
-        doc.moveDown();
+        addWatermark();
+        updateTotalPages();
+        addHeaderFooter(totalPages, totalPages);
         
-        const recentTransactions = data.transactions.slice(0, 20); // First 20
-        recentTransactions.forEach((tx, index) => {
-          doc.fontSize(10).fillColor('#4b5563');
-          doc.text(`${new Date(tx.date).toLocaleDateString()}: ${tx.description || 'N/A'} - ${tx.amount || 0} ${tx.currency || 'USD'}`);
-        });
+        doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
+          .text('Transactions', 50, 80);
+        doc.moveDown(1);
         
-        if (data.transactions.length > 20) {
-          doc.moveDown();
-          doc.fontSize(9).fillColor('#9ca3af').text(
-            `... and ${data.transactions.length - 20} more transactions (see JSON file for complete data)`
-          );
+        // Show all transactions (or limit if too many)
+        const transactionsToShow = data.transactions.slice(0, 100);
+        const transactionRows = transactionsToShow.map(tx => [
+          formatDate(tx.date || tx.created_at),
+          (tx.description || 'N/A').substring(0, 40),
+          formatCurrency(parseFloat(tx.amount) || 0, tx.currency || 'USD'),
+          tx.currency || 'USD',
+          tx.category || 'N/A',
+          tx.type || 'N/A'
+        ]);
+        
+        drawTable(
+          ['Date', 'Description', 'Amount', 'Currency', 'Category', 'Type'],
+          transactionRows,
+          doc.y,
+          {
+            columnWidths: [
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.3,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.1,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.15
+            ],
+            fontSize: 8
+          }
+        );
+        
+        if (data.transactions.length > 100) {
+          doc.moveDown(1);
+          doc.fillColor('#6b7280').fontSize(8).font('Helvetica')
+            .text(`Note: Showing first 100 of ${data.transactions.length} transactions. See JSON/CSV files for complete data.`, 
+              50, doc.y, { width: doc.page.width - 100 });
         }
       }
 
-      // Purchases Section
+      // PURCHASES SECTION
       if (data.purchases && data.purchases.length > 0) {
         doc.addPage();
-        doc.fontSize(16).fillColor('#111827').text('Purchases', { underline: true });
-        doc.moveDown();
+        addWatermark();
+        updateTotalPages();
+        addHeaderFooter(totalPages, totalPages);
         
-        data.purchases.forEach((purchase, index) => {
-          doc.fontSize(11).fillColor('#6b21a8').text(`${purchase.name || 'Purchase ' + (index + 1)}`);
-          doc.fontSize(10).fillColor('#4b5563');
-          doc.text(`Amount: ${purchase.amount || 0}`);
-          doc.text(`Status: ${purchase.status || 'N/A'}`);
-          if (purchase.target_date) {
-            doc.text(`Target Date: ${new Date(purchase.target_date).toLocaleDateString()}`);
+        doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
+          .text('Purchases', 50, 80);
+        doc.moveDown(1);
+        
+        const purchaseRows = data.purchases.map(purchase => [
+          purchase.name || 'Unnamed Purchase',
+          formatCurrency(parseFloat(purchase.amount) || 0, purchase.currency || 'USD'),
+          purchase.status || 'N/A',
+          purchase.target_date ? formatDate(purchase.target_date) : 'N/A',
+          purchase.priority || 'N/A',
+          (purchase.notes || '').substring(0, 30)
+        ]);
+        
+        drawTable(
+          ['Name', 'Amount', 'Status', 'Target Date', 'Priority', 'Notes'],
+          purchaseRows,
+          doc.y,
+          {
+            columnWidths: [
+              (doc.page.width - 100) * 0.25,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.13,
+              (doc.page.width - 100) * 0.2
+            ]
           }
-          doc.moveDown();
-        });
+        );
       }
 
-      // Footer on last page
-      doc.moveDown(2);
-      doc.fontSize(9).fillColor('#9ca3af').text(
-        'This document was automatically generated by the Last Wish System - FinTrack',
-        { align: 'center' }
-      );
-      doc.text(
-        `Generated on: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
-        { align: 'center' }
-      );
+      // LEND/BORROW SECTION
+      if (data.lendBorrow && data.lendBorrow.length > 0) {
+        doc.addPage();
+        addWatermark();
+        updateTotalPages();
+        addHeaderFooter(totalPages, totalPages);
+        
+        doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
+          .text('Lend/Borrow Records', 50, 80);
+        doc.moveDown(1);
+        
+        const lendBorrowRows = data.lendBorrow.map(lb => [
+          lb.type || 'N/A',
+          lb.person || lb.entity || 'N/A',
+          formatCurrency(parseFloat(lb.amount) || 0, lb.currency || 'USD'),
+          lb.currency || 'USD',
+          lb.status || 'N/A',
+          lb.due_date ? formatDate(lb.due_date) : 'N/A',
+          (lb.notes || '').substring(0, 30)
+        ]);
+        
+        drawTable(
+          ['Type', 'Person/Entity', 'Amount', 'Currency', 'Status', 'Due Date', 'Notes'],
+          lendBorrowRows,
+          doc.y,
+          {
+            columnWidths: [
+              (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.2,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.1,
+              (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.16
+            ],
+            fontSize: 8
+          }
+        );
+      }
+
+      // SAVINGS/DONATION RECORDS SECTION
+      if (data.donationSavings && data.donationSavings.length > 0) {
+        doc.addPage();
+        addWatermark();
+        updateTotalPages();
+        addHeaderFooter(totalPages, totalPages);
+        
+        doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
+          .text('Savings/Donation Records', 50, 80);
+        doc.moveDown(1);
+        
+        const savingsRows = data.donationSavings.map(ds => [
+          ds.type || 'N/A',
+          ds.name || 'Unnamed',
+          formatCurrency(parseFloat(ds.target_amount) || 0, ds.currency || 'USD'),
+          formatCurrency(parseFloat(ds.current_amount) || 0, ds.currency || 'USD'),
+          ds.currency || 'USD',
+          ds.status || 'N/A',
+          ds.target_date ? formatDate(ds.target_date) : 'N/A'
+        ]);
+        
+        drawTable(
+          ['Type', 'Name', 'Target Amount', 'Current Amount', 'Currency', 'Status', 'Target Date'],
+          savingsRows,
+          doc.y,
+          {
+            columnWidths: [
+              (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.18,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.1,
+              (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.18
+            ],
+            fontSize: 8
+          }
+        );
+      }
+
+      // INVESTMENT ASSETS SECTION
+      if (data.investmentAssets && data.investmentAssets.length > 0) {
+        doc.addPage();
+        addWatermark();
+        updateTotalPages();
+        addHeaderFooter(totalPages, totalPages);
+        
+        doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
+          .text('Investment Assets', 50, 80);
+        doc.moveDown(1);
+        
+        const investmentRows = data.investmentAssets.map(asset => [
+          asset.name || 'Unnamed Asset',
+          asset.type || 'N/A',
+          formatCurrency(parseFloat(asset.current_value || asset.total_value) || 0, asset.currency || 'USD'),
+          asset.currency || 'USD',
+          asset.purchase_date ? formatDate(asset.purchase_date) : 'N/A',
+          asset.quantity || 'N/A'
+        ]);
+        
+        drawTable(
+          ['Name', 'Type', 'Current Value', 'Currency', 'Purchase Date', 'Quantity'],
+          investmentRows,
+          doc.y,
+          {
+            columnWidths: [
+              (doc.page.width - 100) * 0.25,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.2,
+              (doc.page.width - 100) * 0.1,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.15
+            ]
+          }
+        );
+      }
+
+      // LEGAL & COMPLIANCE SECTION
+      doc.addPage();
+      addWatermark();
+      updateTotalPages();
+      addHeaderFooter(totalPages, totalPages);
+      
+      doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
+        .text('Legal & Compliance', 50, 80);
+      doc.moveDown(1.5);
+      
+      // Disclaimer
+      doc.fillColor('#d1d5db').fontSize(12).font('Helvetica-Bold')
+        .text('Disclaimer', 50, doc.y);
+      doc.moveDown(0.5);
+      doc.fillColor('#9ca3af').fontSize(9).font('Helvetica')
+        .text('This document contains financial information delivered through the Last Wish system. The information is provided "as is" and is accurate to the best of our knowledge at the time of generation. Balanze and the Last Wish system are not responsible for any decisions made based on this information.', 
+          50, doc.y, { width: doc.page.width - 100, align: 'justify' });
+      doc.moveDown(1.5);
+      
+      // Privacy Notice
+      doc.fillColor('#d1d5db').fontSize(12).font('Helvetica-Bold')
+        .text('Privacy Notice', 50, doc.y);
+      doc.moveDown(0.5);
+      doc.fillColor('#9ca3af').fontSize(9).font('Helvetica')
+        .text('This document contains sensitive personal and financial information. It is intended solely for the authorized recipient. Unauthorized access, disclosure, or use of this information is prohibited. Please store this document securely and dispose of it properly when no longer needed.', 
+          50, doc.y, { width: doc.page.width - 100, align: 'justify' });
+      doc.moveDown(1.5);
+      
+      // Terms of Use
+      doc.fillColor('#d1d5db').fontSize(12).font('Helvetica-Bold')
+        .text('Terms of Use', 50, doc.y);
+      doc.moveDown(0.5);
+      doc.fillColor('#9ca3af').fontSize(9).font('Helvetica')
+        .text('By receiving this document, you acknowledge that you are an authorized recipient designated by the account holder. You agree to use this information responsibly, maintain confidentiality, and only use it for the purposes intended by the account holder.', 
+          50, doc.y, { width: doc.page.width - 100, align: 'justify' });
+      doc.moveDown(1.5);
+      
+      // Data Retention
+      doc.fillColor('#d1d5db').fontSize(12).font('Helvetica-Bold')
+        .text('Data Retention', 50, doc.y);
+      doc.moveDown(0.5);
+      doc.fillColor('#9ca3af').fontSize(9).font('Helvetica')
+        .text('This document was generated on ' + formatDate(new Date()) + '. The data contained herein reflects the account holder\'s financial records as of the last activity date. For questions or concerns, please contact: hello@shalconnects.com', 
+          50, doc.y, { width: doc.page.width - 100, align: 'justify' });
+      
+      // Final page update
+      updateTotalPages();
+      addHeaderFooter(totalPages, totalPages);
       
       doc.end();
     } catch (error) {
@@ -1344,6 +1930,9 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
 
         // Generate PDF
         const pdfBuffer = await createPDFBuffer(user, recipient, filteredData, settings);
+        
+        // Generate CSV export
+        const csvContent = generateCSVExport(filteredData, settings);
 
         // Get user's display name for subject
         const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || user.email;
@@ -1364,6 +1953,11 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
               filename: `${isTestMode ? 'test-' : ''}financial-data-backup.pdf`,
               content: pdfBuffer,
               contentType: 'application/pdf'
+            },
+            {
+              filename: `${isTestMode ? 'test-' : ''}financial-data-backup.csv`,
+              content: csvContent,
+              contentType: 'text/csv'
             }
           ]
         };
