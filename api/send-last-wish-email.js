@@ -20,45 +20,295 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
     });
 }
 
+// ============================================================================
+// UTILITY FUNCTIONS: Email Validation, Retry, Error Logging
+// ============================================================================
+
+/**
+ * Validates email address format
+ * @param {string} email - Email address to validate
+ * @returns {object} - { valid: boolean, error?: string }
+ */
+function validateEmail(email) {
+  if (!email || typeof email !== 'string') {
+    return { valid: false, error: 'Email is required and must be a string' };
+  }
+
+  const trimmedEmail = email.trim();
+  
+  if (trimmedEmail.length === 0) {
+    return { valid: false, error: 'Email cannot be empty' };
+  }
+
+  // Basic email regex pattern
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
+  if (!emailRegex.test(trimmedEmail)) {
+    return { valid: false, error: 'Invalid email format' };
+  }
+
+  // Check for common issues
+  if (trimmedEmail.length > 254) {
+    return { valid: false, error: 'Email address is too long (max 254 characters)' };
+  }
+
+  const localPart = trimmedEmail.split('@')[0];
+  if (localPart.length > 64) {
+    return { valid: false, error: 'Email local part is too long (max 64 characters)' };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validates all recipient emails before sending
+ * @param {Array} recipients - Array of recipient objects with email property
+ * @returns {object} - { valid: boolean, errors: Array, validRecipients: Array }
+ */
+function validateRecipients(recipients) {
+  if (!Array.isArray(recipients) || recipients.length === 0) {
+    return {
+      valid: false,
+      errors: ['No recipients provided'],
+      validRecipients: []
+    };
+  }
+
+  const errors = [];
+  const validRecipients = [];
+
+  recipients.forEach((recipient, index) => {
+    if (!recipient || typeof recipient !== 'object') {
+      errors.push(`Recipient ${index + 1}: Invalid recipient object`);
+      return;
+    }
+
+    if (!recipient.email) {
+      errors.push(`Recipient ${index + 1}: Email is required`);
+      return;
+    }
+
+    const emailValidation = validateEmail(recipient.email);
+    if (!emailValidation.valid) {
+      errors.push(`Recipient ${index + 1} (${recipient.email}): ${emailValidation.error}`);
+      return;
+    }
+
+    validRecipients.push(recipient);
+  });
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    validRecipients
+  };
+}
+
+/**
+ * Sleep/delay utility for retry mechanism
+ * @param {number} ms - Milliseconds to wait
+ * @returns {Promise}
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Enhanced error logging with context
+ * @param {string} context - Context of the error (e.g., 'sendDataToRecipient', 'gatherUserData')
+ * @param {Error} error - Error object
+ * @param {object} metadata - Additional metadata for logging
+ */
+async function logError(context, error, metadata = {}) {
+  const errorLog = {
+    context,
+    error_message: error.message,
+    error_stack: error.stack,
+    error_name: error.name,
+    metadata: {
+      ...metadata,
+      timestamp: new Date().toISOString()
+    }
+  };
+
+  // Log to console with structured format
+  console.error(`[Last Wish Error] ${context}:`, JSON.stringify(errorLog, null, 2));
+
+  // Log to database if possible
+  try {
+    await supabase
+      .from('last_wish_deliveries')
+      .insert({
+        user_id: metadata.userId || null,
+        recipient_email: metadata.recipientEmail || null,
+        delivery_status: 'error',
+        error_message: `${context}: ${error.message}`,
+        delivery_data: {
+          error_log: errorLog,
+          metadata: metadata
+        },
+        sent_at: new Date().toISOString()
+      });
+  } catch (dbError) {
+    // If database logging fails, just log to console
+    console.error('[Last Wish] Failed to log error to database:', dbError.message);
+  }
+}
+
+/**
+ * Retry mechanism with exponential backoff
+ * @param {Function} fn - Async function to retry
+ * @param {number} maxRetries - Maximum number of retry attempts (default: 3)
+ * @param {number} initialDelay - Initial delay in milliseconds (default: 1000)
+ * @param {string} context - Context for error logging
+ * @param {object} metadata - Metadata for error logging
+ * @returns {Promise} - Result of the function
+ */
+async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 1000, context = 'retry', metadata = {}) {
+  let lastError;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      
+      // Don't retry on certain errors (e.g., validation errors, authentication errors)
+      const nonRetryableErrors = [
+        'SMTP not configured',
+        'Last Wish settings not found',
+        'No recipients configured',
+        'User not found',
+        'Invalid email format',
+        'Email is required'
+      ];
+      
+      const shouldNotRetry = nonRetryableErrors.some(msg => error.message.includes(msg));
+      if (shouldNotRetry) {
+        await logError(context, error, { ...metadata, attempt, maxRetries, skippedRetry: true });
+        throw error;
+      }
+
+      // If this was the last attempt, don't wait
+      if (attempt < maxRetries) {
+        // Exponential backoff: delay = initialDelay * 2^attempt
+        const delay = initialDelay * Math.pow(2, attempt);
+        
+        await logError(context, error, {
+          ...metadata,
+          attempt: attempt + 1,
+          maxRetries,
+          retryingIn: delay,
+          willRetry: true
+        });
+        
+        await sleep(delay);
+      } else {
+        // Last attempt failed
+        await logError(context, error, {
+          ...metadata,
+          attempt: attempt + 1,
+          maxRetries,
+          finalAttempt: true,
+          willRetry: false
+        });
+      }
+    }
+  }
+  
+  throw lastError;
+}
+
 async function gatherUserData(userId) {
   const data = {};
+  const metadata = { userId, operation: 'gatherUserData' };
 
-  // Gather accounts
-  const { data: accounts } = await supabase
-    .from('accounts')
-    .select('*')
-    .eq('user_id', userId);
-  data.accounts = accounts || [];
+  try {
+    // Gather accounts
+    try {
+      const { data: accounts, error: accountsError } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (accountsError) {
+        await logError('gatherUserData', accountsError, { ...metadata, table: 'accounts' });
+      }
+      data.accounts = accounts || [];
+    } catch (error) {
+      await logError('gatherUserData', error, { ...metadata, table: 'accounts' });
+      data.accounts = [];
+    }
 
-  // Gather transactions
-  const { data: transactions } = await supabase
-    .from('transactions')
-    .select('*')
-    .eq('user_id', userId);
-  data.transactions = transactions || [];
+    // Gather transactions
+    try {
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (transactionsError) {
+        await logError('gatherUserData', transactionsError, { ...metadata, table: 'transactions' });
+      }
+      data.transactions = transactions || [];
+    } catch (error) {
+      await logError('gatherUserData', error, { ...metadata, table: 'transactions' });
+      data.transactions = [];
+    }
 
-  // Gather purchases
-  const { data: purchases } = await supabase
-    .from('purchases')
-    .select('*')
-    .eq('user_id', userId);
-  data.purchases = purchases || [];
+    // Gather purchases
+    try {
+      const { data: purchases, error: purchasesError } = await supabase
+        .from('purchases')
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (purchasesError) {
+        await logError('gatherUserData', purchasesError, { ...metadata, table: 'purchases' });
+      }
+      data.purchases = purchases || [];
+    } catch (error) {
+      await logError('gatherUserData', error, { ...metadata, table: 'purchases' });
+      data.purchases = [];
+    }
 
-  // Gather lend/borrow records
-  const { data: lendBorrow } = await supabase
-    .from('lend_borrow')
-    .select('*')
-    .eq('user_id', userId);
-  data.lendBorrow = lendBorrow || [];
+    // Gather lend/borrow records
+    try {
+      const { data: lendBorrow, error: lendBorrowError } = await supabase
+        .from('lend_borrow')
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (lendBorrowError) {
+        await logError('gatherUserData', lendBorrowError, { ...metadata, table: 'lend_borrow' });
+      }
+      data.lendBorrow = lendBorrow || [];
+    } catch (error) {
+      await logError('gatherUserData', error, { ...metadata, table: 'lend_borrow' });
+      data.lendBorrow = [];
+    }
 
-  // Gather donation/savings records
-  const { data: donationSavings } = await supabase
-    .from('donation_saving_records')
-    .select('*')
-    .eq('user_id', userId);
-  data.donationSavings = donationSavings || [];
+    // Gather donation/savings records
+    try {
+      const { data: donationSavings, error: donationSavingsError } = await supabase
+        .from('donation_saving_records')
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (donationSavingsError) {
+        await logError('gatherUserData', donationSavingsError, { ...metadata, table: 'donation_saving_records' });
+      }
+      data.donationSavings = donationSavings || [];
+    } catch (error) {
+      await logError('gatherUserData', error, { ...metadata, table: 'donation_saving_records' });
+      data.donationSavings = [];
+    }
 
-  return data;
+    return data;
+  } catch (error) {
+    await logError('gatherUserData', error, { ...metadata, fatal: true });
+    throw error;
+  }
 }
 
 function filterDataBySettings(userData, includeSettings) {
@@ -530,127 +780,277 @@ function createPDFBuffer(user, recipient, data, settings) {
 }
 
 async function sendDataToRecipient(user, recipient, userData, settings, isTestMode = false) {
-  try {
-    // Filter data based on user preferences
-    const filteredData = filterDataBySettings(userData, settings.include_data);
+  const metadata = {
+    userId: user.id,
+    recipientEmail: recipient.email,
+    recipientName: recipient.name,
+    isTestMode
+  };
 
-    // Create email content
-    const emailContent = createEmailContent(user, recipient, filteredData, settings, isTestMode);
+  // Validate recipient email before attempting to send
+  const emailValidation = validateEmail(recipient.email);
+  if (!emailValidation.valid) {
+    await logError('sendDataToRecipient', new Error(emailValidation.error), {
+      ...metadata,
+      validationError: true
+    });
+    return { success: false, error: emailValidation.error, validationError: true };
+  }
 
-    // Generate PDF
-    const pdfBuffer = await createPDFBuffer(user, recipient, filteredData, settings);
+  // Use retry mechanism for sending email
+  return await retryWithBackoff(
+    async () => {
+      try {
+        // Filter data based on user preferences
+        const filteredData = filterDataBySettings(userData, settings.include_data);
 
-    // Get user's display name for subject
-    const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || user.email;
+        // Create email content
+        const emailContent = createEmailContent(user, recipient, filteredData, settings, isTestMode);
 
-    // Send email
-    const mailOptions = {
-      from: process.env.SMTP_USER,
-      to: recipient.email,
-      subject: `${isTestMode ? '🧪 Test - ' : ''}Last Wish Delivery from ${userName}`,
-      html: emailContent,
-      attachments: [
-        {
-          filename: `${isTestMode ? 'test-' : ''}financial-data-backup.json`,
-          content: JSON.stringify(filteredData, null, 2),
-          contentType: 'application/json'
-        },
-        {
-          filename: `${isTestMode ? 'test-' : ''}financial-data-backup.pdf`,
-          content: pdfBuffer,
-          contentType: 'application/pdf'
+        // Generate PDF
+        const pdfBuffer = await createPDFBuffer(user, recipient, filteredData, settings);
+
+        // Get user's display name for subject
+        const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || user.email;
+
+        // Send email
+        const mailOptions = {
+          from: process.env.SMTP_USER,
+          to: recipient.email,
+          subject: `${isTestMode ? '🧪 Test - ' : ''}Last Wish Delivery from ${userName}`,
+          html: emailContent,
+          attachments: [
+            {
+              filename: `${isTestMode ? 'test-' : ''}financial-data-backup.json`,
+              content: JSON.stringify(filteredData, null, 2),
+              contentType: 'application/json'
+            },
+            {
+              filename: `${isTestMode ? 'test-' : ''}financial-data-backup.pdf`,
+              content: pdfBuffer,
+              contentType: 'application/pdf'
+            }
+          ]
+        };
+
+        const result = await transporter.sendMail(mailOptions);
+
+        // Log successful delivery
+        try {
+          await supabase
+            .from('last_wish_deliveries')
+            .insert({
+              user_id: user.id,
+              recipient_email: recipient.email,
+              delivery_data: filteredData,
+              delivery_status: 'sent',
+              sent_at: new Date().toISOString()
+            });
+        } catch (dbError) {
+          // Log database error but don't fail the email send
+          await logError('sendDataToRecipient', dbError, {
+            ...metadata,
+            dbLogError: true,
+            messageId: result.messageId
+          });
         }
-      ]
-    };
 
-    const result = await transporter.sendMail(mailOptions);
+        return { success: true, messageId: result.messageId };
 
-    // Log delivery
-    await supabase
-      .from('last_wish_deliveries')
-      .insert({
-        user_id: user.id,
-        recipient_email: recipient.email,
-        delivery_data: filteredData,
-        delivery_status: 'sent',
-        sent_at: new Date().toISOString()
-      });
+      } catch (error) {
+        // Enhanced error logging with full context
+        await logError('sendDataToRecipient', error, {
+          ...metadata,
+          errorType: 'sendMail',
+          smtpConfigured: !!transporter
+        });
 
-    return { success: true, messageId: result.messageId };
+        // Log failed delivery attempt
+        try {
+          await supabase
+            .from('last_wish_deliveries')
+            .insert({
+              user_id: user.id,
+              recipient_email: recipient.email,
+              delivery_data: {},
+              delivery_status: 'failed',
+              error_message: error.message,
+              sent_at: new Date().toISOString()
+            });
+        } catch (dbError) {
+          // If database logging fails, error is already logged above
+          console.error('[Last Wish] Failed to log failed delivery to database:', dbError.message);
+        }
 
-  } catch (error) {
-    // Log failed delivery
-    await supabase
-      .from('last_wish_deliveries')
-      .insert({
-        user_id: user.id,
-        recipient_email: recipient.email,
-        delivery_data: {},
-        delivery_status: 'failed',
-        error_message: error.message,
-        sent_at: new Date().toISOString()
-      });
+        throw error; // Re-throw to trigger retry mechanism
+      }
+    },
+    3, // maxRetries
+    1000, // initialDelay (1 second)
+    'sendDataToRecipient',
+    metadata
+  ).catch(async (error) => {
+    // Final failure after all retries
+    await logError('sendDataToRecipient', error, {
+      ...metadata,
+      finalFailure: true,
+      allRetriesExhausted: true
+    });
 
     return { success: false, error: error.message };
-  }
+  });
 }
 
 async function sendLastWishEmail(userId, testMode = false) {
+  const startTime = Date.now();
+  const metadata = { userId, testMode };
+
   try {
     // Check if SMTP is configured
     if (!transporter) {
-      throw new Error('SMTP not configured. Please set up SMTP settings in environment variables.');
+      const error = new Error('SMTP not configured. Please set up SMTP settings in environment variables.');
+      await logError('sendLastWishEmail', error, { ...metadata, smtpCheck: true });
+      throw error;
     }
 
-    // Get user's Last Wish settings
-    const { data: settings, error: settingsError } = await supabase
-      .from('last_wish_settings')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    // Get user's Last Wish settings with retry
+    const settings = await retryWithBackoff(
+      async () => {
+        const { data, error: settingsError } = await supabase
+          .from('last_wish_settings')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
 
-    if (settingsError || !settings) {
-      throw new Error('Last Wish settings not found');
-    }
+        if (settingsError || !data) {
+          throw new Error('Last Wish settings not found');
+        }
+        return data;
+      },
+      2, // maxRetries for settings fetch
+      500, // initialDelay
+      'sendLastWishEmail',
+      { ...metadata, operation: 'fetchSettings' }
+    );
 
+    // Validate recipients before proceeding
     if (!settings.recipients || settings.recipients.length === 0) {
-      throw new Error('No recipients configured');
+      const error = new Error('No recipients configured');
+      await logError('sendLastWishEmail', error, { ...metadata, validation: true });
+      throw error;
     }
 
-    // Get user profile
-    const { data: user, error: userError } = await supabase.auth.admin.getUserById(userId);
-    if (userError || !user) {
-      throw new Error('User not found');
-    }
-
-    // Gather user data
-    const userData = await gatherUserData(userId);
-
-    // Send emails to all recipients
-    const results = [];
-    for (const recipient of settings.recipients) {
-      const result = await sendDataToRecipient(user.user, recipient, userData, settings, testMode);
-      results.push({
-        recipient: recipient.email,
-        success: result.success,
-        messageId: result.messageId,
-        error: result.error
+    const recipientValidation = validateRecipients(settings.recipients);
+    
+    if (!recipientValidation.valid) {
+      const error = new Error(`Invalid recipients: ${recipientValidation.errors.join('; ')}`);
+      await logError('sendLastWishEmail', error, {
+        ...metadata,
+        validation: true,
+        validationErrors: recipientValidation.errors,
+        totalRecipients: settings.recipients.length,
+        validRecipients: recipientValidation.validRecipients.length
       });
+      
+      // If no valid recipients, fail immediately
+      if (recipientValidation.validRecipients.length === 0) {
+        throw error;
+      }
+      
+      // Log warning but continue with valid recipients
+      console.warn(`[Last Wish] Some recipients are invalid. Proceeding with ${recipientValidation.validRecipients.length} valid recipient(s).`);
     }
 
-    // Mark as delivered (only if not in test mode)
+    // Use only valid recipients
+    const recipientsToSend = recipientValidation.validRecipients.length > 0 
+      ? recipientValidation.validRecipients 
+      : settings.recipients;
+
+    // Get user profile with retry
+    const user = await retryWithBackoff(
+      async () => {
+        const { data, error: userError } = await supabase.auth.admin.getUserById(userId);
+        if (userError || !data) {
+          throw new Error('User not found');
+        }
+        return data;
+      },
+      2, // maxRetries for user fetch
+      500, // initialDelay
+      'sendLastWishEmail',
+      { ...metadata, operation: 'fetchUser' }
+    );
+
+    // Gather user data with error logging
+    let userData;
+    try {
+      userData = await gatherUserData(userId);
+    } catch (dataError) {
+      await logError('sendLastWishEmail', dataError, {
+        ...metadata,
+        operation: 'gatherUserData'
+      });
+      throw new Error(`Failed to gather user data: ${dataError.message}`);
+    }
+
+    // Send emails to all valid recipients
+    const results = [];
+    for (const recipient of recipientsToSend) {
+      try {
+        const result = await sendDataToRecipient(user.user, recipient, userData, settings, testMode);
+        results.push({
+          recipient: recipient.email,
+          recipientName: recipient.name,
+          success: result.success,
+          messageId: result.messageId,
+          error: result.error,
+          validationError: result.validationError || false
+        });
+      } catch (recipientError) {
+        // Individual recipient failure - log but continue with others
+        await logError('sendLastWishEmail', recipientError, {
+          ...metadata,
+          operation: 'sendToRecipient',
+          recipientEmail: recipient.email
+        });
+        results.push({
+          recipient: recipient.email,
+          recipientName: recipient.name,
+          success: false,
+          error: recipientError.message
+        });
+      }
+    }
+
+    // Mark as delivered (only if not in test mode and at least one email succeeded)
     if (!testMode) {
-      await supabase
-        .from('last_wish_settings')
-        .update({ 
-          is_active: false,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId);
+      const successCount = results.filter(r => r.success).length;
+      if (successCount > 0) {
+        try {
+          await supabase
+            .from('last_wish_settings')
+            .update({ 
+              is_active: false,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', userId);
+        } catch (updateError) {
+          await logError('sendLastWishEmail', updateError, {
+            ...metadata,
+            operation: 'updateSettings',
+            successCount
+          });
+          // Don't fail the whole operation if settings update fails
+        }
+      }
     }
 
     const successCount = results.filter(r => r.success).length;
     const failCount = results.filter(r => !r.success).length;
+    const duration = Date.now() - startTime;
+
+    // Log summary
+    console.log(`[Last Wish] Delivery completed for user ${userId}: ${successCount} successful, ${failCount} failed (${duration}ms)`);
 
     return {
       success: true,
@@ -658,14 +1058,24 @@ async function sendLastWishEmail(userId, testMode = false) {
       results: results,
       deliveredAt: new Date().toISOString(),
       successful: successCount,
-      failed: failCount
+      failed: failCount,
+      validationErrors: recipientValidation.errors || [],
+      duration: duration
     };
 
   } catch (error) {
+    const duration = Date.now() - startTime;
+    await logError('sendLastWishEmail', error, {
+      ...metadata,
+      finalError: true,
+      duration
+    });
+
     return {
       success: false,
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      duration: duration
     };
   }
 }

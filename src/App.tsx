@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { supabase } from './lib/supabase';
@@ -10,47 +10,11 @@ import ResetPassword from './pages/ResetPassword';
 import { Dashboard } from './pages/Dashboard';
 import LandingPage from './pages/LandingPage';
 import { Toaster } from 'sonner';
-import About from './pages/About';
-import Blog from './pages/Blog';
-import BlogDetail from './pages/BlogDetail';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import TermsOfService from './pages/TermsOfService';
-import RefundPolicy from './pages/RefundPolicy';
 import { LoadingProvider, useLoadingContext } from './context/LoadingContext';
 import { Loader } from './components/common/Loader';
 import { MainLayout } from './components/Layout/MainLayout';
-import { AccountsView } from './components/Accounts/AccountsView';
-import { TransactionsView } from './components/Transactions/TransactionsView';
-import { TransfersView } from './components/Transfers/TransfersView';
-import { TransfersTableView } from './components/Transfers/TransfersTableView';
-import { Transfer_new } from './components/Transfers/Transfer_new';
-import { SavingsView } from './components/Savings/SavingsView';
-import { PurchaseTracker } from './components/Purchases/PurchaseTracker';
-import LendBorrowPage from './pages/LendBorrow';
-import { LendBorrowTableView } from './components/LendBorrow/LendBorrowTableView';
-import { PurchaseCategories } from './components/Purchases/PurchaseCategories';
-import { PurchaseAnalytics } from './components/Purchases/PurchaseAnalytics';
-import { LendBorrowAnalytics } from './components/LendBorrow/LendBorrowAnalytics';
-import { AnalyticsView } from './components/Reports/AnalyticsView';
-import { CurrencyAnalytics } from './components/Reports/CurrencyAnalytics';
-import { Settings } from './components/Dashboard/Settings';
-import { PaymentHistoryPage } from './pages/PaymentHistoryPage';
-import HelpAndSupport from './pages/HelpAndSupport';
-import { Investments } from './pages/Investments';
-import { SimpleInvestments } from './pages/SimpleInvestments';
-import { History } from './pages/History';
-import { HelpLayout } from './components/Layout/HelpLayout';
-import { PublicHelpLayout } from './components/Layout/PublicHelpLayout';
-import PublicHelpCenter from './pages/PublicHelpCenter';
-import TopicClusterHub from './pages/TopicClusterHub';
-import PublicArticlePage from './pages/PublicArticlePage';
-import SitemapPage from './pages/SitemapPage';
-import RobotsTxtPage from './pages/RobotsTxtPage';
-import DonationsSavingsPage from './pages/DonationsSavingsPage';
-import { FavoriteQuotes } from './pages/FavoriteQuotes';
 import { WelcomeModal } from './components/common/WelcomeModal';
 import PostAccountCreationTour from './components/PostAccountCreationTour';
-import Achievements from './pages/Achievements';
 import { AchievementIntegration } from './components/Achievements/AchievementIntegration';
 import ContextualTourTrigger from './components/ContextualTourTrigger';
 import { Analytics } from '@vercel/analytics/react';
@@ -58,16 +22,54 @@ import { useNotificationStore } from './store/notificationStore';
 import { useNotificationsStore } from './store/notificationsStore';
 import { urgentNotificationService } from './lib/urgentNotifications';
 import { MobileSidebarProvider } from './context/MobileSidebarContext';
-import KBArticlePage from './pages/KBArticlePage';
-import KBSitemapPage from './pages/KBSitemapPage';
-import KBRobotsPage from './pages/KBRobotsPage';
-import AdminPage from './pages/AdminPage';
-import { FileRenameAdmin } from './pages/FileRenameAdmin';
-import DashboardDemo from './pages/DashboardDemo';
-import DashboardDemoOnly from './pages/DashboardDemoOnly';
-import ShortUrlRedirect from './pages/ShortUrlRedirect';
 import { useThemeStore } from './store/themeStore';
 import { AppInstallBanner } from './components/AppInstallBanner';
+
+// Lazy load non-critical components for code splitting
+const About = lazy(() => import('./pages/About'));
+const Blog = lazy(() => import('./pages/Blog'));
+const BlogDetail = lazy(() => import('./pages/BlogDetail'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./pages/TermsOfService'));
+const RefundPolicy = lazy(() => import('./pages/RefundPolicy'));
+const AccountsView = lazy(() => import('./components/Accounts/AccountsView').then(m => ({ default: m.AccountsView })));
+const TransactionsView = lazy(() => import('./components/Transactions/TransactionsView').then(m => ({ default: m.TransactionsView })));
+const TransfersView = lazy(() => import('./components/Transfers/TransfersView').then(m => ({ default: m.TransfersView })));
+const TransfersTableView = lazy(() => import('./components/Transfers/TransfersTableView').then(m => ({ default: m.TransfersTableView })));
+const Transfer_new = lazy(() => import('./components/Transfers/Transfer_new').then(m => ({ default: m.Transfer_new })));
+const SavingsView = lazy(() => import('./components/Savings/SavingsView').then(m => ({ default: m.SavingsView })));
+const PurchaseTracker = lazy(() => import('./components/Purchases/PurchaseTracker').then(m => ({ default: m.PurchaseTracker })));
+const LendBorrowPage = lazy(() => import('./pages/LendBorrow'));
+const LendBorrowTableView = lazy(() => import('./components/LendBorrow/LendBorrowTableView').then(m => ({ default: m.LendBorrowTableView })));
+const PurchaseCategories = lazy(() => import('./components/Purchases/PurchaseCategories').then(m => ({ default: m.PurchaseCategories })));
+const PurchaseAnalytics = lazy(() => import('./components/Purchases/PurchaseAnalytics').then(m => ({ default: m.PurchaseAnalytics })));
+const LendBorrowAnalytics = lazy(() => import('./components/LendBorrow/LendBorrowAnalytics').then(m => ({ default: m.LendBorrowAnalytics })));
+const AnalyticsView = lazy(() => import('./components/Reports/AnalyticsView').then(m => ({ default: m.AnalyticsView })));
+const CurrencyAnalytics = lazy(() => import('./components/Reports/CurrencyAnalytics').then(m => ({ default: m.CurrencyAnalytics })));
+const Settings = lazy(() => import('./components/Dashboard/Settings').then(m => ({ default: m.Settings })));
+const PaymentHistoryPage = lazy(() => import('./pages/PaymentHistoryPage').then(m => ({ default: m.PaymentHistoryPage })));
+const HelpAndSupport = lazy(() => import('./pages/HelpAndSupport'));
+const Investments = lazy(() => import('./pages/Investments').then(m => ({ default: m.Investments })));
+const SimpleInvestments = lazy(() => import('./pages/SimpleInvestments').then(m => ({ default: m.SimpleInvestments })));
+const History = lazy(() => import('./pages/History').then(m => ({ default: m.History })));
+const HelpLayout = lazy(() => import('./components/Layout/HelpLayout').then(m => ({ default: m.HelpLayout })));
+const PublicHelpLayout = lazy(() => import('./components/Layout/PublicHelpLayout').then(m => ({ default: m.PublicHelpLayout })));
+const PublicHelpCenter = lazy(() => import('./pages/PublicHelpCenter'));
+const TopicClusterHub = lazy(() => import('./pages/TopicClusterHub'));
+const PublicArticlePage = lazy(() => import('./pages/PublicArticlePage'));
+const SitemapPage = lazy(() => import('./pages/SitemapPage'));
+// robots.txt is served as static file - no component needed
+const DonationsSavingsPage = lazy(() => import('./pages/DonationsSavingsPage'));
+const FavoriteQuotes = lazy(() => import('./pages/FavoriteQuotes').then(m => ({ default: m.FavoriteQuotes })));
+const Achievements = lazy(() => import('./pages/Achievements'));
+const KBArticlePage = lazy(() => import('./pages/KBArticlePage'));
+const KBSitemapPage = lazy(() => import('./pages/KBSitemapPage'));
+const KBRobotsPage = lazy(() => import('./pages/KBRobotsPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+const FileRenameAdmin = lazy(() => import('./pages/FileRenameAdmin').then(m => ({ default: m.FileRenameAdmin })));
+const DashboardDemo = lazy(() => import('./pages/DashboardDemo'));
+const DashboardDemoOnly = lazy(() => import('./pages/DashboardDemoOnly'));
+const ShortUrlRedirect = lazy(() => import('./pages/ShortUrlRedirect'));
 
 function AppContent() {
   const user = useAuthStore((state) => state.user);
@@ -422,17 +424,18 @@ function AppContent() {
           }
         }}
       />
-      <Routes>
-        <Route path="/" element={user ? <Dashboard /> : <LandingPage />} />
-        <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
-        <Route path="/login" element={user ? <Navigate to="/" /> : <Auth />} />
-        <Route path="/register" element={user ? <Navigate to="/" /> : <Auth />} />
-        <Route path="/auth" element={user ? <Navigate to="/" /> : <Auth />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/auth/reset-password" element={<ResetPassword />} />
-        
-        {/* Dashboard routes - all protected */}
-        <Route path="/accounts" element={user ? <MainLayout><AccountsView /></MainLayout> : <Navigate to="/login" />} />
+      <Suspense fallback={<Loader isLoading={true} message="Loading..." />}>
+        <Routes>
+          <Route path="/" element={user ? <Dashboard /> : <LandingPage />} />
+          <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
+          <Route path="/login" element={user ? <Navigate to="/" /> : <Auth />} />
+          <Route path="/register" element={user ? <Navigate to="/" /> : <Auth />} />
+          <Route path="/auth" element={user ? <Navigate to="/" /> : <Auth />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/auth/reset-password" element={<ResetPassword />} />
+          
+          {/* Dashboard routes - all protected */}
+          <Route path="/accounts" element={user ? <MainLayout><AccountsView /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/transactions" element={user ? <MainLayout><TransactionsView /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/transfers" element={user ? <MainLayout><Transfer_new /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/transfers-table" element={user ? <MainLayout><TransfersTableView /></MainLayout> : <Navigate to="/login" />} />
@@ -483,8 +486,9 @@ function AppContent() {
         
         {/* SEO Routes */}
         <Route path="/sitemap.xml" element={<SitemapPage />} />
-        <Route path="/robots.txt" element={<RobotsTxtPage />} />
-      </Routes>
+        {/* robots.txt is served as static file from public/robots.txt - no route needed */}
+        </Routes>
+      </Suspense>
       
       {/* Welcome Modal for new users without accounts */}
       <WelcomeModal 
@@ -504,6 +508,8 @@ function AppContent() {
       
       {/* Contextual Tour Trigger */}
       <ContextualTourTrigger       />
+      
+      {/* AI Chat Bot is now integrated into FloatingActionButton */}
     </AchievementIntegration>
   );
 }

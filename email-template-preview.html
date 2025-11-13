@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Template Options - Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #1f2937;
+            margin-bottom: 40px;
+            font-size: 32px;
+        }
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        .option-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .option-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+        }
+        .option-card h2 {
+            color: #111827;
+            margin-bottom: 12px;
+            font-size: 20px;
+        }
+        .option-card p {
+            color: #6b7280;
+            margin-bottom: 20px;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+        .option-card .features {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+        .option-card .features li {
+            color: #4b5563;
+            font-size: 13px;
+            padding: 6px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+        .option-card .features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #10b981;
+            font-weight: bold;
+        }
+        .preview-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+        .preview-btn:hover {
+            opacity: 0.9;
+        }
+        .comparison {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-top: 40px;
+        }
+        .comparison h2 {
+            color: #111827;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th {
+            background: #f9fafb;
+            color: #111827;
+            font-weight: 600;
+        }
+        td {
+            color: #4b5563;
+        }
+        tr:hover {
+            background: #f9fafb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📧 Last Wish Email Template Options</h1>
+        
+        <div class="options-grid">
+            <div class="option-card">
+                <h2>Option 1: Enhanced Current</h2>
+                <p>Your current design with improved styling, better spacing, and enhanced visual hierarchy.</p>
+                <ul class="features">
+                    <li>Green gradient header</li>
+                    <li>Color-coded sections</li>
+                    <li>Modern card design</li>
+                    <li>Professional yet warm</li>
+                </ul>
+                <a href="email-template-option-1-enhanced.html" target="_blank" class="preview-btn">Preview Option 1</a>
+            </div>
+
+            <div class="option-card">
+                <h2>Option 2: Minimalist</h2>
+                <p>Clean, simple design with minimal colors and maximum readability. Perfect for professional settings.</p>
+                <ul class="features">
+                    <li>Clean typography</li>
+                    <li>Minimal color palette</li>
+                    <li>Simple layout</li>
+                    <li>Easy to read</li>
+                </ul>
+                <a href="email-template-option-2-minimalist.html" target="_blank" class="preview-btn">Preview Option 2</a>
+            </div>
+
+            <div class="option-card">
+                <h2>Option 3: Rich Detailed</h2>
+                <p>Feature-rich design with data grids, cards, and visual elements. Great for comprehensive information.</p>
+                <ul class="features">
+                    <li>Data grid layout</li>
+                    <li>Gradient backgrounds</li>
+                    <li>Interactive hover effects</li>
+                    <li>Rich visual elements</li>
+                </ul>
+                <a href="email-template-option-3-rich-detailed.html" target="_blank" class="preview-btn">Preview Option 3</a>
+            </div>
+
+            <div class="option-card">
+                <h2>Option 4: Professional</h2>
+                <p>Formal, letter-style design perfect for legal or executive contexts. Traditional and trustworthy.</p>
+                <ul class="features">
+                    <li>Letter format</li>
+                    <li>Formal typography</li>
+                    <li>Professional tone</li>
+                    <li>Traditional layout</li>
+                </ul>
+                <a href="email-template-option-4-professional.html" target="_blank" class="preview-btn">Preview Option 4</a>
+            </div>
+
+            <div class="option-card" style="background: linear-gradient(135deg, #111827 0%, #1f2937 100%); color: white; border: 2px solid #374151;">
+                <h2 style="color: #f9fafb;">Option 5: Dark Minimalist</h2>
+                <p style="color: #d1d5db;">Rich detailed layout with a somber dark theme. Appropriate for death notices and respectful delivery.</p>
+                <ul class="features">
+                    <li style="color: #d1d5db;">Dark theme</li>
+                    <li style="color: #d1d5db;">Minimalist colors</li>
+                    <li style="color: #d1d5db;">Data grid layout</li>
+                    <li style="color: #d1d5db;">Respectful & somber</li>
+                </ul>
+                <a href="email-template-option-3-dark-minimalist.html" target="_blank" class="preview-btn" style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); border: 1px solid #4b5563;">Preview Dark Minimalist</a>
+            </div>
+        </div>
+
+        <div class="comparison">
+            <h2>Template Comparison</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Option 1: Enhanced</th>
+                        <th>Option 2: Minimalist</th>
+                        <th>Option 3: Rich</th>
+                        <th>Option 4: Professional</th>
+                        <th>Option 5: Dark Minimalist</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Design Style</strong></td>
+                        <td>Modern, Colorful</td>
+                        <td>Clean, Simple</td>
+                        <td>Rich, Detailed</td>
+                        <td>Formal, Traditional</td>
+                        <td>Somber, Dark</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Best For</strong></td>
+                        <td>General use</td>
+                        <td>Professional settings</td>
+                        <td>Data-heavy content</td>
+                        <td>Legal/Executive</td>
+                        <td>Death notices, Respectful delivery</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Color Scheme</strong></td>
+                        <td>Green gradient</td>
+                        <td>Neutral grays</td>
+                        <td>Multiple gradients</td>
+                        <td>Dark blue/gray</td>
+                        <td>Black/Dark gray</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Layout</strong></td>
+                        <td>Card-based</td>
+                        <td>Minimal sections</td>
+                        <td>Grid-based</td>
+                        <td>Letter format</td>
+                        <td>Grid-based (dark)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Typography</strong></td>
+                        <td>Modern sans-serif</td>
+                        <td>Clean sans-serif</td>
+                        <td>Bold sans-serif</td>
+                        <td>Serif (formal)</td>
+                        <td>Clean sans-serif</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Visual Elements</strong></td>
+                        <td>Icons, colored boxes</td>
+                        <td>Minimal</td>
+                        <td>Cards, grids, badges</td>
+                        <td>Tables, borders</td>
+                        <td>Dark cards, subtle borders</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Mobile Friendly</strong></td>
+                        <td>✓ Yes</td>
+                        <td>✓ Yes</td>
+                        <td>✓ Yes (responsive)</td>
+                        <td>✓ Yes</td>
+                        <td>✓ Yes (responsive)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
+

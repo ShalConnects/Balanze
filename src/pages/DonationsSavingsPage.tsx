@@ -1534,26 +1534,28 @@ const DonationsSavingsPage: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-center">
                             <div className="flex items-center justify-center space-x-2">
                               {record.transaction_id && (
-                                <button
-                                  onClick={() => setShowDonationInfo(true)}
-                                  className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
-                                  title="Transaction-linked donation info"
-                                  aria-label="Transaction-linked donation info"
-                                >
-                                  <Info className="w-4 h-4" />
-                                </button>
+                                <Tooltip content="Transaction-linked donation info" placement="top">
+                                  <button
+                                    onClick={() => setShowDonationInfo(true)}
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                                    aria-label="Transaction-linked donation info"
+                                  >
+                                    <Info className="w-4 h-4" />
+                                  </button>
+                                </Tooltip>
                               )}
                               {!record.transaction_id && (
-                                <button
-                                  onClick={() => {
-                                    setDonationToDelete(record);
-                                    setShowDeleteModal(true);
-                                  }}
-                                  className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
-                                  title="Delete manual donation"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                <Tooltip content="Delete manual donation" placement="top">
+                                  <button
+                                    onClick={() => {
+                                      setDonationToDelete(record);
+                                      setShowDeleteModal(true);
+                                    }}
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </Tooltip>
                               )}
                             </div>
                           </td>
@@ -1720,17 +1722,18 @@ const DonationsSavingsPage: React.FC = () => {
                       {!record.transaction_id && (
                         <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
                           <div className="flex items-center justify-end">
-                            <button
-                              onClick={() => {
-                                setDonationToDelete(record);
-                                setShowDeleteModal(true);
-                              }}
-                              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
-                              title="Delete manual donation"
-                            >
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Delete
-                            </button>
+                            <Tooltip content="Delete manual donation" placement="top">
+                              <button
+                                onClick={() => {
+                                  setDonationToDelete(record);
+                                  setShowDeleteModal(true);
+                                }}
+                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4 mr-1" />
+                                Delete
+                              </button>
+                            </Tooltip>
                           </div>
                         </div>
                       )}
@@ -1739,14 +1742,15 @@ const DonationsSavingsPage: React.FC = () => {
                       {record.transaction_id && (
                         <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
                           <div className="flex items-center justify-end">
-                            <button
-                              onClick={() => setShowDonationInfo(true)}
-                              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
-                              title="Transaction-linked donation info"
-                            >
-                              <Info className="w-4 h-4 mr-1" />
-                              Info
-                            </button>
+                            <Tooltip content="Transaction-linked donation info" placement="top">
+                              <button
+                                onClick={() => setShowDonationInfo(true)}
+                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                              >
+                                <Info className="w-4 h-4 mr-1" />
+                                Info
+                              </button>
+                            </Tooltip>
                           </div>
                         </div>
                       )}
@@ -1855,28 +1859,30 @@ const DonationsSavingsPage: React.FC = () => {
                                 <CheckCircle className="w-3.5 h-3.5" />
                               )}
                             </button>
-                            <button
-                              onClick={() => setShowDonationInfo(true)}
-                              className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
-                              title="Transaction-linked donation info"
-                              aria-label="Transaction-linked donation info"
-                            >
-                              <Info className="w-3.5 h-3.5" />
-                            </button>
+                            <Tooltip content="Transaction-linked donation info" placement="top">
+                              <button
+                                onClick={() => setShowDonationInfo(true)}
+                                className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                                aria-label="Transaction-linked donation info"
+                              >
+                                <Info className="w-3.5 h-3.5" />
+                              </button>
+                            </Tooltip>
                           </>
                         )}
                         {!record.transaction_id && (
-                          <button
-                            onClick={() => {
-                              setDonationToDelete(record);
-                              setShowDeleteModal(true);
-                            }}
-                            className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                            title="Delete manual donation"
-                            aria-label="Delete manual donation"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <Tooltip content="Delete manual donation" placement="top">
+                            <button
+                              onClick={() => {
+                                setDonationToDelete(record);
+                                setShowDeleteModal(true);
+                              }}
+                              className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              aria-label="Delete manual donation"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </Tooltip>
                         )}
                       </div>
                     </div>

@@ -11,6 +11,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { generateTransactionId, createSuccessMessage } from '../../utils/transactionId';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
+import { Tooltip } from '../common/Tooltip';
 import { useAuthStore } from '../../store/authStore';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { LendBorrowCardSkeleton, LendBorrowTableSkeleton, LendBorrowSummaryCardsSkeleton, LendBorrowFiltersSkeleton } from './LendBorrowSkeleton';
@@ -1606,66 +1607,71 @@ export const LendBorrowTableView: React.FC = () => {
                             <div className="flex items-center justify-center space-x-1">
                               {/* Info/Edit button based on record status */}
                               {record.status === 'settled' ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSettledRecordInfoModal({ isOpen: true, record });
-                                  }}
-                                  className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                                  title="Settled record info"
-                                >
-                                  <Info className="w-4 h-4" />
-                                </button>
+                                <Tooltip content="Settled record info" placement="top">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSettledRecordInfoModal({ isOpen: true, record });
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                                  >
+                                    <Info className="w-4 h-4" />
+                                  </button>
+                                </Tooltip>
                               ) : (record.account_id && record.affect_account_balance) ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSettledRecordInfoModal({ isOpen: true, record });
-                                  }}
-                                  className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                                  title="Account-linked record info"
-                                >
-                                  <Info className="w-4 h-4" />
-                                </button>
+                                <Tooltip content="Account-linked record info" placement="top">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSettledRecordInfoModal({ isOpen: true, record });
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                                  >
+                                    <Info className="w-4 h-4" />
+                                  </button>
+                                </Tooltip>
                               ) : (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditRecord(record);
-                                  }}
-                                  className="p-1 text-gray-400 hover:text-green-600 transition-colors"
-                                  title="Edit"
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
+                                <Tooltip content="Edit" placement="top">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditRecord(record);
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-green-600 transition-colors"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                </Tooltip>
                               )}
                               
                               {/* Settlement button for active and overdue records */}
                               {(record.status === 'active' || record.status === 'overdue') && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenSettlementModal(record);
-                                  }}
-                                  className="p-1 text-gray-400 hover:text-purple-600 transition-colors"
-                                  title="Settle"
-                                >
-                                  <CheckCircle className="w-4 h-4" />
-                                </button>
+                                <Tooltip content="Settle" placement="top">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenSettlementModal(record);
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-purple-600 transition-colors"
+                                  >
+                                    <CheckCircle className="w-4 h-4" />
+                                  </button>
+                                </Tooltip>
                               )}
                               
                               {/* Delete button - only show if record can be deleted */}
                               {canDeleteRecord(record) && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenDeleteConfirmation(record.id);
-                                  }}
-                                  className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                <Tooltip content="Delete" placement="top">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenDeleteConfirmation(record.id);
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </Tooltip>
                               )}
                             </div>
                           </td>
@@ -1844,66 +1850,72 @@ export const LendBorrowTableView: React.FC = () => {
                     <div className="flex gap-1">
                       {/* Info/Edit button based on record status */}
                       {record.status === 'settled' ? (
-                        <button
-                          onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
-                          className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
-                          title="Settled record info"
-                        >
-                          <Info className="w-3.5 h-3.5" />
-                        </button>
+                        <Tooltip content="Settled record info" placement="top">
+                          <button
+                            onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
+                            className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                          >
+                            <Info className="w-3.5 h-3.5" />
+                          </button>
+                        </Tooltip>
                       ) : (record.account_id && record.affect_account_balance) ? (
-                        <button
-                          onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
-                          className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
-                          title="Account-linked record info"
-                        >
-                          <Info className="w-3.5 h-3.5" />
-                        </button>
+                        <Tooltip content="Account-linked record info" placement="top">
+                          <button
+                            onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
+                            className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                          >
+                            <Info className="w-3.5 h-3.5" />
+                          </button>
+                        </Tooltip>
                       ) : (
-                        <button
-                          onClick={() => handleEditRecord(record)}
-                          className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
-                          title="Edit"
-                        >
-                          <Pen className="w-3.5 h-3.5" />
-                        </button>
+                        <Tooltip content="Edit" placement="top">
+                          <button
+                            onClick={() => handleEditRecord(record)}
+                            className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                          >
+                            <Pen className="w-3.5 h-3.5" />
+                          </button>
+                        </Tooltip>
                       )}
                       
                       {/* Settlement button for active and overdue records */}
                       {(record.status === 'active' || record.status === 'overdue') && (
-                        <button
-                          onClick={() => handleOpenSettlementModal(record)}
-                          className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
-                          title="Settle"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                        </button>
+                        <Tooltip content="Settle" placement="top">
+                          <button
+                            onClick={() => handleOpenSettlementModal(record)}
+                            className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        </Tooltip>
                       )}
                       
                       {/* Delete button - only show if record can be deleted */}
                       {canDeleteRecord(record) && (
-                        <button
-                          onClick={() => handleOpenDeleteConfirmation(record.id)}
-                          className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <Tooltip content="Delete" placement="top">
+                          <button
+                            onClick={() => handleOpenDeleteConfirmation(record.id)}
+                            className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </Tooltip>
                       )}
-                      <button
-                        onClick={() => toggleMobileRecordExpansion(record.id)}
-                        className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
-                        title="View details"
-                      >
-                        <svg 
-                          className={`w-3.5 h-3.5 transition-transform ${isMobileRecordExpanded(record.id) ? 'rotate-90' : ''}`} 
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
+                      <Tooltip content="View details" placement="top">
+                        <button
+                          onClick={() => toggleMobileRecordExpansion(record.id)}
+                          className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
                         >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m9 18 6-6-6-6" />
-                        </svg>
-                      </button>
+                          <svg 
+                            className={`w-3.5 h-3.5 transition-transform ${isMobileRecordExpanded(record.id) ? 'rotate-90' : ''}`} 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m9 18 6-6-6-6" />
+                          </svg>
+                        </button>
+                      </Tooltip>
                     </div>
                   </div>
                   

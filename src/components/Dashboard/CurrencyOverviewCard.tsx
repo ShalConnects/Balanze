@@ -43,6 +43,9 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   
   // Calculate DPS total
   const dpsTotal = dpsAccounts.reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0);
+  
+  // Calculate regular accounts total
+  const regularAccountsTotal = regularAccounts.reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0);
 
   // Force re-render when transactions or accounts change
   useEffect(() => {
@@ -359,13 +362,19 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                           );
                         })}
                       </ul>
+                      <div className="mt-1 pt-1 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex justify-between font-medium">
+                          <span>Total Accounts:</span>
+                          <span className="tabular-nums">{formatCurrency(regularAccountsTotal, currency)}</span>
+                        </div>
+                      </div>
                     </>
                   )}
                   
                   {/* DPS Accounts */}
                   {dpsAccounts.length > 0 && (
                     <>
-                      <div className="border-t border-gray-200 dark:border-gray-700 my-2 pt-2">
+                      <div className="my-2 pt-2">
                         <div className="font-medium mb-1">DPS Accounts ({dpsAccounts.length}):</div>
                         <ul className="space-y-1">
                           {dpsAccounts.map(acc => {
@@ -478,13 +487,19 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                     );
                   })}
                 </ul>
+                <div className="mt-1 pt-1 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex justify-between font-medium text-xs text-gray-700 dark:text-gray-200">
+                    <span>Total Accounts:</span>
+                    <span className="tabular-nums">{formatCurrency(regularAccountsTotal, currency)}</span>
+                  </div>
+                </div>
               </>
             )}
             
             {/* DPS Accounts */}
             {dpsAccounts.length > 0 && (
               <>
-                <div className="border-t border-gray-200 dark:border-gray-700 my-2 pt-2">
+                <div className="my-2 pt-2">
                   <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">DPS Accounts ({dpsAccounts.length}):</div>
                   <ul className="space-y-1 max-h-32 overflow-y-auto">
                     {dpsAccounts.map(acc => {

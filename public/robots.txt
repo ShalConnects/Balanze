@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Allow: /help-center
+Allow: /help-center/*
+
+Sitemap: https://balanze.cash/sitemap.xml
+Sitemap: https://balanze.cash/help-center-sitemap.xml
+

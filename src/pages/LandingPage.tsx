@@ -6,6 +6,7 @@ import {
   Zap, MessageSquare, Download, Settings, CreditCard, Smartphone, Clock, AlertCircle, Repeat
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import InteractiveBackground from '../components/InteractiveBackground';
 import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
@@ -285,8 +286,33 @@ const LandingPage: React.FC = () => {
   ];
 
   return (
-    <div className="relative min-h-screen overflow-hidden full-height-mobile landing-page-mobile">
-      <InteractiveBackground />
+    <>
+      <Helmet>
+        {/* SEO Meta Tags */}
+        <meta name="description" content="Balanze - Personal Finance Management. Track expenses, manage budgets, set savings goals, and take control of your finances with powerful analytics and multi-currency support." />
+        <link rel="canonical" href="https://balanze.cash" />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://balanze.cash" />
+        <meta property="og:title" content="Balanze - Personal Finance Management" />
+        <meta property="og:description" content="Track expenses, manage budgets, set savings goals, and take control of your finances with powerful analytics and multi-currency support." />
+        <meta property="og:image" content="https://balanze.cash/main-dashboard.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Balanze Personal Finance Management Dashboard" />
+        <meta property="og:site_name" content="Balanze" />
+        <meta property="og:locale" content="en_US" />
+        
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Balanze - Personal Finance Management" />
+        <meta name="twitter:description" content="Track expenses, manage budgets, set savings goals, and take control of your finances with powerful analytics and multi-currency support." />
+        <meta name="twitter:image" content="https://balanze.cash/main-dashboard.png" />
+        <meta name="twitter:image:alt" content="Balanze Personal Finance Management Dashboard" />
+      </Helmet>
+      <div className="relative min-h-screen overflow-hidden full-height-mobile landing-page-mobile">
+        <InteractiveBackground />
       
       <div className="relative z-10">
         {/* Navigation Header */}
@@ -297,9 +323,9 @@ const LandingPage: React.FC = () => {
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                   <span className="text-white font-bold text-lg">B</span>
                 </div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Balanze
-                </h1>
+                </div>
               </div>
               
               {/* Desktop Navigation */}
@@ -372,6 +398,8 @@ const LandingPage: React.FC = () => {
                 <button
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+                  aria-expanded={isMobileMenuOpen}
                 >
                   {isMobileMenuOpen ? (
                     <X className="w-6 h-6" />
@@ -503,7 +531,9 @@ const LandingPage: React.FC = () => {
                   alt="Balanze - Personal finance management | Product Hunt" 
                   style={{ width: '250px', height: '54px' }} 
                   width="250" 
-                  height="54" 
+                  height="54"
+                  loading="lazy"
+                  decoding="async"
                 />
               </a>
             </div>
@@ -544,8 +574,12 @@ const LandingPage: React.FC = () => {
                   src="/main-dashboard.png" 
                   alt="Balanze Dashboard"
                   className="w-full max-w-4xl rounded-xl"
-                  loading="lazy"
+                  loading="eager"
                   decoding="async"
+                  width="1643"
+                  height="1060"
+                  style={{ aspectRatio: '1643 / 1060' }}
+                  fetchpriority="high"
                 />
               </div>
               
@@ -690,6 +724,8 @@ const LandingPage: React.FC = () => {
                         className="w-full h-full object-cover rounded-[2.5rem]"
                         loading="lazy"
                         decoding="async"
+                        width="400"
+                        height="800"
                         style={{ padding: '15px' }}
                       />
                     </div>
@@ -1845,6 +1881,7 @@ const LandingPage: React.FC = () => {
       />
       </div>
     </div>
+    </>
   );
 };
 

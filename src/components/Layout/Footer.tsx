@@ -17,19 +17,49 @@ export const Footer: React.FC = () => {
               Take control of your financial future with our comprehensive personal finance platform.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
+              <a 
+                href="#" 
+                className="text-gray-400 hover:text-white transition-colors"
+                aria-label="Follow us on Facebook"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <Facebook className="w-5 h-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
+              <a 
+                href="#" 
+                className="text-gray-400 hover:text-white transition-colors"
+                aria-label="Follow us on Twitter"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <Twitter className="w-5 h-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
+              <a 
+                href="#" 
+                className="text-gray-400 hover:text-white transition-colors"
+                aria-label="Follow us on Instagram"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <Instagram className="w-5 h-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
+              <a 
+                href="#" 
+                className="text-gray-400 hover:text-white transition-colors"
+                aria-label="Follow us on LinkedIn"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <Linkedin className="w-5 h-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
+              <a 
+                href="#" 
+                className="text-gray-400 hover:text-white transition-colors"
+                aria-label="View our GitHub repository"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <Github className="w-5 h-5" />
               </a>
             </div>

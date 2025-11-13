@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Wallet, CreditCard, ArrowLeftRight, ShoppingCart, Handshake } from 'lucide-react';
+import { Plus, Wallet, CreditCard, ArrowLeftRight, ShoppingCart, Handshake, MessageCircle } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Dialog, Transition } from '@headlessui/react';
 import { TransferModal } from '../Transfers/TransferModal';
@@ -17,6 +17,7 @@ import { useAuthStore } from '../../store/authStore';
 import { LendBorrowInput } from '../../types/index';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useMobileSidebar } from '../../context/MobileSidebarContext';
+import { AIChatBot } from '../AIChatBot/AIChatBot';
 
 // Define the props for our new ActionButton component.
 interface ActionButtonProps {
@@ -57,6 +58,7 @@ export const FloatingActionButton: React.FC = () => {
   const [showDpsTransferModal, setShowDpsTransferModal] = useState(false);
   const [showInBetweenTransferModal, setShowInBetweenTransferModal] = useState(false);
   const [showLendBorrowForm, setShowLendBorrowForm] = useState(false);
+  const [showAIChat, setShowAIChat] = useState(false);
   const [showTip, setShowTip] = useState(true);
   const { isMobile, isBrowser } = useMobileDetection();
   const { isMobileSidebarOpen } = useMobileSidebar();
@@ -161,7 +163,14 @@ export const FloatingActionButton: React.FC = () => {
     }
   }, [addLendBorrowRecord]);
 
+  const handleAIChat = React.useCallback(() => {
+    setShowAIChat(true);
+    setIsOpen(false);
+  }, []);
+
   const actions = React.useMemo(() => [
+    // AI Chat temporarily hidden - will be enabled later
+    // { label: 'AI Chat', icon: MessageCircle, color: 'bg-gradient-to-r from-blue-600 to-purple-600', onClick: () => handleAction(handleAIChat), delay: '250ms' },
     { label: t('dashboard.addTransaction'), icon: CreditCard, color: 'bg-blue-600', onClick: () => handleAction(handleAddTransaction), delay: '200ms' },
     { label: 'Add Purchase', icon: ShoppingCart, color: 'bg-orange-600', onClick: () => handleAction(handleAddPurchase), delay: '150ms' },
     { label: 'Lent & Borrow', icon: Handshake, color: 'bg-indigo-600', onClick: () => handleAction(() => setShowLendBorrowForm(true)), delay: '100ms' },
@@ -290,6 +299,13 @@ export const FloatingActionButton: React.FC = () => {
           onSubmit={handleAddLendBorrowRecord}
         />
       )}
+
+      {/* AI Chat Bot - temporarily hidden, will be enabled later */}
+      {/* <AIChatBot 
+        isOpen={showAIChat} 
+        onOpenChange={setShowAIChat}
+        showFloatingButton={false}
+      /> */}
     </>
   );
 }; 

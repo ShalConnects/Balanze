@@ -12,6 +12,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { parseISO } from 'date-fns';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
+import { Tooltip } from '../common/Tooltip';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuthStore } from '../../store/authStore';
@@ -1891,42 +1892,39 @@ export const TransactionList: React.FC<{
                                 <ArrowUpRight className="w-3 h-3" /> Expense
                               </span>
                             )}
-                            {(transaction.is_recurring || transaction.parent_recurring_id) && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleRecurringExpand(transaction.id);
-                                }}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors cursor-pointer"
-                                title={expandedRecurringIds.has(transaction.id) ? 'Collapse recurring details' : 'Expand recurring details'}
-                              >
-                                <Repeat className="w-3 h-3" />
-                                {expandedRecurringIds.has(transaction.id) ? (
-                                  <ChevronUp className="w-3 h-3" />
-                                ) : (
-                                  <ChevronDown className="w-3 h-3" />
-                                )}
-                              </button>
-                            )}
                           </div>
                         </td>
                         <td className="px-6 py-2 text-center">
                           <div className="flex justify-center gap-2 items-center">
                              {isLendBorrowTransaction(transaction) ? (
-                               <button
-                                 onClick={() => setShowLendBorrowInfo(true)}
-                                 className="text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                                 title="Lend & Borrow transaction info"
-                               >
-                                 <Info className="w-4 h-4" />
-                               </button>
+                               <Tooltip content="Lend & Borrow transaction info" placement="top">
+                                 <button
+                                   onClick={() => setShowLendBorrowInfo(true)}
+                                   className="text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                                 >
+                                   <Info className="w-4 h-4" />
+                                 </button>
+                               </Tooltip>
                              ) : (
                                <>
+                                 {(transaction.is_recurring || transaction.parent_recurring_id) && (
+                                   <Tooltip content={expandedRecurringIds.has(transaction.id) ? 'Collapse recurring details' : 'Expand recurring details'} placement="top">
+                                     <button
+                                       onClick={(e) => {
+                                         e.stopPropagation();
+                                         toggleRecurringExpand(transaction.id);
+                                       }}
+                                       className="text-gray-500 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
+                                     >
+                                       <Repeat className="w-4 h-4" />
+                                     </button>
+                                   </Tooltip>
+                                 )}
                                  {transaction.is_recurring && (
+                                   <Tooltip content={transaction.is_paused ? 'Resume recurring transaction' : 'Pause recurring transaction'} placement="top">
                                    <button
                                      onClick={() => handleTogglePause(transaction)}
                                      className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                                     title={transaction.is_paused ? 'Resume recurring transaction' : 'Pause recurring transaction'}
                                    >
                                      {transaction.is_paused ? (
                                        <Play className="w-4 h-4" />
@@ -1934,32 +1932,36 @@ export const TransactionList: React.FC<{
                                        <Pause className="w-4 h-4" />
                                      )}
                                    </button>
+                                   </Tooltip>
                                  )}
-                                 <button
-                                   onClick={() => handleEdit(transaction)}
-                                   className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-                                   title="Edit"
-                                 >
-                                   <Edit2 className="w-4 h-4" />
-                                 </button>
-                                 {transaction.tags?.includes('purchase') && (
-                                   <div
-                                     className="text-gray-500 dark:text-gray-400"
-                                     title="Linked to Purchase"
+                                 <Tooltip content="Edit" placement="top">
+                                   <button
+                                     onClick={() => handleEdit(transaction)}
+                                     className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                                    >
-                                     <Link className="w-4 h-4" />
-                                   </div>
+                                     <Edit2 className="w-4 h-4" />
+                                   </button>
+                                 </Tooltip>
+                                 {transaction.tags?.includes('purchase') && (
+                                   <Tooltip content="Linked to Purchase" placement="top">
+                                     <div
+                                       className="text-gray-500 dark:text-gray-400"
+                                     >
+                                       <Link className="w-4 h-4" />
+                                     </div>
+                                   </Tooltip>
                                  )}
-                                 <button
-                                   onClick={() => {
-                                     setTransactionToDelete(transaction);
-                                     setShowDeleteModal(true);
-                                   }}
-                                   className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                                   title="Delete"
-                                 >
-                                   <Trash2 className="w-4 h-4" />
-                                 </button>
+                                 <Tooltip content="Delete" placement="top">
+                                   <button
+                                     onClick={() => {
+                                       setTransactionToDelete(transaction);
+                                       setShowDeleteModal(true);
+                                     }}
+                                     className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                   >
+                                     <Trash2 className="w-4 h-4" />
+                                   </button>
+                                 </Tooltip>
                                </>
                              )}
                           </div>
@@ -2195,26 +2197,6 @@ export const TransactionList: React.FC<{
                     {/* Additional Indicators - Below Two Column Layout */}
                     <div className="px-3 pb-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        {/* Recurring Indicator */}
-                        {isRecurring && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleRecurringExpand(transaction.id);
-                            }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors cursor-pointer"
-                            title={expandedRecurringIds.has(transaction.id) ? 'Collapse recurring details' : 'Expand recurring details'}
-                          >
-                            <Repeat className="w-3 h-3" />
-                            Recurring
-                            {expandedRecurringIds.has(transaction.id) ? (
-                              <ChevronUp className="w-3 h-3" />
-                            ) : (
-                              <ChevronDown className="w-3 h-3" />
-                            )}
-                          </button>
-                        )}
-
                         {/* Tags Display */}
                         {transaction.tags && transaction.tags.length > 0 && (() => {
                           const displayTags = transaction.tags.filter((tag: string) => 
@@ -2247,53 +2229,71 @@ export const TransactionList: React.FC<{
                       </div>
                       <div className="flex gap-1">
                          {isLendBorrowTransaction(transaction) ? (
-                           <button
-                             onClick={() => setShowLendBorrowInfo(true)}
-                             className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
-                             title="Lend & Borrow transaction info"
-                           >
-                             <Info className="w-3.5 h-3.5" />
-                           </button>
+                           <Tooltip content="Lend & Borrow transaction info" placement="top">
+                             <button
+                               onClick={() => setShowLendBorrowInfo(true)}
+                               className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                             >
+                               <Info className="w-3.5 h-3.5" />
+                             </button>
+                           </Tooltip>
                          ) : (
                            <>
-                               {transaction.is_recurring && (
-                                 <button
-                                   onClick={() => handleTogglePause(transaction)}
-                                   className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                                   title={transaction.is_paused ? 'Resume recurring transaction' : 'Pause recurring transaction'}
-                                 >
-                                   {transaction.is_paused ? (
-                                     <Play className="w-3.5 h-3.5" />
-                                   ) : (
-                                     <Pause className="w-3.5 h-3.5" />
-                                   )}
-                                 </button>
+                               {(transaction.is_recurring || transaction.parent_recurring_id) && (
+                                 <Tooltip content={expandedRecurringIds.has(transaction.id) ? 'Collapse recurring details' : 'Expand recurring details'} placement="top">
+                                   <button
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       toggleRecurringExpand(transaction.id);
+                                     }}
+                                     className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                                   >
+                                     <Repeat className="w-3.5 h-3.5" />
+                                   </button>
+                                 </Tooltip>
                                )}
-                               <button
-                                 onClick={() => handleEdit(transaction)}
-                                 className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                                 title="Edit"
-                               >
-                                 <Edit2 className="w-3.5 h-3.5" />
-                               </button>
+                               {transaction.is_recurring && (
+                                 <Tooltip content={transaction.is_paused ? 'Resume recurring transaction' : 'Pause recurring transaction'} placement="top">
+                                   <button
+                                     onClick={() => handleTogglePause(transaction)}
+                                     className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                   >
+                                     {transaction.is_paused ? (
+                                       <Play className="w-3.5 h-3.5" />
+                                     ) : (
+                                       <Pause className="w-3.5 h-3.5" />
+                                     )}
+                                   </button>
+                                 </Tooltip>
+                               )}
+                               <Tooltip content="Edit" placement="top">
+                                 <button
+                                   onClick={() => handleEdit(transaction)}
+                                   className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                 >
+                                   <Edit2 className="w-3.5 h-3.5" />
+                                 </button>
+                               </Tooltip>
                              {transaction.tags?.includes('purchase') && (
-                               <div
-                                 className="p-1.5 text-gray-500 dark:text-gray-400"
-                                 title="Linked to Purchase"
-                               >
-                                 <Link className="w-3.5 h-3.5" />
-                               </div>
+                               <Tooltip content="Linked to Purchase" placement="top">
+                                 <div
+                                   className="p-1.5 text-gray-500 dark:text-gray-400"
+                                 >
+                                   <Link className="w-3.5 h-3.5" />
+                                 </div>
+                               </Tooltip>
                              )}
-                             <button
-                               onClick={() => {
-                                 setTransactionToDelete(transaction);
-                                 setShowDeleteModal(true);
-                               }}
-                               className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                               title="Delete"
-                             >
-                               <Trash2 className="w-3.5 h-3.5" />
-                             </button>
+                             <Tooltip content="Delete" placement="top">
+                               <button
+                                 onClick={() => {
+                                   setTransactionToDelete(transaction);
+                                   setShowDeleteModal(true);
+                                 }}
+                                 className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                               >
+                                 <Trash2 className="w-3.5 h-3.5" />
+                               </button>
+                             </Tooltip>
                            </>
                          )}
                       </div>

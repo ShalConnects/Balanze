@@ -45,6 +45,7 @@ import { generateTransactionId } from '../../utils/transactionId';
 
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { CategoryModal } from '../common/CategoryModal';
+import { Tooltip } from '../common/Tooltip';
 import { PurchaseCardSkeleton, PurchaseTableSkeleton, PurchaseSummaryCardsSkeleton, PurchaseFiltersSkeleton } from './PurchaseSkeleton';
 
 const currencySymbols: Record<string, string> = {
@@ -2224,7 +2225,7 @@ export const PurchaseTracker: React.FC = () => {
                             if (!shouldShow) return null;
                             
                             return (
-                              <div className="relative group">
+                              <Tooltip content={tooltipText} placement="top">
                                 <button
                                   onClick={async () => {
                                     setSelectedPurchaseForModal(purchase);
@@ -2255,84 +2256,83 @@ export const PurchaseTracker: React.FC = () => {
                                 >
                                   <Eye className="w-4 h-4 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400" />
                                 </button>
-                                <div className="absolute right-[-15px] bottom-full mb-2 w-64 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50 shadow-xl border border-gray-700">
-                                  {tooltipText}
-                                  <div className="absolute bottom-0 right-4 transform translate-y-1/2 w-2 h-2 bg-gray-800 rotate-45 border-r border-b border-gray-700"></div>
-                                </div>
-                              </div>
+                              </Tooltip>
                             );
                           })()}
-                          <button
-                            onClick={async () => {
-                              setEditingPurchase(purchase);
-                              setFormData({
-                                item_name: purchase.item_name,
-                                category: purchase.category,
-                                price: purchase.price.toString(),
-                                currency: purchase.currency,
-                                purchase_date: purchase.purchase_date,
-                                status: purchase.status,
-                                priority: purchase.priority,
-                                notes: purchase.notes || ''
-                              });
+                          <Tooltip content="Edit" placement="top">
+                            <button
+                              onClick={async () => {
+                                setEditingPurchase(purchase);
+                                setFormData({
+                                  item_name: purchase.item_name,
+                                  category: purchase.category,
+                                  price: purchase.price.toString(),
+                                  currency: purchase.currency,
+                                  purchase_date: purchase.purchase_date,
+                                  status: purchase.status,
+                                  priority: purchase.priority,
+                                  notes: purchase.notes || ''
+                                });
 
-                              // Preselect account for editing (older records support)
-                              const resolvedAccountId = await resolveAccountForEditing(purchase);
-                              
-                              // Set account synchronously to ensure it's set before modal renders
-                              if (resolvedAccountId) {
-                                setSelectedAccountId(resolvedAccountId);
-                              }
-                              
-                              // Set the exclude from calculation state based on the purchase data
-                              setExcludeFromCalculation(purchase.exclude_from_calculation || false);
-                              
-                              // Load existing attachments for this purchase
-                              try {
-                                // Loading attachments for purchase - removed for production
-                                const { data: existingAttachments, error: attachmentsError } = await supabase
-                                  .from('purchase_attachments')
-                                  .select('*')
-                                  .eq('purchase_id', purchase.id);
+                                // Preselect account for editing (older records support)
+                                const resolvedAccountId = await resolveAccountForEditing(purchase);
                                 
-                                // Attachments query result - removed for production
+                                // Set account synchronously to ensure it's set before modal renders
+                                if (resolvedAccountId) {
+                                  setSelectedAccountId(resolvedAccountId);
+                                }
                                 
-                                if (!attachmentsError && existingAttachments) {
-                                  setPurchaseAttachments(existingAttachments);
-                                  // Loaded existing attachments - removed for production
-                                } else {
-                                  // No attachments found or error - removed for production
+                                // Set the exclude from calculation state based on the purchase data
+                                setExcludeFromCalculation(purchase.exclude_from_calculation || false);
+                                
+                                // Load existing attachments for this purchase
+                                try {
+                                  // Loading attachments for purchase - removed for production
+                                  const { data: existingAttachments, error: attachmentsError } = await supabase
+                                    .from('purchase_attachments')
+                                    .select('*')
+                                    .eq('purchase_id', purchase.id);
+                                  
+                                  // Attachments query result - removed for production
+                                  
+                                  if (!attachmentsError && existingAttachments) {
+                                    setPurchaseAttachments(existingAttachments);
+                                    // Loaded existing attachments - removed for production
+                                  } else {
+                                    // No attachments found or error - removed for production
+                                    setPurchaseAttachments([]);
+                                  }
+                                } catch (err) {
+
                                   setPurchaseAttachments([]);
                                 }
-                              } catch (err) {
-
-                                setPurchaseAttachments([]);
-                              }
-                              
-                              // Account resolution is now handled by resolveAccountForEditing above
-                              
-                              setShowPurchaseForm(true);
-                            }}
-                            className="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          {purchase.transaction_id && (
-                            <div
-                              className="text-gray-500 dark:text-gray-400"
-                              title="Linked to Transaction"
+                                
+                                // Account resolution is now handled by resolveAccountForEditing above
+                                
+                                setShowPurchaseForm(true);
+                              }}
+                              className="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
                             >
-                              <Link className="w-4 h-4" />
-                            </div>
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
+                          {purchase.transaction_id && (
+                            <Tooltip content="Linked to Transaction" placement="top">
+                              <div
+                                className="text-gray-500 dark:text-gray-400"
+                              >
+                                <Link className="w-4 h-4" />
+                              </div>
+                            </Tooltip>
                           )}
-                          <button
-                            onClick={() => { setPurchaseToDelete(purchase); setShowDeleteModal(true); }}
-                            className="text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <Tooltip content="Delete" placement="top">
+                            <button
+                              onClick={() => { setPurchaseToDelete(purchase); setShowDeleteModal(true); }}
+                              className="text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
                         </div>
                       </td>
                     </tr>
@@ -2415,7 +2415,7 @@ export const PurchaseTracker: React.FC = () => {
                             )}
                             <div className="flex gap-2">
                               {shouldShow && (
-                                <div className="relative group">
+                                <Tooltip content={tooltipText} placement="top">
                                   <button
                                     onClick={async () => {
                                       setSelectedPurchaseForModal(purchase);
@@ -2446,81 +2446,80 @@ export const PurchaseTracker: React.FC = () => {
                                   >
                                     <Eye className="w-3.5 h-3.5" />
                                   </button>
-                                  <div className="absolute right-[-15px] bottom-full mb-2 w-64 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50 shadow-xl border border-gray-700">
-                                    {tooltipText}
-                                    <div className="absolute bottom-0 right-4 transform translate-y-1/2 w-2 h-2 bg-gray-800 rotate-45 border-r border-b border-gray-700"></div>
-                                  </div>
-                                </div>
+                                </Tooltip>
                               )}
-                          <button
-                          onClick={async () => {
-                            setEditingPurchase(purchase);
-                            setFormData({
-                              item_name: purchase.item_name,
-                              category: purchase.category,
-                              price: purchase.price.toString(),
-                              currency: purchase.currency,
-                              purchase_date: purchase.purchase_date,
-                              status: purchase.status,
-                              priority: purchase.priority,
-                              notes: purchase.notes || ''
-                            });
-                            const resolvedAccountId = await resolveAccountForEditing(purchase);
-                            
-                            // Set account synchronously to ensure it's set before modal renders
-                            if (resolvedAccountId) {
-                              setSelectedAccountId(resolvedAccountId);
-                            }
-                            
-                            // Set the exclude from calculation state based on the purchase data
-                            setExcludeFromCalculation(purchase.exclude_from_calculation || false);
-                            
-                            // Load existing attachments for this purchase
-                            try {
-                              // Loading attachments for purchase - removed for production
-                              const { data: existingAttachments, error: attachmentsError } = await supabase
-                                .from('purchase_attachments')
-                                .select('*')
-                                .eq('purchase_id', purchase.id);
-                              
-                              // Attachments query result - removed for production
-                              
-                              if (!attachmentsError && existingAttachments) {
-                                setPurchaseAttachments(existingAttachments);
-                                // Loaded existing attachments - removed for production
-                              } else {
-                                // No attachments found or error - removed for production
-                                setPurchaseAttachments([]);
-                              }
-                            } catch (err) {
+                          <Tooltip content="Edit" placement="top">
+                            <button
+                              onClick={async () => {
+                                setEditingPurchase(purchase);
+                                setFormData({
+                                  item_name: purchase.item_name,
+                                  category: purchase.category,
+                                  price: purchase.price.toString(),
+                                  currency: purchase.currency,
+                                  purchase_date: purchase.purchase_date,
+                                  status: purchase.status,
+                                  priority: purchase.priority,
+                                  notes: purchase.notes || ''
+                                });
+                                const resolvedAccountId = await resolveAccountForEditing(purchase);
+                                
+                                // Set account synchronously to ensure it's set before modal renders
+                                if (resolvedAccountId) {
+                                  setSelectedAccountId(resolvedAccountId);
+                                }
+                                
+                                // Set the exclude from calculation state based on the purchase data
+                                setExcludeFromCalculation(purchase.exclude_from_calculation || false);
+                                
+                                // Load existing attachments for this purchase
+                                try {
+                                  // Loading attachments for purchase - removed for production
+                                  const { data: existingAttachments, error: attachmentsError } = await supabase
+                                    .from('purchase_attachments')
+                                    .select('*')
+                                    .eq('purchase_id', purchase.id);
+                                  
+                                  // Attachments query result - removed for production
+                                  
+                                  if (!attachmentsError && existingAttachments) {
+                                    setPurchaseAttachments(existingAttachments);
+                                    // Loaded existing attachments - removed for production
+                                  } else {
+                                    // No attachments found or error - removed for production
+                                    setPurchaseAttachments([]);
+                                  }
+                                } catch (err) {
 
-                              setPurchaseAttachments([]);
-                            }
-                            
-                            // Account resolution is now handled by resolveAccountForEditing above
-                            
-                            setShowPurchaseForm(true);
-                          }}
-                          className="p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors"
-                          title="Edit"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
+                                  setPurchaseAttachments([]);
+                                }
+                                
+                                // Account resolution is now handled by resolveAccountForEditing above
+                                
+                                setShowPurchaseForm(true);
+                              }}
+                              className="p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                          </Tooltip>
                         {purchase.transaction_id && (
-                          <div
-                            className="p-1.5 text-gray-500 dark:text-gray-400"
-                            title="Linked to Transaction"
-                          >
-                            <Link className="w-3.5 h-3.5" />
-                          </div>
+                          <Tooltip content="Linked to Transaction" placement="top">
+                            <div
+                              className="p-1.5 text-gray-500 dark:text-gray-400"
+                            >
+                              <Link className="w-3.5 h-3.5" />
+                            </div>
+                          </Tooltip>
                         )}
-                        <button
-                          onClick={() => { setPurchaseToDelete(purchase); setShowDeleteModal(true); }}
-                          className="p-1.5 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <Tooltip content="Delete" placement="top">
+                          <button
+                            onClick={() => { setPurchaseToDelete(purchase); setShowDeleteModal(true); }}
+                            className="p-1.5 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </Tooltip>
                             </div>
                           </>
                         );
@@ -2586,80 +2585,95 @@ export const PurchaseTracker: React.FC = () => {
                         </div>
                       </div>
                       <div className="col-span-2 flex items-center justify-end gap-1">
-                        <button
-                          onClick={async () => {
-                            setSelectedPurchaseForModal(purchase);
-                            setShowNotesModal(true);
-                            // Fetch existing attachments for this purchase
-                            try {
-                              // Loading modal attachments for purchase - removed for production
-                              const { data: existingAttachments, error: attachmentsError } = await supabase
-                                .from('purchase_attachments')
-                                .select('*')
-                                .eq('purchase_id', purchase.id);
-                              
-                              // Modal attachments query result - removed for production
-                              
-                              if (!attachmentsError && existingAttachments) {
-                                setModalAttachments(existingAttachments);
-                                // Loaded modal attachments - removed for production
-                              } else {
-                                // No modal attachments found or error - removed for production
-                                setModalAttachments([]);
-                              }
-                            } catch (err) {
+                        {(() => {
+                          const hasNotes = Boolean(purchase.notes && purchase.notes.trim().length > 0);
+                          const hasAttachments = Boolean(purchaseAttachmentCounts[purchase.id] > 0);
+                          const shouldShow = shouldShowEyeIcon(hasNotes, hasAttachments);
+                          const tooltipText = getTooltipText(hasNotes, hasAttachments);
+                          
+                          if (!shouldShow) return null;
+                          
+                          return (
+                            <Tooltip content={tooltipText} placement="top">
+                              <button
+                                onClick={async () => {
+                                  setSelectedPurchaseForModal(purchase);
+                                  setShowNotesModal(true);
+                                  // Fetch existing attachments for this purchase
+                                  try {
+                                    // Loading modal attachments for purchase - removed for production
+                                    const { data: existingAttachments, error: attachmentsError } = await supabase
+                                      .from('purchase_attachments')
+                                      .select('*')
+                                      .eq('purchase_id', purchase.id);
+                                    
+                                    // Modal attachments query result - removed for production
+                                    
+                                    if (!attachmentsError && existingAttachments) {
+                                      setModalAttachments(existingAttachments);
+                                      // Loaded modal attachments - removed for production
+                                    } else {
+                                      // No modal attachments found or error - removed for production
+                                      setModalAttachments([]);
+                                    }
+                                  } catch (err) {
 
-                              setModalAttachments([]);
-                            }
-                          }}
-                          className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                          title="View Notes and Attachments"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={async () => {
-                            setEditingPurchase(purchase);
-                            setFormData({
-                              item_name: purchase.item_name,
-                              category: purchase.category,
-                              price: purchase.price.toString(),
-                              currency: purchase.currency,
-                              purchase_date: purchase.purchase_date,
-                              status: purchase.status,
-                              priority: purchase.priority,
-                              notes: purchase.notes || ''
-                            });
-                            const resolvedAccountId = await resolveAccountForEditing(purchase);
-                            
-                            // Set account synchronously to ensure it's set before modal renders
-                            if (resolvedAccountId) {
-                              setSelectedAccountId(resolvedAccountId);
-                            }
-                            
-                            setExcludeFromCalculation(purchase.exclude_from_calculation || false);
-                            setShowPurchaseForm(true);
-                          }}
-                          className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                          title="Edit purchase"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        {purchase.transaction_id && (
-                          <div
-                            className="text-gray-500 dark:text-gray-400"
-                            title="Linked to Transaction"
+                                    setModalAttachments([]);
+                                  }
+                                }}
+                                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
+                          );
+                        })()}
+                        <Tooltip content="Edit purchase" placement="top">
+                          <button
+                            onClick={async () => {
+                              setEditingPurchase(purchase);
+                              setFormData({
+                                item_name: purchase.item_name,
+                                category: purchase.category,
+                                price: purchase.price.toString(),
+                                currency: purchase.currency,
+                                purchase_date: purchase.purchase_date,
+                                status: purchase.status,
+                                priority: purchase.priority,
+                                notes: purchase.notes || ''
+                              });
+                              const resolvedAccountId = await resolveAccountForEditing(purchase);
+                              
+                              // Set account synchronously to ensure it's set before modal renders
+                              if (resolvedAccountId) {
+                                setSelectedAccountId(resolvedAccountId);
+                              }
+                              
+                              setExcludeFromCalculation(purchase.exclude_from_calculation || false);
+                              setShowPurchaseForm(true);
+                            }}
+                            className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           >
-                            <Link className="w-4 h-4" />
-                          </div>
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </Tooltip>
+                        {purchase.transaction_id && (
+                          <Tooltip content="Linked to Transaction" placement="top">
+                            <div
+                              className="text-gray-500 dark:text-gray-400"
+                            >
+                              <Link className="w-4 h-4" />
+                            </div>
+                          </Tooltip>
                         )}
-                        <button
-                          onClick={() => { setPurchaseToDelete(purchase); setShowDeleteModal(true); }}
-                          className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                          title="Delete purchase"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <Tooltip content="Delete purchase" placement="top">
+                          <button
+                            onClick={() => { setPurchaseToDelete(purchase); setShowDeleteModal(true); }}
+                            className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                     

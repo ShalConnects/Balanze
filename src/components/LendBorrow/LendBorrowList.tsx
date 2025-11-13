@@ -6,6 +6,7 @@ import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { SettlementModal } from './SettlementModal';
 import { supabase } from '../../lib/supabase';
 import { EnhancedTooltip } from '../common/EnhancedTooltip';
+import { Tooltip } from '../common/Tooltip';
 import { useFinanceStore } from '../../store/useFinanceStore';
 
 interface LendBorrowListProps {
@@ -269,37 +270,41 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                         </button>
                       )}
                       {record.status === 'settled' ? (
-                        <button
-                          onClick={() => onShowSettledInfo(record)}
-                          className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                          title="Settled record info"
-                        >
-                          <Info className="w-4 h-4" />
-                        </button>
+                        <Tooltip content="Settled record info" placement="top">
+                          <button
+                            onClick={() => onShowSettledInfo(record)}
+                            className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          >
+                            <Info className="w-4 h-4" />
+                          </button>
+                        </Tooltip>
                       ) : record.account_id ? (
-                        <button
-                          onClick={() => onShowSettledInfo(record)}
-                          className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                          title="Account-linked record info"
-                        >
-                          <Info className="w-4 h-4" />
-                        </button>
+                        <Tooltip content="Account-linked record info" placement="top">
+                          <button
+                            onClick={() => onShowSettledInfo(record)}
+                            className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          >
+                            <Info className="w-4 h-4" />
+                          </button>
+                        </Tooltip>
                       ) : (
                         <>
-                          <button
-                            onClick={() => onEdit(record)}
-                            className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(record)}
-                            className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <Tooltip content="Edit" placement="top">
+                            <button
+                              onClick={() => onEdit(record)}
+                              className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
+                          <Tooltip content="Delete" placement="top">
+                            <button
+                              onClick={() => handleDeleteClick(record)}
+                              className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
                         </>
                       )}
                     </div>

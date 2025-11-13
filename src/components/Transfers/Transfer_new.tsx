@@ -14,6 +14,7 @@ import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
 // import { useTranslation } from 'react-i18next';
 import { getPreference, setPreference } from '../../lib/userPreferences';
+import { TransferFiltersSkeleton, TransferSummaryCardSkeleton, TransferTableSkeleton, TransferMobileCardSkeleton } from './TransfersSkeleton';
 
 const currencySymbols: Record<string, string> = {
   USD: '$',
@@ -501,183 +502,38 @@ export const Transfer_new: React.FC = () => {
      return expandedRows.has(transferId);
    };
 
-
-
-  // Enhanced skeleton loading components
-  const SkeletonCard = () => (
-    <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
-      <div className="flex items-center justify-between">
-        <div className="text-left">
-          <div className="h-3 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-1"></div>
-          <div className="h-5 w-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-1"></div>
-          <div className="h-3 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-        </div>
-        <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-      </div>
-    </div>
-  );
-
-  const SkeletonTableRow = () => (
-    <tr className="animate-pulse">
-      <td className="px-6 py-4">
-        <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
-      </td>
-      <td className="px-6 py-4 text-center">
-        <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded mx-auto"></div>
-      </td>
-      <td className="px-6 py-4 text-center">
-        <div className="h-5 w-16 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto"></div>
-      </td>
-      <td className="px-6 py-4 text-center">
-        <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded mx-auto"></div>
-      </td>
-      <td className="px-6 py-4 text-center">
-        <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded mx-auto"></div>
-      </td>
-      <td className="px-6 py-4 text-center">
-        <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded mx-auto"></div>
-      </td>
-      <td className="px-6 py-4 text-center">
-        <div className="h-4 w-12 bg-gray-200 dark:bg-gray-700 rounded mx-auto"></div>
-      </td>
-    </tr>
-  );
-
-  const SkeletonMobileCard = () => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 animate-pulse">
-      <div className="flex items-center justify-between mb-3 gap-1">
-        <div className="flex items-center space-x-1 flex-1 min-w-0">
-          <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
-          <div className="w-3 h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
-        </div>
-        <div className="flex-shrink-0">
-          <div className="h-5 w-16 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
-        </div>
-      </div>
-      <div className="space-y-2 mb-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
-          <div className="h-3 w-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
-          <div className="h-3 w-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
-        </div>
-        <div className="flex items-center justify-between gap-1">
-          <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
-          <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0">
-          {/* Filter Section Skeleton - Responsive */}
-          <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex flex-wrap md:flex-nowrap items-center w-full">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 w-full md:w-auto">
-                {/* Search Input Skeleton */}
-                <div>
-                  <div className="w-full pl-8 pr-2 py-1.5 h-8 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse"></div>
-                </div>
-                
-                {/* Mobile Action Buttons Skeleton */}
-                <div className="flex items-center gap-1 md:hidden">
-                  <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse"></div>
-                  <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse"></div>
-                </div>
-              </div>
-              
-              {/* Desktop Filters Skeleton */}
-              <div className="hidden md:flex items-center gap-x-2">
-                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-md w-20 animate-pulse"></div>
-                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-md w-16 animate-pulse"></div>
-                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-md w-20 animate-pulse"></div>
-              </div>
-              
-              <div className="flex-grow"></div>
-              
-              {/* Desktop Add Button Skeleton */}
-              <div className="hidden md:flex items-center gap-2">
-                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-md w-24 animate-pulse"></div>
-              </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0 relative overflow-hidden">
+          {/* Shimmer effect */}
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+          
+          {/* Filters skeleton */}
+          <div className="p-3 border-b border-gray-200 dark:border-gray-700 relative z-10">
+            <TransferFiltersSkeleton />
+          </div>
+          
+          {/* Summary cards skeleton */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3 relative z-10">
+            <TransferSummaryCardSkeleton />
+          </div>
+          
+          {/* Desktop table skeleton */}
+          <div className="hidden lg:block max-h-[500px] overflow-y-auto relative z-10" style={{ minHeight: '200px' }}>
+            <TransferTableSkeleton rows={6} />
+          </div>
+          
+          {/* Mobile card skeleton */}
+          <div className="lg:hidden max-h-[500px] overflow-y-auto relative z-10">
+            <div className="px-2.5 py-4">
+              <TransferMobileCardSkeleton count={4} />
             </div>
-          </div>
-
-          {/* Summary Card Skeleton - Responsive */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-2 sm:p-3">
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
-              <div className="flex items-center justify-between">
-                <div className="text-left">
-                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20 mb-1 animate-pulse"></div>
-                  <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-8 mb-1 animate-pulse"></div>
-                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div>
-                </div>
-                <div className="w-6 h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Desktop Table Skeleton */}
-          <div className="hidden lg:block overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900 text-[14px]">
-              <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div className="flex items-center space-x-1">
-                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-8 animate-pulse"></div>
-                      <div className="w-3 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-                    </div>
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div className="w-3 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mx-auto"></div>
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-8 animate-pulse mx-auto"></div>
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16 animate-pulse"></div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                {[1, 2, 3, 4, 5, 6, 7].map(i => (
-                  <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-6" style={{ paddingTop: '1.2rem', paddingBottom: '1.2rem' }}>
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
-                    </td>
-                    <td className="px-6 text-center" style={{ paddingTop: '1.2rem', paddingBottom: '1.2rem' }}>
-                      <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mx-auto"></div>
-                    </td>
-                    <td className="px-6 text-center" style={{ paddingTop: '1.2rem', paddingBottom: '1.2rem' }}>
-                      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-16 animate-pulse mx-auto"></div>
-                    </td>
-                    <td className="px-6" style={{ paddingTop: '1.2rem', paddingBottom: '1.2rem' }}>
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div>
-                    </td>
-                    <td className="px-6" style={{ paddingTop: '1.2rem', paddingBottom: '1.2rem' }}>
-                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse"></div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Skeleton - Responsive */}
-          <div className="lg:hidden p-2 sm:p-3 space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <SkeletonMobileCard key={i} />
-            ))}
           </div>
         </div>
       </div>
     );
   }
-
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
