@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUpRight, ArrowDownRight, Copy, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -57,6 +57,7 @@ export const TransactionList: React.FC<{
   // Record selection functionality is now passed as props from parent component
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | undefined>();
+  const [transactionToDuplicate, setTransactionToDuplicate] = useState<Transaction | undefined>();
   const { getActiveAccounts, getActiveTransactions, deleteTransaction, updateTransaction, fetchTransactions, categories, purchaseCategories } = useFinanceStore();
   const accounts = getActiveAccounts();
   const activeTransactions = getActiveTransactions();
@@ -700,6 +701,11 @@ export const TransactionList: React.FC<{
     setIsFormOpen(true);
   };
 
+  const handleDuplicate = (transaction: Transaction) => {
+    setTransactionToDuplicate(transaction);
+    setIsFormOpen(true);
+  };
+
   // Handle pause/resume for recurring transactions
   const handleTogglePause = async (transaction: Transaction) => {
     if (!transaction.is_recurring) return;
@@ -739,6 +745,7 @@ export const TransactionList: React.FC<{
   const handleCloseForm = () => {
     setIsFormOpen(false);
     setSelectedTransaction(undefined);
+    setTransactionToDuplicate(undefined);
   };
 
   const handleCopyTransactionId = (transactionId: string) => {
@@ -1937,6 +1944,14 @@ export const TransactionList: React.FC<{
                                    </button>
                                    </Tooltip>
                                  )}
+                                 <Tooltip content="Duplicate" placement="top">
+                                   <button
+                                     onClick={() => handleDuplicate(transaction)}
+                                     className="text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                                   >
+                                     <Files className="w-4 h-4" />
+                                   </button>
+                                 </Tooltip>
                                  <Tooltip content="Edit" placement="top">
                                    <button
                                      onClick={() => handleEdit(transaction)}
@@ -2269,6 +2284,14 @@ export const TransactionList: React.FC<{
                                    </button>
                                  </Tooltip>
                                )}
+                               <Tooltip content="Duplicate" placement="top">
+                                 <button
+                                   onClick={() => handleDuplicate(transaction)}
+                                   className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                 >
+                                   <Files className="w-3.5 h-3.5" />
+                                 </button>
+                               </Tooltip>
                                <Tooltip content="Edit" placement="top">
                                  <button
                                    onClick={() => handleEdit(transaction)}
@@ -2488,6 +2511,15 @@ export const TransactionList: React.FC<{
                                 ) : (
                                   <Pause className="w-4 h-4" />
                                 )}
+                              </button>
+                            )}
+                            {!isLendBorrowTransaction(transaction) && (
+                              <button
+                                onClick={() => handleDuplicate(transaction)}
+                                className="text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                                title="Duplicate transaction"
+                              >
+                                <Files className="w-4 h-4" />
                               </button>
                             )}
                             <button
@@ -2715,6 +2747,7 @@ export const TransactionList: React.FC<{
         <TransactionForm
           onClose={handleCloseForm}
           transactionToEdit={selectedTransaction}
+          duplicateFrom={transactionToDuplicate}
         />
       )}
 

@@ -27,10 +27,11 @@ interface TransactionFormProps {
   accountId?: string;
   onClose: () => void;
   transactionToEdit?: Transaction;
+  duplicateFrom?: Transaction;
   isOpen?: boolean;
 }
 
-export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onClose, transactionToEdit, isOpen = true }) => {
+export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onClose, transactionToEdit, duplicateFrom, isOpen = true }) => {
   const accounts = useFinanceStore(state => state.accounts);
   const categories = useFinanceStore(state => state.categories);
   const purchaseCategories = useFinanceStore(state => state.purchaseCategories);
@@ -45,6 +46,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const { wrapAsync, setLoadingMessage, isLoading } = useLoadingContext();
   const { isPremiumPlan } = usePlanFeatures();
   const isEditMode = !!transactionToEdit;
+  const transactionToInitialize = transactionToEdit || duplicateFrom;
 
   const [data, setData] = useState({
     account_id: accountId || getDefaultAccountId(),
@@ -77,6 +79,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [showAddAnother, setShowAddAnother] = useState(false);
 
   // Purchase details state
   const [purchasePriority, setPurchasePriority] = useState<'low' | 'medium' | 'high'>('medium');
@@ -186,9 +189,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   useEffect(() => {
     if (isOpen) {
       const transactionId = transactionToEdit?.id;
+      const duplicateId = duplicateFrom?.id;
+      const currentId = transactionId || duplicateId;
       
       // Check if we need to reinitialize (different transaction or new form)
-      if (currentTransactionId.current !== transactionId) {
+      // Always reset for new transactions, or when editing/duplicating a different transaction
+      if (!transactionToInitialize || currentTransactionId.current !== currentId) {
         
         // Reset all form state
         setErrors({});
@@ -197,6 +203,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         setShowCategoryModal(false);
         setShowPurchaseDetails(false);
         setPurchaseAttachments([]);
+        setShowAddAnother(false);
         setNewCategory({
           category_name: '',
           description: '',
@@ -266,10 +273,66 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           // Reset purchase details
           setPurchasePriority('medium');
           setPurchaseNotes('');
+        } else if (duplicateFrom) {
+          // Initialize for duplicating a transaction
+          setData({
+            account_id: duplicateFrom.account_id,
+            amount: duplicateFrom.amount.toString(),
+            type: duplicateFrom.type,
+            category: duplicateFrom.category,
+            description: duplicateFrom.description,
+            tags: duplicateFrom.tags || [],
+            date: new Date(duplicateFrom.date).toISOString().split('T')[0],
+            is_recurring: false, // Don't duplicate recurring settings
+            recurring_frequency: 'monthly'
+          });
+          
+          // Set expense type based on category
+          if (duplicateFrom.type === 'expense') {
+            setIsExpenseType('regular_expense');
+          } else {
+            setIsExpenseType('');
+          }
+          
+          // Initialize donation values if this is an income transaction with donation
+          if (duplicateFrom.type === 'income' && duplicateFrom.donation_amount) {
+            (async () => {
+              try {
+                const { data: donationRecord } = await supabase
+                  .from('donation_saving_records')
+                  .select('mode, mode_value, amount')
+                  .eq('transaction_id', duplicateFrom.id)
+                  .eq('type', 'donation')
+                  .limit(1)
+                  .maybeSingle();
+
+                if (donationRecord) {
+                  setDonationType(donationRecord.mode || 'fixed');
+                  setDonationValue(donationRecord.mode_value || donationRecord.amount || duplicateFrom.donation_amount);
+                } else {
+                  setDonationType('fixed');
+                  setDonationValue(duplicateFrom.donation_amount);
+                }
+              } catch (error) {
+                setDonationType('fixed');
+                setDonationValue(duplicateFrom.donation_amount);
+              }
+            })();
+          } else {
+            setDonationType('fixed');
+            setDonationValue(undefined);
+          }
+          
+          // Don't duplicate recurring end date
+          setRecurringEndDate(undefined);
+          
+          // Reset purchase details
+          setPurchasePriority('medium');
+          setPurchaseNotes('');
         } else {
           // Initialize for new transaction
           setData({
-            account_id: accountId || '',
+            account_id: accountId || getDefaultAccountId(),
             amount: '',
             type: '' as 'income' | 'expense' | '',
             category: '',
@@ -294,7 +357,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       // Reset when modal closes
       currentTransactionId.current = undefined;
     }
-  }, [isOpen, transactionToEdit, accountId]);
+  }, [isOpen, transactionToEdit, duplicateFrom, accountId]);
 
 
   useEffect(() => {
@@ -357,6 +420,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       setShowPurchaseDetails(false);
       setPurchaseAttachments([]);
       setRecurringEndDate(undefined);
+      setShowAddAnother(false);
       setNewCategory({
         category_name: '',
         description: '',
@@ -561,6 +625,47 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     }
   }
 
+  // Reset form with pre-filled values for "Add Another" feature
+  const resetFormForAddAnother = () => {
+    const currentAccountId = data.account_id;
+    const currentDate = data.date;
+    const currentType = data.type;
+    const currentExpenseType = isExpenseType;
+    
+    // Reset form but keep account, date, and type
+    setData({
+      account_id: currentAccountId || getDefaultAccountId(),
+      amount: '',
+      type: currentType || '' as 'income' | 'expense' | '',
+      category: '',
+      description: '',
+      tags: [],
+      date: currentDate || new Date().toISOString().split('T')[0],
+      is_recurring: false,
+      recurring_frequency: 'monthly'
+    });
+    setIsExpenseType(currentExpenseType || '');
+    setDonationType('fixed');
+    setDonationValue(undefined);
+    setRecurringEndDate(undefined);
+    setPurchasePriority('medium');
+    setPurchaseNotes('');
+    setPurchaseAttachments([]);
+    setErrors({});
+    setTouched({});
+    setFormSubmitted(false);
+    setShowCategoryModal(false);
+    setShowPurchaseDetails(false);
+    setShowAddAnother(false);
+    
+    // Focus amount field
+    setTimeout(() => {
+      if (amountRef.current) {
+        amountRef.current.focus();
+      }
+    }, 100);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormSubmitted(true);
@@ -658,6 +763,54 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             if (depositResult) {
               await logTransactionEvent('create', { ...depositData, id: depositResult });
             }
+            
+            // Show success toast
+            showToast.success('Transaction added successfully');
+            
+            // For new transactions, show "Add Another" option instead of closing
+            if (!isEditMode) {
+              // Immediately reset form for next transaction
+              const currentAccountId = data.account_id;
+              const currentDate = data.date;
+              const currentType = data.type;
+              const currentExpenseType = isExpenseType;
+              
+              // Reset form but keep account, date, and type
+              setData({
+                account_id: currentAccountId || getDefaultAccountId(),
+                amount: '',
+                type: currentType || '' as 'income' | 'expense' | '',
+                category: '',
+                description: '',
+                tags: [],
+                date: currentDate || new Date().toISOString().split('T')[0],
+                is_recurring: false,
+                recurring_frequency: 'monthly'
+              });
+              setIsExpenseType(currentExpenseType || '');
+              setDonationType('fixed');
+              setDonationValue(undefined);
+              setRecurringEndDate(undefined);
+              setPurchasePriority('medium');
+              setPurchaseNotes('');
+              setPurchaseAttachments([]);
+              setErrors({});
+              setTouched({});
+              setFormSubmitted(false);
+              setShowCategoryModal(false);
+              setShowPurchaseDetails(false);
+              
+              setShowAddAnother(true);
+              
+              // Focus amount field
+              setTimeout(() => {
+                if (amountRef.current) {
+                  amountRef.current.focus();
+                }
+              }, 100);
+              
+              return; // Don't close the form
+            }
           }
         } else {
 
@@ -751,11 +904,59 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             // Show success toast
 
             showToast.success('Transaction added successfully');
+            
+            // For new transactions, show "Add Another" option instead of closing
+            if (!isEditMode) {
+              // Immediately reset form for next transaction
+              const currentAccountId = data.account_id;
+              const currentDate = data.date;
+              const currentType = data.type;
+              const currentExpenseType = isExpenseType;
+              
+              // Reset form but keep account, date, and type
+              setData({
+                account_id: currentAccountId || getDefaultAccountId(),
+                amount: '',
+                type: currentType || '' as 'income' | 'expense' | '',
+                category: '',
+                description: '',
+                tags: [],
+                date: currentDate || new Date().toISOString().split('T')[0],
+                is_recurring: false,
+                recurring_frequency: 'monthly'
+              });
+              setIsExpenseType(currentExpenseType || '');
+              setDonationType('fixed');
+              setDonationValue(undefined);
+              setRecurringEndDate(undefined);
+              setPurchasePriority('medium');
+              setPurchaseNotes('');
+              setPurchaseAttachments([]);
+              setErrors({});
+              setTouched({});
+              setFormSubmitted(false);
+              setShowCategoryModal(false);
+              setShowPurchaseDetails(false);
+              
+              setShowAddAnother(true);
+              
+              // Focus amount field
+              setTimeout(() => {
+                if (amountRef.current) {
+                  amountRef.current.focus();
+                }
+              }, 100);
+              
+              return; // Don't close the form
+            }
           }
         }
 
         // Removed transaction notifications - only show toast for transactions
+        // Only close for edit mode or if "Add Another" is not being used
+        if (isEditMode || !showAddAnother) {
         onClose(); // Only close after success
+        }
       } catch (error) {
 
         
@@ -826,7 +1027,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {isEditMode ? 'Edit Transaction' : 'Add Transaction'}
+            {isEditMode ? 'Edit Transaction' : duplicateFrom ? 'Duplicate Transaction' : 'Add Transaction'}
           </h2>
           <button 
             onClick={isLoading ? undefined : onClose} 
@@ -1329,6 +1530,27 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           )}
 
             <div className="flex justify-end gap-3">
+              {showAddAnother ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isLoading}
+                  >
+                    Done
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetFormForAddAnother}
+                    className="px-6 py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px]"
+                    disabled={isLoading}
+                  >
+                    Add Another
+                  </button>
+                </>
+              ) : (
+                <>
               <button
                 type="button"
                 onClick={onClose}
@@ -1344,6 +1566,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               >
                 {isEditMode ? 'Update' : 'Make Transaction'}
               </button>
+                </>
+              )}
             </div>
           {/* </div> */}
         </form>

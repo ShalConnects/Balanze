@@ -6,6 +6,7 @@ import { TransferModal } from '../Transfers/TransferModal';
 import { DPSTransferModal } from '../Transfers/DPSTransferModal';
 import { AccountForm } from '../Accounts/AccountForm';
 import { TransactionForm } from '../Transactions/TransactionForm';
+import { BulkTransactionForm } from '../Transactions/BulkTransactionForm';
 
 import { LendBorrowForm } from '../LendBorrow/LendBorrowForm';
 import { useTranslation } from 'react-i18next';
@@ -60,6 +61,7 @@ export const FloatingActionButton: React.FC = () => {
   const [showLendBorrowForm, setShowLendBorrowForm] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
   const [showTip, setShowTip] = useState(true);
+  const [showBulkTransactionForm, setShowBulkTransactionForm] = useState(false);
   const { isMobile, isBrowser } = useMobileDetection();
   const { isMobileSidebarOpen } = useMobileSidebar();
   const { 
@@ -132,6 +134,12 @@ export const FloatingActionButton: React.FC = () => {
     }
   }, [checkCategoriesAndRedirect, setShowTransactionForm]);
 
+  const handleAddBulkTransactions = React.useCallback(() => {
+    if (checkCategoriesAndRedirect('transaction')) {
+      setShowBulkTransactionForm(true);
+    }
+  }, [checkCategoriesAndRedirect]);
+
   const handleAddPurchase = React.useCallback(() => {
     if (checkCategoriesAndRedirect('purchase')) {
       setShowPurchaseForm(true);
@@ -157,6 +165,7 @@ export const FloatingActionButton: React.FC = () => {
   const handleAddLendBorrowRecord = React.useCallback(async (record: any) => {
     try {
       await addLendBorrowRecord(record);
+      toast.success('Record added successfully!');
     } catch (error) {
 
       toast.error('Failed to add record. Please try again.');
@@ -172,6 +181,8 @@ export const FloatingActionButton: React.FC = () => {
     // AI Chat temporarily hidden - will be enabled later
     // { label: 'AI Chat', icon: MessageCircle, color: 'bg-gradient-to-r from-blue-600 to-purple-600', onClick: () => handleAction(handleAIChat), delay: '250ms' },
     { label: t('dashboard.addTransaction'), icon: CreditCard, color: 'bg-blue-600', onClick: () => handleAction(handleAddTransaction), delay: '200ms' },
+    // Bulk Add Transactions temporarily hidden - will be enabled later
+    // { label: 'Bulk Add Transactions', icon: CreditCard, color: 'bg-blue-500', onClick: () => handleAction(handleAddBulkTransactions), delay: '190ms' },
     { label: 'Add Purchase', icon: ShoppingCart, color: 'bg-orange-600', onClick: () => handleAction(handleAddPurchase), delay: '150ms' },
     { label: 'Lent & Borrow', icon: Handshake, color: 'bg-indigo-600', onClick: () => handleAction(() => setShowLendBorrowForm(true)), delay: '100ms' },
     { label: t('dashboard.addAccount'), icon: Wallet, color: 'bg-green-600', onClick: () => handleAction(() => setShowAccountFormLocal(true)), delay: '50ms' },
@@ -291,6 +302,7 @@ export const FloatingActionButton: React.FC = () => {
       {showDpsTransferModal && <DPSTransferModal isOpen={showDpsTransferModal} onClose={() => setShowDpsTransferModal(false)} />}
       {showInBetweenTransferModal && <TransferModal isOpen={showInBetweenTransferModal} onClose={() => setShowInBetweenTransferModal(false)} mode="inbetween" />}
       <TransactionForm isOpen={showTransactionForm} onClose={() => setShowTransactionForm(false)} />
+      <BulkTransactionForm isOpen={showBulkTransactionForm} onClose={() => setShowBulkTransactionForm(false)} />
       <PurchaseForm isOpen={showPurchaseForm} onClose={() => setShowPurchaseForm(false)} />
 
       {showLendBorrowForm && (

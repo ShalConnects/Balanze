@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { dropdownManager } from '../../utils/dropdownManager';
 
 interface Option {
   label: React.ReactNode;
@@ -31,6 +32,23 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { isMobile } = useMobileDetection();
+  
+  // Generate unique ID for this dropdown instance
+  const dropdownId = useMemo(() => `dropdown-${Math.random().toString(36).substr(2, 9)}-${Date.now()}`, []);
+  
+  // Close handler for dropdown manager
+  const handleClose = useRef(() => {
+    setOpen(false);
+    if (onBlur) onBlur();
+  });
+  
+  // Update close handler when onBlur changes
+  useEffect(() => {
+    handleClose.current = () => {
+      setOpen(false);
+      if (onBlur) onBlur();
+    };
+  }, [onBlur]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -40,6 +58,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
         buttonRef.current &&
         !buttonRef.current.contains(event.target as Node)
       ) {
+        dropdownManager.unregister(dropdownId);
         setOpen(false);
         if (onBlur) onBlur();
       }
@@ -50,13 +69,14 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
       document.removeEventListener('click', handleClickOutside);
     }
     return () => document.removeEventListener('click', handleClickOutside);
-  }, [open, onBlur]);
+  }, [open, onBlur, dropdownId]);
 
   // Keyboard navigation
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (!open) return;
       if (e.key === 'Escape') {
+        dropdownManager.unregister(dropdownId);
         setOpen(false);
         if (onBlur) onBlur();
       }
@@ -67,7 +87,14 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
       document.removeEventListener('keydown', handleKeyDown);
     }
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onBlur]);
+  }, [open, onBlur, dropdownId]);
+  
+  // Cleanup: unregister when component unmounts
+  useEffect(() => {
+    return () => {
+      dropdownManager.unregister(dropdownId);
+    };
+  }, [dropdownId]);
 
   const selectedOption = options.find(opt => opt.value === value);
 
@@ -103,6 +130,9 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
 
   const handleToggle = () => {
     if (!open) {
+      // Register with dropdown manager - this will close any other open dropdown
+      dropdownManager.requestOpen(dropdownId, handleClose.current);
+      
       calculatePosition();
       // Check if we need to use portal (inside scrollable container)
       if (buttonRef.current) {
@@ -130,8 +160,12 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
           }
         });
       }
+      setOpen(true);
+    } else {
+      // Unregister when closing
+      dropdownManager.unregister(dropdownId);
+      setOpen(false);
     }
-    setOpen(v => !v);
   };
 
   return (
@@ -164,6 +198,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
               <div 
                 className="fixed inset-0 bg-black/50 backdrop-blur-sm"
                 onClick={() => {
+                  dropdownManager.unregister(dropdownId);
                   setOpen(false);
                   if (onBlur) onBlur();
                 }}
@@ -183,6 +218,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
                       className={`w-full flex items-center text-left text-base rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors px-4 py-3 mb-1 ${value === opt.value ? 'bg-gradient-primary text-white font-semibold' : 'text-gray-700 dark:text-gray-100'}`}
                       onClick={() => {
                         onChange(opt.value);
+                        dropdownManager.unregister(dropdownId);
                         setOpen(false);
                         if (onBlur) onBlur();
                       }}
@@ -223,6 +259,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
                       className={`w-full flex items-center text-left text-xs rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors px-3 py-2 ${value === opt.value ? 'bg-gradient-primary text-white font-semibold' : 'text-gray-700 dark:text-gray-100'}`}
                       onClick={() => {
                         onChange(opt.value);
+                        dropdownManager.unregister(dropdownId);
                         setOpen(false);
                         if (onBlur) onBlur();
                       }}
@@ -262,6 +299,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
                   className={`w-full flex items-center text-left text-xs rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors px-3 py-2 ${value === opt.value ? 'bg-gradient-primary text-white font-semibold' : 'text-gray-700 dark:text-gray-100'}`}
                   onClick={() => {
                     onChange(opt.value);
+                    dropdownManager.unregister(dropdownId);
                     setOpen(false);
                     if (onBlur) onBlur();
                   }}

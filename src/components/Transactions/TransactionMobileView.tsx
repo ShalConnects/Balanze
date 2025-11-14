@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit2, Trash2, Plus, Copy, ArrowUpRight, ArrowDownRight, Calendar, Tag } from 'lucide-react';
+import { Edit2, Trash2, Plus, Copy, Files, ArrowUpRight, ArrowDownRight, Calendar, Tag } from 'lucide-react';
 import { Transaction, Account } from '../../types';
 import { formatCurrency } from '../../utils/accountUtils';
 import { format } from 'date-fns';
@@ -11,6 +11,7 @@ interface TransactionMobileViewProps {
   onEditTransaction: (transaction: Transaction) => void;
   onDeleteTransaction: (transactionId: string) => void;
   onCopyTransactionId: (transactionId: string) => void;
+  onDuplicateTransaction?: (transaction: Transaction) => void;
   onAddTransaction: () => void;
   getAccountName: (accountId: string) => string;
 }
@@ -21,6 +22,7 @@ export const TransactionMobileView: React.FC<TransactionMobileViewProps> = React
   onEditTransaction,
   onDeleteTransaction,
   onCopyTransactionId,
+  onDuplicateTransaction,
   onAddTransaction,
   getAccountName
 }) => {
@@ -151,6 +153,16 @@ export const TransactionMobileView: React.FC<TransactionMobileViewProps> = React
                   >
                     <Copy className="w-4 h-4" />
                   </button>
+                  {onDuplicateTransaction && (
+                    <button
+                      onClick={() => onDuplicateTransaction(transaction)}
+                      className="p-2 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                      title="Duplicate transaction"
+                      aria-label={`Duplicate ${transaction.description} transaction`}
+                    >
+                      <Files className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={() => onEditTransaction(transaction)}
                     className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
