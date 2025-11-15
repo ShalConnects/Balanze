@@ -1944,14 +1944,16 @@ export const TransactionList: React.FC<{
                                    </button>
                                    </Tooltip>
                                  )}
-                                 <Tooltip content="Duplicate" placement="top">
-                                   <button
-                                     onClick={() => handleDuplicate(transaction)}
-                                     className="text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
-                                   >
-                                     <Files className="w-4 h-4" />
-                                   </button>
-                                 </Tooltip>
+                                 {!transaction.is_recurring && (
+                                   <Tooltip content="Duplicate" placement="top">
+                                     <button
+                                       onClick={() => handleDuplicate(transaction)}
+                                       className="text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                                     >
+                                       <Files className="w-4 h-4" />
+                                     </button>
+                                   </Tooltip>
+                                 )}
                                  <Tooltip content="Edit" placement="top">
                                    <button
                                      onClick={() => handleEdit(transaction)}
@@ -2284,14 +2286,16 @@ export const TransactionList: React.FC<{
                                    </button>
                                  </Tooltip>
                                )}
-                               <Tooltip content="Duplicate" placement="top">
-                                 <button
-                                   onClick={() => handleDuplicate(transaction)}
-                                   className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
-                                 >
-                                   <Files className="w-3.5 h-3.5" />
-                                 </button>
-                               </Tooltip>
+                               {!transaction.is_recurring && (
+                                 <Tooltip content="Duplicate" placement="top">
+                                   <button
+                                     onClick={() => handleDuplicate(transaction)}
+                                     className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                   >
+                                     <Files className="w-3.5 h-3.5" />
+                                   </button>
+                                 </Tooltip>
+                               )}
                                <Tooltip content="Edit" placement="top">
                                  <button
                                    onClick={() => handleEdit(transaction)}
@@ -2513,7 +2517,7 @@ export const TransactionList: React.FC<{
                                 )}
                               </button>
                             )}
-                            {!isLendBorrowTransaction(transaction) && (
+                            {!isLendBorrowTransaction(transaction) && !transaction.is_recurring && (
                               <button
                                 onClick={() => handleDuplicate(transaction)}
                                 className="text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"

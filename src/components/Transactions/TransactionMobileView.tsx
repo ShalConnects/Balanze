@@ -153,7 +153,7 @@ export const TransactionMobileView: React.FC<TransactionMobileViewProps> = React
                   >
                     <Copy className="w-4 h-4" />
                   </button>
-                  {onDuplicateTransaction && (
+                  {onDuplicateTransaction && !transaction.is_recurring && (
                     <button
                       onClick={() => onDuplicateTransaction(transaction)}
                       className="p-2 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"

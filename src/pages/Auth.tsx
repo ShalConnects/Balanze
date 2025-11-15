@@ -141,15 +141,36 @@ export const Auth: React.FC = () => {
     return () => clearTimeout(timer);
   }, [activeTab, signupStep, clearMessages]);
 
+  // Track if we've loaded the saved email to prevent overwriting user input
+  const emailLoadedRef = useRef(false);
+  const previousTabRef = useRef<string | null>(null);
+  const emailRefForLoading = useRef(email);
+  
+  // Update email ref whenever email changes
+  useEffect(() => {
+    emailRefForLoading.current = email;
+  }, [email]);
+  
   // Load saved email when component mounts or when switching to login tab
   useEffect(() => {
-    if (activeTab === 'login') {
+    // Check if this is initial mount or switching TO login tab
+    const isInitialMount = previousTabRef.current === null;
+    const isSwitchingToLogin = previousTabRef.current !== 'login' && activeTab === 'login';
+    previousTabRef.current = activeTab;
+    
+    if ((isInitialMount || isSwitchingToLogin) && activeTab === 'login' && !emailLoadedRef.current) {
       const savedEmail = getRememberedEmail();
-      if (savedEmail) {
+      // Only load if email field is empty (use ref to get current value without adding to deps)
+      if (savedEmail && !emailRefForLoading.current.trim()) {
         setEmail(savedEmail);
         // Also set rememberMe to true if email was saved
         setRememberMe(true);
+        emailLoadedRef.current = true;
       }
+    }
+    // Reset the ref when switching away from login tab
+    if (activeTab !== 'login') {
+      emailLoadedRef.current = false;
     }
   }, [activeTab]);
 
@@ -291,10 +312,13 @@ export const Auth: React.FC = () => {
       const result = await signIn(currentEmail, currentPassword, rememberMe);
       
       if (result.success) {
+        // Clear validation errors on successful login
+        setEmailError('');
+        setPasswordError('');
         // The auth store will handle navigation and saving email if rememberMe is true
       }
     } catch (error) {
-
+      // Errors are handled by the auth store
     }
   };
 
@@ -614,7 +638,22 @@ export const Auth: React.FC = () => {
                       id="remember-me"
                       type="checkbox"
                       checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
+                      onChange={(e) => {
+                        // On Android, preserve current input values when toggling checkbox
+                        // to prevent fields from being cleared during re-render
+                        const currentEmail = emailRef.current?.value || email;
+                        const currentPassword = passwordRef.current?.value || password;
+                        
+                        // Update state if there's a mismatch (Android sync issue)
+                        if (currentEmail !== email) {
+                          setEmail(currentEmail);
+                        }
+                        if (currentPassword !== password) {
+                          setPassword(currentPassword);
+                        }
+                        
+                        setRememberMe(e.target.checked);
+                      }}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500/50 border-white/30 dark:border-gray-600/30 rounded glassmorphism-input appearance-none checked:bg-gradient-primary checked:border-transparent"
                     />
                     {rememberMe && (
@@ -920,4 +959,5 @@ export const Auth: React.FC = () => {
 };
 
 export default Auth;
+
 
