@@ -399,7 +399,7 @@ export const Auth: React.FC = () => {
           <div className="flex items-center justify-between mb-6">
             <div className="text-left">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Balanze
+                Balanze Finance
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Manage your finances with confidence

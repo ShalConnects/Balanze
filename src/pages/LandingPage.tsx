@@ -253,7 +253,7 @@ const LandingPage: React.FC = () => {
     { icon: Handshake, title: "Lent & Borrow", description: "Keep tabs on loans and IOUs." },
     { icon: PiggyBank, title: "Savings Goals", description: "Visualize your progress with goal thermometers." },
     { icon: Bell, title: "Smart Alerts", description: "Get nudges when you're off track." },
-    { icon: Shield, title: "Secure & Private", description: "Bank-level security & data encryption." },
+    { icon: Shield, title: "Secure & Private", description: "Industry-standard security & data encryption." },
     { icon: Heart, title: "Last Wish", description: "Plan and manage your legacy with dignity and care." }
   ];
 
@@ -276,7 +276,7 @@ const LandingPage: React.FC = () => {
   ];
 
   const faqs = [
-    { question: "How secure is my data?", answer: "We use bank-level encryption and security measures to protect your financial data." },
+    { question: "How secure is my data?", answer: "We use industry-standard encryption and security measures to protect your financial data." },
     { question: "Can I cancel anytime?", answer: "Yes! You can cancel your subscription at any time with no cancellation fees." },
     { question: "What payment methods are supported?", answer: "We accept all major credit cards, PayPal, and Apple Pay." },
     { question: "Is there a free trial?", answer: "Yes! We offer a 14-day free trial with full access to all features." },
@@ -287,27 +287,27 @@ const LandingPage: React.FC = () => {
     <>
       <Helmet>
         {/* SEO Meta Tags */}
-        <meta name="description" content="Balanze - Personal Finance Management. Track expenses, manage budgets, set savings goals, and take control of your finances with powerful analytics and multi-currency support." />
+        <meta name="description" content="Balanze Finance - Personal Finance Management. Track expenses, manage budgets, set savings goals, and take control of your finances with powerful analytics and multi-currency support." />
         <link rel="canonical" href="https://balanze.cash" />
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://balanze.cash" />
-        <meta property="og:title" content="Balanze - Personal Finance Management" />
+        <meta property="og:title" content="Balanze Finance - Personal Finance Management" />
         <meta property="og:description" content="Track expenses, manage budgets, set savings goals, and take control of your finances with powerful analytics and multi-currency support." />
         <meta property="og:image" content="https://balanze.cash/main-dashboard.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Balanze Personal Finance Management Dashboard" />
-        <meta property="og:site_name" content="Balanze" />
+        <meta property="og:image:alt" content="Balanze Finance Personal Finance Management Dashboard" />
+        <meta property="og:site_name" content="Balanze Finance" />
         <meta property="og:locale" content="en_US" />
         
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Balanze - Personal Finance Management" />
+        <meta name="twitter:title" content="Balanze Finance - Personal Finance Management" />
         <meta name="twitter:description" content="Track expenses, manage budgets, set savings goals, and take control of your finances with powerful analytics and multi-currency support." />
         <meta name="twitter:image" content="https://balanze.cash/main-dashboard.png" />
-        <meta name="twitter:image:alt" content="Balanze Personal Finance Management Dashboard" />
+        <meta name="twitter:image:alt" content="Balanze Finance Personal Finance Management Dashboard" />
       </Helmet>
       <div className="relative min-h-screen overflow-hidden full-height-mobile landing-page-mobile">
         <InteractiveBackground />
@@ -322,7 +322,7 @@ const LandingPage: React.FC = () => {
                   <span className="text-white font-bold text-lg">B</span>
                 </div>
                 <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Balanze
+                  Balanze Finance
                 </div>
               </div>
               
@@ -336,15 +336,15 @@ const LandingPage: React.FC = () => {
                 </button>
                 <button
                   className="bg-transparent text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
-                  onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
-                >
-                  Pricing
-                </button>
-                <button
-                  className="bg-transparent text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
                   onClick={() => document.getElementById('last-wish')?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   Last Wish
+                </button>
+                <button
+                  className="bg-transparent text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
+                  onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                >
+                  Pricing
                 </button>
                 <button
                   className="bg-transparent text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
@@ -424,20 +424,20 @@ const LandingPage: React.FC = () => {
                   <button
                     className="block w-full text-left px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
                     onClick={() => {
-                      document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
-                      setIsMobileMenuOpen(false);
-                    }}
-                  >
-                    Pricing
-                  </button>
-                  <button
-                    className="block w-full text-left px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
-                    onClick={() => {
                       document.getElementById('last-wish')?.scrollIntoView({ behavior: 'smooth' });
                       setIsMobileMenuOpen(false);
                     }}
                   >
                     Last Wish
+                  </button>
+                  <button
+                    className="block w-full text-left px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
+                    onClick={() => {
+                      document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
+                      setIsMobileMenuOpen(false);
+                    }}
+                  >
+                    Pricing
                   </button>
                   <button
                     className="block w-full text-left px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
@@ -584,8 +584,6 @@ const LandingPage: React.FC = () => {
                     height="1060"
                     style={{ aspectRatio: '1643 / 1060' }}
                     fetchpriority="high"
-                    srcSet="/main-dashboard-400.png 400w, /main-dashboard-800.png 800w, /main-dashboard-1200.png 1200w, /main-dashboard-1643.png 1643w"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1200px"
                   />
                 </picture>
               </div>
@@ -649,7 +647,7 @@ const LandingPage: React.FC = () => {
               </div>
               
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
-                Take Balanze{' '}
+                Take Balanze Finance{' '}
                 <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   On the Go
                 </span>
@@ -687,7 +685,7 @@ const LandingPage: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Secure & Sync</h3>
-                    <p className="text-gray-600 dark:text-gray-400">Bank-level security with real-time sync across devices</p>
+                    <p className="text-gray-600 dark:text-gray-400">Industry-standard security with real-time sync across devices</p>
                   </div>
                 </div>
               </div>
@@ -739,8 +737,6 @@ const LandingPage: React.FC = () => {
                           width="400"
                           height="800"
                           style={{ padding: '15px' }}
-                          srcSet="/android_view-200.png 200w, /android_view-300.png 300w, /android_view-400.png 400w"
-                          sizes="(max-width: 640px) 280px, 400px"
                         />
                       </picture>
                     </div>
@@ -910,7 +906,7 @@ const LandingPage: React.FC = () => {
             <div className="flex items-center gap-2 md:gap-3 bg-white dark:bg-gray-800 px-4 md:px-6 py-2 md:py-3 rounded-full shadow-lg">
               <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
               <span className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">
-                <span className="font-bold">Bank-level</span> <span className="hidden sm:inline">encryption</span>
+                <span className="font-bold">Industry-standard</span> <span className="hidden sm:inline">encryption</span>
               </span>
             </div>
           </div>
@@ -962,7 +958,7 @@ const LandingPage: React.FC = () => {
         <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Experience the Power of Balanze
+              Experience the Power of Balanze Finance
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               Discover how our intuitive interface makes financial management effortless
@@ -1179,7 +1175,7 @@ const LandingPage: React.FC = () => {
                   </div>
                   <div>
                     <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">100% Private & Secure</h4>
-                    <p className="text-gray-600 dark:text-gray-400">Bank-level encryption protects your most sensitive information. You control exactly when and how your legacy is shared.</p>
+                    <p className="text-gray-600 dark:text-gray-400">Industry-standard encryption protects your most sensitive information. You control exactly when and how your legacy is shared.</p>
                   </div>
                 </div>
               </div>
@@ -1290,7 +1286,7 @@ const LandingPage: React.FC = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Why Choose <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Balanze</span>?
+              Why Choose <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Balanze Finance</span>?
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               See how we compare to other financial tracking solutions
@@ -1305,7 +1301,7 @@ const LandingPage: React.FC = () => {
                 { feature: 'Lend & borrow tracking', balanze: true, others: false },
                 { feature: 'Unlimited accounts', balanze: true, others: false },
                 { feature: 'Last Wish feature', balanze: true, others: false },
-                { feature: 'Bank-level security', balanze: true, others: true },
+                { feature: 'Industry-standard security', balanze: true, others: true },
                 { feature: 'Mobile app', balanze: true, others: true },
                 { feature: 'Dark mode', balanze: true, others: false },
                 { feature: 'Data export', balanze: true, others: 'Limited' },
@@ -1316,7 +1312,7 @@ const LandingPage: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2 p-4">
                     <div className="text-center">
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Balanze</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Balanze Finance</div>
                       <div className="flex justify-center">
                         {typeof row.balanze === 'boolean' ? (
                           row.balanze ? (
@@ -1353,7 +1349,7 @@ const LandingPage: React.FC = () => {
               {/* Header Row */}
               <div className="hidden md:block"></div>
               <div className="text-center p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-xl">
-                <h3 className="text-xl font-bold text-white">Balanze</h3>
+                <h3 className="text-xl font-bold text-white">Balanze Finance</h3>
               </div>
               <div className="text-center p-4 bg-gray-100 dark:bg-gray-800 rounded-t-xl">
                 <h3 className="text-xl font-bold text-gray-600 dark:text-gray-400">Others</h3>
@@ -1366,7 +1362,7 @@ const LandingPage: React.FC = () => {
                 { feature: 'Lend & borrow tracking', balanze: true, others: false },
                 { feature: 'Unlimited accounts', balanze: true, others: false },
                 { feature: 'Last Wish feature', balanze: true, others: false },
-                { feature: 'Bank-level security', balanze: true, others: true },
+                { feature: 'Industry-standard security', balanze: true, others: true },
                 { feature: 'Mobile app', balanze: true, others: true },
                 { feature: 'Dark mode', balanze: true, others: false },
                 { feature: 'Data export', balanze: true, others: 'Limited' },

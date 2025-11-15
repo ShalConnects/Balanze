@@ -36,11 +36,11 @@ const HelpAndSupport: React.FC = () => {
     <>
       <Helmet>
         {/* Enhanced SEO for Help Center */}
-        <title>Help Center - Balanze Financial Tracking</title>
-        <meta name="description" content="Get comprehensive help with Balanze personal finance tracking. Find guides, tutorials, and support for expense management, budget tracking, and financial planning." />
-        <meta name="keywords" content="Balanze help, personal finance help, expense tracking, budget management, financial planning, money management, expense categories, account management" />
+        <title>Help Center - Balanze Finance Financial Tracking</title>
+        <meta name="description" content="Get comprehensive help with Balanze Finance personal finance tracking. Find guides, tutorials, and support for expense management, budget tracking, and financial planning." />
+        <meta name="keywords" content="Balanze Finance help, personal finance help, expense tracking, budget management, financial planning, money management, expense categories, account management" />
         <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
-        <meta name="author" content="Balanze Team" />
+        <meta name="author" content="Balanze Finance Team" />
         <meta name="language" content="en" />
         <meta name="revisit-after" content="7 days" />
         
@@ -49,33 +49,33 @@ const HelpAndSupport: React.FC = () => {
         
         {/* Enhanced Open Graph / Facebook */}
         <meta property="og:type" content="website" />
-        <meta property="og:title" content="Help Center - Balanze Financial Tracking" />
-        <meta property="og:description" content="Get comprehensive help with Balanze personal finance tracking. Find guides, tutorials, and support for expense management, budget tracking, and financial planning." />
+        <meta property="og:title" content="Help Center - Balanze Finance Financial Tracking" />
+        <meta property="og:description" content="Get comprehensive help with Balanze Finance personal finance tracking. Find guides, tutorials, and support for expense management, budget tracking, and financial planning." />
         <meta property="og:url" content={window.location.href} />
-        <meta property="og:site_name" content="Balanze Help Center" />
+        <meta property="og:site_name" content="Balanze Finance Help Center" />
         <meta property="og:locale" content="en_US" />
         
         {/* Enhanced Twitter Cards */}
         <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:title" content="Help Center - Balanze Financial Tracking" />
-        <meta property="twitter:description" content="Get comprehensive help with Balanze personal finance tracking. Find guides, tutorials, and support for expense management, budget tracking, and financial planning." />
-        <meta property="twitter:site" content="@BalanzeApp" />
-        <meta property="twitter:creator" content="@BalanzeApp" />
+        <meta property="twitter:title" content="Help Center - Balanze Finance Financial Tracking" />
+        <meta property="twitter:description" content="Get comprehensive help with Balanze Finance personal finance tracking. Find guides, tutorials, and support for expense management, budget tracking, and financial planning." />
+        <meta property="twitter:site" content="@BalanzeFinance" />
+        <meta property="twitter:creator" content="@BalanzeFinance" />
         
         {/* Additional SEO Meta Tags */}
         <meta name="theme-color" content="#3b82f6" />
         <meta name="msapplication-TileColor" content="#3b82f6" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Balanze Help" />
+        <meta name="apple-mobile-web-app-title" content="Balanze Finance Help" />
         
         {/* Website structured data */}
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebSite",
-            "name": "Balanze Help Center",
-            "description": "Get comprehensive help with Balanze personal finance tracking. Find guides, tutorials, and support for expense management, budget tracking, and financial planning.",
+            "name": "Balanze Finance Help Center",
+            "description": "Get comprehensive help with Balanze Finance personal finance tracking. Find guides, tutorials, and support for expense management, budget tracking, and financial planning.",
             "url": window.location.origin + "/help",
             "potentialAction": {
               "@type": "SearchAction",
@@ -87,7 +87,7 @@ const HelpAndSupport: React.FC = () => {
             },
             "publisher": {
               "@type": "Organization",
-              "name": "Balanze",
+              "name": "Balanze Finance",
               "url": window.location.origin,
               "logo": {
                 "@type": "ImageObject",
@@ -129,10 +129,10 @@ const HelpAndSupport: React.FC = () => {
             "mainEntity": [
               {
                 "@type": "Question",
-                "name": "How do I get started with Balanze?",
+                "name": "How do I get started with Balanze Finance?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Getting started with Balanze is easy. First, create your account and add your first account (bank account, credit card, or cash wallet). Then start adding transactions to track your spending and income."
+                  "text": "Getting started with Balanze Finance is easy. First, create your account and add your first account (bank account, credit card, or cash wallet). Then start adding transactions to track your spending and income."
                 }
               },
               {
@@ -182,7 +182,7 @@ const HelpAndSupport: React.FC = () => {
               <div>
                 <h1 className="text-2xl font-bold mb-1">Welcome to the Help Center!</h1>
                 <p className="text-blue-100 dark:text-blue-200">
-                  Discover guides, tutorials, and tips to master Balanze. Can't find what you're looking for? 
+                  Discover guides, tutorials, and tips to master Balanze Finance. Can't find what you're looking for? 
                   <button 
                     onClick={() => window.open('mailto:hello@shalconnects.com', '_blank')}
                     className="underline hover:text-white dark:hover:text-blue-100 ml-1"

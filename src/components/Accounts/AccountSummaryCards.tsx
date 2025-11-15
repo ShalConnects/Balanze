@@ -18,9 +18,14 @@ export const AccountSummaryCards: React.FC<AccountSummaryCardsProps> = ({
     USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', ALL: 'L', INR: '₹', CAD: '$', AUD: '$'
   }[currency] || currency;
 
+  // Determine if showing all accounts or just active (infer from filteredAccounts)
+  const hasInactiveAccounts = filteredAccounts.some(a => !a.isActive);
+  const showAllAccounts = hasInactiveAccounts;
+  
   // Calculate insights
   const activeAccounts = filteredAccounts.filter(a => a.isActive);
-  const accountTypeBreakdown = activeAccounts.reduce((acc, account) => {
+  const accountsToShow = showAllAccounts ? filteredAccounts : activeAccounts;
+  const accountTypeBreakdown = accountsToShow.reduce((acc, account) => {
     acc[account.type] = (acc[account.type] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
@@ -38,9 +43,21 @@ export const AccountSummaryCards: React.FC<AccountSummaryCardsProps> = ({
   }, {} as Record<string, number>);
 
   // Format account type breakdown
-  const accountTypeInsight = Object.entries(accountTypeBreakdown)
+  let accountTypeInsight = Object.entries(accountTypeBreakdown)
     .map(([type, count]) => `${count} ${type}`)
     .join(', ');
+  
+  // Add active/inactive breakdown if showing all accounts
+  if (showAllAccounts) {
+    const inactiveCount = filteredAccounts.length - activeAccounts.length;
+    if (inactiveCount > 0) {
+      accountTypeInsight = `${activeAccounts.length} active, ${inactiveCount} inactive`;
+    } else {
+      accountTypeInsight = accountTypeInsight || 'No accounts';
+    }
+  } else {
+    accountTypeInsight = accountTypeInsight || 'No active accounts';
+  }
 
   // Format transaction breakdown
   const transactionInsight = Object.entries(transactionBreakdown)
@@ -86,11 +103,11 @@ export const AccountSummaryCards: React.FC<AccountSummaryCardsProps> = ({
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 p-3">
       <StatCard
-        title="Active Accounts"
-        value={activeAccounts.length.toString()}
+        title={showAllAccounts ? 'All Accounts' : 'Active Accounts'}
+        value={showAllAccounts ? filteredAccounts.length.toString() : activeAccounts.length.toString()}
         icon={<Wallet />}
         color="blue"
-        insight={accountTypeInsight || 'No active accounts'}
+        insight={accountTypeInsight}
       />
       
       <StatCard

@@ -1,7 +1,7 @@
-Take control of your finances with Balanze—the comprehensive personal finance management app designed to help you make smarter money decisions. Whether you're tracking daily expenses, planning for the future, or managing complex financial portfolios, Balanze provides all the tools you need in one beautiful, secure platform.
+Take control of your finances with Balanze Finance—the comprehensive personal finance management app designed to help you make smarter money decisions. Whether you're tracking daily expenses, planning for the future, or managing complex financial portfolios, Balanze Finance provides all the tools you need in one beautiful, secure platform.
 
 📊 COMPREHENSIVE FINANCIAL TRACKING
-• Multiple Accounts: Manage checking, savings, credit cards, investments—all in one place
+• Multiple Accounts: Track checking, savings, credit cards, investments—all in one place
 • Transaction Management: Record and categorize every transaction with notes
 • Multi-Currency: Track balances across currencies (USD, BDT, EUR, and more)
 • Real-Time Updates: Account balances updated automatically with every transaction
@@ -42,7 +42,7 @@ Take control of your finances with Balanze—the comprehensive personal finance 
 • Data Backup: Secure backup accessible across devices
 
 🔒 SECURITY & PRIVACY
-• Bank-Level Security: Enterprise-grade encryption protects your data
+• Industry-Standard Security: Enterprise-grade encryption protects your data in transit and at rest
 • Secure Authentication: Multi-factor authentication and secure login
 • Privacy First: Encrypted data storage—we never share your information
 • Regular Updates: Continuous security improvements and updates
@@ -65,6 +65,6 @@ Take control of your finances with Balanze—the comprehensive personal finance 
 ✨ PREMIUM FEATURES
 Upgrade to Premium for unlimited accounts, transactions, advanced analytics, custom categories, lend & borrow tracking, priority support, and exclusive features.
 
-Whether you're a student managing your first budget, a professional tracking complex finances, or a family planning for the future, Balanze adapts to your needs. Start your journey to better financial health today—download Balanze and take control of your money.
+Whether you're a student managing your first budget, a professional tracking complex finances, or a family planning for the future, Balanze Finance adapts to your needs. Start your journey to better financial health today—download Balanze Finance and take control of your money.
 
-Join thousands of users who are already managing their finances smarter with Balanze. Your financial future starts here.
+Join thousands of users who are already managing their finances smarter with Balanze Finance. Your financial future starts here.

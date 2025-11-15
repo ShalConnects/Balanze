@@ -1057,18 +1057,26 @@ export const AccountsView: React.FC = () => {
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
                     <div className="flex items-center justify-between">
                       <div className="text-left">
-                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Active Accounts</p>
-                        <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>{filteredAccounts.filter(a => a.isActive).length}</p>
+                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400">{tableFilters.status === 'all' ? 'All Accounts' : 'Active Accounts'}</p>
+                        <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>{tableFilters.status === 'all' ? filteredAccounts.length : filteredAccounts.filter(a => a.isActive).length}</p>
                         <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
                           {(() => {
-                            const activeAccounts = filteredAccounts.filter(a => a.isActive);
-                            const accountTypes = activeAccounts.reduce((acc, account) => {
+                            const accountsToShow = tableFilters.status === 'all' ? filteredAccounts : filteredAccounts.filter(a => a.isActive);
+                            const accountTypes = accountsToShow.reduce((acc, account) => {
                               acc[account.type] = (acc[account.type] || 0) + 1;
                               return acc;
                             }, {} as Record<string, number>);
                             const typeBreakdown = Object.entries(accountTypes)
                               .map(([type, count]) => `${count} ${type}`)
                               .join(', ');
+                            if (tableFilters.status === 'all') {
+                              const activeCount = filteredAccounts.filter(a => a.isActive).length;
+                              const inactiveCount = filteredAccounts.length - activeCount;
+                              if (inactiveCount > 0) {
+                                return `${activeCount} active, ${inactiveCount} inactive`;
+                              }
+                              return typeBreakdown || 'No accounts';
+                            }
                             return typeBreakdown || 'No active accounts';
                           })()}
                         </p>
