@@ -22,6 +22,7 @@ import { useLoadingContext } from '../../context/LoadingContext';
 import { getFilteredCategoriesForTransaction } from '../../utils/categoryFiltering';
 import { useDescriptionSuggestions } from '../../hooks/useDescriptionSuggestions';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
+import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 interface TransactionFormProps {
   accountId?: string;
@@ -45,6 +46,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const { user } = useAuthStore();
   const { wrapAsync, setLoadingMessage, isLoading } = useLoadingContext();
   const { isPremiumPlan } = usePlanFeatures();
+  const { isMobile } = useMobileDetection();
   const isEditMode = !!transactionToEdit;
   const transactionToInitialize = transactionToEdit || duplicateFrom;
 
@@ -1021,7 +1023,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       {/* Modal Container */}
       <div
         data-tour="transaction-form"
-        className="relative bg-white dark:bg-gray-800 rounded-[1rem] border border-gray-200 dark:border-gray-700 p-6 w-full max-w-[38rem] max-h-[90vh] overflow-y-auto z-50 shadow-xl transition-all"
+        className={`relative bg-white dark:bg-gray-800 rounded-[1rem] border border-gray-200 dark:border-gray-700 p-6 w-full max-w-[38rem] max-h-[90vh] overflow-y-auto z-50 shadow-xl transition-all ${isMobile ? 'pb-24' : ''}`}
         onClick={e => e.stopPropagation()}
         style={{ isolation: 'isolate' }}
       >

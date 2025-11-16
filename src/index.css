@@ -101,6 +101,19 @@
   to { opacity: 1; transform: none; }
 }
 
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+  animation: fadein 0.3s ease-in-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-10px); }
@@ -1074,5 +1087,54 @@ main {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+  }
+}
+
+/* Print Styles for Account Statements */
+@media print {
+  /* Hide UI elements when printing */
+  header,
+  nav,
+  button,
+  .no-print,
+  [class*="gradient"],
+  [class*="hover"] {
+    display: none !important;
+  }
+  
+  /* Ensure full width for print */
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+    color: black;
+  }
+  
+  /* Page setup */
+  @page {
+    margin: 1.5cm;
+    size: A4;
+  }
+  
+  /* Account statement specific styles */
+  .account-statement {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  /* Ensure tables print properly */
+  table {
+    page-break-inside: avoid;
+    border-collapse: collapse;
+    width: 100%;
+  }
+  
+  tr {
+    page-break-inside: avoid;
+  }
+  
+  /* Prevent page breaks in transaction groups */
+  .date-group {
+    page-break-inside: avoid;
   }
 }

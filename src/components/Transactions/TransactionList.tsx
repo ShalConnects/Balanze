@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -413,6 +413,41 @@ export const TransactionList: React.FC<{
   const [showLendBorrowInfo, setShowLendBorrowInfo] = useState(false);
   const [expandedRecurringIds, setExpandedRecurringIds] = useState<Set<string>>(new Set());
 
+  // Column visibility state with localStorage persistence
+  // Note: date, description, amount, and actions are always visible
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('transactionTableColumnVisibility');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Ensure only toggleable columns are in state
+        return {
+          modified: parsed.modified !== undefined ? parsed.modified : true,
+          category: parsed.category !== undefined ? parsed.category : false,
+          account: parsed.account !== undefined ? parsed.account : true,
+          type: parsed.type !== undefined ? parsed.type : true
+        };
+      } catch {
+        // If parsing fails, use defaults
+      }
+    }
+    // Default: all toggleable columns visible except Category (hidden by default)
+    return {
+      modified: true,
+      category: false,
+      account: true,
+      type: true
+    };
+  });
+
+  // Save column visibility to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('transactionTableColumnVisibility', JSON.stringify(columnVisibility));
+  }, [columnVisibility]);
+
+  const [showColumnSettings, setShowColumnSettings] = useState(false);
+  const columnSettingsRef = useRef<HTMLDivElement>(null);
+
   // Add export menu state and ref
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -481,6 +516,10 @@ export const TransactionList: React.FC<{
           aValue = a.description.toLowerCase();
           bValue = b.description.toLowerCase();
           break;
+        case 'category':
+          aValue = (a.category || '').toLowerCase();
+          bValue = (b.category || '').toLowerCase();
+          break;
         case 'account':
           const accountA = accounts.find(acc => acc.id === a.account_id)?.name || '';
           const accountB = accounts.find(acc => acc.id === b.account_id)?.name || '';
@@ -524,6 +563,29 @@ export const TransactionList: React.FC<{
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showExportMenu]);
+
+  // Hide column settings menu on click outside (only when menu is open)
+  React.useEffect(() => {
+    if (!showColumnSettings) return;
+    
+    function handleClickOutside(event: MouseEvent) {
+      // Only close if clicking outside the menu container
+      const target = event.target as Node;
+      if (columnSettingsRef.current && !columnSettingsRef.current.contains(target)) {
+        setShowColumnSettings(false);
+      }
+    }
+    
+    // Add a delay to prevent immediate closing when opening the menu
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside, true);
+    }, 150);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('click', handleClickOutside, true);
+    };
+  }, [showColumnSettings]);
 
   // Add click outside handler for account menu
   React.useEffect(() => {
@@ -1469,7 +1531,121 @@ export const TransactionList: React.FC<{
             )}
             <div className="flex-grow" />
             {/* Action Buttons in filter row */}
-            <div className="hidden md:flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <div 
+                className="hidden lg:block relative" 
+                ref={columnSettingsRef}
+              >
+                <button
+                  onClick={() => setShowColumnSettings(!showColumnSettings)}
+                  className={`bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 px-3 py-1.5 h-8 rounded-md transition-colors flex items-center justify-center ${
+                    showColumnSettings 
+                      ? 'bg-gray-200 dark:bg-gray-700' 
+                      : 'hover:bg-gray-200 dark:hover:bg-gray-700'
+                  } relative`}
+                  aria-label="Column settings"
+                  title="Column settings"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  {Object.values(columnVisibility).filter(v => v).length < Object.keys(columnVisibility).length && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-gray-800"></span>
+                  )}
+                </button>
+                {showColumnSettings && (
+                  <>
+                    {/* Invisible bridge to prevent gap issues */}
+                    <div className="absolute right-0 top-full w-52 sm:w-56 md:w-60 h-1 pointer-events-none" />
+                    <div 
+                      className="absolute right-0 top-full mt-0 w-52 sm:w-56 md:w-60 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 flex flex-col max-h-[calc(100vh-200px)]"
+                      role="menu"
+                      aria-label="Column visibility options"
+                      style={{
+                        maxWidth: 'min(calc(100vw - 2rem), 240px)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.stopPropagation();
+                      }}
+                      onMouseLeave={(e) => {
+                        // Don't close on mouse leave - only close on click outside
+                        e.stopPropagation();
+                      }}
+                    >
+                    <div className="px-3 py-2.5 text-xs font-semibold text-gradient-primary uppercase border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
+                      Show Columns
+                    </div>
+                    <div className="py-1 overflow-y-auto flex-1 min-h-0">
+                      {Object.entries(columnVisibility).map(([key, visible]) => {
+                        const label = key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ')
+                        return (
+                          <label
+                            key={key}
+                            className={`flex items-center px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm cursor-pointer transition-colors duration-150 touch-manipulation ${
+                              visible 
+                                ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 hover:from-blue-100 hover:to-purple-100 dark:hover:from-blue-900/30 dark:hover:to-purple-900/30' 
+                                : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                            }`}
+                            role="menuitemcheckbox"
+                            aria-checked={visible}
+                          >
+                            <div className="relative mr-2 sm:mr-3 flex-shrink-0">
+                              <input
+                                type="checkbox"
+                                checked={visible}
+                                onChange={(e) => {
+                                  setColumnVisibility(prev => ({
+                                    ...prev,
+                                    [key]: e.target.checked
+                                  }))
+                                }}
+                                className="sr-only"
+                              />
+                              <div className={`w-4 h-4 rounded border-2 transition-all duration-150 flex items-center justify-center ${
+                                visible 
+                                  ? 'border-transparent bg-gradient-primary' 
+                                  : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
+                              }`}>
+                                {visible && (
+                                  <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                                )}
+                              </div>
+                            </div>
+                            <span className={`text-xs sm:text-sm flex-1 min-w-0 ${visible ? 'text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-600 dark:text-gray-400'}`}>{label}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                    <div className="border-t border-gray-200 dark:border-gray-700 px-2 py-2 flex gap-1 flex-shrink-0 bg-white dark:bg-gray-800">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const allVisible = Object.fromEntries(
+                            Object.keys(columnVisibility).map(key => [key, true])
+                          )
+                          setColumnVisibility(allVisible)
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="flex-1 px-2 sm:px-3 py-1.5 text-xs font-medium text-gradient-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-all duration-150 touch-manipulation"
+                      >
+                        Show All
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const allHidden = Object.fromEntries(
+                            Object.keys(columnVisibility).map(key => [key, false])
+                          )
+                          setColumnVisibility(allHidden)
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="flex-1 px-2 sm:px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors touch-manipulation"
+                      >
+                        Hide All
+                      </button>
+                    </div>
+                  </div>
+                  </>
+                )}
+              </div>
               <div className="relative" ref={exportMenuRef}>
                 <button
                   onClick={() => {
@@ -1758,15 +1934,17 @@ export const TransactionList: React.FC<{
                       {getSortIcon('date')}
                     </div>
                   </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                    onClick={() => handleSort('last_modified')}
-                  >
-                    <div className="flex items-center space-x-1">
-                      <span>Modified</span>
-                      {getSortIcon('last_modified')}
-                    </div>
-                  </th>
+                  {columnVisibility.modified && (
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => handleSort('last_modified')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Modified</span>
+                        {getSortIcon('last_modified')}
+                      </div>
+                    </th>
+                  )}
                   <th 
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                     onClick={() => handleSort('description')}
@@ -1776,15 +1954,28 @@ export const TransactionList: React.FC<{
                       {getSortIcon('description')}
                     </div>
                   </th>
-                  <th 
-                    className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                    onClick={() => handleSort('account')}
-                  >
-                    <div className="flex items-center justify-center space-x-1">
-                      <span>Account</span>
-                      {getSortIcon('account')}
-                    </div>
-                  </th>
+                  {columnVisibility.category && (
+                    <th 
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => handleSort('category')}
+                    >
+                      <div className="flex items-center justify-center space-x-1">
+                        <span>Category</span>
+                        {getSortIcon('category')}
+                      </div>
+                    </th>
+                  )}
+                  {columnVisibility.account && (
+                    <th 
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => handleSort('account')}
+                    >
+                      <div className="flex items-center justify-center space-x-1">
+                        <span>Account</span>
+                        {getSortIcon('account')}
+                      </div>
+                    </th>
+                  )}
                   <th 
                     className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                     onClick={() => handleSort('amount')}
@@ -1794,22 +1985,24 @@ export const TransactionList: React.FC<{
                       {getSortIcon('amount')}
                     </div>
                   </th>
-                  <th 
-                    className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                    onClick={() => handleSort('type')}
-                  >
-                    <div className="flex items-center justify-center space-x-1">
-                      <span>Type</span>
-                      {getSortIcon('type')}
-                    </div>
-                  </th>
+                  {columnVisibility.type && (
+                    <th 
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => handleSort('type')}
+                    >
+                      <div className="flex items-center justify-center space-x-1">
+                        <span>Type</span>
+                        {getSortIcon('type')}
+                      </div>
+                    </th>
+                  )}
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-16 text-center">
+                    <td colSpan={4 + Object.values(columnVisibility).filter(v => v).length} className="py-16 text-center">
                       <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
                         <TrendingUp className="w-12 h-12 text-gray-400" />
                       </div>
@@ -1848,29 +2041,31 @@ export const TransactionList: React.FC<{
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-2 text-left">
-                          <div className="text-gray-900 dark:text-white" style={{ fontSize: '14px' }}>
-                            {transaction.updated_at && transaction.updated_at !== transaction.created_at ? (
-                              <>
-                                <div>{format(new Date(transaction.updated_at), 'MMM dd, yyyy')}</div>
-                                <div className="text-xs text-gradient-primary flex items-center gap-1">
-                                  {format(new Date(transaction.updated_at), 'h:mm a')}
-                                  <Edit2 
-                                    className="w-3 h-3" 
-                                    style={{
-                                      background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-                                      WebkitBackgroundClip: 'text',
-                                      WebkitTextFillColor: 'transparent',
-                                      backgroundClip: 'text'
-                                    }}
-                                  />
-                                </div>
-                              </>
-                            ) : (
-                              <div className="text-xs text-gray-400 dark:text-gray-500">Never</div>
-                            )}
-                          </div>
-                        </td>
+                        {columnVisibility.modified && (
+                          <td className="px-6 py-2 text-left">
+                            <div className="text-gray-900 dark:text-white" style={{ fontSize: '14px' }}>
+                              {transaction.updated_at && transaction.updated_at !== transaction.created_at ? (
+                                <>
+                                  <div>{format(new Date(transaction.updated_at), 'MMM dd, yyyy')}</div>
+                                  <div className="text-xs text-gradient-primary flex items-center gap-1">
+                                    {format(new Date(transaction.updated_at), 'h:mm a')}
+                                    <Edit2 
+                                      className="w-3 h-3" 
+                                      style={{
+                                        background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                                        WebkitBackgroundClip: 'text',
+                                        WebkitTextFillColor: 'transparent',
+                                        backgroundClip: 'text'
+                                      }}
+                                    />
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="text-xs text-gray-400 dark:text-gray-500">Never</div>
+                              )}
+                            </div>
+                          </td>
+                        )}
                         <td className="px-6 py-2">
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-white">{formatTransactionDescription(transaction.description)}</div>
@@ -1885,25 +2080,40 @@ export const TransactionList: React.FC<{
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-2 text-center">
-                          <span className="text-sm text-gray-900 dark:text-white">{getAccountName(transaction.account_id)}</span>
-                        </td>
+                        {columnVisibility.category && (
+                          <td className="px-6 py-2 text-center">
+                            {transaction.category ? (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
+                                {transaction.category}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+                            )}
+                          </td>
+                        )}
+                        {columnVisibility.account && (
+                          <td className="px-6 py-2 text-center">
+                            <span className="text-sm text-gray-900 dark:text-white">{getAccountName(transaction.account_id)}</span>
+                          </td>
+                        )}
                         <td className="px-6 py-2 text-center">
                           <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(transaction.amount, selectedCurrency)}</span>
                         </td>
-                        <td className="px-6 py-2 text-center">
-                          <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                            {transaction.type === 'income' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
-                                <ArrowDownRight className="w-3 h-3" /> Income
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300">
-                                <ArrowUpRight className="w-3 h-3" /> Expense
-                              </span>
-                            )}
-                          </div>
-                        </td>
+                        {columnVisibility.type && (
+                          <td className="px-6 py-2 text-center">
+                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                              {transaction.type === 'income' ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
+                                  <ArrowDownRight className="w-3 h-3" /> Income
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300">
+                                  <ArrowUpRight className="w-3 h-3" /> Expense
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        )}
                         <td className="px-6 py-2 text-center">
                           <div className="flex justify-center gap-2 items-center">
                              {isLendBorrowTransaction(transaction) ? (
@@ -1996,7 +2206,7 @@ export const TransactionList: React.FC<{
 
                         return (
                           <tr className="bg-gray-50 dark:bg-gray-800/50">
-                            <td colSpan={8} className="px-6 py-4">
+                            <td colSpan={4 + Object.values(columnVisibility).filter(v => v).length} className="px-6 py-4">
                               <div className="space-y-4">
                                 {/* Recurring Schedule Details */}
                                 {isParentRecurring && (

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, ReactNode } from 'react';
-import { Menu, Bell, Search, Sun, Moon, User, Settings, LogOut, ArrowLeftRight, LifeBuoy, Globe, Heart, Quote, X, BookOpen, Sparkles, RefreshCw, Trophy } from 'lucide-react';
+import { Menu, Bell, Search, Sun, Moon, User, Settings, LogOut, ArrowLeftRight, LifeBuoy, Globe, Heart, Quote, X, BookOpen, Sparkles, RefreshCw, Trophy, Edit3 } from 'lucide-react';
+import { format, isToday, isThisWeek } from 'date-fns';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useThemeStore } from '../../store/themeStore';
 import { useAuthStore } from '../../store/authStore';
@@ -31,6 +32,36 @@ const navigation = [
     { name: 'Reports', href: '/reports' },
     { name: 'Savings', href: '/savings' },
 ];
+
+const formatTimeAgo = (date: Date | string | null | undefined) => {
+  if (!date) return 'Never';
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(dateObj.getTime())) return 'Never';
+  
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
+  const diffInHours = Math.floor(diffInSeconds / 3600);
+
+  // Recent: "2 hours ago" (if < 24 hours)
+  if (diffInHours < 24) {
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    return `${diffInHours}h ago`;
+  }
+
+  // Today: "Today at 3:45 PM" (if same day)
+  if (isToday(dateObj)) {
+    return `Today at ${format(dateObj, 'h:mm a')}`;
+  }
+
+  // This week: "Monday at 3:45 PM" (if this week)
+  if (isThisWeek(dateObj, { weekStartsOn: 1 })) {
+    return `${format(dateObj, 'EEEE')} at ${format(dateObj, 'h:mm a')}`;
+  }
+
+  // Older: "Dec 15, 2024" (if older)
+  return format(dateObj, 'MMM dd, yyyy');
+};
 
 export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle }) => {
     const { setGlobalSearchTerm, globalSearchTerm, fetchTransactions, fetchAccounts, fetchCategories, fetchPurchaseCategories, fetchDonationSavingRecords, fetchPurchases } = useFinanceStore();
@@ -547,20 +578,23 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
               {showUserMenu && (
                 <div ref={userMenuRef} className="absolute right-0 mt-2 w-48 sm:w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl py-2 z-50 border border-gray-200 dark:border-gray-700">
                   <div className="px-3 sm:px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{profile?.fullName}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{profile?.fullName}</p>
+                      <button
+                        onClick={() => {
+                          setShowProfileModal(true);
+                          setShowUserMenu(false);
+                        }}
+                        className="flex-shrink-0 p-0.5 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                        title={t('editProfile')}
+                        aria-label={t('editProfile')}
+                      >
+                        <Edit3 className="w-[14px] h-[14px]" />
+                      </button>
+                    </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
-                    <p className="text-xs text-gray-400 mt-1">{t('defaultCurrency')}: {profile?.local_currency || 'USD'}</p>
+                    <p className="text-xs text-gray-400 mt-1">Last login: {formatTimeAgo(user?.last_sign_in_at)}</p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setShowProfileModal(true);
-                      setShowUserMenu(false);
-                    }}
-                    className="w-full px-3 sm:px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                  >
-                    <User className="w-4 h-4 mr-2 flex-shrink-0" />
-                    <span className="truncate">{t('editProfile')}</span>
-                  </button>
 
                   <button
                     onClick={() => {

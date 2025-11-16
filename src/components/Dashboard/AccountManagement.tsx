@@ -368,29 +368,49 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
   }
 
   return (
-    <div className="space-y-4">
-      {/* Enhanced Profile Card */}
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-blue-200 dark:border-gray-700 p-4 shadow-sm">
-        <div className="flex items-center justify-between">
+    <div className="space-y-3">
+      {/* Enhanced Profile Card with Pattern Background */}
+      <div className="relative bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-800 dark:via-gray-800 dark:to-gray-900 rounded-xl border border-blue-200/50 dark:border-gray-700 p-3 shadow-md overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-5 dark:opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `radial-gradient(circle at 2px 2px, rgb(59, 130, 246) 1px, transparent 0)`,
+            backgroundSize: '40px 40px'
+          }}></div>
+        </div>
+        
+        <div className="relative flex items-center justify-between">
           <div className="flex items-center space-x-3">
             {userPicUrl ? (
-              <img
-                src={userPicUrl}
-                alt="Profile"
-                className="w-16 h-16 rounded-full object-cover border-2 border-white dark:border-gray-600 shadow-md"
-                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
+              <div className="relative">
+                <img
+                  src={userPicUrl}
+                  alt="Profile"
+                  className="w-16 h-16 rounded-full object-cover border-2 border-white dark:border-gray-700 shadow-lg ring-2 ring-blue-500/20"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+                <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center">
+                  <User className="w-2.5 h-2.5 text-white" />
+                </div>
+              </div>
             ) : (
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-2xl font-bold text-white shadow-md">
-                {userName.charAt(0).toUpperCase()}
+              <div className="relative">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg ring-2 ring-blue-500/20">
+                  {userName.charAt(0).toUpperCase()}
+                </div>
+                <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center">
+                  <User className="w-2.5 h-2.5 text-white" />
+                </div>
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white truncate">{userName}</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-300 truncate">{userEmail}</p>
+              <h2 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-purple-400 truncate">{userName}</h2>
+              <p className="text-xs text-gray-600 dark:text-gray-300 truncate mt-0.5">{userEmail}</p>
               {registrationDate && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center mt-0.5">
-                  <Calendar className="w-3 h-3 mr-1" />
+                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center mt-1">
+                  <div className="p-0.5 bg-blue-100 dark:bg-blue-900/30 rounded mr-1.5">
+                    <Calendar className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400" />
+                  </div>
                   Member since {registrationDate}
                 </p>
               )}
@@ -398,71 +418,108 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
           </div>
           <button
             onClick={() => setShowProfileEdit(true)}
-            className="flex items-center px-3 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm border border-gray-200 dark:border-gray-600 text-sm"
+            className="flex items-center px-3 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-all shadow-sm border border-gray-200 dark:border-gray-600 text-sm font-medium hover:shadow-md hover:scale-105"
           >
-            <Edit3 className="w-4 h-4 mr-1.5" />
+            <div className="p-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-md mr-1.5">
+              <Edit3 className="w-3 h-3 text-white" />
+            </div>
             <span className="hidden sm:inline">Edit Profile</span>
             <span className="sm:hidden">Edit</span>
           </button>
         </div>
       </div>
 
-      {/* Statistics Dashboard */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Accounts</p>
-              <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{dataSummary.accounts}</p>
+      {/* Statistics Dashboard with Progress Indicators */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg border border-blue-200/50 dark:border-gray-700 p-3 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full -mr-8 -mt-8 group-hover:scale-150 transition-transform duration-500"></div>
+          <div className="relative">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/40 rounded-lg shadow-sm">
+                <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </div>
             </div>
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex-shrink-0">
-              <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Transactions</p>
-              <p className="text-xl font-bold text-green-600 dark:text-green-400">{dataSummary.transactions}</p>
-            </div>
-            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg flex-shrink-0">
-              <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Accounts</p>
+            <p className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-indigo-400">{dataSummary.accounts}</p>
+            <div className="mt-2 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min((dataSummary.accounts / 10) * 100, 100)}%` }}
+              ></div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Purchases</p>
-              <p className="text-xl font-bold text-purple-600 dark:text-purple-400">{dataSummary.purchases}</p>
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg border border-green-200/50 dark:border-gray-700 p-3 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-full -mr-8 -mt-8 group-hover:scale-150 transition-transform duration-500"></div>
+          <div className="relative">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/40 dark:to-green-800/40 rounded-lg shadow-sm">
+                <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
+              </div>
             </div>
-            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex-shrink-0">
-              <ShoppingBag className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Transactions</p>
+            <p className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent dark:from-green-400 dark:to-emerald-400">{dataSummary.transactions}</p>
+            <div className="mt-2 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-green-600 to-emerald-600 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min((dataSummary.transactions / 1000) * 100, 100)}%` }}
+              ></div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Currencies</p>
-              <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{dataSummary.currencies}</p>
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg border border-purple-200/50 dark:border-gray-700 p-3 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full -mr-8 -mt-8 group-hover:scale-150 transition-transform duration-500"></div>
+          <div className="relative">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/40 dark:to-purple-800/40 rounded-lg shadow-sm">
+                <ShoppingBag className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              </div>
             </div>
-            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex-shrink-0">
-              <Globe className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Purchases</p>
+            <p className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent dark:from-purple-400 dark:to-pink-400">{dataSummary.purchases}</p>
+            <div className="mt-2 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-purple-600 to-pink-600 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min((dataSummary.purchases / 500) * 100, 100)}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg border border-indigo-200/50 dark:border-gray-700 p-3 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-indigo-500/10 to-blue-500/10 rounded-full -mr-8 -mt-8 group-hover:scale-150 transition-transform duration-500"></div>
+          <div className="relative">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-900/40 dark:to-indigo-800/40 rounded-lg shadow-sm">
+                <Globe className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              </div>
+            </div>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Currencies</p>
+            <p className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent dark:from-indigo-400 dark:to-blue-400">{dataSummary.currencies}</p>
+            <div className="mt-2 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-indigo-600 to-blue-600 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min((dataSummary.currencies / 5) * 100, 100)}%` }}
+              ></div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Quick Actions & Data Management */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
         {/* Quick Actions Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-          <div className="space-y-2">
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-full -mr-12 -mt-12"></div>
+          <h3 className="text-xs font-bold text-gray-900 dark:text-white mb-2.5 flex items-center relative">
+            <div className="p-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-md mr-2">
+              <Settings className="w-3 h-3 text-white" />
+            </div>
+            Quick Actions
+          </h3>
+          <div className="space-y-2 relative">
             <button
               onClick={() => {
                 if (isAndroidApp) {
@@ -471,26 +528,30 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
                   handleExportPDF();
                 }
               }}
-              className="w-full flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors border border-blue-200 dark:border-blue-800"
+              className="w-full flex items-center justify-between p-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-all border border-blue-200/50 dark:border-blue-800/50 shadow-sm hover:shadow-md group"
             >
               <div className="flex items-center min-w-0">
-                <Download className="w-4 h-4 text-blue-600 dark:text-blue-400 mr-2 flex-shrink-0" />
+                <div className="p-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-md mr-2.5 shadow-sm group-hover:scale-110 transition-transform">
+                  <Download className="w-3.5 h-3.5 text-white" />
+                </div>
                 <div className="text-left min-w-0">
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100 truncate">Export Data</p>
+                  <p className="text-xs font-semibold text-blue-900 dark:text-blue-100 truncate">Export Data</p>
                   <p className="text-xs text-blue-700 dark:text-blue-300 truncate">Download as PDF</p>
                 </div>
               </div>
-              <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+              <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
             </button>
 
             <button
               onClick={logout}
-              className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-200 dark:border-gray-600"
+              className="w-full flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md group"
             >
               <div className="flex items-center min-w-0">
-                <LogOut className="w-4 h-4 text-gray-600 dark:text-gray-400 mr-2 flex-shrink-0" />
+                <div className="p-1.5 bg-gray-200 dark:bg-gray-600 rounded-md mr-2.5 shadow-sm group-hover:scale-110 transition-transform">
+                  <LogOut className="w-3.5 h-3.5 text-gray-700 dark:text-gray-300" />
+                </div>
                 <div className="text-left min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">Sign Out</p>
+                  <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">Sign Out</p>
                   <p className="text-xs text-gray-600 dark:text-gray-400 truncate">Log out of account</p>
                 </div>
               </div>
@@ -499,50 +560,77 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
         </div>
 
         {/* Article Reading Statistics */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-purple-500/5 to-pink-500/5 rounded-full -mr-12 -mt-12"></div>
+          <h3 className="text-xs font-bold text-gray-900 dark:text-white mb-2.5 flex items-center relative">
+            <div className="p-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-md mr-2">
+              <BookOpen className="w-3 h-3 text-white" />
+            </div>
+            Reading Statistics
+          </h3>
           {loadingArticleStats ? (
             <div className="grid grid-cols-2 gap-2">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="animate-pulse">
-                  <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                  <div className="h-14 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-cyan-50 dark:bg-cyan-900/20 rounded-lg p-3 border border-cyan-200 dark:border-cyan-800">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <BookOpen className="w-3 h-3 text-cyan-600 dark:text-cyan-400" />
-                  <span className="text-xs font-medium text-cyan-700 dark:text-cyan-300">Articles</span>
-                </div>
-                <div className="text-lg font-bold text-cyan-900 dark:text-cyan-100">{articleStats.totalReads}</div>
-              </div>
-              
-              <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 border border-emerald-200 dark:border-emerald-800">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <TrendingUp className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Rate</span>
-                </div>
-                <div className="text-lg font-bold text-emerald-900 dark:text-emerald-100">
-                  {articleStats.helpfulRate > 0 ? `${Math.round(articleStats.helpfulRate)}%` : 'N/A'}
+            <div className="grid grid-cols-2 gap-2 relative">
+              <div className="relative bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900/30 dark:to-cyan-800/30 rounded-lg p-2.5 border border-cyan-200/50 dark:border-cyan-800/50 shadow-sm hover:shadow-md transition-all group">
+                <div className="absolute top-1 right-1 w-10 h-10 bg-cyan-500/10 rounded-full blur-lg group-hover:scale-150 transition-transform"></div>
+                <div className="relative">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <div className="p-1 bg-cyan-500/20 rounded-md">
+                      <BookOpen className="w-3 h-3 text-cyan-600 dark:text-cyan-400" />
+                    </div>
+                    <span className="text-xs font-semibold text-cyan-700 dark:text-cyan-300 uppercase tracking-wide">Articles</span>
+                  </div>
+                  <div className="text-lg font-bold bg-gradient-to-r from-cyan-600 to-cyan-700 bg-clip-text text-transparent dark:from-cyan-400 dark:to-cyan-300">{articleStats.totalReads}</div>
                 </div>
               </div>
               
-              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Heart className="w-3 h-3 text-green-600 dark:text-green-400" />
-                  <span className="text-xs font-medium text-green-700 dark:text-green-300">Helpful</span>
+              <div className="relative bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-800/30 rounded-lg p-2.5 border border-emerald-200/50 dark:border-emerald-800/50 shadow-sm hover:shadow-md transition-all group">
+                <div className="absolute top-1 right-1 w-10 h-10 bg-emerald-500/10 rounded-full blur-lg group-hover:scale-150 transition-transform"></div>
+                <div className="relative">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <div className="p-1 bg-emerald-500/20 rounded-md">
+                      <TrendingUp className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wide">Rate</span>
+                  </div>
+                  <div className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-emerald-700 bg-clip-text text-transparent dark:from-emerald-400 dark:to-emerald-300">
+                    {articleStats.helpfulRate > 0 ? `${Math.round(articleStats.helpfulRate)}%` : 'N/A'}
+                  </div>
                 </div>
-                <div className="text-lg font-bold text-green-900 dark:text-green-100">{articleStats.helpfulCount}</div>
               </div>
               
-              <div className="bg-violet-50 dark:bg-violet-900/20 rounded-lg p-3 border border-violet-200 dark:border-violet-800">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Clock className="w-3 h-3 text-violet-600 dark:text-violet-400" />
-                  <span className="text-xs font-medium text-violet-700 dark:text-violet-300">Time</span>
+              <div className="relative bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 rounded-lg p-2.5 border border-green-200/50 dark:border-green-800/50 shadow-sm hover:shadow-md transition-all group">
+                <div className="absolute top-1 right-1 w-10 h-10 bg-green-500/10 rounded-full blur-lg group-hover:scale-150 transition-transform"></div>
+                <div className="relative">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <div className="p-1 bg-green-500/20 rounded-md">
+                      <Heart className="w-3 h-3 text-green-600 dark:text-green-400" />
+                    </div>
+                    <span className="text-xs font-semibold text-green-700 dark:text-green-300 uppercase tracking-wide">Helpful</span>
+                  </div>
+                  <div className="text-lg font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent dark:from-green-400 dark:to-green-300">{articleStats.helpfulCount}</div>
                 </div>
-                <div className="text-lg font-bold text-violet-900 dark:text-violet-100">
-                  {formatTotalTimeSpent(articleStats.totalTimeSpent)}
+              </div>
+              
+              <div className="relative bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/30 dark:to-violet-800/30 rounded-lg p-2.5 border border-violet-200/50 dark:border-violet-800/50 shadow-sm hover:shadow-md transition-all group">
+                <div className="absolute top-1 right-1 w-10 h-10 bg-violet-500/10 rounded-full blur-lg group-hover:scale-150 transition-transform"></div>
+                <div className="relative">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <div className="p-1 bg-violet-500/20 rounded-md">
+                      <Clock className="w-3 h-3 text-violet-600 dark:text-violet-400" />
+                    </div>
+                    <span className="text-xs font-semibold text-violet-700 dark:text-violet-300 uppercase tracking-wide">Time</span>
+                  </div>
+                  <div className="text-lg font-bold bg-gradient-to-r from-violet-600 to-violet-700 bg-clip-text text-transparent dark:from-violet-400 dark:to-violet-300">
+                    {formatTotalTimeSpent(articleStats.totalTimeSpent)}
+                  </div>
                 </div>
               </div>
             </div>
@@ -552,63 +640,65 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
 
 
       {/* Account Management - Danger Zone */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-red-200 dark:border-red-800 p-4 shadow-sm">
+      <div className="relative bg-white dark:bg-gray-800 rounded-lg border-2 border-red-300 dark:border-red-800/50 p-3 shadow-md overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-red-50/50 to-orange-50/50 dark:from-red-900/10 dark:to-orange-900/10"></div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full -mr-16 -mt-16"></div>
         {isMobile ? (
           // Mobile Layout - Icon at top
-          <div className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
+          <div className="text-center relative">
+            <div className="flex justify-center mb-2.5">
+              <div className="p-3 bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/40 dark:to-red-800/40 rounded-lg shadow-md">
                 <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
             </div>
-            <h3 className="text-base font-semibold text-red-900 dark:text-red-100 mb-2">Danger Zone</h3>
-            <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+            <h3 className="text-base font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent dark:from-red-400 dark:to-red-500 mb-1.5">Danger Zone</h3>
+            <p className="text-xs text-red-700 dark:text-red-300 mb-2.5">
               Permanently delete your account and all associated data. This action cannot be undone.
             </p>
-            <div className="bg-red-50 dark:bg-red-900/10 rounded-lg p-3 mb-3">
-              <p className="text-xs font-medium text-red-800 dark:text-red-200 mb-1">This will delete:</p>
+            <div className="bg-red-50/80 dark:bg-red-900/20 rounded-lg p-2.5 mb-2.5 border border-red-200/50 dark:border-red-800/50">
+              <p className="text-xs font-semibold text-red-800 dark:text-red-200 mb-1.5 uppercase tracking-wide">This will delete:</p>
               <ul className="text-xs text-red-700 dark:text-red-300 space-y-0.5">
-                <li>• All accounts and balances</li>
-                <li>• All transaction history</li>
-                <li>• All purchase records</li>
-                <li>• All settings and preferences</li>
-                <li>• Your user profile and data</li>
+                <li className="flex items-center"><span className="mr-1.5">•</span> All accounts and balances</li>
+                <li className="flex items-center"><span className="mr-1.5">•</span> All transaction history</li>
+                <li className="flex items-center"><span className="mr-1.5">•</span> All purchase records</li>
+                <li className="flex items-center"><span className="mr-1.5">•</span> All settings and preferences</li>
+                <li className="flex items-center"><span className="mr-1.5">•</span> Your user profile and data</li>
               </ul>
             </div>
             <button
               onClick={handleStartDeletion}
-              className="inline-flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition-all font-semibold text-xs shadow-md hover:shadow-lg hover:scale-105"
             >
-              <UserX className="w-4 h-4 mr-1.5" />
+              <UserX className="w-3.5 h-3.5 mr-1.5" />
               Delete My Account
             </button>
           </div>
         ) : (
           // Desktop Layout - Icon on left
-          <div className="flex items-start">
-            <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg mr-3 flex-shrink-0">
+          <div className="flex items-start relative">
+            <div className="p-3 bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/40 dark:to-red-800/40 rounded-lg shadow-md mr-2.5 flex-shrink-0">
               <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-base font-semibold text-red-900 dark:text-red-100 mb-2">Danger Zone</h3>
-              <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+              <h3 className="text-base font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent dark:from-red-400 dark:to-red-500 mb-1.5">Danger Zone</h3>
+              <p className="text-xs text-red-700 dark:text-red-300 mb-2.5">
                 Permanently delete your account and all associated data. This action cannot be undone.
               </p>
-              <div className="bg-red-50 dark:bg-red-900/10 rounded-lg p-3 mb-3">
-                <p className="text-xs font-medium text-red-800 dark:text-red-200 mb-1">This will delete:</p>
+              <div className="bg-red-50/80 dark:bg-red-900/20 rounded-lg p-2.5 mb-2.5 border border-red-200/50 dark:border-red-800/50">
+                <p className="text-xs font-semibold text-red-800 dark:text-red-200 mb-1.5 uppercase tracking-wide">This will delete:</p>
                 <ul className="text-xs text-red-700 dark:text-red-300 space-y-0.5">
-                  <li>• All accounts and balances</li>
-                  <li>• All transaction history</li>
-                  <li>• All purchase records</li>
-                  <li>• All settings and preferences</li>
-                  <li>• Your user profile and data</li>
+                  <li className="flex items-center"><span className="mr-1.5">•</span> All accounts and balances</li>
+                  <li className="flex items-center"><span className="mr-1.5">•</span> All transaction history</li>
+                  <li className="flex items-center"><span className="mr-1.5">•</span> All purchase records</li>
+                  <li className="flex items-center"><span className="mr-1.5">•</span> All settings and preferences</li>
+                  <li className="flex items-center"><span className="mr-1.5">•</span> Your user profile and data</li>
                 </ul>
               </div>
               <button
                 onClick={handleStartDeletion}
-                className="inline-flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition-all font-semibold text-xs shadow-md hover:shadow-lg hover:scale-105"
               >
-                <UserX className="w-4 h-4 mr-1.5" />
+                <UserX className="w-3.5 h-3.5 mr-1.5" />
                 Delete My Account
               </button>
             </div>
