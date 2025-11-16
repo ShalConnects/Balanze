@@ -798,12 +798,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                 {/* Purchase Stats Cards - Responsive grid */}
                 <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 mb-6">
                   <StatCard
-                    title="Planned Purchases"
+                    title="Planned"
                     value={totalPlannedPurchases.toString()}
                     color="yellow"
                   />
                   <StatCard
-                    title="Purchased Items"
+                    title="Purchased"
                     value={totalPurchasedItems.toString()}
                     trend="up"
                     color="red"
