@@ -1646,7 +1646,7 @@ export const TransactionList: React.FC<{
                   </>
                 )}
               </div>
-              <div className="relative" ref={exportMenuRef}>
+              <div className="hidden md:block relative" ref={exportMenuRef}>
                 <button
                   onClick={() => {
                     if (isExporting) return; // Prevent execution when exporting
@@ -1716,7 +1716,7 @@ export const TransactionList: React.FC<{
                     setIsFormOpen(true);
                   }
                 }}
-                className="bg-gradient-primary text-white px-3 py-1.5 h-8 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
+                className="hidden md:flex bg-gradient-primary text-white px-3 py-1.5 h-8 rounded-md hover:bg-gradient-primary-hover transition-colors items-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Transaction</span>
