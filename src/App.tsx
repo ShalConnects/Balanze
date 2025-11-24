@@ -83,17 +83,17 @@ const HomeRoute: React.FC = () => {
     return <Dashboard />;
   }
   
-  // Check if this is first launch
-  if (isFirstLaunch()) {
+  // Check if this is first launch AND Android app - only show WelcomeOnboarding for Android app
+  if (isFirstLaunch() && isAndroidApp()) {
     return <WelcomeOnboarding />;
   }
   
-  // Check if running in Android app
+  // Check if running in Android app (not first launch)
   if (isAndroidApp()) {
     return <Navigate to="/auth" replace />;
   }
   
-  // Default: show landing page for web users
+  // Default: show landing page for web users (including first launch on web)
   return <LandingPage />;
 };
 

@@ -1754,6 +1754,12 @@ export const LendBorrowTableView: React.FC = () => {
                                     ) : (
                                       <div style={{ marginTop: 0 }} className="text-gray-500 dark:text-gray-400">Record Only</div>
                                     )}
+                                    {record.notes && (
+                                      <div style={{ marginTop: 0 }} className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                        <div className="font-medium mb-1">Notes:</div>
+                                        <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">{record.notes}</div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
 

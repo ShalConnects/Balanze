@@ -34,8 +34,8 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   const [showTooltip, setShowTooltip] = useState(false);
   const [showMobileModal, setShowMobileModal] = useState(false);
   const { isMobile } = useMobileDetection();
-  // Get all accounts for this currency
-  const currencyAccounts = accounts.filter(acc => acc.currency === currency);
+  // Get all active accounts for this currency
+  const currencyAccounts = accounts.filter(acc => acc.currency === currency && acc.isActive);
   
   // Separate DPS and regular accounts based on account name
   const dpsAccounts = currencyAccounts.filter(acc => acc.name.toLowerCase().includes('dps'));
