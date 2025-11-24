@@ -434,43 +434,73 @@ export const PurchaseTracker: React.FC = () => {
   const [itemNameSuggestions, setItemNameSuggestions] = useState<string[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
 
-  const [selectedAccountId, setSelectedAccountId] = useState<string>(getDefaultAccountId());
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [purchasePriority, setPurchasePriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [purchaseAttachments, setPurchaseAttachments] = useState<PurchaseAttachment[]>([]);
   // Light fix: resolve account to preselect when editing an older purchase
   const resolveAccountForEditing = useCallback(async (purchase: Purchase): Promise<string | null> => {
-    
     // Helper to check if string is a UUID
     const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+    // Helper to check if string is a formatted transaction ID (F1234567 format)
+    const isFormattedTransactionId = (str: string) => /^F[0-9]+$/.test(str);
     
     try {
-      // Try transaction lookup only if transaction_id is a valid UUID
-      if (purchase.transaction_id && isUUID(purchase.transaction_id)) {
-        try {
-          const { data, error } = await supabase
+      // Try transaction lookup if transaction_id exists
+      if (purchase.transaction_id) {
+        let transactionQuery;
+        
+        // Check if it's a UUID (new format) or formatted ID (F1234567 format)
+        if (isUUID(purchase.transaction_id)) {
+          transactionQuery = supabase
             .from('transactions')
             .select('account_id')
             .eq('id', purchase.transaction_id)
             .single();
-          if (!error && data?.account_id) {
-            setSelectedAccountId(data.account_id);
-            return data.account_id;
+        } else if (isFormattedTransactionId(purchase.transaction_id)) {
+          transactionQuery = supabase
+            .from('transactions')
+            .select('account_id')
+            .eq('transaction_id', purchase.transaction_id)
+            .single();
+        }
+        
+        if (transactionQuery) {
+          try {
+            const { data, error } = await transactionQuery;
+            
+            if (!error && data?.account_id) {
+              // Check if account exists in accounts array
+              const accountExists = accounts.find(a => a.id === data.account_id);
+              
+              if (accountExists && accountExists.isActive) {
+                setSelectedAccountId(data.account_id);
+                return data.account_id;
+              }
+            }
+          } catch (txError) {
+            // Continue to fallback logic
           }
-        } catch (txError) {
-          // Continue to fallback logic
         }
       }
+      // Fallback to purchase.account_id if available
       if ((purchase as any).account_id) {
-        setSelectedAccountId((purchase as any).account_id);
-        return (purchase as any).account_id;
+        const accountExists = accounts.find(a => a.id === (purchase as any).account_id);
+        if (accountExists && accountExists.isActive) {
+          setSelectedAccountId((purchase as any).account_id);
+          return (purchase as any).account_id;
+        }
       }
+      // Final fallback: match by currency
       const matchingAccounts = accounts.filter(acc => acc.isActive && acc.currency === purchase.currency);
       const fallback = matchingAccounts[0];
       if (fallback) {
         setSelectedAccountId(fallback.id);
         return fallback.id;
       } else {
-        return null;
+        // If no matching account found, use default
+        const defaultAccountId = getDefaultAccountId();
+        setSelectedAccountId(defaultAccountId);
+        return defaultAccountId;
       }
     } catch (error) {
       // best-effort: try currency fallback even on error
@@ -481,8 +511,12 @@ export const PurchaseTracker: React.FC = () => {
           return matchingAccounts[0].id;
         }
       } catch (fallbackError) {
+        // Ignore fallback errors
       }
-      return null;
+      // Final fallback to default account
+      const defaultAccountId = getDefaultAccountId();
+      setSelectedAccountId(defaultAccountId);
+      return defaultAccountId;
     }
   }, [accounts]);
   const [showPurchaseDetails, setShowPurchaseDetails] = useState(true);
@@ -2780,6 +2814,7 @@ export const PurchaseTracker: React.FC = () => {
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => {
             setShowPurchaseForm(false);
             setEditingPurchase(null);
+            setSelectedAccountId('');
           }} />
           <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-[38rem] max-h-[90vh] overflow-y-auto z-50 shadow-xl transition-all" onClick={e => e.stopPropagation()}>
                                   <div className="flex items-center justify-between mb-6">
@@ -2788,6 +2823,7 @@ export const PurchaseTracker: React.FC = () => {
                 onClick={() => {
                   setShowPurchaseForm(false);
                   setEditingPurchase(null);
+                  setSelectedAccountId('');
                 }}
                 className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 aria-label="Close form"
@@ -3175,6 +3211,7 @@ export const PurchaseTracker: React.FC = () => {
                   onClick={() => {
                     setShowPurchaseForm(false);
                     setEditingPurchase(null);
+                    setSelectedAccountId('');
                   }}
                   className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100 transition-colors"
                   disabled={submitting}

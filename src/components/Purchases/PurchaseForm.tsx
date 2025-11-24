@@ -63,7 +63,20 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     notes: record?.notes || ''
   });
 
-  const [selectedAccountId, setSelectedAccountId] = useState<string>(record?.account_id || getDefaultAccountId());
+  // Helper to check if string is a UUID
+  const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+  
+  // Initialize selectedAccountId: if purchase has linked transaction, start with empty to load from transaction
+  // Otherwise use record.account_id or default account
+  const getInitialAccountId = (): string => {
+    if (record?.transaction_id && isUUID(record.transaction_id)) {
+      // For linked purchases, account will be loaded from transaction in useEffect
+      return '';
+    }
+    return record?.account_id || getDefaultAccountId();
+  };
+
+  const [selectedAccountId, setSelectedAccountId] = useState<string>(getInitialAccountId());
   const [purchasePriority, setPurchasePriority] = useState<'low' | 'medium' | 'high'>(record?.priority || 'medium');
   const [purchaseAttachments, setPurchaseAttachments] = useState<PurchaseAttachment[]>([]);
   const [showPurchaseDetails, setShowPurchaseDetails] = useState(true);
@@ -79,49 +92,101 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   const [itemNameSuggestions, setItemNameSuggestions] = useState<string[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
 
+  // Reset account ID when record changes
+  useEffect(() => {
+    if (record) {
+      // Reset to initial value based on whether there's a linked transaction
+      if (record.transaction_id && isUUID(record.transaction_id)) {
+        // For linked purchases, account will be loaded from transaction in useEffect
+        setSelectedAccountId('');
+      } else {
+        setSelectedAccountId(record.account_id || getDefaultAccountId());
+      }
+    }
+  }, [record?.id]);
+
   // Load linked transaction data when editing a purchase
   useEffect(() => {
     const loadLinkedTransactionData = async () => {
-      // Helper to check if string is a UUID
-      const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
-      
-      if (record?.transaction_id && isUUID(record.transaction_id)) {
-        try {
-          console.log('🔍 Loading linked transaction data for purchase:', record.id);
-          const { data: linkedTransaction, error } = await supabase
+      if (record?.transaction_id) {
+        // Helper to check if string is a formatted transaction ID (F1234567 format)
+        const isFormattedTransactionId = (str: string) => /^F[0-9]+$/.test(str);
+        
+        let transactionQuery;
+        
+        // Check if it's a UUID (new format) or formatted ID (F1234567 format)
+        if (isUUID(record.transaction_id)) {
+          transactionQuery = supabase
             .from('transactions')
             .select('account_id, category, description, amount')
             .eq('id', record.transaction_id)
             .single();
-          
-          if (linkedTransaction && !error) {
-            console.log('✅ Found linked transaction:', linkedTransaction);
-            // Update form data with transaction data
-            setFormData(prev => ({
-              ...prev,
-              category: linkedTransaction.category || prev.category,
-              item_name: linkedTransaction.description || prev.item_name,
-              price: linkedTransaction.amount ? String(linkedTransaction.amount) : prev.price
-            }));
+        } else if (isFormattedTransactionId(record.transaction_id)) {
+          transactionQuery = supabase
+            .from('transactions')
+            .select('account_id, category, description, amount')
+            .eq('transaction_id', record.transaction_id)
+            .single();
+        }
+        
+        if (transactionQuery) {
+          try {
+            const { data: linkedTransaction, error } = await transactionQuery;
             
-            // Set the account ID
-            if (linkedTransaction.account_id) {
-              setSelectedAccountId(linkedTransaction.account_id);
+            if (linkedTransaction && !error) {
+              // Update form data with transaction data
+              setFormData(prev => ({
+                ...prev,
+                category: linkedTransaction.category || prev.category,
+                item_name: linkedTransaction.description || prev.item_name,
+                price: linkedTransaction.amount ? String(linkedTransaction.amount) : prev.price
+              }));
+              
+              // Set the account ID from the linked transaction
+              if (linkedTransaction.account_id) {
+                setSelectedAccountId(linkedTransaction.account_id);
+              }
+              
+              // Set excludeFromCalculation to false since it's linked to a transaction
+              setExcludeFromCalculation(false);
+            } else {
+              // If no linked transaction found, fall back to record.account_id or default
+              if (!record?.account_id) {
+                setSelectedAccountId(getDefaultAccountId());
+              } else {
+                setSelectedAccountId(record.account_id);
+              }
             }
-            
-            // Set excludeFromCalculation to false since it's linked to a transaction
-            setExcludeFromCalculation(false);
-          } else {
-            console.log('❌ No linked transaction found or error:', error);
+          } catch (err) {
+            // On error, fall back to record.account_id or default
+            if (!record?.account_id) {
+              setSelectedAccountId(getDefaultAccountId());
+            } else {
+              setSelectedAccountId(record.account_id);
+            }
           }
-        } catch (err) {
-          console.error('❌ Error loading linked transaction data:', err);
+        } else {
+          // If transaction_id format is not recognized, use fallback
+          if (!record?.account_id) {
+            setSelectedAccountId(getDefaultAccountId());
+          } else {
+            setSelectedAccountId(record.account_id);
+          }
+        }
+      } else if (record && !record.transaction_id) {
+        // For purchases without linked transactions, use record.account_id or default
+        if (record.account_id) {
+          setSelectedAccountId(record.account_id);
+        } else {
+          setSelectedAccountId(getDefaultAccountId());
         }
       }
     };
 
-    loadLinkedTransactionData();
-  }, [record?.transaction_id, record?.id]);
+    if (isOpen && record) {
+      loadLinkedTransactionData();
+    }
+  }, [record?.transaction_id, record?.id, record?.account_id, isOpen, accounts]);
 
   // Autofocus on first field when modal opens
   useEffect(() => {
@@ -743,30 +808,30 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                   <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.status}</span>
                 )}
               </div>
-              {/* Account field - only show for purchased (not planned, not cancelled) */}
-              {(formData.status !== 'planned' && formData.status !== 'cancelled') && !excludeFromCalculation && (
-                <div className="relative">
-                  <CustomDropdown
-                    options={accounts.filter(acc => acc.isActive && !acc.name.includes('(DPS)')).map(acc => ({
-                      label: `${acc.name} (${getCurrencySymbol(acc.currency)}${Number(acc.calculated_balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`,
-                      value: acc.id
-                    }))}
-                    value={selectedAccountId}
-                    onChange={val => {
-                      handleAccountChange(val);
-                    }}
-                    onBlur={() => {
-                      setTouched(t => ({ ...t, account: true }));
-                    }}
-                    placeholder="Select Account *"
-                    fullWidth={true}
-                    disabled={isLoading}
-                  />
-                  {fieldErrors.account && touched.account && (
-                    <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.account}</span>
-                  )}
-                </div>
-              )}
+                {/* Account field - only show for purchased (not planned, not cancelled) */}
+                {(formData.status !== 'planned' && formData.status !== 'cancelled') && !excludeFromCalculation && (
+                  <div className="relative">
+                    <CustomDropdown
+                      options={accounts.filter(acc => acc.isActive && !acc.name.includes('(DPS)')).map(acc => ({
+                        label: `${acc.name} (${getCurrencySymbol(acc.currency)}${Number(acc.calculated_balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`,
+                        value: acc.id
+                      }))}
+                      value={selectedAccountId}
+                      onChange={val => {
+                        handleAccountChange(val);
+                      }}
+                      onBlur={() => {
+                        setTouched(t => ({ ...t, account: true }));
+                      }}
+                      placeholder="Select Account *"
+                      fullWidth={true}
+                      disabled={isLoading}
+                    />
+                    {fieldErrors.account && touched.account && (
+                      <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.account}</span>
+                    )}
+                  </div>
+                )}
               
               {/* Currency dropdown - show for planned purchases or when excluding from calculation */}
               {(formData.status === 'planned' || excludeFromCalculation) && (
