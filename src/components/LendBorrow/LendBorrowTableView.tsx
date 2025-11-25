@@ -6,7 +6,7 @@ import { LendBorrowForm } from './LendBorrowForm';
 import { LendBorrowMobileView } from './LendBorrowMobileView';
 import { SettlementModal } from './SettlementModal';
 import { SettledRecordInfoModal } from './SettledRecordInfoModal';
-import { LendBorrow } from '../../types';
+import { LendBorrow, LendBorrowReturn } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { generateTransactionId, createSuccessMessage } from '../../utils/transactionId';
@@ -151,6 +151,9 @@ export const LendBorrowTableView: React.FC = () => {
   
   // State for mobile record expansion
   const [expandedMobileRecords, setExpandedMobileRecords] = useState<Set<string>>(new Set());
+  
+  // State for return history
+  const [returnHistory, setReturnHistory] = useState<Record<string, LendBorrowReturn[]>>({});
 
   const { isMobile } = useMobileDetection();
 
@@ -503,32 +506,51 @@ export const LendBorrowTableView: React.FC = () => {
       <ChevronDown className="w-4 h-4 text-blue-600" />;
   };
 
+  // Fetch return history for a record
+  const fetchReturnHistory = async (recordId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('lend_borrow_returns')
+        .select('*')
+        .eq('lend_borrow_id', recordId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setReturnHistory(prev => ({
+        ...prev,
+        [recordId]: data || []
+      }));
+    } catch (error) {
+      console.error('Error fetching return history:', error);
+    }
+  };
+
   // Toggle row expansion
-  const toggleRowExpansion = (recordId: string) => {
-    setExpandedRows(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(recordId)) {
-        newSet.delete(recordId);
-      } else {
-        newSet.add(recordId);
-      }
-      return newSet;
-    });
+  const toggleRowExpansion = async (recordId: string) => {
+    const newExpandedRows = new Set(expandedRows);
+    if (newExpandedRows.has(recordId)) {
+      newExpandedRows.delete(recordId);
+    } else {
+      newExpandedRows.add(recordId);
+      // Fetch return history when expanding
+      await fetchReturnHistory(recordId);
+    }
+    setExpandedRows(newExpandedRows);
   };
 
   const isRowExpanded = (recordId: string) => expandedRows.has(recordId);
   
   // Mobile record expansion functions
-  const toggleMobileRecordExpansion = (recordId: string) => {
-    setExpandedMobileRecords(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(recordId)) {
-        newSet.delete(recordId);
-      } else {
-        newSet.add(recordId);
-      }
-      return newSet;
-    });
+  const toggleMobileRecordExpansion = async (recordId: string) => {
+    const newExpandedRecords = new Set(expandedMobileRecords);
+    if (newExpandedRecords.has(recordId)) {
+      newExpandedRecords.delete(recordId);
+    } else {
+      newExpandedRecords.add(recordId);
+      // Fetch return history when expanding
+      await fetchReturnHistory(recordId);
+    }
+    setExpandedMobileRecords(newExpandedRecords);
   };
 
   const isMobileRecordExpanded = (recordId: string) => expandedMobileRecords.has(recordId);
@@ -1724,12 +1746,24 @@ export const LendBorrowTableView: React.FC = () => {
                                          'Due today'}
                                       </div>
                                     )}
-                                    {record.partial_return_amount > 0 && (
-                                      <div style={{ marginTop: 0 }}><span className="font-medium">Partial Return:</span> {formatCurrency(record.partial_return_amount, record.currency)}</div>
-                                    )}
-                                    {record.partial_return_date && !isNaN(new Date(record.partial_return_date).getTime()) && (
-                                      <div style={{ marginTop: 0 }}><span className="font-medium">Partial Return Date:</span> {new Date(record.partial_return_date).toLocaleDateString()}</div>
-                                    )}
+                                    {(() => {
+                                      const recordReturns = returnHistory[record.id] || [];
+                                      const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
+                                      if (totalReturned > 0) {
+                                        return (
+                                          <div style={{ marginTop: 0 }}><span className="font-medium">Total Returned:</span> {formatCurrency(totalReturned, record.currency)}</div>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+                                    {record.status !== 'settled' && (() => {
+                                      const recordReturns = returnHistory[record.id] || [];
+                                      const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
+                                      const remainingAmount = record.amount - totalReturned;
+                                      return (
+                                        <div style={{ marginTop: 0 }}><span className="font-medium">Remaining Amount:</span> {formatCurrency(remainingAmount, record.currency)}</div>
+                                      );
+                                    })()}
                                   </div>
                                 </div>
 
@@ -1989,13 +2023,24 @@ export const LendBorrowTableView: React.FC = () => {
                               })()}
                             </div>
                           )}
-                          {record.partial_return_amount > 0 && !isNaN(new Date(record.partial_return_date || '').getTime()) && (
-                            <>
-                              <div style={{ marginTop: 0 }}><span className="font-medium">Partial Return:</span> {formatCurrency(record.partial_return_amount, record.currency)}</div>
-                              <div style={{ marginTop: 0 }}><span className="font-medium">Partial Return Date:</span> {record.partial_return_date ? new Date(record.partial_return_date).toLocaleDateString() : 'No date'}</div>
-                              <div style={{ marginTop: 0 }}><span className="font-medium">Remaining Amount:</span> {formatCurrency(record.amount - record.partial_return_amount, record.currency)}</div>
-                            </>
-                          )}
+                          {(() => {
+                            const recordReturns = returnHistory[record.id] || [];
+                            const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
+                            if (totalReturned > 0) {
+                              return (
+                                <div style={{ marginTop: 0 }}><span className="font-medium">Total Returned:</span> {formatCurrency(totalReturned, record.currency)}</div>
+                              );
+                            }
+                            return null;
+                          })()}
+                          {record.status !== 'settled' && (() => {
+                            const recordReturns = returnHistory[record.id] || [];
+                            const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
+                            const remainingAmount = record.amount - totalReturned;
+                            return (
+                              <div style={{ marginTop: 0 }}><span className="font-medium">Remaining Amount:</span> {formatCurrency(remainingAmount, record.currency)}</div>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>

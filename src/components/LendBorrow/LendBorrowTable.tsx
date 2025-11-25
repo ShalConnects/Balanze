@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Edit2, Trash2, InfoIcon, PlusCircle, Handshake, ChevronUp, ChevronDown, Eye } from 'lucide-react';
-import { LendBorrow } from '../../types';
+import { LendBorrow, LendBorrowReturn } from '../../types';
+import { supabase } from '../../lib/supabase';
 
 interface LendBorrowTableProps {
   records: LendBorrow[];
@@ -29,6 +30,34 @@ export const LendBorrowTable: React.FC<LendBorrowTableProps> = React.memo(({
   selectedRecordRef,
   isFromSearch
 }) => {
+  const [returnHistory, setReturnHistory] = useState<Record<string, LendBorrowReturn[]>>({});
+
+  // Fetch return history for a record
+  const fetchReturnHistory = async (recordId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('lend_borrow_returns')
+        .select('*')
+        .eq('lend_borrow_id', recordId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setReturnHistory(prev => ({
+        ...prev,
+        [recordId]: data || []
+      }));
+    } catch (error) {
+      console.error('Error fetching return history:', error);
+    }
+  };
+
+  // Handle row toggle with return history fetching
+  const handleToggleRow = async (recordId: string) => {
+    if (!expandedRows.has(recordId)) {
+      await fetchReturnHistory(recordId);
+    }
+    onToggleRow(recordId);
+  };
 
   // Memoize expensive calculations
   const recordData = useMemo(() => {
@@ -134,7 +163,7 @@ export const LendBorrowTable: React.FC<LendBorrowTableProps> = React.memo(({
                         : 'ring-2 ring-blue-500 ring-opacity-50'
                       : ''
                   }`} 
-                  onClick={() => onToggleRow(record.id)}
+                          onClick={() => handleToggleRow(record.id)}
                 >
                   <td className="px-6 py-[0.7rem]">
                     <div className="flex items-center">
@@ -272,12 +301,24 @@ export const LendBorrowTable: React.FC<LendBorrowTableProps> = React.memo(({
                                  `${daysDiff} days remaining`}
                               </div>
                             )}
-                            {record.partial_return_amount && (
-                              <div><span className="font-medium">Partial Return:</span> {formatCurrency(record.partial_return_amount, record.currency)}</div>
-                            )}
-                            {record.partial_return_date && (
-                              <div><span className="font-medium">Partial Return Date:</span> {new Date(record.partial_return_date).toLocaleDateString()}</div>
-                            )}
+                            {(() => {
+                              const recordReturns = returnHistory[record.id] || [];
+                              const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
+                              if (totalReturned > 0) {
+                                return (
+                                  <div><span className="font-medium">Total Returned:</span> {formatCurrency(totalReturned, record.currency)}</div>
+                                );
+                              }
+                              return null;
+                            })()}
+                            {record.status !== 'settled' && (() => {
+                              const recordReturns = returnHistory[record.id] || [];
+                              const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
+                              const remainingAmount = record.amount - totalReturned;
+                              return (
+                                <div><span className="font-medium">Remaining Amount:</span> {formatCurrency(remainingAmount, record.currency)}</div>
+                              );
+                            })()}
                           </div>
                         </div>
 

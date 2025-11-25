@@ -1,6 +1,7 @@
 import React from 'react';
 import { Edit2, Trash2, Plus, Info, ChevronRight, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
-import { LendBorrow } from '../../types';
+import { LendBorrow, LendBorrowReturn } from '../../types';
+import { supabase } from '../../lib/supabase';
 
 interface LendBorrowMobileViewProps {
   records: LendBorrow[];
@@ -32,6 +33,26 @@ export const LendBorrowMobileView: React.FC<LendBorrowMobileViewProps> = React.m
   isFromSearch
 }) => {
   const [expandedRecordId, setExpandedRecordId] = React.useState<string | null>(null);
+  const [returnHistory, setReturnHistory] = React.useState<Record<string, LendBorrowReturn[]>>({});
+
+  // Fetch return history for a record
+  const fetchReturnHistory = async (recordId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('lend_borrow_returns')
+        .select('*')
+        .eq('lend_borrow_id', recordId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setReturnHistory(prev => ({
+        ...prev,
+        [recordId]: data || []
+      }));
+    } catch (error) {
+      console.error('Error fetching return history:', error);
+    }
+  };
   if (records.length === 0) {
     return (
       <div className="text-center py-12 px-4">
@@ -208,7 +229,13 @@ export const LendBorrowMobileView: React.FC<LendBorrowMobileViewProps> = React.m
                   )}
                   
                   <button
-                    onClick={() => setExpandedRecordId(expandedRecordId === record.id ? null : record.id)}
+                    onClick={async () => {
+                      const newExpandedId = expandedRecordId === record.id ? null : record.id;
+                      setExpandedRecordId(newExpandedId);
+                      if (newExpandedId) {
+                        await fetchReturnHistory(record.id);
+                      }
+                    }}
                     className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
                     title="View details"
                   >
@@ -261,12 +288,24 @@ export const LendBorrowMobileView: React.FC<LendBorrowMobileViewProps> = React.m
                              `${daysDiff} days remaining`}
                           </div>
                         )}
-                        {record.partial_return_amount && record.partial_return_amount > 0 && (
-                          <div style={{ marginTop: 0 }}><span className="font-medium">Partial Return:</span> {formatCurrency(record.partial_return_amount, record.currency)}</div>
-                        )}
-                        {record.partial_return_date && !isNaN(new Date(record.partial_return_date).getTime()) && (
-                          <div style={{ marginTop: 0 }}><span className="font-medium">Partial Return Date:</span> {format(new Date(record.partial_return_date), 'MMM dd, yyyy')}</div>
-                        )}
+                        {(() => {
+                          const recordReturns = returnHistory[record.id] || [];
+                          const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
+                          if (totalReturned > 0) {
+                            return (
+                              <div style={{ marginTop: 0 }}><span className="font-medium">Total Returned:</span> {formatCurrency(totalReturned, record.currency)}</div>
+                            );
+                          }
+                          return null;
+                        })()}
+                        {record.status !== 'settled' && (() => {
+                          const recordReturns = returnHistory[record.id] || [];
+                          const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
+                          const remainingAmount = record.amount - totalReturned;
+                          return (
+                            <div style={{ marginTop: 0 }}><span className="font-medium">Remaining Amount:</span> {formatCurrency(remainingAmount, record.currency)}</div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
