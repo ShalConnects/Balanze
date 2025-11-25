@@ -5,6 +5,8 @@ import { User } from '@supabase/supabase-js';
 import { userPreferencesManager } from '../lib/userPreferences';
 import { favoriteQuotesService } from '../lib/favoriteQuotesService';
 import { saveRememberedEmail, clearRememberedEmail } from '../utils/authStorage';
+import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
 
 export type AppUser = {
     id: string;
@@ -427,31 +429,68 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       console.log('- Window origin:', window.location.origin);
       console.log('- Current URL:', window.location.href);
       
-      // Use Supabase OAuth for both Google and Apple
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: redirectUrl
-        }
-      });
+      // Check if we're on Android
+      const isAndroid = Capacitor.getPlatform() === 'android';
       
-      console.log('📤 Supabase OAuth Response:');
-      console.log('- Data:', data);
-      console.log('- Error:', error);
-
-      if (error) {
-        // Provide user-friendly error messages
-        let userMessage = 'Social login failed. Please try again.';
-        if (error.message.includes('provider is not enabled')) {
-          userMessage = 'Social login is not configured yet. Please use email/password login.';
-        } else if (error.message.includes('redirect_uri_mismatch')) {
-          userMessage = 'Social login configuration error. Please contact support.';
+      if (isAndroid) {
+        // On Android, use Browser plugin to open OAuth in Chrome Custom Tabs
+        try {
+          const { data, error } = await supabase.auth.signInWithOAuth({
+            provider,
+            options: {
+              redirectTo: redirectUrl,
+              skipBrowserRedirect: true
+            }
+          });
+          
+          if (error) {
+            throw error;
+          }
+          
+          if (data?.url) {
+            // Open OAuth URL in Chrome Custom Tabs
+            await Browser.open({ url: data.url });
+            return { success: true };
+          } else {
+            throw new Error('OAuth URL not received');
+          }
+        } catch (error: any) {
+          let userMessage = 'Social login failed. Please try again.';
+          if (error?.message?.includes('provider is not enabled')) {
+            userMessage = 'Social login is not configured yet. Please use email/password login.';
+          } else if (error?.message?.includes('redirect_uri_mismatch')) {
+            userMessage = 'Social login configuration error. Please contact support.';
+          }
+          set({ error: userMessage, isLoading: false });
+          return { success: false, message: userMessage };
         }
-        set({ error: userMessage, isLoading: false });
-        return { success: false, message: userMessage };
-      }
+      } else {
+        // On web/iOS, use default Supabase OAuth flow
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: {
+            redirectTo: redirectUrl
+          }
+        });
+        
+        console.log('📤 Supabase OAuth Response:');
+        console.log('- Data:', data);
+        console.log('- Error:', error);
 
-      return { success: true };
+        if (error) {
+          // Provide user-friendly error messages
+          let userMessage = 'Social login failed. Please try again.';
+          if (error.message.includes('provider is not enabled')) {
+            userMessage = 'Social login is not configured yet. Please use email/password login.';
+          } else if (error.message.includes('redirect_uri_mismatch')) {
+            userMessage = 'Social login configuration error. Please contact support.';
+          }
+          set({ error: userMessage, isLoading: false });
+          return { success: false, message: userMessage };
+        }
+
+        return { success: true };
+      }
     } catch (error) {
       const errorMessage = (error as Error).message;
       set({ error: 'An unexpected error occurred during social login', isLoading: false });

@@ -366,9 +366,25 @@ function AppContent() {
 
   // Check if user has accounts and show welcome modal if needed
   useEffect(() => {
-    if (user && !loading) {
+    if (user && !loading && profile) {
       const checkAndShowWelcomeModal = async () => {
         try {
+          // Ensure profile exists - wait for it if needed
+          let currentProfile = profile;
+          if (!currentProfile) {
+            // Wait up to 3 seconds for profile to be created
+            for (let i = 0; i < 6; i++) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+              currentProfile = useAuthStore.getState().profile;
+              if (currentProfile) break;
+            }
+          }
+          
+          // If profile still doesn't exist, don't show modal yet
+          if (!currentProfile) {
+            return;
+          }
+          
           // Add a timeout to prevent hanging
           const timeoutId = setTimeout(() => {
             // If we timeout, assume new user and show modal

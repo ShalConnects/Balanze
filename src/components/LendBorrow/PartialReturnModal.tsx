@@ -106,26 +106,55 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
         setLoading(false);
         return;
       }
-      // Update the main lend_borrow record status if fully paid
-      const newTotalReturned = totalReturned + amount;
-      const newStatus = newTotalReturned >= record.amount ? 'settled' : 'active';
-      const { data, error: updateError } = await supabase
+      // The database trigger will automatically update the status if fully paid
+      // Wait a moment for the trigger to process
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Fetch the updated record to get the actual status from the database
+      const { data: updatedRecordData, error: fetchError } = await supabase
         .from('lend_borrow')
-        .update({
-          status: newStatus,
-          updated_at: new Date().toISOString(),
-        })
+        .select('*')
         .eq('id', record.id)
-        .select()
         .single();
-      if (updateError) {
-
+      
+      if (fetchError) {
+        console.error('Error fetching updated record:', fetchError);
+        toast.error('Partial return recorded, but failed to fetch updated status');
+        setLoading(false);
+        return;
       }
-      toast.success(`Partial return of ${getCurrencySymbol(record.currency)}${amount.toFixed(2)} recorded successfully!`);
+      
+      const actualStatus = updatedRecordData?.status || record.status;
+      const newTotalReturned = totalReturned + amount;
+      const isFullyPaid = newTotalReturned >= record.amount;
+      
+      if (isFullyPaid && actualStatus === 'settled') {
+        toast.success(`Partial return of ${getCurrencySymbol(record.currency)}${amount.toFixed(2)} recorded and record automatically settled!`);
+      } else if (isFullyPaid && actualStatus !== 'settled') {
+        // Trigger didn't settle it, try manual settlement as fallback
+        const { error: settleError } = await supabase
+          .from('lend_borrow')
+          .update({
+            status: 'settled',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', record.id);
+        
+        if (settleError) {
+          console.error('Settlement error:', settleError);
+          toast.warning(`Partial return recorded, but failed to settle record: ${settleError.message || 'Unknown error'}`);
+        } else {
+          toast.success(`Partial return of ${getCurrencySymbol(record.currency)}${amount.toFixed(2)} recorded and record settled!`);
+        }
+      } else {
+        toast.success(`Partial return of ${getCurrencySymbol(record.currency)}${amount.toFixed(2)} recorded successfully!`);
+      }
+      
       const updatedRecord = {
         ...record,
-        status: newStatus as 'settled' | 'active' | 'overdue',
-        updated_at: new Date().toISOString(),
+        ...updatedRecordData,
+        status: (updatedRecordData?.status || record.status) as 'settled' | 'active' | 'overdue',
+        updated_at: updatedRecordData?.updated_at || new Date().toISOString(),
       };
       onUpdated(updatedRecord);
       // Add a small delay before closing to show success state

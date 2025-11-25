@@ -46,10 +46,57 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
       const { user } = useAuthStore.getState();
       if (!user) throw new Error('Not authenticated');
       
-      // Create cash account directly using the same logic as addAccount
-      const { data: newCashAccount, error: cashError } = await supabase
-        .from('accounts')
-        .insert([{
+      // Ensure profile exists before creating account
+      const { profile: currentProfile } = useAuthStore.getState();
+      if (!currentProfile) {
+        // Wait a bit for profile to be created
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const { profile: retryProfile } = useAuthStore.getState();
+        if (!retryProfile) {
+          throw new Error('Profile not found. Please try again.');
+        }
+      }
+      
+      let newCashAccount;
+      let accountId;
+      
+      // Try using the database function first (bypasses RLS safely)
+      try {
+        const { data: rpcResult, error: rpcError } = await supabase
+          .rpc('create_cash_account', {
+            p_currency: selectedCurrency,
+            p_initial_balance: 0
+          });
+        
+        if (rpcError) {
+          throw rpcError;
+        }
+        
+        if (rpcResult && rpcResult.length > 0) {
+          const result = rpcResult[0];
+          if (result.success && result.account_id) {
+            accountId = result.account_id;
+            // Fetch the created account to get full details
+            const { data: fetchedAccount, error: fetchError } = await supabase
+              .from('accounts')
+              .select('*')
+              .eq('id', accountId)
+              .single();
+            
+            if (fetchError) {
+              throw fetchError;
+            }
+            newCashAccount = fetchedAccount;
+          } else {
+            throw new Error(result.error_message || 'Failed to create cash account');
+          }
+        } else {
+          throw new Error('No result from create_cash_account function');
+        }
+      } catch (rpcError: any) {
+        // Fallback to store's addAccount if RPC fails
+        console.warn('RPC function failed, using fallback:', rpcError);
+        await addAccount({
           name: 'Cash Wallet',
           type: 'cash',
           initial_balance: 0,
@@ -60,20 +107,25 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
           dps_type: null,
           dps_amount_type: null,
           dps_fixed_amount: null,
-          is_active: true,  // Use snake_case to match database schema
-          user_id: user.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
-
-      if (cashError) {
-
-        throw new Error(`Failed to create cash account: ${cashError.message}`);
+          is_active: true
+        });
+        
+        // Fetch the newly created account
+        await fetchAccounts();
+        const accounts = useFinanceStore.getState().accounts;
+        newCashAccount = accounts.find(acc => acc.type === 'cash' && acc.currency === selectedCurrency);
+        
+        if (!newCashAccount) {
+          throw new Error('Failed to create cash account');
+        }
+        accountId = newCashAccount.id;
       }
 
 
+      
+      if (!newCashAccount || !accountId) {
+        throw new Error('Failed to create cash account');
+      }
       
       // Add audit log
       try {
@@ -81,8 +133,8 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
           user_id: user.id,
           activity_type: 'ACCOUNT_CREATED',
           entity_type: 'account',
-          entity_id: newCashAccount.id,
-          description: `Welcome cash account created: ${newCashAccount.name} (${newCashAccount.currency})`,
+          entity_id: accountId,
+          description: `Welcome cash account created: ${newCashAccount.name || 'Cash Wallet'} (${newCashAccount.currency || selectedCurrency})`,
           changes: {
             new: newCashAccount
           }

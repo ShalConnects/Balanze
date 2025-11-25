@@ -191,23 +191,43 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
       const newRemainingAmount = record.amount - newTotalReturned;
       
       if (newRemainingAmount <= 0) {
-        // Auto-settle the record since it's now fully paid
-        const { error: settleError } = await supabase
-          .from('lend_borrow')
-          .update({ 
-            status: 'settled',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', record.id);
+        // The database trigger will automatically settle the record
+        // Wait a moment for the trigger to process, then verify
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        if (settleError) {
-          toast.error('Failed to auto-settle record');
-        } else {
+        // Verify the record was settled by the trigger
+        const { data: updatedRecord, error: fetchError } = await supabase
+          .from('lend_borrow')
+          .select('status')
+          .eq('id', record.id)
+          .single();
+        
+        if (fetchError) {
+          console.error('Error checking settlement status:', fetchError);
+          toast.error('Partial return recorded, but failed to verify settlement status');
+        } else if (updatedRecord?.status === 'settled') {
           toast.success(`${record.type === 'lend' ? 'Partial return' : 'Partial payment'} of ${getCurrencySymbol(record.currency)}${partialAmount.toFixed(2)} recorded and record automatically settled!`);
-          // Refresh the data to show updated status
-          if (onRecordUpdated) {
-            onRecordUpdated();
+        } else {
+          // Record wasn't settled by trigger, try manual settlement as fallback
+          const { error: settleError } = await supabase
+            .from('lend_borrow')
+            .update({ 
+              status: 'settled',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', record.id);
+          
+          if (settleError) {
+            console.error('Settlement error:', settleError);
+            toast.error(`Failed to auto-settle record: ${settleError.message || 'Unknown error'}`);
+          } else {
+            toast.success(`${record.type === 'lend' ? 'Partial return' : 'Partial payment'} of ${getCurrencySymbol(record.currency)}${partialAmount.toFixed(2)} recorded and record settled!`);
           }
+        }
+        
+        // Refresh the data to show updated status
+        if (onRecordUpdated) {
+          onRecordUpdated();
         }
       } else {
         toast.success(`${record.type === 'lend' ? 'Partial return' : 'Partial payment'} of ${getCurrencySymbol(record.currency)}${partialAmount.toFixed(2)} recorded successfully!`);
