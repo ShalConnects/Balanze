@@ -53,6 +53,12 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             return;
         }
         
+        // If profile is provided, always update it (even if one already exists)
+        if (profile) {
+            set({ user, profile, isLoading: false });
+            return;
+        }
+        
         const currentState = get();
         if (currentState.user?.id === user.id && currentState.profile) {
             return;
@@ -85,8 +91,8 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                         const newProfile: AppUser = {
                             id: user.id,
                             fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
-                            local_currency: 'USD',
-                            selected_currencies: ['USD'],
+                            local_currency: undefined,
+                            selected_currencies: undefined,
                             default_account_id: undefined,
                             subscription: { plan: 'free', status: 'active', validUntil: null }
                         };
@@ -96,8 +102,8 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                             .upsert({
                                 id: user.id,
                                 full_name: newProfile.fullName,
-                                local_currency: newProfile.local_currency,
-                                selected_currencies: newProfile.selected_currencies,
+                                local_currency: null,
+                                selected_currencies: null,
                                 subscription: newProfile.subscription,
                                 created_at: new Date().toISOString(),
                                 updated_at: new Date().toISOString()
@@ -112,8 +118,8 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                         const newProfile: AppUser = {
                             id: user.id,
                             fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
-                            local_currency: 'USD',
-                            selected_currencies: ['USD'],
+                            local_currency: undefined,
+                            selected_currencies: undefined,
                             default_account_id: undefined,
                             subscription: { plan: 'free', status: 'active', validUntil: null }
                         };
@@ -123,8 +129,8 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                             .upsert({
                                 id: user.id,
                                 full_name: newProfile.fullName,
-                                local_currency: newProfile.local_currency,
-                                selected_currencies: newProfile.selected_currencies,
+                                local_currency: null,
+                                selected_currencies: null,
                                 subscription: newProfile.subscription,
                                 created_at: new Date().toISOString(),
                                 updated_at: new Date().toISOString()
@@ -140,8 +146,8 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                     const newProfile: AppUser = {
                         id: user.id,
                         fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
-                        local_currency: 'USD',
-                        selected_currencies: ['USD'],
+                        local_currency: undefined,
+                        selected_currencies: undefined,
                         default_account_id: undefined,
                         subscription: { plan: 'free', status: 'active', validUntil: null }
                     };
@@ -152,8 +158,8 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                             .upsert({
                                 id: user.id,
                                 full_name: newProfile.fullName,
-                                local_currency: newProfile.local_currency,
-                                selected_currencies: newProfile.selected_currencies,
+                                local_currency: null,
+                                selected_currencies: null,
                                 subscription: newProfile.subscription,
                                 created_at: new Date().toISOString(),
                                 updated_at: new Date().toISOString()

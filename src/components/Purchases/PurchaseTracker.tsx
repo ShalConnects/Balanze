@@ -2729,8 +2729,12 @@ export const PurchaseTracker: React.FC = () => {
                       </div>
                       <div className="col-span-4">
                         <div className="text-xs text-gray-500 dark:text-gray-400">Notes</div>
-                        <div className="text-sm text-gray-900 dark:text-white truncate">
-                          {purchase.notes || '-'}
+                        <div className="text-sm text-gray-900 dark:text-white max-h-20 overflow-hidden">
+                          {purchase.notes ? (
+                            <div className="ql-editor" dangerouslySetInnerHTML={{ __html: purchase.notes }} />
+                          ) : (
+                            '-'
+                          )}
                         </div>
                       </div>
                     </div>

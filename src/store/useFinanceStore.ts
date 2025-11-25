@@ -98,7 +98,7 @@ interface FinanceStore {
   }) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   
-  fetchCategories: () => Promise<void>;
+  fetchCategories: (currency?: string) => Promise<void>;
   addCategory: (category: Omit<Category, 'id'>) => Promise<void>;
   updateCategory: (id: string, category: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
@@ -967,7 +967,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     set({ loading: false });
   },
   
-  fetchCategories: async () => {
+  fetchCategories: async (currency?: string) => {
     set({ loading: true, error: null });
     
     const { user, profile } = useAuthStore.getState();
@@ -988,8 +988,15 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     
     // If no categories exist, initialize with default categories
     if (!data || data.length === 0) {
-      // Get user's selected currency from profile, fallback to USD
-      const userCurrency = profile?.local_currency || 'USD';
+      // Use passed currency parameter, or get from profile, or skip if neither is available
+      const userCurrency = currency || profile?.local_currency;
+      
+      // Only create categories if user has selected a currency
+      // If currency is not set yet, skip category creation (will be created after WelcomeModal)
+      if (!userCurrency) {
+        set({ categories: [], loading: false });
+        return;
+      }
       
       // No categories found, initializing with defaults
       const defaultCategoriesToInsert = defaultCategories.map(cat => ({

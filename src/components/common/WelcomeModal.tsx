@@ -15,7 +15,7 @@ interface WelcomeModalProps {
 
 export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onStartTour }) => {
   const { profile } = useAuthStore();
-  const { addAccount, fetchAccounts } = useFinanceStore();
+  const { addAccount, fetchAccounts, fetchCategories } = useFinanceStore();
   const { setLoading } = useLoadingContext();
   
   const [selectedCurrency, setSelectedCurrency] = useState('');
@@ -123,6 +123,9 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
 
       // Fetch accounts to update the store
       await fetchAccounts();
+      
+      // Create default categories with the selected currency (pass currency directly)
+      await fetchCategories(selectedCurrency);
       
       toast.success('Cash account created successfully!');
       

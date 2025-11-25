@@ -27,9 +27,9 @@ export const Settings: React.FC = () => {
   // Initialize activeTab from URL parameter or default to general
   const getInitialTab = () => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['general', 'categories', 'account-management', 'plans-usage', 'lw'].includes(tabParam)) {
+    if (tabParam && ['general', 'categories', 'account-management', 'plans-usage', 'last-wish'].includes(tabParam)) {
       // If user tries to access Last Wish tab but is not premium, redirect to general
-      if (tabParam === 'lw' && !isPremium) {
+      if (tabParam === 'last-wish' && !isPremium) {
         return 'general';
       }
       return tabParam;
@@ -53,15 +53,15 @@ export const Settings: React.FC = () => {
     { id: 'plans-usage', label: 'Plans & Usage', icon: CreditCard },
     { id: 'payment-history', label: 'Payment', icon: Receipt },
     { id: 'account-management', label: 'Account', icon: User },
-    ...(isPremium ? [{ id: 'lw', label: 'Last wish', icon: Crown, premium: true }] : [])
+    ...(isPremium ? [{ id: 'last-wish', label: 'Last Wish', icon: Crown, premium: true }] : [])
   ];
 
   // Handle URL parameters for tab selection
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['general', 'categories', 'account-management', 'plans-usage', 'payment-history', 'lw'].includes(tabParam)) {
+    if (tabParam && ['general', 'categories', 'account-management', 'plans-usage', 'payment-history', 'last-wish'].includes(tabParam)) {
       // If user tries to access Last Wish tab but is not premium, redirect to general
-      if (tabParam === 'lw' && !isPremium) {
+      if (tabParam === 'last-wish' && !isPremium) {
         setActiveTab('general');
         setSearchParams({ tab: 'general' }, { replace: true });
       } else {
@@ -271,7 +271,7 @@ export const Settings: React.FC = () => {
         {activeTab === 'payment-history' && (
           <PaymentHistory hideTitle />
         )}
-        {activeTab === 'lw' && (
+        {activeTab === 'last-wish' && (
           <LW setActiveTab={setActiveTab} />
         )}
       </div>

@@ -362,7 +362,7 @@ function calculateFinancialMetrics(data) {
   
   // Calculate total account balances
   const totalAssets = accounts.reduce((sum, account) => {
-    return sum + (parseFloat(account.balance) || 0);
+    return sum + (parseFloat(account.calculated_balance) || 0);
   }, 0);
   
   // Calculate investment portfolio value
@@ -396,7 +396,7 @@ function calculateFinancialMetrics(data) {
   // Account breakdown
   const accountBreakdown = accounts.map(acc => ({
     name: acc.name || 'Unnamed Account',
-    balance: parseFloat(acc.balance) || 0,
+    balance: parseFloat(acc.calculated_balance) || 0,
     currency: acc.currency || primaryCurrency,
     type: acc.type || 'other'
   }));
@@ -1215,7 +1215,7 @@ function generateCSVExport(data, settings) {
       csvRows.push([
         escapeCSV(acc.name || 'N/A'),
         escapeCSV(acc.type || 'N/A'),
-        escapeCSV(acc.balance || 0),
+        escapeCSV(acc.calculated_balance || 0),
         escapeCSV(acc.currency || 'USD'),
         escapeCSV(acc.account_number || 'N/A'),
         escapeCSV(acc.institution || 'N/A')
@@ -1620,7 +1620,7 @@ function createPDFBuffer(user, recipient, data, settings) {
         const accountRows = data.accounts.map(acc => [
           acc.name || 'Unnamed Account',
           acc.type || 'N/A',
-          formatCurrency(parseFloat(acc.balance) || 0, acc.currency || 'USD'),
+          formatCurrency(parseFloat(acc.calculated_balance) || 0, acc.currency || 'USD'),
           acc.currency || 'USD',
           acc.account_number || 'N/A',
           acc.institution || 'N/A'
@@ -2160,6 +2160,7 @@ async function sendLastWishEmail(userId, testMode = false) {
         .from('last_wish_settings')
         .update({ 
           is_active: false,
+          delivery_triggered: true,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', userId);

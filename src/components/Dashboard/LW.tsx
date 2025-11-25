@@ -11,7 +11,9 @@ import {
   Eye,
   Mail,
   User,
-  Check
+  Check,
+  RotateCw,
+  X
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
@@ -86,6 +88,12 @@ export const LW: React.FC<LWProps> = () => {
   const [useSimpleEditor, setUseSimpleEditor] = useState(true); // Default to simple on mobile
   const [simpleText, setSimpleText] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [deliveryData, setDeliveryData] = useState<{
+    deliveredAt: string;
+    recipients: Array<{ email: string; status: string }>;
+    deliveryCount: number;
+  } | null>(null);
+  const [showReactivateModal, setShowReactivateModal] = useState(false);
   const { isMobile: isMobileDevice } = useMobileDetection();
 
   // Mobile detection with touch support
@@ -456,6 +464,34 @@ These memories are my gift to you.`
       }
 
       if (data) {
+        // Check for successful deliveries in last_wish_deliveries table
+        const { data: deliveries, error: deliveryError } = await supabase
+          .from('last_wish_deliveries')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('delivery_status', 'sent')
+          .order('sent_at', { ascending: false });
+        
+        // If delivery_triggered flag is explicitly true, mark as delivered
+        // Otherwise, only check deliveries table if delivery_triggered is null/undefined (fallback for old records)
+        const isDelivered = data.delivery_triggered === true || 
+          (data.delivery_triggered === null && deliveries && deliveries.length > 0);
+        
+        // Store delivery data if available and marked as delivered
+        if (isDelivered && !deliveryError && deliveries && deliveries.length > 0) {
+          setDeliveryData({
+            deliveredAt: deliveries[0].sent_at,
+            recipients: deliveries.map(d => ({
+              email: d.recipient_email,
+              status: d.delivery_status
+            })),
+            deliveryCount: deliveries.length
+          });
+        } else {
+          // Clear delivery data if not delivered
+          setDeliveryData(null);
+        }
+        
         setSettings({
           isEnabled: data.is_enabled || false,
           checkInFrequency: data.check_in_frequency || 30,
@@ -471,7 +507,7 @@ These memories are my gift to you.`
           },
           message: data.message || '',
           isActive: data.is_active || false,
-          deliveryTriggered: data.delivery_triggered || false,
+          deliveryTriggered: isDelivered,
         });
         
         // Initialize simple text editor with the message content
@@ -651,6 +687,39 @@ These memories are my gift to you.`
     } catch (error) {
 
       toast.error('Failed to check-in');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReactivate = async () => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      const now = new Date().toISOString();
+      
+      const { error } = await supabase
+        .from('last_wish_settings')
+        .update({
+          delivery_triggered: false,
+          is_active: true,
+          last_check_in: now,
+          updated_at: now,
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // Clear delivery data and reload settings to reflect changes
+      setDeliveryData(null);
+      await loadLWSettings();
+      
+      // Close modal and show success message
+      setShowReactivateModal(false);
+      toast.success('Last Wish reactivated successfully! Check-in timer has been reset.');
+    } catch (error) {
+      toast.error('Failed to reactivate Last Wish');
     } finally {
       setLoading(false);
     }
@@ -1094,120 +1163,6 @@ These memories are my gift to you.`
         </div>
       </div>
 
-      {/* System Control Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* System Toggle Card */}
-        <div className="lg:col-span-1">
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm h-full flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">System Control</h3>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.isEnabled}
-                  onChange={(e) => toggleLWEnabled(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-              </label>
-            </div>
-            
-            <div className="space-y-3 flex-1">
-              <div className="flex items-center space-x-3">
-                <div className={`w-3 h-3 rounded-full ${settings.isEnabled ? 'bg-blue-500' : 'bg-gray-400'}`} />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {settings.isEnabled ? 'System Active' : 'System Inactive'}
-                </span>
-              </div>
-              
-              {/* Delivery Status - Show if delivered */}
-              {settings.deliveryTriggered && (
-                <div className="flex items-center space-x-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-green-700 dark:text-green-300">
-                      Email Delivered
-                    </div>
-                    <div className="text-xs text-green-600 dark:text-green-400 mt-1">
-                      Your Last Wish has been successfully delivered to recipients
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Check-in Status - Only show if not delivered */}
-              {!settings.deliveryTriggered && settings.isEnabled && (daysUntilCheckIn !== null || timeUntilCheckIn !== null) && (
-                <div className="flex items-center space-x-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                  <Clock className="w-3 h-3 text-orange-600 dark:text-orange-400 flex-shrink-0" />
-                  <span className="text-xs font-medium text-orange-700 dark:text-orange-300">
-                    {daysUntilCheckIn && daysUntilCheckIn > 0 ? `${daysUntilCheckIn} days until check-in` : 'Overdue for check-in'}
-                  </span>
-                </div>
-              )}
-              
-              {settings.isEnabled && (
-                <div className="space-y-2 mt-auto">
-                  {!settings.deliveryTriggered ? (
-                    <button
-                      onClick={handleCheckIn}
-                      disabled={loading}
-                      className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 flex items-center justify-center space-x-2 text-sm font-medium shadow-sm transition-colors"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Check In</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        toast.info('Reactivation feature coming soon. Contact support if needed.');
-                      }}
-                      className="w-full px-4 py-2.5 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 flex items-center justify-center space-x-2 text-sm font-medium shadow-sm transition-colors"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Delivered Successfully</span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Monitoring Configuration */}
-        <div className="lg:col-span-2">
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm h-full flex flex-col">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Duration</h3>
-            <div className="grid grid-cols-5 gap-2 flex-1">
-              {[7, 14, 30, 60, 90].map((days) => (
-                <label key={days} className={`relative cursor-pointer p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
-                  settings.checkInFrequency === days
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-                }`}>
-                  <input
-                    type="radio"
-                    name="frequency"
-                    value={days}
-                    checked={settings.checkInFrequency === days}
-                    onChange={(e) => updateCheckInFrequency(parseFloat(e.target.value))}
-                    className="sr-only"
-                  />
-                  <div className="text-lg font-bold text-gray-900 dark:text-white">
-                    {days}
-                  </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                    days
-                  </div>
-                </label>
-              ))}
-            </div>
-            <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
-              System will monitor user activity and trigger data distribution after the selected period of inactivity.
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Delivery Status Section - Only show if delivered */}
       {settings.deliveryTriggered && (
         <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-xl border border-green-200 dark:border-green-700 p-6 mb-6 shadow-sm">
@@ -1256,7 +1211,7 @@ These memories are my gift to you.`
               <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                 <p className="text-sm text-blue-700 dark:text-blue-300">
                   💡 <strong>What's next?</strong> Your Last Wish system has successfully delivered your financial data. 
-                  If you'd like to reactivate the system or make changes, please contact support.
+                  You can reactivate the system using the buttons below.
                 </p>
               </div>
             </div>
@@ -1301,17 +1256,150 @@ These memories are my gift to you.`
                   </div>
                 </div>
                 
-                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg mb-4">
                   <p className="text-sm text-blue-700 dark:text-blue-300">
                     💡 <strong>What's next?</strong> Your Last Wish system has successfully delivered your financial data. 
-                    If you'd like to reactivate the system or make changes, please contact support.
+                    You can reactivate the system using the buttons below.
                   </p>
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex gap-2 mt-4">
+                  <button
+                    onClick={() => {
+                      if (deliveryData) {
+                        const deliveryDate = new Date(deliveryData.deliveredAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        });
+                        const recipientsList = deliveryData.recipients.map(r => r.email).join(', ');
+                        toast.success(
+                          <div className="space-y-1">
+                            <div className="font-semibold">Last Wish Delivered</div>
+                            <div className="text-sm">Delivered on {deliveryDate}</div>
+                            <div className="text-sm">To {deliveryData.deliveryCount} recipient{deliveryData.deliveryCount !== 1 ? 's' : ''}: {recipientsList}</div>
+                          </div>,
+                          { duration: 5000 }
+                        );
+                      } else {
+                        toast.info('Last Wish has been delivered successfully.');
+                      }
+                    }}
+                    className="w-auto px-3 py-2.5 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 flex items-center justify-center space-x-2 text-sm font-medium shadow-sm transition-colors"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Delivered</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowReactivateModal(true)}
+                    disabled={loading}
+                    className="w-auto px-3 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 flex items-center justify-center space-x-2 text-sm font-medium shadow-sm transition-colors"
+                  >
+                    <RotateCw className="w-4 h-4" />
+                    <span>Reactivate</span>
+                  </button>
                 </div>
               </div>
             </div>
           )}
         </div>
       )}
+
+      {/* System Control Panel */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm mb-6">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* System Toggle Card */}
+          <div className="lg:w-1/3">
+            <div className="h-full flex flex-col justify-center">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">System Control</h3>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.isEnabled}
+                    onChange={(e) => toggleLWEnabled(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className={`w-3 h-3 rounded-full ${settings.isEnabled ? 'bg-blue-500' : 'bg-gray-400'}`} />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {settings.isEnabled ? 'System Active' : 'System Inactive'}
+                  </span>
+                </div>
+                
+                {/* Check-in Status - Only show if not delivered */}
+                {!settings.deliveryTriggered && settings.isEnabled && (daysUntilCheckIn !== null || timeUntilCheckIn !== null) && (
+                  <div className="flex items-center space-x-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                    <Clock className="w-3 h-3 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                    <span className="text-xs font-medium text-orange-700 dark:text-orange-300">
+                      {daysUntilCheckIn && daysUntilCheckIn > 0 ? `${daysUntilCheckIn} days until check-in` : 'Overdue for check-in'}
+                    </span>
+                  </div>
+                )}
+                
+                {settings.isEnabled && !settings.deliveryTriggered && (
+                  <div className="mt-auto">
+                    <button
+                      onClick={handleCheckIn}
+                      disabled={loading}
+                      className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 flex items-center justify-center space-x-2 text-sm font-medium shadow-sm transition-colors"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Check In</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="hidden lg:block w-px bg-gray-200 dark:bg-gray-700"></div>
+
+          {/* Monitoring Configuration */}
+          <div className="lg:w-2/3">
+            <div className="h-full flex flex-col">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Duration</h3>
+              <div className="grid grid-cols-5 gap-2 flex-1">
+                {[7, 14, 30, 60, 90].map((days) => (
+                  <label key={days} className={`relative cursor-pointer p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
+                    settings.checkInFrequency === days
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="frequency"
+                      value={days}
+                      checked={settings.checkInFrequency === days}
+                      onChange={(e) => updateCheckInFrequency(parseFloat(e.target.value))}
+                      className="sr-only"
+                    />
+                    <div className="text-lg font-bold text-gray-900 dark:text-white">
+                      {days}
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                      days
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
+                System will monitor user activity and trigger data distribution after the selected period of inactivity.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Beneficiaries and Data Configuration */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -1728,6 +1816,77 @@ These memories are my gift to you.`
           userProfile={profile}
           user={user}
         />
+      )}
+
+      {/* Reactivate Last Wish Confirmation Modal */}
+      {showReactivateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 max-w-md w-full mx-2 sm:mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                  <RotateCw className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+                  Reactivate Last Wish
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowReactivateModal(false)}
+                disabled={loading}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 mb-4">
+                Are you sure you want to reactivate Last Wish? This will reset the check-in timer and allow the system to monitor your activity again. Delivery history will be preserved.
+              </p>
+              <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3 sm:p-4">
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-purple-700 dark:text-purple-300">
+                    <p className="font-medium mb-1">What will happen:</p>
+                    <ul className="list-disc list-inside space-y-1 text-purple-600 dark:text-purple-400">
+                      <li>Check-in timer will reset to start immediately</li>
+                      <li>System will begin monitoring your activity again</li>
+                      <li>Previous delivery records will be kept for history</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
+              <button
+                onClick={() => setShowReactivateModal(false)}
+                disabled={loading}
+                className="w-full sm:w-auto px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReactivate}
+                disabled={loading}
+                className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <RotateCw className="w-4 h-4 animate-spin" />
+                    <span>Reactivating...</span>
+                  </>
+                ) : (
+                  <>
+                    <RotateCw className="w-4 h-4" />
+                    <span>Reactivate</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
 
