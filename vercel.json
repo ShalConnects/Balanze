@@ -100,7 +100,7 @@
           "value": "application/xml; charset=utf-8"
         }
       ]
-    },
+    }
   ],
   "rewrites": [
     {
