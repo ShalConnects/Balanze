@@ -117,6 +117,10 @@
       "destination": "/api/$1"
     },
     {
+      "source": "/.well-known/assetlinks.json",
+      "destination": "/api/assetlinks"
+    },
+    {
       "source": "/((?!robots\\.txt|sitemap\\.xml|\\.well-known).*)",
       "destination": "/index.html"
     }
