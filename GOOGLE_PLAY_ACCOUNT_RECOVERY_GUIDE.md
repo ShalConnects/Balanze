@@ -41,10 +41,10 @@ Google Play's Policy Coverage policy allows them to terminate accounts based on:
 
 **Document Everything:**
 1. **Account History**
-   - When was the account created?
-   - How many apps were published?
-   - Any previous warnings or policy violations?
-   - Any related accounts (personal, business, etc.)?
+   - When was the account created? - This year
+   - How many apps were published? - No published yet, only 1 app that was ready for product and the other one is the Balanze app that was submitted for review.
+   - Any previous warnings or policy violations? - No.
+   - Any related accounts (personal, business, etc.)? - No.
 
 2. **App Information**
    - App name: Balanze

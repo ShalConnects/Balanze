@@ -26,8 +26,8 @@ android {
         applicationId "com.balanze.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "1.3"
+        versionCode 5
+        versionName "1.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -67,6 +67,12 @@ android {
                 signingConfig signingConfigs.release
             }
         }
+    }
+    
+    // Exclude baseline profiles from APK to avoid installation issues
+    packagingOptions {
+        exclude '**/baseline-profile.txt'
+        exclude '**/baseline.prof'
     }
 }
 

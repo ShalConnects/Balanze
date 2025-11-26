@@ -448,9 +448,20 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
           }
           
           if (data?.url) {
-            // Open OAuth URL in Chrome Custom Tabs
-            await Browser.open({ url: data.url });
-            return { success: true };
+            // Try to open OAuth URL in Chrome Custom Tabs
+            try {
+              await Browser.open({ url: data.url });
+              return { success: true };
+            } catch (browserError: any) {
+              // Fallback: If Browser.open() fails (e.g., Chrome not installed), use window.open()
+              console.warn('Browser.open() failed, trying fallback:', browserError);
+              const fallbackWindow = window.open(data.url, '_blank', 'noopener,noreferrer');
+              if (fallbackWindow) {
+                return { success: true };
+              } else {
+                throw new Error('Unable to open browser. Please ensure you have a browser installed.');
+              }
+            }
           } else {
             throw new Error('OAuth URL not received');
           }

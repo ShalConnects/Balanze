@@ -27,6 +27,8 @@ import { AppInstallBanner } from './components/AppInstallBanner';
 import WelcomeOnboarding from './components/WelcomeOnboarding';
 import { isAndroidApp } from './utils/platformDetection';
 import { isFirstLaunch } from './utils/firstLaunch';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 
 // Lazy load non-critical components for code splitting
 const About = lazy(() => import('./pages/About'));
@@ -316,6 +318,76 @@ function AppContent() {
       authListener.subscription.unsubscribe();
     };
   }, [handleEmailConfirmation]);
+
+  // Handle deep link OAuth callback on Android
+  useEffect(() => {
+    if (Capacitor.getPlatform() === 'android') {
+      const handleOAuthCallback = async (url: string) => {
+        console.log('🔗 Processing OAuth callback URL:', url);
+        
+        // Check if this is the OAuth callback
+        if (url && url.includes('/auth/callback')) {
+          try {
+            const urlObj = new URL(url);
+            const accessToken = urlObj.searchParams.get('access_token');
+            const refreshToken = urlObj.searchParams.get('refresh_token');
+            const error = urlObj.searchParams.get('error');
+            
+            if (error) {
+              console.error('❌ OAuth error from deep link:', error);
+              // Navigate to auth page with error
+              window.location.href = '/auth?error=oauth_failed';
+              return;
+            }
+            
+            if (accessToken && refreshToken) {
+              console.log('✅ OAuth tokens received via deep link');
+              // Set the session with tokens
+              const { data, error: sessionError } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+              });
+              
+              if (sessionError) {
+                console.error('❌ Error setting session:', sessionError);
+                window.location.href = '/auth?error=session_failed';
+                return;
+              }
+              
+              if (data.user) {
+                console.log('✅ User authenticated via deep link');
+                const { setUserAndProfile } = useAuthStore.getState();
+                await setUserAndProfile(data.user, null);
+                // Navigate to dashboard
+                window.location.href = '/dashboard';
+              }
+            }
+          } catch (error) {
+            console.error('❌ Error handling deep link:', error);
+            window.location.href = '/auth?error=callback_failed';
+          }
+        }
+      };
+      
+      // Check for initial URL (if app was opened via deep link)
+      App.getLaunchUrl().then((result) => {
+        if (result?.url) {
+          handleOAuthCallback(result.url);
+        }
+      }).catch(() => {
+        // No launch URL, that's fine
+      });
+      
+      // Listen for app URL open events (when app is already running)
+      const listener = App.addListener('appUrlOpen', (event) => {
+        handleOAuthCallback(event.url);
+      });
+      
+      return () => {
+        listener.then(l => l.remove());
+      };
+    }
+  }, []);
 
   // Initialize notifications when user is authenticated
   useEffect(() => {
