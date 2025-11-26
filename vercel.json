@@ -104,12 +104,12 @@
   ],
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
       "source": "/.well-known/assetlinks.json",
       "destination": "/api/assetlinks"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
     },
     {
       "source": "/((?!robots\\.txt|sitemap\\.xml|\\.well-known).*)",
