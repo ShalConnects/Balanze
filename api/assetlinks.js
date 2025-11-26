@@ -7,9 +7,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Set correct headers - NO BOM
+  // Set correct headers - NO BOM, no cache to force fresh response
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
 
   // Asset links JSON content (without BOM - using Buffer to ensure no BOM)
   const assetlinksData = [
