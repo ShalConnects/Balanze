@@ -17,6 +17,10 @@ export default async function handler(req, res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
   // Asset links JSON content (without BOM - using Buffer to ensure no BOM)
+  // Format fingerprint with colons (required by Google)
+  const fingerprint = 'C889D578ED2FA09539B9DB82F2DEA76E08E6C930D2C1020092513A30B9E0C6EE';
+  const formattedFingerprint = fingerprint.match(/.{2}/g).join(':');
+  
   const assetlinksData = [
     {
       relation: ['delegate_permission/common.handle_all_urls'],
@@ -24,7 +28,7 @@ export default async function handler(req, res) {
         namespace: 'android_app',
         package_name: 'com.balanze.app',
         sha256_cert_fingerprints: [
-          'C889D578ED2FA09539B9DB82F2DEA76E08E6C930D2C1020092513A30B9E0C6EE'
+          formattedFingerprint
         ]
       }
     }
