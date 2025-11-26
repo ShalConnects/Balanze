@@ -7,12 +7,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Set correct headers
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  // Set correct headers - NO BOM
+  res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'public, max-age=3600');
 
-  // Asset links JSON content (without BOM)
-  const assetlinksJson = JSON.stringify([
+  // Asset links JSON content (without BOM - using Buffer to ensure no BOM)
+  const assetlinksData = [
     {
       relation: ['delegate_permission/common.handle_all_urls'],
       target: {
@@ -23,9 +23,11 @@ export default async function handler(req, res) {
         ]
       }
     }
-  ], null, 2);
-
-  // Send response without BOM
-  return res.status(200).send(assetlinksJson);
+  ];
+  
+  const assetlinksJson = JSON.stringify(assetlinksData, null, 2);
+  
+  // Send response without BOM using Buffer
+  return res.status(200).end(Buffer.from(assetlinksJson, 'utf8'));
 }
 
