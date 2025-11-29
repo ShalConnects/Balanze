@@ -322,7 +322,7 @@ const LandingPage: React.FC = () => {
                   <span className="text-white font-bold text-lg">B</span>
                 </div>
                 <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Balanze Finance
+                  Balanze
                 </div>
               </div>
               
@@ -647,7 +647,7 @@ const LandingPage: React.FC = () => {
               </div>
               
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
-                Take Balanze Finance{' '}
+                Take Balanze{' '}
                 <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   On the Go
                 </span>
@@ -958,7 +958,7 @@ const LandingPage: React.FC = () => {
         <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Experience the Power of Balanze Finance
+              Experience the Power of Balanze
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               Discover how our intuitive interface makes financial management effortless
@@ -1286,7 +1286,7 @@ const LandingPage: React.FC = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Why Choose <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Balanze Finance</span>?
+              Why Choose <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Balanze</span>?
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               See how we compare to other financial tracking solutions
@@ -1312,7 +1312,7 @@ const LandingPage: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2 p-4">
                     <div className="text-center">
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Balanze Finance</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Balanze</div>
                       <div className="flex justify-center">
                         {typeof row.balanze === 'boolean' ? (
                           row.balanze ? (
@@ -1349,7 +1349,7 @@ const LandingPage: React.FC = () => {
               {/* Header Row */}
               <div className="hidden md:block"></div>
               <div className="text-center p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-xl">
-                <h3 className="text-xl font-bold text-white">Balanze Finance</h3>
+                <h3 className="text-xl font-bold text-white">Balanze</h3>
               </div>
               <div className="text-center p-4 bg-gray-100 dark:bg-gray-800 rounded-t-xl">
                 <h3 className="text-xl font-bold text-gray-600 dark:text-gray-400">Others</h3>

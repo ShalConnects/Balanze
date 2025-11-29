@@ -63,10 +63,17 @@ const SocialButton: React.FC<{
   onClick: () => void;
   isLoading?: boolean;
 }> = ({ onClick, isLoading = false }) => {
+  const handleClick = () => {
+    console.error('[SOCIAL_BUTTON] ========================================');
+    console.error('[SOCIAL_BUTTON] 🎯 BUTTON CLICKED IN SOCIAL_BUTTON COMPONENT');
+    console.error('[SOCIAL_BUTTON] ========================================');
+    onClick();
+  };
+  
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={handleClick}
       disabled={isLoading}
       className={`flex items-center justify-center w-full px-4 py-3 text-sm font-medium transition-all duration-200 shadow-lg rounded-xl text-gray-700 bg-white/20 backdrop-blur-md border border-white/30 hover:bg-white/30 dark:bg-gray-800/20 dark:border-gray-600/30 dark:text-gray-300 dark:hover:bg-gray-800/30 ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-xl'}`}
     >
@@ -222,9 +229,20 @@ export const Auth: React.FC = () => {
 
   // Handle social login
   const handleSocialLogin = async (provider: 'google') => {
+    // Force log to ensure it shows in logcat
+    console.error('[AUTH_PAGE] ========================================');
+    console.error('[AUTH_PAGE] 🔘🔘🔘 BUTTON CLICKED 🔘🔘🔘');
+    console.error('[AUTH_PAGE] Provider:', provider);
+    console.error('[AUTH_PAGE] ========================================');
+    
     setSocialLoading(provider);
     try {
+      console.error('[AUTH_PAGE] 🔄 Calling signInWithProvider...');
       const result = await signInWithProvider(provider);
+      
+      console.error('[AUTH_PAGE] ✅ signInWithProvider returned');
+      console.error('[AUTH_PAGE] - Success?', result.success);
+      console.error('[AUTH_PAGE] - Message:', result.message);
       
       if (!result.success) {
 

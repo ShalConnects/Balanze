@@ -27,7 +27,7 @@ import { AppInstallBanner } from './components/AppInstallBanner';
 import WelcomeOnboarding from './components/WelcomeOnboarding';
 import { isAndroidApp } from './utils/platformDetection';
 import { isFirstLaunch } from './utils/firstLaunch';
-import { App } from '@capacitor/app';
+import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 
 // Lazy load non-critical components for code splitting
@@ -321,27 +321,86 @@ function AppContent() {
 
   // Handle deep link OAuth callback on Android
   useEffect(() => {
-    if (Capacitor.getPlatform() === 'android') {
+    const platform = Capacitor.getPlatform();
+    console.error('[DEEPLINK] ========================================');
+    console.error('[DEEPLINK] ========== SETTING UP DEEP LINK LISTENER ==========');
+    console.error('[DEEPLINK] Platform:', platform);
+    console.error('[DEEPLINK] ========================================');
+    
+    if (platform === 'android') {
+      console.error('[DEEPLINK] ✅ Android platform detected - setting up deep link handlers');
+      
       const handleOAuthCallback = async (url: string) => {
-        console.log('🔗 Processing OAuth callback URL:', url);
+        console.error('[DEEPLINK] ========================================');
+        console.error('[DEEPLINK] ========== DEEP LINK CALLBACK RECEIVED ==========');
+        console.error('[DEEPLINK] 🔗 Full callback URL:', url);
+        console.error('[DEEPLINK] URL length:', url?.length);
+        console.error('[DEEPLINK] Contains /auth/callback?', url?.includes('/auth/callback'));
+        console.error('[DEEPLINK] ========================================');
         
         // Check if this is the OAuth callback
         if (url && url.includes('/auth/callback')) {
+          console.log('[DEEPLINK] ✅ This is an OAuth callback URL');
           try {
+            console.log('[DEEPLINK] 🔄 Parsing URL...');
             const urlObj = new URL(url);
-            const accessToken = urlObj.searchParams.get('access_token');
-            const refreshToken = urlObj.searchParams.get('refresh_token');
-            const error = urlObj.searchParams.get('error');
+            console.log('[DEEPLINK] - URL host:', urlObj.host);
+            console.log('[DEEPLINK] - URL pathname:', urlObj.pathname);
+            console.log('[DEEPLINK] - URL hash:', urlObj.hash ? `${urlObj.hash.substring(0, 50)}...` : 'NONE');
+            console.log('[DEEPLINK] - URL search:', urlObj.search ? `${urlObj.search.substring(0, 50)}...` : 'NONE');
+            
+            // Supabase OAuth uses hash fragments (#access_token=...) not query params
+            // Parse hash fragment if present
+            let accessToken: string | null = null;
+            let refreshToken: string | null = null;
+            let error: string | null = null;
+            
+            // Check hash fragment first (Supabase standard)
+            if (urlObj.hash) {
+              console.log('[DEEPLINK] 🔍 Parsing hash fragment...');
+              const hashParams = new URLSearchParams(urlObj.hash.substring(1)); // Remove '#'
+              accessToken = hashParams.get('access_token');
+              refreshToken = hashParams.get('refresh_token');
+              error = hashParams.get('error') || hashParams.get('error_description');
+              console.log('[DEEPLINK] Hash params parsed:');
+              console.log('[DEEPLINK] - Has access_token?', !!accessToken);
+              console.log('[DEEPLINK] - Has refresh_token?', !!refreshToken);
+              console.log('[DEEPLINK] - Error?', error);
+            } else {
+              console.log('[DEEPLINK] ⚠️ No hash fragment in URL');
+            }
+            
+            // Fallback to query params (some OAuth flows use these)
+            if (!accessToken && !refreshToken && !error) {
+              console.log('[DEEPLINK] 🔍 Checking query params as fallback...');
+              accessToken = urlObj.searchParams.get('access_token');
+              refreshToken = urlObj.searchParams.get('refresh_token');
+              error = urlObj.searchParams.get('error') || urlObj.searchParams.get('error_description');
+              console.log('[DEEPLINK] Query params parsed:');
+              console.log('[DEEPLINK] - Has access_token?', !!accessToken);
+              console.log('[DEEPLINK] - Has refresh_token?', !!refreshToken);
+              console.log('[DEEPLINK] - Error?', error);
+            }
+            
+            console.log('[DEEPLINK] 📊 Final token status:', { 
+              hasAccessToken: !!accessToken, 
+              hasRefreshToken: !!refreshToken, 
+              error,
+              accessTokenLength: accessToken?.length || 0,
+              refreshTokenLength: refreshToken?.length || 0
+            });
             
             if (error) {
-              console.error('❌ OAuth error from deep link:', error);
+              console.error('[DEEPLINK] ❌ OAuth error from deep link:', error);
+              console.log('[DEEPLINK] 🔄 Navigating to /auth with error...');
               // Navigate to auth page with error
               window.location.href = '/auth?error=oauth_failed';
               return;
             }
             
             if (accessToken && refreshToken) {
-              console.log('✅ OAuth tokens received via deep link');
+              console.log('[DEEPLINK] ✅ OAuth tokens found in URL');
+              console.log('[DEEPLINK] 🔄 Setting Supabase session...');
               // Set the session with tokens
               const { data, error: sessionError } = await supabase.auth.setSession({
                 access_token: accessToken,
@@ -349,43 +408,97 @@ function AppContent() {
               });
               
               if (sessionError) {
-                console.error('❌ Error setting session:', sessionError);
+                console.error('[DEEPLINK] ❌ Error setting session:', sessionError);
+                console.log('[DEEPLINK] 🔄 Navigating to /auth with session error...');
                 window.location.href = '/auth?error=session_failed';
                 return;
               }
               
+              console.log('[DEEPLINK] ✅ Session set successfully');
+              console.log('[DEEPLINK] - Has user data?', !!data.user);
+              console.log('[DEEPLINK] - User ID:', data.user?.id);
+              console.log('[DEEPLINK] - User email:', data.user?.email);
+              
               if (data.user) {
-                console.log('✅ User authenticated via deep link');
+                console.log('[DEEPLINK] ✅ User authenticated via deep link');
+                console.log('[DEEPLINK] 🔄 Setting user and profile...');
                 const { setUserAndProfile } = useAuthStore.getState();
                 await setUserAndProfile(data.user, null);
+                console.log('[DEEPLINK] ✅ User and profile set');
+                console.log('[DEEPLINK] 🔄 Navigating to /dashboard...');
                 // Navigate to dashboard
                 window.location.href = '/dashboard';
+              } else {
+                console.error('[DEEPLINK] ❌ No user data after setting session');
+                console.log('[DEEPLINK] 🔄 Navigating to /auth with no_user error...');
+                window.location.href = '/auth?error=no_user';
               }
+            } else {
+              // Fallback: Navigate to /auth/callback route with the full URL
+              // The AuthCallback component has logic to handle OAuth callbacks
+              console.log('[DEEPLINK] ⚠️ No tokens found in URL params');
+              console.log('[DEEPLINK] 📋 URL details:', { 
+                hash: urlObj.hash ? `${urlObj.hash.substring(0, 100)}...` : 'NONE', 
+                search: urlObj.search ? `${urlObj.search.substring(0, 100)}...` : 'NONE',
+                fullUrl: url.substring(0, 200) + '...'
+              });
+              console.log('[DEEPLINK] 🔄 Redirecting to /auth/callback route...');
+              
+              // Preserve the hash and search params when navigating
+              let callbackUrl = '/auth/callback';
+              if (urlObj.hash) {
+                callbackUrl += urlObj.hash;
+              }
+              if (urlObj.search) {
+                callbackUrl += (urlObj.hash ? '' : urlObj.search);
+              }
+              
+              console.log('[DEEPLINK] Final callback URL:', callbackUrl.substring(0, 200) + '...');
+              window.location.href = callbackUrl;
             }
           } catch (error) {
-            console.error('❌ Error handling deep link:', error);
+            console.error('[DEEPLINK] ❌ Error handling deep link:', error);
+            console.error('[DEEPLINK] Error details:', error instanceof Error ? error.message : String(error));
+            console.log('[DEEPLINK] 🔄 Navigating to /auth with callback_failed error...');
             window.location.href = '/auth?error=callback_failed';
           }
+        } else {
+          console.log('[DEEPLINK] ⚠️ URL received but not an OAuth callback:', url);
         }
       };
       
       // Check for initial URL (if app was opened via deep link)
-      App.getLaunchUrl().then((result) => {
+      console.error('[DEEPLINK] 🔍 Checking for launch URL...');
+      CapacitorApp.getLaunchUrl().then((result) => {
         if (result?.url) {
+          console.error('[DEEPLINK] 🚀 App launched with URL:', result.url);
+          console.error('[DEEPLINK] 🔄 Processing launch URL...');
           handleOAuthCallback(result.url);
+        } else {
+          console.error('[DEEPLINK] ℹ️ No launch URL (app opened normally)');
         }
-      }).catch(() => {
-        // No launch URL, that's fine
+      }).catch((err) => {
+        console.error('[DEEPLINK] ℹ️ getLaunchUrl() error (normal if app opened normally):', err);
       });
       
       // Listen for app URL open events (when app is already running)
-      const listener = App.addListener('appUrlOpen', (event) => {
+      console.error('[DEEPLINK] 👂 Setting up appUrlOpen listener...');
+      const listener = CapacitorApp.addListener('appUrlOpen', (event) => {
+        console.error('[DEEPLINK] ========================================');
+        console.error('[DEEPLINK] 📱📱📱 appUrlOpen EVENT FIRED! 📱📱📱');
+        console.error('[DEEPLINK] Event URL:', event.url);
+        console.error('[DEEPLINK] ========================================');
         handleOAuthCallback(event.url);
       });
       
+      console.error('[DEEPLINK] ✅ Deep link listener setup complete');
+      
       return () => {
-        listener.then(l => l.remove());
+        console.log('[DEEPLINK] 🧹 Cleaning up deep link listener...');
+        listener.then(l => l.remove()).catch(() => {});
       };
+    } else {
+      console.log('[DEEPLINK] ⚠️ Not Android platform - skipping deep link setup');
     }
   }, []);
 

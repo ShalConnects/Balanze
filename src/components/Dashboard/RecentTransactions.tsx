@@ -4,6 +4,7 @@ import { Transaction } from '../../types/index';
 import { format } from 'date-fns';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
+import { getCurrencySymbol } from '../../utils/currency';
 
 export const RecentTransactions: React.FC = () => {
   const { getActiveAccounts } = useFinanceStore();
@@ -11,10 +12,11 @@ export const RecentTransactions: React.FC = () => {
   const allTransactions = useFinanceStore((state) => state.transactions); // Get all transactions
   
   const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency,
-    }).format(Math.abs(amount));
+    const symbol = getCurrencySymbol(currency);
+    return `${symbol}${Math.abs(amount).toLocaleString('en-US', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    })}`;
   };
 
   // Get the 10 most recent transactions

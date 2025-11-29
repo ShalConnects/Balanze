@@ -110,9 +110,6 @@ export default function PostAccountCreationTour({
   onClose, 
   onComplete 
 }: PostAccountCreationTourProps) {
-  // HIDDEN - Return null to hide component
-  return null;
-  
   const [run, setRun] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const navigate = useNavigate();

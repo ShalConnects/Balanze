@@ -420,21 +420,30 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
   },
 
   signInWithProvider: async (provider: 'google' | 'apple') => {
+    // Use console.error to ensure visibility in logcat
+    console.error('[OAUTH] ========================================');
+    console.error('[OAUTH] ========== STARTING OAUTH FLOW ==========');
+    console.error('[OAUTH] Provider:', provider);
+    console.error('[OAUTH] Platform:', Capacitor.getPlatform());
+    console.error('[OAUTH] ========================================');
+    
     set({ isLoading: true, error: null, success: null });
     try {
       const redirectUrl = `https://balanze.cash/auth/callback`;
-      console.log('🔍 OAuth Debug Info:');
-      console.log('- Provider:', provider);
-      console.log('- Redirect URL:', redirectUrl);
-      console.log('- Window origin:', window.location.origin);
-      console.log('- Current URL:', window.location.href);
+      console.error('[OAUTH] 🔍 OAuth Configuration:');
+      console.error('[OAUTH] - Redirect URL:', redirectUrl);
+      console.error('[OAUTH] - Window origin:', window.location.origin);
+      console.error('[OAUTH] - Current URL:', window.location.href);
       
       // Check if we're on Android
       const isAndroid = Capacitor.getPlatform() === 'android';
+      console.error('[OAUTH] Is Android platform?', isAndroid);
       
       if (isAndroid) {
+        console.error('[OAUTH] 📱 Android detected - using Browser plugin');
         // On Android, use Browser plugin to open OAuth in Chrome Custom Tabs
         try {
+          console.error('[OAUTH] 🔄 Calling supabase.auth.signInWithOAuth...');
           const { data, error } = await supabase.auth.signInWithOAuth({
             provider,
             options: {
@@ -443,35 +452,51 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             }
           });
           
+          console.error('[OAUTH] ✅ signInWithOAuth response received');
+          console.error('[OAUTH] - Has data?', !!data);
+          console.error('[OAUTH] - Has error?', !!error);
+          console.error('[OAUTH] - OAuth URL:', data?.url ? `${data.url.substring(0, 100)}...` : 'NONE');
+          
           if (error) {
+            console.error('[OAUTH] ❌ Supabase OAuth error:', error);
             throw error;
           }
           
           if (data?.url) {
+            console.error('[OAUTH] 🌐 Opening browser with OAuth URL...');
             // Try to open OAuth URL in Chrome Custom Tabs
             try {
+              console.error('[OAUTH] 📲 Calling Browser.open()...');
               await Browser.open({ url: data.url });
+              console.error('[OAUTH] ✅ Browser.open() succeeded - browser should open now');
+              console.error('[OAUTH] ⏳ Waiting for user to complete OAuth in browser...');
               return { success: true };
             } catch (browserError: any) {
               // Fallback: If Browser.open() fails (e.g., Chrome not installed), use window.open()
-              console.warn('Browser.open() failed, trying fallback:', browserError);
+              console.error('[OAUTH] ⚠️ Browser.open() failed, trying fallback:', browserError);
+              console.error('[OAUTH] 🔄 Attempting window.open() fallback...');
               const fallbackWindow = window.open(data.url, '_blank', 'noopener,noreferrer');
               if (fallbackWindow) {
+                console.error('[OAUTH] ✅ window.open() fallback succeeded');
                 return { success: true };
               } else {
+                console.error('[OAUTH] ❌ Both Browser.open() and window.open() failed');
                 throw new Error('Unable to open browser. Please ensure you have a browser installed.');
               }
             }
           } else {
+            console.error('[OAUTH] ❌ No OAuth URL received from Supabase');
             throw new Error('OAuth URL not received');
           }
         } catch (error: any) {
+          console.error('[OAUTH] ❌ OAuth flow error:', error);
           let userMessage = 'Social login failed. Please try again.';
           if (error?.message?.includes('provider is not enabled')) {
             userMessage = 'Social login is not configured yet. Please use email/password login.';
           } else if (error?.message?.includes('redirect_uri_mismatch')) {
             userMessage = 'Social login configuration error. Please contact support.';
           }
+          console.error('[OAUTH] Setting error state:', userMessage);
           set({ error: userMessage, isLoading: false });
           return { success: false, message: userMessage };
         }
