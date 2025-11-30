@@ -351,8 +351,6 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
 
       {/* Payment History Section */}
       <div className="space-y-3 sm:space-y-4">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Payment History</h3>
-        
         {/* Summary Statistics */}
         <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm">
