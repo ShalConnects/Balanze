@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, PieChart, BarChart3 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../../utils/currency';
+import { isLendBorrowTransaction } from '../../utils/transactionUtils';
 
 interface EarningsSpendingSummaryProps {
   transactions: any[];
@@ -62,11 +63,11 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
       });
 
       const earnings = currencyTransactions
-        .filter(t => t.type === 'income')
+        .filter(t => t.type === 'income' && !isLendBorrowTransaction(t))
         .reduce((sum, t) => sum + t.amount, 0);
       
       const spending = currencyTransactions
-        .filter(t => t.type === 'expense')
+        .filter(t => t.type === 'expense' && !isLendBorrowTransaction(t))
         .reduce((sum, t) => sum + t.amount, 0);
 
       const net = earnings - spending;

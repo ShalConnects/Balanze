@@ -7,6 +7,38 @@ export const COMMON_CATEGORIES = {
     expense: ['Food', 'Transport', 'Entertainment', 'Shopping', 'Bills', 'Healthcare', 'Education', 'Other']
 };
 
+/**
+ * Check if a transaction is a lend/borrow, repayment, or partial return transaction
+ * These should be excluded from income/expense calculations as they don't represent
+ * actual income or expenses, just temporary money movements.
+ */
+export const isLendBorrowTransaction = (transaction: Transaction): boolean => {
+    // Check tags for lend/borrow related transactions
+    const tags = transaction.tags || [];
+    const lendBorrowTags = ['lend_borrow', 'repayment', 'partial_return', 'partial_repayment', 'settlement'];
+    
+    const hasLendBorrowTag = tags.some(tag => lendBorrowTags.includes(tag));
+    
+    // Check description for lend/borrow patterns (both initial and repayment)
+    const description = (transaction.description || '').toLowerCase();
+    const lendBorrowPatterns = [
+        // Initial transactions
+        'borrowed from',
+        'lent to',
+        // Repayment patterns
+        'repayment',
+        'partial return',
+        'debt repayment',
+        'repayment to',
+        'repayment from',
+        'partial loan repayment'
+    ];
+    
+    const matchesDescription = lendBorrowPatterns.some(pattern => description.includes(pattern));
+    
+    return hasLendBorrowTag || matchesDescription;
+};
+
 export const filterTransactions = (
     transactions: Transaction[],
     filters: {
@@ -109,8 +141,13 @@ export const sortTransactions = (
 };
 
 export const calculateTransactionStats = (transactions: Transaction[], accounts: Account[]) => {
-    const incomeTransactions = transactions.filter(t => t.type === 'income');
-    const expenseTransactions = transactions.filter(t => t.type === 'expense');
+    // Exclude lend/borrow transactions from income/expense calculations
+    const incomeTransactions = transactions.filter(t => 
+        t.type === 'income' && !isLendBorrowTransaction(t)
+    );
+    const expenseTransactions = transactions.filter(t => 
+        t.type === 'expense' && !isLendBorrowTransaction(t)
+    );
     
     const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
     const totalExpenses = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);

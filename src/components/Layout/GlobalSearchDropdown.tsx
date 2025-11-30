@@ -615,7 +615,14 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   
   if ((!search || search.length === 0) && isFocused) {
     return (
-      <div className={`${isOverlay ? 'relative w-full' : 'absolute left-0 top-full w-[125%] ml-[-12.5%]'} z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg dark:shadow-xl p-4 animate-fadein`}>
+      <div 
+        className={`${isOverlay ? 'relative w-full' : 'fixed'} z-[100] bg-white dark:bg-gray-800 md:border md:border-gray-200 md:dark:border-gray-700 rounded-xl shadow-lg dark:shadow-xl p-4 animate-fadein`}
+        style={!isOverlay && inputRef.current ? {
+          left: `${inputRef.current.getBoundingClientRect().left - (inputRef.current.getBoundingClientRect().width * 0.125)}px`,
+          top: `${inputRef.current.getBoundingClientRect().bottom + 8}px`,
+          width: `${inputRef.current.getBoundingClientRect().width * 1.25}px`,
+        } : {}}
+      >
         <div className="font-semibold text-gray-700 dark:text-gray-300 mb-2 text-sm">Recent Searches</div>
         {recentSearches.length === 0 ? (
           <div className="text-gray-400 dark:text-gray-500 text-sm">No recent searches</div>
@@ -668,11 +675,10 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         aria-live="polite"
         aria-atomic="true"
         style={{
-          position: isOverlay ? 'relative' : 'absolute',
-          left: isOverlay ? 'auto' : 0,
-          top: isOverlay ? 'auto' : '100%',
-          width: isOverlay ? '100%' : '125%',
-          marginLeft: isOverlay ? 'auto' : '-12.5%',
+          position: isOverlay ? 'relative' : 'fixed',
+          left: isOverlay ? 'auto' : (inputRef.current ? `${inputRef.current.getBoundingClientRect().left - (inputRef.current.getBoundingClientRect().width * 0.125)}px` : '50%'),
+          top: isOverlay ? 'auto' : (inputRef.current ? `${inputRef.current.getBoundingClientRect().bottom + 8}px` : '64px'),
+          width: isOverlay ? '100%' : (inputRef.current ? `${inputRef.current.getBoundingClientRect().width * 1.25}px` : '400px'),
           zIndex: 9999,
           boxSizing: 'border-box',
           maxHeight: '70vh',
@@ -681,7 +687,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
           overflow: 'visible',
           pointerEvents: 'auto',
         }}
-        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-[0_4px_24px_0_rgba(0,0,0,0.10)] dark:shadow-[0_4px_24px_0_rgba(0,0,0,0.30)] animate-fadein flex flex-col overflow-visible"
+        className="bg-white dark:bg-gray-800 md:border md:border-gray-200 md:dark:border-gray-700 shadow-[0_4px_24px_0_rgba(0,0,0,0.10)] dark:shadow-[0_4px_24px_0_rgba(0,0,0,0.30)] animate-fadein flex flex-col overflow-visible"
       >
         <SearchSkeleton />
       </div>
@@ -698,11 +704,10 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       aria-live="polite"
       aria-atomic="true"
       style={{
-        position: isOverlay ? 'relative' : 'absolute',
-        left: isOverlay ? 'auto' : 0,
-        top: isOverlay ? 'auto' : '100%',
-        width: isOverlay ? '100%' : '125%',
-        marginLeft: isOverlay ? 'auto' : '-12.5%',
+        position: isOverlay ? 'relative' : 'fixed',
+        left: isOverlay ? 'auto' : (inputRef.current ? `${inputRef.current.getBoundingClientRect().left - (inputRef.current.getBoundingClientRect().width * 0.125)}px` : '50%'),
+        top: isOverlay ? 'auto' : (inputRef.current ? `${inputRef.current.getBoundingClientRect().bottom + 8}px` : '64px'),
+        width: isOverlay ? '100%' : (inputRef.current ? `${inputRef.current.getBoundingClientRect().width * 1.25}px` : '400px'),
         zIndex: 9999,
         boxSizing: 'border-box',
         maxHeight: search ? '70vh' : '55vh',
@@ -711,7 +716,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         overflow: 'visible',
         pointerEvents: 'auto',
       }}
-      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-[0_4px_24px_0_rgba(0,0,0,0.10)] dark:shadow-[0_4px_24px_0_rgba(0,0,0,0.30)] animate-fadein flex flex-col overflow-visible"
+      className="bg-white dark:bg-gray-800 md:border md:border-gray-200 md:dark:border-gray-700 shadow-[0_4px_24px_0_rgba(0,0,0,0.10)] dark:shadow-[0_4px_24px_0_rgba(0,0,0,0.30)] animate-fadein flex flex-col overflow-visible"
       onClick={(e) => {
 
         e.stopPropagation();

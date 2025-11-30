@@ -28,6 +28,7 @@ import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { format, parseISO } from 'date-fns';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { toast } from 'sonner';
+import { formatCurrencyCompact } from '../../utils/currency';
 import { PurchaseDetailsSection } from '../Transactions/PurchaseDetailsSection';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
@@ -2745,37 +2746,34 @@ export const PurchaseTracker: React.FC = () => {
           </div>
         </div>
 
-        {/* Summary Bar - Sticky on desktop, regular section on mobile */}
-        <div className="hidden lg:block sticky bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
-          <div className="px-4 py-3">
-            <div>
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">All Time Summary</span>
+        {/* Summary Bar - Integrated with table */}
+        <div className="lg:block hidden bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-3" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
+          <div>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">All Time Summary</span>
+          </div>
+          <div className="flex items-center text-sm">
+            {/* Total Spent */}
+            <div className="flex items-center gap-2 pr-4 border-r border-gray-200 dark:border-gray-700">
+              <span className="text-gray-600 dark:text-gray-400">Total Spent:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {formatCurrencyCompact(lifetimeTotalSpent, analyticsCurrency)}
+              </span>
             </div>
-            <div className="grid grid-cols-3 items-center text-sm">
-              {/* Total Spent (lifetime) */}
-              <div className="flex items-center gap-2 border-r border-gray-200 dark:border-gray-700 pr-4">
-                <span className="text-gray-600 dark:text-gray-400">Total Spent</span>
-                <span className="ml-auto font-semibold text-gray-900 dark:text-white">
-                  {formatCurrency(lifetimeTotalSpent, analyticsCurrency)}
-                </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">(lifetime)</span>
-              </div>
 
-              {/* Monthly Spent */}
-              <div className="flex items-center gap-2 border-r border-gray-200 dark:border-gray-700 pr-4 pl-4">
-                <span className="text-gray-600 dark:text-gray-400">Monthly Spent</span>
-                <span className="ml-auto font-semibold text-gray-900 dark:text-white">
-                  {formatCurrency(monthlySpent, analyticsCurrency)}
-                </span>
-              </div>
+            {/* Monthly Spent */}
+            <div className="flex items-center gap-2 px-4 border-r border-gray-200 dark:border-gray-700">
+              <span className="text-gray-600 dark:text-gray-400">Monthly Spent:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {formatCurrencyCompact(monthlySpent, analyticsCurrency)}
+              </span>
+            </div>
 
-              {/* Total Purchases */}
-              <div className="flex items-center gap-2 pl-4">
-                <span className="text-gray-600 dark:text-gray-400">Total</span>
-                <span className="ml-auto font-semibold text-gray-900 dark:text-white">
-                  {lifetimeTotalCount} Purchases
-                </span>
-              </div>
+            {/* Total Purchases */}
+            <div className="flex items-center gap-2 pl-4">
+              <span className="text-gray-600 dark:text-gray-400">Purchases:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {lifetimeTotalCount}
+              </span>
             </div>
           </div>
         </div>
@@ -2790,13 +2788,13 @@ export const PurchaseTracker: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Total Spent</span>
                 <span className="font-semibold text-gray-900 dark:text-white">
-                  {formatCurrency(lifetimeTotalSpent, analyticsCurrency)}
+                  {formatCurrencyCompact(lifetimeTotalSpent, analyticsCurrency)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Monthly Spent</span>
                 <span className="font-semibold text-gray-900 dark:text-white">
-                  {formatCurrency(monthlySpent, analyticsCurrency)}
+                  {formatCurrencyCompact(monthlySpent, analyticsCurrency)}
                 </span>
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">

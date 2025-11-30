@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   CreditCard, 
   Calendar, 
@@ -6,6 +6,7 @@ import {
   Download, 
   Search, 
   ChevronDown, 
+  ChevronUp,
   CheckCircle, 
   Clock, 
   XCircle, 
@@ -14,9 +15,12 @@ import {
   FileText,
   ExternalLink,
   Eye,
-  EyeOff
+  EyeOff,
+  Wallet
 } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
+import { useAuthStore } from '../../store/authStore';
+import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -48,18 +52,71 @@ interface PaymentHistoryProps {
 
 export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = false }) => {
   const { paymentTransactions, loading, fetchPaymentTransactions } = useFinanceStore();
+  const { user } = useAuthStore();
   const [filteredTransactions, setFilteredTransactions] = useState<PaymentTransaction[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [showTransactionDetails, setShowTransactionDetails] = useState<string | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
   const { isMobile } = useMobileDetection();
 
   // Fetch payment transactions
   useEffect(() => {
     fetchPaymentTransactions();
   }, [fetchPaymentTransactions]);
+
+  // Fetch payment methods with transaction stats
+  const loadPaymentMethods = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoadingPaymentMethods(true);
+      const { data, error } = await supabase.rpc('get_user_payment_methods', {
+        p_user_id: user.id
+      });
+
+      if (error) {
+        console.error('Error loading payment methods:', error);
+        setPaymentMethods([]);
+        return;
+      }
+
+      // Enrich with transaction stats
+      const enrichedMethods = (data || []).map((method: any) => {
+        // Find transactions using this payment method
+        const methodTransactions = paymentTransactions.filter(tx => {
+          // Match by last4 if available, or by payment method string
+          if (method.last4) {
+            return tx.payment_method?.includes(method.last4);
+          }
+          return false;
+        });
+
+        return {
+          ...method,
+          transactionCount: methodTransactions.length,
+          totalAmount: methodTransactions.reduce((sum, tx) => sum + tx.amount, 0),
+          lastUsed: methodTransactions.length > 0 
+            ? methodTransactions[0].created_at 
+            : method.created_at
+        };
+      });
+
+      setPaymentMethods(enrichedMethods);
+    } catch (error) {
+      console.error('Error loading payment methods:', error);
+      setPaymentMethods([]);
+    } finally {
+      setLoadingPaymentMethods(false);
+    }
+  }, [user, paymentTransactions]);
+
+  useEffect(() => {
+    loadPaymentMethods();
+  }, [loadPaymentMethods]);
 
   // Apply filters
   useEffect(() => {
@@ -210,11 +267,23 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
     refundedTransactions: filteredTransactions.filter(tx => tx.status === 'refunded').length
   };
 
+  // Get payment method icon
+  const getPaymentMethodIcon = (type: string, brand?: string) => {
+    if (type === 'paypal') {
+      return <Wallet className="w-5 h-5 text-blue-600 dark:text-blue-400" />;
+    }
+    if (type === 'bank') {
+      return <CreditCard className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />;
+    }
+    return <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />;
+  };
+
   if (!hideTitle) {
     return (
-      <div className="space-y-6">
-        <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="border-b border-gray-200 dark:border-gray-700 pb-3 sm:pb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">Payment History</h2>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
             View and manage your payment transactions
           </p>
         </div>
@@ -225,51 +294,108 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
 
   return (
     <div className="space-y-4">
+      {/* Payment Methods Cards */}
+      {paymentMethods.length > 0 && (
+        <div>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">Payment Methods</h3>
+          <div className={`grid gap-3 sm:gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
+            {paymentMethods.map((method) => (
+              <div
+                key={method.id}
+                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all"
+              >
+                <div className="flex items-start justify-between mb-2 sm:mb-3">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                    <div className="p-1.5 sm:p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex-shrink-0">
+                      {getPaymentMethodIcon(method.type, method.brand)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white truncate">
+                        {method.brand ? method.brand.charAt(0).toUpperCase() + method.brand.slice(1) : method.type.charAt(0).toUpperCase() + method.type.slice(1)}
+                      </p>
+                      {method.last4 && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400 truncate">•••• {method.last4}</p>
+                      )}
+                    </div>
+                  </div>
+                  {method.is_default && (
+                    <span className="px-2 py-0.5 sm:py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-full flex-shrink-0 ml-2">
+                      Default
+                    </span>
+                  )}
+                </div>
+                
+                {method.expiry_month && method.expiry_year && (
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    Expires {method.expiry_month}/{method.expiry_year}
+                  </p>
+                )}
+                
+                <div className="pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-700 mt-2 sm:mt-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600 dark:text-gray-400">Transactions</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{method.transactionCount || 0}</span>
+                  </div>
+                  {method.totalAmount > 0 && (
+                    <div className="flex items-center justify-between text-xs mt-1">
+                      <span className="text-gray-600 dark:text-gray-400">Total Amount</span>
+                      <span className="font-medium text-gray-900 dark:text-white truncate ml-2">{formatCurrency(method.totalAmount)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-      {/* Summary Statistics */}
-      <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-4'}`}>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+      {/* Payment History Section */}
+      <div className="space-y-3 sm:space-y-4">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Payment History</h3>
+        
+        {/* Summary Statistics */}
+        <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Transactions</p>
-              <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{summaryStats.totalTransactions}</p>
+              <p className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400 truncate">{summaryStats.totalTransactions}</p>
             </div>
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex-shrink-0">
-              <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <div className="p-1.5 sm:p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex-shrink-0 ml-2">
+              <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Amount</p>
-              <p className="text-xl font-bold text-green-600 dark:text-green-400">
+              <p className="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400 truncate">
                 {formatCurrency(summaryStats.totalAmount)}
               </p>
             </div>
-            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg flex-shrink-0">
-              <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400" />
+            <div className="p-1.5 sm:p-2 bg-green-100 dark:bg-green-900/30 rounded-lg flex-shrink-0 ml-2">
+              <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600 dark:text-green-400" />
             </div>
           </div>
         </div>
+        </div>
 
-      </div>
-
-      {/* Filters and Search - Only show in full page */}
-      {!hideTitle && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-        <div className={`flex gap-4 ${isMobile ? 'flex-col' : 'flex-col sm:flex-row'}`}>
+        {/* Filters and Search - Only show in full page */}
+        {!hideTitle && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm">
+        <div className={`flex gap-2 sm:gap-4 ${isMobile ? 'flex-col' : 'flex-col sm:flex-row'}`}>
           {/* Search */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <input
                 type="text"
                 placeholder="Search transactions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -277,35 +403,37 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
           {/* Filter Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${isMobile ? 'touch-button' : ''}`}
+            className={`flex items-center justify-center px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm sm:text-base ${isMobile ? 'touch-button' : ''}`}
           >
-            <Filter className="w-4 h-4 mr-2" />
-            Filters
-            <ChevronDown className={`w-4 h-4 ml-2 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+            <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+            <span className="hidden xs:inline">Filters</span>
+            <span className="xs:hidden">Filter</span>
+            <ChevronDown className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1.5 sm:ml-2 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
           </button>
 
           {/* Export Button */}
           <button
             onClick={exportToPDF}
-            className={`flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${isMobile ? 'touch-button' : ''}`}
+            className={`flex items-center justify-center px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base ${isMobile ? 'touch-button' : ''}`}
           >
-            <Download className="w-4 h-4 mr-2" />
-            Export PDF
+            <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+            <span className="hidden xs:inline">Export PDF</span>
+            <span className="xs:hidden">Export</span>
           </button>
         </div>
 
         {/* Advanced Filters */}
         {showFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
+          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className={`grid gap-3 sm:gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                   Status
                 </label>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="all">All Statuses</option>
                   <option value="completed">Completed</option>
@@ -317,13 +445,13 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                   Date Range
                 </label>
                 <select
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="all">All Time</option>
                   <option value="last7days">Last 7 Days</option>
@@ -336,20 +464,20 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
           </div>
         )}
         </div>
-      )}
+        )}
 
-      {/* Transactions List */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+        {/* Transactions List */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
         {loading ? (
-          <div className="p-8 text-center">
-            <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading payment history...</p>
+          <div className="p-6 sm:p-8 text-center">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-3 sm:mb-4"></div>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Loading payment history...</p>
           </div>
         ) : filteredTransactions.length === 0 ? (
-          <div className="p-8 text-center">
-            <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Payment Transactions</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+          <div className="p-6 sm:p-8 text-center">
+            <CreditCard className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3 sm:mb-4" />
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-2">No Payment Transactions</h3>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">
               {paymentTransactions.length === 0 
                 ? "You haven't made any payments yet."
                 : "No transactions match your current filters."
@@ -506,6 +634,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
             ))}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

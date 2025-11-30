@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../../utils/currency';
 import { getExchangeRate, calculateConvertedAmount } from '../../utils/exchangeRate';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
+import { isLendBorrowTransaction } from '../../utils/transactionUtils';
 
 interface MultiCurrencyOverviewProps {
   transactions: any[];
@@ -110,13 +111,13 @@ export const MultiCurrencyOverview: React.FC<MultiCurrencyOverviewProps> = ({
                !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
       });
 
-      // Calculate income and expenses
+      // Calculate income and expenses (excluding lend/borrow transactions)
       const income = currencyTransactions
-        .filter(t => t.type === 'income')
+        .filter(t => t.type === 'income' && !isLendBorrowTransaction(t))
         .reduce((sum, t) => sum + t.amount, 0);
       
       const expenses = currencyTransactions
-        .filter(t => t.type === 'expense')
+        .filter(t => t.type === 'expense' && !isLendBorrowTransaction(t))
         .reduce((sum, t) => sum + t.amount, 0);
 
       const netAmount = income - expenses;

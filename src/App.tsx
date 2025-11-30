@@ -75,6 +75,7 @@ const FileRenameAdmin = lazy(() => import('./pages/FileRenameAdmin').then(m => (
 const DashboardDemo = lazy(() => import('./pages/DashboardDemo'));
 const DashboardDemoOnly = lazy(() => import('./pages/DashboardDemoOnly'));
 const ShortUrlRedirect = lazy(() => import('./pages/ShortUrlRedirect'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 // HomeRoute component for Options 1 & 2: Platform-aware routing and first launch detection
 const HomeRoute: React.FC = () => {
@@ -715,6 +716,10 @@ function AppContent() {
         {/* SEO Routes */}
         <Route path="/sitemap.xml" element={<SitemapPage />} />
         {/* robots.txt is served as static file from public/robots.txt - no route needed */}
+        
+        {/* 404 - Catch all route must be last */}
+        <Route path="/404" element={<NotFound />} />
+        <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
       

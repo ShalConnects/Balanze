@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, DollarSign, Globe, ArrowUpRight, ArrowDownRig
 import { StatCard } from '../Dashboard/StatCard';
 import { formatCurrency } from '../../utils/currency';
 import { getExchangeRate } from '../../utils/exchangeRate';
+import { isLendBorrowTransaction } from '../../utils/transactionUtils';
 
 interface CurrencyPortfolioSummaryProps {
   accounts: any[];
@@ -56,13 +57,13 @@ export const CurrencyPortfolioSummary: React.FC<CurrencyPortfolioSummaryProps> =
                !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
       });
 
-      // Calculate monthly income and expenses
+      // Calculate monthly income and expenses (excluding lend/borrow transactions)
       const monthlyIncome = currencyTransactions
-        .filter(t => t.type === 'income')
+        .filter(t => t.type === 'income' && !isLendBorrowTransaction(t))
         .reduce((sum, t) => sum + t.amount, 0);
       
       const monthlyExpenses = currencyTransactions
-        .filter(t => t.type === 'expense')
+        .filter(t => t.type === 'expense' && !isLendBorrowTransaction(t))
         .reduce((sum, t) => sum + t.amount, 0);
 
       const netAmount = monthlyIncome - monthlyExpenses;

@@ -918,9 +918,8 @@ export const LendBorrowView: React.FC = () => {
   }
 
   return (
-    <div>
+    <div className="lend-borrow-page">
       {/* Unified Table View - New Section */}
-      <div className="space-y-6">
         <div className="space-y-6">
           {/* Unified Filters and Table */}
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0">
@@ -1309,7 +1308,6 @@ export const LendBorrowView: React.FC = () => {
                 isFromSearch={isFromSearch}
                 selectedRecordRef={selectedRecordRef}
               />
-            </div>
           </div>
         </div>
         </div>

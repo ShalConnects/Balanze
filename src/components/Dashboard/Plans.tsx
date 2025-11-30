@@ -285,21 +285,21 @@ export const Plans: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="text-center mb-4 sm:mb-6 lg:mb-8 px-2 sm:px-0">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
           Subscription Plans
         </h2>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
+        <p className="mt-1.5 sm:mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
           Choose the perfect plan for your financial needs
         </p>
         
         {/* Billing Cycle Selector */}
-        <div className="mt-6 flex items-center justify-center">
+        <div className="mt-4 sm:mt-6 flex items-center justify-center px-2 sm:px-0">
           <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-1 flex w-full max-w-sm">
             <button
               onClick={() => setBillingCycle('monthly')}
-              className={`flex-1 px-3 lg:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors ${
                 billingCycle === 'monthly'
                   ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -309,22 +309,24 @@ export const Plans: React.FC = () => {
             </button>
             <button
               onClick={() => setBillingCycle('one-time')}
-              className={`flex-1 px-3 lg:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors ${
                 billingCycle === 'one-time'
                   ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
-              One-time
-              <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
-                Lifetime access
+              <span className="hidden xs:inline">One-time</span>
+              <span className="xs:hidden">Lifetime</span>
+              <span className="ml-1 inline-flex items-center px-1 sm:px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
+                <span className="hidden sm:inline">Lifetime access</span>
+                <span className="sm:hidden">Lifetime</span>
               </span>
             </button>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 max-w-6xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 max-w-6xl mx-auto px-2 sm:px-0">
         {plans.map((plan) => (
                       <div
               key={plan.id}
@@ -333,39 +335,40 @@ export const Plans: React.FC = () => {
                 plan.isPopular
                   ? 'border-blue-500 shadow-lg dark:border-blue-400'
                   : 'border-gray-200 dark:border-gray-700 shadow'
-              } p-4 lg:p-5 transition-all duration-200 hover:shadow-xl bg-white dark:bg-gray-800 flex flex-col h-full`}
+              } p-3 sm:p-4 lg:p-5 transition-all duration-200 hover:shadow-xl bg-white dark:bg-gray-800 flex flex-col h-full`}
             >
                           {plan.isPopular && (
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <span className="inline-flex items-center px-4 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-purple-100 to-blue-100 text-purple-800 dark:from-purple-900/50 dark:to-blue-900/50 dark:text-purple-300 border border-purple-200 dark:border-purple-700">
-                  <Zap className="w-4 h-4 mr-1" />
-                  Recommended
+              <div className="absolute -top-3 sm:-top-4 left-1/2 transform -translate-x-1/2">
+                <span className="inline-flex items-center px-2 sm:px-4 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium bg-gradient-to-r from-purple-100 to-blue-100 text-purple-800 dark:from-purple-900/50 dark:to-blue-900/50 dark:text-purple-300 border border-purple-200 dark:border-purple-700">
+                  <Zap className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                  <span className="hidden xs:inline">Recommended</span>
+                  <span className="xs:hidden">Best</span>
                 </span>
               </div>
             )}
 
-              <div className="text-center mb-5">
-                <h3 className={`text-lg lg:text-xl font-semibold mb-2 ${
+              <div className="text-center mb-4 sm:mb-5">
+                <h3 className={`text-base sm:text-lg lg:text-xl font-semibold mb-1.5 sm:mb-2 ${
                   plan.id === 'premium' 
                     ? 'bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent'
                     : 'text-gray-900 dark:text-white'
                 }`}>{plan.name}</h3>
                 {plan.description && (
-                  <p className={`text-sm mb-4 ${
+                  <p className={`text-xs sm:text-sm mb-3 sm:mb-4 px-1 ${
                     plan.id === 'premium' 
                       ? 'text-purple-700 dark:text-purple-300 font-medium'
                       : 'text-gray-600 dark:text-gray-400'
                   }`}>{plan.description}</p>
                 )}
                 <div className="flex items-baseline justify-center">
-                  <span className={`text-2xl lg:text-3xl font-bold ${
+                  <span className={`text-xl sm:text-2xl lg:text-3xl font-bold ${
                     plan.id === 'premium' 
                       ? 'bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent'
                       : 'text-gray-900 dark:text-white'
                   }`}>
                     ${billingCycle === 'one-time' && plan.id === 'premium' ? '199.99' : plan.price}
                   </span>
-                  <span className={`ml-1 text-sm lg:text-base ${
+                  <span className={`ml-1 text-xs sm:text-sm lg:text-base ${
                     plan.id === 'premium' 
                       ? 'text-purple-600 dark:text-purple-400'
                       : 'text-gray-500 dark:text-gray-400'
@@ -374,8 +377,8 @@ export const Plans: React.FC = () => {
                 
                 {/* Free plan promotional badge */}
                 {plan.id === 'free' && (
-                  <div className="mt-2 text-center">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
+                  <div className="mt-1.5 sm:mt-2 text-center">
+                    <span className="inline-flex items-center px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
                       Always Free
                     </span>
                   </div>
@@ -383,29 +386,31 @@ export const Plans: React.FC = () => {
                 
                 {/* Show lifetime access benefit for one-time Premium */}
                 {billingCycle === 'one-time' && plan.id === 'premium' && (
-                  <div className="mt-2 text-center">
-                    <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                      ✨ Premium lifetime access - No recurring fees
+                  <div className="mt-1.5 sm:mt-2 text-center px-2">
+                    <span className="text-xs sm:text-sm font-medium text-green-600 dark:text-green-400">
+                      <span className="hidden sm:inline">✨ Premium lifetime access - No recurring fees</span>
+                      <span className="sm:hidden">✨ Lifetime access</span>
                     </span>
                   </div>
                 )}
                 
                 {/* First month discount badge - only show for monthly */}
                 {plan.id === 'premium' && billingCycle === 'monthly' && (
-                  <div className="mt-2 text-center">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300">
-                      First month 50% off
+                  <div className="mt-1.5 sm:mt-2 text-center">
+                    <span className="inline-flex items-center px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300">
+                      <span className="hidden xs:inline">First month 50% off</span>
+                      <span className="xs:hidden">50% off</span>
                     </span>
                   </div>
                 )}
               </div>
 
-              <ul className="space-y-2 lg:space-y-2.5 mb-4 lg:mb-5 flex-1">
+              <ul className="space-y-1.5 sm:space-y-2 lg:space-y-2.5 mb-3 sm:mb-4 lg:mb-5 flex-1">
                 {plan.features.map((feature, index) => (
                   <li key={index} className="flex items-start">
-                    <div className="flex items-center flex-1">
+                    <div className="flex items-center flex-1 min-w-0">
                       {feature.icon && (
-                        <feature.icon className={`w-4 h-4 mr-2 flex-shrink-0 ${
+                        <feature.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 flex-shrink-0 ${
                           feature.included 
                             ? plan.id === 'premium' 
                               ? 'text-purple-600 dark:text-purple-400'
@@ -414,7 +419,7 @@ export const Plans: React.FC = () => {
                         }`} />
                       )}
                       <span 
-                        className={`text-sm ${
+                        className={`text-xs sm:text-sm ${
                           feature.included 
                             ? plan.id === 'premium' 
                               ? 'font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent'
@@ -429,7 +434,7 @@ export const Plans: React.FC = () => {
                 ))}
               </ul>
 
-              <div className="mt-auto pt-4 lg:pt-5">
+              <div className="mt-auto pt-3 sm:pt-4 lg:pt-5">
                 <button
                   onClick={() => {
                     if (currentPlan !== plan.id) {
@@ -443,7 +448,7 @@ export const Plans: React.FC = () => {
                       }
                     }
                   }}
-                  className={`w-full rounded-lg px-3 lg:px-4 py-2 lg:py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                  className={`w-full rounded-lg px-3 sm:px-4 lg:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1.5 sm:gap-2 ${
                     currentPlan === plan.id
                       ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                       : plan.id === 'free' && currentPlan === 'premium' && !isLifetimeSubscriber
@@ -458,8 +463,9 @@ export const Plans: React.FC = () => {
                 >
                   {loading === (plan.id === 'free' ? 'free' : (billingCycle === 'one-time' ? 'premium_lifetime' : 'premium_monthly')) ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      {plan.id === 'free' ? 'Processing...' : 'Opening...'}
+                      <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                      <span className="hidden xs:inline">{plan.id === 'free' ? 'Processing...' : 'Opening...'}</span>
+                      <span className="xs:hidden">{plan.id === 'free' ? 'Processing' : 'Opening'}</span>
                     </>
                   ) : currentPlan === plan.id ? (
                     'Current Plan'
@@ -467,13 +473,15 @@ export const Plans: React.FC = () => {
                     'Lifetime Access'
                   ) : plan.id === 'free' && currentPlan === 'premium' && !isLifetimeSubscriber ? (
                     <>
-                      <AlertTriangle className="w-4 h-4" />
-                      Downgrade to Free
+                      <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span className="hidden xs:inline">Downgrade to Free</span>
+                      <span className="xs:hidden">Downgrade</span>
                     </>
                   ) : (
                     <>
-                      <CreditCard className="w-4 h-4" />
-                      Get Started
+                      <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span className="hidden xs:inline">Get Started</span>
+                      <span className="xs:hidden">Get Started</span>
                     </>
                   )}
                 </button>
@@ -482,13 +490,14 @@ export const Plans: React.FC = () => {
         ))}
       </div>
 
-      <div className="mt-8 text-center space-y-4">
-        <div className="inline-flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border border-green-200 dark:border-green-800 rounded-lg shadow-sm">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <p className="text-sm font-medium text-green-700 dark:text-green-300">
+      <div className="mt-4 sm:mt-6 lg:mt-8 text-center space-y-3 sm:space-y-4 px-2 sm:px-0">
+        <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border border-green-200 dark:border-green-800 rounded-lg shadow-sm max-w-full">
+          <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full animate-pulse flex-shrink-0"></div>
+          <p className="text-xs sm:text-sm font-medium text-green-700 dark:text-green-300">
             <span className="font-semibold">Premium plan</span> includes a{' '}
             <span className="font-bold text-green-800 dark:text-green-200">14-day free trial</span>. 
-            No credit card required.
+            <span className="hidden sm:inline"> No credit card required.</span>
+            <span className="sm:hidden"> No card needed.</span>
           </p>
         </div>
         

@@ -3,6 +3,7 @@ import { Edit2, Trash2, InfoIcon, PlusCircle, Wallet, ChevronUp, ChevronDown } f
 import { Account, Transaction } from '../../types';
 import { getAccountColor } from '../../utils/accountIcons';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
+import { isLendBorrowTransaction } from '../../utils/transactionUtils';
 
 interface AccountTableProps {
   accounts: Account[];
@@ -42,8 +43,8 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
       const accountTransactions = transactions
         .filter(t => t.account_id === account.id)
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      const incomeTransactions = accountTransactions.filter(t => t.type === 'income');
-      const expenseTransactions = accountTransactions.filter(t => t.type === 'expense');
+      const incomeTransactions = accountTransactions.filter(t => t.type === 'income' && !isLendBorrowTransaction(t));
+      const expenseTransactions = accountTransactions.filter(t => t.type === 'expense' && !isLendBorrowTransaction(t));
       
       // Calculate total saved and donated
       let totalSaved = 0;

@@ -397,10 +397,11 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
 
       
       // Auto-confirm user for better UX - no email confirmation required
+      // Use setUserAndProfile to fetch the profile (required for WelcomeModal check)
+      const { setUserAndProfile } = get();
+      await setUserAndProfile(data.user, null);
+
       set({ 
-        user: data.user,
-        profile: null,
-        isLoading: false, 
         success: 'Account created successfully! Welcome to Balanze!',
         error: null 
       });

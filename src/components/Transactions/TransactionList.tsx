@@ -5,7 +5,7 @@ import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
 import { TransactionForm } from './TransactionForm';
-import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
+import { formatCurrency, formatCurrencyCompact, getCurrencySymbol } from '../../utils/currency';
 import { formatTransactionId } from '../../utils/transactionId';
 import { toast } from 'sonner';
 // DatePicker loaded dynamically to reduce initial bundle size
@@ -30,11 +30,7 @@ import { useExport } from '../../hooks/useExport';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { FinancialHealthCard } from './FinancialHealthCard';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
-
-// Helper function to check if a transaction is related to lend/borrow
-const isLendBorrowTransaction = (transaction: Transaction): boolean => {
-  return transaction.tags?.includes('lend_borrow') || false;
-};
+import { isLendBorrowTransaction } from '../../utils/transactionUtils';
 
 export const TransactionList: React.FC<{ 
   transactions: Transaction[];
@@ -406,6 +402,7 @@ export const TransactionList: React.FC<{
   const currencyMenuRef = useRef<HTMLDivElement>(null); // <-- add ref for click outside
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const modifiedMenuRef = useRef<HTMLDivElement>(null); // New: ref for recently modified menu
+  const lastLoggedValuesRef = useRef<string>(''); // Track last logged values to reduce log frequency
   
   // State for delete confirmation modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -944,10 +941,61 @@ export const TransactionList: React.FC<{
     sortConfig
   });
 
-  // Summary card values should be based on filteredTransactions only
-  const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-  const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  // Summary card values should be based on filteredTransactions only (excluding lend/borrow transactions)
+  const allLendBorrowInFiltered = filteredTransactions.filter(t => isLendBorrowTransaction(t));
+  const lendBorrowIncomeInFiltered = filteredTransactions.filter(t => t.type === 'income' && isLendBorrowTransaction(t));
+  const lendBorrowExpenseInFiltered = filteredTransactions.filter(t => t.type === 'expense' && isLendBorrowTransaction(t));
+  
+  const totalIncome = filteredTransactions.filter(t => t.type === 'income' && !isLendBorrowTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = filteredTransactions.filter(t => t.type === 'expense' && !isLendBorrowTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
   const transactionCount = filteredTransactions.length;
+  
+  // Console log for verification - always log when transactions are present
+  if (transactions.length > 0) {
+    const excludedIncomeAmount = lendBorrowIncomeInFiltered.reduce((sum, t) => sum + t.amount, 0);
+    const excludedExpenseAmount = lendBorrowExpenseInFiltered.reduce((sum, t) => sum + t.amount, 0);
+    
+    // Create a unique key from the values to detect changes
+    const logKey = `${transactionCount}-${totalIncome.toFixed(2)}-${totalExpense.toFixed(2)}-${allLendBorrowInFiltered.length}`;
+    
+    // Only log if values have changed
+    if (lastLoggedValuesRef.current !== logKey) {
+      lastLoggedValuesRef.current = logKey;
+      
+      // Log summary first
+      console.group('📋 Transaction List - Lend/Borrow Exclusion');
+      console.log('Summary:', {
+        totalTransactions: transactions.length,
+        filteredTransactions: transactionCount,
+        excludedLendBorrow: allLendBorrowInFiltered.length
+      });
+      
+      // Log excluded transactions
+      if (lendBorrowIncomeInFiltered.length > 0) {
+        console.log(`Excluded from Income (${lendBorrowIncomeInFiltered.length} transactions, Total: ${excludedIncomeAmount}):`, 
+          lendBorrowIncomeInFiltered.map(t => `${t.description} - ${t.amount}`)
+        );
+      } else {
+        console.log('Excluded from Income: None');
+      }
+      
+      if (lendBorrowExpenseInFiltered.length > 0) {
+        console.log(`Excluded from Expense (${lendBorrowExpenseInFiltered.length} transactions, Total: ${excludedExpenseAmount}):`, 
+          lendBorrowExpenseInFiltered.map(t => `${t.description} - ${t.amount}`)
+        );
+      } else {
+        console.log('Excluded from Expense: None');
+      }
+      
+      // Log final totals
+      console.log('Final Calculated Totals:', {
+        income: totalIncome,
+        expense: totalExpense,
+        net: totalIncome - totalExpense
+      });
+      console.groupEnd();
+    }
+  }
 
 
 
@@ -2910,7 +2958,7 @@ export const TransactionList: React.FC<{
             <div className="flex items-center gap-2 pr-4 border-r border-gray-200 dark:border-gray-700">
               <span className="text-gray-600 dark:text-gray-400">Income:</span>
               <span className="font-semibold text-gray-900 dark:text-white">
-                {formatCurrency(lifetimeTotalsByCurrency.income, selectedCurrency)}
+                {formatCurrencyCompact(lifetimeTotalsByCurrency.income, selectedCurrency)}
               </span>
             </div>
 
@@ -2918,7 +2966,7 @@ export const TransactionList: React.FC<{
             <div className="flex items-center gap-2 px-4 border-r border-gray-200 dark:border-gray-700">
               <span className="text-gray-600 dark:text-gray-400">Expense:</span>
               <span className="font-semibold text-gray-900 dark:text-white">
-                {formatCurrency(lifetimeTotalsByCurrency.expense, selectedCurrency)}
+                {formatCurrencyCompact(lifetimeTotalsByCurrency.expense, selectedCurrency)}
               </span>
             </div>
 
@@ -2941,11 +2989,11 @@ export const TransactionList: React.FC<{
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Income</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(lifetimeTotalsByCurrency.income, selectedCurrency)}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrencyCompact(lifetimeTotalsByCurrency.income, selectedCurrency)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Expense</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(lifetimeTotalsByCurrency.expense, selectedCurrency)}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrencyCompact(lifetimeTotalsByCurrency.expense, selectedCurrency)}</span>
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-gray-600 dark:text-gray-400">Transactions</span>

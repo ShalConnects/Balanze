@@ -29,6 +29,7 @@ function getLocalISOString() {
 import { generateTransactionId } from '../utils/transactionId';
 import { useAchievementStore } from './achievementStore';
 import { userActivityService } from '../lib/userActivityService';
+import { isLendBorrowTransaction } from '../utils/transactionUtils';
 
 // Extend the Account type to make calculated_balance optional for input
 type AccountInput = Omit<Account, 'calculated_balance'>;
@@ -1019,6 +1020,9 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       }
       
       set({ categories: insertedCategories || [], loading: false });
+      
+      // Auto-sync expense categories to purchase categories for new users
+      await get().syncExpenseCategoriesWithPurchaseCategories();
     } else {
       // Check for currency mismatch and fix if needed (only for free users)
       const userCurrency = profile?.local_currency || 'USD';
@@ -1131,6 +1135,21 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   updateCategory: async (id: string, category: Partial<Category>) => {
     set({ loading: true, error: null });
     
+    // Validate type if provided - must be 'income' or 'expense'
+    if (category.type && !['income', 'expense'].includes(category.type)) {
+      const error = 'Category type must be either "income" or "expense"';
+      set({ loading: false, error });
+      showToast.error(error);
+      return;
+    }
+    
+    // Get existing category to preserve type if not explicitly provided
+    const existingCategory = get().categories.find(cat => cat.id === id);
+    if (existingCategory && !category.type) {
+      // Preserve existing type if not provided in update
+      category.type = existingCategory.type;
+    }
+    
     const { error } = await supabase
       .from('categories')
       .update({
@@ -1202,11 +1221,11 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         });
 
             const monthlyIncome = monthlyTransactions
-          .filter(t => t.type === 'income')
+          .filter(t => t.type === 'income' && !isLendBorrowTransaction(t))
           .reduce((sum, t) => sum + t.amount, 0);
 
         const monthlyExpenses = monthlyTransactions
-          .filter(t => t.type === 'expense')
+          .filter(t => t.type === 'expense' && !isLendBorrowTransaction(t))
           .reduce((sum, t) => sum + t.amount, 0);
 
         // Debug logging removed to prevent console flood
@@ -2215,12 +2234,15 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       
       // Only create if it doesn't exist AND wasn't intentionally deleted
       if (!hasPurchaseCategory && !wasIntentionallyDeleted) {
+        // Use the currency from the expense category itself, fallback to user's currency
+        const categoryCurrency = expenseCat.currency || userCurrency;
+        
         // Create missing purchase category
         const newPurchaseCategory = {
           category_name: expenseCat.name,
           description: `Category for ${expenseCat.name}`,
           monthly_budget: 0,
-          currency: userCurrency,
+          currency: categoryCurrency,
           category_color: expenseCat.color || '#3B82F6',
         };
         const { data: savedCategory, error } = await supabase

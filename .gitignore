@@ -120,3 +120,6 @@ test-results.xml
 android/keystore.properties
 android/app/keystore.properties
 balanze-release-key.jks
+
+# Files with sensitive information
+.1_Balanze.txt

@@ -1,6 +1,7 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Transaction, Category } from '../../types';
+import { isLendBorrowTransaction } from '../../utils/transactionUtils';
 
 interface CategoryChartProps {
   transactions: Transaction[];
@@ -9,7 +10,7 @@ interface CategoryChartProps {
 
 export const CategoryChart: React.FC<CategoryChartProps> = ({ transactions, categories }) => {
   // Process data for expense categories
-  const expenseTransactions = transactions.filter(t => t.type === 'expense');
+  const expenseTransactions = transactions.filter(t => t.type === 'expense' && !isLendBorrowTransaction(t));
   
   const categoryData = categories
     .filter(cat => cat.type === 'expense')

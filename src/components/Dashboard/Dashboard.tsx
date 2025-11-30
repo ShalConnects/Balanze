@@ -36,6 +36,7 @@ import { toast } from 'sonner';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import PullToRefreshDashboard from './PullToRefreshDashboard';
 import { supabase } from '../../lib/supabase';
+import { isLendBorrowTransaction } from '../../utils/transactionUtils';
 
 
 interface DashboardProps {
@@ -556,12 +557,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
   // Manual refresh is handled by the Header component's refresh button
 
-  // Calculate total income and expenses
+  // Calculate total income and expenses (excluding transfers and lend/borrow transactions)
   const totalIncome = transactions
-    .filter(t => t.type === 'income' && !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer')))
+    .filter(t => t.type === 'income' && 
+      !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer')) &&
+      !isLendBorrowTransaction(t)
+    )
     .reduce((sum, t) => sum + t.amount, 0);
   const totalExpenses = transactions
-    .filter(t => t.type === 'expense' && !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer')))
+    .filter(t => t.type === 'expense' && 
+      !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer')) &&
+      !isLendBorrowTransaction(t)
+    )
     .reduce((sum, t) => sum + t.amount, 0);
 
   // Use the raw accounts array from the store
@@ -577,7 +584,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     const expenses = transactions.filter(t => 
       t.type === 'expense' && 
       new Date(t.date) >= last30Days &&
-      !t.tags?.some(tag => tag.includes('transfer') || tag.includes('dps_transfer'))
+      !t.tags?.some(tag => tag.includes('transfer') || tag.includes('dps_transfer')) &&
+      !isLendBorrowTransaction(t)
     );
 
     const categoryTotals = expenses.reduce((acc, transaction) => {

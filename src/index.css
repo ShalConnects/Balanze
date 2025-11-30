@@ -1039,6 +1039,52 @@ main {
   box-sizing: border-box !important;
 }
 
+/* Lend & Borrow Page Overflow Fix */
+.lend-borrow-page {
+  max-width: 100vw !important;
+  overflow-x: hidden !important;
+}
+
+.lend-borrow-page * {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Header Mobile Overflow Fix */
+@media (max-width: 768px) {
+  header {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+  
+  header > div {
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  
+  header .flex {
+    min-width: 0 !important;
+  }
+}
+
+/* Lend & Borrow Grid Fix for Mobile */
+@media (max-width: 640px) {
+  .lend-borrow-page .grid-cols-12 {
+    gap: 0.25rem !important;
+    padding: 0.5rem !important;
+  }
+  
+  .lend-borrow-page .col-span-5 {
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+  
+  .lend-borrow-page .col-span-2 {
+    min-width: 0 !important;
+    flex-shrink: 1 !important;
+  }
+}
+
 /* Mobile Modal Scroll Fixes */
 @media (max-width: 1024px) {
   /* Account info modal mobile optimizations */

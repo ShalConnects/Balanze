@@ -21,6 +21,7 @@ import { SelectionFilter } from '../common/SelectionFilter';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useTranslation } from 'react-i18next';
 import { getPreference, setPreference } from '../../lib/userPreferences';
+import { formatCurrencyCompact } from '../../utils/currency';
 // DatePicker loaded dynamically to reduce initial bundle size
 // import DatePicker from 'react-datepicker';
 // import 'react-datepicker/dist/react-datepicker.css';
@@ -2393,25 +2394,23 @@ export const LendBorrowTableView: React.FC = () => {
           </div>
         )}
 
-        {/* Summary Bar - Sticky on desktop, regular section on mobile */}
-        <div className="hidden lg:block sticky bottom-0 left-0 right-0 z-30 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
-          <div className="px-4 py-3">
-            <div>
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">All Time Summary</span>
+        {/* Summary Bar - Integrated with table */}
+        <div className="lg:block hidden bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-3" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
+          <div>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">All Time Summary</span>
+          </div>
+          <div className="flex items-center text-sm">
+            <div className="flex items-center gap-2 pr-4 border-r border-gray-200 dark:border-gray-700">
+              <span className="text-gray-600 dark:text-gray-400">Lent:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{formatCurrencyCompact(lifetimeTotalsByCurrency.lent, tableFilters.currency)}</span>
             </div>
-            <div className="flex items-center text-sm">
-              <div className="flex items-center gap-2 pr-4 border-r border-gray-200 dark:border-gray-700">
-                <span className="text-gray-600 dark:text-gray-400">Lent:</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(lifetimeTotalsByCurrency.lent, tableFilters.currency)}</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 border-r border-gray-200 dark:border-gray-700">
-                <span className="text-gray-600 dark:text-gray-400">Borrowed:</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(lifetimeTotalsByCurrency.borrowed, tableFilters.currency)}</span>
-              </div>
-              <div className="flex items-center gap-2 pl-4">
-                <span className="text-gray-600 dark:text-gray-400">Records:</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{lifetimeTotalsByCurrency.count}</span>
-              </div>
+            <div className="flex items-center gap-2 px-4 border-r border-gray-200 dark:border-gray-700">
+              <span className="text-gray-600 dark:text-gray-400">Borrowed:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{formatCurrencyCompact(lifetimeTotalsByCurrency.borrowed, tableFilters.currency)}</span>
+            </div>
+            <div className="flex items-center gap-2 pl-4">
+              <span className="text-gray-600 dark:text-gray-400">Records:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{lifetimeTotalsByCurrency.count}</span>
             </div>
           </div>
         </div>
@@ -2425,11 +2424,11 @@ export const LendBorrowTableView: React.FC = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Lent</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(lifetimeTotalsByCurrency.lent, tableFilters.currency)}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrencyCompact(lifetimeTotalsByCurrency.lent, tableFilters.currency)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Borrowed</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(lifetimeTotalsByCurrency.borrowed, tableFilters.currency)}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatCurrencyCompact(lifetimeTotalsByCurrency.borrowed, tableFilters.currency)}</span>
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-gray-600 dark:text-gray-400">Records</span>

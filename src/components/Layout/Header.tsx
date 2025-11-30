@@ -335,6 +335,28 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
     return () => document.removeEventListener('keydown', handleEscapeKey);
   }, [showSearchOverlay]);
 
+  // Update profile menu position on scroll/resize
+  useEffect(() => {
+    if (!showUserMenu || !userMenuRef.current || !profileBtnRef.current) return;
+    
+    const updatePosition = () => {
+      if (!userMenuRef.current || !profileBtnRef.current) return;
+      const rect = profileBtnRef.current.getBoundingClientRect();
+      userMenuRef.current.style.top = `${rect.bottom + 8}px`;
+      userMenuRef.current.style.right = `${window.innerWidth - rect.right}px`;
+    };
+    
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [showUserMenu]);
+
+
   // Focus search input when overlay opens
   useEffect(() => {
     if (showSearchOverlay && searchInputRef.current) {
@@ -413,21 +435,21 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
         </div>
       )}
 
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4">
-        <div className="flex items-center justify-between">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 w-full max-w-full overflow-hidden box-border relative z-50">
+        <div className="flex items-center justify-between w-full max-w-full min-w-0 box-border">
           {/* Left Section - Menu Button & Title */}
-          <div className="flex items-center min-w-0 flex-1">
+          <div className="flex items-center min-w-0 flex-1 box-border">
             <button
               onClick={() => {
                 triggerHapticFeedback('light');
                 onMenuToggle();
               }}
-              className="md:hidden touch-button rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-active p-1.5 mr-2 sm:mr-3"
+              className="md:hidden touch-button rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-active p-1.5 mr-1 sm:mr-3 flex-shrink-0"
             >
               <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />
             </button>
             
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 overflow-hidden">
               <h1 className="font-bold text-gray-900 dark:text-white truncate" style={{ fontSize: '21px', lineHeight: '1.2' }}>
                 {title}
               </h1>
@@ -440,15 +462,15 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
           </div>
           
           {/* Right Section - Actions */}
-          <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 ml-2 sm:ml-4">
+          <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 lg:gap-3 ml-1 sm:ml-2 md:ml-4 min-w-0 flex-shrink-0 box-border">
             {/* Desktop Search */}
-            <div className="hidden md:block relative">
+            <div className="hidden md:block relative flex-shrink-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   placeholder={t('search')}
-                  className="w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-sm"
+                  className="w-48 lg:w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-sm max-w-full"
                   value={globalSearchTerm}
                   onChange={e => setGlobalSearchTerm(e.target.value)}
                   onFocus={() => setIsSearchFocused(true)}
@@ -466,14 +488,14 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
             {/* Mobile/Tablet Search Button */}
             <button
               onClick={handleSearchClick}
-              className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
               title={t('search')}
             >
               <Search className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />
             </button>
             
             {/* Theme Toggle & Notifications */}
-            <div className="flex items-center gap-1 sm:gap-2">
+            <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 flex-shrink-0">
               {/* Enhanced Refresh Button with Progress and Accessibility */}
               <div className="relative">
                 <button
@@ -521,7 +543,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
 
               <button
                 onClick={toggleTheme}
-                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
+                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center flex-shrink-0"
                 title={isDarkMode ? t('switchToLightMode') : t('switchToDarkMode')}
               >
                 {isDarkMode ? (
@@ -531,7 +553,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
                 )}
               </button>
               
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
                   className="relative flex items-center justify-center p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -548,7 +570,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
             </div>
             
             {/* User Menu */}
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               <button
                 ref={profileBtnRef}
                 onClick={() => setShowUserMenu(!showUserMenu)}
@@ -576,7 +598,15 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
               </button>
 
               {showUserMenu && (
-                <div ref={userMenuRef} className="absolute right-0 mt-2 w-48 sm:w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl py-2 z-50 border border-gray-200 dark:border-gray-700">
+                <div 
+                  ref={userMenuRef} 
+                  className="fixed bg-white dark:bg-gray-800 rounded-lg shadow-xl py-2 z-[100] border border-gray-200 dark:border-gray-700"
+                  style={{
+                    top: profileBtnRef.current ? `${profileBtnRef.current.getBoundingClientRect().bottom + 8}px` : '64px',
+                    right: profileBtnRef.current ? `${window.innerWidth - profileBtnRef.current.getBoundingClientRect().right}px` : '16px',
+                    width: '192px', // w-48 = 12rem = 192px
+                  }}
+                >
                   <div className="px-3 sm:px-4 py-2 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{profile?.fullName}</p>

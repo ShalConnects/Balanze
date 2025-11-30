@@ -4,6 +4,7 @@ import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { LineChart, Line } from 'recharts';
 import { Info, Calendar, Clock, X } from 'lucide-react';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { isLendBorrowTransaction } from '../../utils/transactionUtils';
 
 interface CurrencyOverviewCardProps {
   currency: string;
@@ -135,15 +136,21 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   });
   
   const filteredIncome = filteredTransactions
-    .filter(t => t.type === 'income' && !t.tags?.some((tag: string) => 
-      tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
-    ))
+    .filter(t => t.type === 'income' && 
+      !t.tags?.some((tag: string) => 
+        tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
+      ) &&
+      !isLendBorrowTransaction(t)
+    )
     .reduce((sum, t) => sum + t.amount, 0);
     
   const filteredExpenses = filteredTransactions
-    .filter(t => t.type === 'expense' && !t.tags?.some((tag: string) => 
-      tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
-    ))
+    .filter(t => t.type === 'expense' && 
+      !t.tags?.some((tag: string) => 
+        tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
+      ) &&
+      !isLendBorrowTransaction(t)
+    )
     .reduce((sum, t) => sum + t.amount, 0);
 
   // Debug logging for BDT currency
@@ -352,10 +359,11 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                         {regularAccounts.map(acc => {
                           const balance = acc.calculated_balance || 0;
                           const isNegative = balance < 0;
+                          const isZero = balance === 0;
                           return (
-                            <li key={acc.id} className="flex justify-between">
-                              <span className="truncate max-w-[100px] sm:max-w-[120px]" title={acc.name}>{acc.name}</span>
-                              <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : ''}`}>
+                            <li key={acc.id} className={`flex justify-between ${isZero ? 'opacity-50' : ''}`}>
+                              <span className={`truncate max-w-[100px] sm:max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
+                              <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
                                 {formatCurrency(balance, currency)}
                               </span>
                             </li>
@@ -380,10 +388,11 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                           {dpsAccounts.map(acc => {
                             const balance = acc.calculated_balance || 0;
                             const isNegative = balance < 0;
+                            const isZero = balance === 0;
                             return (
-                              <li key={acc.id} className="flex justify-between">
-                                <span className="truncate max-w-[100px] sm:max-w-[120px]" title={acc.name}>{acc.name}</span>
-                                <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : ''}`}>
+                              <li key={acc.id} className={`flex justify-between ${isZero ? 'opacity-50' : ''}`}>
+                                <span className={`truncate max-w-[100px] sm:max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
+                                <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
                                   {formatCurrency(balance, currency)}
                                 </span>
                               </li>
@@ -477,10 +486,11 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                   {regularAccounts.map(acc => {
                     const balance = acc.calculated_balance || 0;
                     const isNegative = balance < 0;
+                    const isZero = balance === 0;
                     return (
-                      <li key={acc.id} className="flex justify-between text-xs text-gray-700 dark:text-gray-200">
-                        <span className="truncate max-w-[120px]" title={acc.name}>{acc.name}</span>
-                        <span className={`ml-2 tabular-nums ${isNegative ? 'text-red-600 dark:text-red-400' : ''}`}>
+                      <li key={acc.id} className={`flex justify-between text-xs ${isZero ? 'opacity-50 text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                        <span className={`truncate max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
+                        <span className={`ml-2 tabular-nums ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
                           {formatCurrency(balance, currency)}
                         </span>
                       </li>
@@ -505,10 +515,11 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                     {dpsAccounts.map(acc => {
                       const balance = acc.calculated_balance || 0;
                       const isNegative = balance < 0;
+                      const isZero = balance === 0;
                       return (
-                        <li key={acc.id} className="flex justify-between text-xs text-gray-700 dark:text-gray-200">
-                          <span className="truncate max-w-[120px]" title={acc.name}>{acc.name}</span>
-                          <span className={`ml-2 tabular-nums ${isNegative ? 'text-red-600 dark:text-red-400' : ''}`}>
+                        <li key={acc.id} className={`flex justify-between text-xs ${isZero ? 'opacity-50 text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                          <span className={`truncate max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
+                          <span className={`ml-2 tabular-nums ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
                             {formatCurrency(balance, currency)}
                           </span>
                         </li>

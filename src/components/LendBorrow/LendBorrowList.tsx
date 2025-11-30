@@ -238,26 +238,26 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                   className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
                 >
                   {/* Row 1: Person Name, Type, Amount, Actions */}
-                  <div className="grid grid-cols-12 gap-2 p-3 border-b border-gray-100 dark:border-gray-800">
-                    <div className="col-span-5">
+                  <div className="grid grid-cols-12 gap-1 sm:gap-2 p-2 sm:p-3 border-b border-gray-100 dark:border-gray-800">
+                    <div className="col-span-5 min-w-0">
                       <div className="font-medium text-gray-900 dark:text-white truncate">
                         {record.person_name}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                         {record.type === 'lend' ? 'Lent' : 'Borrowed'}
                       </div>
                     </div>
-                    <div className="col-span-5 flex flex-col justify-center">
-                      <div className="text-sm text-gray-600 dark:text-gray-300">
+                    <div className="col-span-5 flex flex-col justify-center min-w-0">
+                      <div className="text-sm text-gray-600 dark:text-gray-300 truncate">
                         {formatCurrency ? formatCurrency(record.amount, record.currency) : defaultFormatCurrency(record.amount, record.currency)}
                       </div>
                       {record.partial_return_amount && record.partial_return_amount > 0 && (
-                        <div className="text-xs text-green-600 dark:text-green-400">
+                        <div className="text-xs text-green-600 dark:text-green-400 truncate">
                           Partial: {formatCurrency ? formatCurrency(record.partial_return_amount, record.currency) : defaultFormatCurrency(record.partial_return_amount, record.currency)}
                         </div>
                       )}
                     </div>
-                    <div className="col-span-2 flex items-center justify-end gap-1">
+                    <div className="col-span-2 flex items-center justify-end gap-1 min-w-0 flex-shrink-0">
                       {(record.status === 'active' || record.status === 'overdue') && (
                         <button
                           onClick={() => {
