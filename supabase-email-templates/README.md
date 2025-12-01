@@ -5,10 +5,11 @@ This directory contains custom email templates for all Supabase authentication e
 ## 📧 Available Templates
 
 1. **confirm-signup.html** - Email confirmation for new user signups
-2. **invite-user.html** - Invitation emails for new users
-3. **magic-link.html** - Passwordless login magic links
-4. **change-email.html** - Email address change confirmation
-5. **reauthentication.html** - Security reauthentication for sensitive actions
+2. **reset-password.html** - Password reset emails
+3. **invite-user.html** - Invitation emails for new users
+4. **magic-link.html** - Passwordless login magic links
+5. **change-email.html** - Email address change confirmation
+6. **reauthentication.html** - Security reauthentication for sensitive actions
 
 ## 🎨 Design Features
 
@@ -46,6 +47,7 @@ All templates use Supabase's standard template variables:
 | Supabase Template Type | File Name | Description |
 |------------------------|-----------|-------------|
 | Confirm signup | `confirm-signup.html` | Welcome new users and confirm email |
+| Reset password | `reset-password.html` | Password reset links and instructions |
 | Invite user | `invite-user.html` | Invite new users to join |
 | Magic Link | `magic-link.html` | Passwordless login links |
 | Change email address | `change-email.html` | Confirm new email address |

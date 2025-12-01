@@ -113,15 +113,8 @@ export const ResetPassword: React.FC = () => {
   // Check if token is valid on component mount
   useEffect(() => {
     const checkToken = async () => {
-      if (!accessToken) {
-        setError('Invalid password reset link. Please request a new one.');
-        setIsValidToken(false);
-        return;
-      }
-
       try {
-        // For password reset, we need to set the session first to validate the token
-        // Get refresh token from URL as well
+        // First, check if we have tokens in the URL (from Supabase redirect)
         const getRefreshToken = () => {
           const queryToken = searchParams.get('refresh_token');
           if (queryToken) return queryToken;
@@ -136,8 +129,8 @@ export const ResetPassword: React.FC = () => {
         
         const refreshToken = getRefreshToken();
         
-        if (refreshToken) {
-          // Set session with both tokens to validate
+        // If we have both tokens in URL, set the session
+        if (accessToken && refreshToken) {
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
@@ -146,23 +139,35 @@ export const ResetPassword: React.FC = () => {
           if (error || !data.user) {
             setError('This password reset link has expired or is invalid. Please request a new one.');
             setIsValidToken(false);
-          } else {
-            // Check if user is in recovery mode (password reset)
-            // Supabase sets recovery session when password reset token is valid
-            setIsValidToken(true);
+            return;
           }
-        } else {
-          // Fallback: try to get user with access token
-          const { data, error } = await supabase.auth.getUser(accessToken);
           
-          if (error || !data.user) {
-            setError('This password reset link has expired or is invalid. Please request a new one.');
-            setIsValidToken(false);
-          } else {
-            setIsValidToken(true);
-          }
+          // Session set successfully, token is valid
+          setIsValidToken(true);
+          return;
         }
+        
+        // If no tokens in URL, check if Supabase has already set a session
+        // This happens when redirected from Supabase's verify endpoint
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          setError('This password reset link has expired or is invalid. Please request a new one.');
+          setIsValidToken(false);
+          return;
+        }
+        
+        // If we have a session with a user, the token was valid
+        if (sessionData?.session?.user) {
+          setIsValidToken(true);
+          return;
+        }
+        
+        // No session and no tokens - invalid link
+        setError('Invalid password reset link. Please request a new one.');
+        setIsValidToken(false);
       } catch (err) {
+        console.error('Error checking reset token:', err);
         setError('This password reset link has expired or is invalid. Please request a new one.');
         setIsValidToken(false);
       }
