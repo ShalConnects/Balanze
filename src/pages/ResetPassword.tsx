@@ -26,8 +26,23 @@ export const ResetPassword: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isValidToken, setIsValidToken] = useState<boolean | null>(null);
 
-  // Get token from URL
-  const accessToken = searchParams.get('access_token');
+  // Get token from URL - check both query params and hash fragments
+  const getAccessToken = () => {
+    // Check query params first
+    const queryToken = searchParams.get('access_token');
+    if (queryToken) return queryToken;
+    
+    // Check hash fragment as fallback
+    const hash = window.location.hash;
+    if (hash) {
+      const hashParams = new URLSearchParams(hash.substring(1));
+      return hashParams.get('access_token');
+    }
+    
+    return null;
+  };
+  
+  const accessToken = getAccessToken();
 
   // Password strength meter component
   const PasswordStrengthMeter: React.FC<{ password: string }> = ({ password }) => {
@@ -105,14 +120,47 @@ export const ResetPassword: React.FC = () => {
       }
 
       try {
-        // Try to get the session with the access token
-        const { data, error } = await supabase.auth.getUser(accessToken);
+        // For password reset, we need to set the session first to validate the token
+        // Get refresh token from URL as well
+        const getRefreshToken = () => {
+          const queryToken = searchParams.get('refresh_token');
+          if (queryToken) return queryToken;
+          
+          const hash = window.location.hash;
+          if (hash) {
+            const hashParams = new URLSearchParams(hash.substring(1));
+            return hashParams.get('refresh_token');
+          }
+          return null;
+        };
         
-        if (error || !data.user) {
-          setError('This password reset link has expired or is invalid. Please request a new one.');
-          setIsValidToken(false);
+        const refreshToken = getRefreshToken();
+        
+        if (refreshToken) {
+          // Set session with both tokens to validate
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+          
+          if (error || !data.user) {
+            setError('This password reset link has expired or is invalid. Please request a new one.');
+            setIsValidToken(false);
+          } else {
+            // Check if user is in recovery mode (password reset)
+            // Supabase sets recovery session when password reset token is valid
+            setIsValidToken(true);
+          }
         } else {
-          setIsValidToken(true);
+          // Fallback: try to get user with access token
+          const { data, error } = await supabase.auth.getUser(accessToken);
+          
+          if (error || !data.user) {
+            setError('This password reset link has expired or is invalid. Please request a new one.');
+            setIsValidToken(false);
+          } else {
+            setIsValidToken(true);
+          }
         }
       } catch (err) {
         setError('This password reset link has expired or is invalid. Please request a new one.');
@@ -121,7 +169,7 @@ export const ResetPassword: React.FC = () => {
     };
 
     checkToken();
-  }, [accessToken]);
+  }, [accessToken, searchParams]);
 
   // Handle password reset
   const handleResetPassword = async (e: React.FormEvent) => {

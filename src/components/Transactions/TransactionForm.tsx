@@ -901,6 +901,43 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               } else {
 
               }
+
+              // If this is a new recurring transaction, create the first instance immediately
+              if (data.is_recurring && result.id) {
+                try {
+                  const firstInstanceTransactionId = generateTransactionId();
+                  const firstInstanceDate = data.date; // Use parent's transaction date
+                  
+                  // Create first instance with amount: 0
+                  const firstInstance = await addTransaction({
+                    account_id: transactionData.account_id,
+                    amount: 0, // Start with 0, user can edit
+                    type: transactionData.type,
+                    category: transactionData.category,
+                    description: transactionData.description,
+                    date: firstInstanceDate,
+                    tags: transactionData.tags || [],
+                    saving_amount: 0, // Start with 0
+                    donation_amount: 0, // Start with 0
+                    is_recurring: false, // Instance is not recurring
+                    parent_recurring_id: result.id,
+                    transaction_id: firstInstanceTransactionId,
+                    user_id: user?.id || ''
+                  });
+
+                  if (firstInstance) {
+                    // Update parent transaction: set occurrence_count to 1 and update next_occurrence_date
+                    const nextOccurrenceDate = calculateNextOccurrenceDate(firstInstanceDate, data.recurring_frequency);
+                    await updateTransaction(result.id, {
+                      occurrence_count: 1,
+                      next_occurrence_date: nextOccurrenceDate
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error creating first recurring transaction instance:', error);
+                  // Don't fail the parent transaction creation if first instance fails
+                }
+              }
             }
             
             // Show success toast

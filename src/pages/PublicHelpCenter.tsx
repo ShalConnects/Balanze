@@ -6,12 +6,14 @@ import {
 import { useNavigate } from 'react-router-dom';
 import InteractiveBackground from '../components/InteractiveBackground';
 import { useAuthStore } from '../store/authStore';
+import { DeleteConfirmationModal } from '../components/common/DeleteConfirmationModal';
 import KBSearch from '../components/KBSearch';
 import Breadcrumb from '../components/Breadcrumb';
 import { Footer } from '../components/Layout/Footer';
 
 const PublicHelpCenter: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const navigate = useNavigate();
   const { user, signOut } = useAuthStore();
 
@@ -68,7 +70,7 @@ const PublicHelpCenter: React.FC = () => {
                       Welcome, {user.email}
                     </span>
                     <button 
-                      onClick={() => signOut()}
+                      onClick={() => setShowLogoutConfirm(true)}
                       className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-semibold flex items-center space-x-2"
                     >
                       <LogOut className="w-4 h-4" />
@@ -266,6 +268,24 @@ const PublicHelpCenter: React.FC = () => {
         {/* Footer */}
         <Footer />
 
+        {/* Logout Confirmation Modal */}
+        <DeleteConfirmationModal
+          isOpen={showLogoutConfirm}
+          onClose={() => setShowLogoutConfirm(false)}
+          onConfirm={async () => {
+            await signOut();
+            setShowLogoutConfirm(false);
+          }}
+          title="Confirm Logout"
+          message="Are you sure you want to logout? You will need to sign in again to access your account."
+          recordDetails={
+            <div className="text-sm text-gray-700 dark:text-gray-300">
+              <p>You will be signed out of your account and redirected to the login page.</p>
+            </div>
+          }
+          confirmLabel="Logout"
+          cancelLabel="Cancel"
+        />
       </div>
     </div>
   );

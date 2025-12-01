@@ -9,6 +9,7 @@ import { useNotificationsStore } from '../../store/notificationsStore';
 import { ProfileEditModal } from './ProfileEditModal';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { GlobalSearchDropdown } from './GlobalSearchDropdown';
+import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { supabase } from '../../lib/supabase';
 import { useTranslation } from 'react-i18next';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
@@ -78,6 +79,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
     const [showSearchOverlay, setShowSearchOverlay] = useState(false);
     const [showHelpBanner, setShowHelpBanner] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const navigate = useNavigate();
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -376,12 +378,16 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
     return languages.find(lang => lang.code === i18n.language) || languages[0];
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = async () => {
     try {
       await signOut();
       navigate('/login');
     } catch (error) {
-
+      // Error handling
     }
   };
 
@@ -734,6 +740,22 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
           </div>
         </div>
       )}
+
+      {/* Logout Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={confirmLogout}
+        title="Confirm Logout"
+        message="Are you sure you want to logout? You will need to sign in again to access your account."
+        recordDetails={
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            <p>You will be signed out of your account and redirected to the login page.</p>
+          </div>
+        }
+        confirmLabel="Logout"
+        cancelLabel="Cancel"
+      />
     </>
   );
 };

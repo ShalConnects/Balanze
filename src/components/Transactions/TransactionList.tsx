@@ -2141,7 +2141,21 @@ export const TransactionList: React.FC<{
                         )}
                         {columnVisibility.account && (
                           <td className="px-6 py-2 text-center">
-                            <span className="text-sm text-gray-900 dark:text-white">{getAccountName(transaction.account_id)}</span>
+                            <div className="inline-flex items-center justify-center gap-1.5">
+                              <span className="text-sm text-gray-900 dark:text-white">{getAccountName(transaction.account_id)}</span>
+                              {account && account.calculated_balance !== undefined && (
+                                <span className="inline-flex items-center" style={{ lineHeight: '1.25rem' }}>
+                                  <Tooltip 
+                                    content={`Current Balance: ${formatCurrency(account.calculated_balance, account.currency)}`}
+                                    placement="top"
+                                  >
+                                    <span className="inline-flex items-center">
+                                      <Info className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 cursor-help" />
+                                    </span>
+                                  </Tooltip>
+                                </span>
+                              )}
+                            </div>
                           </td>
                         )}
                         <td className="px-6 py-2 text-center">

@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { userPreferencesManager } from '../lib/userPreferences';
 import { favoriteQuotesService } from '../lib/favoriteQuotesService';
-import { saveRememberedEmail, clearRememberedEmail } from '../utils/authStorage';
+import { saveRememberedEmail, clearRememberedEmail, saveRememberMePreference } from '../utils/authStorage';
 import { Browser } from '@capacitor/browser';
 import { Capacitor } from '@capacitor/core';
 
@@ -309,8 +309,10 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       // Handle remember me functionality
       if (rememberMe) {
         saveRememberedEmail(email);
+        saveRememberMePreference(true);
       } else {
         clearRememberedEmail();
+        saveRememberMePreference(false);
       }
       
       // Set user immediately to trigger navigation
@@ -554,8 +556,14 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
   resetPassword: async (email: string) => {
     set({ isLoading: true, error: null, success: null });
     try {
+      // Use hardcoded URL for Android (like OAuth), dynamic for web
+      const isAndroid = Capacitor.getPlatform() === 'android';
+      const redirectUrl = isAndroid 
+        ? 'https://balanze.cash/auth/reset-password'
+        : `${window.location.origin}/auth/reset-password`;
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
+        redirectTo: redirectUrl,
       });
 
       if (error) {

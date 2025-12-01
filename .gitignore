@@ -123,3 +123,5 @@ balanze-release-key.jks
 
 # Files with sensitive information
 .1_Balanze.txt
+
+.vercel

@@ -30,6 +30,14 @@
                 <data android:scheme="https" android:host="balanze.cash" android:pathPrefix="/auth/callback" />
             </intent-filter>
 
+            <!-- Deep link for password reset -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="balanze.cash" android:pathPrefix="/auth/reset-password" />
+            </intent-filter>
+
         </activity>
 
         <provider

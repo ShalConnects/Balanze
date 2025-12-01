@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, AlertTriangle, Download, UserX, Shield, CheckCircle, XCircle, User, CreditCard, ShoppingBag, TrendingUp, Globe, Edit3, Calendar, LogOut, ArrowRight, HandCoins, ChevronDown, ChevronUp } from 'lucide-react';
+import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { useAuthStore } from '../../store/authStore';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { supabase } from '../../lib/supabase';
@@ -48,6 +49,9 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
   
   // Danger Zone collapsible state
   const [isDangerZoneExpanded, setIsDangerZoneExpanded] = useState(false);
+  
+  // Logout confirmation modal state
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Fetch all data on component mount
   useEffect(() => {
@@ -445,7 +449,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
               <span className="hidden lg:inline ml-2">Export</span>
             </button>
             <button
-              onClick={logout}
+              onClick={() => setShowLogoutConfirm(true)}
               className="flex items-center px-3 py-2 bg-white/80 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-white dark:hover:bg-gray-800 transition-all border border-blue-200/50 dark:border-blue-800/50 text-sm font-medium hover:shadow-sm"
               title="Sign Out"
             >
@@ -737,6 +741,25 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
           onClose={() => setShowProfileEdit(false)}
         />
       )}
+
+      {/* Logout Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={async () => {
+          await logout();
+          setShowLogoutConfirm(false);
+        }}
+        title="Confirm Logout"
+        message="Are you sure you want to logout? You will need to sign in again to access your account."
+        recordDetails={
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            <p>You will be signed out of your account and redirected to the login page.</p>
+          </div>
+        }
+        confirmLabel="Logout"
+        cancelLabel="Cancel"
+      />
 
       {/* Android Download Modal */}
       {showAndroidDownloadModal && (

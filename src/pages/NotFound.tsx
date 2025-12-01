@@ -6,12 +6,14 @@ import InteractiveBackground from '../components/InteractiveBackground';
 import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
 import { Footer } from '../components/Layout/Footer';
+import { DeleteConfirmationModal } from '../components/common/DeleteConfirmationModal';
 
 const NotFound: React.FC = () => {
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useThemeStore();
   const { user, signOut } = useAuthStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     // Set Manrope font for the whole page
@@ -71,7 +73,7 @@ const NotFound: React.FC = () => {
                         Welcome, {user.email}
                       </span>
                       <button 
-                        onClick={() => signOut()}
+                        onClick={() => setShowLogoutConfirm(true)}
                         className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-semibold flex items-center space-x-2"
                       >
                         <LogOut className="w-4 h-4" />
@@ -98,7 +100,7 @@ const NotFound: React.FC = () => {
                 <div className="md:hidden flex items-center space-x-4">
                   {user ? (
                     <button 
-                      onClick={() => signOut()}
+                      onClick={() => setShowLogoutConfirm(true)}
                       className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors font-semibold text-sm flex items-center space-x-1"
                     >
                       <LogOut className="w-4 h-4" />
@@ -277,6 +279,25 @@ const NotFound: React.FC = () => {
           </div>
 
           <Footer />
+
+          {/* Logout Confirmation Modal */}
+          <DeleteConfirmationModal
+            isOpen={showLogoutConfirm}
+            onClose={() => setShowLogoutConfirm(false)}
+            onConfirm={async () => {
+              await signOut();
+              setShowLogoutConfirm(false);
+            }}
+            title="Confirm Logout"
+            message="Are you sure you want to logout? You will need to sign in again to access your account."
+            recordDetails={
+              <div className="text-sm text-gray-700 dark:text-gray-300">
+                <p>You will be signed out of your account and redirected to the login page.</p>
+              </div>
+            }
+            confirmLabel="Logout"
+            cancelLabel="Cancel"
+          />
         </div>
       </div>
     </>

@@ -218,13 +218,13 @@ async function processRecurringTransactions() {
           user_id: recurringTransaction.user_id,
           account_id: recurringTransaction.account_id,
           type: recurringTransaction.type,
-          amount: recurringTransaction.amount,
+          amount: 0, // Start with 0, user can edit
           description: recurringTransaction.description,
           category: recurringTransaction.category,
           date: occurrenceDate, // Use validated occurrence date
           tags: recurringTransaction.tags || [],
-          saving_amount: recurringTransaction.saving_amount || 0,
-          donation_amount: recurringTransaction.donation_amount || null,
+          saving_amount: 0, // Start with 0
+          donation_amount: 0, // Start with 0
           is_recurring: false, // Instance is not recurring
           parent_recurring_id: recurringTransaction.id,
           transaction_id: generateTransactionId(),

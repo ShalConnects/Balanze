@@ -4,6 +4,7 @@
  */
 
 const REMEMBERED_EMAIL_KEY = 'rememberedEmail';
+const REMEMBER_ME_PREFERENCE_KEY = 'rememberMePreference';
 
 /**
  * Saves the email address for "Remember Me" functionality
@@ -35,5 +36,40 @@ export const clearRememberedEmail = (): void => {
   if (typeof window === 'undefined') return;
   
   localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+};
+
+/**
+ * Saves the "Remember Me" preference
+ * @param shouldRemember - Whether to remember the user (persist session)
+ */
+export const saveRememberMePreference = (shouldRemember: boolean): void => {
+  if (typeof window === 'undefined') return;
+  
+  if (shouldRemember) {
+    localStorage.setItem(REMEMBER_ME_PREFERENCE_KEY, 'true');
+  } else {
+    localStorage.setItem(REMEMBER_ME_PREFERENCE_KEY, 'false');
+  }
+};
+
+/**
+ * Retrieves the "Remember Me" preference
+ * @returns true if should remember, false if not, null if not set
+ */
+export const getRememberMePreference = (): boolean | null => {
+  if (typeof window === 'undefined') return null;
+  
+  const preference = localStorage.getItem(REMEMBER_ME_PREFERENCE_KEY);
+  if (preference === null) return null;
+  return preference === 'true';
+};
+
+/**
+ * Clears the "Remember Me" preference
+ */
+export const clearRememberMePreference = (): void => {
+  if (typeof window === 'undefined') return;
+  
+  localStorage.removeItem(REMEMBER_ME_PREFERENCE_KEY);
 };
 

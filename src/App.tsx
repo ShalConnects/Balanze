@@ -28,6 +28,7 @@ import WelcomeOnboarding from './components/WelcomeOnboarding';
 import { isAndroidApp } from './utils/platformDetection';
 import { isFirstLaunch } from './utils/firstLaunch';
 import { App as CapacitorApp } from '@capacitor/app';
+import { getRememberMePreference } from './utils/authStorage';
 import { Capacitor } from '@capacitor/core';
 
 // Lazy load non-critical components for code splitting
@@ -267,6 +268,18 @@ function AppContent() {
       }, 10000); // 10 second timeout
       
       try {
+        // Check "Remember Me" preference - if false, clear session on app start
+        const shouldRemember = getRememberMePreference();
+        
+        // If "Remember Me" was unchecked, clear session on app start (works for both Android and web)
+        if (shouldRemember === false) {
+          await supabase.auth.signOut();
+          const { setUserAndProfile } = useAuthStore.getState();
+          setUserAndProfile(null, null);
+          setLoading(false);
+          return;
+        }
+        
         // Check if this is an email confirmation redirect
         const urlParams = new URLSearchParams(window.location.search);
         const accessToken = urlParams.get('access_token');
@@ -315,8 +328,40 @@ function AppContent() {
     
     initializeSession();
     
+    // For web: Clear session on page unload if "Remember Me" is unchecked
+    const handlePageUnload = () => {
+      const shouldRemember = getRememberMePreference();
+      const isAndroid = isAndroidApp();
+      
+      // Only for web (not Android app)
+      if (!isAndroid && shouldRemember === false) {
+        // Clear Supabase session from localStorage directly (synchronous)
+        // Supabase stores session with key pattern: sb-{project-ref}-auth-token
+        try {
+          // Clear all Supabase auth-related keys from localStorage
+          Object.keys(localStorage).forEach(key => {
+            if (key.includes('supabase') || (key.startsWith('sb-') && key.includes('auth'))) {
+              localStorage.removeItem(key);
+            }
+          });
+        } catch (error) {
+          // Ignore errors during unload
+        }
+      }
+    };
+    
+    // Add page unload listeners for web
+    if (!isAndroidApp()) {
+      window.addEventListener('beforeunload', handlePageUnload);
+      window.addEventListener('pagehide', handlePageUnload);
+    }
+    
     return () => {
       authListener.subscription.unsubscribe();
+      if (!isAndroidApp()) {
+        window.removeEventListener('beforeunload', handlePageUnload);
+        window.removeEventListener('pagehide', handlePageUnload);
+      }
     };
   }, [handleEmailConfirmation]);
 
@@ -463,8 +508,55 @@ function AppContent() {
             console.log('[DEEPLINK] 🔄 Navigating to /auth with callback_failed error...');
             window.location.href = '/auth?error=callback_failed';
           }
+        } else if (url && url.includes('/auth/reset-password')) {
+          // Handle password reset deep link
+          console.log('[DEEPLINK] ✅ This is a password reset URL');
+          try {
+            const urlObj = new URL(url);
+            console.log('[DEEPLINK] 🔄 Processing password reset deep link...');
+            console.log('[DEEPLINK] - URL pathname:', urlObj.pathname);
+            console.log('[DEEPLINK] - URL hash:', urlObj.hash ? `${urlObj.hash.substring(0, 50)}...` : 'NONE');
+            console.log('[DEEPLINK] - URL search:', urlObj.search ? `${urlObj.search.substring(0, 50)}...` : 'NONE');
+            
+            // Password reset URLs can have tokens in hash or query params
+            let accessToken: string | null = null;
+            let refreshToken: string | null = null;
+            
+            // Check hash fragment first
+            if (urlObj.hash) {
+              const hashParams = new URLSearchParams(urlObj.hash.substring(1));
+              accessToken = hashParams.get('access_token');
+              refreshToken = hashParams.get('refresh_token');
+            }
+            
+            // Fallback to query params
+            if (!accessToken) {
+              accessToken = urlObj.searchParams.get('access_token');
+              refreshToken = urlObj.searchParams.get('refresh_token');
+            }
+            
+            console.log('[DEEPLINK] 📊 Password reset token status:', { 
+              hasAccessToken: !!accessToken,
+              hasRefreshToken: !!refreshToken
+            });
+            
+            // Navigate to reset password page, preserving tokens
+            let resetPasswordUrl = '/auth/reset-password';
+            if (urlObj.hash) {
+              resetPasswordUrl += urlObj.hash;
+            } else if (urlObj.search) {
+              resetPasswordUrl += urlObj.search;
+            }
+            
+            console.log('[DEEPLINK] 🔄 Navigating to reset password page...');
+            window.location.href = resetPasswordUrl;
+          } catch (error) {
+            console.error('[DEEPLINK] ❌ Error handling password reset deep link:', error);
+            console.error('[DEEPLINK] Error details:', error instanceof Error ? error.message : String(error));
+            window.location.href = '/auth?error=reset_failed';
+          }
         } else {
-          console.log('[DEEPLINK] ⚠️ URL received but not an OAuth callback:', url);
+          console.log('[DEEPLINK] ⚠️ URL received but not a recognized auth callback:', url);
         }
       };
       
