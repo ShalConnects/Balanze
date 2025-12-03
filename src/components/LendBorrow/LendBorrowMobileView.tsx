@@ -1,5 +1,6 @@
 import React from 'react';
 import { Edit2, Trash2, Plus, Info, ChevronRight, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
+import { format } from 'date-fns';
 import { LendBorrow, LendBorrowReturn } from '../../types';
 import { supabase } from '../../lib/supabase';
 
@@ -125,49 +126,45 @@ export const LendBorrowMobileView: React.FC<LendBorrowMobileViewProps> = React.m
                   : ''
               }`}
             >
-              {/* Record Header */}
+              {/* Record Header - Name and Amount on same line */}
               <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center space-x-2">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      {record.person_name}
-                    </div>
-                    <div className="text-xs">
-                      <span className={`inline-flex items-center justify-center text-center px-2 py-0.5 rounded-full text-xs font-medium ${getRecordTypeColor(record.type)}`}>
-                        {record.type === 'lend' ? 'Lend' : 'Borrow'}
-                      </span>
-                    </div>
-                  </div>
+                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                  {record.person_name}
                 </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-gray-900 dark:text-white">
-                    {formatCurrency(record.amount, record.currency)}
-                  </div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">
+                  {formatCurrency(record.amount, record.currency)}
                 </div>
               </div>
 
-              {/* Record Stats */}
-              <div className="flex items-center justify-between mb-3 text-xs text-gray-500 dark:text-gray-400">
-                <div className="flex items-center space-x-2">
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+              {/* Record Stats - Status and Type badges stacked vertically */}
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex flex-col space-y-1.5">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium w-fit ${
                     isOverdue ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : getRecordStatusColor(record.status)
                   }`}>
                     {isOverdue ? 'Overdue' : record.status.charAt(0).toUpperCase() + record.status.slice(1)}
                   </span>
-                  {record.status === 'active' && (
-                    <span className={`text-xs ${
-                      isOverdue ? 'text-red-600' : daysDiff <= 7 ? 'text-orange-600' : 'text-gray-500'
-                    }`}>
-                      {isOverdue ? `${Math.abs(daysDiff)} days overdue` : 
-                       daysDiff <= 7 ? `${daysDiff} days left` : 
-                       `${daysDiff} days left`}
-                    </span>
-                  )}
+                  <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium w-fit ${getRecordTypeColor(record.type)}`}>
+                    {record.type === 'lend' ? 'Lend' : 'Borrow'}
+                  </span>
                 </div>
-                <div className="text-xs">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
                   Due: {format(new Date(record.due_date), 'MMM dd, yyyy')}
                 </div>
               </div>
+              
+              {/* Days info for active records */}
+              {record.status === 'active' && (
+                <div className="mb-3">
+                  <span className={`text-xs ${
+                    isOverdue ? 'text-red-600' : daysDiff <= 7 ? 'text-orange-600' : 'text-gray-500'
+                  }`}>
+                    {isOverdue ? `${Math.abs(daysDiff)} days overdue` : 
+                     daysDiff <= 7 ? `${daysDiff} days left` : 
+                     `${daysDiff} days left`}
+                  </span>
+                </div>
+              )}
 
               {/* Description */}
               {record.description && (

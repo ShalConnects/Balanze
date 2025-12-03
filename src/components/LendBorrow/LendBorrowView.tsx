@@ -57,13 +57,39 @@ export const LendBorrowView: React.FC = () => {
   const [selectedCurrency, setSelectedCurrency] = useState<string>('');
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(false);
   const currencyMenuRef = useRef<HTMLDivElement>(null);
-  const [filters, setFilters] = useState({
-    type: 'all' as 'all' | 'lend' | 'borrow',
-    status: 'active' as 'all' | 'active' | 'settled',
-    search: '',
-    currency: '' as string,
-    dateRange: { start: '', end: '' }
+  // Filters - Load from localStorage or use defaults
+  const [filters, setFilters] = useState(() => {
+    const saved = localStorage.getItem('lendBorrowFilters');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Validate and merge with defaults to ensure all fields exist
+        return {
+          type: parsed.type || 'all',
+          status: parsed.status || 'active',
+          search: parsed.search || '',
+          currency: parsed.currency || '',
+          dateRange: parsed.dateRange && parsed.dateRange.start !== undefined && parsed.dateRange.end !== undefined
+            ? parsed.dateRange
+            : { start: '', end: '' }
+        };
+      } catch {
+        // If parsing fails, use defaults
+      }
+    }
+    return {
+      type: 'all' as 'all' | 'lend' | 'borrow',
+      status: 'active' as 'all' | 'active' | 'settled',
+      search: '',
+      currency: '' as string,
+      dateRange: { start: '', end: '' }
+    };
   });
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('lendBorrowFilters', JSON.stringify(filters));
+  }, [filters]);
 
   // Mobile filter states
   const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);

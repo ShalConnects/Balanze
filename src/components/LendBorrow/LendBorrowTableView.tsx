@@ -1828,17 +1828,60 @@ export const LendBorrowTableView: React.FC = () => {
                   key={record.id}
                   id={`record-${record.id}`}
                   ref={selectedId === record.id ? selectedRecordRef : null}
-                  className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-all duration-200 ${
+                  className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-0 shadow-sm hover:shadow-md transition-all duration-200 ${
                     selectedId === record.id ? 'ring-2 ring-blue-500' : ''
                   }`}
                 >
-                  {/* Card Header - Person Name and Type Badge */}
+                  {/* Card Header - Person Name and Amount on same line */}
                   <div className="flex items-center justify-between p-3 pb-2">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">{record.person_name}</div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                      {record.person_name}
                     </div>
-                    <div>
-                      <span className={`inline-flex items-center justify-center text-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                    <div className="text-base font-bold text-gray-900 dark:text-white">
+                      {formatCurrency(record.amount, record.currency)}
+                    </div>
+                  </div>
+                  
+                  {/* Card Body - Status with days info on left, Type badge on right */}
+                  <div className="px-3 pb-2">
+                    <div className="flex items-center justify-between mb-0">
+                      <div className="flex items-center space-x-2">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          record.status === 'active' 
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                            : record.status === 'settled'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                        }`}>
+                          {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+                        </span>
+                        {(record.status === 'active' || record.status === 'overdue') && record.due_date && (
+                          <span className={`text-xs ${
+                            (() => {
+                              const dueDate = record.due_date ? new Date(record.due_date) : null;
+                              const today = new Date();
+                              const diffTime = dueDate ? dueDate.getTime() - today.getTime() : 0;
+                              const diffDays = dueDate ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
+                              return diffDays < 0 ? 'text-red-600 dark:text-red-400' : 'text-orange-600';
+                            })()
+                          }`}>
+                            {(() => {
+                              const dueDate = record.due_date ? new Date(record.due_date) : null;
+                              const today = new Date();
+                              const diffTime = dueDate ? dueDate.getTime() - today.getTime() : 0;
+                              const diffDays = dueDate ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
+                              if (diffDays < 0) {
+                                return `${Math.abs(diffDays)} days overdue`;
+                              } else if (diffDays === 0) {
+                                return 'Due today';
+                              } else {
+                                return `${diffDays} days left`;
+                              }
+                            })()}
+                          </span>
+                        )}
+                      </div>
+                      <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium ${
                         record.type === 'lend' 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
                           : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
@@ -1848,47 +1891,19 @@ export const LendBorrowTableView: React.FC = () => {
                     </div>
                   </div>
                   
-                  {/* Card Body - Amount and Status */}
-                  <div className="px-3 pb-2">
-                    <div className="text-base font-bold text-gray-900 dark:text-white mb-1">
-                      {formatCurrency(record.amount, record.currency)}
-                    </div>
-                    <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        record.status === 'active' 
-                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                          : record.status === 'settled'
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                      }`}>
-                        {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
-                      </span>
-                      {record.status === 'active' && record.due_date && (
-                        <span className="text-xs text-orange-600">
-                          {(() => {
-                            const dueDate = record.due_date ? new Date(record.due_date) : null;
-                            const today = new Date();
-                            const diffTime = dueDate ? dueDate.getTime() - today.getTime() : 0;
-                            const diffDays = dueDate ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
-                            if (diffDays < 0) {
-                              return `${Math.abs(diffDays)} days overdue`;
-                            } else if (diffDays === 0) {
-                              return 'Due today';
-                            } else {
-                              return `${diffDays} days left`;
-                            }
-                          })()}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
                   {/* Card Footer - Due Date and Actions */}
-                  <div className="flex items-center justify-between px-3 pb-3 pt-2 border-t border-gray-100 dark:border-gray-800">
-                    <div className="text-xs text-gray-600 dark:text-gray-400">
-                      {record.due_date && (
-                        <div>Due: {new Date(record.due_date).toLocaleDateString()}</div>
-                      )}
+                  <div className="flex items-center justify-between px-3 pb-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <div className="text-xs">
+                      {record.due_date && (() => {
+                        const dueDate = new Date(record.due_date);
+                        const today = new Date();
+                        const isOverdue = record.status === 'active' && dueDate < today;
+                        return (
+                          <div className={isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-600 dark:text-gray-400'}>
+                            Due: {dueDate.toLocaleDateString()}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="flex gap-1">
                       {/* Info/Edit button based on record status */}
@@ -1898,7 +1913,7 @@ export const LendBorrowTableView: React.FC = () => {
                             onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
                             className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
                           >
-                            <Info className="w-3.5 h-3.5" />
+                            <Info className="w-4 h-4" />
                           </button>
                         </Tooltip>
                       ) : (record.account_id && record.affect_account_balance) ? (
@@ -1907,7 +1922,7 @@ export const LendBorrowTableView: React.FC = () => {
                             onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
                             className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
                           >
-                            <Info className="w-3.5 h-3.5" />
+                            <Info className="w-4 h-4" />
                           </button>
                         </Tooltip>
                       ) : (

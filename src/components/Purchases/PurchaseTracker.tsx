@@ -45,6 +45,7 @@ import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
 import { getDefaultAccountId } from '../../utils/defaultAccount';
 import { generateTransactionId } from '../../utils/transactionId';
+import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { CategoryModal } from '../common/CategoryModal';
@@ -118,6 +119,7 @@ export const PurchaseTracker: React.FC = () => {
   const { user, profile } = useAuthStore();
   const { wrapAsync, setLoadingMessage, loadingMessage } = useLoadingContext();
   const { usageStats, isPremiumPlan } = usePlanFeatures();
+  const { isMobile } = useMobileDetection();
   const { showPurchaseForm, setShowPurchaseForm } = useFinanceStore();
   const navigate = useNavigate();
 
@@ -392,13 +394,39 @@ export const PurchaseTracker: React.FC = () => {
     return 'Custom Range';
   };
 
-  const [filters, setFilters] = useState({
-    search: '',
-    category: 'all',
-    priority: 'all' as 'all' | 'low' | 'medium' | 'high',
-    currency: '' as string,
-    dateRange: getThisMonthDateRange()
+  // Filters - Load from localStorage or use defaults
+  const [filters, setFilters] = useState(() => {
+    const saved = localStorage.getItem('purchaseFilters');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Validate and merge with defaults to ensure all fields exist
+        return {
+          search: parsed.search || '',
+          category: parsed.category || 'all',
+          priority: parsed.priority || 'all',
+          currency: parsed.currency || '',
+          dateRange: parsed.dateRange && parsed.dateRange.start !== undefined && parsed.dateRange.end !== undefined
+            ? parsed.dateRange
+            : getThisMonthDateRange()
+        };
+      } catch {
+        // If parsing fails, use defaults
+      }
+    }
+    return {
+      search: '',
+      category: 'all',
+      priority: 'all' as 'all' | 'low' | 'medium' | 'high',
+      currency: '' as string,
+      dateRange: getThisMonthDateRange()
+    };
   });
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('purchaseFilters', JSON.stringify(filters));
+  }, [filters]);
 
   // Mobile filter states
   const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
@@ -2818,7 +2846,7 @@ export const PurchaseTracker: React.FC = () => {
             setEditingPurchase(null);
             setSelectedAccountId('');
           }} />
-          <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-[38rem] max-h-[90vh] overflow-y-auto z-50 shadow-xl transition-all" onClick={e => e.stopPropagation()}>
+          <div className={`relative bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-[38rem] max-h-[90vh] overflow-y-auto z-50 shadow-xl transition-all ${isMobile ? 'pb-32' : ''}`} onClick={e => e.stopPropagation()}>
                                   <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{editingPurchase ? 'Edit Purchase' : 'Add Purchase'}</h2>
               <button
@@ -2847,17 +2875,12 @@ export const PurchaseTracker: React.FC = () => {
                           }`}
                           onClick={() => !submitting && setExcludeFromCalculation(false)}
                         >
-                          <div className="flex items-center space-x-3">
-                            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
-                              <span className="text-sm">💳</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-gray-900 dark:text-white text-sm">
+                              From Account
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-gray-900 dark:text-white text-sm">
-                                From Account
-                              </div>
-                              <div className="text-xs text-gray-600 dark:text-gray-400">
-                                Affects Balance
-                              </div>
+                            <div className="text-gray-600 dark:text-gray-400" style={{ fontSize: '10px' }}>
+                              Affects Balance
                             </div>
                           </div>
                         </div>
@@ -2870,17 +2893,12 @@ export const PurchaseTracker: React.FC = () => {
                           }`}
                           onClick={() => !submitting && setExcludeFromCalculation(true)}
                         >
-                          <div className="flex items-center space-x-3">
-                            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
-                              <span className="text-sm">📝</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-gray-900 dark:text-white text-sm">
+                              Record Only
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-gray-900 dark:text-white text-sm">
-                                Record Only
-                              </div>
-                              <div className="text-xs text-gray-600 dark:text-gray-400">
-                                No Balance Change
-                              </div>
+                            <div className="text-gray-600 dark:text-gray-400" style={{ fontSize: '10px' }}>
+                              No Balance Change
                             </div>
                           </div>
                         </div>
@@ -3207,7 +3225,7 @@ export const PurchaseTracker: React.FC = () => {
                 />
               </div>
               {/* Action Buttons Row */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 mt-[20px]">
+              <div className="flex flex-row items-center justify-end gap-3 mt-[20px]">
                 <button
                   type="button"
                   onClick={() => {

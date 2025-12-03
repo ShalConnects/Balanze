@@ -376,17 +376,45 @@ export const TransactionList: React.FC<{
     return true;
   };
 
-  // Filters
-  const [filters, setFilters] = useState({
-    search: '',
-    type: 'all' as 'all' | 'income' | 'expense',
-    account: 'all',
-    currency: '', // <-- add currency filter
-    dateRange: getThisMonthDateRange(),
-    showModifiedOnly: false, // New: Show only recently modified transactions
-    recentlyModifiedDays: 7, // New: Number of days for "recently modified"
-    showRecurringOnly: false // New: Show only recurring transactions
+  // Filters - Load from localStorage or use defaults
+  const [filters, setFilters] = useState(() => {
+    const saved = localStorage.getItem('transactionFilters');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Validate and merge with defaults to ensure all fields exist
+        return {
+          search: parsed.search || '',
+          type: parsed.type || 'all',
+          account: parsed.account || 'all',
+          currency: parsed.currency || '',
+          dateRange: parsed.dateRange && parsed.dateRange.start !== undefined && parsed.dateRange.end !== undefined
+            ? parsed.dateRange
+            : getThisMonthDateRange(),
+          showModifiedOnly: parsed.showModifiedOnly !== undefined ? parsed.showModifiedOnly : false,
+          recentlyModifiedDays: parsed.recentlyModifiedDays || 7,
+          showRecurringOnly: parsed.showRecurringOnly !== undefined ? parsed.showRecurringOnly : false
+        };
+      } catch {
+        // If parsing fails, use defaults
+      }
+    }
+    return {
+      search: '',
+      type: 'all' as 'all' | 'income' | 'expense',
+      account: 'all',
+      currency: '', // <-- add currency filter
+      dateRange: getThisMonthDateRange(),
+      showModifiedOnly: false, // New: Show only recently modified transactions
+      recentlyModifiedDays: 7, // New: Number of days for "recently modified"
+      showRecurringOnly: false // New: Show only recurring transactions
+    };
   });
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('transactionFilters', JSON.stringify(filters));
+  }, [filters]);
   
   // Add sorting state - default to most recent first
   const [sortConfig, setSortConfig] = useState<{
@@ -2141,19 +2169,17 @@ export const TransactionList: React.FC<{
                         )}
                         {columnVisibility.account && (
                           <td className="px-6 py-2 text-center">
-                            <div className="inline-flex items-center justify-center gap-1.5">
+                            <div className="flex items-center justify-center gap-1.5">
                               <span className="text-sm text-gray-900 dark:text-white">{getAccountName(transaction.account_id)}</span>
                               {account && account.calculated_balance !== undefined && (
-                                <span className="inline-flex items-center" style={{ lineHeight: '1.25rem' }}>
+                                <div className="flex items-center">
                                   <Tooltip 
                                     content={`Current Balance: ${formatCurrency(account.calculated_balance, account.currency)}`}
                                     placement="top"
                                   >
-                                    <span className="inline-flex items-center">
-                                      <Info className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 cursor-help" />
-                                    </span>
+                                    <Info className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 cursor-help" />
                                   </Tooltip>
-                                </span>
+                                </div>
                               )}
                             </div>
                           </td>
@@ -2518,6 +2544,9 @@ export const TransactionList: React.FC<{
                     <div className="flex items-center justify-between px-3 pb-3 pt-2 border-t border-gray-100 dark:border-gray-800">
                       <div className="text-xs text-gray-600 dark:text-gray-400 font-medium">
                         {getAccountName(transaction.account_id)}
+                        {account && account.calculated_balance !== undefined && (
+                          <span className="ml-1.5">• {formatCurrency(account.calculated_balance, account.currency)}</span>
+                        )}
                       </div>
                       <div className="flex gap-1">
                          {isLendBorrowTransaction(transaction) ? (

@@ -101,13 +101,35 @@ export const AccountsView: React.FC = () => {
     scrollToRecord: true
   });
 
-  // New state for unified table view
-  const [tableFilters, setTableFilters] = useState({
-    search: '',
-    currency: '',
-    type: 'all',
-    status: 'active' // 'active' or 'all'
+  // New state for unified table view - Load from localStorage or use defaults
+  const [tableFilters, setTableFilters] = useState(() => {
+    const saved = localStorage.getItem('accountFilters');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Validate and merge with defaults to ensure all fields exist
+        return {
+          search: parsed.search || '',
+          currency: parsed.currency || '',
+          type: parsed.type || 'all',
+          status: parsed.status || 'active'
+        };
+      } catch {
+        // If parsing fails, use defaults
+      }
+    }
+    return {
+      search: '',
+      currency: '',
+      type: 'all',
+      status: 'active' // 'active' or 'all'
+    };
   });
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('accountFilters', JSON.stringify(tableFilters));
+  }, [tableFilters]);
 
   // Enhanced search state
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);

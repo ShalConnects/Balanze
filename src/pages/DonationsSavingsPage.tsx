@@ -30,8 +30,31 @@ const DonationsSavingsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'fixed' | 'percent'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'donated' | 'pending'>('all');
-  const [filterCurrency, setFilterCurrency] = useState('');
-  const [filterDateRange, setFilterDateRange] = useState<'1month' | '3months' | '6months' | '1year' | 'allTime'>('1month');
+  // Filters - Load from localStorage or use defaults
+  const [filterCurrency, setFilterCurrency] = useState(() => {
+    const saved = localStorage.getItem('donationFilters');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.filterCurrency || '';
+      } catch {
+        // If parsing fails, use default
+      }
+    }
+    return '';
+  });
+  const [filterDateRange, setFilterDateRange] = useState<'1month' | '3months' | '6months' | '1year' | 'allTime'>(() => {
+    const saved = localStorage.getItem('donationFilters');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.filterDateRange || '1month';
+      } catch {
+        // If parsing fails, use default
+      }
+    }
+    return '1month';
+  });
 
   // Mobile filter states
   const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
@@ -201,6 +224,14 @@ const DonationsSavingsPage: React.FC = () => {
     : allRecordCurrencies.length > 0 
       ? allRecordCurrencies 
       : availableCurrencies;
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('donationFilters', JSON.stringify({
+      filterCurrency,
+      filterDateRange
+    }));
+  }, [filterCurrency, filterDateRange]);
 
   // Set default currency filter to user's preferred currency if available and valid
   useEffect(() => {

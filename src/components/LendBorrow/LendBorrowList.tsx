@@ -237,27 +237,19 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                   key={record.id}
                   className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
                 >
-                  {/* Row 1: Person Name, Type, Amount, Actions */}
+                  {/* Row 1: Person Name and Amount on same line, Actions */}
                   <div className="grid grid-cols-12 gap-1 sm:gap-2 p-2 sm:p-3 border-b border-gray-100 dark:border-gray-800">
-                    <div className="col-span-5 min-w-0">
-                      <div className="font-medium text-gray-900 dark:text-white truncate">
-                        {record.person_name}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {record.type === 'lend' ? 'Lent' : 'Borrowed'}
-                      </div>
-                    </div>
-                    <div className="col-span-5 flex flex-col justify-center min-w-0">
-                      <div className="text-sm text-gray-600 dark:text-gray-300 truncate">
-                        {formatCurrency ? formatCurrency(record.amount, record.currency) : defaultFormatCurrency(record.amount, record.currency)}
-                      </div>
-                      {record.partial_return_amount && record.partial_return_amount > 0 && (
-                        <div className="text-xs text-green-600 dark:text-green-400 truncate">
-                          Partial: {formatCurrency ? formatCurrency(record.partial_return_amount, record.currency) : defaultFormatCurrency(record.partial_return_amount, record.currency)}
+                    <div className="col-span-8 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-medium text-gray-900 dark:text-white truncate flex-shrink">
+                          {record.person_name}
                         </div>
-                      )}
+                        <div className="text-sm font-semibold text-gray-900 dark:text-white truncate flex-shrink-0">
+                          {formatCurrency ? formatCurrency(record.amount, record.currency) : defaultFormatCurrency(record.amount, record.currency)}
+                        </div>
+                      </div>
                     </div>
-                    <div className="col-span-2 flex items-center justify-end gap-1 min-w-0 flex-shrink-0">
+                    <div className="col-span-4 flex items-center justify-end gap-1 min-w-0 flex-shrink-0">
                       {(record.status === 'active' || record.status === 'overdue') && (
                         <button
                           onClick={() => {
@@ -310,12 +302,12 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                     </div>
                   </div>
                 
-                  {/* Row 2: Status, Due Date, Currency */}
+                  {/* Row 2: Status and Type badges stacked, Due Date, Currency */}
                   <div className="grid grid-cols-12 gap-2 p-3">
                     <div className="col-span-4 flex flex-col">
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Status</div>
-                      <div className="text-sm text-gray-900 dark:text-white flex items-center">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Status & Type</div>
+                      <div className="flex flex-col space-y-1.5">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium w-fit ${
                           record.status === 'active' 
                             ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
                             : record.status === 'settled' 
@@ -326,6 +318,13 @@ export const LendBorrowList: React.FC<LendBorrowListProps> = ({ records, loading
                         }`}>
                           {getStatusIcon(record.status)}
                           <span className="ml-1">{record.status}</span>
+                        </span>
+                        <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium w-fit ${
+                          record.type === 'lend' 
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                        }`}>
+                          {record.type === 'lend' ? 'Lend' : 'Borrow'}
                         </span>
                       </div>
                     </div>

@@ -1361,6 +1361,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                   highlightDates={[new Date()]}
                   isClearable
                   autoComplete="off"
+                  popperProps={{ strategy: 'fixed' }}
                 />
                 <button
                   type="button"
@@ -1382,7 +1383,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
 
           {/* Recurring Transaction Section - Moved to be more visible */}
           {/* Only show for premium users and not for purchase transactions */}
-          {data.type && isPremiumPlan && isExpenseType !== 'purchase' && (
+          {/* Hide if editing a transaction that's part of a recurring series (parent or child) */}
+          {data.type && isPremiumPlan && isExpenseType !== 'purchase' && 
+           !(isEditMode && transactionToEdit && (transactionToEdit.parent_recurring_id || transactionToEdit.is_recurring)) && (
             <div className="border border-gray-100 dark:border-gray-700 rounded-lg p-4 mb-2 bg-gray-50 dark:bg-gray-800">
               <div className="relative">
                 <div className="flex items-center gap-2 mb-0">
@@ -1457,6 +1460,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                         isClearable
                         minDate={parseISO(data.date)}
                         autoComplete="off"
+                        popperProps={{ strategy: 'fixed' }}
                       />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">Leave empty for unlimited recurring transactions</p>

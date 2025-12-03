@@ -14,6 +14,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Loader } from '../../components/common/Loader';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getCurrencySymbol } from '../../utils/currency';
+import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 interface LendBorrowFormProps {
   record?: LendBorrow;
@@ -26,6 +27,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
   const { accounts, lendBorrowRecords } = useFinanceStore();
   const { profile } = useAuthStore();
   const { isLoading } = useLoadingContext();
+  const { isMobile } = useMobileDetection();
   const [form, setForm] = useState<LendBorrowInput>({
     type: record?.type || '',
     person_name: record?.person_name || '',
@@ -283,7 +285,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
         />
         {/* Modal Container */}
         <div
-          className="relative bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-[38rem] max-h-[90vh] overflow-y-auto z-50 shadow-2xl transition-all"
+          className={`relative bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-[38rem] max-h-[90vh] overflow-y-auto z-50 shadow-2xl transition-all ${isMobile ? 'pb-32' : ''}`}
           onClick={e => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-6">
@@ -316,17 +318,12 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                       setForm(prev => ({ ...prev, affect_account_balance: true }));
                     }}
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm">💳</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-gray-900 dark:text-white text-sm">
+                        From Account
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-gray-900 dark:text-white text-sm">
-                          From Account
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400">
-                          Affects Balance
-                        </div>
+                      <div className="text-gray-600 dark:text-gray-400" style={{ fontSize: '10px' }}>
+                        Affects Balance
                       </div>
                     </div>
                   </div>
@@ -341,17 +338,12 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                       setForm(prev => ({ ...prev, affect_account_balance: false, account_id: '' }));
                     }}
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm">📄</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-gray-900 dark:text-white text-sm">
+                        Record Only
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-gray-900 dark:text-white text-sm">
-                          Record Only
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400">
-                          No Balance Change
-                        </div>
+                      <div className="text-gray-600 dark:text-gray-400" style={{ fontSize: '10px' }}>
+                        No Balance Change
                       </div>
                     </div>
                   </div>
@@ -603,7 +595,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex flex-row justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
               <button
                 type="button"
                 onClick={onClose}
