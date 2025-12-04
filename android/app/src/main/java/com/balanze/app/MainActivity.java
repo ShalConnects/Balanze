@@ -10,12 +10,20 @@ import android.graphics.drawable.GradientDrawable;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.Plugin;
+
+import java.util.ArrayList;
 
 public class MainActivity extends BridgeActivity {
     
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // Register Google Sign-In plugin
+        this.init(savedInstanceState, new ArrayList<Class<? extends Plugin>>() {{
+            add(GoogleSignInPlugin.class);
+        }});
         
         // SMART SCROLL: Allow natural scrolling behavior
         // The WebView will handle scroll detection via JavaScript

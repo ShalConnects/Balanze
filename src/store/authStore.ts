@@ -7,6 +7,7 @@ import { favoriteQuotesService } from '../lib/favoriteQuotesService';
 import { saveRememberedEmail, clearRememberedEmail, saveRememberMePreference } from '../utils/authStorage';
 import { Browser } from '@capacitor/browser';
 import { Capacitor } from '@capacitor/core';
+import { googleSignIn } from '../lib/googleSignIn';
 
 export type AppUser = {
     id: string;
@@ -33,6 +34,7 @@ interface AuthStore {
     signUp: (email: string, password: string, fullName?: string) => Promise<{ success: boolean; message?: string }>;
     signOut: () => Promise<void>;
     signInWithProvider: (provider: 'google' | 'apple') => Promise<{ success: boolean; message?: string }>;
+    fallbackToBrowserOAuth: (provider: 'google' | 'apple', redirectUrl: string) => Promise<{ success: boolean; message?: string }>;
     updateProfile: (updates: Partial<AppUser>) => Promise<{ data: AppUser | null; error: any }>;
     logout: () => Promise<void>;
     deleteAccount: () => Promise<{ success: boolean; error?: string }>;
@@ -442,67 +444,95 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       const isAndroid = Capacitor.getPlatform() === 'android';
       console.error('[OAUTH] Is Android platform?', isAndroid);
       
-      if (isAndroid) {
-        console.error('[OAUTH] 📱 Android detected - using Browser plugin');
-        // On Android, use Browser plugin to open OAuth in Chrome Custom Tabs
+      if (isAndroid && provider === 'google') {
+        // Use native Google Sign-In on Android for professional UX
+        console.error('[OAUTH] 📱 Android detected - using native Google Sign-In');
         try {
-          console.error('[OAUTH] 🔄 Calling supabase.auth.signInWithOAuth...');
-          const { data, error } = await supabase.auth.signInWithOAuth({
-            provider,
-            options: {
-              redirectTo: redirectUrl,
-              skipBrowserRedirect: true
-            }
+          // Check if native Google Sign-In is available
+          if (!googleSignIn.isAvailable()) {
+            console.error('[OAUTH] ⚠️ Native Google Sign-In not available, falling back to browser');
+            // Fallback to browser-based OAuth
+            return await this.fallbackToBrowserOAuth(provider, redirectUrl);
+          }
+          
+          console.error('[OAUTH] 🔄 Starting native Google Sign-In...');
+          const googleResult = await googleSignIn.signIn();
+          
+          if (!googleResult) {
+            throw new Error('Google Sign-In returned no result');
+          }
+          
+          console.error('[OAUTH] ✅ Native Google Sign-In successful');
+          console.error('[OAUTH] - Email:', googleResult.email);
+          console.error('[OAUTH] - Has ID token?', !!googleResult.idToken);
+          
+          // Exchange Google ID token with Supabase using REST API
+          console.error('[OAUTH] 🔄 Exchanging Google ID token with Supabase...');
+          const { supabaseUrl, supabaseAnonKey } = await import('../lib/supabase');
+          const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=id_token`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabaseAnonKey,
+            },
+            body: JSON.stringify({
+              provider: 'google',
+              id_token: googleResult.idToken,
+            }),
           });
           
-          console.error('[OAUTH] ✅ signInWithOAuth response received');
-          console.error('[OAUTH] - Has data?', !!data);
-          console.error('[OAUTH] - Has error?', !!error);
-          console.error('[OAUTH] - OAuth URL:', data?.url ? `${data.url.substring(0, 100)}...` : 'NONE');
+          const tokenData = await response.json();
           
-          if (error) {
-            console.error('[OAUTH] ❌ Supabase OAuth error:', error);
-            throw error;
+          if (!response.ok || tokenData.error) {
+            console.error('[OAUTH] ❌ Supabase token exchange error:', tokenData);
+            throw new Error(tokenData.error_description || tokenData.error || 'Failed to exchange token');
           }
           
-          if (data?.url) {
-            console.error('[OAUTH] 🌐 Opening browser with OAuth URL...');
-            // Try to open OAuth URL in Chrome Custom Tabs
-            try {
-              console.error('[OAUTH] 📲 Calling Browser.open()...');
-              await Browser.open({ url: data.url });
-              console.error('[OAUTH] ✅ Browser.open() succeeded - browser should open now');
-              console.error('[OAUTH] ⏳ Waiting for user to complete OAuth in browser...');
+          if (tokenData.access_token && tokenData.refresh_token) {
+            console.error('[OAUTH] ✅ Token exchange successful');
+            
+            // Set the session with the tokens
+            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+              access_token: tokenData.access_token,
+              refresh_token: tokenData.refresh_token,
+            });
+            
+            if (sessionError) {
+              console.error('[OAUTH] ❌ Error setting session:', sessionError);
+              throw sessionError;
+            }
+            
+            if (sessionData?.user) {
+              console.error('[OAUTH] ✅ Supabase authentication successful');
+              console.error('[OAUTH] - User ID:', sessionData.user.id);
+              console.error('[OAUTH] - User email:', sessionData.user.email);
+              
+              // Set user and profile
+              await get().setUserAndProfile(sessionData.user, null);
+              set({ isLoading: false });
               return { success: true };
-            } catch (browserError: any) {
-              // Fallback: If Browser.open() fails (e.g., Chrome not installed), use window.open()
-              console.error('[OAUTH] ⚠️ Browser.open() failed, trying fallback:', browserError);
-              console.error('[OAUTH] 🔄 Attempting window.open() fallback...');
-              const fallbackWindow = window.open(data.url, '_blank', 'noopener,noreferrer');
-              if (fallbackWindow) {
-                console.error('[OAUTH] ✅ window.open() fallback succeeded');
-                return { success: true };
-              } else {
-                console.error('[OAUTH] ❌ Both Browser.open() and window.open() failed');
-                throw new Error('Unable to open browser. Please ensure you have a browser installed.');
-              }
+            } else {
+              throw new Error('No user data received from Supabase');
             }
           } else {
-            console.error('[OAUTH] ❌ No OAuth URL received from Supabase');
-            throw new Error('OAuth URL not received');
+            throw new Error('Invalid token response from Supabase');
           }
         } catch (error: any) {
-          console.error('[OAUTH] ❌ OAuth flow error:', error);
-          let userMessage = 'Social login failed. Please try again.';
-          if (error?.message?.includes('provider is not enabled')) {
-            userMessage = 'Social login is not configured yet. Please use email/password login.';
-          } else if (error?.message?.includes('redirect_uri_mismatch')) {
-            userMessage = 'Social login configuration error. Please contact support.';
+          console.error('[OAUTH] ❌ Native Google Sign-In error:', error);
+          
+          // If native sign-in fails, fallback to browser OAuth
+          if (error?.message?.includes('cancelled') || error?.message?.includes('Sign in was cancelled')) {
+            set({ isLoading: false });
+            return { success: false, message: 'Sign in was cancelled' };
           }
-          console.error('[OAUTH] Setting error state:', userMessage);
-          set({ error: userMessage, isLoading: false });
-          return { success: false, message: userMessage };
+          
+          console.error('[OAUTH] 🔄 Falling back to browser OAuth...');
+          return await this.fallbackToBrowserOAuth(provider, redirectUrl);
         }
+      } else if (isAndroid && provider === 'apple') {
+        // For Apple on Android, use browser OAuth (Apple Sign-In is iOS only)
+        console.error('[OAUTH] 📱 Android detected - Apple Sign-In not available on Android, using browser');
+        return await this.fallbackToBrowserOAuth(provider, redirectUrl);
       } else {
         // On web/iOS, use default Supabase OAuth flow
         const { data, error } = await supabase.auth.signInWithOAuth({
@@ -534,6 +564,54 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       const errorMessage = (error as Error).message;
       set({ error: 'An unexpected error occurred during social login', isLoading: false });
       return { success: false, message: 'An unexpected error occurred during social login' };
+    }
+  },
+
+  // Fallback to browser-based OAuth (for Apple on Android or when native sign-in fails)
+  fallbackToBrowserOAuth: async (provider: 'google' | 'apple', redirectUrl: string) => {
+    try {
+      console.error('[OAUTH] 🔄 Using browser-based OAuth fallback...');
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true
+        }
+      });
+      
+      if (error) {
+        console.error('[OAUTH] ❌ Supabase OAuth error:', error);
+        throw error;
+      }
+      
+      if (data?.url) {
+        console.error('[OAUTH] 🌐 Opening browser with OAuth URL...');
+        try {
+          await Browser.open({ url: data.url });
+          console.error('[OAUTH] ✅ Browser opened successfully');
+          return { success: true };
+        } catch (browserError: any) {
+          console.error('[OAUTH] ⚠️ Browser.open() failed:', browserError);
+          const fallbackWindow = window.open(data.url, '_blank', 'noopener,noreferrer');
+          if (fallbackWindow) {
+            return { success: true };
+          } else {
+            throw new Error('Unable to open browser. Please ensure you have a browser installed.');
+          }
+        }
+      } else {
+        throw new Error('OAuth URL not received');
+      }
+    } catch (error: any) {
+      console.error('[OAUTH] ❌ Browser OAuth fallback error:', error);
+      let userMessage = 'Social login failed. Please try again.';
+      if (error?.message?.includes('provider is not enabled')) {
+        userMessage = 'Social login is not configured yet. Please use email/password login.';
+      } else if (error?.message?.includes('redirect_uri_mismatch')) {
+        userMessage = 'Social login configuration error. Please contact support.';
+      }
+      set({ error: userMessage, isLoading: false });
+      return { success: false, message: userMessage };
     }
   },
 

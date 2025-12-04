@@ -39,7 +39,7 @@ const PrivacyPolicy: React.FC = () => {
                   <span className="text-white font-bold text-lg">B</span>
                 </div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Balanze Finance
+                  Balanze
                 </h1>
               </div>
               
@@ -141,9 +141,9 @@ const PrivacyPolicy: React.FC = () => {
 
         {/* Main Content */}
         <div className="pt-16 bg-white dark:bg-gray-900 scroll-smooth font-manrope">
-          <div className="w-4/5 mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-8 text-center">Privacy Policy</h1>
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg mb-8 space-y-6">
+          <div className="w-full md:w-4/5 mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-16">
+      <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6 md:mb-8 text-center">Privacy Policy</h1>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 md:p-8 shadow-lg mb-8 space-y-6">
               <div>
                 <p className="mb-4 text-gray-700 dark:text-gray-300">
                   <strong>Last Updated:</strong> November 14, 2025
@@ -154,11 +154,11 @@ const PrivacyPolicy: React.FC = () => {
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">1. Data Collection</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white">1. Data Collection</h2>
                 <p className="mb-4 text-gray-700 dark:text-gray-300">
                   We collect only the information necessary to provide you with a secure and personalized finance experience. This includes:
                 </p>
-                <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2 ml-4">
+                <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2 ml-2 sm:ml-4">
                   <li><strong>Account Information:</strong> Your name, email address, and authentication credentials</li>
                   <li><strong>Financial Data:</strong> Account information you enter, transaction records, budgets, savings goals, and investment tracking data</li>
                   <li><strong>Usage Data:</strong> Information about how you interact with our app, including features used and time spent</li>
@@ -168,11 +168,11 @@ const PrivacyPolicy: React.FC = () => {
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">2. Data Usage</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white">2. Data Usage</h2>
                 <p className="mb-4 text-gray-700 dark:text-gray-300">
                   Your data is used solely to deliver and improve Balanze Finance's features. We use your information to:
                 </p>
-                <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2 ml-4">
+                <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2 ml-2 sm:ml-4">
                   <li>Provide and maintain our financial management services</li>
                   <li>Track and organize your financial transactions and account information</li>
                   <li>Calculate and update account balances based on your transactions</li>
@@ -186,24 +186,24 @@ const PrivacyPolicy: React.FC = () => {
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">3. Third-Party Services</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white">3. Third-Party Services</h2>
                 <p className="mb-4 text-gray-700 dark:text-gray-300">
                   We use the following third-party services to provide and improve our service:
                 </p>
-                <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2 ml-4">
-                  <li><strong>Supabase</strong> (supabase.com) - Database, authentication, and data storage. Privacy Policy: <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">https://supabase.com/privacy</a></li>
-                  <li><strong>Sentry</strong> (sentry.io) - Error tracking and performance monitoring. Privacy Policy: <a href="https://sentry.io/privacy/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">https://sentry.io/privacy/</a></li>
-                  <li><strong>Vercel Analytics</strong> (vercel.com) - Usage analytics and performance monitoring. Privacy Policy: <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">https://vercel.com/legal/privacy-policy</a></li>
+                <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2 ml-2 sm:ml-4">
+                  <li><strong>Supabase</strong> (supabase.com) - Database, authentication, and data storage. Privacy Policy: <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-words">https://supabase.com/privacy</a></li>
+                  <li><strong>Sentry</strong> (sentry.io) - Error tracking and performance monitoring. Privacy Policy: <a href="https://sentry.io/privacy/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-words">https://sentry.io/privacy/</a></li>
+                  <li><strong>Vercel Analytics</strong> (vercel.com) - Usage analytics and performance monitoring. Privacy Policy: <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-words">https://vercel.com/legal/privacy-policy</a></li>
                   <li><strong>Payment Processors:</strong> Paddle, Stripe, and PayPal for processing payments. Payment information is handled directly by these processors according to their privacy policies.</li>
                 </ul>
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">4. Data Security</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white">4. Data Security</h2>
                 <p className="mb-4 text-gray-700 dark:text-gray-300">
                   We use industry-standard encryption and security practices to protect your data:
                 </p>
-                <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2 ml-4">
+                <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2 ml-2 sm:ml-4">
                   <li><strong>Encryption in Transit:</strong> All data transmitted between your device and our servers is encrypted using TLS/SSL protocols</li>
                   <li><strong>Encryption at Rest:</strong> Your data is stored securely using encryption at rest through our database provider (Supabase)</li>
                   <li><strong>Access Controls:</strong> Access to your data is controlled through Row Level Security (RLS) policies, ensuring only you can access your own data</li>
@@ -216,7 +216,7 @@ const PrivacyPolicy: React.FC = () => {
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">5. Data Retention</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white">5. Data Retention</h2>
                 <p className="mb-4 text-gray-700 dark:text-gray-300">
                   We retain your personal data for as long as your account is active or as needed to provide services. If you delete your account, we will delete your personal data within 30 days, except where we are required to retain it for legal purposes (such as tax records or dispute resolution).
                 </p>
@@ -226,11 +226,11 @@ const PrivacyPolicy: React.FC = () => {
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">6. Cookies and Tracking Technologies</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white">6. Cookies and Tracking Technologies</h2>
                 <p className="mb-4 text-gray-700 dark:text-gray-300">
                   We use cookies and similar technologies to:
                 </p>
-                <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2 ml-4">
+                <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2 ml-2 sm:ml-4">
                   <li>Maintain your login session (through Supabase authentication)</li>
                   <li>Remember your preferences and settings (stored locally in your browser)</li>
                   <li>Analyze app usage through Vercel Analytics (anonymized data)</li>
@@ -242,7 +242,7 @@ const PrivacyPolicy: React.FC = () => {
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">7. International Data Transfers</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white">7. International Data Transfers</h2>
                 <p className="mb-4 text-gray-700 dark:text-gray-300">
                   Your data may be stored and processed in servers located outside your country. We use Supabase, which may store data in various regions. By using our service, you consent to the transfer of your data to these locations.
                 </p>
@@ -252,11 +252,11 @@ const PrivacyPolicy: React.FC = () => {
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">8. User Rights</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white">8. User Rights</h2>
                 <p className="mb-4 text-gray-700 dark:text-gray-300">
                   You have the following rights regarding your personal data:
                 </p>
-                <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2 ml-4">
+                <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2 ml-2 sm:ml-4">
                   <li><strong>Access:</strong> You can access your personal data at any time through your account settings in the app</li>
                   <li><strong>Correction:</strong> You can update or correct your personal data through your account settings</li>
                   <li><strong>Deletion:</strong> You can delete your account and all associated data at any time through your account settings</li>
@@ -270,18 +270,18 @@ const PrivacyPolicy: React.FC = () => {
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">9. Children's Privacy (COPPA)</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white">9. Children's Privacy (COPPA)</h2>
                 <p className="mb-4 text-gray-700 dark:text-gray-300">
                   Balanze Finance is not intended for users under the age of 13. We do not knowingly collect personal information from children under 13. If you believe we have collected information from a child under 13, please contact us immediately at <a href="mailto:hello@shalconnects.com" className="text-blue-600 hover:underline">hello@shalconnects.com</a>, and we will delete such information promptly.
                 </p>
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">10. GDPR Compliance (European Users)</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white">10. GDPR Compliance (European Users)</h2>
                 <p className="mb-4 text-gray-700 dark:text-gray-300">
                   If you are located in the European Economic Area (EEA), you have additional rights under the General Data Protection Regulation (GDPR):
                 </p>
-                <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2 ml-4">
+                <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2 ml-2 sm:ml-4">
                   <li>Right to be informed about data collection and use</li>
                   <li>Right of access to your personal data</li>
                   <li>Right to rectification of inaccurate data</li>
@@ -297,7 +297,7 @@ const PrivacyPolicy: React.FC = () => {
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">11. Contact Us</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white">11. Contact Us</h2>
                 <p className="mb-4 text-gray-700 dark:text-gray-300">
                   If you have any questions about this Privacy Policy or wish to exercise your rights, please contact us at:
                 </p>
@@ -320,7 +320,7 @@ const PrivacyPolicy: React.FC = () => {
         {/* Dark Mode Toggle Button - Always Visible */}
         <button
           onClick={toggleTheme}
-          className="fixed bottom-8 right-8 z-50 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-600"
+          className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-50 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-600"
           aria-label="Toggle dark mode"
         >
           {isDarkMode ? (

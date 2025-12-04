@@ -26,6 +26,12 @@ const config: CapacitorConfig = {
       androidScaleType: "CENTER_CROP",
       splashFullScreen: true,
       splashImmersive: true
+    },
+    GoogleSignIn: {
+      // Use your Google OAuth Web Client ID (same as configured in Supabase)
+      // Get this from: Google Cloud Console > APIs & Services > Credentials
+      // It should be the same Client ID you use for web OAuth
+      serverClientId: process.env.VITE_GOOGLE_CLIENT_ID || ""
     }
   }
 };
