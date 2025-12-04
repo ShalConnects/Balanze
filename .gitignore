@@ -16,6 +16,7 @@ pnpm-debug.log*
 dist/
 build/
 *.tsbuildinfo
+.vite/
 
 # IDE and editor files
 .vscode/
