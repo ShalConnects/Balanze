@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Last Wish Email - Option 3: Rich Detailed Design</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #1f2937;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .email-wrapper {
+            padding: 40px 20px;
+        }
+        .email-container {
+            max-width: 650px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .email-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 50px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .email-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        }
+        .email-header h1 {
+            margin: 0 0 12px 0;
+            font-size: 32px;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+        }
+        .email-header p {
+            margin: 0;
+            opacity: 0.95;
+            font-size: 16px;
+            position: relative;
+            z-index: 1;
+        }
+        .email-body {
+            padding: 40px;
+        }
+        .greeting {
+            margin-bottom: 30px;
+        }
+        .greeting h2 {
+            color: #1f2937;
+            font-size: 24px;
+            margin: 0 0 12px 0;
+            font-weight: 600;
+        }
+        .greeting p {
+            color: #6b7280;
+            margin: 0;
+            line-height: 1.8;
+            font-size: 15px;
+        }
+        .info-card {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-left: 5px solid #0ea5e9;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .info-card h3 {
+            color: #0c4a6e;
+            margin: 0 0 12px 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .info-card p {
+            color: #075985;
+            margin: 0;
+            line-height: 1.7;
+            font-size: 14px;
+        }
+        .message-card {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 5px solid #f59e0b;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .message-card h3 {
+            color: #92400e;
+            margin: 0 0 12px 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .message-card p {
+            color: #78350f;
+            margin: 0;
+            line-height: 1.7;
+            font-size: 15px;
+            font-style: italic;
+        }
+        .data-summary {
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 25px;
+        }
+        .data-summary h3 {
+            color: #111827;
+            margin: 0 0 20px 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        .data-item {
+            background: white;
+            padding: 18px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .data-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .data-item-label {
+            color: #6b7280;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .data-item-value {
+            color: #111827;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .attachment-card {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border: 2px solid #10b981;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .attachment-card h3 {
+            color: #065f46;
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .file-badge {
+            display: inline-block;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #047857;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .privacy-card {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border-left: 5px solid #ef4444;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+        }
+        .privacy-card h3 {
+            color: #991b1b;
+            margin: 0 0 12px 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .privacy-card p {
+            color: #7f1d1d;
+            margin: 0;
+            line-height: 1.7;
+            font-size: 14px;
+        }
+        .email-footer {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        .email-footer p {
+            margin: 6px 0;
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        .email-footer strong {
+            font-size: 15px;
+            opacity: 1;
+        }
+        @media (max-width: 600px) {
+            .data-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <div class="email-container">
+            <!-- Email Header -->
+            <div class="email-header">
+                <h1>💚 Last Wish Delivery</h1>
+                <p>Important Financial Information</p>
+            </div>
+
+            <!-- Email Body -->
+            <div class="email-body">
+                <!-- Greeting -->
+                <div class="greeting">
+                    <h2>Dear Sarah Johnson,</h2>
+                    <p>
+                        You are receiving this email because someone who trusted you has chosen to share their important financial information with you through the Last Wish system.
+                    </p>
+                </div>
+
+                <!-- Context Info Card -->
+                <div class="info-card">
+                    <h3>📋 Why You're Receiving This</h3>
+                    <p>
+                        <strong>John Doe</strong> set up a Last Wish system to ensure their financial records would be safely delivered to trusted individuals if they were unable to check in for an extended period. This delivery has been automatically triggered as part of that plan.
+                    </p>
+                </div>
+
+                <!-- Personal Message Card -->
+                <div class="message-card">
+                    <h3>💌 Personal Message from John Doe</h3>
+                    <p>Thank you for being a trusted friend. Please use this information responsibly and help ensure my family is taken care of.</p>
+                </div>
+
+                <!-- Data Summary -->
+                <div class="data-summary">
+                    <h3>📊 Financial Records Summary</h3>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <div class="data-item-label">Bank Accounts</div>
+                            <div class="data-item-value">3</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-item-label">Transactions</div>
+                            <div class="data-item-value">247</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-item-label">Purchases</div>
+                            <div class="data-item-value">12</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-item-label">Lend/Borrow</div>
+                            <div class="data-item-value">5</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attachment Card -->
+                <div class="attachment-card">
+                    <h3>📎 Complete Financial Data Attached</h3>
+                    <div class="file-badge">financial-data-backup.json</div>
+                    <div class="file-badge">financial-data-backup.pdf</div>
+                </div>
+
+                <!-- Privacy Card -->
+                <div class="privacy-card">
+                    <h3>🔒 Please Handle With Care</h3>
+                    <p>
+                        This information contains sensitive financial data. Please store it securely, respect the privacy of the account holder, and only use it as intended. If you have any concerns about receiving this information, please disregard this email.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Email Footer -->
+            <div class="email-footer">
+                <p><strong>Last Wish System - Balanze</strong></p>
+                <p>Automated delivery • Sent with care and respect</p>
+                <p>Delivery Date: December 15, 2024</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

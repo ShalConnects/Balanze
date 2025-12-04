@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Last Wish Check-in Frequency Test Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2d3748;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+        }
+        
+        .test-section {
+            margin-bottom: 40px;
+            padding: 25px;
+            border-radius: 15px;
+            border: 2px solid #e2e8f0;
+            background: #f8fafc;
+        }
+        
+        .test-section h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .frequency-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .frequency-option {
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .frequency-option:hover {
+            border-color: #4299e1;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(66, 153, 225, 0.2);
+        }
+        
+        .frequency-option.selected {
+            border-color: #4299e1;
+            background: #ebf8ff;
+            color: #2b6cb0;
+        }
+        
+        .status-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .status-card {
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .status-card.safe {
+            border-color: #48bb78;
+            background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+        }
+        
+        .status-card.warning {
+            border-color: #ed8936;
+            background: linear-gradient(135deg, #fffaf0 0%, #fbd38d 100%);
+        }
+        
+        .status-card.critical {
+            border-color: #f56565;
+            background: linear-gradient(135deg, #fff5f5 0%, #feb2b2 100%);
+        }
+        
+        .status-card.overdue {
+            border-color: #e53e3e;
+            background: linear-gradient(135deg, #fed7d7 0%, #fc8181 100%);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        
+        .status-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+            border-radius: 4px;
+        }
+        
+        .progress-fill.safe { background: #48bb78; }
+        .progress-fill.warning { background: #ed8936; }
+        .progress-fill.critical { background: #f56565; }
+        .progress-fill.overdue { background: #e53e3e; }
+        
+        .simulation-controls {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-primary {
+            background: #4299e1;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #3182ce;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #e53e3e;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #a0aec0;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #718096;
+            transform: translateY(-2px);
+        }
+        
+        .log-area {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px 0;
+        }
+        
+        .log-entry.info { color: #63b3ed; }
+        .log-entry.success { color: #68d391; }
+        .log-entry.warning { color: #f6e05e; }
+        .log-entry.error { color: #fc8181; }
+        
+        .scenario-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .scenario-card {
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .scenario-card:hover {
+            border-color: #4299e1;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(66, 153, 225, 0.15);
+        }
+        
+        .scenario-card.active {
+            border-color: #4299e1;
+            background: #ebf8ff;
+        }
+        
+        .days-overdue {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #e53e3e;
+        }
+        
+        .check-in-button {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1rem;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🕐 Last Wish Check-in Frequency Test Demo</h1>
+        
+        <!-- Check-in Frequency Selection -->
+        <div class="test-section">
+            <h2>📅 Check-in Frequency Options</h2>
+            <p>Select different check-in frequencies to see how the system behaves:</p>
+            <div class="frequency-options">
+                <div class="frequency-option" data-frequency="7">
+                    <strong>7 Days</strong><br>
+                    <small>Weekly check-ins</small>
+                </div>
+                <div class="frequency-option" data-frequency="14">
+                    <strong>14 Days</strong><br>
+                    <small>Bi-weekly check-ins</small>
+                </div>
+                <div class="frequency-option selected" data-frequency="30">
+                    <strong>30 Days</strong><br>
+                    <small>Monthly check-ins</small>
+                </div>
+                <div class="frequency-option" data-frequency="60">
+                    <strong>60 Days</strong><br>
+                    <small>Bi-monthly check-ins</small>
+                </div>
+                <div class="frequency-option" data-frequency="90">
+                    <strong>90 Days</strong><br>
+                    <small>Quarterly check-ins</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Current Status Display -->
+        <div class="test-section">
+            <h2>📊 Current Status</h2>
+            <div class="status-display">
+                <div class="status-card safe" id="statusCard">
+                    <div class="status-icon">✅</div>
+                    <h3>Status: Safe</h3>
+                    <p id="statusText">You have 30 days until your next check-in</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill safe" id="progressFill" style="width: 0%"></div>
+                    </div>
+                    <p><strong>Next Check-in:</strong> <span id="nextCheckIn">Not set</span></p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Simulation Controls -->
+        <div class="test-section">
+            <h2>🎮 Simulation Controls</h2>
+            <p>Simulate different scenarios to test the Last Wish system:</p>
+            <div class="simulation-controls">
+                <button class="btn btn-primary" onclick="simulateCheckIn()">✅ Check In Now</button>
+                <button class="btn btn-secondary" onclick="simulateTimePassage(7)">⏰ +7 Days</button>
+                <button class="btn btn-secondary" onclick="simulateTimePassage(14)">⏰ +14 Days</button>
+                <button class="btn btn-secondary" onclick="simulateTimePassage(30)">⏰ +30 Days</button>
+                <button class="btn btn-danger" onclick="simulateOverdue()">🚨 Simulate Overdue</button>
+                <button class="btn btn-secondary" onclick="resetSimulation()">🔄 Reset</button>
+            </div>
+        </div>
+        
+        <!-- Overdue Scenarios -->
+        <div class="test-section">
+            <h2>⚠️ Overdue Scenarios</h2>
+            <p>Click on different overdue scenarios to see how the system responds:</p>
+            <div class="scenario-grid">
+                <div class="scenario-card" onclick="simulateScenario(1)">
+                    <h4>1 Day Overdue</h4>
+                    <p>Just missed the deadline</p>
+                    <div class="days-overdue">1 day overdue</div>
+                </div>
+                <div class="scenario-card" onclick="simulateScenario(7)">
+                    <h4>1 Week Overdue</h4>
+                    <p>Missed by a week</p>
+                    <div class="days-overdue">7 days overdue</div>
+                </div>
+                <div class="scenario-card" onclick="simulateScenario(30)">
+                    <h4>1 Month Overdue</h4>
+                    <p>Missed by a month</p>
+                    <div class="days-overdue">30 days overdue</div>
+                </div>
+                <div class="scenario-card" onclick="simulateScenario(90)">
+                    <h4>3 Months Overdue</h4>
+                    <p>Severely overdue</p>
+                    <div class="days-overdue">90 days overdue</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Check-in Button -->
+        <div class="test-section">
+            <h2>✅ Emergency Check-in</h2>
+            <p>Use this button to check in and reset your status:</p>
+            <button class="btn btn-success check-in-button" onclick="performCheckIn()">
+                🚨 CHECK IN NOW - RESET STATUS
+            </button>
+        </div>
+        
+        <!-- Activity Log -->
+        <div class="test-section">
+            <h2>📝 Activity Log</h2>
+            <div class="log-area" id="logArea">
+                <div class="log-entry info">System initialized. Last Wish check-in frequency set to 30 days.</div>
+                <div class="log-entry success">User checked in successfully. Next check-in due in 30 days.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulation state
+        let currentFrequency = 30;
+        let lastCheckIn = new Date();
+        let currentTime = new Date();
+        let isOverdue = false;
+        
+        // Initialize the demo
+        function initDemo() {
+            updateStatus();
+            logActivity('info', 'Demo initialized. Select a frequency and try different scenarios.');
+        }
+        
+        // Update status display
+        function updateStatus() {
+            const nextCheckIn = new Date(lastCheckIn.getTime() + (currentFrequency * 24 * 60 * 60 * 1000));
+            const timeDiff = nextCheckIn.getTime() - currentTime.getTime();
+            const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+            
+            isOverdue = daysLeft < 0;
+            const daysOverdue = isOverdue ? Math.abs(daysLeft) : 0;
+            
+            // Calculate urgency level
+            let urgencyLevel = 'safe';
+            if (isOverdue) {
+                urgencyLevel = 'overdue';
+            } else if (daysLeft <= 3) {
+                urgencyLevel = 'critical';
+            } else if (daysLeft <= 7) {
+                urgencyLevel = 'warning';
+            }
+            
+            // Calculate progress percentage
+            const totalDays = currentFrequency;
+            const daysElapsed = totalDays - daysLeft;
+            const progressPercentage = Math.max(0, Math.min(100, (daysElapsed / totalDays) * 100));
+            
+            // Update UI
+            const statusCard = document.getElementById('statusCard');
+            const statusText = document.getElementById('statusText');
+            const progressFill = document.getElementById('progressFill');
+            const nextCheckInSpan = document.getElementById('nextCheckIn');
+            
+            // Update status card
+            statusCard.className = `status-card ${urgencyLevel}`;
+            
+            // Update status text
+            if (isOverdue) {
+                statusText.textContent = `OVERDUE! You are ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue for check-in`;
+            } else {
+                statusText.textContent = `You have ${daysLeft} day${daysLeft !== 1 ? 's' : ''} until your next check-in`;
+            }
+            
+            // Update progress bar
+            progressFill.className = `progress-fill ${urgencyLevel}`;
+            progressFill.style.width = `${progressPercentage}%`;
+            
+            // Update next check-in date
+            nextCheckInSpan.textContent = nextCheckIn.toLocaleDateString();
+            
+            // Update status icon
+            const statusIcon = statusCard.querySelector('.status-icon');
+            switch (urgencyLevel) {
+                case 'overdue':
+                    statusIcon.textContent = '🚨';
+                    break;
+                case 'critical':
+                    statusIcon.textContent = '⚠️';
+                    break;
+                case 'warning':
+                    statusIcon.textContent = '⏰';
+                    break;
+                default:
+                    statusIcon.textContent = '✅';
+            }
+        }
+        
+        // Simulate check-in
+        function simulateCheckIn() {
+            lastCheckIn = new Date(currentTime);
+            updateStatus();
+            logActivity('success', `Check-in successful! Next check-in due in ${currentFrequency} days.`);
+        }
+        
+        // Simulate time passage
+        function simulateTimePassage(days) {
+            currentTime = new Date(currentTime.getTime() + (days * 24 * 60 * 60 * 1000));
+            updateStatus();
+            logActivity('info', `Time advanced by ${days} day${days !== 1 ? 's' : ''}. Current date: ${currentTime.toLocaleDateString()}`);
+        }
+        
+        // Simulate overdue scenario
+        function simulateOverdue() {
+            // Set last check-in to be overdue
+            lastCheckIn = new Date(currentTime.getTime() - ((currentFrequency + 5) * 24 * 60 * 60 * 1000));
+            updateStatus();
+            logActivity('error', 'User is now overdue for check-in! Last Wish system would trigger data delivery.');
+        }
+        
+        // Simulate specific scenario
+        function simulateScenario(daysOverdue) {
+            lastCheckIn = new Date(currentTime.getTime() - ((currentFrequency + daysOverdue) * 24 * 60 * 60 * 1000));
+            updateStatus();
+            logActivity('error', `Simulated ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue scenario. Last Wish system would trigger data delivery.`);
+        }
+        
+        // Perform emergency check-in
+        function performCheckIn() {
+            lastCheckIn = new Date(currentTime);
+            updateStatus();
+            logActivity('success', 'EMERGENCY CHECK-IN PERFORMED! Status reset to safe. Data delivery prevented.');
+        }
+        
+        // Reset simulation
+        function resetSimulation() {
+            lastCheckIn = new Date();
+            currentTime = new Date();
+            updateStatus();
+            logActivity('info', 'Simulation reset to initial state.');
+        }
+        
+        // Log activity
+        function logActivity(type, message) {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logArea.appendChild(logEntry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+        
+        // Frequency selection
+        document.querySelectorAll('.frequency-option').forEach(option => {
+            option.addEventListener('click', function() {
+                // Remove selected class from all options
+                document.querySelectorAll('.frequency-option').forEach(opt => opt.classList.remove('selected'));
+                // Add selected class to clicked option
+                this.classList.add('selected');
+                // Update frequency
+                currentFrequency = parseInt(this.dataset.frequency);
+                updateStatus();
+                logActivity('info', `Check-in frequency changed to ${currentFrequency} day${currentFrequency !== 1 ? 's' : ''}.`);
+            });
+        });
+        
+        // Initialize demo when page loads
+        window.addEventListener('load', initDemo);
+    </script>
+</body>
+</html>

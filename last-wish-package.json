@@ -1,0 +1,26 @@
+{
+  "name": "last-wish-service",
+  "version": "1.0.0",
+  "description": "Automated service for Last Wish digital time capsule feature",
+  "main": "last-wish-service.js",
+  "scripts": {
+    "start": "node last-wish-service.js",
+    "dev": "nodemon last-wish-service.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.0",
+    "nodemailer": "^6.9.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "balanze",
+    "digital-legacy",
+    "time-capsule",
+    "automated-delivery"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+} 

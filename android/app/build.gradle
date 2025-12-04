@@ -1,0 +1,109 @@
+apply plugin: 'com.android.application'
+
+// Load keystore properties
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    namespace "com.balanze.app"
+    compileSdk rootProject.ext.compileSdkVersion
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    
+    // Suppress compiler warnings (optional - these are just warnings, not errors)
+    // These warnings come from third-party libraries (like Capacitor), not your code
+    tasks.withType(JavaCompile) {
+        options.compilerArgs << "-Xlint:-unchecked" << "-Xlint:-deprecation"
+    }
+    
+    defaultConfig {
+        applicationId "com.balanze.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 9
+        versionName "1.9"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    
+    // Signing configuration
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                // Resolve keystore path: keystore.properties is in android/, keystore is in project root
+                // rootProject.projectDir = android/ folder, parentFile = project root
+                def keystorePath = keystoreProperties['storeFile']
+                def keystoreFile
+                if (keystorePath.startsWith('../')) {
+                    // Resolve relative path: go up from android/ to project root
+                    def keystoreFileName = keystorePath.substring(3)
+                    keystoreFile = new File(rootProject.projectDir.parentFile, keystoreFileName)
+                } else {
+                    keystoreFile = new File(keystorePath)
+                }
+                storeFile keystoreFile
+                storePassword keystoreProperties['storePassword']
+            }
+        }
+    }
+    
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+    
+    // Exclude baseline profiles from APK to avoid installation issues
+    packagingOptions {
+        exclude '**/baseline-profile.txt'
+        exclude '**/baseline.prof'
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+    
+    // Google Sign-In SDK for native authentication
+    implementation 'com.google.android.gms:play-services-auth:21.2.0'
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

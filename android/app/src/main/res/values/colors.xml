@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand Colors - Matching your website and splash screen -->
+    <color name="colorPrimary">#3b82f6</color>           <!-- Blue -->
+    <color name="colorPrimaryDark">#2563eb</color>       <!-- Darker Blue -->
+    <color name="colorAccent">#9333ea</color>            <!-- Purple accent -->
+    
+    <!-- Status Bar -->
+    <color name="statusBarColor">#3b82f6</color>         <!-- Branded Blue -->
+    
+    <!-- Icon Background -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+    
+    <!-- Splash Screen -->
+    <color name="splashBackground">#3b82f6</color>
+</resources>

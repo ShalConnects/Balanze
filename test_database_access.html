@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Database Access Test</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Database Access Test</h1>
+    <p>This will test if we can access the last_wish_settings table.</p>
+    
+    <button onclick="testDatabaseAccess()">Test Database Access</button>
+    <div id="results"></div>
+
+    <script>
+        // You'll need to replace these with your actual Supabase credentials
+        const supabaseUrl = 'YOUR_SUPABASE_URL';
+        const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
+        
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        async function testDatabaseAccess() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Testing database access...</p>';
+
+            try {
+                // Test 1: Check if we can read from the table
+                console.log('Testing read access...');
+                const { data, error } = await supabase
+                    .from('last_wish_settings')
+                    .select('*')
+                    .limit(1);
+
+                if (error) {
+                    resultsDiv.innerHTML += `<p style="color: red;">❌ Read Error: ${error.message}</p>`;
+                    console.error('Read error:', error);
+                } else {
+                    resultsDiv.innerHTML += `<p style="color: green;">✅ Read Success: Found ${data.length} records</p>`;
+                    console.log('Read success:', data);
+                }
+
+                // Test 2: Check if we can insert/update
+                console.log('Testing write access...');
+                const testData = {
+                    user_id: 'test-user-' + Date.now(),
+                    is_enabled: true,
+                    is_active: true,
+                    check_in_frequency: 30,
+                    recipients: [],
+                    include_data: {
+                        accounts: true,
+                        transactions: true,
+                        purchases: true,
+                        lendBorrow: true,
+                        savings: true,
+                        analytics: true
+                    },
+                    message: 'Test message'
+                };
+
+                const { data: insertData, error: insertError } = await supabase
+                    .from('last_wish_settings')
+                    .insert(testData)
+                    .select();
+
+                if (insertError) {
+                    resultsDiv.innerHTML += `<p style="color: red;">❌ Write Error: ${insertError.message}</p>`;
+                    console.error('Write error:', insertError);
+                } else {
+                    resultsDiv.innerHTML += `<p style="color: green;">✅ Write Success: Inserted record</p>`;
+                    console.log('Write success:', insertData);
+                    
+                    // Clean up test data
+                    await supabase
+                        .from('last_wish_settings')
+                        .delete()
+                        .eq('user_id', testData.user_id);
+                }
+
+            } catch (err) {
+                resultsDiv.innerHTML += `<p style="color: red;">❌ General Error: ${err.message}</p>`;
+                console.error('General error:', err);
+            }
+        }
+
+        // Instructions
+        document.addEventListener('DOMContentLoaded', function() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <h3>Instructions:</h3>
+                <ol>
+                    <li>Replace 'YOUR_SUPABASE_URL' and 'YOUR_SUPABASE_ANON_KEY' with your actual credentials</li>
+                    <li>Click "Test Database Access" button</li>
+                    <li>Check the results and browser console</li>
+                </ol>
+                <p><strong>Note:</strong> You can find your Supabase credentials in your project settings.</p>
+            `;
+        });
+    </script>
+</body>
+</html>

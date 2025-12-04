@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Last Wish Email - Option 4: Professional Executive Design</title>
+    <style>
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            line-height: 1.7;
+            color: #2c3e50;
+            margin: 0;
+            padding: 20px;
+            background: #ecf0f1;
+        }
+        .email-wrapper {
+            padding: 40px 20px;
+        }
+        .email-container {
+            max-width: 620px;
+            margin: 0 auto;
+            background: white;
+            border: 1px solid #bdc3c7;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .letterhead {
+            background: #34495e;
+            color: white;
+            padding: 30px 50px;
+            border-bottom: 4px solid #2c3e50;
+        }
+        .letterhead h1 {
+            margin: 0;
+            font-size: 26px;
+            font-weight: 400;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .letterhead .subtitle {
+            margin: 8px 0 0 0;
+            font-size: 12px;
+            opacity: 0.9;
+            letter-spacing: 1px;
+        }
+        .letter-body {
+            padding: 50px;
+        }
+        .date-line {
+            text-align: right;
+            color: #7f8c8d;
+            font-size: 13px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        .salutation {
+            margin-bottom: 25px;
+        }
+        .salutation h2 {
+            color: #2c3e50;
+            font-size: 18px;
+            margin: 0 0 5px 0;
+            font-weight: 400;
+        }
+        .letter-content {
+            color: #34495e;
+            font-size: 14px;
+            line-height: 1.9;
+            margin-bottom: 30px;
+        }
+        .letter-content p {
+            margin: 0 0 18px 0;
+        }
+        .notice-box {
+            background: #fff9e6;
+            border: 2px solid #f39c12;
+            padding: 20px 25px;
+            margin: 25px 0;
+            border-left: 5px solid #e67e22;
+        }
+        .notice-box h3 {
+            color: #d68910;
+            margin: 0 0 10px 0;
+            font-size: 15px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .notice-box p {
+            color: #7d6608;
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+        .message-section {
+            background: #ebf5fb;
+            border-left: 4px solid #3498db;
+            padding: 20px 25px;
+            margin: 25px 0;
+        }
+        .message-section h3 {
+            color: #2874a6;
+            margin: 0 0 12px 0;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .message-section p {
+            color: #1b4f72;
+            margin: 0;
+            font-style: italic;
+            font-size: 14px;
+        }
+        .data-section {
+            margin: 30px 0;
+            padding: 25px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }
+        .data-section h3 {
+            color: #2c3e50;
+            margin: 0 0 20px 0;
+            font-size: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid #34495e;
+            padding-bottom: 10px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .data-table tr {
+            border-bottom: 1px solid #dee2e6;
+        }
+        .data-table tr:last-child {
+            border-bottom: none;
+        }
+        .data-table td {
+            padding: 12px 0;
+            font-size: 14px;
+        }
+        .data-table .label {
+            color: #7f8c8d;
+            width: 60%;
+        }
+        .data-table .value {
+            color: #2c3e50;
+            font-weight: 600;
+            text-align: right;
+        }
+        .attachments-section {
+            background: #e8f8f5;
+            border: 1px solid #1abc9c;
+            padding: 20px 25px;
+            margin: 25px 0;
+        }
+        .attachments-section h3 {
+            color: #0e6655;
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .file-list li {
+            padding: 8px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #117864;
+        }
+        .privacy-section {
+            background: #fadbd8;
+            border-left: 4px solid #e74c3c;
+            padding: 20px 25px;
+            margin: 25px 0;
+        }
+        .privacy-section h3 {
+            color: #922b21;
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .privacy-section p {
+            color: #641e16;
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .closing {
+            margin-top: 40px;
+        }
+        .closing p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #34495e;
+        }
+        .signature {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+        }
+        .signature p {
+            margin: 3px 0;
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <div class="email-container">
+            <!-- Letterhead -->
+            <div class="letterhead">
+                <h1>Last Wish System</h1>
+                <p class="subtitle">Balanze Financial Management</p>
+            </div>
+
+            <!-- Letter Body -->
+            <div class="letter-body">
+                <div class="date-line">December 15, 2024</div>
+
+                <div class="salutation">
+                    <h2>Dear Sarah Johnson,</h2>
+                </div>
+
+                <div class="letter-content">
+                    <p>
+                        This letter serves to inform you that you have been designated as a recipient of financial information through the Last Wish system established by <strong>John Doe</strong>.
+                    </p>
+
+                    <p>
+                        This delivery has been automatically triggered as a result of an extended period of inactivity in the account holder's financial management system, in accordance with the Last Wish protocol established by the account holder.
+                    </p>
+                </div>
+
+                <!-- Notice Box -->
+                <div class="notice-box">
+                    <h3>Important Notice</h3>
+                    <p>
+                        The information contained in this communication and its attachments is confidential and intended solely for the designated recipient. This delivery is part of an automated system designed to ensure continuity of financial record-keeping.
+                    </p>
+                </div>
+
+                <!-- Personal Message -->
+                <div class="message-section">
+                    <h3>Personal Message from John Doe</h3>
+                    <p>Thank you for being a trusted friend. Please use this information responsibly and help ensure my family is taken care of.</p>
+                </div>
+
+                <!-- Data Section -->
+                <div class="data-section">
+                    <h3>Financial Records Summary</h3>
+                    <table class="data-table">
+                        <tr>
+                            <td class="label">Bank Accounts</td>
+                            <td class="value">3</td>
+                        </tr>
+                        <tr>
+                            <td class="label">Transactions</td>
+                            <td class="value">247</td>
+                        </tr>
+                        <tr>
+                            <td class="label">Purchases</td>
+                            <td class="value">12</td>
+                        </tr>
+                        <tr>
+                            <td class="label">Lend/Borrow Records</td>
+                            <td class="value">5</td>
+                        </tr>
+                        <tr>
+                            <td class="label">Savings Records</td>
+                            <td class="value">8</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Attachments -->
+                <div class="attachments-section">
+                    <h3>Attached Documents</h3>
+                    <ul class="file-list">
+                        <li>• financial-data-backup.json</li>
+                        <li>• financial-data-backup.pdf</li>
+                    </ul>
+                </div>
+
+                <!-- Privacy Section -->
+                <div class="privacy-section">
+                    <h3>Confidentiality & Privacy</h3>
+                    <p>
+                        This information contains sensitive financial data. Please store it securely, respect the privacy of the account holder, and only use it as intended. If you have any concerns about receiving this information, please disregard this communication.
+                    </p>
+                </div>
+
+                <!-- Closing -->
+                <div class="closing">
+                    <p>Respectfully,</p>
+                    <p><strong>Last Wish System</strong></p>
+                    <p>Balanze Financial Management</p>
+                </div>
+
+                <!-- Signature -->
+                <div class="signature">
+                    <p>This is an automated delivery from the Last Wish system.</p>
+                    <p>For inquiries, please contact Balanze support.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

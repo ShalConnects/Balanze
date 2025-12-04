@@ -1,0 +1,22 @@
+{
+  "appName": "Plataforma Financiera",
+  "navigation": {
+    "dashboard": "Tablero",
+    "accounts": "Cuentas",
+    "transactions": "Transacciones",
+    "purchases": "Compras",
+    "settings": "Configuraciones"
+  },
+  "dashboard": {
+    "welcome": "Bienvenido a tu tablero",
+    "balance": "Saldo",
+    "todo": "Lista de tareas"
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar"
+  },
+  "viewAllTasks": "Ver todas las tareas ({{count}})"
+} 

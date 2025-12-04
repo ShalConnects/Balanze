@@ -1,0 +1,51 @@
+/* Custom Quill styles for form integration */
+
+.quill-form-field .ql-toolbar {
+  @apply rounded-t-lg border border-gray-200 bg-white px-2 py-1;
+  box-shadow: none;
+}
+
+.quill-form-field .ql-container {
+  @apply rounded-b-lg border border-t-0 border-gray-200 bg-white px-2 py-2 min-h-[80px] text-gray-800;
+  font-size: 1rem;
+}
+
+.quill-form-field .ql-editor {
+  @apply min-h-[60px] px-0 py-0 font-sans text-gray-800;
+}
+
+.quill-form-field .ql-editor.ql-blank::before {
+  @apply text-gray-400 italic;
+  font-style: italic;
+  color: #9ca3af;
+}
+
+.quill-form-field .ql-toolbar button {
+  @apply text-gray-600 hover:bg-gray-100 rounded transition;
+}
+
+.quill-form-field .ql-toolbar button.ql-active {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  color: white;
+}
+
+.ql-editor {
+  font-family: inherit;
+  font-size: 1rem;
+  color: #1f2937;
+  line-height: 1.5;
+}
+.ql-editor ul, .ql-editor ol {
+  margin-left: 1.25rem;
+  padding-left: 1.25rem;
+}
+.ql-editor ul {
+  list-style-type: disc;
+}
+.ql-editor ol {
+  list-style-type: decimal;
+}
+.ql-editor strong { font-weight: 700; }
+.ql-editor em { font-style: italic; }
+.ql-editor u { text-decoration: underline; }
+.ql-editor s { text-decoration: line-through; } 

@@ -1,0 +1,57 @@
+# Vercel ignore file - files that shouldn't be uploaded to Vercel
+
+# Backup and database files (401 SQL files = 7.63 MB!)
+*.sql
+backup_*.sql
+*_backup.sql
+*.db
+*.sqlite
+*.sqlite3
+# Exclude all SQL migration/backup files in root
+/*.sql
+
+# Log files (already in .gitignore but being explicit)
+*.log
+replay_*.log
+
+# Large media files that aren't needed for deployment
+# Exclude GIFs in root but keep ones in public/ (needed for app)
+/*.gif
+exported-logos/
+
+# Android build files
+android/
+
+# Development and documentation files (keep README if needed)
+# Exclude markdown files in root but allow in docs if needed
+/*.md
+docs/
+archive/
+
+# IDE files
+.idea/
+.vscode/
+
+# Build outputs (Vercel will build these)
+dist/
+build/
+
+# Environment files
+.env*
+!.env.example
+!.env.template
+
+# Test files
+test-results/
+playwright-report/
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+

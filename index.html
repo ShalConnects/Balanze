@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    
+    <!-- Performance: Preconnect early for critical third-parties (must be before other resources) -->
+    <link rel="preconnect" href="https://xgncksougafnfbtusfnf.supabase.co" crossorigin="anonymous">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="anonymous">
+    <link rel="preconnect" href="https://api.producthunt.com" crossorigin="anonymous">
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Balanze Finance - Personal Finance Management. Track expenses, manage budgets, set savings goals, and take control of your finances with powerful analytics and multi-currency support." />
+    <link rel="canonical" href="https://balanze.cash" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://balanze.cash" />
+    <meta property="og:title" content="Balanze - Personal Finance Management" />
+    <meta property="og:description" content="Track expenses, manage budgets, set savings goals, and take control of your finances with powerful analytics and multi-currency support." />
+    <meta property="og:image" content="https://balanze.cash/main-dashboard.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Balanze Personal Finance Management Dashboard" />
+    <meta property="og:site_name" content="Balanze" />
+    <meta property="og:locale" content="en_US" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Balanze - Personal Finance Management" />
+    <meta name="twitter:description" content="Track expenses, manage budgets, set savings goals, and take control of your finances with powerful analytics and multi-currency support." />
+    <meta name="twitter:image" content="https://balanze.cash/main-dashboard.png" />
+    <meta name="twitter:image:alt" content="Balanze Personal Finance Management Dashboard" />
+    
+    <!-- Schema.org JSON-LD -->
+    <script type="application/ld+json">
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Balanze Finance",
+        "description": "Personal Finance Management - Track expenses, manage budgets, set savings goals, and take control of your finances",
+        "url": "https://balanze.cash",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://balanze.cash/?search={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Balanze Finance",
+        "url": "https://balanze.cash",
+        "logo": "https://balanze.cash/logo-full.svg",
+        "description": "Personal Finance Management Platform - Track expenses, manage budgets, set savings goals, and take control of your finances",
+        "sameAs": [
+          "https://balanze.cash"
+        ],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "Customer Support",
+          "url": "https://balanze.cash/help-center"
+        }
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Balanze Finance",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "description": "Personal Finance Management Platform - Track expenses, manage budgets, set savings goals, lend & borrow tracking, purchase management, and comprehensive financial analytics with multi-currency support",
+        "url": "https://balanze.cash",
+        "screenshot": "https://balanze.cash/main-dashboard.png",
+        "featureList": [
+          "Expense Tracking",
+          "Budget Management",
+          "Savings Goals",
+          "Multi-Currency Support",
+          "Lent & Borrow Tracking",
+          "Purchase Management",
+          "Financial Analytics",
+          "Recurring Transactions",
+          "Data Export"
+        ],
+        "softwareVersion": "1.0"
+      }
+    ]
+    </script>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Disable pull-to-refresh on mobile browsers -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#3b82f6">
+    
+    <!-- Critical: Prevent page refresh on scroll -->
+    <meta name="overscroll-behavior-y" content="none">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <title>Balanze Finance - Personal Finance Management</title>
+
+    <!-- DNS-Prefetch for additional performance -->
+    <link rel="dns-prefetch" href="https://xgncksougafnfbtusfnf.supabase.co">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://api.producthunt.com">
+    
+    <!-- Optimize Google Fonts - Load with font-display: swap (async) -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" as="style">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.onload=null;this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"></noscript>
+    
+    <!-- Preload critical resources - LCP image (hero section) -->
+    <link rel="preload" href="/main-dashboard.png" as="image" type="image/png" fetchpriority="high" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,3 @@
+[33m911dcfa[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m Fix Last Wish API endpoints - remove broken CORS middleware and restore working state
+[33m010f53f[m Update AccountsView, LW component, and Settings for redeployment
+[33macece02[m Major updates: new dashboard components, account management, landing page improvements, and UI enhancements

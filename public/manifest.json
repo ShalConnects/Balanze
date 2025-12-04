@@ -1,0 +1,24 @@
+{
+  "name": "Balanze Finance - Personal Finance Management",
+  "short_name": "Balanze Finance",
+  "description": "Comprehensive personal finance management application",
+  "start_url": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/logo-full.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "productivity"],
+  "screenshots": [],
+  "shortcuts": []
+}

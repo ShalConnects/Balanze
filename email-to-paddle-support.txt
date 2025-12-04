@@ -1,0 +1,101 @@
+Subject: Paddle Sandbox Integration - "Something went wrong" error - Seller ID 38479
+
+Dear Paddle Support Team,
+
+Thank you for your response. I'm providing all the requested technical details below for our sandbox integration issue.
+
+## Account & Configuration Details
+
+**Sandbox Account Information:**
+- Seller ID: 38479
+- Domain: https://balanze.cash
+- Environment: sandbox
+- Client Token: test_ca902c853e28805f134e43cb27e
+
+**Domain Configuration:**
+✅ Domain https://balanze.cash has been added and approved in the Default Payment Link section
+✅ Default Payment Link set to: https://balanze.cash/settings?tab=plans-usage
+
+## Product Details
+
+**Monthly Plan:**
+- Price ID: pri_01k5v9xb3wbsp2mw8khze9g8vw
+- Checkout URL: https://sandbox-buy.paddle.com/product/pri_01k5v9xb3wbsp2mw8khze9g8vw?email=shalconnect00%40gmail.com&country=US
+
+**Lifetime Plan:**
+- Price ID: pri_01k5v9sb7spg3jqcbxkeeb308f
+- Checkout URL: https://sandbox-buy.paddle.com/product/pri_01k5v9sb7spg3jqcbxkeeb308f?email=shalconnect00%40gmail.com&country=US
+
+Both products are:
+- Status: Active
+- Tax Category: Properly configured
+- Availability: Global (includes US)
+- Description: Complete
+- Fulfillment: Digital
+
+## Technical Implementation
+
+**Integration Method:**
+- Using Paddle.js v2 (@paddle/paddle-js)
+- Direct URL method for sandbox (due to CSP restrictions on localhost development)
+- React/TypeScript application deployed on Vercel
+
+**Environment Variables:**
+```
+VITE_PADDLE_VENDOR_ID=38479
+VITE_PADDLE_ENVIRONMENT=sandbox
+VITE_PADDLE_CLIENT_TOKEN=test_ca902c853e28805f134e43cb27e
+VITE_PADDLE_MONTHLY_PRICE_ID=pri_01k5v9xb3wbsp2mw8khze9g8vw
+VITE_PADDLE_LIFETIME_PRICE_ID=pri_01k5v9sb7spg3jqcbxkeeb308f
+```
+
+## Issue Description
+
+**Problem:**
+When accessing the checkout URLs above, we consistently get a "Something went wrong" error page with a "Contact support" button, instead of the expected checkout form.
+
+**What We've Tested:**
+1. ✅ Created multiple test products - same issue
+2. ✅ Verified all product configurations are complete and active
+3. ✅ Confirmed domain approval in Paddle dashboard
+4. ✅ Tested with different email addresses and countries
+5. ✅ Verified price IDs are correct and active
+6. ✅ JavaScript integration works (no console errors)
+
+**Expected Behavior:**
+The checkout page should display the product details and payment form for testing with sandbox card numbers.
+
+**Actual Behavior:**
+Generic "Something went wrong" error page appears.
+
+## Additional Information
+
+**Test Account for Verification:**
+If you need to test our implementation, you can:
+1. Visit: https://balanze.cash/settings?tab=plans-usage
+2. Click "Get Started" on any Premium plan
+3. Click "Pay with Paddle" 
+4. This will open the sandbox checkout URL
+
+**Files Attached:**
+I've attached a TXT file (paddle-support-details.txt) with all technical configuration details as requested.
+
+## Request
+
+Could you please:
+1. Verify our sandbox account configuration (Seller ID: 38479)
+2. Check if there are any backend issues with our price IDs
+3. Confirm if our checkout URLs are properly formatted
+4. Provide guidance on any missing configuration steps
+
+We've followed all documentation and best practices, but the checkout consistently fails at the Paddle server level. Any assistance would be greatly appreciated.
+
+Thank you for your time and support.
+
+Best regards,
+[Your Name]
+[Your Email]
+[Your Company]
+
+---
+Technical Details File: paddle-support-details.txt (attached)

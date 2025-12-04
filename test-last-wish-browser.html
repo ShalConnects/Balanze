@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Last Wish System Test Suite</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .test-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .test-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: background-color 0.3s;
+        }
+        
+        .test-button:hover {
+            background: #45a049;
+        }
+        
+        .test-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .test-button.danger {
+            background: #f44336;
+        }
+        
+        .test-button.danger:hover {
+            background: #da190b;
+        }
+        
+        .test-button.warning {
+            background: #ff9800;
+        }
+        
+        .test-button.warning:hover {
+            background: #e68900;
+        }
+        
+        .test-results {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }
+        
+        .test-result {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        
+        .test-result.success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        
+        .test-result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .test-result.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .test-result.warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .config-section {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .config-input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .summary {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .summary h4 {
+            margin-top: 0;
+            color: #495057;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            transition: width 0.3s ease;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛡️ Last Wish System Test Suite</h1>
+        <p>Comprehensive testing for the Last Wish digital time capsule system</p>
+    </div>
+
+    <div class="config-section">
+        <h3>⚙️ Test Configuration</h3>
+        <label>API Base URL:</label>
+        <input type="text" id="apiBaseUrl" class="config-input" value="https://balanze.cash/api" placeholder="https://balanze.cash/api">
+        
+        <label>Test User ID:</label>
+        <input type="text" id="testUserId" class="config-input" value="test-user-123" placeholder="test-user-123">
+        
+        <label>Test Recipient Email:</label>
+        <input type="text" id="testRecipientEmail" class="config-input" value="test@example.com" placeholder="test@example.com">
+        
+        <button class="test-button" onclick="updateConfig()">Update Configuration</button>
+    </div>
+
+    <div class="test-section">
+        <h3>🌐 CORS and API Tests</h3>
+        <button class="test-button" onclick="testCORS()">Test CORS Configuration</button>
+        <button class="test-button" onclick="testAPIEndpoints()">Test API Endpoints</button>
+        <button class="test-button" onclick="testPreflightRequests()">Test Preflight Requests</button>
+        <button class="test-button" onclick="testEmailAPI()">Test Email API</button>
+        <div id="cors-results" class="test-results" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📧 Email Functionality Tests</h3>
+        <button class="test-button" onclick="testEmailSending()">Test Email Sending (Test Mode)</button>
+        <button class="test-button warning" onclick="testEmailSendingReal()">Test Real Email Sending</button>
+        <button class="test-button" onclick="testEmailTemplates()">Test Email Templates</button>
+        <div id="email-results" class="test-results" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🔒 Security and Error Handling</h3>
+        <button class="test-button" onclick="testErrorHandling()">Test Error Handling</button>
+        <button class="test-button" onclick="testInvalidInputs()">Test Invalid Inputs</button>
+        <button class="test-button" onclick="testSecurityHeaders()">Test Security Headers</button>
+        <div id="security-results" class="test-results" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>⚡ Performance Tests</h3>
+        <button class="test-button" onclick="testResponseTimes()">Test Response Times</button>
+        <button class="test-button" onclick="testConcurrentRequests()">Test Concurrent Requests</button>
+        <button class="test-button" onclick="testLargePayloads()">Test Large Payloads</button>
+        <div id="performance-results" class="test-results" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🧪 Comprehensive Test Suite</h3>
+        <button class="test-button" onclick="runAllTests()">Run All Tests</button>
+        <button class="test-button danger" onclick="clearAllResults()">Clear All Results</button>
+        <div class="progress-bar">
+            <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
+        </div>
+        <div id="comprehensive-results" class="test-results" style="display: none;"></div>
+    </div>
+
+    <div class="summary">
+        <h4>📊 Test Summary</h4>
+        <div id="test-summary">
+            <p>No tests run yet. Click "Run All Tests" to start comprehensive testing.</p>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        let config = {
+            apiBaseUrl: 'https://balanze.cash/api',
+            testUserId: 'test-user-123',
+            testRecipientEmail: 'test@example.com'
+        };
+
+        // Test results tracking
+        let testResults = {
+            passed: 0,
+            failed: 0,
+            total: 0,
+            details: []
+        };
+
+        // Utility functions
+        function log(message, type = 'info', containerId = 'comprehensive-results') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            const logMessage = `${prefix} [${timestamp}] ${message}`;
+            
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.style.display = 'block';
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result ${type}`;
+                resultDiv.textContent = logMessage;
+                container.appendChild(resultDiv);
+                container.scrollTop = container.scrollHeight;
+            }
+            
+            console.log(logMessage);
+        }
+
+        function recordTest(testName, passed, details = '') {
+            testResults.total++;
+            if (passed) {
+                testResults.passed++;
+                log(`PASSED: ${testName}`, 'success');
+            } else {
+                testResults.failed++;
+                log(`FAILED: ${testName}`, 'error');
+                if (details) log(`Details: ${details}`, 'error');
+            }
+            testResults.details.push({ testName, passed, details });
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const progress = (testResults.total > 0) ? (testResults.passed / testResults.total) * 100 : 0;
+            document.getElementById('progress-fill').style.width = `${progress}%`;
+        }
+
+        function updateConfig() {
+            config.apiBaseUrl = document.getElementById('apiBaseUrl').value;
+            config.testUserId = document.getElementById('testUserId').value;
+            config.testRecipientEmail = document.getElementById('testRecipientEmail').value;
+            log('Configuration updated', 'success');
+        }
+
+        // Test functions
+        async function testCORS() {
+            log('Testing CORS configuration...', 'info', 'cors-results');
+            
+            try {
+                const response = await fetch(`${config.apiBaseUrl}/cors-test`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    body: JSON.stringify({ test: true })
+                });
+                
+                const corsOrigin = response.headers.get('Access-Control-Allow-Origin');
+                const corsMethods = response.headers.get('Access-Control-Allow-Methods');
+                
+                recordTest('CORS Headers Present', 
+                    corsOrigin && corsMethods, 
+                    `Origin: ${corsOrigin}, Methods: ${corsMethods}`);
+                
+                recordTest('CORS Response Status', 
+                    response.status >= 200 && response.status < 500, 
+                    `Status: ${response.status}`);
+                
+                const data = await response.json();
+                recordTest('CORS JSON Response', 
+                    typeof data === 'object' && data.success, 
+                    'Invalid or unsuccessful response');
+                
+            } catch (error) {
+                recordTest('CORS Test', false, error.message);
+            }
+        }
+
+        async function testAPIEndpoints() {
+            log('Testing API endpoints availability...', 'info', 'cors-results');
+            
+            const endpoints = [
+                { name: 'Last Wish Check', url: `${config.apiBaseUrl}/last-wish-check` },
+                { name: 'Last Wish Public', url: `${config.apiBaseUrl}/last-wish-public` },
+                { name: 'Send Last Wish Email', url: `${config.apiBaseUrl}/send-last-wish-email` }
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(endpoint.url, {
+                        method: 'GET',
+                        headers: {
+                            'Origin': window.location.origin
+                        }
+                    });
+                    
+                    recordTest(`${endpoint.name} - Available`, 
+                        response.status >= 200 && response.status < 500, 
+                        `Status: ${response.status}`);
+                    
+                    const corsOrigin = response.headers.get('Access-Control-Allow-Origin');
+                    recordTest(`${endpoint.name} - CORS Headers`, 
+                        corsOrigin !== null, 
+                        'Missing CORS headers');
+                    
+                } catch (error) {
+                    recordTest(`${endpoint.name}`, false, error.message);
+                }
+            }
+        }
+
+        async function testPreflightRequests() {
+            log('Testing OPTIONS preflight requests...', 'info', 'cors-results');
+            
+            const endpoints = [
+                `${config.apiBaseUrl}/cors-test`,
+                `${config.apiBaseUrl}/send-last-wish-email`
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'OPTIONS',
+                        headers: {
+                            'Origin': window.location.origin,
+                            'Access-Control-Request-Method': 'POST',
+                            'Access-Control-Request-Headers': 'Content-Type'
+                        }
+                    });
+                    
+                    recordTest(`OPTIONS ${endpoint.split('/').pop()}`, 
+                        response.status === 200 || response.status === 204, 
+                        `Status: ${response.status}`);
+                    
+                    const corsOrigin = response.headers.get('Access-Control-Allow-Origin');
+                    const corsMethods = response.headers.get('Access-Control-Allow-Methods');
+                    
+                    recordTest(`OPTIONS CORS Headers ${endpoint.split('/').pop()}`, 
+                        corsOrigin && corsMethods, 
+                        `Missing headers: Origin=${corsOrigin}, Methods=${corsMethods}`);
+                    
+                } catch (error) {
+                    recordTest(`OPTIONS ${endpoint.split('/').pop()}`, false, error.message);
+                }
+            }
+        }
+
+        async function testEmailAPI() {
+            log('Testing email API functionality...', 'info', 'email-results');
+            
+            try {
+                const response = await fetch(`${config.apiBaseUrl}/send-last-wish-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    body: JSON.stringify({
+                        userId: config.testUserId,
+                        testMode: true
+                    })
+                });
+                
+                recordTest('Email API Response', 
+                    response.status >= 200 && response.status < 500, 
+                    `Status: ${response.status}`);
+                
+                const data = await response.json();
+                recordTest('Email API JSON Response', 
+                    typeof data === 'object', 
+                    'Invalid JSON response');
+                
+                const isExpectedResponse = data.testMode === true || 
+                                          data.error?.includes('not found') || 
+                                          data.error?.includes('SMTP not configured');
+                
+                recordTest('Email API Expected Response', 
+                    isExpectedResponse, 
+                    `Unexpected response: ${JSON.stringify(data)}`);
+                
+            } catch (error) {
+                recordTest('Email API', false, error.message);
+            }
+        }
+
+        async function testEmailSending() {
+            log('Testing email sending in test mode...', 'info', 'email-results');
+            
+            try {
+                const response = await fetch(`${config.apiBaseUrl}/send-last-wish-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    body: JSON.stringify({
+                        userId: config.testUserId,
+                        testMode: true
+                    })
+                });
+                
+                const data = await response.json();
+                
+                recordTest('Test Email Sending', 
+                    data.testMode === true || data.error?.includes('not found'), 
+                    `Response: ${JSON.stringify(data)}`);
+                
+            } catch (error) {
+                recordTest('Test Email Sending', false, error.message);
+            }
+        }
+
+        async function testEmailSendingReal() {
+            if (!confirm('This will send a real email. Are you sure?')) {
+                return;
+            }
+            
+            log('Testing real email sending...', 'warning', 'email-results');
+            
+            try {
+                const response = await fetch(`${config.apiBaseUrl}/send-last-wish-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    body: JSON.stringify({
+                        userId: config.testUserId,
+                        testMode: false
+                    })
+                });
+                
+                const data = await response.json();
+                
+                recordTest('Real Email Sending', 
+                    data.success === true || data.error?.includes('not found'), 
+                    `Response: ${JSON.stringify(data)}`);
+                
+            } catch (error) {
+                recordTest('Real Email Sending', false, error.message);
+            }
+        }
+
+        async function testErrorHandling() {
+            log('Testing error handling...', 'info', 'security-results');
+            
+            try {
+                // Test with invalid user ID
+                const response = await fetch(`${config.apiBaseUrl}/send-last-wish-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    body: JSON.stringify({
+                        userId: 'invalid-user-id',
+                        testMode: true
+                    })
+                });
+                
+                const data = await response.json();
+                
+                recordTest('Invalid User ID Handling', 
+                    data.error && (data.error.includes('not found') || data.error.includes('required')), 
+                    `Unexpected response: ${JSON.stringify(data)}`);
+                
+                // Test with missing user ID
+                const response2 = await fetch(`${config.apiBaseUrl}/send-last-wish-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    body: JSON.stringify({
+                        testMode: true
+                    })
+                });
+                
+                const data2 = await response2.json();
+                
+                recordTest('Missing User ID Handling', 
+                    data2.error && data2.error.includes('required'), 
+                    `Unexpected response: ${JSON.stringify(data2)}`);
+                
+            } catch (error) {
+                recordTest('Error Handling', false, error.message);
+            }
+        }
+
+        async function testResponseTimes() {
+            log('Testing response times...', 'info', 'performance-results');
+            
+            const endpoints = [
+                `${config.apiBaseUrl}/cors-test`,
+                `${config.apiBaseUrl}/last-wish-check`,
+                `${config.apiBaseUrl}/last-wish-public`
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const startTime = Date.now();
+                    const response = await fetch(endpoint, {
+                        method: 'GET',
+                        headers: {
+                            'Origin': window.location.origin
+                        }
+                    });
+                    const endTime = Date.now();
+                    const responseTime = endTime - startTime;
+                    
+                    recordTest(`${endpoint.split('/').pop()} Response Time`, 
+                        responseTime < 5000, 
+                        `Response time: ${responseTime}ms (should be < 5000ms)`);
+                    
+                } catch (error) {
+                    recordTest(`${endpoint.split('/').pop()} Response Time`, false, error.message);
+                }
+            }
+        }
+
+        async function runAllTests() {
+            log('🚀 Starting comprehensive Last Wish system tests...', 'info');
+            
+            // Reset results
+            testResults = { passed: 0, failed: 0, total: 0, details: [] };
+            document.getElementById('comprehensive-results').innerHTML = '';
+            
+            const tests = [
+                { name: 'CORS Configuration', fn: testCORS },
+                { name: 'API Endpoints', fn: testAPIEndpoints },
+                { name: 'Preflight Requests', fn: testPreflightRequests },
+                { name: 'Email API', fn: testEmailAPI },
+                { name: 'Test Email Sending', fn: testEmailSending },
+                { name: 'Error Handling', fn: testErrorHandling },
+                { name: 'Response Times', fn: testResponseTimes }
+            ];
+            
+            for (const test of tests) {
+                log(`\n📋 Running: ${test.name}`, 'info');
+                try {
+                    await test.fn();
+                } catch (error) {
+                    recordTest(test.name, false, error.message);
+                }
+            }
+            
+            // Update summary
+            updateTestSummary();
+        }
+
+        function updateTestSummary() {
+            const summaryDiv = document.getElementById('test-summary');
+            const successRate = testResults.total > 0 ? ((testResults.passed / testResults.total) * 100).toFixed(1) : 0;
+            
+            summaryDiv.innerHTML = `
+                <p><strong>Total Tests:</strong> ${testResults.total}</p>
+                <p><strong>Passed:</strong> <span style="color: #28a745;">${testResults.passed}</span></p>
+                <p><strong>Failed:</strong> <span style="color: #dc3545;">${testResults.failed}</span></p>
+                <p><strong>Success Rate:</strong> ${successRate}%</p>
+                ${testResults.failed > 0 ? '<p style="color: #dc3545;">❌ Some tests failed. Check the details above.</p>' : '<p style="color: #28a745;">🎉 All tests passed!</p>'}
+            `;
+        }
+
+        function clearAllResults() {
+            const resultContainers = ['cors-results', 'email-results', 'security-results', 'performance-results', 'comprehensive-results'];
+            resultContainers.forEach(id => {
+                const container = document.getElementById(id);
+                if (container) {
+                    container.innerHTML = '';
+                    container.style.display = 'none';
+                }
+            });
+            
+            testResults = { passed: 0, failed: 0, total: 0, details: [] };
+            document.getElementById('progress-fill').style.width = '0%';
+            document.getElementById('test-summary').innerHTML = '<p>No tests run yet. Click "Run All Tests" to start comprehensive testing.</p>';
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            log('Last Wish Test Suite loaded successfully', 'success');
+        });
+    </script>
+</body>
+</html>
