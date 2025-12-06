@@ -88,6 +88,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const itemNameRef = useRef<HTMLInputElement>(null);
+  const isSubmittingRef = useRef(false);
   
   // Autocomplete state for item name
   const [showItemNameSuggestions, setShowItemNameSuggestions] = useState(false);
@@ -382,11 +383,15 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
 
   const handleSubmit = wrapAsync(async () => {
     console.log('🔍 PurchaseForm handleSubmit called');
-    if (isLoading) return;
+    if (isLoading || isSubmittingRef.current) return;
+    
+    // Set submission flag to prevent double submission
+    isSubmittingRef.current = true;
     
     // Set loading message
     setLoadingMessage(editingPurchase ? 'Updating purchase...' : 'Saving purchase...');
 
+    let createdTransactionId: string | null = null;
     
     try {
         if (editingPurchase) {
@@ -403,6 +408,11 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
           };
 
           updateData.price = parseFloat(formData.price);
+          
+          // Include account_id if it's changed and purchase is purchased
+          if (formData.status === 'purchased' && !excludeFromCalculation && selectedAccountId) {
+            updateData.account_id = selectedAccountId;
+          }
 
           await updatePurchase(editingPurchase.id, updateData);
 
@@ -442,28 +452,39 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
           }
 
           // If changing from planned to purchased, create a transaction
-          if (editingPurchase.status === 'planned' && formData.status === 'purchased') {
+          if (editingPurchase.status === 'planned' && formData.status === 'purchased' && !excludeFromCalculation) {
+            if (!selectedAccountId) {
+              throw new Error('Account is required when changing purchase status to purchased');
+            }
+            
             const selectedAccount = accounts.find(a => a.id === selectedAccountId);
-            if (selectedAccount) {
-              const transactionData = {
-                account_id: selectedAccountId,
-                amount: parseFloat(formData.price),
-                type: 'expense' as 'expense',
-                category: formData.category,
-                description: formData.item_name,
-                date: formData.purchase_date,
-                tags: ['purchase'],
-                user_id: user?.id || '',
-              };
-              
-              const transactionId = await addTransaction(transactionData, undefined);
+            if (!selectedAccount) {
+              throw new Error('Selected account not found');
+            }
+            
+            // Validate account is active
+            if (!selectedAccount.isActive) {
+              throw new Error('Selected account is not active');
+            }
+            
+            const transactionData = {
+              account_id: selectedAccountId,
+              amount: parseFloat(formData.price),
+              type: 'expense' as 'expense',
+              category: formData.category,
+              description: formData.item_name,
+              date: formData.purchase_date,
+              tags: ['purchase'],
+              user_id: user?.id || '',
+            };
+            
+            const transactionId = await addTransaction(transactionData, undefined);
 
-              if (transactionId) {
-                await supabase
-                  .from('purchases')
-                  .update({ transaction_id: transactionId })
-                  .eq('id', editingPurchase.id);
-              }
+            if (transactionId) {
+              await supabase
+                .from('purchases')
+                .update({ transaction_id: transactionId })
+                .eq('id', editingPurchase.id);
             }
           }
 
@@ -516,8 +537,19 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
               toast.success('Purchase added successfully (excluded from calculation)!');
             } else {
               // Create purchase and transaction when From Account is selected
+              if (!selectedAccountId) {
+                throw new Error('Account is required for purchased purchases');
+              }
+              
               const selectedAccount = accounts.find(a => a.id === selectedAccountId);
-              if (!selectedAccount) throw new Error('Selected account not found');
+              if (!selectedAccount) {
+                throw new Error('Selected account not found');
+              }
+              
+              // Validate account is active
+              if (!selectedAccount.isActive) {
+                throw new Error('Selected account is not active');
+              }
               
               console.log('🔍 PurchaseForm creating transaction first...');
               try {
@@ -547,6 +579,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                 }
                 
                 console.log('✅ Transaction created with ID:', transactionData.id);
+                createdTransactionId = transactionData.id;
                 
                 // Then create the purchase with the transaction_id
                 console.log('🔍 PurchaseForm creating purchase with transaction_id...');
@@ -567,13 +600,14 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                 toast.success('Purchase added successfully!');
               } catch (error) {
                 console.log('❌ PurchaseForm error:', error);
+                // Don't cleanup here - let outer catch handle it to avoid double cleanup
                 throw error; // Re-throw to be caught by the outer try-catch
               }
             }
           }
         }
 
-        // Reset form
+        // Reset form only on success
         setFormData({
           item_name: '',
           category: '',
@@ -595,6 +629,15 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
         await new Promise(resolve => setTimeout(resolve, 1000));
         onClose();
       } catch (error) {
+        // Cleanup orphaned transaction if it was created
+        if (createdTransactionId) {
+          try {
+            await supabase.from('transactions').delete().eq('id', createdTransactionId);
+            console.log('🧹 Cleaned up orphaned transaction:', createdTransactionId);
+          } catch (cleanupError) {
+            console.error('❌ Failed to cleanup orphaned transaction:', cleanupError);
+          }
+        }
         // Check if it's a plan limit error and show upgrade prompt
         if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
           const errorMessage = error.message;
@@ -614,9 +657,21 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
           }
         }
         
-        toast.error('Failed to save purchase. Please try again.');
+        // Provide more specific error message
+        const errorMessage = error && typeof error === 'object' && 'message' in error 
+          ? (error.message as string) 
+          : 'Failed to save purchase. Please try again.';
+        
+        if (createdTransactionId && errorMessage.includes('PURCHASE_LIMIT_EXCEEDED')) {
+          toast.error('Purchase limit exceeded. Transaction was not created.');
+        } else if (createdTransactionId) {
+          toast.error('Failed to create purchase. Transaction has been cleaned up.');
+        } else {
+          toast.error(errorMessage);
+        }
       } finally {
-        // Cleanup
+        // Reset submission flag
+        isSubmittingRef.current = false;
       }
   });
 

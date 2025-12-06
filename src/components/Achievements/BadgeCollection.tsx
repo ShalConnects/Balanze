@@ -13,7 +13,7 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({
   filterByCategory,
   filterByRarity
 }) => {
-  const [activeTab, setActiveTab] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<string>(filterByCategory || 'all');
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const categories: { value: AchievementCategory | 'all'; label: string; icon: React.ReactNode }[] = [
@@ -87,7 +87,14 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({
     return achievementsCache[activeTab] || [];
   };
 
-  const currentAchievements = getAchievementsForActiveTab();
+  let currentAchievements = getAchievementsForActiveTab();
+  
+  // Apply rarity filter if provided
+  if (filterByRarity) {
+    currentAchievements = currentAchievements.filter(
+      achievement => achievement.rarity === filterByRarity
+    );
+  }
 
   // Fetch achievements when active tab changes
   useEffect(() => {
@@ -133,7 +140,12 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({
 
   // Generate progress text for unearned badges
   const getProgressText = (achievement: any) => {
-    const requirements = achievement.requirements;
+    const requirements = achievement?.requirements;
+    
+    // Safety check for missing requirements
+    if (!requirements || !requirements.action) {
+      return 'Not started';
+    }
     
     // Handle different achievement types with fallbacks for undefined values
     if (requirements.action === 'create_account') {

@@ -13,6 +13,7 @@ import {
 } from '../types/achievement';
 import { achievementService } from '../lib/achievementService';
 import { useAuthStore } from './authStore';
+import { supabase } from '../lib/supabase';
 
 export const useAchievementStore = create<AchievementStore>((set, get) => ({
   achievements: [],
@@ -97,7 +98,7 @@ export const useAchievementStore = create<AchievementStore>((set, get) => ({
 
         // Create notification for each earned achievement
         for (const earnedAchievement of result.earned) {
-          await this.createAchievementNotification(userId, earnedAchievement);
+          await get().createAchievementNotification(user.id, earnedAchievement);
         }
 
         // Auto-hide notification after 5 seconds
@@ -169,6 +170,3 @@ export const useAchievementStore = create<AchievementStore>((set, get) => ({
     }
   }
 }));
-
-// Import supabase for the store
-import { supabase } from '../lib/supabase';

@@ -1814,6 +1814,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       if (purchase.category !== undefined) {
         transactionUpdateData.category = purchase.category;
       }
+      if (purchase.purchase_date !== undefined) {
+        transactionUpdateData.date = purchase.purchase_date;
+      }
+      if (purchase.account_id !== undefined) {
+        transactionUpdateData.account_id = purchase.account_id;
+      }
       
       // Only update transaction if there are relevant changes
       if (Object.keys(transactionUpdateData).length > 0) {

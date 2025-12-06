@@ -22,16 +22,34 @@ if ('requestIdleCallback' in window) {
 }
 
 // Register Service Worker to control navigation and prevent pull-to-refresh
+// Skip service worker registration in Capacitor apps (Android/iOS) to avoid conflicts
+// Unregister immediately if in Capacitor, don't wait for load event
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then((registration) => {
-
-      })
-      .catch((error) => {
-
-      });
-  });
+  // Check if we're in a Capacitor app immediately
+  const isCapacitor = (window as any).Capacitor || (window as any).CapacitorWeb;
+  
+  if (isCapacitor) {
+    console.log('[Service Worker] Skipped - running in Capacitor app');
+    // Unregister any existing service workers immediately
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (const registration of registrations) {
+        registration.unregister().then(() => {
+          console.log('[Service Worker] Unregistered existing service worker');
+        });
+      }
+    });
+  } else {
+    // Only register in web browsers
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then((registration) => {
+          console.log('[Service Worker] Registered successfully');
+        })
+        .catch((error) => {
+          console.error('[Service Worker] Registration failed:', error);
+        });
+    });
+  }
 }
 
 createRoot(document.getElementById('root')!).render(

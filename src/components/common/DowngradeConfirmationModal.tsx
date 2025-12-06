@@ -31,8 +31,8 @@ export const DowngradeConfirmationModal: React.FC<DowngradeConfirmationModalProp
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Downgrade to Free Plan
@@ -54,22 +54,22 @@ export const DowngradeConfirmationModal: React.FC<DowngradeConfirmationModalProp
               Are you sure you want to downgrade to the Free plan? This action will:
             </p>
             
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
-              <ul className="space-y-2 text-sm text-red-700 dark:text-red-300">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+              <ul className="space-y-2 text-sm text-blue-700 dark:text-blue-300">
                 <li className="flex items-start gap-2">
-                  <span className="text-red-500 mt-1">•</span>
+                  <span className="text-blue-500 dark:text-blue-400 mt-1">•</span>
                   <span>Remove access to premium features</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-red-500 mt-1">•</span>
+                  <span className="text-blue-500 dark:text-blue-400 mt-1">•</span>
                   <span>Cancel your current subscription</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-red-500 mt-1">•</span>
+                  <span className="text-blue-500 dark:text-blue-400 mt-1">•</span>
                   <span>Limit your accounts, currencies, and transactions</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-red-500 mt-1">•</span>
+                  <span className="text-blue-500 dark:text-blue-400 mt-1">•</span>
                   <span>Remove access to Last Wish feature</span>
                 </li>
               </ul>
@@ -97,7 +97,7 @@ export const DowngradeConfirmationModal: React.FC<DowngradeConfirmationModalProp
             <button
               onClick={onConfirm}
               disabled={isLoading}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gradient-primary hover:bg-gradient-primary-hover rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>

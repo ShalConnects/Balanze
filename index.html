@@ -129,6 +129,28 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Unregister service worker immediately in Capacitor apps to prevent conflicts -->
+    <script>
+      // Run immediately, before any other scripts
+      (function() {
+        if ('serviceWorker' in navigator) {
+          // Check if we're in a Capacitor app
+          const isCapacitor = window.Capacitor || window.CapacitorWeb;
+          if (isCapacitor) {
+            // Unregister all service workers immediately
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+              for (var i = 0; i < registrations.length; i++) {
+                registrations[i].unregister().then(function(success) {
+                  if (success) {
+                    console.log('[Service Worker] Unregistered from index.html');
+                  }
+                });
+              }
+            });
+          }
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

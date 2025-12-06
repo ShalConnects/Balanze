@@ -603,7 +603,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
           <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-xl sm:rounded-2xl p-4 sm:p-6 max-w-md w-full mx-2 sm:mx-4 shadow-xl border border-gray-200/50 dark:border-gray-700/50">
             {currentStep === 'warning' && (
               <div className="text-center">
-                <AlertTriangle className="w-10 h-10 sm:w-12 sm:h-12 text-red-600 dark:text-red-400 mx-auto mb-3 sm:mb-4" />
+                <AlertTriangle className="w-10 h-10 sm:w-12 sm:h-12 text-blue-600 dark:text-blue-400 mx-auto mb-3 sm:mb-4" />
                 <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   Final Warning
                 </h3>
@@ -619,7 +619,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
                   </button>
                   <button
                     onClick={handleConfirmWarning}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium shadow-sm text-sm sm:text-base"
+                    className="flex-1 px-4 py-2.5 bg-gradient-primary text-white rounded-xl hover:bg-gradient-primary-hover transition-colors font-medium shadow-sm text-sm sm:text-base"
                   >
                     Continue
                   </button>
@@ -629,7 +629,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
 
             {currentStep === 'confirmation' && (
               <div className="text-center">
-                <Shield className="w-10 h-10 sm:w-12 sm:h-12 text-red-600 dark:text-red-400 mx-auto mb-3 sm:mb-4" />
+                <Shield className="w-10 h-10 sm:w-12 sm:h-12 text-blue-600 dark:text-blue-400 mx-auto mb-3 sm:mb-4" />
                 <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   Type DELETE to Confirm
                 </h3>

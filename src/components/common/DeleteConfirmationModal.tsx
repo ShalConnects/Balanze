@@ -29,7 +29,7 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
       <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 max-w-md w-full mx-2 sm:mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
+            <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400" />
             <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
           </div>
           <button
@@ -42,15 +42,15 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
 
         <div className="mb-6">
           <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 mb-4">{message}</p>
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 sm:p-4">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4">
             {recordDetails}
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-end">
+        <div className="flex flex-row gap-3 justify-end">
           <button
             onClick={onClose}
-            className="w-full sm:w-auto px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            className="flex-1 sm:w-auto px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
             {cancelLabel}
           </button>
@@ -59,7 +59,7 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
               onConfirm();
               onClose();
             }}
-            className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            className="flex-1 sm:w-auto px-4 py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors"
           >
             {confirmLabel}
           </button>

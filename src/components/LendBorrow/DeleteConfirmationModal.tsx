@@ -34,31 +34,31 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-6 h-6 text-red-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Confirm Deletion</h3>
+            <AlertTriangle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Confirm Deletion</h3>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="mb-6">
-          <p className="text-gray-700 mb-4">
+          <p className="text-gray-700 dark:text-gray-300 mb-4">
             Are you sure you want to delete this {recordType} record? This action cannot be undone.
           </p>
           
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-4 h-4 text-red-600" />
-              <span className="font-medium text-red-800">Record Details:</span>
+              <AlertTriangle className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span className="font-medium text-blue-800 dark:text-blue-300">Record Details:</span>
             </div>
-            <div className="text-sm text-red-700 space-y-1">
+            <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
               <div><span className="font-medium">Person:</span> {recordName}</div>
               <div><span className="font-medium">Type:</span> {recordType === 'lend' ? 'Lend' : 'Borrow'}</div>
               <div><span className="font-medium">Amount:</span> {formatCurrency(recordAmount, recordCurrency)}</div>
@@ -69,7 +69,7 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
         <div className="flex gap-3 justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
             Cancel
           </button>
@@ -78,7 +78,7 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
               onConfirm();
               onClose();
             }}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            className="px-4 py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors"
           >
             Delete Record
           </button>

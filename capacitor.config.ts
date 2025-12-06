@@ -7,6 +7,7 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
     allowNavigation: ['*']
+    // No server.url - app should load from bundled assets, not localhost
   },
   android: {
     // Enable pull-to-refresh with overscroll
@@ -31,7 +32,8 @@ const config: CapacitorConfig = {
       // Use your Google OAuth Web Client ID (same as configured in Supabase)
       // Get this from: Google Cloud Console > APIs & Services > Credentials
       // It should be the same Client ID you use for web OAuth
-      serverClientId: process.env.VITE_GOOGLE_CLIENT_ID || ""
+      // This will be read from VITE_GOOGLE_CLIENT_ID environment variable
+      serverClientId: process.env.VITE_GOOGLE_CLIENT_ID || "684747632135-l7g9s4u1ka3tbjll9eu0avga2jmcs7m1.apps.googleusercontent.com"
     }
   }
 };

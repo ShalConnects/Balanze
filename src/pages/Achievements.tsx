@@ -1,12 +1,13 @@
 // Achievements Page
 // Main page for viewing and managing achievement badges
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAchievementStore } from '../store/achievementStore';
 import { useAuthStore } from '../store/authStore';
 import { BadgeCollection } from '../components/Achievements/BadgeCollection';
 import { AchievementSkeleton } from '../components/Achievements/AchievementSkeleton';
-import { Trophy, Star, Award, Crown, Sparkles, TrendingUp } from 'lucide-react';
+import { Trophy } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 const Achievements: React.FC = () => {
   const { 
@@ -19,13 +20,29 @@ const Achievements: React.FC = () => {
   } = useAchievementStore();
   
   const { user } = useAuthStore();
+  const [totalAchievements, setTotalAchievements] = useState<number>(31);
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchUserAchievements(user.id);
       fetchAchievementSummary(user.id);
+      
+      // Fetch total achievements count
+      supabase
+        .from('achievements')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_active', true)
+        .then(({ count }) => {
+          if (count !== null) {
+            setTotalAchievements(count);
+          }
+        })
+        .catch((err) => {
+          console.error('Error fetching total achievements count:', err);
+        });
     }
-  }, [user, fetchUserAchievements, fetchAchievementSummary]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // Zustand store functions (fetchUserAchievements, fetchAchievementSummary) are stable references
 
   if (loading) {
     return <AchievementSkeleton />;
@@ -43,7 +60,12 @@ const Achievements: React.FC = () => {
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
           <button
-            onClick={() => user && fetchUserAchievements(user.id)}
+            onClick={() => {
+              if (user) {
+                fetchUserAchievements(user.id);
+                fetchAchievementSummary(user.id);
+              }
+            }}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Try Again
@@ -55,7 +77,7 @@ const Achievements: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 dark:from-gray-900 dark:via-blue-900/20 dark:to-purple-900/20">
-      <div className="container mx-auto">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Unified Achievement Section */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 lg:p-8 border border-gray-200 dark:border-gray-700/50 mb-6 sm:mb-8">
           {/* Stats & Progress Section */}
@@ -84,18 +106,18 @@ const Achievements: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Progress</span>
                     <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {summary.total_achievements}/31 badges
+                      {summary.total_achievements}/{totalAchievements} badges
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 sm:h-3 overflow-hidden">
                     <div
                       className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 sm:h-3 rounded-full transition-all duration-1000 ease-out"
-                      style={{ width: `${Math.min((summary.total_achievements / 31) * 100, 100)}%` }}
+                      style={{ width: `${totalAchievements > 0 ? Math.min((summary.total_achievements / totalAchievements) * 100, 100) : 0}%` }}
                     />
                   </div>
                   <div className="text-center">
                     <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">
-                      {Math.round((summary.total_achievements / 31) * 100)}% Complete
+                      {totalAchievements > 0 ? Math.round((summary.total_achievements / totalAchievements) * 100) : 0}% Complete
                     </span>
                   </div>
                 </div>

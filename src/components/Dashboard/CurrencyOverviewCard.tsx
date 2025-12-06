@@ -42,11 +42,30 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   const dpsAccounts = currencyAccounts.filter(acc => acc.name.toLowerCase().includes('dps'));
   const regularAccounts = currencyAccounts.filter(acc => !acc.name.toLowerCase().includes('dps'));
   
+  // Sort accounts: zero balance accounts at the end of their respective lists
+  const sortedDpsAccounts = [...dpsAccounts].sort((a, b) => {
+    const balanceA = a.calculated_balance || 0;
+    const balanceB = b.calculated_balance || 0;
+    const isZeroA = balanceA === 0;
+    const isZeroB = balanceB === 0;
+    if (isZeroA === isZeroB) return 0; // Maintain original order within same group
+    return isZeroA ? 1 : -1; // Zero balances go to end
+  });
+  
+  const sortedRegularAccounts = [...regularAccounts].sort((a, b) => {
+    const balanceA = a.calculated_balance || 0;
+    const balanceB = b.calculated_balance || 0;
+    const isZeroA = balanceA === 0;
+    const isZeroB = balanceB === 0;
+    if (isZeroA === isZeroB) return 0; // Maintain original order within same group
+    return isZeroA ? 1 : -1; // Zero balances go to end
+  });
+  
   // Calculate DPS total
-  const dpsTotal = dpsAccounts.reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0);
+  const dpsTotal = sortedDpsAccounts.reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0);
   
   // Calculate regular accounts total
-  const regularAccountsTotal = regularAccounts.reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0);
+  const regularAccountsTotal = sortedRegularAccounts.reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0);
 
   // Force re-render when transactions or accounts change
   useEffect(() => {
@@ -352,11 +371,11 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                   <div className="font-semibold mb-2">Total: {formatCurrency(totalBalance, currency)}</div>
                   
                   {/* Regular Accounts */}
-                  {regularAccounts.length > 0 && (
+                  {sortedRegularAccounts.length > 0 && (
                     <>
-                      <div className="font-medium mb-1">Accounts ({regularAccounts.length}):</div>
+                      <div className="font-medium mb-1">Accounts ({sortedRegularAccounts.length}):</div>
                       <ul className="space-y-1">
-                        {regularAccounts.map(acc => {
+                        {sortedRegularAccounts.map(acc => {
                           const balance = acc.calculated_balance || 0;
                           const isNegative = balance < 0;
                           const isZero = balance === 0;
@@ -380,12 +399,12 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                   )}
                   
                   {/* DPS Accounts */}
-                  {dpsAccounts.length > 0 && (
+                  {sortedDpsAccounts.length > 0 && (
                     <>
                       <div className="my-2 pt-2">
-                        <div className="font-medium mb-1">DPS Accounts ({dpsAccounts.length}):</div>
+                        <div className="font-medium mb-1">DPS Accounts ({sortedDpsAccounts.length}):</div>
                         <ul className="space-y-1">
-                          {dpsAccounts.map(acc => {
+                          {sortedDpsAccounts.map(acc => {
                             const balance = acc.calculated_balance || 0;
                             const isNegative = balance < 0;
                             const isZero = balance === 0;
@@ -479,11 +498,11 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
             </div>
             
             {/* Regular Accounts */}
-            {regularAccounts.length > 0 && (
+            {sortedRegularAccounts.length > 0 && (
               <>
-                <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">Accounts ({regularAccounts.length}):</div>
+                <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">Accounts ({sortedRegularAccounts.length}):</div>
                 <ul className="space-y-1 max-h-48 overflow-y-auto">
-                  {regularAccounts.map(acc => {
+                  {sortedRegularAccounts.map(acc => {
                     const balance = acc.calculated_balance || 0;
                     const isNegative = balance < 0;
                     const isZero = balance === 0;
@@ -507,12 +526,12 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
             )}
             
             {/* DPS Accounts */}
-            {dpsAccounts.length > 0 && (
+            {sortedDpsAccounts.length > 0 && (
               <>
                 <div className="my-2 pt-2">
-                  <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">DPS Accounts ({dpsAccounts.length}):</div>
+                  <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">DPS Accounts ({sortedDpsAccounts.length}):</div>
                   <ul className="space-y-1 max-h-32 overflow-y-auto">
-                    {dpsAccounts.map(acc => {
+                    {sortedDpsAccounts.map(acc => {
                       const balance = acc.calculated_balance || 0;
                       const isNegative = balance < 0;
                       const isZero = balance === 0;

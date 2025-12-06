@@ -449,26 +449,106 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         console.error('[OAUTH] 📱 Android detected - using native Google Sign-In');
         try {
           // Check if native Google Sign-In is available
-          if (!googleSignIn.isAvailable()) {
+          console.error('[OAUTH] 🔍 Step 1: Checking plugin availability...');
+          const isAvailable = googleSignIn.isAvailable();
+          console.error('[OAUTH] 🔍 Step 1 Result: isAvailable() =', isAvailable);
+          
+          // Try direct plugin access as fallback
+          const capacitor = (window as any).Capacitor;
+          console.error('[OAUTH] 🔍 Step 2: Checking Capacitor...');
+          console.error('[OAUTH] - Capacitor exists?', !!capacitor);
+          console.error('[OAUTH] - Capacitor.Plugins exists?', !!capacitor?.Plugins);
+          console.error('[OAUTH] - Capacitor.Plugins type:', typeof capacitor?.Plugins);
+          
+          // Try multiple ways to access the plugin
+          let directPlugin = null;
+          if (capacitor?.Plugins) {
+            directPlugin = capacitor.Plugins.GoogleSignIn;
+            console.error('[OAUTH] - Trying capacitor.Plugins.GoogleSignIn:', !!directPlugin);
+          }
+          if (!directPlugin && capacitor?.getPlugin) {
+            console.error('[OAUTH] - Trying capacitor.getPlugin("GoogleSignIn")...');
+            directPlugin = capacitor.getPlugin('GoogleSignIn');
+            console.error('[OAUTH] - getPlugin result:', !!directPlugin);
+          }
+          if (!directPlugin && capacitor?.Plugins) {
+            console.error('[OAUTH] - All Plugins keys:', Object.keys(capacitor.Plugins));
+            console.error('[OAUTH] - Checking each plugin...');
+            for (const key of Object.keys(capacitor.Plugins)) {
+              console.error(`[OAUTH]   - ${key}:`, typeof capacitor.Plugins[key]);
+            }
+          }
+          
+          console.error('[OAUTH] 🔍 Step 2 Result: directPlugin =', !!directPlugin);
+          
+          // If plugin is available (either via isAvailable or direct access), use it
+          if (isAvailable || directPlugin) {
+            console.error('[OAUTH] ✅ Plugin is available, proceeding with native sign-in');
+          } else {
             console.error('[OAUTH] ⚠️ Native Google Sign-In not available, falling back to browser');
-            // Fallback to browser-based OAuth
-            return await this.fallbackToBrowserOAuth(provider, redirectUrl);
+            console.error('[OAUTH] - Platform:', Capacitor.getPlatform());
+            console.error('[OAUTH] - Capacitor exists?', !!capacitor);
+            console.error('[OAUTH] - isAvailable returned:', isAvailable);
+            console.error('[OAUTH] - directPlugin found:', !!directPlugin);
+            return await get().fallbackToBrowserOAuth(provider, redirectUrl);
           }
           
           console.error('[OAUTH] 🔄 Starting native Google Sign-In...');
-          const googleResult = await googleSignIn.signIn();
+          let googleResult;
+          try {
+            // Prefer direct plugin access if available
+            if (directPlugin) {
+              console.error('[OAUTH] 🔄 Using direct plugin access...');
+              googleResult = await directPlugin.signIn();
+            } else if (isAvailable) {
+              console.error('[OAUTH] 🔄 Using googleSignIn wrapper...');
+              googleResult = await googleSignIn.signIn();
+            } else {
+              throw new Error('Plugin not available');
+            }
+            console.error('[OAUTH] 📥 Google Sign-In result received:', !!googleResult);
+            console.error('[OAUTH] 📥 Result type:', typeof googleResult);
+            console.error('[OAUTH] 📥 Result keys:', googleResult ? Object.keys(googleResult) : 'null');
+            console.error('[OAUTH] 📥 Full result:', JSON.stringify(googleResult));
+          } catch (signInError: any) {
+            console.error('[OAUTH] ❌ Google Sign-In call failed:', signInError);
+            console.error('[OAUTH] - Error message:', signInError?.message);
+            console.error('[OAUTH] - Error code:', signInError?.code);
+            throw signInError;
+          }
           
           if (!googleResult) {
             throw new Error('Google Sign-In returned no result');
           }
           
+          // Check if result has idToken (might be nested or have different structure)
+          const idToken = googleResult.idToken || googleResult.data?.idToken || googleResult.value?.idToken;
+          if (!idToken) {
+            console.error('[OAUTH] ❌ No ID token found in result structure');
+            console.error('[OAUTH] Result structure:', JSON.stringify(googleResult, null, 2));
+            throw new Error('Google Sign-In returned no ID token');
+          }
+          
+          // Normalize the result
+          const normalizedResult = {
+            idToken: idToken,
+            email: googleResult.email || googleResult.data?.email || googleResult.value?.email || '',
+            displayName: googleResult.displayName || googleResult.data?.displayName || googleResult.value?.displayName || null,
+            photoUrl: googleResult.photoUrl || googleResult.data?.photoUrl || googleResult.value?.photoUrl || null,
+            id: googleResult.id || googleResult.data?.id || googleResult.value?.id || '',
+          };
+          
+          googleResult = normalizedResult;
+          
           console.error('[OAUTH] ✅ Native Google Sign-In successful');
           console.error('[OAUTH] - Email:', googleResult.email);
           console.error('[OAUTH] - Has ID token?', !!googleResult.idToken);
           
-          // Exchange Google ID token with Supabase using REST API
+          // Exchange Google ID token with Supabase
           console.error('[OAUTH] 🔄 Exchanging Google ID token with Supabase...');
           const { supabaseUrl, supabaseAnonKey } = await import('../lib/supabase');
+          
+          // Use Supabase's token exchange endpoint
           const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=id_token`, {
             method: 'POST',
             headers: {
@@ -485,7 +565,9 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
           
           if (!response.ok || tokenData.error) {
             console.error('[OAUTH] ❌ Supabase token exchange error:', tokenData);
-            throw new Error(tokenData.error_description || tokenData.error || 'Failed to exchange token');
+            // Fallback to browser OAuth if token exchange fails
+            console.error('[OAUTH] 🔄 Token exchange failed, falling back to browser OAuth...');
+            return await get().fallbackToBrowserOAuth(provider, redirectUrl);
           }
           
           if (tokenData.access_token && tokenData.refresh_token) {
@@ -499,40 +581,45 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             
             if (sessionError) {
               console.error('[OAUTH] ❌ Error setting session:', sessionError);
-              throw sessionError;
+              // Fallback to browser OAuth if session setting fails
+              return await get().fallbackToBrowserOAuth(provider, redirectUrl);
             }
             
             if (sessionData?.user) {
               console.error('[OAUTH] ✅ Supabase authentication successful');
-              console.error('[OAUTH] - User ID:', sessionData.user.id);
-              console.error('[OAUTH] - User email:', sessionData.user.email);
-              
-              // Set user and profile
               await get().setUserAndProfile(sessionData.user, null);
               set({ isLoading: false });
               return { success: true };
             } else {
-              throw new Error('No user data received from Supabase');
+              // Fallback to browser OAuth if no user data
+              return await get().fallbackToBrowserOAuth(provider, redirectUrl);
             }
           } else {
-            throw new Error('Invalid token response from Supabase');
+            // Fallback to browser OAuth if invalid token response
+            return await get().fallbackToBrowserOAuth(provider, redirectUrl);
           }
         } catch (error: any) {
           console.error('[OAUTH] ❌ Native Google Sign-In error:', error);
           
-          // If native sign-in fails, fallback to browser OAuth
+          // If user cancelled, don't fallback
           if (error?.message?.includes('cancelled') || error?.message?.includes('Sign in was cancelled')) {
             set({ isLoading: false });
             return { success: false, message: 'Sign in was cancelled' };
           }
           
+          // For any other error, fallback to browser OAuth
           console.error('[OAUTH] 🔄 Falling back to browser OAuth...');
-          return await this.fallbackToBrowserOAuth(provider, redirectUrl);
+          return await get().fallbackToBrowserOAuth(provider, redirectUrl);
         }
       } else if (isAndroid && provider === 'apple') {
         // For Apple on Android, use browser OAuth (Apple Sign-In is iOS only)
         console.error('[OAUTH] 📱 Android detected - Apple Sign-In not available on Android, using browser');
-        return await this.fallbackToBrowserOAuth(provider, redirectUrl);
+        try {
+          return await get().fallbackToBrowserOAuth(provider, redirectUrl);
+        } catch (fallbackError: any) {
+          console.error('[OAUTH] ❌ Browser OAuth failed:', fallbackError);
+          throw fallbackError;
+        }
       } else {
         // On web/iOS, use default Supabase OAuth flow
         const { data, error } = await supabase.auth.signInWithOAuth({
@@ -560,10 +647,26 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
 
         return { success: true };
       }
-    } catch (error) {
-      const errorMessage = (error as Error).message;
-      set({ error: 'An unexpected error occurred during social login', isLoading: false });
-      return { success: false, message: 'An unexpected error occurred during social login' };
+    } catch (error: any) {
+      console.error('[OAUTH] ❌ Outer catch block - unexpected error:', error);
+      console.error('[OAUTH] - Error type:', typeof error);
+      console.error('[OAUTH] - Error message:', error?.message);
+      console.error('[OAUTH] - Error stack:', error?.stack);
+      
+      const errorMessage = error?.message || 'An unexpected error occurred during social login';
+      
+      // Provide more specific error messages
+      let userMessage = 'Social login failed. Please try again.';
+      if (errorMessage.includes('provider is not enabled')) {
+        userMessage = 'Social login is not configured yet. Please use email/password login.';
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        userMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (errorMessage.includes('cancelled')) {
+        userMessage = 'Sign in was cancelled.';
+      }
+      
+      set({ error: userMessage, isLoading: false });
+      return { success: false, message: userMessage };
     }
   },
 

@@ -2,6 +2,7 @@ package com.balanze.app;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.util.Log;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -25,16 +26,24 @@ public class GoogleSignInPlugin extends Plugin {
     public void load() {
         super.load();
         
+        Log.e("GoogleSignIn", "========================================");
+        Log.e("GoogleSignIn", "GoogleSignInPlugin.load() CALLED");
+        Log.e("GoogleSignIn", "========================================");
+        
         // Get the server client ID from capacitor config
         // This should be your Google OAuth Web Client ID (same as configured in Supabase)
         String serverClientId = getConfig().getString("serverClientId", "");
         
+        Log.e("GoogleSignIn", "Server Client ID from config: " + (serverClientId.isEmpty() ? "EMPTY" : serverClientId.substring(0, Math.min(20, serverClientId.length())) + "..."));
+        
         if (serverClientId.isEmpty()) {
-            getLog().error("Google Sign-In: serverClientId not configured in capacitor.config.ts");
-            getLog().error("Please add GoogleSignIn: { serverClientId: 'your-google-client-id' } to capacitor.config.ts");
+            Log.e("GoogleSignIn", "❌ Google Sign-In: serverClientId not configured in capacitor.config.ts");
+            Log.e("GoogleSignIn", "Please add GoogleSignIn: { serverClientId: 'your-google-client-id' } to capacitor.config.ts");
             // Don't initialize if not configured - will fail gracefully
             return;
         }
+        
+        Log.e("GoogleSignIn", "✅ Configuring Google Sign-In with serverClientId");
         
         // Configure Google Sign-In
         // Note: For native Android Sign-In, use the same Web Client ID that's configured in Supabase
@@ -45,20 +54,34 @@ public class GoogleSignInPlugin extends Plugin {
             .build();
         
         googleSignInClient = GoogleSignIn.getClient(getActivity(), gso);
+        Log.e("GoogleSignIn", "✅ GoogleSignInClient initialized successfully");
     }
 
     @PluginMethod
     public void signIn(PluginCall call) {
+        Log.e("GoogleSignIn", "========================================");
+        Log.e("GoogleSignIn", "signIn() METHOD CALLED");
+        Log.e("GoogleSignIn", "========================================");
+        
         savedCall = call;
+        
+        if (googleSignInClient == null) {
+            Log.e("GoogleSignIn", "❌ googleSignInClient is null - plugin not initialized");
+            call.reject("Google Sign-In not initialized. Check serverClientId configuration.");
+            return;
+        }
         
         Activity activity = getActivity();
         if (activity == null) {
+            Log.e("GoogleSignIn", "❌ Activity is null");
             call.reject("Activity is null");
             return;
         }
         
+        Log.e("GoogleSignIn", "✅ Starting Google Sign-In intent...");
         Intent signInIntent = googleSignInClient.getSignInIntent();
         startActivityForResult(call, signInIntent, RC_SIGN_IN);
+        Log.e("GoogleSignIn", "✅ Sign-In intent started");
     }
 
     @PluginMethod

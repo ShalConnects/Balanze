@@ -296,32 +296,62 @@ export const Auth: React.FC = () => {
   // Handle login submission
   const handleLogIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     
-    // Get current values directly from the input fields as fallback for Android
-    const currentEmail = emailRef.current?.value || email;
-    const currentPassword = passwordRef.current?.value || password;
+    // CRITICAL: Preserve email and password values before any validation
+    // Read from DOM first (most reliable on Android), then fall back to state
+    const domEmail = emailRef.current?.value || '';
+    const domPassword = passwordRef.current?.value || '';
     
-    // Login attempt debugging removed for production
+    // Always use the DOM value if it exists (even if empty string), otherwise use state
+    // This prevents losing user input
+    const currentEmail = domEmail || email;
+    const currentPassword = domPassword || password;
     
-    // Update state if there's a mismatch (Android issue)
-    if (currentEmail !== email) {
-      setEmail(currentEmail);
+    // NEVER clear the email/password state - only update if DOM has a different non-empty value
+    // This ensures the field never appears empty
+    if (domEmail && domEmail !== email) {
+      setEmail(domEmail);
     }
-    if (currentPassword !== password) {
-      setPassword(currentPassword);
+    // If DOM is empty but state has value, keep the state value (don't clear)
+    if (!domEmail && email) {
+      // Keep email state as-is, don't clear it
     }
     
-    const emailErr = validateEmail(currentEmail);
-    const passwordErr = validatePassword(currentPassword);
+    if (domPassword && domPassword !== password) {
+      setPassword(domPassword);
+    }
+    if (!domPassword && password) {
+      // Keep password state as-is, don't clear it
+    }
     
-    // Validation results debugging removed for production
+    // Validate using the values we determined above
+    const emailErr = validateEmail(currentEmail.trim());
+    const passwordErr = validatePassword(currentPassword.trim());
     
     setEmailError(emailErr);
     setPasswordError(passwordErr);
     
     if (emailErr || passwordErr) {
-      if (emailErr) emailRef.current?.focus();
-      else if (passwordErr) passwordRef.current?.focus();
+      // CRITICAL: Do NOT clear fields on validation error
+      // Ensure email and password state are preserved
+      if (email && !domEmail) {
+        // If state has email but DOM doesn't, ensure DOM shows it
+        if (emailRef.current) {
+          emailRef.current.value = email;
+        }
+      }
+      if (password && !domPassword) {
+        if (passwordRef.current) {
+          passwordRef.current.value = password;
+        }
+      }
+      
+      if (emailErr) {
+        emailRef.current?.focus();
+      } else if (passwordErr) {
+        passwordRef.current?.focus();
+      }
       return;
     }
 
@@ -576,13 +606,18 @@ export const Auth: React.FC = () => {
                   name="email"
                   type="email"
                   autoComplete="email"
-                  value={email}
+                  value={email || ''}
                   onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (emailError) setEmailError(validateEmail(e.target.value));
+                    const newValue = e.target.value;
+                    setEmail(newValue);
+                    if (emailError) setEmailError(validateEmail(newValue));
                   }}
                   onBlur={(e) => {
-                    setEmailError(validateEmail(e.target.value));
+                    const blurValue = e.target.value || email;
+                    if (blurValue && blurValue !== email) {
+                      setEmail(blurValue);
+                    }
+                    setEmailError(validateEmail(blurValue));
                   }}
                   onKeyDown={e => handleKeyDown(e)}
                   placeholder="Email address"

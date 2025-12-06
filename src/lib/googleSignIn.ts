@@ -17,10 +17,40 @@ export interface GoogleSignInPlugin {
 // Get the plugin instance
 const getGoogleSignInPlugin = (): GoogleSignInPlugin | null => {
   if (Capacitor.getPlatform() === 'android') {
-    const plugin = (window as any).Capacitor?.Plugins?.GoogleSignIn;
-    if (plugin) {
-      return plugin as GoogleSignInPlugin;
+    const capacitor = (window as any).Capacitor;
+    console.error('[GoogleSignIn] Checking plugin availability...');
+    console.error('[GoogleSignIn] - Capacitor exists?', !!capacitor);
+    
+    if (!capacitor) {
+      console.error('[GoogleSignIn] ❌ Capacitor not available');
+      return null;
     }
+    
+    // Try Capacitor.Plugins.GoogleSignIn (standard way for custom plugins)
+    if (capacitor.Plugins) {
+      console.error('[GoogleSignIn] - Capacitor.Plugins exists, keys:', Object.keys(capacitor.Plugins));
+      
+      if (capacitor.Plugins.GoogleSignIn) {
+        console.error('[GoogleSignIn] ✅ Plugin found via Capacitor.Plugins.GoogleSignIn');
+        return capacitor.Plugins.GoogleSignIn as GoogleSignInPlugin;
+      }
+    }
+    
+    // Try getPlugin method if available
+    if (typeof capacitor.getPlugin === 'function') {
+      try {
+        const plugin = capacitor.getPlugin('GoogleSignIn');
+        if (plugin) {
+          console.error('[GoogleSignIn] ✅ Plugin found via getPlugin');
+          return plugin as GoogleSignInPlugin;
+        }
+      } catch (e) {
+        console.error('[GoogleSignIn] getPlugin error:', e);
+      }
+    }
+    
+    console.error('[GoogleSignIn] ❌ Plugin not found - ensure plugin is registered in MainActivity');
+    console.error('[GoogleSignIn] - Available plugins:', capacitor.Plugins ? Object.keys(capacitor.Plugins) : 'none');
   }
   return null;
 };
@@ -32,20 +62,42 @@ export const googleSignIn = {
    */
   async signIn(): Promise<GoogleSignInResult | null> {
     if (Capacitor.getPlatform() !== 'android') {
+      console.error('[GoogleSignIn] Not on Android platform');
       return null;
     }
 
     const plugin = getGoogleSignInPlugin();
     if (!plugin) {
-      console.error('[GoogleSignIn] Plugin not available');
+      console.error('[GoogleSignIn] ❌ Plugin not available - trying direct bridge call...');
+      
+      // Try direct bridge call as last resort (only if Plugins.GoogleSignIn exists)
+      const capacitor = (window as any).Capacitor;
+      if (capacitor?.Plugins?.GoogleSignIn) {
+        try {
+          console.error('[GoogleSignIn] Attempting direct bridge call...');
+          // Use Capacitor's native bridge directly
+          const result = await capacitor.Plugins.GoogleSignIn.signIn();
+          console.error('[GoogleSignIn] ✅ Direct bridge call succeeded');
+          return result;
+        } catch (bridgeError: any) {
+          console.error('[GoogleSignIn] ❌ Direct bridge call failed:', bridgeError);
+          throw bridgeError;
+        }
+      }
+      
+      console.error('[GoogleSignIn] ❌ Plugin not available - cannot use native sign-in');
       return null;
     }
 
+    console.error('[GoogleSignIn] ✅ Plugin found, calling signIn()...');
     try {
       const result = await plugin.signIn();
+      console.error('[GoogleSignIn] ✅ signIn() completed, result:', !!result);
       return result;
     } catch (error: any) {
-      console.error('[GoogleSignIn] Sign in error:', error);
+      console.error('[GoogleSignIn] ❌ Sign in error:', error);
+      console.error('[GoogleSignIn] - Error message:', error?.message);
+      console.error('[GoogleSignIn] - Error code:', error?.code);
       throw error;
     }
   },
