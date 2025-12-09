@@ -2298,15 +2298,20 @@ export const LendBorrowTableView: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setTableFilters(tempFilters);
                         setShowMobileFilterMenu(false);
                       }}
-                      className={`p-1 transition-colors ${
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                      }}
+                      className={`p-2 transition-colors touch-manipulation ${
                         (tempFilters.currency || tempFilters.type !== 'all' || tempFilters.status !== 'active')
-                          ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
-                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                          ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 active:opacity-70'
+                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 active:opacity-70'
                       }`}
+                      style={{ touchAction: 'manipulation' }}
                       title="Apply Filters"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2314,11 +2319,16 @@ export const LendBorrowTableView: React.FC = () => {
                       </svg>
                     </button>
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setTableFilters({ search: '', currency: '', type: 'all', status: 'active', dateRange: { start: '', end: '' } });
                         setShowMobileFilterMenu(false);
                       }}
-                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1"
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                      }}
+                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 transition-colors touch-manipulation active:opacity-70"
+                      style={{ touchAction: 'manipulation' }}
                       title="Clear All Filters"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

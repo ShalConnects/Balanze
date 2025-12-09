@@ -43,7 +43,9 @@ export const AIChatBot: React.FC<AIChatBotProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuthStore();
   const { accounts, transactions } = useFinanceStore();
-  const { isMobile } = useMobileDetection();
+  const { isMobile, isBrowser } = useMobileDetection();
+  // Detect Android for proper bottom offset
+  const isAndroid = typeof window !== 'undefined' && /Android/i.test(navigator.userAgent);
 
   const scrollToBottom = useCallback(() => {
     // Use setTimeout to ensure DOM is updated
@@ -299,9 +301,14 @@ export const AIChatBot: React.FC<AIChatBotProps> = ({
       {!isOpen && showFloatingButton && (
         <button
           onClick={() => setIsOpen(true)}
-          className={`fixed z-40 p-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-            isMobile ? 'bottom-20 right-4' : 'bottom-6 right-6'
-          }`}
+          className="fixed z-40 p-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 right-4 sm:right-6"
+          style={{
+            bottom: isMobile
+              ? isAndroid && !isBrowser
+                ? `max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))`
+                : `max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))`
+              : `max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)))`
+          }}
           aria-label="Open AI chat"
         >
           <MessageCircle className="w-6 h-6" />

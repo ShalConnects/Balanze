@@ -320,7 +320,17 @@ const PrivacyPolicy: React.FC = () => {
         {/* Dark Mode Toggle Button - Always Visible */}
         <button
           onClick={toggleTheme}
-          className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-50 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-600"
+          className="fixed right-4 md:right-8 z-50 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-600"
+          style={{
+            bottom: (() => {
+              const isAndroid = typeof window !== 'undefined' && /Android/i.test(navigator.userAgent);
+              const isCapacitor = typeof window !== 'undefined' && window.Capacitor !== undefined;
+              if (isAndroid && isCapacitor) {
+                return `max(3.5rem, calc(3.5rem + env(safe-area-inset-bottom, 0px)))`;
+              }
+              return `max(1rem, calc(1rem + env(safe-area-inset-bottom, 0px)))`;
+            })()
+          }}
           aria-label="Toggle dark mode"
         >
           {isDarkMode ? (

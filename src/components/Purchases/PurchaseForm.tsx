@@ -191,12 +191,12 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     }
   }, [record?.transaction_id, record?.id, record?.account_id, isOpen, accounts]);
 
-  // Autofocus on first field when modal opens
+  // Autofocus on first field when modal opens (only for new purchases, not when editing)
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !record && !editingPurchase) {
       setTimeout(() => itemNameRef.current?.focus(), 100);
     }
-  }, [isOpen]);
+  }, [isOpen, record, editingPurchase]);
 
   // Load purchase categories when form opens
   useEffect(() => {

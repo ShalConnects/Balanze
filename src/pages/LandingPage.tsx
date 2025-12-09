@@ -1835,7 +1835,17 @@ const LandingPage: React.FC = () => {
       {/* Dark Mode Toggle Button - Always Visible */}
       <button
         onClick={toggleTheme}
-        className="fixed right-8 z-50 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-600 floating-bottom-safe"
+        className="fixed right-8 z-50 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-600"
+        style={{
+          bottom: (() => {
+            const isAndroid = typeof window !== 'undefined' && /Android/i.test(navigator.userAgent);
+            const isCapacitor = typeof window !== 'undefined' && window.Capacitor !== undefined;
+            if (isAndroid && isCapacitor) {
+              return `max(6.25rem, calc(6.25rem + env(safe-area-inset-bottom, 0px)))`;
+            }
+            return `max(6.25rem, calc(6.25rem + env(safe-area-inset-bottom, 0px)))`;
+          })()
+        }}
         aria-label="Toggle dark mode"
       >
         {isDarkMode ? (
@@ -1861,7 +1871,17 @@ const LandingPage: React.FC = () => {
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }
           }}
-          className="fixed right-8 z-50 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 rounded-full shadow-lg hover:from-blue-700 hover:to-purple-700 transition-colors floating-bottom-safe-secondary"
+          className="fixed right-8 z-50 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 rounded-full shadow-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
+          style={{
+            bottom: (() => {
+              const isAndroid = typeof window !== 'undefined' && /Android/i.test(navigator.userAgent);
+              const isCapacitor = typeof window !== 'undefined' && window.Capacitor !== undefined;
+              if (isAndroid && isCapacitor) {
+                return `max(10rem, calc(10rem + env(safe-area-inset-bottom, 0px)))`;
+              }
+              return `max(10rem, calc(10rem + env(safe-area-inset-bottom, 0px)))`;
+            })()
+          }}
           aria-label="Back to top"
         >
           <ArrowUp className="w-6 h-6" />

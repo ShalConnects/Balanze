@@ -7,6 +7,8 @@ import { PurchaseAttachment } from '../../types';
 // import 'react-quill/dist/quill.snow.css';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+import { Capacitor } from '@capacitor/core';
+import { FilePicker } from '@capawesome/capacitor-file-picker';
 
 interface PurchaseDetailsSectionProps {
   isExpanded: boolean;
@@ -83,22 +85,19 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
     }, 100);
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    const file = files[0];
+  // Process file and create attachment (used by both native and HTML input)
+  const processFile = async (file: File, fileName: string) => {
     setUploading(true);
     
     // Start upload progress simulation
-    simulateUploadProgress(file.name);
+    simulateUploadProgress(fileName);
 
     try {
       // Simulate upload delay
       await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
 
       // Generate random file name
-      const originalExtension = '.' + (file.name.split('.').pop() || '');
+      const originalExtension = '.' + (fileName.split('.').pop() || '');
       const randomFileName = generateRandomFileName(originalExtension);
 
       // For now, we'll create a temporary attachment object
@@ -110,19 +109,114 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
         file_name: randomFileName,
         file_path: URL.createObjectURL(file), // for preview only
         file_size: file.size,
-        file_type: file.name.split('.').pop()?.toLowerCase() || '',
+        file_type: fileName.split('.').pop()?.toLowerCase() || '',
         mime_type: file.type,
         created_at: new Date().toISOString(),
         file: file // store the actual File object
       };
 
       onAttachmentsChange([...attachments, tempAttachment]);
+      
+      // Show success notification
+      toast.success(`File "${fileName}" uploaded successfully`);
     } catch (error) {
-
       setCurrentUploadFile(null);
       setUploadProgress(0);
     } finally {
       setUploading(false);
+    }
+  };
+
+  // Handle native file picker for Android
+  const handleNativeFileUpload = async () => {
+    try {
+      console.log('[FilePicker] Starting file picker...');
+      const result = await FilePicker.pickFiles({
+        multiple: false,
+        types: ['application/pdf', 'image/*', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain'],
+        readData: true
+      });
+      console.log('[FilePicker] File picker result:', result);
+
+      if (result.files && result.files.length > 0) {
+        const pickedFile = result.files[0];
+        
+        // Convert the picked file data to a File object
+        // The data is base64 encoded string, convert it to binary
+        let fileBlob: Blob;
+        if (typeof pickedFile.data === 'string') {
+          // Base64 string - convert to binary
+          const base64Data = pickedFile.data.split(',')[1] || pickedFile.data;
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          fileBlob = new Blob([bytes], { type: pickedFile.mimeType || 'application/octet-stream' });
+        } else {
+          // Already binary data
+          fileBlob = new Blob([pickedFile.data], { type: pickedFile.mimeType || 'application/octet-stream' });
+        }
+        
+        // Create File object - use a more compatible approach for Android WebView
+        let file: File;
+        try {
+          // Try to use File constructor if available
+          if (typeof File !== 'undefined' && typeof File === 'function') {
+            file = new File([fileBlob], pickedFile.name, { type: pickedFile.mimeType || 'application/octet-stream' });
+          } else {
+            throw new Error('File constructor not available');
+          }
+        } catch (e) {
+          // Fallback: create a File-like object from Blob
+          // This works because File extends Blob, so we can add File properties to a Blob
+          file = Object.assign(fileBlob, {
+            name: pickedFile.name,
+            lastModified: Date.now()
+          }) as File;
+        }
+        
+        await processFile(file, pickedFile.name);
+      }
+    } catch (error: any) {
+      // Log the full error for debugging - using multiple methods to ensure it's captured
+      const errorDetails = {
+        message: error?.message || 'No message',
+        code: error?.code || 'No code',
+        name: error?.name || 'No name',
+        stack: error?.stack || 'No stack',
+        toString: String(error),
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+      };
+      
+      console.error('[FilePicker] ERROR DETAILS:', errorDetails);
+      console.error('[FilePicker] Error message:', errorDetails.message);
+      console.error('[FilePicker] Error code:', errorDetails.code);
+      console.error('[FilePicker] Full error:', errorDetails.fullError);
+      
+      // Also log to window for easier debugging
+      (window as any).lastFilePickerError = errorDetails;
+      
+      // User cancelled or error occurred
+      if (error?.message && !error.message.includes('User cancelled') && !error.message.includes('cancel')) {
+        const errorMsg = errorDetails.message || 'Unknown error occurred';
+        console.error('[FilePicker] File picker failed with error:', errorMsg);
+        toast.error(`Failed to select file: ${errorMsg}. Check console for details.`);
+      }
+    }
+  };
+
+  // Handle HTML file input (for web)
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    await processFile(file, file.name);
+    
+    // Reset input value to allow selecting the same file again
+    if (event.target) {
+      event.target.value = '';
     }
   };
 
@@ -309,7 +403,14 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={async () => {
+                    // Use native file picker on Android, HTML input on web
+                    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+                      await handleNativeFileUpload();
+                    } else {
+                      fileInputRef.current?.click();
+                    }
+                  }}
                   disabled={uploading}
                   className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 transition-colors disabled:opacity-50 text-[13px]"
                 >

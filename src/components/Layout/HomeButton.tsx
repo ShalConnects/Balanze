@@ -7,8 +7,10 @@ import { useMobileSidebar } from '../../context/MobileSidebarContext';
 export const HomeButton: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isMobile } = useMobileDetection();
+  const { isMobile, isBrowser } = useMobileDetection();
   const { isMobileSidebarOpen } = useMobileSidebar();
+  // Detect Android for proper bottom offset
+  const isAndroid = typeof window !== 'undefined' && /Android/i.test(navigator.userAgent);
 
   const handleHomeClick = () => {
     // If we're on the demo page, close the tab instead of navigating
@@ -22,7 +24,11 @@ export const HomeButton: React.FC = () => {
   return (
     <div 
       className={`fixed right-6 z-50 flex flex-col items-end ${isMobile && isMobileSidebarOpen ? 'hidden' : ''}`}
-      style={{ bottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)))' }}
+      style={{ 
+        bottom: isAndroid && !isBrowser
+          ? `max(3.5rem, calc(3.5rem + env(safe-area-inset-bottom, 0px)))`
+          : `max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)))`
+      }}
     >
       <div className="relative flex flex-col items-end">
         {/* Home Button */}

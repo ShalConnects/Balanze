@@ -1945,7 +1945,8 @@ const DonationsSavingsPage: React.FC = () => {
                 </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setSearchTerm(tempFilters.searchTerm);
                     setFilterMode(tempFilters.filterMode);
                     setFilterStatus(tempFilters.filterStatus);
@@ -1953,19 +1954,24 @@ const DonationsSavingsPage: React.FC = () => {
                     setFilterDateRange(tempFilters.filterDateRange);
                     setShowMobileFilterMenu(false);
                   }}
-                  className={`p-1 transition-colors ${
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className={`p-2 transition-colors touch-manipulation ${
                     (tempFilters.filterMode !== 'all' || tempFilters.filterStatus !== 'all' || tempFilters.filterCurrency || tempFilters.filterDateRange !== '1month')
-                      ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
-                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                      ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 active:opacity-70'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 active:opacity-70'
                   }`}
+                  style={{ touchAction: 'manipulation' }}
                   title="Apply Filters"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setSearchTerm('');
                     setFilterMode('all');
                     setFilterStatus('all');
@@ -1973,11 +1979,15 @@ const DonationsSavingsPage: React.FC = () => {
                     setFilterDateRange('1month');
                     setShowMobileFilterMenu(false);
                   }}
-                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1"
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 transition-colors touch-manipulation active:opacity-70"
+                  style={{ touchAction: 'manipulation' }}
                   title="Clear All Filters"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>

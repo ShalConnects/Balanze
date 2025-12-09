@@ -726,12 +726,12 @@ export const PurchaseTracker: React.FC = () => {
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
   const itemNameRef = useRef<HTMLInputElement>(null);
 
-  // Autofocus on first field when modal opens
+  // Autofocus on first field when modal opens (only for new purchases, not when editing)
   useEffect(() => {
-    if (showPurchaseForm) {
+    if (showPurchaseForm && !editingPurchase) {
       setTimeout(() => itemNameRef.current?.focus(), 100);
     }
-  }, [showPurchaseForm]);
+  }, [showPurchaseForm, editingPurchase]);
 
   // Validation logic
   const validateForm = (dataOverride?: typeof formData, accountIdOverride?: string) => {
@@ -1767,7 +1767,7 @@ export const PurchaseTracker: React.FC = () => {
         <div className="p-2 sm:p-3 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-wrap items-center gap-2">
 
-          <div className="flex-1 min-w-0 sm:flex-initial">
+          <div>
             <div className="relative">
                               <Search className={`absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 ${filters.search ? 'text-blue-500' : 'text-gray-400'}`} />
               <input
@@ -3633,15 +3633,20 @@ export const PurchaseTracker: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setFilters(tempFilters);
                       setShowMobileFilterMenu(false);
                     }}
-                    className={`p-1 transition-colors ${
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className={`p-2 transition-colors touch-manipulation ${
                       (tempFilters.category !== 'all' || tempFilters.priority !== 'all' || tempFilters.currency || tempFilters.dateRange.start || tempFilters.dateRange.end)
-                        ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
-                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                        ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 active:opacity-70'
+                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 active:opacity-70'
                     }`}
+                    style={{ touchAction: 'manipulation' }}
                     title="Apply Filters"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3649,14 +3654,21 @@ export const PurchaseTracker: React.FC = () => {
                     </svg>
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setFilters({ search: '', category: 'all', priority: 'all', currency: '', dateRange: { start: '', end: '' } });
                       setShowMobileFilterMenu(false);
                     }}
-                    className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1"
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 transition-colors touch-manipulation active:opacity-70"
+                    style={{ touchAction: 'manipulation' }}
                     title="Clear All Filters"
                   >
-                    <X className="w-5 h-5" />
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
               </div>
