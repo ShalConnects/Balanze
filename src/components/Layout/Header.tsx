@@ -412,36 +412,38 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
           <div className="max-w-7xl mx-auto">
             {/* Mobile Layout - Stacked */}
             <div className="flex flex-col sm:hidden gap-3">
-              <div className="flex items-start gap-2.5">
-                <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
+              {/* Top Row: Centered "New!" badge and right-aligned X button */}
+              <div className="flex items-center justify-between relative">
+                <div className="flex-1"></div>
+                <div className="flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
                   <Sparkles className="w-5 h-5 animate-pulse" />
                   <span className="font-bold text-sm">New!</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start gap-2">
-                    <BookOpen className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm leading-relaxed flex-1">
-                      New Help Center launched! Guides, tutorials & support available.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <button
-                  onClick={() => navigate('/help')}
-                  className="bg-white/20 hover:bg-white/30 active:bg-white/40 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 touch-manipulation flex-1 justify-center min-h-[44px]"
-                >
-                  <LifeBuoy className="w-4 h-4" />
-                  <span>Explore Help Center</span>
-                </button>
                 <button
                   onClick={dismissHelpBanner}
-                  className="text-white/90 hover:text-white active:text-white p-2.5 rounded-lg transition-colors touch-manipulation flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  className="text-white/90 hover:text-white active:text-white p-2 rounded-lg transition-colors touch-manipulation flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center ml-auto"
                   aria-label="Dismiss banner"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
+              
+              {/* Content: BookOpen icon + text */}
+              <div className="flex items-start gap-2">
+                <BookOpen className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <p className="text-sm leading-relaxed flex-1">
+                  New Help Center launched! Guides, tutorials & support available.
+                </p>
+              </div>
+              
+              {/* Full-width Explore button */}
+              <button
+                onClick={() => navigate('/help')}
+                className="bg-white/20 hover:bg-white/30 active:bg-white/40 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 touch-manipulation justify-center min-h-[44px] w-full"
+              >
+                <LifeBuoy className="w-4 h-4" />
+                <span>Explore Help Center</span>
+              </button>
             </div>
             
             {/* Desktop Layout - Horizontal */}
