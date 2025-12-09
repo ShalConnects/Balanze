@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Plus, Edit2, Trash2, DollarSign, Info, PlusCircle, InfoIcon, Search, ArrowLeft, Wallet, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Plus, Edit2, Trash2, DollarSign, Info, PlusCircle, InfoIcon, Search, ArrowLeft, Wallet, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown, X, Loader2 } from 'lucide-react';
 import { isToday, isYesterday, isThisWeek, format, differenceInDays } from 'date-fns';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { AccountForm } from './AccountForm';
@@ -23,6 +24,7 @@ import { searchService, SEARCH_CONFIGS } from '../../utils/searchService';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { formatCurrency } from '../../utils/currency';
 
 // Helper function to get date group label
 const getDateGroupLabel = (date: Date): string => {
@@ -174,7 +176,14 @@ export const AccountsView: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
   const [showDpsDeleteModal, setShowDpsDeleteModal] = useState(false);
-  const [dpsDeleteContext, setDpsDeleteContext] = useState<{ mainAccount: Account, dpsAccount: Account } | null>(null);
+  const [dpsDeleteContext, setDpsDeleteContext] = useState<{ 
+    mainAccountId: string, 
+    dpsAccountId: string,
+    dpsBalance: number,
+    dpsCurrency: string
+  } | null>(null);
+  const [isDeletingDPS, setIsDeletingDPS] = useState(false);
+  const [dpsDeleteError, setDpsDeleteError] = useState<string | null>(null);
   
   // Add state for transaction modal filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -743,6 +752,29 @@ export const AccountsView: React.FC = () => {
     return sortData(filteredAccounts);
   }, [filteredAccounts, sortConfig, transactions]);
 
+  // Track component renders
+  useEffect(() => {
+    console.log('[AccountsView] Component rendered', {
+      timestamp: new Date().toISOString(),
+      showDpsDeleteModal,
+      hasContext: !!dpsDeleteContext,
+      isDeletingDPS,
+      accountsCount: accounts.length
+    });
+  });
+
+  // Track modal state changes
+  useEffect(() => {
+    console.log('[DPS Delete Modal] State changed', {
+      showDpsDeleteModal,
+      hasContext: !!dpsDeleteContext,
+      isDeletingDPS,
+      hasError: !!dpsDeleteError,
+      contextMainId: dpsDeleteContext?.mainAccountId,
+      contextDpsId: dpsDeleteContext?.dpsAccountId
+    });
+  }, [showDpsDeleteModal, dpsDeleteContext, isDeletingDPS, dpsDeleteError]);
+
   // Click outside handlers for dropdowns
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -816,8 +848,29 @@ export const AccountsView: React.FC = () => {
 
   // New DPS delete handler with balance transfer
   const handleDeleteDPSWithTransfer = async (mainAccount: Account, dpsAccount: Account) => {
-    setDpsDeleteContext({ mainAccount, dpsAccount });
+    console.log('[DPS Delete] Opening modal - START', { 
+      mainAccountId: mainAccount.id, 
+      dpsAccountId: dpsAccount.id,
+      dpsBalance: dpsAccount.calculated_balance,
+      currentShowModal: showDpsDeleteModal,
+      currentContext: dpsDeleteContext,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Set context first
+    setDpsDeleteContext({ 
+      mainAccountId: mainAccount.id, 
+      dpsAccountId: dpsAccount.id,
+      dpsBalance: dpsAccount.calculated_balance,
+      dpsCurrency: dpsAccount.currency
+    });
+    setDpsDeleteError(null);
+    setIsDeletingDPS(false);
+    
+    // Set modal visible last to ensure context is ready
+    console.log('[DPS Delete] Setting modal to visible');
     setShowDpsDeleteModal(true);
+    console.log('[DPS Delete] Modal state set to open - modal should appear now');
   };
 
   const handleMoveAccountUp = async (accountId: string) => {
@@ -858,24 +911,80 @@ export const AccountsView: React.FC = () => {
     }
   };
 
-  const confirmDeleteDPS = async (moveToMainAccount: boolean) => {
-    if (!dpsDeleteContext) return;
+  const confirmDeleteDPS = useCallback(async (moveToMainAccount: boolean) => {
+    console.log('[DPS Delete] Function called', { moveToMainAccount, isDeletingDPS, hasContext: !!dpsDeleteContext });
     
-    const { mainAccount, dpsAccount } = dpsDeleteContext;
-    const dpsBalance = dpsAccount.calculated_balance;
+    if (!dpsDeleteContext || isDeletingDPS) {
+      console.log('[DPS Delete] Early return', { hasContext: !!dpsDeleteContext, isDeletingDPS });
+      return;
+    }
+    
+    // Look up accounts from IDs to get current data
+    const mainAccount = accounts.find(a => a.id === dpsDeleteContext.mainAccountId);
+    const dpsAccount = accounts.find(a => a.id === dpsDeleteContext.dpsAccountId);
+    
+    console.log('[DPS Delete] Accounts found', { 
+      mainAccount: !!mainAccount, 
+      dpsAccount: !!dpsAccount,
+      mainAccountId: dpsDeleteContext.mainAccountId,
+      dpsAccountId: dpsDeleteContext.dpsAccountId
+    });
+    
+    if (!mainAccount) {
+      console.error('[DPS Delete] Main account not found');
+      setDpsDeleteError('Main account not found');
+      return;
+    }
+    
+    // Use stored values from context (captured when modal opened) to prevent issues during deletion
+    const dpsBalance = dpsDeleteContext.dpsBalance;
+    const dpsCurrency = dpsDeleteContext.dpsCurrency;
+    const mainAccountUserId = mainAccount.user_id;
+    const dpsAccountUserId = dpsAccount?.user_id || mainAccountUserId;
+    const dpsAccountName = dpsAccount?.name || 'DPS Account';
+    
+    console.log('[DPS Delete] Setting loading state to true');
+    setIsDeletingDPS(true);
+    setDpsDeleteError(null);
+    const transactionId = generateTransactionId('account_delete');
+    
+    console.log('[DPS Delete] Starting deletion process', { 
+      moveToMainAccount, 
+      transactionId,
+      dpsBalance,
+      dpsCurrency
+    });
     
     try {
       if (moveToMainAccount) {
-        // Move DPS balance to main account by creating an income transaction
-        await updateAccount(mainAccount.id, {
-          dps_savings_account_id: null,
-          has_dps: false,
-          dps_type: null,
-          dps_amount_type: null,
-          dps_fixed_amount: null
-        });
-        await deleteAccount(dpsAccount.id);
+        console.log('[DPS Delete] Path: Move to Main Account');
+        
+        // Batch all operations: update account, delete account, add transaction
+        // Note: updateAccount and deleteAccount will call fetchAccounts internally,
+        // but we'll call it once more at the end to ensure consistency
+        console.log('[DPS Delete] Starting Promise.all for updateAccount and deleteAccount');
+        await Promise.all([
+          (async () => {
+            console.log('[DPS Delete] Starting updateAccount');
+            await updateAccount(mainAccount.id, {
+              dps_savings_account_id: null,
+              has_dps: false,
+              dps_type: null,
+              dps_amount_type: null,
+              dps_fixed_amount: null
+            });
+            console.log('[DPS Delete] updateAccount completed');
+          })(),
+          (async () => {
+            console.log('[DPS Delete] Starting deleteAccount');
+            await deleteAccount(dpsAccount.id, transactionId);
+            console.log('[DPS Delete] deleteAccount completed');
+          })()
+        ]);
+        console.log('[DPS Delete] Promise.all completed');
+        
         // Add income transaction to main account
+        console.log('[DPS Delete] Adding transaction to main account');
         await useFinanceStore.getState().addTransaction({
           account_id: mainAccount.id,
           amount: dpsBalance,
@@ -883,65 +992,334 @@ export const AccountsView: React.FC = () => {
           description: 'DPS balance returned on DPS account deletion',
           category: 'DPS',
           date: new Date().toISOString(),
-          user_id: mainAccount.user_id,
+          user_id: mainAccountUserId,
           tags: ['dps_deletion'],
         });
+        console.log('[DPS Delete] Transaction added');
+        
+        // Final fetch to ensure all data is synced
+        console.log('[DPS Delete] Calling final fetchAccounts');
+        await fetchAccounts();
+        console.log('[DPS Delete] Final fetchAccounts completed');
+        
+        console.log('[DPS Delete] Success - closing modal - BEFORE setState', {
+          timestamp: new Date().toISOString()
+        });
         toast.success('DPS account deleted and balance moved to Cash Wallet');
+        setShowDpsDeleteModal(false);
+        setDpsDeleteContext(null);
+        console.log('[DPS Delete] Success - closing modal - AFTER setState', {
+          timestamp: new Date().toISOString()
+        });
       } else {
-        // Find cash account for the same currency
-        let cashAccount = accounts.find(a => a.type === 'cash' && a.currency === dpsAccount.currency);
+        console.log('[DPS Delete] Path: Move to Cash Wallet');
+        
+        // Find cash account for the same currency (before any operations)
+        let cashAccount = accounts.find(a => a.type === 'cash' && a.currency === dpsCurrency);
+        let cashAccountId: string | null = null;
+        let cashAccountUserId: string | null = null;
+        
+        console.log('[DPS Delete] Cash account lookup', { found: !!cashAccount, currency: dpsCurrency });
+        
         if (!cashAccount) {
+          console.log('[DPS Delete] Creating new cash account');
           // Create a new cash account for this currency
           const newAccountName = 'Cash Wallet';
-          const { user_id } = dpsAccount;
           const newAccount = {
             name: newAccountName,
             type: 'cash' as const,
-            currency: dpsAccount.currency,
+            currency: dpsCurrency,
             initial_balance: 0,
             calculated_balance: 0,
             isActive: true,
-            user_id,
+            user_id: dpsAccountUserId,
             updated_at: new Date().toISOString(),
           };
-          // Assume addAccount returns the created account with id
           const created = await useFinanceStore.getState().addAccount(newAccount);
-          // Refetch accounts to get the new one
-          await useFinanceStore.getState().fetchAccounts();
-          cashAccount = useFinanceStore.getState().accounts.find(a => a.type === 'cash' && a.currency === dpsAccount.currency);
-          toast.success(`New Cash Wallet created for ${dpsAccount.currency}`);
+          cashAccountId = created?.id || null;
+          cashAccountUserId = dpsAccountUserId;
+          console.log('[DPS Delete] New cash account created', { cashAccountId });
+          toast.success(`New Cash Wallet created for ${dpsCurrency}`);
+        } else {
+          cashAccountId = cashAccount.id;
+          cashAccountUserId = cashAccount.user_id;
+          console.log('[DPS Delete] Using existing cash account', { cashAccountId });
         }
-        if (cashAccount) {
-          // Do NOT update initial_balance. Only add income transaction to cash account
+        
+        // Batch all operations: update main account, delete DPS account
+        console.log('[DPS Delete] Starting Promise.all for updateAccount and deleteAccount (cash wallet path)');
+        await Promise.all([
+          (async () => {
+            console.log('[DPS Delete] Starting updateAccount (cash wallet path)');
+            await updateAccount(mainAccount.id, {
+              dps_savings_account_id: null,
+              has_dps: false,
+              dps_type: null,
+              dps_amount_type: null,
+              dps_fixed_amount: null
+            });
+            console.log('[DPS Delete] updateAccount completed (cash wallet path)');
+          })(),
+          (async () => {
+            console.log('[DPS Delete] Starting deleteAccount (cash wallet path)');
+            await deleteAccount(dpsAccount.id, transactionId);
+            console.log('[DPS Delete] deleteAccount completed (cash wallet path)');
+          })()
+        ]);
+        console.log('[DPS Delete] Promise.all completed (cash wallet path)');
+        
+        // Add income transaction to cash account if we have the ID
+        if (cashAccountId && cashAccountUserId) {
+          console.log('[DPS Delete] Adding transaction to cash account', { cashAccountId });
           await useFinanceStore.getState().addTransaction({
-            account_id: cashAccount.id,
+            account_id: cashAccountId,
             amount: dpsBalance,
             type: 'income',
-            description: `DPS balance transferred from ${dpsAccount.name}`,
+            description: `DPS balance transferred from ${dpsAccountName}`,
             category: 'DPS',
             date: new Date().toISOString(),
-            user_id: cashAccount.user_id,
+            user_id: cashAccountUserId,
             tags: ['dps_deletion'],
           });
+          console.log('[DPS Delete] Transaction added to cash account');
         }
-        // Delete DPS account and update main account
-        await updateAccount(mainAccount.id, {
-          dps_savings_account_id: null,
-          has_dps: false,
-          dps_type: null,
-          dps_amount_type: null,
-          dps_fixed_amount: null
+        
+        // Final fetch to ensure all data is synced
+        console.log('[DPS Delete] Calling final fetchAccounts (cash wallet path)');
+        await fetchAccounts();
+        console.log('[DPS Delete] Final fetchAccounts completed (cash wallet path)');
+        
+        console.log('[DPS Delete] Success - closing modal (cash wallet path) - BEFORE setState', {
+          timestamp: new Date().toISOString()
         });
-        await deleteAccount(dpsAccount.id);
         toast.success('DPS account deleted and balance moved to Cash Wallet');
+        setShowDpsDeleteModal(false);
+        setDpsDeleteContext(null);
+        console.log('[DPS Delete] Success - closing modal (cash wallet path) - AFTER setState', {
+          timestamp: new Date().toISOString()
+        });
       }
-    } catch (error) {
-      toast.error('Failed to delete DPS account');
+    } catch (error: any) {
+      console.error('[DPS Delete] Error occurred', error);
+      const errorMessage = error?.message || 'Failed to delete DPS account';
+      setDpsDeleteError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      console.log('[DPS Delete] Setting loading state to false');
+      setIsDeletingDPS(false);
+    }
+  }, [dpsDeleteContext, isDeletingDPS, accounts, updateAccount, deleteAccount, fetchAccounts]);
+
+  // Memoize the modal content with Portal to prevent unnecessary recreations
+  // The Portal is created inside useMemo so it's only recreated when dependencies change
+  // NOTE: This must be defined AFTER confirmDeleteDPS to avoid hoisting issues
+  const dpsDeleteModalContent = useMemo(() => {
+    console.log('[DPS Delete Modal] useMemo called', {
+      showDpsDeleteModal,
+      hasContext: !!dpsDeleteContext,
+      isDeletingDPS,
+      hasError: !!dpsDeleteError,
+      contextMainId: dpsDeleteContext?.mainAccountId,
+      contextDpsId: dpsDeleteContext?.dpsAccountId,
+      contextBalance: dpsDeleteContext?.dpsBalance,
+      confirmDeleteDPSType: typeof confirmDeleteDPS,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (!showDpsDeleteModal || !dpsDeleteContext) {
+      console.log('[DPS Delete Modal] Returning null - modal should not be visible', {
+        showDpsDeleteModal,
+        hasContext: !!dpsDeleteContext
+      });
+      return null;
     }
     
-    setShowDpsDeleteModal(false);
-    setDpsDeleteContext(null);
-  };
+    console.log('[DPS Delete Modal] Creating modal with Portal', { 
+      isDeletingDPS, 
+      hasContext: !!dpsDeleteContext,
+      dpsBalance: dpsDeleteContext.dpsBalance,
+      mainAccountId: dpsDeleteContext.mainAccountId,
+      dpsAccountId: dpsDeleteContext.dpsAccountId,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Check if main account is a cash account - if so, hide cash wallet option
+    const mainAccount = accounts.find(a => a.id === dpsDeleteContext.mainAccountId);
+    const dpsAccount = accounts.find(a => a.id === dpsDeleteContext.dpsAccountId);
+    const isMainAccountCash = mainAccount?.type === 'cash';
+    const showCashWalletOption = !isMainAccountCash;
+    
+    // Get transaction info for DPS account
+    const dpsTransactions = dpsAccount ? getTransactionsByAccount(dpsAccount.id) : [];
+    const transactionCount = dpsTransactions.length;
+    const lastTransaction = dpsTransactions.length > 0 
+      ? dpsTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+      : null;
+    const lastTransactionDate = lastTransaction ? new Date(lastTransaction.date) : null;
+    
+    // Find existing cash account for cash wallet option
+    const existingCashAccount = showCashWalletOption && dpsAccount
+      ? accounts.find(a => a.type === 'cash' && a.currency === dpsDeleteContext.dpsCurrency)
+      : null;
+    
+    console.log('[DPS Delete Modal] Account check', {
+      mainAccountType: mainAccount?.type,
+      isMainAccountCash,
+      showCashWalletOption,
+      transactionCount,
+      lastTransactionDate
+    });
+    
+    const modalJSX = (
+      <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4" onClick={isDeletingDPS ? undefined : () => setShowDpsDeleteModal(false)}>
+        <div className="bg-white dark:bg-gray-800 rounded-lg sm:rounded-xl shadow-2xl w-full max-w-sm sm:max-w-2xl mx-auto max-h-[95vh] sm:max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          {/* Header */}
+          <div className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 rounded-t-lg sm:rounded-t-xl p-3 sm:p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Delete DPS Account</h3>
+              <button
+                onClick={() => setShowDpsDeleteModal(false)}
+                disabled={isDeletingDPS}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg p-1.5 sm:p-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-6">
+            {/* Error Message */}
+            {dpsDeleteError && (
+              <div className="mb-4 p-3 sm:p-2 text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs sm:text-sm">
+                {dpsDeleteError}
+              </div>
+            )}
+
+            {/* Two Column Layout: Account Info | Action Buttons */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4">
+              {/* Left Column: Account Info */}
+              <div className="space-y-4">
+                {/* Balance Display Card */}
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                  <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2">Available Balance</div>
+                  <div className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
+                    {formatCurrency(dpsDeleteContext.dpsBalance, dpsDeleteContext.dpsCurrency)}
+                  </div>
+                </div>
+
+                {/* DPS Details Card */}
+                {dpsAccount && (
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                    <div className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">DPS Details</div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600 dark:text-gray-400">Account:</span>
+                        <span className="text-gray-900 dark:text-white font-medium text-right">{dpsAccount.name}</span>
+                      </div>
+                      {dpsAccount.dps_type && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 dark:text-gray-400">Type:</span>
+                          <span className="text-gray-900 dark:text-white font-medium">{dpsAccount.dps_type === 'monthly' ? 'Monthly' : 'Flexible'}</span>
+                        </div>
+                      )}
+                      {mainAccount && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 dark:text-gray-400">Linked to:</span>
+                          <span className="text-gray-900 dark:text-white font-medium text-right truncate ml-2">{mainAccount.name}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Transaction Info Card */}
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                  <div className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">Transaction History</div>
+                  <div className="text-sm space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 dark:text-gray-400">Transactions:</span>
+                      <span className="text-gray-900 dark:text-white font-medium">{transactionCount}</span>
+                    </div>
+                    {lastTransactionDate && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600 dark:text-gray-400">Last transaction:</span>
+                        <span className="text-gray-900 dark:text-white font-medium">{format(lastTransactionDate, 'MMM dd, yyyy')}</span>
+                      </div>
+                    )}
+                    {!lastTransactionDate && (
+                      <div className="text-xs text-gray-500 dark:text-gray-500">No transactions yet</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Action Buttons */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                <div className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-4">Transfer Balance To</div>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => confirmDeleteDPS(true)}
+                    disabled={isDeletingDPS}
+                    className="w-full min-h-[56px] sm:min-h-[60px] p-4 sm:p-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 active:bg-blue-100 dark:active:bg-blue-900/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                  >
+                    <div className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">Move to Main Account</div>
+                    {mainAccount && (
+                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-0.5">{mainAccount.name}</div>
+                    )}
+                    {!mainAccount && (
+                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">Transfer to your primary account</div>
+                    )}
+                  </button>
+
+                  {showCashWalletOption && (
+                    <button
+                      onClick={() => confirmDeleteDPS(false)}
+                      disabled={isDeletingDPS}
+                      className="w-full min-h-[56px] sm:min-h-[60px] p-4 sm:p-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:border-green-500 dark:hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 active:bg-green-100 dark:active:bg-green-900/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                    >
+                      <div className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">Move to Cash Wallet</div>
+                      {existingCashAccount ? (
+                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-0.5">{existingCashAccount.name}</div>
+                      ) : (
+                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">Will create new cash wallet</div>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Loading Indicator */}
+            {isDeletingDPS && (
+              <div className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg p-3 sm:p-4 mb-4 border border-blue-200 dark:border-blue-800">
+                <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin text-blue-600 dark:text-purple-400" />
+                <span className="text-xs sm:text-sm font-medium text-gradient-primary">Processing deletion...</span>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-row gap-3 justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setShowDpsDeleteModal(false)}
+                disabled={isDeletingDPS}
+                className="px-5 sm:px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-auto text-white bg-gradient-primary hover:bg-gradient-primary-hover rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base font-medium shadow-md hover:shadow-lg active:scale-95"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+    
+    // Create Portal inside useMemo so it's only recreated when dependencies change
+    const portal = createPortal(modalJSX, document.body);
+    console.log('[DPS Delete Modal] Portal created', {
+      timestamp: new Date().toISOString(),
+      portalType: typeof portal
+    });
+    return portal;
+  }, [showDpsDeleteModal, dpsDeleteContext, isDeletingDPS, dpsDeleteError, confirmDeleteDPS, accounts, transactions, getTransactionsByAccount]);
 
   // Set default cardCurrency to first available currency
   useEffect(() => {
@@ -2330,78 +2708,7 @@ export const AccountsView: React.FC = () => {
       />
 
       {/* DPS Delete Confirmation Modal */}
-      {showDpsDeleteModal && dpsDeleteContext && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setShowDpsDeleteModal(false)} />
-          <div className="relative bg-white rounded-lg p-4 max-w-sm w-full mx-2 shadow-xl">
-            {/* Header */}
-            <div className="text-center mb-3">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Trash2 className="w-5 h-5 text-red-600" />
-              </div>
-              <h3 className="text-base font-bold text-gray-900 mb-1">Delete DPS Account</h3>
-              <p className="text-gray-600 text-xs">Choose where to transfer your remaining balance</p>
-            </div>
-
-            {/* Balance Display */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded p-3 mb-4 text-center">
-              <div className="text-xl font-bold text-blue-700 mb-0.5">
-                {formatCurrency(dpsDeleteContext.dpsAccount.calculated_balance, dpsDeleteContext.dpsAccount.currency)}
-              </div>
-              <div className="text-xs text-blue-600">Available Balance</div>
-            </div>
-
-            {/* Action Cards */}
-            <div className="space-y-2 mb-3">
-              <button
-                onClick={() => confirmDeleteDPS(true)}
-                className="w-full p-2 border border-blue-200 rounded hover:border-blue-400 hover:bg-blue-50 transition-all duration-150 group"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-blue-100 rounded-full flex items-center justify-center">
-                    <ArrowLeft className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <div className="font-semibold text-gray-900 text-sm">Move to Main Account</div>
-                    <div className="text-xs text-gray-600">Transfer balance back to your primary account</div>
-                  </div>
-                  <div className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Recommended</div>
-                </div>
-              </button>
-
-              <div className="flex items-center justify-center">
-                <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
-                  <span className="text-[10px] font-semibold text-gray-500">or</span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => confirmDeleteDPS(false)}
-                className="w-full p-2 border border-green-200 rounded hover:border-green-400 hover:bg-green-50 transition-all duration-150 group"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-green-100 rounded-full flex items-center justify-center">
-                    <DollarSign className="w-4 h-4 text-green-600" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <div className="font-semibold text-gray-900 text-sm">Move to Cash Wallet</div>
-                    <div className="text-xs text-gray-600">Create or use existing cash wallet</div>
-                  </div>
-                  <div className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Auto-create</div>
-                </div>
-              </button>
-            </div>
-
-            {/* Cancel Button */}
-            <button
-              onClick={() => setShowDpsDeleteModal(false)}
-              className="w-full py-2 text-gray-500 hover:text-gray-700 text-xs font-medium transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      {dpsDeleteModalContent}
 
       {modalOpen && selectedAccount && (
         <>

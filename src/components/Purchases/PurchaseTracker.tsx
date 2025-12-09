@@ -406,6 +406,7 @@ export const PurchaseTracker: React.FC = () => {
           category: parsed.category || 'all',
           priority: parsed.priority || 'all',
           currency: parsed.currency || '',
+          status: parsed.status || 'all',
           dateRange: parsed.dateRange && parsed.dateRange.start !== undefined && parsed.dateRange.end !== undefined
             ? parsed.dateRange
             : getThisMonthDateRange()
@@ -419,6 +420,7 @@ export const PurchaseTracker: React.FC = () => {
       category: 'all',
       priority: 'all' as 'all' | 'low' | 'medium' | 'high',
       currency: '' as string,
+      status: 'all' as 'all' | 'planned' | 'purchased' | 'cancelled',
       dateRange: getThisMonthDateRange()
     };
   });
@@ -666,9 +668,11 @@ export const PurchaseTracker: React.FC = () => {
       const matchesCategory = filters.category === 'all' || purchase.category === filters.category;
       const matchesPriority = filters.priority === 'all' || purchase.priority === filters.priority;
       const matchesCurrency = filters.currency === '' || purchase.currency === filters.currency;
+      const matchesStatus = filters.status === 'all' || purchase.status === filters.status;
       
       let matchesDate = true;
-      if (filters.dateRange.start && filters.dateRange.end) {
+      // Skip date filtering if status is 'planned' (show all time for planned purchases)
+      if (filters.status !== 'planned' && filters.dateRange.start && filters.dateRange.end) {
         // Compare date strings directly to avoid timezone conversion issues
         // purchase.purchase_date is in YYYY-MM-DD format, same as filters.dateRange.start/end
         const purchaseDateStr = purchase.purchase_date.slice(0, 10); // Ensure we only use date part
@@ -678,9 +682,29 @@ export const PurchaseTracker: React.FC = () => {
         
       }
 
-      return matchesSearch && matchesCategory && matchesPriority && matchesCurrency && matchesDate;
+      return matchesSearch && matchesCategory && matchesPriority && matchesCurrency && matchesStatus && matchesDate;
     });
   }, [purchases, filters, hasSelection, isFromSearch, selectedRecord]);
+
+  // For analytics cards, use the table filter currency (calculate early for useMemo hooks)
+  const analyticsCurrency = filters.currency || profile?.local_currency || profile?.selected_currencies?.[0] || '';
+  
+  // Calculate total planned amount and overdue planned amount (must be before any early returns)
+  const totalPlannedAmount = useMemo(() => {
+    const plannedPurchases = filteredPurchases.filter(p => p.status === 'planned' && p.currency === analyticsCurrency);
+    return plannedPurchases.reduce((sum, p) => sum + Number(p.price), 0);
+  }, [filteredPurchases, analyticsCurrency]);
+  
+  const overduePlannedAmount = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const overduePlanned = filteredPurchases.filter(p => 
+      p.status === 'planned' && 
+      p.currency === analyticsCurrency &&
+      new Date(p.purchase_date) < today
+    );
+    return overduePlanned.reduce((sum, p) => sum + Number(p.price), 0);
+  }, [filteredPurchases, analyticsCurrency]);
 
   const formatCurrency = (amount: number, currency: string) => {
     if (currency === 'BDT') {
@@ -1651,9 +1675,6 @@ export const PurchaseTracker: React.FC = () => {
   // Disable all fields in the edit form if editingPurchase.exclude_from_calculation is true
   const isExcluded = !!(editingPurchase && editingPurchase.exclude_from_calculation);
 
-  // For analytics cards, use the table filter currency:
-  const analyticsCurrency = filters.currency || profile?.local_currency || profile?.selected_currencies?.[0] || '';
-  
   // Financial totals for top summary card (affected by table filters)
   const summaryTotalSpent = filteredPurchases.reduce((sum, p) => sum + (p.status === 'purchased' ? Number(p.price) : 0), 0);
   
@@ -1743,10 +1764,10 @@ export const PurchaseTracker: React.FC = () => {
       {/* Unified Filters and Table */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden pb-[13px] lg:pb-0">
         {/* Filters Header */}
-        <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <div className="p-2 sm:p-3 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex flex-wrap items-center gap-2">
 
-          <div>
+          <div className="flex-1 min-w-0 sm:flex-initial">
             <div className="relative">
                               <Search className={`absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 ${filters.search ? 'text-blue-500' : 'text-gray-400'}`} />
               <input
@@ -2075,7 +2096,7 @@ export const PurchaseTracker: React.FC = () => {
           </div>
         </div>
         {/* Analytics Cards Grid - moved inside table container */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 p-2 sm:p-3">
           <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
             <div className="flex items-center justify-between">
               <div className="text-left">
@@ -2095,7 +2116,19 @@ export const PurchaseTracker: React.FC = () => {
               </span>
             </div>
           </div>
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
+          <div 
+            onClick={() => {
+              setFilters(prev => ({
+                ...prev,
+                status: prev.status === 'purchased' ? 'all' : 'purchased'
+              }));
+            }}
+            className={`bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2 cursor-pointer transition-all ${
+              filters.status === 'purchased' 
+                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700' 
+                : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div className="text-left">
                                         <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Completed</p>
@@ -2111,7 +2144,19 @@ export const PurchaseTracker: React.FC = () => {
               <CheckCircle className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
             </div>
           </div>
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
+          <div 
+            onClick={() => {
+              setFilters(prev => ({
+                ...prev,
+                status: prev.status === 'planned' ? 'all' : 'planned'
+              }));
+            }}
+            className={`bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2 cursor-pointer transition-all ${
+              filters.status === 'planned' 
+                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700' 
+                : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div className="text-left">
                 <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Planned</p>
@@ -2156,6 +2201,40 @@ export const PurchaseTracker: React.FC = () => {
                   </p>
                 </div>
                 <svg className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2l4 -4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+            </div>
+          )}
+          
+          {totalPlannedAmount > 0 && (
+            <div className="bg-orange-50 dark:bg-orange-900/20 rounded-md border border-orange-200 dark:border-orange-800 py-1.5 px-2">
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <p className="text-xs font-medium text-orange-700 dark:text-orange-300">Total Planned Amount</p>
+                  <p className="font-bold text-orange-600 dark:text-orange-400" style={{ fontSize: '1.2rem' }}>
+                    {formatCurrency(totalPlannedAmount, analyticsCurrency)}
+                  </p>
+                  <p className="text-orange-600 dark:text-orange-400" style={{ fontSize: '11px' }}>
+                    From planned purchases
+                  </p>
+                </div>
+                <span className="text-orange-600 dark:text-orange-400" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(analyticsCurrency)}</span>
+              </div>
+            </div>
+          )}
+          
+          {overduePlannedAmount > 0 && (
+            <div className="bg-red-50 dark:bg-red-900/20 rounded-md border border-red-200 dark:border-red-800 py-1.5 px-2">
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <p className="text-xs font-medium text-red-700 dark:text-red-300">Overdue Planned Amount</p>
+                  <p className="font-bold text-red-600 dark:text-red-400" style={{ fontSize: '1.2rem' }}>
+                    {formatCurrency(overduePlannedAmount, analyticsCurrency)}
+                  </p>
+                  <p className="text-red-600 dark:text-red-400" style={{ fontSize: '11px' }}>
+                    From overdue planned purchases
+                  </p>
+                </div>
+                <span className="text-red-600 dark:text-red-400" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(analyticsCurrency)}</span>
               </div>
             </div>
           )}
@@ -2411,7 +2490,7 @@ export const PurchaseTracker: React.FC = () => {
 
         {/* Mobile Card View */}
         <div className="lg:hidden max-h-[500px] overflow-y-auto">
-          <div className="space-y-4 px-2.5">
+          <div className="space-y-3 sm:space-y-4 px-2 sm:px-3">
             {filteredPurchases.length === 0 ? (
               <div className="text-center py-16">
                 <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
@@ -2432,7 +2511,7 @@ export const PurchaseTracker: React.FC = () => {
                     className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow ${isSelected ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
                   >
                     {/* Card Header - Item Name and Date */}
-                    <div className="flex items-center justify-between p-4 pb-2">
+                    <div className="flex items-center justify-between p-3 sm:p-4 pb-2">
                       <div className="flex-1">
                         <div className="text-base font-medium text-gray-900 dark:text-white mb-1">
                           {purchase.item_name}
@@ -2630,26 +2709,26 @@ export const PurchaseTracker: React.FC = () => {
                     }`}
                   >
                     {/* Row 1: Item Name, Date, Price, Actions */}
-                    <div className="grid grid-cols-12 gap-2 p-3 border-b border-gray-100 dark:border-gray-800">
-                      <div className="col-span-4">
-                        <div className="font-medium text-gray-900 dark:text-white truncate">
+                    <div className="grid grid-cols-12 gap-2 sm:gap-3 p-2 sm:p-3 border-b border-gray-100 dark:border-gray-800">
+                      <div className="col-span-12 sm:col-span-5 md:col-span-4">
+                        <div className="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate">
                           {purchase.item_name}
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                           {format(new Date(purchase.purchase_date), 'MMM dd, yyyy')}
                         </div>
                       </div>
-                      <div className="col-span-3">
-                        <div className="text-sm text-gray-600 dark:text-gray-300">
+                      <div className="col-span-6 sm:col-span-3 md:col-span-3">
+                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 font-medium">
                           {formatCurrency(purchase.price, purchase.currency)}
                         </div>
                       </div>
-                      <div className="col-span-3">
-                        <div className="text-sm text-gray-600 dark:text-gray-300">
+                      <div className="col-span-4 sm:col-span-2 md:col-span-3">
+                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 capitalize">
                           {purchase.status}
                         </div>
                       </div>
-                      <div className="col-span-2 flex items-center justify-end gap-1">
+                      <div className="col-span-2 sm:col-span-2 flex items-center justify-end gap-0.5 sm:gap-1">
                         {(() => {
                           const hasNotes = Boolean(purchase.notes && purchase.notes.trim().length > 0);
                           const hasAttachments = Boolean(purchaseAttachmentCounts[purchase.id] > 0);
@@ -2743,21 +2822,21 @@ export const PurchaseTracker: React.FC = () => {
                     </div>
                     
                     {/* Row 2: Category, Account, Notes */}
-                    <div className="grid grid-cols-12 gap-2 p-3">
-                      <div className="col-span-4">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Category</div>
-                        <div className="text-sm text-gray-900 dark:text-white">
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3 p-2 sm:p-3">
+                      <div className="col-span-1 sm:col-span-4">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Category</div>
+                        <div className="text-sm text-gray-900 dark:text-white truncate">
                           {purchase.category || 'Uncategorized'}
                         </div>
                       </div>
-                      <div className="col-span-4">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Priority</div>
+                      <div className="col-span-1 sm:col-span-4">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Priority</div>
                         <div className="text-sm text-gray-900 dark:text-white">
                           {purchase.priority.charAt(0).toUpperCase() + purchase.priority.slice(1)}
                         </div>
                       </div>
-                      <div className="col-span-4">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Notes</div>
+                      <div className="col-span-1 sm:col-span-4">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Notes</div>
                         <div className="text-sm text-gray-900 dark:text-white max-h-20 overflow-hidden">
                           {purchase.notes ? (
                             <div className="ql-editor" dangerouslySetInnerHTML={{ __html: purchase.notes }} />
@@ -2807,8 +2886,8 @@ export const PurchaseTracker: React.FC = () => {
         </div>
 
         {/* Mobile Summary Section - Regular section at bottom */}
-        <div className="lg:hidden mt-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" style={{ margin: '10px', marginBottom: '0px' }}>
-          <div className="p-4 space-y-3">
+        <div className="lg:hidden mt-4 sm:mt-6 mx-2 sm:mx-0 mb-0 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="p-3 sm:p-4 space-y-3">
             <div>
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">All Time Summary</span>
             </div>

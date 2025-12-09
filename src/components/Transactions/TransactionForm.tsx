@@ -934,7 +934,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                     });
                   }
                 } catch (error) {
-                  console.error('Error creating first recurring transaction instance:', error);
                   // Don't fail the parent transaction creation if first instance fails
                 }
               }

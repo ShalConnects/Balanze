@@ -14,45 +14,42 @@ export interface GoogleSignInPlugin {
   signOut(): Promise<{ success: boolean }>;
 }
 
-// Get the plugin instance
-const getGoogleSignInPlugin = (): GoogleSignInPlugin | null => {
-  if (Capacitor.getPlatform() === 'android') {
-    const capacitor = (window as any).Capacitor;
-    console.error('[GoogleSignIn] Checking plugin availability...');
-    console.error('[GoogleSignIn] - Capacitor exists?', !!capacitor);
+// Use the JavaScript interface directly (injected by MainActivity)
+// This is more reliable than waiting for Capacitor plugin registration
+const callNativeSignIn = (): Promise<GoogleSignInResult> => {
+  return new Promise((resolve, reject) => {
+    const callbackId = 'cb' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     
-    if (!capacitor) {
-      console.error('[GoogleSignIn] ❌ Capacitor not available');
-      return null;
-    }
-    
-    // Try Capacitor.Plugins.GoogleSignIn (standard way for custom plugins)
-    if (capacitor.Plugins) {
-      console.error('[GoogleSignIn] - Capacitor.Plugins exists, keys:', Object.keys(capacitor.Plugins));
-      
-      if (capacitor.Plugins.GoogleSignIn) {
-        console.error('[GoogleSignIn] ✅ Plugin found via Capacitor.Plugins.GoogleSignIn');
-        return capacitor.Plugins.GoogleSignIn as GoogleSignInPlugin;
-      }
-    }
-    
-    // Try getPlugin method if available
-    if (typeof capacitor.getPlugin === 'function') {
-      try {
-        const plugin = capacitor.getPlugin('GoogleSignIn');
-        if (plugin) {
-          console.error('[GoogleSignIn] ✅ Plugin found via getPlugin');
-          return plugin as GoogleSignInPlugin;
+    // Set up callback handler
+    (window as any).GoogleSignInCallback = (id: string, result: any) => {
+      if (id === callbackId) {
+        delete (window as any).GoogleSignInCallback;
+        if (result.error) {
+          reject(new Error(result.error));
+        } else {
+          resolve(result as GoogleSignInResult);
         }
-      } catch (e) {
-        console.error('[GoogleSignIn] getPlugin error:', e);
       }
-    }
+    };
     
-    console.error('[GoogleSignIn] ❌ Plugin not found - ensure plugin is registered in MainActivity');
-    console.error('[GoogleSignIn] - Available plugins:', capacitor.Plugins ? Object.keys(capacitor.Plugins) : 'none');
-  }
-  return null;
+    // Call native interface
+    const nativeInterface = (window as any).GoogleSignInNative;
+    if (nativeInterface && nativeInterface.signIn) {
+      console.error('[GoogleSignIn] ✅ Calling native interface directly');
+      nativeInterface.signIn(callbackId);
+      
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        if ((window as any).GoogleSignInCallback) {
+          delete (window as any).GoogleSignInCallback;
+          reject(new Error('Sign in timeout'));
+        }
+      }, 30000);
+    } else {
+      delete (window as any).GoogleSignInCallback;
+      reject(new Error('Native interface not available'));
+    }
+  });
 };
 
 export const googleSignIn = {
@@ -66,38 +63,22 @@ export const googleSignIn = {
       return null;
     }
 
-    const plugin = getGoogleSignInPlugin();
-    if (!plugin) {
-      console.error('[GoogleSignIn] ❌ Plugin not available - trying direct bridge call...');
-      
-      // Try direct bridge call as last resort (only if Plugins.GoogleSignIn exists)
-      const capacitor = (window as any).Capacitor;
-      if (capacitor?.Plugins?.GoogleSignIn) {
-        try {
-          console.error('[GoogleSignIn] Attempting direct bridge call...');
-          // Use Capacitor's native bridge directly
-          const result = await capacitor.Plugins.GoogleSignIn.signIn();
-          console.error('[GoogleSignIn] ✅ Direct bridge call succeeded');
-          return result;
-        } catch (bridgeError: any) {
-          console.error('[GoogleSignIn] ❌ Direct bridge call failed:', bridgeError);
-          throw bridgeError;
-        }
-      }
-      
-      console.error('[GoogleSignIn] ❌ Plugin not available - cannot use native sign-in');
+    // Check if native interface is available (injected by MainActivity)
+    const nativeInterface = (window as any).GoogleSignInNative;
+    if (!nativeInterface || !nativeInterface.signIn) {
+      console.error('[GoogleSignIn] ❌ Native interface not available');
+      console.error('[GoogleSignIn] - GoogleSignInNative exists?', !!nativeInterface);
       return null;
     }
 
-    console.error('[GoogleSignIn] ✅ Plugin found, calling signIn()...');
+    console.error('[GoogleSignIn] ✅ Native interface found, calling signIn()...');
     try {
-      const result = await plugin.signIn();
+      const result = await callNativeSignIn();
       console.error('[GoogleSignIn] ✅ signIn() completed, result:', !!result);
       return result;
     } catch (error: any) {
       console.error('[GoogleSignIn] ❌ Sign in error:', error);
       console.error('[GoogleSignIn] - Error message:', error?.message);
-      console.error('[GoogleSignIn] - Error code:', error?.code);
       throw error;
     }
   },

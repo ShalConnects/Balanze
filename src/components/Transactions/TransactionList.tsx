@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check, EyeOff } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -54,8 +54,9 @@ export const TransactionList: React.FC<{
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | undefined>();
   const [transactionToDuplicate, setTransactionToDuplicate] = useState<Transaction | undefined>();
-  const { getActiveAccounts, getActiveTransactions, deleteTransaction, updateTransaction, fetchTransactions, categories, purchaseCategories } = useFinanceStore();
-  const accounts = getActiveAccounts();
+  const { getActiveAccounts, getActiveTransactions, deleteTransaction, updateTransaction, fetchTransactions, categories, purchaseCategories, accounts: allAccounts } = useFinanceStore();
+  const accounts = getActiveAccounts(); // For filtering dropdowns, keep active accounts
+  const allAccountsForLookup = allAccounts; // Use all accounts for lookups to show inactive account info
   const activeTransactions = getActiveTransactions();
   const { profile } = useAuthStore();
   const { wrapAsync, setLoadingMessage } = useLoadingContext();
@@ -482,21 +483,8 @@ export const TransactionList: React.FC<{
   const isCapacitor = !!(window as any).Capacitor;
   const isAndroidApp = isAndroid && isCapacitor;
   
-  // Debug Android detection
-  console.log('TransactionList Android Detection:', {
-    userAgent: navigator.userAgent,
-    isAndroid,
-    isCapacitor,
-    isAndroidApp
-  });
-  
   // Android download modal state
   const [showAndroidDownloadModal, setShowAndroidDownloadModal] = useState(false);
-  
-  // Debug modal state changes
-  useEffect(() => {
-    console.log('TransactionList Modal State Changed:', showAndroidDownloadModal);
-  }, [showAndroidDownloadModal]);
 
   // Sorting function
   const handleSort = (key: string) => {
@@ -546,8 +534,8 @@ export const TransactionList: React.FC<{
           bValue = (b.category || '').toLowerCase();
           break;
         case 'account':
-          const accountA = accounts.find(acc => acc.id === a.account_id)?.name || '';
-          const accountB = accounts.find(acc => acc.id === b.account_id)?.name || '';
+          const accountA = allAccountsForLookup.find(acc => acc.id === a.account_id)?.name || '';
+          const accountB = allAccountsForLookup.find(acc => acc.id === b.account_id)?.name || '';
           aValue = accountA.toLowerCase();
           bValue = accountB.toLowerCase();
           break;
@@ -685,7 +673,7 @@ export const TransactionList: React.FC<{
   // Lifetime totals strictly by selected currency (unaffected by filters)
   const lifetimeTotalsByCurrency = useMemo(() => {
     const currencyFiltered = (activeTransactions || []).filter(t => {
-      const account = accounts.find(a => a.id === t.account_id);
+      const account = allAccountsForLookup.find(a => a.id === t.account_id);
       return account?.currency === selectedCurrency;
     });
     const totals = currencyFiltered.reduce(
@@ -730,8 +718,13 @@ export const TransactionList: React.FC<{
   }, []);
 
   const getAccountName = (accountId: string) => {
-    const account = accounts.find(a => a.id === accountId);
+    const account = allAccountsForLookup.find(a => a.id === accountId);
     return account?.name || 'Unknown Account';
+  };
+
+  const isAccountInactive = (accountId: string) => {
+    const account = allAccountsForLookup.find(a => a.id === accountId);
+    return account ? !account.isActive : false;
   };
 
   // Helper function to get frequency label
@@ -840,6 +833,12 @@ export const TransactionList: React.FC<{
     toast.success('Transaction ID copied to clipboard');
   };
 
+  const handleCopyAmount = (amount: number, currency: string) => {
+    const formattedAmount = formatCurrency(amount, currency);
+    navigator.clipboard.writeText(formattedAmount);
+    toast.success('Amount copied to clipboard');
+  };
+
   // Enhanced search suggestions
   const generateSearchSuggestions = useCallback((searchQuery: string) => {
     if (!searchQuery || searchQuery.length < 2) {
@@ -906,7 +905,7 @@ export const TransactionList: React.FC<{
       .filter(t => {
         if (filters.type !== 'all' && t.type !== filters.type) return false;
         if (filters.account !== 'all' && t.account_id !== filters.account) return false;
-        if (filters.currency && accounts.find(a => a.id === t.account_id)?.currency !== filters.currency) return false;
+        if (filters.currency && allAccountsForLookup.find(a => a.id === t.account_id)?.currency !== filters.currency) return false;
         if (filters.showRecurringOnly && !t.is_recurring) return false;
         
         // New: Filter by recently modified transactions
@@ -959,7 +958,7 @@ export const TransactionList: React.FC<{
     
     // Apply sorting
     return sortData(filtered);
-  }, [transactions, filters, sortConfig, accounts, hasSelection, isFromSearch, selectedRecord]);
+  }, [transactions, filters, sortConfig, accounts, allAccountsForLookup, hasSelection, isFromSearch, selectedRecord]);
 
   // Export functionality using shared hook
   const { isExporting, exportFormat, exportToCSV, exportToPDF, exportToHTML } = useExport({
@@ -986,43 +985,6 @@ export const TransactionList: React.FC<{
     // Create a unique key from the values to detect changes
     const logKey = `${transactionCount}-${totalIncome.toFixed(2)}-${totalExpense.toFixed(2)}-${allLendBorrowInFiltered.length}`;
     
-    // Only log if values have changed
-    if (lastLoggedValuesRef.current !== logKey) {
-      lastLoggedValuesRef.current = logKey;
-      
-      // Log summary first
-      console.group('📋 Transaction List - Lend/Borrow Exclusion');
-      console.log('Summary:', {
-        totalTransactions: transactions.length,
-        filteredTransactions: transactionCount,
-        excludedLendBorrow: allLendBorrowInFiltered.length
-      });
-      
-      // Log excluded transactions
-      if (lendBorrowIncomeInFiltered.length > 0) {
-        console.log(`Excluded from Income (${lendBorrowIncomeInFiltered.length} transactions, Total: ${excludedIncomeAmount}):`, 
-          lendBorrowIncomeInFiltered.map(t => `${t.description} - ${t.amount}`)
-        );
-      } else {
-        console.log('Excluded from Income: None');
-      }
-      
-      if (lendBorrowExpenseInFiltered.length > 0) {
-        console.log(`Excluded from Expense (${lendBorrowExpenseInFiltered.length} transactions, Total: ${excludedExpenseAmount}):`, 
-          lendBorrowExpenseInFiltered.map(t => `${t.description} - ${t.amount}`)
-        );
-      } else {
-        console.log('Excluded from Expense: None');
-      }
-      
-      // Log final totals
-      console.log('Final Calculated Totals:', {
-        income: totalIncome,
-        expense: totalExpense,
-        net: totalIncome - totalExpense
-      });
-      console.groupEnd();
-    }
   }
 
 
@@ -1727,12 +1689,7 @@ export const TransactionList: React.FC<{
                   onClick={() => {
                     if (isExporting) return; // Prevent execution when exporting
                     
-                    console.log('TransactionList Export Button Clicked:', {
-                      isAndroidApp,
-                      showAndroidDownloadModal
-                    });
                     if (isAndroidApp) {
-                      console.log('Setting Android modal to true');
                       setShowAndroidDownloadModal(true);
                     } else {
                       setShowExportMenu(v => !v);
@@ -2090,7 +2047,7 @@ export const TransactionList: React.FC<{
                   </tr>
                 ) : (
               filteredTransactions.map((transaction) => {
-                const account = accounts.find(a => a.id === transaction.account_id);
+                const account = allAccountsForLookup.find(a => a.id === transaction.account_id);
                 const currency = account?.currency || 'USD';
                 const isSelected = selectedId === transaction.id;
                 const isFromSearchSelection = isFromSearch && isSelected;
@@ -2171,6 +2128,14 @@ export const TransactionList: React.FC<{
                           <td className="px-6 py-2 text-center">
                             <div className="flex items-center justify-center gap-1.5">
                               <span className="text-sm text-gray-900 dark:text-white">{getAccountName(transaction.account_id)}</span>
+                              {isAccountInactive(transaction.account_id) && (
+                                <Tooltip 
+                                  content="Account is hidden"
+                                  placement="top"
+                                >
+                                  <EyeOff className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+                                </Tooltip>
+                              )}
                               {account && account.calculated_balance !== undefined && (
                                 <div className="flex items-center">
                                   <Tooltip 
@@ -2185,7 +2150,19 @@ export const TransactionList: React.FC<{
                           </td>
                         )}
                         <td className="px-6 py-2 text-center">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(transaction.amount, selectedCurrency)}</span>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(transaction.amount, selectedCurrency)}</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyAmount(transaction.amount, selectedCurrency);
+                              }}
+                              className="opacity-60 hover:opacity-100 transition-opacity"
+                              title="Copy amount"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                         {columnVisibility.type && (
                           <td className="px-6 py-2 text-center">
@@ -2411,7 +2388,7 @@ export const TransactionList: React.FC<{
               </div>
             ) : (
               filteredTransactions.map((transaction) => {
-                const account = accounts.find(a => a.id === transaction.account_id);
+                const account = allAccountsForLookup.find(a => a.id === transaction.account_id);
                 const currency = account?.currency || 'USD';
                 const isSelected = selectedId === transaction.transaction_id;
                 const isFromSearchSelection = isFromSearch && isSelected;
@@ -2476,13 +2453,25 @@ export const TransactionList: React.FC<{
                         <div className="text-sm font-medium text-gray-900 dark:text-white flex-1 min-w-0">
                           {formatTransactionDescription(transaction.description)}
                         </div>
-                        <div className={`text-sm font-bold flex-shrink-0 ${
+                        <div className={`text-sm font-bold flex-shrink-0 flex items-center gap-1.5 ${
                           transaction.type === 'income' 
                             ? 'text-green-600 dark:text-green-400' 
                             : 'text-red-600 dark:text-red-400'
                         }`}>
-                          {transaction.type === 'income' ? '+' : '-'}
-                          {formatCurrency(transaction.amount, selectedCurrency)}
+                          <span>
+                            {transaction.type === 'income' ? '+' : '-'}
+                            {formatCurrency(transaction.amount, selectedCurrency)}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyAmount(transaction.amount, selectedCurrency);
+                            }}
+                            className="opacity-60 hover:opacity-100 transition-opacity"
+                            title="Copy amount"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
 
@@ -2542,8 +2531,16 @@ export const TransactionList: React.FC<{
 
                     {/* Card Footer - Account and Actions */}
                     <div className="flex items-center justify-between px-3 pb-3 pt-2 border-t border-gray-100 dark:border-gray-800">
-                      <div className="text-xs text-gray-600 dark:text-gray-400 font-medium">
-                        {getAccountName(transaction.account_id)}
+                      <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 font-medium">
+                        <span>{getAccountName(transaction.account_id)}</span>
+                        {isAccountInactive(transaction.account_id) && (
+                          <Tooltip 
+                            content="Account is hidden"
+                            placement="top"
+                          >
+                            <EyeOff className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+                          </Tooltip>
+                        )}
                         {account && account.calculated_balance !== undefined && (
                           <span className="ml-1.5">• {formatCurrency(account.calculated_balance, account.currency)}</span>
                         )}
@@ -2746,7 +2743,7 @@ export const TransactionList: React.FC<{
               </div>
             ) : (
               filteredTransactions.map((transaction) => {
-                const account = accounts.find(a => a.id === transaction.account_id);
+                const account = allAccountsForLookup.find(a => a.id === transaction.account_id);
                 const currency = account?.currency || 'USD';
                 const isSelected = selectedId === transaction.transaction_id;
                 const isFromSearchSelection = isFromSearch && isSelected;
@@ -2800,7 +2797,19 @@ export const TransactionList: React.FC<{
                       </div>
                       <div className="col-span-2">
                         <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(transaction.amount, selectedCurrency)}</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(transaction.amount, selectedCurrency)}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyAmount(transaction.amount, selectedCurrency);
+                            }}
+                            className="opacity-60 hover:opacity-100 transition-opacity"
+                            title="Copy amount"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                       <div className="col-span-1">
                           <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</div>
@@ -2872,7 +2881,17 @@ export const TransactionList: React.FC<{
                     <div className="grid grid-cols-12 gap-2 items-center">
                       <div className="col-span-6">
                         <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Account</div>
-                        <div className="text-sm text-gray-900 dark:text-white">{getAccountName(transaction.account_id)}</div>
+                        <div className="flex items-center gap-1.5 text-sm text-gray-900 dark:text-white">
+                          <span>{getAccountName(transaction.account_id)}</span>
+                          {isAccountInactive(transaction.account_id) && (
+                            <Tooltip 
+                              content="Account is hidden"
+                              placement="top"
+                            >
+                              <EyeOff className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+                            </Tooltip>
+                          )}
+                        </div>
                       </div>
                       <div className="col-span-6">
                         <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</div>

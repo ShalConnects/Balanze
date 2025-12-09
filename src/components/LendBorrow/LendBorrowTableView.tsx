@@ -3,7 +3,6 @@ import { format } from 'date-fns';
 import { Plus, Edit2, Trash2, DollarSign, Info, PlusCircle, InfoIcon, Search, ArrowLeft, Wallet, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, Handshake, Eye, X, Pen } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { LendBorrowForm } from './LendBorrowForm';
-import { LendBorrowMobileView } from './LendBorrowMobileView';
 import { SettlementModal } from './SettlementModal';
 import { SettledRecordInfoModal } from './SettledRecordInfoModal';
 import { LendBorrow, LendBorrowReturn } from '../../types';
@@ -556,6 +555,14 @@ export const LendBorrowTableView: React.FC = () => {
 
   const isMobileRecordExpanded = (recordId: string) => expandedMobileRecords.has(recordId);
 
+  // Helper function to calculate remaining amount for a record
+  const calculateRemainingAmount = (record: LendBorrow): number => {
+    if (record.status === 'settled') return 0;
+    const recordReturns = returnHistory[record.id] || [];
+    const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
+    return Math.max(0, record.amount - totalReturned);
+  };
+
   // Handle record actions
   const handleEditRecord = (record: LendBorrow) => {
     setEditingRecord(record);
@@ -864,6 +871,32 @@ export const LendBorrowTableView: React.FC = () => {
     );
     return totals;
   }, [lendBorrowRecords, tableFilters.currency]);
+
+  // Calculate total remaining amounts for active/overdue records
+  const totalRemainingAmounts = useMemo(() => {
+    const activeRecords = filteredRecords.filter(r => r.status === 'active' || r.status === 'overdue');
+    let totalRemainingLent = 0;
+    let totalRemainingBorrowed = 0;
+    
+    activeRecords.forEach(record => {
+      if (record.status === 'settled') return;
+      const recordReturns = returnHistory[record.id] || [];
+      const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
+      const remaining = Math.max(0, record.amount - totalReturned);
+      
+      if (record.type === 'lend') {
+        totalRemainingLent += remaining;
+      } else {
+        totalRemainingBorrowed += remaining;
+      }
+    });
+    
+    return {
+      remainingLent: totalRemainingLent,
+      remainingBorrowed: totalRemainingBorrowed,
+      currency: tableFilters.currency || filteredRecords[0]?.currency || 'USD'
+    };
+  }, [filteredRecords, returnHistory, tableFilters.currency]);
 
   if (loading) {
     return (
@@ -1457,18 +1490,39 @@ export const LendBorrowTableView: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
-                  <div className="flex items-center justify-between">
-                    <div className="text-left">
-                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Outstanding</p>
-                      <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>{formatAmount(totalLentAmount - totalBorrowedAmount)}</p>
-                      <p className={`${totalLentAmount > totalBorrowedAmount ? 'text-green-600 dark:text-green-400' : totalBorrowedAmount > totalLentAmount ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`} style={{ fontSize: '11px' }}>
-                        {totalLentAmount > totalBorrowedAmount ? 'Net Lender' : totalBorrowedAmount > totalLentAmount ? 'Net Borrower' : 'Balanced'}
-                      </p>
+                {totalRemainingAmounts.remainingLent > 0 && (
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-800 py-1.5 px-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-left">
+                        <p className="text-xs font-medium text-green-700 dark:text-green-300">Remaining to Collect</p>
+                        <p className="font-bold text-green-600 dark:text-green-400" style={{ fontSize: '1.2rem' }}>
+                          {formatCurrency(totalRemainingAmounts.remainingLent, totalRemainingAmounts.currency)}
+                        </p>
+                        <p className="text-green-600 dark:text-green-400" style={{ fontSize: '11px' }}>
+                          From active lend records
+                        </p>
+                      </div>
+                      <span className="text-green-600 dark:text-green-400" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(totalRemainingAmounts.currency)}</span>
                     </div>
-                    <Clock className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
                   </div>
-                </div>
+                )}
+                
+                {totalRemainingAmounts.remainingBorrowed > 0 && (
+                  <div className="bg-red-50 dark:bg-red-900/20 rounded-md border border-red-200 dark:border-red-800 py-1.5 px-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-left">
+                        <p className="text-xs font-medium text-red-700 dark:text-red-300">Remaining to Repay</p>
+                        <p className="font-bold text-red-600 dark:text-red-400" style={{ fontSize: '1.2rem' }}>
+                          {formatCurrency(totalRemainingAmounts.remainingBorrowed, totalRemainingAmounts.currency)}
+                        </p>
+                        <p className="text-red-600 dark:text-red-400" style={{ fontSize: '11px' }}>
+                          From active borrow records
+                        </p>
+                      </div>
+                      <span className="text-red-600 dark:text-red-400" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(totalRemainingAmounts.currency)}</span>
+                    </div>
+                  </div>
+                )}
               </>
             );
           })()}
@@ -1508,6 +1562,9 @@ export const LendBorrowTableView: React.FC = () => {
                       {getSortIcon('amount')}
                     </div>
                   </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Remaining
+                  </th>
                   <th 
                     className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                     onClick={() => handleSort('status')}
@@ -1532,7 +1589,7 @@ export const LendBorrowTableView: React.FC = () => {
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-16 text-center">
+                    <td colSpan={7} className="py-16 text-center">
                       <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
                         <Handshake className="w-12 h-12 text-gray-400" />
                       </div>
@@ -1594,6 +1651,25 @@ export const LendBorrowTableView: React.FC = () => {
                             <span className="text-sm font-semibold text-gray-900 dark:text-white">
                               {formatCurrency(record.amount, record.currency)}
                             </span>
+                          </td>
+                          <td className="px-6 py-[0.5rem] text-center">
+                            {(() => {
+                              const remaining = calculateRemainingAmount(record);
+                              if (record.status === 'settled') {
+                                return <span className="text-xs text-gray-400 dark:text-gray-500">Settled</span>;
+                              }
+                              return (
+                                <span className={`text-sm font-medium ${
+                                  remaining === 0 
+                                    ? 'text-green-600 dark:text-green-400' 
+                                    : remaining < record.amount 
+                                    ? 'text-orange-600 dark:text-orange-400'
+                                    : 'text-gray-900 dark:text-white'
+                                }`}>
+                                  {formatCurrency(remaining, record.currency)}
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td className="px-6 py-[0.5rem] text-center">
                             <span className={`inline-flex items-center justify-center text-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -1705,8 +1781,8 @@ export const LendBorrowTableView: React.FC = () => {
                         {/* Expanded Row Content */}
                         {isRowExpanded(record.id) && (
                           <tr>
-                            <td colSpan={6} className="px-6 py-4 bg-gray-50 dark:bg-gray-800">
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <td colSpan={6} className="px-4 sm:px-6 py-4 sm:py-6 bg-gray-50 dark:bg-gray-800">
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                                 {/* Record Details */}
                                 <div className="space-y-2">
                                   <h4 className="font-semibold text-gray-900 dark:text-white">Record Details</h4>
@@ -1813,7 +1889,7 @@ export const LendBorrowTableView: React.FC = () => {
 
         {/* Mobile/Tablet Stacked Table View */}
         <div className="lg:hidden max-h-[500px] overflow-y-auto">
-          <div className="space-y-4 px-2.5">
+          <div className="space-y-3 sm:space-y-4 px-3 sm:px-4">
             {filteredRecords.length === 0 ? (
               <div className="py-16 text-center">
                 <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
@@ -1828,25 +1904,49 @@ export const LendBorrowTableView: React.FC = () => {
                   key={record.id}
                   id={`record-${record.id}`}
                   ref={selectedId === record.id ? selectedRecordRef : null}
-                  className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-0 shadow-sm hover:shadow-md transition-all duration-200 ${
+                  className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-5 shadow-sm hover:shadow-md transition-all duration-200 ${
                     selectedId === record.id ? 'ring-2 ring-blue-500' : ''
                   }`}
                 >
                   {/* Card Header - Person Name and Amount on same line */}
-                  <div className="flex items-center justify-between p-3 pb-2">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <div className="text-sm sm:text-base font-medium text-gray-900 dark:text-white flex-1 min-w-0 pr-2">
                       {record.person_name}
                     </div>
-                    <div className="text-base font-bold text-gray-900 dark:text-white">
-                      {formatCurrency(record.amount, record.currency)}
+                    <div className="flex flex-col items-end flex-shrink-0">
+                      <div className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                        {formatCurrency(record.amount, record.currency)}
+                      </div>
+                      {(() => {
+                        if (record.status === 'settled') return null;
+                        // Calculate remaining using record's partial_return_amount (available without fetching return history)
+                        const partialReturned = record.partial_return_amount || 0;
+                        const recordReturns = returnHistory[record.id] || [];
+                        const returnsFromHistory = recordReturns.reduce((sum, ret) => sum + ret.amount, 0);
+                        const totalReturned = returnsFromHistory + partialReturned;
+                        const remaining = Math.max(0, record.amount - totalReturned);
+                        
+                        // Always show remaining amount for active/overdue records
+                        return (
+                          <div className={`text-xs sm:text-sm font-medium mt-0.5 ${
+                            remaining === 0 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : remaining < record.amount
+                              ? 'text-orange-600 dark:text-orange-400'
+                              : 'text-gray-600 dark:text-gray-400'
+                          }`}>
+                            Remaining: {formatCurrency(remaining, record.currency)}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                   
                   {/* Card Body - Status with days info on left, Type badge on right */}
-                  <div className="px-3 pb-2">
-                    <div className="flex items-center justify-between mb-0">
-                      <div className="flex items-center space-x-2">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                  <div className="mb-3 sm:mb-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center space-x-2 sm:space-x-2.5 flex-wrap">
+                        <span className={`inline-flex items-center px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium ${
                           record.status === 'active' 
                             ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
                             : record.status === 'settled'
@@ -1856,13 +1956,13 @@ export const LendBorrowTableView: React.FC = () => {
                           {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
                         </span>
                         {(record.status === 'active' || record.status === 'overdue') && record.due_date && (
-                          <span className={`text-xs ${
+                          <span className={`text-xs sm:text-sm font-medium ${
                             (() => {
                               const dueDate = record.due_date ? new Date(record.due_date) : null;
                               const today = new Date();
                               const diffTime = dueDate ? dueDate.getTime() - today.getTime() : 0;
                               const diffDays = dueDate ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
-                              return diffDays < 0 ? 'text-red-600 dark:text-red-400' : 'text-orange-600';
+                              return diffDays < 0 ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400';
                             })()
                           }`}>
                             {(() => {
@@ -1881,7 +1981,7 @@ export const LendBorrowTableView: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      <span className={`inline-flex items-center justify-center px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium flex-shrink-0 ${
                         record.type === 'lend' 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
                           : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
@@ -1892,8 +1992,8 @@ export const LendBorrowTableView: React.FC = () => {
                   </div>
                   
                   {/* Card Footer - Due Date and Actions */}
-                  <div className="flex items-center justify-between px-3 pb-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-                    <div className="text-xs">
+                  <div className="flex items-center justify-between pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="text-xs sm:text-sm">
                       {record.due_date && (() => {
                         const dueDate = new Date(record.due_date);
                         const today = new Date();
@@ -1905,33 +2005,33 @@ export const LendBorrowTableView: React.FC = () => {
                         );
                       })()}
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1.5 sm:gap-2">
                       {/* Info/Edit button based on record status */}
                       {record.status === 'settled' ? (
                         <Tooltip content="Settled record info" placement="top">
                           <button
                             onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
-                            className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                            className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 rounded-lg transition-colors hover:text-blue-600 dark:hover:text-blue-400 active:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 touch-manipulation"
                           >
-                            <Info className="w-4 h-4" />
+                            <Info className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                         </Tooltip>
                       ) : (record.account_id && record.affect_account_balance) ? (
                         <Tooltip content="Account-linked record info" placement="top">
                           <button
                             onClick={() => setSettledRecordInfoModal({ isOpen: true, record })}
-                            className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                            className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 rounded-lg transition-colors hover:text-blue-600 dark:hover:text-blue-400 active:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 touch-manipulation"
                           >
-                            <Info className="w-4 h-4" />
+                            <Info className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                         </Tooltip>
                       ) : (
                         <Tooltip content="Edit" placement="top">
                           <button
                             onClick={() => handleEditRecord(record)}
-                            className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                            className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 rounded-lg transition-colors hover:text-green-600 dark:hover:text-green-400 active:text-green-600 hover:bg-gray-100 dark:hover:bg-gray-700 touch-manipulation"
                           >
-                            <Pen className="w-3.5 h-3.5" />
+                            <Pen className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                         </Tooltip>
                       )}
@@ -1941,9 +2041,9 @@ export const LendBorrowTableView: React.FC = () => {
                         <Tooltip content="Settle" placement="top">
                           <button
                             onClick={() => handleOpenSettlementModal(record)}
-                            className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                            className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 rounded-lg transition-colors hover:text-purple-600 dark:hover:text-purple-400 active:text-purple-600 hover:bg-gray-100 dark:hover:bg-gray-700 touch-manipulation"
                           >
-                            <CheckCircle className="w-4 h-4" />
+                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                         </Tooltip>
                       )}
@@ -1953,19 +2053,19 @@ export const LendBorrowTableView: React.FC = () => {
                         <Tooltip content="Delete" placement="top">
                           <button
                             onClick={() => handleOpenDeleteConfirmation(record.id)}
-                            className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 rounded-lg transition-colors hover:text-red-600 dark:hover:text-red-400 active:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 touch-manipulation"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                         </Tooltip>
                       )}
                       <Tooltip content="View details" placement="top">
                         <button
                           onClick={() => toggleMobileRecordExpansion(record.id)}
-                          className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                          className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 rounded-lg transition-colors hover:text-blue-600 dark:hover:text-blue-400 active:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 touch-manipulation"
                         >
                           <svg 
-                            className={`w-3.5 h-3.5 transition-transform ${isMobileRecordExpanded(record.id) ? 'rotate-90' : ''}`} 
+                            className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isMobileRecordExpanded(record.id) ? 'rotate-90' : ''}`} 
                             fill="none" 
                             stroke="currentColor" 
                             viewBox="0 0 24 24"
@@ -1979,63 +2079,62 @@ export const LendBorrowTableView: React.FC = () => {
                   
                   {/* Expandable Content */}
                   {isMobileRecordExpanded(record.id) && (
-                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="mt-4 sm:mt-5 pt-4 sm:pt-5 px-0 sm:px-2 border-t border-gray-200 dark:border-gray-700">
                       {/* Record Details */}
-                      <div className="space-y-2">
-                        <h4 className="font-semibold text-gray-900 dark:text-white">Record Details</h4>
-                        <div className="space-y-1 text-sm" style={{ fontSize: '12px' }}>
-                          <div style={{ marginTop: 0 }}><span className="font-medium">Type:</span> {record.type === 'lend' ? 'Lend' : 'Borrow'}</div>
-                          <div style={{ marginTop: 0 }}><span className="font-medium">Amount:</span> {formatCurrency(record.amount, record.currency)}</div>
-                          <div style={{ marginTop: 0 }}><span className="font-medium">Currency:</span> {record.currency}</div>
-                          <div style={{ marginTop: 0 }}><span className="font-medium">Date:</span> {record.created_at ? (isNaN(new Date(record.created_at).getTime()) ? 'No date' : new Date(record.created_at).toLocaleDateString()) : 'No date'}</div>
-                          <div style={{ marginTop: 0 }}><span className="font-medium">Due Date:</span> {record.due_date ? (isNaN(new Date(record.due_date).getTime()) ? 'No date' : new Date(record.due_date).toLocaleDateString()) : 'No date'}</div>
+                      <div className="space-y-2 sm:space-y-3">
+                        <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">Record Details</h4>
+                        <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
+                          <div><span className="font-medium">Type:</span> {record.type === 'lend' ? 'Lend' : 'Borrow'}</div>
+                          <div><span className="font-medium">Amount:</span> {formatCurrency(record.amount, record.currency)}</div>
+                          <div><span className="font-medium">Currency:</span> {record.currency}</div>
+                          <div><span className="font-medium">Date:</span> {record.created_at ? (isNaN(new Date(record.created_at).getTime()) ? 'No date' : new Date(record.created_at).toLocaleDateString()) : 'No date'}</div>
+                          <div><span className="font-medium">Due Date:</span> {record.due_date ? (isNaN(new Date(record.due_date).getTime()) ? 'No date' : new Date(record.due_date).toLocaleDateString()) : 'No date'}</div>
                         </div>
                       </div>
 
                       {/* Account Information */}
-                      <div className="space-y-2 mt-4">
-                        <h4 className="font-semibold text-gray-900 dark:text-white">Account Information</h4>
-                        <div className="space-y-1 text-sm" style={{ fontSize: '12px' }}>
+                      <div className="space-y-2 sm:space-y-3 mt-4 sm:mt-5">
+                        <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">Account Information</h4>
+                        <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                           {record.affect_account_balance && record.account_id ? (
                             <>
                               {(() => {
                                 const account = accounts.find(acc => acc.id === record.account_id);
                                 return account ? (
                                   <>
-                                    <div style={{ marginTop: 0 }}><span className="font-medium">Account:</span> {account.name}</div>
-                                    <div style={{ marginTop: 0 }}><span className="font-medium">Balance:</span> {formatCurrency(account.calculated_balance || 0, account.currency)}</div>
+                                    <div><span className="font-medium">Account:</span> {account.name}</div>
+                                    <div><span className="font-medium">Balance:</span> {formatCurrency(account.calculated_balance || 0, account.currency)}</div>
                                   </>
                                 ) : (
-                                  <div style={{ marginTop: 0 }} className="text-gray-500 dark:text-gray-400">Account not found</div>
+                                  <div className="text-gray-500 dark:text-gray-400">Account not found</div>
                                 );
                               })()}
                             </>
                           ) : (
-                            <div style={{ marginTop: 0 }} className="text-gray-500 dark:text-gray-400">Record Only</div>
+                            <div className="text-gray-500 dark:text-gray-400">Record Only</div>
                           )}
                         </div>
                       </div>
 
                       {/* Status Information */}
-                      <div className="space-y-2 mt-4">
-                        <h4 className="font-semibold text-gray-900 dark:text-white">Status Information</h4>
-                        <div className="space-y-1 text-sm" style={{ fontSize: '12px' }}>
-                          <div style={{ marginTop: 0 }}><span className="font-medium">Status:</span> {record.status.charAt(0).toUpperCase() + record.status.slice(1)}</div>
+                      <div className="space-y-2 sm:space-y-3 mt-4 sm:mt-5">
+                        <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">Status Information</h4>
+                        <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
+                          <div><span className="font-medium">Status:</span> {record.status.charAt(0).toUpperCase() + record.status.slice(1)}</div>
                           {record.status === 'active' && record.due_date && (
-                            <div style={{ marginTop: 0 }}>
+                            <div>
                               <span className="font-medium">Days Remaining:</span> 
                               {(() => {
                                 const dueDate = record.due_date ? new Date(record.due_date) : null;
                                 const today = new Date();
                                 const diffTime = dueDate ? dueDate.getTime() - today.getTime() : 0;
                                 const diffDays = dueDate ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
-                                if (diffDays < 0) {
-                                  return ` ${Math.abs(diffDays)} days overdue`;
-                                } else if (diffDays === 0) {
-                                  return ' Due today';
-                                } else {
-                                  return ` ${diffDays} days remaining`;
-                                }
+                                const isOverdue = diffDays < 0;
+                                return (
+                                  <span className={isOverdue ? 'text-red-600 dark:text-red-400' : diffDays <= 7 ? 'text-orange-600 dark:text-orange-400' : ''}>
+                                    {isOverdue ? ` ${Math.abs(diffDays)} days overdue` : diffDays === 0 ? ' Due today' : ` ${diffDays} days remaining`}
+                                  </span>
+                                );
                               })()}
                             </div>
                           )}
@@ -2044,7 +2143,7 @@ export const LendBorrowTableView: React.FC = () => {
                             const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
                             if (totalReturned > 0) {
                               return (
-                                <div style={{ marginTop: 0 }}><span className="font-medium">Total Returned:</span> {formatCurrency(totalReturned, record.currency)}</div>
+                                <div><span className="font-medium">Total Returned:</span> {formatCurrency(totalReturned, record.currency)}</div>
                               );
                             }
                             return null;
@@ -2054,7 +2153,7 @@ export const LendBorrowTableView: React.FC = () => {
                             const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
                             const remainingAmount = record.amount - totalReturned;
                             return (
-                              <div style={{ marginTop: 0 }}><span className="font-medium">Remaining Amount:</span> {formatCurrency(remainingAmount, record.currency)}</div>
+                              <div><span className="font-medium">Remaining Amount:</span> {formatCurrency(remainingAmount, record.currency)}</div>
                             );
                           })()}
                         </div>

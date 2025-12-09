@@ -29,6 +29,7 @@ export const isLendBorrowTransaction = (transaction: Transaction): boolean => {
         'repayment',
         'partial return',
         'debt repayment',
+        'loan repayment',
         'repayment to',
         'repayment from',
         'partial loan repayment'

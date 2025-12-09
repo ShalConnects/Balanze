@@ -508,6 +508,53 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
   // Calculate date information
   const dateInfo = calculateDateInfo(settings, data);
 
+  // Calculate assets by currency
+  const assetsByCurrency = {};
+  const accountsByCurrency = {};
+  (data.accounts || []).forEach(account => {
+    const currency = account.currency || 'USD';
+    const balance = parseFloat(account.calculated_balance) || 0;
+    
+    if (!assetsByCurrency[currency]) {
+      assetsByCurrency[currency] = 0;
+      accountsByCurrency[currency] = 0;
+    }
+    assetsByCurrency[currency] += balance;
+    accountsByCurrency[currency] += 1;
+  });
+
+  // Calculate Lent & Borrow metrics (only active records)
+  const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active');
+  const activeLent = activeLendBorrow.filter(lb => lb.type === 'lent' || lb.type === 'lend');
+  const activeBorrowed = activeLendBorrow.filter(lb => lb.type === 'borrowed' || lb.type === 'borrow');
+  
+  // Calculate totals by currency for lent
+  const lentByCurrency = {};
+  activeLent.forEach(lb => {
+    const currency = lb.currency || 'USD';
+    if (!lentByCurrency[currency]) {
+      lentByCurrency[currency] = 0;
+    }
+    lentByCurrency[currency] += parseFloat(lb.amount) || 0;
+  });
+  
+  // Calculate totals by currency for borrowed
+  const borrowedByCurrency = {};
+  activeBorrowed.forEach(lb => {
+    const currency = lb.currency || 'USD';
+    if (!borrowedByCurrency[currency]) {
+      borrowedByCurrency[currency] = 0;
+    }
+    borrowedByCurrency[currency] += parseFloat(lb.amount) || 0;
+  });
+
+  // Currency formatting helper
+  const formatCurrencyWithSymbol = (amount, currency = 'USD') => {
+    const symbols = { USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', INR: '₹', CAD: '$', AUD: '$' };
+    const symbol = symbols[currency] || currency;
+    return `${symbol}${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   // Test mode indicator (dark theme compatible)
   const testModeIndicator = isTestMode ? `
     <div style="background: #1a1f2e; border: 2px solid #6b7280; padding: 20px; border-radius: 6px; margin-bottom: 20px; text-align: center;">
@@ -1019,10 +1066,6 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
               <p>
                 We are reaching out to you with important information regarding the financial records of <strong>${userName}</strong>, who designated you as a trusted recipient through the Last Wish system.
               </p>
-            </div>
-
-            <!-- Acknowledgment -->
-            <div class="acknowledgment">
               <p>
                 We understand that receiving this information may come during a difficult time. Please know that this delivery is part of a system designed to ensure continuity and care for loved ones, and we extend our deepest sympathies and support.
               </p>
@@ -1030,28 +1073,28 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
 
             <div class="divider"></div>
 
-            <!-- Context Info Card -->
-            <div class="info-card">
-              <h3>About This Delivery</h3>
-              <p>
-                <strong>${userName}</strong> established a Last Wish system to ensure their financial records would be securely delivered to designated individuals in the event they were no longer able to manage their affairs. The Last Wish system is designed to provide peace of mind and ensure that important financial information reaches those who need it most.
-              </p>
-              <div class="meta-info">
-                <div class="meta-item">
-                  <span class="meta-label">Last Wish Established:</span>
-                  <span class="meta-value">${dateInfo.setupDate ? dateInfo.formatDate(dateInfo.setupDate) : 'N/A'}</span>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-label">Last Account Activity:</span>
-                  <span class="meta-value">${dateInfo.lastActivityDate ? dateInfo.formatDate(dateInfo.lastActivityDate) : 'N/A'}</span>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-label">Inactivity Period:</span>
-                  <span class="meta-value">${dateInfo.inactivityPeriod !== null ? dateInfo.inactivityPeriod + ' days' : 'N/A'}</span>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-label">Delivery Trigger:</span>
-                  <span class="meta-value">Extended inactivity (${dateInfo.inactivityThreshold}-day threshold)</span>
+            <!-- Financial Metrics -->
+            <div class="financial-metrics">
+              <h3>Financial Overview</h3>
+              <div class="metrics-grid">
+                <div class="metric-item">
+                  <div class="metric-label">Total Assets</div>
+                  <div class="metric-value">
+                    ${Object.keys(assetsByCurrency).length > 0 ? 
+                      Object.entries(assetsByCurrency).map(([currency, amount]) => 
+                        formatCurrencyWithSymbol(amount, currency)
+                      ).join('<br>') : 
+                      formatCurrencyWithSymbol(0, 'USD')
+                    }
+                  </div>
+                  <div class="metric-subvalue">
+                    ${Object.keys(accountsByCurrency).length > 0 ? 
+                      Object.entries(accountsByCurrency).map(([currency, count]) => 
+                        `${count} account${count !== 1 ? 's' : ''} (${currency})`
+                      ).join(', ') : 
+                      `Across ${totalAccounts} account${totalAccounts !== 1 ? 's' : ''}`
+                    }
+                  </div>
                 </div>
               </div>
             </div>
@@ -1064,89 +1107,72 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
               </div>
             ` : ''}
 
-            <div class="divider"></div>
-
-            <!-- Financial Metrics -->
+            ${(activeLent.length > 0 || activeBorrowed.length > 0) ? `
+            <!-- Lent & Borrow Section -->
             <div class="financial-metrics">
-              <h3>Financial Overview</h3>
+              <h3>Lent & Borrow</h3>
               <div class="metrics-grid">
+                ${activeLent.length > 0 ? `
                 <div class="metric-item">
-                  <div class="metric-label">Total Assets</div>
-                  <div class="metric-value">${metrics.formatCurrency(metrics.totalAssets)}</div>
-                  <div class="metric-subvalue">Across ${totalAccounts} account${totalAccounts !== 1 ? 's' : ''}</div>
-                </div>
-                <div class="metric-item">
-                  <div class="metric-label">Net Worth</div>
-                  <div class="metric-value">${metrics.formatCurrency(metrics.netWorth)}</div>
-                  <div class="metric-subvalue">After liabilities</div>
-                </div>
-                <div class="metric-item">
-                  <div class="metric-label">Outstanding Debts</div>
-                  <div class="metric-value">${metrics.formatCurrency(metrics.outstandingDebts)}</div>
-                  <div class="metric-subvalue">Credit cards & loans</div>
-                </div>
-                <div class="metric-item">
-                  <div class="metric-label">Investment Portfolio</div>
-                  <div class="metric-value">${metrics.formatCurrency(metrics.investmentPortfolio)}</div>
-                  <div class="metric-subvalue">Current value</div>
-                </div>
-              </div>
-              
-              ${metrics.accountBreakdown.length > 0 ? `
-                <div class="account-breakdown">
-                  <h4>Account Breakdown</h4>
-                  <ul class="account-list">
-                    ${metrics.accountBreakdown.map(acc => `
-                      <li class="account-item">
-                        <span class="account-name">${acc.name}</span>
-                        <span class="account-balance">${metrics.formatCurrency(acc.balance, acc.currency)}</span>
-                      </li>
-                    `).join('')}
-                  </ul>
-                </div>
-              ` : ''}
-            </div>
-
-            <!-- Data Summary -->
-            <div class="data-summary">
-              <h3>Financial Records Summary</h3>
-              <div class="data-grid">
-                ${totalAccounts > 0 ? `
-                  <div class="data-item">
-                    <div class="data-item-label">Bank Accounts</div>
-                    <div class="data-item-value">${totalAccounts}</div>
+                  <div class="metric-label">Total Lent</div>
+                  <div class="metric-value">
+                    ${Object.entries(lentByCurrency).map(([currency, amount]) => 
+                      formatCurrencyWithSymbol(amount, currency)
+                    ).join('<br>')}
                   </div>
+                  <div class="metric-subvalue">${activeLent.length} active record${activeLent.length !== 1 ? 's' : ''}</div>
+                </div>
                 ` : ''}
-                ${totalTransactions > 0 ? `
-                  <div class="data-item">
-                    <div class="data-item-label">Transactions</div>
-                    <div class="data-item-value">${totalTransactions}</div>
+                ${activeBorrowed.length > 0 ? `
+                <div class="metric-item">
+                  <div class="metric-label">Total Borrowed</div>
+                  <div class="metric-value">
+                    ${Object.entries(borrowedByCurrency).map(([currency, amount]) => 
+                      formatCurrencyWithSymbol(amount, currency)
+                    ).join('<br>')}
                   </div>
-                ` : ''}
-                ${totalPurchases > 0 ? `
-                  <div class="data-item">
-                    <div class="data-item-label">Purchases</div>
-                    <div class="data-item-value">${totalPurchases}</div>
-                  </div>
-                ` : ''}
-                ${totalLendBorrow > 0 ? `
-                  <div class="data-item">
-                    <div class="data-item-label">Lend/Borrow</div>
-                    <div class="data-item-value">${totalLendBorrow}</div>
-                  </div>
+                  <div class="metric-subvalue">${activeBorrowed.length} active record${activeBorrowed.length !== 1 ? 's' : ''}</div>
+                </div>
                 ` : ''}
               </div>
             </div>
+            ` : ''}
 
             <!-- Attachment Card -->
             <div class="attachment-card">
               <h3>Complete Financial Data Attached</h3>
-              <div class="file-badge">${isTestMode ? 'test-' : ''}financial-data-backup.json</div>
               <div class="file-badge">${isTestMode ? 'test-' : ''}financial-data-backup.pdf</div>
-              <div class="file-badge">${isTestMode ? 'test-' : ''}financial-data-backup.csv</div>
               <p style="margin-top: 16px; color: #9ca3af; font-size: 13px;">
-                These files contain comprehensive financial records, including detailed transaction history, account information, and supporting documents. The CSV file is optimized for spreadsheet applications.
+                This PDF contains comprehensive financial records, including account information and active lend/borrow records, organized by currency.
               </p>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Context Info Card -->
+            <div class="info-card">
+              <h3>About This Delivery</h3>
+              <p>
+                This delivery was automatically triggered based on the Last Wish settings activated by <strong>${userName}</strong>. The Last Wish system ensures that financial records are securely delivered to designated recipients when specific conditions are met, providing peace of mind and ensuring important information reaches those who need it.
+              </p>
+              <div class="meta-info">
+                <div class="meta-item">
+                  <span class="meta-label">Last Wish Activated:</span>
+                  <span class="meta-value">${dateInfo.setupDate ? dateInfo.formatDate(dateInfo.setupDate) : 'N/A'}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Last Account Activity:</span>
+                  <span class="meta-value">${dateInfo.lastActivityDate ? dateInfo.formatDate(dateInfo.lastActivityDate) : 'N/A'}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Account Status:</span>
+                  <span class="meta-value">${dateInfo.inactivityPeriod === null ? 'N/A' : dateInfo.inactivityPeriod === 0 ? 'Recently active (delivery triggered per Last Wish settings)' : dateInfo.inactivityPeriod + ' days of inactivity'}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Delivery Trigger:</span>
+                  <span class="meta-value">Automatic delivery based on ${dateInfo.inactivityThreshold}-day inactivity threshold configuration</span>
+                </div>
+              </div>
             </div>
 
             <div class="divider"></div>
@@ -1531,15 +1557,21 @@ function createPDFBuffer(user, recipient, data, settings) {
       
       let tocY = doc.y;
       const tocItems = [];
-      if (true) tocItems.push({ title: 'Executive Summary', page: doc.bufferedPageRange().count + 1 });
-      if (metrics.totalAssets > 0 || metrics.netWorth !== 0) tocItems.push({ title: 'Financial Overview', page: doc.bufferedPageRange().count + 2 });
-      if (data.accounts?.length > 0) tocItems.push({ title: 'Bank Accounts', page: doc.bufferedPageRange().count + 3 });
-      if (data.transactions?.length > 0) tocItems.push({ title: 'Transactions', page: doc.bufferedPageRange().count + 4 });
-      if (data.purchases?.length > 0) tocItems.push({ title: 'Purchases', page: doc.bufferedPageRange().count + 5 });
-      if (data.lendBorrow?.length > 0) tocItems.push({ title: 'Lend/Borrow Records', page: doc.bufferedPageRange().count + 6 });
-      if (data.donationSavings?.length > 0) tocItems.push({ title: 'Savings/Donation Records', page: doc.bufferedPageRange().count + 7 });
-      if (data.investmentAssets?.length > 0) tocItems.push({ title: 'Investment Assets', page: doc.bufferedPageRange().count + 8 });
-      tocItems.push({ title: 'Legal & Compliance', page: doc.bufferedPageRange().count + 9 });
+      // Filter accounts to exclude zero balances
+      const accountsWithBalance = (data.accounts || []).filter(acc => parseFloat(acc.calculated_balance) !== 0);
+      if (accountsWithBalance.length > 0) {
+        // Group by currency and add each currency group
+        const currencies = [...new Set(accountsWithBalance.map(acc => acc.currency || 'USD'))];
+        currencies.forEach((currency, index) => {
+          tocItems.push({ title: `Accounts - ${currency}`, page: doc.bufferedPageRange().count + 1 + index });
+        });
+      }
+      // Filter lend/borrow to only active records
+      const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active');
+      if (activeLendBorrow.length > 0) {
+        const accountsPageCount = accountsWithBalance.length > 0 ? [...new Set(accountsWithBalance.map(acc => acc.currency || 'USD'))].length : 0;
+        tocItems.push({ title: 'Lend/Borrow Records', page: doc.bufferedPageRange().count + 1 + accountsPageCount });
+      }
       
       tocItems.forEach((item, index) => {
         doc.fillColor('#d1d5db').fontSize(10).font('Helvetica')
@@ -1550,185 +1582,66 @@ function createPDFBuffer(user, recipient, data, settings) {
       
       addHeaderFooter(2, 2);
       updateTotalPages();
-      
-      // EXECUTIVE SUMMARY PAGE
-      doc.addPage();
-      addWatermark();
-      doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
-        .text('Executive Summary', 50, 80);
-      doc.moveDown(1);
-      
-      // Context Information
-      doc.fillColor('#d1d5db').fontSize(11).font('Helvetica-Bold')
-        .text('Delivery Context', 50, doc.y);
-      doc.moveDown(0.5);
-      doc.fillColor('#9ca3af').fontSize(9).font('Helvetica')
-        .text(`Last Wish Established: ${dateInfo.setupDate ? formatDate(dateInfo.setupDate) : 'N/A'}`, 50, doc.y);
-      doc.moveDown(0.3);
-      doc.text(`Last Account Activity: ${dateInfo.lastActivityDate ? formatDate(dateInfo.lastActivityDate) : 'N/A'}`, 50, doc.y);
-      doc.moveDown(0.3);
-      doc.text(`Inactivity Period: ${dateInfo.inactivityPeriod !== null ? dateInfo.inactivityPeriod + ' days' : 'N/A'}`, 50, doc.y);
-      doc.moveDown(0.3);
-      doc.text(`Delivery Trigger: Extended inactivity (${dateInfo.inactivityThreshold}-day threshold)`, 50, doc.y);
-      doc.moveDown(1);
-      
-      // Personal Message
-      if (settings.message) {
-        doc.fillColor('#d1d5db').fontSize(11).font('Helvetica-Bold')
-          .text('Personal Message', 50, doc.y);
-        doc.moveDown(0.5);
-        doc.fillColor('#9ca3af').fontSize(9).font('Helvetica-Oblique')
-          .text(settings.message, 50, doc.y, { width: doc.page.width - 100 });
-        doc.moveDown(1.5);
-      }
-      
-      // Financial Metrics Summary
-      doc.fillColor('#f9fafb').fontSize(14).font('Helvetica-Bold')
-        .text('Financial Overview', 50, doc.y);
-      doc.moveDown(0.8);
-      
-      const summaryData = [
-        ['Total Assets', formatCurrency(metrics.totalAssets, metrics.primaryCurrency)],
-        ['Investment Portfolio', formatCurrency(metrics.investmentPortfolio, metrics.primaryCurrency)],
-        ['Outstanding Debts', formatCurrency(metrics.outstandingDebts, metrics.primaryCurrency)],
-        ['Amounts Owed to Account Holder', formatCurrency(metrics.amountsOwed, metrics.primaryCurrency)],
-        ['Net Worth', formatCurrency(metrics.netWorth, metrics.primaryCurrency)]
-      ];
-      
-      drawTable(['Metric', 'Value'], summaryData, doc.y, {
-        columnWidths: [(doc.page.width - 100) * 0.6, (doc.page.width - 100) * 0.4],
-        headerColor: '#1f2937',
-        rowColor: '#111827',
-        textColor: '#e5e7eb',
-        headerTextColor: '#f9fafb'
-      });
-      
-      addHeaderFooter(3, 3);
-      updateTotalPages();
 
-      // BANK ACCOUNTS SECTION
-      if (data.accounts && data.accounts.length > 0) {
-        doc.addPage();
-        addWatermark();
-        updateTotalPages();
-        addHeaderFooter(totalPages, totalPages);
-        
-        doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
-          .text('Bank Accounts', 50, 80);
-        doc.moveDown(1);
-        
-        const accountRows = data.accounts.map(acc => [
-          acc.name || 'Unnamed Account',
-          acc.type || 'N/A',
-          formatCurrency(parseFloat(acc.calculated_balance) || 0, acc.currency || 'USD'),
-          acc.currency || 'USD',
-          acc.account_number || 'N/A',
-          acc.institution || 'N/A'
-        ]);
-        
-        drawTable(
-          ['Account Name', 'Type', 'Balance', 'Currency', 'Account Number', 'Institution'],
-          accountRows,
-          doc.y,
-          {
-            columnWidths: [
-              (doc.page.width - 100) * 0.25,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.1,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.2
-            ]
+      // BANK ACCOUNTS SECTION (Grouped by Currency, Excluding Zero Balances)
+      // Filter accounts to exclude zero balances
+      const accountsWithBalance = (data.accounts || []).filter(acc => parseFloat(acc.calculated_balance) !== 0);
+      
+      if (accountsWithBalance.length > 0) {
+        // Group accounts by currency
+        const accountsByCurrency = {};
+        accountsWithBalance.forEach(acc => {
+          const currency = acc.currency || 'USD';
+          if (!accountsByCurrency[currency]) {
+            accountsByCurrency[currency] = [];
           }
-        );
-      }
-
-      // TRANSACTIONS SECTION
-      if (data.transactions && data.transactions.length > 0) {
-        doc.addPage();
-        addWatermark();
-        updateTotalPages();
-        addHeaderFooter(totalPages, totalPages);
+          accountsByCurrency[currency].push(acc);
+        });
         
-        doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
-          .text('Transactions', 50, 80);
-        doc.moveDown(1);
-        
-        // Show all transactions (or limit if too many)
-        const transactionsToShow = data.transactions.slice(0, 100);
-        const transactionRows = transactionsToShow.map(tx => [
-          formatDate(tx.date || tx.created_at),
-          (tx.description || 'N/A').substring(0, 40),
-          formatCurrency(parseFloat(tx.amount) || 0, tx.currency || 'USD'),
-          tx.currency || 'USD',
-          tx.category || 'N/A',
-          tx.type || 'N/A'
-        ]);
-        
-        drawTable(
-          ['Date', 'Description', 'Amount', 'Currency', 'Category', 'Type'],
-          transactionRows,
-          doc.y,
-          {
-            columnWidths: [
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.3,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.1,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.15
-            ],
-            fontSize: 8
+        // Create a page for each currency
+        const currencies = Object.keys(accountsByCurrency).sort();
+        currencies.forEach((currency, currencyIndex) => {
+          if (currencyIndex > 0) {
+            doc.addPage();
           }
-        );
-        
-        if (data.transactions.length > 100) {
+          addWatermark();
+          updateTotalPages();
+          addHeaderFooter(totalPages, totalPages);
+          
+          doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
+            .text(`Accounts - ${currency}`, 50, 80);
           doc.moveDown(1);
-          doc.fillColor('#6b7280').fontSize(8).font('Helvetica')
-            .text(`Note: Showing first 100 of ${data.transactions.length} transactions. See JSON/CSV files for complete data.`, 
-              50, doc.y, { width: doc.page.width - 100 });
-        }
+          
+          const accountRows = accountsByCurrency[currency].map(acc => [
+            acc.name || 'Unnamed Account',
+            acc.type || 'N/A',
+            formatCurrency(parseFloat(acc.calculated_balance) || 0, currency),
+            acc.account_number || 'N/A',
+            acc.institution || 'N/A'
+          ]);
+          
+          drawTable(
+            ['Account Name', 'Type', 'Balance', 'Account Number', 'Institution'],
+            accountRows,
+            doc.y,
+            {
+              columnWidths: [
+                (doc.page.width - 100) * 0.3,
+                (doc.page.width - 100) * 0.15,
+                (doc.page.width - 100) * 0.2,
+                (doc.page.width - 100) * 0.15,
+                (doc.page.width - 100) * 0.2
+              ]
+            }
+          );
+        });
       }
 
-      // PURCHASES SECTION
-      if (data.purchases && data.purchases.length > 0) {
-        doc.addPage();
-        addWatermark();
-        updateTotalPages();
-        addHeaderFooter(totalPages, totalPages);
-        
-        doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
-          .text('Purchases', 50, 80);
-        doc.moveDown(1);
-        
-        const purchaseRows = data.purchases.map(purchase => [
-          purchase.name || 'Unnamed Purchase',
-          formatCurrency(parseFloat(purchase.amount) || 0, purchase.currency || 'USD'),
-          purchase.status || 'N/A',
-          purchase.target_date ? formatDate(purchase.target_date) : 'N/A',
-          purchase.priority || 'N/A',
-          (purchase.notes || '').substring(0, 30)
-        ]);
-        
-        drawTable(
-          ['Name', 'Amount', 'Status', 'Target Date', 'Priority', 'Notes'],
-          purchaseRows,
-          doc.y,
-          {
-            columnWidths: [
-              (doc.page.width - 100) * 0.25,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.12,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.13,
-              (doc.page.width - 100) * 0.2
-            ]
-          }
-        );
-      }
-
-      // LEND/BORROW SECTION
-      if (data.lendBorrow && data.lendBorrow.length > 0) {
+      // LEND/BORROW SECTION (Only Active/Unsettled Records)
+      // Filter to only show active records
+      const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active');
+      
+      if (activeLendBorrow.length > 0) {
         doc.addPage();
         addWatermark();
         updateTotalPages();
@@ -1738,160 +1651,37 @@ function createPDFBuffer(user, recipient, data, settings) {
           .text('Lend/Borrow Records', 50, 80);
         doc.moveDown(1);
         
-        const lendBorrowRows = data.lendBorrow.map(lb => [
-          lb.type || 'N/A',
-          lb.person || lb.entity || 'N/A',
-          formatCurrency(parseFloat(lb.amount) || 0, lb.currency || 'USD'),
-          lb.currency || 'USD',
-          lb.status || 'N/A',
-          lb.due_date ? formatDate(lb.due_date) : 'N/A',
-          (lb.notes || '').substring(0, 30)
-        ]);
+        const lendBorrowRows = activeLendBorrow.map(lb => {
+          const type = lb.type === 'lent' || lb.type === 'lend' ? 'Lent' : 
+                       lb.type === 'borrowed' || lb.type === 'borrow' ? 'Borrowed' : 
+                       lb.type || 'N/A';
+          return [
+            type,
+            lb.person_name || lb.person || lb.entity || 'N/A',
+            formatCurrency(parseFloat(lb.amount) || 0, lb.currency || 'USD'),
+            lb.currency || 'USD',
+            lb.due_date ? formatDate(lb.due_date) : 'N/A',
+            (lb.notes || '').substring(0, 40)
+          ];
+        });
         
         drawTable(
-          ['Type', 'Person/Entity', 'Amount', 'Currency', 'Status', 'Due Date', 'Notes'],
+          ['Type', 'Person/Entity', 'Amount', 'Currency', 'Due Date', 'Notes'],
           lendBorrowRows,
           doc.y,
           {
             columnWidths: [
               (doc.page.width - 100) * 0.12,
-              (doc.page.width - 100) * 0.2,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.1,
-              (doc.page.width - 100) * 0.12,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.16
-            ],
-            fontSize: 8
-          }
-        );
-      }
-
-      // SAVINGS/DONATION RECORDS SECTION
-      if (data.donationSavings && data.donationSavings.length > 0) {
-        doc.addPage();
-        addWatermark();
-        updateTotalPages();
-        addHeaderFooter(totalPages, totalPages);
-        
-        doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
-          .text('Savings/Donation Records', 50, 80);
-        doc.moveDown(1);
-        
-        const savingsRows = data.donationSavings.map(ds => [
-          ds.type || 'N/A',
-          ds.name || 'Unnamed',
-          formatCurrency(parseFloat(ds.target_amount) || 0, ds.currency || 'USD'),
-          formatCurrency(parseFloat(ds.current_amount) || 0, ds.currency || 'USD'),
-          ds.currency || 'USD',
-          ds.status || 'N/A',
-          ds.target_date ? formatDate(ds.target_date) : 'N/A'
-        ]);
-        
-        drawTable(
-          ['Type', 'Name', 'Target Amount', 'Current Amount', 'Currency', 'Status', 'Target Date'],
-          savingsRows,
-          doc.y,
-          {
-            columnWidths: [
-              (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.22,
               (doc.page.width - 100) * 0.18,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.1,
               (doc.page.width - 100) * 0.12,
-              (doc.page.width - 100) * 0.18
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.21
             ],
             fontSize: 8
           }
         );
       }
-
-      // INVESTMENT ASSETS SECTION
-      if (data.investmentAssets && data.investmentAssets.length > 0) {
-        doc.addPage();
-        addWatermark();
-        updateTotalPages();
-        addHeaderFooter(totalPages, totalPages);
-        
-        doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
-          .text('Investment Assets', 50, 80);
-        doc.moveDown(1);
-        
-        const investmentRows = data.investmentAssets.map(asset => [
-          asset.name || 'Unnamed Asset',
-          asset.type || 'N/A',
-          formatCurrency(parseFloat(asset.current_value || asset.total_value) || 0, asset.currency || 'USD'),
-          asset.currency || 'USD',
-          asset.purchase_date ? formatDate(asset.purchase_date) : 'N/A',
-          asset.quantity || 'N/A'
-        ]);
-        
-        drawTable(
-          ['Name', 'Type', 'Current Value', 'Currency', 'Purchase Date', 'Quantity'],
-          investmentRows,
-          doc.y,
-          {
-            columnWidths: [
-              (doc.page.width - 100) * 0.25,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.2,
-              (doc.page.width - 100) * 0.1,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.15
-            ]
-          }
-        );
-      }
-
-      // LEGAL & COMPLIANCE SECTION
-      doc.addPage();
-      addWatermark();
-      updateTotalPages();
-      addHeaderFooter(totalPages, totalPages);
-      
-      doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
-        .text('Legal & Compliance', 50, 80);
-      doc.moveDown(1.5);
-      
-      // Disclaimer
-      doc.fillColor('#d1d5db').fontSize(12).font('Helvetica-Bold')
-        .text('Disclaimer', 50, doc.y);
-      doc.moveDown(0.5);
-      doc.fillColor('#9ca3af').fontSize(9).font('Helvetica')
-        .text('This document contains financial information delivered through the Last Wish system. The information is provided "as is" and is accurate to the best of our knowledge at the time of generation. Balanze and the Last Wish system are not responsible for any decisions made based on this information.', 
-          50, doc.y, { width: doc.page.width - 100, align: 'justify' });
-      doc.moveDown(1.5);
-      
-      // Privacy Notice
-      doc.fillColor('#d1d5db').fontSize(12).font('Helvetica-Bold')
-        .text('Privacy Notice', 50, doc.y);
-      doc.moveDown(0.5);
-      doc.fillColor('#9ca3af').fontSize(9).font('Helvetica')
-        .text('This document contains sensitive personal and financial information. It is intended solely for the authorized recipient. Unauthorized access, disclosure, or use of this information is prohibited. Please store this document securely and dispose of it properly when no longer needed.', 
-          50, doc.y, { width: doc.page.width - 100, align: 'justify' });
-      doc.moveDown(1.5);
-      
-      // Terms of Use
-      doc.fillColor('#d1d5db').fontSize(12).font('Helvetica-Bold')
-        .text('Terms of Use', 50, doc.y);
-      doc.moveDown(0.5);
-      doc.fillColor('#9ca3af').fontSize(9).font('Helvetica')
-        .text('By receiving this document, you acknowledge that you are an authorized recipient designated by the account holder. You agree to use this information responsibly, maintain confidentiality, and only use it for the purposes intended by the account holder.', 
-          50, doc.y, { width: doc.page.width - 100, align: 'justify' });
-      doc.moveDown(1.5);
-      
-      // Data Retention
-      doc.fillColor('#d1d5db').fontSize(12).font('Helvetica-Bold')
-        .text('Data Retention', 50, doc.y);
-      doc.moveDown(0.5);
-      doc.fillColor('#9ca3af').fontSize(9).font('Helvetica')
-        .text('This document was generated on ' + formatDate(new Date()) + '. The data contained herein reflects the account holder\'s financial records as of the last activity date. For questions or concerns, please contact: hello@shalconnects.com', 
-          50, doc.y, { width: doc.page.width - 100, align: 'justify' });
-      
-      // Final page update
-      updateTotalPages();
-      addHeaderFooter(totalPages, totalPages);
       
       doc.end();
     } catch (error) {
@@ -1930,9 +1720,6 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
 
     // Generate PDF
     const pdfBuffer = await createPDFBuffer(user, recipient, filteredData, settings);
-        
-        // Generate CSV export
-        const csvContent = generateCSVExport(filteredData, settings);
 
     // Get user's display name for subject
     const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || user.email;
@@ -1945,19 +1732,9 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
       html: emailContent,
       attachments: [
         {
-          filename: `${isTestMode ? 'test-' : ''}financial-data-backup.json`,
-          content: JSON.stringify(filteredData, null, 2),
-          contentType: 'application/json'
-        },
-        {
           filename: `${isTestMode ? 'test-' : ''}financial-data-backup.pdf`,
           content: pdfBuffer,
           contentType: 'application/pdf'
-            },
-            {
-              filename: `${isTestMode ? 'test-' : ''}financial-data-backup.csv`,
-              content: csvContent,
-              contentType: 'text/csv'
         }
       ]
     };

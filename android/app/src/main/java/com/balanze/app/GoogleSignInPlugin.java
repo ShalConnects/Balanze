@@ -78,10 +78,33 @@ public class GoogleSignInPlugin extends Plugin {
             return;
         }
         
-        Log.e("GoogleSignIn", "✅ Starting Google Sign-In intent...");
-        Intent signInIntent = googleSignInClient.getSignInIntent();
-        startActivityForResult(call, signInIntent, RC_SIGN_IN);
-        Log.e("GoogleSignIn", "✅ Sign-In intent started");
+        // ALWAYS sign out and revoke access to force account picker to show
+        // This is the most reliable way to ensure the picker appears
+        Log.e("GoogleSignIn", "🔄 Signing out and revoking access to force account picker...");
+        
+        // First sign out
+        googleSignInClient.signOut().addOnCompleteListener(activity, signOutTask -> {
+            Log.e("GoogleSignIn", "✅ Sign out completed");
+            
+            // Then revoke access to clear all cached account data
+            googleSignInClient.revokeAccess().addOnCompleteListener(activity, revokeTask -> {
+                Log.e("GoogleSignIn", "✅ Access revoked, account cache cleared");
+                
+                // Now show the sign-in intent - this should always show account picker
+                try {
+                    Intent signInIntent = googleSignInClient.getSignInIntent();
+                    startActivityForResult(call, signInIntent, RC_SIGN_IN);
+                    Log.e("GoogleSignIn", "✅ Sign-In intent started - account picker should appear");
+                } catch (Exception e) {
+                    Log.e("GoogleSignIn", "❌ Error starting sign-in intent: " + e.getMessage());
+                    e.printStackTrace();
+                    if (savedCall != null) {
+                        savedCall.reject("Failed to start sign-in: " + e.getMessage());
+                        savedCall = null;
+                    }
+                }
+            });
+        });
     }
 
     @PluginMethod
@@ -92,6 +115,13 @@ public class GoogleSignInPlugin extends Plugin {
                 result.put("success", true);
                 call.resolve(result);
             });
+    }
+
+    @PluginMethod
+    public void log(PluginCall call) {
+        String message = call.getString("message", "");
+        Log.e("JS_LOG", message);
+        call.resolve();
     }
 
     @Override

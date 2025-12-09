@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Dialog } from '@headlessui/react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Account } from '../../types';
@@ -6,12 +7,13 @@ import { formatCurrency } from '../../utils/currency';
 import { format } from 'date-fns';
 import { formatTimeUTC } from '../../utils/timezoneUtils';
 import { supabase } from '../../lib/supabase';
-import { ArrowRight, Info, RefreshCw } from 'lucide-react';
+import { ArrowRight, Info, RefreshCw, X } from 'lucide-react';
 import { getSuggestedRate, formatExchangeRate, isValidExchangeRate } from '../../utils/exchangeRate';
 import { toast } from 'sonner';
 import { generateTransactionId, createSuccessMessage, TRANSACTION_TYPES } from '../../utils/transactionId';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { Loader } from '../common/Loader';
+import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 interface TransferModalProps {
   isOpen: boolean;
@@ -21,6 +23,7 @@ interface TransferModalProps {
 
 export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, mode = 'currency' }) => {
   const { accounts, transfer, loading, error } = useFinanceStore();
+  const { isMobile } = useMobileDetection();
   const [formData, setFormData] = useState({
     from_account_id: '',
     to_account_id: '',
@@ -34,6 +37,13 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
   const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
   const [isLoadingRate, setIsLoadingRate] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // State for Max button tooltip
+  const [showMaxTooltip, setShowMaxTooltip] = useState(false);
+  const [showMaxMobileModal, setShowMaxMobileModal] = useState(false);
+  const maxButtonRef = useRef<HTMLButtonElement>(null);
+  const maxTooltipRef = useRef<HTMLDivElement>(null);
+  const [maxTooltipPosition, setMaxTooltipPosition] = useState({ top: 0, left: 0 });
 
   // Get selected accounts
   const fromAccount = accounts.find(a => a.id === formData.from_account_id);
@@ -108,6 +118,61 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
       }
     }
   }, [mode, isDifferentCurrency, fromAccount?.currency, toAccount?.currency]);
+
+  // Calculate tooltip position for desktop
+  useEffect(() => {
+    const calculatePosition = () => {
+      if (showMaxTooltip && !isMobile && maxButtonRef.current && maxTooltipRef.current) {
+        const buttonRect = maxButtonRef.current.getBoundingClientRect();
+        const tooltipRect = maxTooltipRef.current.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Position tooltip below the button, centered
+        let top = buttonRect.bottom + 8;
+        let left = buttonRect.left + (buttonRect.width / 2) - (tooltipRect.width / 2);
+
+        // Adjust if tooltip would go off-screen to the left
+        if (left < 8) {
+          left = 8;
+        }
+        // Adjust if tooltip would go off-screen to the right
+        if (left + tooltipRect.width > viewportWidth - 8) {
+          left = viewportWidth - tooltipRect.width - 8;
+        }
+        // Adjust if tooltip would go off-screen at the bottom
+        if (top + tooltipRect.height > viewportHeight - 8) {
+          top = buttonRect.top - tooltipRect.height - 8;
+        }
+
+        setMaxTooltipPosition({ top, left });
+      }
+    };
+
+    // Calculate position after a brief delay to ensure tooltip is rendered
+    const timeoutId = setTimeout(calculatePosition, 0);
+    
+    // Recalculate on window resize
+    window.addEventListener('resize', calculatePosition);
+    window.addEventListener('scroll', calculatePosition, true);
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', calculatePosition);
+      window.removeEventListener('scroll', calculatePosition, true);
+    };
+  }, [showMaxTooltip, isMobile]);
+
+  // Prevent body scroll when mobile modal is open
+  useEffect(() => {
+    if (showMaxMobileModal && isMobile) {
+      const originalStyle = window.getComputedStyle(document.body).overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalStyle;
+      };
+    }
+  }, [showMaxMobileModal, isMobile]);
 
   const fetchTransferHistory = async () => {
     try {
@@ -321,23 +386,45 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
                       placeholder={`Amount${fromAccount ? ` (${fromAccount.currency})` : ''}`}
                     />
                     {fromAccount && (
-                      <div className="relative group">
+                      <div className="relative">
                         <button
+                          ref={maxButtonRef}
                           type="button"
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-gray-200 dark:bg-gray-600 hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 px-2 py-1 rounded transition-colors"
-                          onClick={() => setFormData(prev => ({ ...prev, amount: fromAccount.calculated_balance.toString() }))}
-                          tabIndex={-1}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-gray-200 dark:bg-gray-600 hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 px-2 py-1 rounded transition-colors touch-manipulation"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (isMobile) {
+                              setShowMaxMobileModal(true);
+                            } else {
+                              setFormData(prev => ({ ...prev, amount: fromAccount.calculated_balance.toString() }));
+                            }
+                          }}
+                          onMouseEnter={() => {
+                            if (!isMobile) {
+                              setShowMaxTooltip(true);
+                            }
+                          }}
+                          onMouseLeave={() => {
+                            if (!isMobile) {
+                              setShowMaxTooltip(false);
+                            }
+                          }}
+                          onFocus={() => {
+                            if (!isMobile) {
+                              setShowMaxTooltip(true);
+                            }
+                          }}
+                          onBlur={() => {
+                            if (!isMobile) {
+                              setShowMaxTooltip(false);
+                            }
+                          }}
+                          tabIndex={0}
+                          aria-label="Fill with maximum available balance"
                         >
                           Max
                         </button>
-                        {/* Custom Tooltip - styled like PurchaseCategories */}
-                        <span className="pointer-events-none absolute left-1/2 top-full z-50 flex flex-col items-center mt-3 -translate-x-1/2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
-                          <span className="w-3 h-3 rotate-45 bg-gray-900 dark:bg-gray-700 -mb-1"></span>
-                          <span className="bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-xl px-4 py-2 shadow-lg min-w-[220px] text-center">
-                            Fill with the maximum available balance from this account.<br />
-                            <b>Click to auto-fill the amount field.</b>
-                          </span>
-                        </span>
                       </div>
                     )}
                   </div>
@@ -539,6 +626,59 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
           </Dialog.Panel>
         </div>
       </Dialog>
+
+      {/* Max Button Tooltip - Portal for desktop */}
+      {showMaxTooltip && !isMobile && createPortal(
+        <div
+          ref={maxTooltipRef}
+          className="fixed z-[100] w-64 sm:w-72 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein"
+          style={{
+            top: `${maxTooltipPosition.top}px`,
+            left: `${maxTooltipPosition.left}px`,
+          }}
+          onMouseEnter={() => setShowMaxTooltip(true)}
+          onMouseLeave={() => setShowMaxTooltip(false)}
+        >
+          {/* Arrow pointer pointing up towards button */}
+          <div className="absolute left-1/2 -top-2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-gray-200 dark:border-b-gray-700"></div>
+          <div className="absolute left-1/2 -top-[1px] -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[5px] border-b-white dark:border-b-gray-900"></div>
+          <div className="space-y-1 text-center">
+            <p>Fill with the maximum available balance from this account.</p>
+            <p className="font-semibold">Click to auto-fill the amount field.</p>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Mobile Modal for Max Button Info - Portal */}
+      {showMaxMobileModal && isMobile && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+          <div 
+            className="fixed inset-0 bg-black/50" 
+            onClick={() => setShowMaxMobileModal(false)}
+          />
+          <div 
+            className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-4 w-64 animate-fadein z-[100000]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-xs text-gray-700 dark:text-gray-200 mb-4 text-center">
+              <p>Fill with the maximum available balance from this account.</p>
+            </div>
+            <button
+              onClick={() => {
+                if (fromAccount) {
+                  setFormData(prev => ({ ...prev, amount: fromAccount.calculated_balance.toString() }));
+                }
+                setShowMaxMobileModal(false);
+              }}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors text-sm font-medium touch-manipulation"
+            >
+              Fill Max Amount
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }; 

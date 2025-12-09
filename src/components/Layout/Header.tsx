@@ -408,34 +408,72 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
     <>
       {/* Help Center Notification Banner */}
       {showHelpBanner && location.pathname !== '/dashboard-demo-only' && (
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-3 relative">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-2">
-                <Sparkles className="w-5 h-5 animate-pulse" />
-                <span className="font-semibold">New!</span>
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 sm:px-6 py-3 sm:py-4 relative">
+          <div className="max-w-7xl mx-auto">
+            {/* Mobile Layout - Stacked */}
+            <div className="flex flex-col sm:hidden gap-3">
+              <div className="flex items-start gap-2.5">
+                <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
+                  <Sparkles className="w-5 h-5 animate-pulse" />
+                  <span className="font-bold text-sm">New!</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start gap-2">
+                    <BookOpen className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm leading-relaxed flex-1">
+                      New Help Center launched! Guides, tutorials & support available.
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <BookOpen className="w-4 h-4" />
-                <span className="text-sm sm:text-base">
-                  We've launched a comprehensive Help Center with guides, tutorials, and support resources!
-                </span>
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  onClick={() => navigate('/help')}
+                  className="bg-white/20 hover:bg-white/30 active:bg-white/40 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 touch-manipulation flex-1 justify-center min-h-[44px]"
+                >
+                  <LifeBuoy className="w-4 h-4" />
+                  <span>Explore Help Center</span>
+                </button>
+                <button
+                  onClick={dismissHelpBanner}
+                  className="text-white/90 hover:text-white active:text-white p-2.5 rounded-lg transition-colors touch-manipulation flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  aria-label="Dismiss banner"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => navigate('/help')}
-                className="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1"
-              >
-                <span>Explore</span>
-                <LifeBuoy className="w-4 h-4" />
-              </button>
-              <button
-                onClick={dismissHelpBanner}
-                className="text-white/80 hover:text-white p-1 rounded transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+            
+            {/* Desktop Layout - Horizontal */}
+            <div className="hidden sm:flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Sparkles className="w-5 h-5 animate-pulse" />
+                  <span className="font-semibold text-sm">New!</span>
+                </div>
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <BookOpen className="w-4 h-4 flex-shrink-0" />
+                  <span className="text-sm md:text-base leading-relaxed">
+                    We've launched a comprehensive Help Center with guides, tutorials, and support resources!
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => navigate('/help')}
+                  className="bg-white/20 hover:bg-white/30 active:bg-white/40 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 touch-manipulation"
+                >
+                  <span>Explore</span>
+                  <LifeBuoy className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={dismissHelpBanner}
+                  className="text-white/80 hover:text-white active:text-white p-2 rounded transition-colors touch-manipulation flex-shrink-0"
+                  aria-label="Dismiss banner"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

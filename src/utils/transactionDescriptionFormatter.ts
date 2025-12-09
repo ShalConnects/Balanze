@@ -18,11 +18,17 @@ export function formatTransactionDescription(description: string, personName?: s
     return `Borrowed from ${extractedPersonName}`;
   }
   
-  if (description.includes('Repayment from') || description.includes('repayment from')) {
+  if (description.includes('Repayment from') || 
+      description.includes('repayment from') ||
+      description.includes('Loan repayment from') ||
+      description.includes('loan repayment from')) {
     return `Repayment from ${extractedPersonName}`;
   }
   
-  if (description.includes('Debt repayment to') || description.includes('debt repayment to')) {
+  if (description.includes('Repayment to') ||
+      description.includes('repayment to') ||
+      description.includes('Debt repayment to') || 
+      description.includes('debt repayment to')) {
     return `Repayment to ${extractedPersonName}`;
   }
   
@@ -51,6 +57,8 @@ function extractPersonNameFromDescription(description: string): string {
     /Lent to (.+)/i,
     /Borrowed from (.+)/i,
     /Repayment from (.+)/i,
+    /Loan repayment from (.+)/i,
+    /Repayment to (.+)/i,
     /Debt repayment to (.+)/i,
     /Received partial return from (.+)/i,
     /Partial return from (.+)/i,

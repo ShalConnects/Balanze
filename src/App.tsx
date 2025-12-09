@@ -30,6 +30,7 @@ import { isFirstLaunch } from './utils/firstLaunch';
 import { App as CapacitorApp } from '@capacitor/app';
 import { getRememberMePreference } from './utils/authStorage';
 import { Capacitor } from '@capacitor/core';
+import { useMobileDetection } from './hooks/useMobileDetection';
 
 // Lazy load non-critical components for code splitting
 const About = lazy(() => import('./pages/About'));
@@ -45,7 +46,6 @@ const TransfersTableView = lazy(() => import('./components/Transfers/TransfersTa
 const Transfer_new = lazy(() => import('./components/Transfers/Transfer_new').then(m => ({ default: m.Transfer_new })));
 const SavingsView = lazy(() => import('./components/Savings/SavingsView').then(m => ({ default: m.SavingsView })));
 const PurchaseTracker = lazy(() => import('./components/Purchases/PurchaseTracker').then(m => ({ default: m.PurchaseTracker })));
-const LendBorrowPage = lazy(() => import('./pages/LendBorrow'));
 const LendBorrowTableView = lazy(() => import('./components/LendBorrow/LendBorrowTableView').then(m => ({ default: m.LendBorrowTableView })));
 const PurchaseCategories = lazy(() => import('./components/Purchases/PurchaseCategories').then(m => ({ default: m.PurchaseCategories })));
 const PurchaseAnalytics = lazy(() => import('./components/Purchases/PurchaseAnalytics').then(m => ({ default: m.PurchaseAnalytics })));
@@ -111,6 +111,7 @@ function AppContent() {
   const initialized = useRef(false);
   const { isLoading: globalLoading, loadingMessage } = useLoadingContext();
   const location = useLocation();
+  const { isMobile } = useMobileDetection();
   
   // Welcome modal state
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
@@ -721,7 +722,7 @@ function AppContent() {
 
       <Loader isLoading={globalLoading} message={loadingMessage} />
       <Toaster 
-        position="top-right" 
+        position={isMobile ? "top-center" : "top-right"} 
         richColors 
         expand={false}
         closeButton={true}
@@ -764,7 +765,6 @@ function AppContent() {
         <Route path="/savings" element={user ? <MainLayout><SavingsView /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/purchases" element={user ? <MainLayout><PurchaseTracker /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/lent-borrow" element={user ? <MainLayout><LendBorrowTableView /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/lent-borrow-table" element={user ? <MainLayout><LendBorrowPage /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/investments" element={user ? <MainLayout><Investments /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/simple-investments" element={user ? <MainLayout><SimpleInvestments /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/purchase-categories" element={user ? <MainLayout><PurchaseCategories /></MainLayout> : <Navigate to="/login" />} />

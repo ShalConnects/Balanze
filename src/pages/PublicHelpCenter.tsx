@@ -159,32 +159,32 @@ const PublicHelpCenter: React.FC = () => {
 
         {/* Main Content */}
         <div className="pt-16 bg-white dark:bg-gray-800 scroll-smooth font-manrope">
-          <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
             {/* Breadcrumb */}
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
               <Breadcrumb />
             </div>
             {/* Welcome Banner */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500 rounded-xl p-8 mb-8 text-white">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-white/20 dark:bg-white/30 rounded-full">
-                    <LifeBuoy className="w-8 h-8" />
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500 rounded-xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 text-white">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+                  <div className="p-2 sm:p-3 bg-white/20 dark:bg-white/30 rounded-full flex-shrink-0 self-start">
+                    <LifeBuoy className="w-6 h-6 sm:w-8 sm:h-8" />
                   </div>
-                  <div>
-                    <h1 className="text-3xl md:text-4xl font-bold mb-2">Welcome to the Help Center!</h1>
-                    <p className="text-blue-100 dark:text-blue-200 text-lg">
-                      Discover guides, tutorials, and tips to master Balanze. Can't find what you're looking for? 
+                  <div className="flex-1 min-w-0">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">Welcome to the Help Center!</h1>
+                    <p className="text-blue-100 dark:text-blue-200 text-sm sm:text-base lg:text-lg leading-relaxed">
+                      Discover guides, tutorials, and tips to master Balanze. Can't find what you're looking for?{' '}
                       <button 
                         onClick={() => window.open('mailto:hello@shalconnects.com', '_blank')}
-                        className="underline hover:text-white dark:hover:text-blue-100 ml-1 font-semibold"
+                        className="underline hover:text-white dark:hover:text-blue-100 font-semibold whitespace-nowrap"
                       >
                         Contact our support team
                       </button>
                     </p>
                   </div>
                 </div>
-                <div className="hidden md:flex items-center gap-2">
+                <div className="hidden md:flex items-center gap-2 flex-shrink-0">
                   <div className="text-right">
                     <div className="text-sm text-blue-100 dark:text-blue-200">Last updated</div>
                     <div className="font-semibold">{new Date().toLocaleDateString()}</div>
@@ -199,16 +199,16 @@ const PublicHelpCenter: React.FC = () => {
             </div>
 
             {/* Topic Clusters Navigation */}
-            <div className="mt-8 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl p-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            <div className="mt-6 sm:mt-8 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl p-4 sm:p-6">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2 sm:mb-4">
                 Browse by Topic
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-3 sm:mb-4">
                 Explore our organized topic clusters to find exactly what you need.
               </p>
               <button
                 onClick={() => navigate('/help-center/topics')}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base w-full sm:w-auto justify-center"
               >
                 <BookOpen className="w-4 h-4" />
                 Browse All Topics
@@ -217,48 +217,48 @@ const PublicHelpCenter: React.FC = () => {
             </div>
 
             {/* Quick Start Path */}
-            <div className="mt-8 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-xl p-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            <div className="mt-6 sm:mt-8 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-xl p-4 sm:p-6">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2 sm:mb-4">
                 🚀 Quick Start Path
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-3 sm:mb-4">
                 New to Balanze? Follow this step-by-step path to get started:
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <button
                   onClick={() => navigate('/help-center/getting-started-guide')}
-                  className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-500 transition-colors text-left"
+                  className="p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-500 transition-colors text-left"
                 >
-                  <div className="text-2xl mb-2">1️⃣</div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Get Started</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Complete setup guide</p>
+                  <div className="text-xl sm:text-2xl mb-2">1️⃣</div>
+                  <h4 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white mb-1">Get Started</h4>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Complete setup guide</p>
                 </button>
                 
                 <button
                   onClick={() => navigate('/help-center/create-first-account')}
-                  className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-500 transition-colors text-left"
+                  className="p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-500 transition-colors text-left"
                 >
-                  <div className="text-2xl mb-2">2️⃣</div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Create Account</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Add your first account</p>
+                  <div className="text-xl sm:text-2xl mb-2">2️⃣</div>
+                  <h4 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white mb-1">Create Account</h4>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Add your first account</p>
                 </button>
                 
                 <button
                   onClick={() => navigate('/help-center/create-first-transaction')}
-                  className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-500 transition-colors text-left"
+                  className="p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-500 transition-colors text-left"
                 >
-                  <div className="text-2xl mb-2">3️⃣</div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Add Transaction</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Record income/expenses</p>
+                  <div className="text-xl sm:text-2xl mb-2">3️⃣</div>
+                  <h4 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white mb-1">Add Transaction</h4>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Record income/expenses</p>
                 </button>
                 
                 <button
                   onClick={() => navigate('/help-center/analytics-dashboard')}
-                  className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-orange-300 dark:hover:border-orange-500 transition-colors text-left"
+                  className="p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-orange-300 dark:hover:border-orange-500 transition-colors text-left"
                 >
-                  <div className="text-2xl mb-2">4️⃣</div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-1">View Analytics</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Understand your finances</p>
+                  <div className="text-xl sm:text-2xl mb-2">4️⃣</div>
+                  <h4 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white mb-1">View Analytics</h4>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Understand your finances</p>
                 </button>
               </div>
             </div>

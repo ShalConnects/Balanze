@@ -33,6 +33,7 @@ const config: CapacitorConfig = {
       // Get this from: Google Cloud Console > APIs & Services > Credentials
       // It should be the same Client ID you use for web OAuth
       // This will be read from VITE_GOOGLE_CLIENT_ID environment variable
+      // NOTE: For requestIdToken(), you MUST use the Web Client ID, not Android Client ID
       serverClientId: process.env.VITE_GOOGLE_CLIENT_ID || "684747632135-l7g9s4u1ka3tbjll9eu0avga2jmcs7m1.apps.googleusercontent.com"
     }
   }

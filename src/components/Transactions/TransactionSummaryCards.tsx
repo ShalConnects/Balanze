@@ -33,56 +33,6 @@ export const TransactionSummaryCards: React.FC<TransactionSummaryCardsProps> = (
     const totalExpenses = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
     const netAmount = totalIncome - totalExpenses;
     
-    // Console log for verification (only in development, and only when values change)
-    if (import.meta.env.DEV && transactions.length > 0) {
-      const excludedIncomeAmount = lendBorrowIncome.reduce((sum, t) => sum + t.amount, 0);
-      const excludedExpenseAmount = lendBorrowExpense.reduce((sum, t) => sum + t.amount, 0);
-      
-      // Create a unique key from the values to detect changes
-      const logKey = `${transactions.length}-${totalIncome.toFixed(2)}-${totalExpenses.toFixed(2)}-${allLendBorrowTransactions.length}`;
-      
-      // Only log if values have changed (or if it's the first time - empty string means first log)
-      if (lastLoggedValuesRef.current === '' || lastLoggedValuesRef.current !== logKey) {
-        lastLoggedValuesRef.current = logKey;
-        
-        // Log summary first
-        console.group('📊 Transaction Summary Cards - Lend/Borrow Exclusion');
-        console.log('Summary:', {
-          totalTransactions: transactions.length,
-          excludedLendBorrow: allLendBorrowTransactions.length
-        });
-        
-        // Log excluded transactions
-        if (lendBorrowIncome.length > 0) {
-          console.log(`Excluded from Income (${lendBorrowIncome.length} transactions, Total: ${excludedIncomeAmount}):`, 
-            lendBorrowIncome.map(t => `${t.description} - ${t.amount}`)
-          );
-        } else {
-          console.log('Excluded from Income: None');
-        }
-        
-        if (lendBorrowExpense.length > 0) {
-          console.log(`Excluded from Expense (${lendBorrowExpense.length} transactions, Total: ${excludedExpenseAmount}):`, 
-            lendBorrowExpense.map(t => `${t.description} - ${t.amount}`)
-          );
-        } else {
-          console.log('Excluded from Expense: None');
-        }
-        
-        // Log final totals
-        console.log('Final Calculated Totals:', {
-          income: totalIncome,
-          expenses: totalExpenses,
-          net: netAmount
-        });
-        console.log('Included Transactions:', {
-          income: incomeTransactions.length,
-          expense: expenseTransactions.length
-        });
-        console.groupEnd();
-      }
-    }
-    
     // Get unique currencies from accounts
     const currencies = [...new Set(accounts.map(a => a.currency))];
     const primaryCurrency = currencies[0] || 'USD';

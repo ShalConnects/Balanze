@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, AlertCircle, Eye, EyeOff, Info } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Account } from '../../types';
@@ -43,10 +44,19 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
     dps_initial_balance: ''
   });
 
+  // Ref to track latest formData for validation
+  const formDataRef = useRef(formData);
+  useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [showDpsTooltip, setShowDpsTooltip] = useState(false);
   const [showDpsMobileModal, setShowDpsMobileModal] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  const dpsIconRef = useRef<HTMLButtonElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [availableCurrencies, setAvailableCurrencies] = useState<Array<{label: string, value: string}>>(
     CURRENCY_OPTIONS.map(currency => ({ label: currency, value: currency }))
@@ -54,6 +64,40 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
 
   // Check if account has existing transactions
   const hasExistingTransactions = account ? getTransactionsByAccount(account.id).length > 0 : false;
+
+  // Calculate tooltip position when it should be shown
+  useEffect(() => {
+    if (showDpsTooltip && !isMobile && dpsIconRef.current && tooltipRef.current) {
+      const iconRect = dpsIconRef.current.getBoundingClientRect();
+      const tooltipWidth = 256; // w-64 = 16rem = 256px
+      const tooltipHeight = tooltipRef.current.offsetHeight || 200; // approximate
+      const spacing = 8; // ml-2 = 8px
+      
+      // Position to the right of icon, vertically centered
+      let left = iconRect.right + spacing;
+      let top = iconRect.top + (iconRect.height / 2) - (tooltipHeight / 2);
+      
+      // Check if tooltip would overflow right edge
+      const viewportWidth = window.innerWidth;
+      if (left + tooltipWidth > viewportWidth - 16) {
+        // Position to the left instead
+        left = iconRect.left - tooltipWidth - spacing;
+      }
+      
+      // Check if tooltip would overflow top
+      if (top < 8) {
+        top = 8;
+      }
+      
+      // Check if tooltip would overflow bottom
+      const viewportHeight = window.innerHeight;
+      if (top + tooltipHeight > viewportHeight - 8) {
+        top = viewportHeight - tooltipHeight - 8;
+      }
+      
+      setTooltipPosition({ top, left });
+    }
+  }, [showDpsTooltip, isMobile]);
 
   // Fetch user profile and set up available currencies
   useEffect(() => {
@@ -136,11 +180,40 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
       return;
     }
     
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      // Update ref immediately so validation can use latest data
+      formDataRef.current = newData;
+      
+      // Validate related fields after state update
+      setTimeout(() => {
+        if (field === 'balance') {
+          validateField('balance');
+        }
+        if (field === 'has_dps') {
+          // Only validate balance when DPS is DISABLED (to clear error)
+          // When DPS is enabled, wait for balance field interaction or form submit
+          if (!newData.has_dps) {
+            validateField('balance');
+          }
+        }
+        if (field === 'dps_amount_type') {
+          // Only validate if DPS is disabled or amount type changed away from fixed
+          if (!newData.has_dps || newData.dps_amount_type !== 'fixed') {
+            validateField('balance');
+          }
+        }
+      }, 0);
+      return newData;
+    });
     
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
     }
     
     // Mark field as touched
@@ -170,6 +243,15 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
         
       case 'balance':
         const balance = parseFloat(formData.balance);
+        // Use ref to get latest formData for DPS checks (handles async state updates)
+        const currentFormData = formDataRef.current;
+        console.log('[Balance Validation]', {
+          balance,
+          has_dps: currentFormData.has_dps,
+          dps_amount_type: currentFormData.dps_amount_type,
+          formDataHasDps: formData.has_dps,
+          existingError: errors.balance
+        });
         if (isNaN(balance)) {
           newErrors.balance = 'Initial balance is required';
         } else if (balance < 0) {
@@ -179,6 +261,40 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
         } else {
           delete newErrors.balance;
         }
+        // Check DPS validation when balance changes - use ref for latest DPS state
+        // First, clear any existing DPS-related error if conditions are not met
+        const shouldClearDpsError = !currentFormData.has_dps || currentFormData.dps_amount_type !== 'fixed' || balance > 0;
+        console.log('[Balance Validation] Should clear DPS error?', shouldClearDpsError, {
+          has_dps: currentFormData.has_dps,
+          dps_amount_type: currentFormData.dps_amount_type,
+          balance,
+          newErrorsBalance: newErrors.balance,
+          errorsBalance: errors.balance
+        });
+        if (shouldClearDpsError) {
+          // Clear DPS error if DPS is disabled, amount type is not fixed, or balance is greater than zero
+          if (newErrors.balance && newErrors.balance.includes('DPS with fixed amount')) {
+            console.log('[Balance Validation] Clearing DPS error from newErrors');
+            delete newErrors.balance;
+          }
+          // Also check and clear from existing errors
+          if (errors.balance && errors.balance.includes('DPS with fixed amount')) {
+            console.log('[Balance Validation] Clearing DPS error from existing errors');
+            delete newErrors.balance;
+          }
+        }
+        // Then, set the DPS error only if all conditions are met AND balance field has been touched
+        // This prevents showing error immediately when DPS is enabled - wait for user interaction
+        const shouldSetDpsError = currentFormData.has_dps && 
+                                  currentFormData.dps_amount_type === 'fixed' && 
+                                  balance === 0 &&
+                                  touched.balance; // Only show error if balance field has been touched
+        console.log('[Balance Validation] Should set DPS error?', shouldSetDpsError, { touched: touched.balance });
+        if (shouldSetDpsError) {
+          console.log('[Balance Validation] Setting DPS error');
+          newErrors.balance = 'Initial balance must be greater than zero to create DPS with fixed amount';
+        }
+        console.log('[Balance Validation] Final newErrors.balance:', newErrors.balance);
         break;
         
       case 'dps_fixed_amount':
@@ -193,8 +309,57 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
           }
         }
         break;
+        
+      case 'has_dps':
+      case 'dps_amount_type':
+        // Check if DPS with fixed amount is enabled but balance is zero
+        // Use ref to get latest formData (handles async state updates)
+        const currentFormDataDps = formDataRef.current;
+        const currentBalance = parseFloat(currentFormDataDps.balance);
+        console.log('[DPS Validation]', {
+          field,
+          has_dps: currentFormDataDps.has_dps,
+          dps_amount_type: currentFormDataDps.dps_amount_type,
+          formDataHasDps: formData.has_dps,
+          currentBalance,
+          existingError: errors.balance
+        });
+        // First, clear any existing DPS-related error if conditions are not met
+        const shouldClearDpsErrorDps = !currentFormDataDps.has_dps || currentFormDataDps.dps_amount_type !== 'fixed' || currentBalance > 0;
+        console.log('[DPS Validation] Should clear DPS error?', shouldClearDpsErrorDps);
+        if (shouldClearDpsErrorDps) {
+          // Clear DPS error if DPS is disabled, amount type is not fixed, or balance is greater than zero
+          if (newErrors.balance && newErrors.balance.includes('DPS with fixed amount')) {
+            console.log('[DPS Validation] Clearing DPS error from newErrors');
+            delete newErrors.balance;
+          }
+          // Also check and clear from existing errors
+          if (errors.balance && errors.balance.includes('DPS with fixed amount')) {
+            console.log('[DPS Validation] Clearing DPS error from existing errors');
+            delete newErrors.balance;
+          }
+        }
+        // Then, set the DPS error only if all conditions are met AND balance field has been touched
+        // This prevents showing error immediately when DPS settings change - wait for user interaction
+        const shouldSetDpsErrorDps = currentFormDataDps.has_dps && 
+                                     currentFormDataDps.dps_amount_type === 'fixed' && 
+                                     currentBalance === 0 &&
+                                     touched.balance; // Only show error if balance field has been touched
+        console.log('[DPS Validation] Should set DPS error?', shouldSetDpsErrorDps, { touched: touched.balance });
+        if (shouldSetDpsErrorDps) {
+          console.log('[DPS Validation] Setting DPS error');
+          newErrors.balance = 'Initial balance must be greater than zero to create DPS with fixed amount';
+        }
+        console.log('[DPS Validation] Final newErrors.balance:', newErrors.balance);
+        break;
     }
     
+    console.log('[validateField] Setting errors:', {
+      field,
+      newErrors,
+      balanceError: newErrors.balance,
+      allErrors: Object.keys(newErrors)
+    });
     setErrors(newErrors);
   };
 
@@ -206,24 +371,103 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
       currency: formData.currency
     });
     
+    const allErrors: Record<string, string> = {};
+    
     if (!validation.isValid) {
-      const newErrors: Record<string, string> = {};
       validation.errors.forEach(error => {
-        if (error.includes('name')) newErrors.name = error;
-        if (error.includes('balance')) newErrors.balance = error;
-        if (error.includes('currency')) newErrors.currency = error;
-        if (error.includes('type')) newErrors.type = error;
+        if (error.includes('name')) allErrors.name = error;
+        if (error.includes('balance')) allErrors.balance = error;
+        if (error.includes('currency')) allErrors.currency = error;
+        if (error.includes('type')) allErrors.type = error;
       });
-      setErrors(newErrors);
-      return false;
+    }
+    
+    // Validate name
+    if (!formData.name.trim()) {
+      allErrors.name = 'Account name is required';
+    } else if (formData.name.length < 2) {
+      allErrors.name = 'Account name must be at least 2 characters';
+    } else if (formData.name.length > 50) {
+      allErrors.name = 'Account name must be less than 50 characters';
+    }
+    
+    // Validate balance
+    const balance = parseFloat(formData.balance);
+    if (isNaN(balance)) {
+      allErrors.balance = 'Initial balance is required';
+    } else if (balance < 0) {
+      allErrors.balance = 'Initial balance cannot be negative';
+    } else if (balance > 999999999) {
+      allErrors.balance = 'Initial balance is too large';
     }
     
     // Additional DPS validation
-    if (formData.has_dps && formData.dps_amount_type === 'fixed') {
-      validateField('dps_fixed_amount');
+    console.log('[validateForm] DPS validation check', {
+      has_dps: formData.has_dps,
+      dps_amount_type: formData.dps_amount_type,
+      balance,
+      shouldValidate: formData.has_dps && formData.dps_amount_type === 'fixed',
+      existingBalanceError: errors.balance,
+      currentAllErrorsBalance: allErrors.balance
+    });
+    
+    // IMPORTANT: Only set DPS error if DPS is actually enabled
+    // If DPS is disabled, explicitly ensure we don't have a DPS error
+    if (!formData.has_dps || formData.dps_amount_type !== 'fixed') {
+      console.log('[validateForm] DPS not enabled - ensuring no DPS-related balance error');
+      // Explicitly remove DPS error if it exists in allErrors
+      if (allErrors.balance && allErrors.balance.includes('DPS with fixed amount')) {
+        console.log('[validateForm] Removing DPS error from allErrors');
+        delete allErrors.balance;
+      }
+      // Also clear from existing errors state (in case it was set before)
+      // We'll update the errors state at the end, so this ensures it's cleared
+    } else if (formData.has_dps && formData.dps_amount_type === 'fixed') {
+      // DPS is enabled and amount type is fixed - check if balance is zero
+      // Only set error if balance has been touched (i.e., user has interacted or form is being submitted)
+      if (balance === 0 && touched.balance) {
+        console.log('[validateForm] Setting DPS error - balance is 0, DPS is enabled, and balance is touched');
+        allErrors.balance = 'Initial balance must be greater than zero to create DPS with fixed amount';
+      } else if (balance === 0 && !touched.balance) {
+        console.log('[validateForm] Not setting DPS error - balance is 0 but field not touched yet');
+      } else {
+        // Balance is not zero - validate fixed amount
+        const amount = parseFloat(formData.dps_fixed_amount);
+        if (isNaN(amount) || amount <= 0) {
+          allErrors.dps_fixed_amount = 'Fixed amount must be greater than 0';
+        } else if (amount > 999999) {
+          allErrors.dps_fixed_amount = 'Fixed amount is too large';
+        }
+        // Make sure we don't have a DPS balance error if balance is > 0
+        if (allErrors.balance && allErrors.balance.includes('DPS with fixed amount')) {
+          console.log('[validateForm] Removing DPS error - balance is not zero');
+          delete allErrors.balance;
+        }
+      }
+    } else {
+      console.log('[validateForm] DPS validation skipped - conditions not met');
     }
     
-    return Object.keys(errors).length === 0;
+    // Final check: If DPS is disabled, make absolutely sure no DPS error exists
+    if (!formData.has_dps || formData.dps_amount_type !== 'fixed') {
+      if (allErrors.balance && allErrors.balance.includes('DPS with fixed amount')) {
+        console.log('[validateForm] Final cleanup - removing DPS error');
+        delete allErrors.balance;
+      }
+    }
+    
+    // Update errors state
+    console.log('[validateForm] Setting allErrors:', {
+      allErrors,
+      balanceError: allErrors.balance,
+      allErrorKeys: Object.keys(allErrors),
+      has_dps: formData.has_dps,
+      touched_balance: touched.balance
+    });
+    setErrors(allErrors);
+    
+    // Return validation result
+    return Object.keys(allErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -326,17 +570,28 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
 
   const handleDpsCheckbox = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
+    console.log('[handleDpsCheckbox] DPS toggled:', checked);
     handleFieldChange('has_dps', checked);
     
     if (!checked) {
       // Clear DPS-related fields when disabling
-      setFormData(prev => ({
-        ...prev,
-        dps_type: 'monthly',
-        dps_amount_type: 'fixed',
-        dps_fixed_amount: '',
-        dps_initial_balance: ''
-      }));
+      setFormData(prev => {
+        const newData = {
+          ...prev,
+          dps_type: 'monthly',
+          dps_amount_type: 'fixed',
+          dps_fixed_amount: '',
+          dps_initial_balance: ''
+        };
+        // Update ref immediately
+        formDataRef.current = newData;
+        // Immediately validate balance to clear DPS error
+        setTimeout(() => {
+          console.log('[handleDpsCheckbox] Validating balance after DPS disabled');
+          validateField('balance');
+        }, 0);
+        return newData;
+      });
     }
   };
 
@@ -453,7 +708,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
                 aria-invalid={!!errors.balance}
               />
             </div>
-            {touched.balance && errors.balance && (
+            {errors.balance && touched.balance && (
               <p id="balance-error" className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
                 <AlertCircle className="w-4 h-4 mr-1" />
                 {errors.balance}
@@ -509,7 +764,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
 
           {/* DPS Section */}
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-            <div className="flex items-center mb-3">
+            <div className="flex items-center mb-3 relative">
               <input
                 id="dps-enabled"
                 type="checkbox"
@@ -521,41 +776,46 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
               <label htmlFor="dps-enabled" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Enable DPS (Daily Profit Sharing)
               </label>
-              <button
-                type="button"
-                onMouseEnter={() => !isMobile && setShowDpsTooltip(true)}
-                onMouseLeave={() => !isMobile && setShowDpsTooltip(false)}
-                onFocus={() => !isMobile && setShowDpsTooltip(true)}
-                onBlur={() => !isMobile && setShowDpsTooltip(false)}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (isMobile) {
-                    setShowDpsMobileModal(true);
-                  } else {
-                    setShowDpsTooltip(v => !v);
-                  }
-                }}
-                tabIndex={0}
-                aria-label="Show DPS information"
-                className="ml-2"
-              >
-                <Info className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer transition-colors duration-200" />
-              </button>
-              {showDpsTooltip && !isMobile && (
-                <div className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
-                  <div className="space-y-2">
-                    <p className="font-medium">Daily Profit Sharing (DPS)</p>
-                    <p className="text-xs">Automatically transfer a portion of your daily income to a savings account to build wealth over time.</p>
-                    <ul className="text-xs space-y-1">
-                      <li>• <strong>Monthly:</strong> Fixed amount transferred monthly</li>
-                      <li>• <strong>Flexible:</strong> Percentage of daily income</li>
-                      <li>• <strong>Fixed Amount:</strong> Set a specific amount to transfer</li>
-                      <li>• <strong>Custom Amount:</strong> Choose amount each time</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
+              <div className="relative ml-2 inline-flex">
+                <button
+                  ref={dpsIconRef}
+                  type="button"
+                  onMouseEnter={() => {
+                    if (!isMobile) {
+                      setShowDpsTooltip(true);
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (!isMobile) {
+                      setShowDpsTooltip(false);
+                    }
+                  }}
+                  onFocus={() => {
+                    if (!isMobile) {
+                      setShowDpsTooltip(true);
+                    }
+                  }}
+                  onBlur={() => {
+                    if (!isMobile) {
+                      setShowDpsTooltip(false);
+                    }
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (isMobile) {
+                      setShowDpsMobileModal(true);
+                    } else {
+                      setShowDpsTooltip(v => !v);
+                    }
+                  }}
+                  tabIndex={0}
+                  aria-label="Show DPS information"
+                  className="flex items-center justify-center"
+                >
+                  <Info className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer transition-colors duration-200" />
+                </button>
+              </div>
             </div>
 
             {formData.has_dps && (
@@ -565,15 +825,16 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     DPS Type
                   </label>
-                  <select
+                  <CustomDropdown
+                    options={[
+                      { label: 'Monthly', value: 'monthly' },
+                      { label: 'Flexible', value: 'flexible' }
+                    ]}
                     value={formData.dps_type}
-                    onChange={(e) => handleFieldChange('dps_type', e.target.value)}
-                    className={getInputClasses('dps_type')}
+                    onChange={(value) => handleFieldChange('dps_type', value)}
+                    placeholder="Select DPS type"
                     disabled={loading}
-                  >
-                    <option value="monthly">Monthly</option>
-                    <option value="flexible">Flexible</option>
-                  </select>
+                  />
                 </div>
 
                 {/* Amount Type */}
@@ -581,15 +842,16 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Amount Type
                   </label>
-                  <select
+                  <CustomDropdown
+                    options={[
+                      { label: 'Fixed Amount', value: 'fixed' },
+                      { label: 'Custom Amount', value: 'custom' }
+                    ]}
                     value={formData.dps_amount_type}
-                    onChange={(e) => handleFieldChange('dps_amount_type', e.target.value)}
-                    className={getInputClasses('dps_amount_type')}
+                    onChange={(value) => handleFieldChange('dps_amount_type', value)}
+                    placeholder="Select amount type"
                     disabled={loading}
-                  >
-                    <option value="fixed">Fixed Amount</option>
-                    <option value="custom">Custom Amount</option>
-                  </select>
+                  />
                 </div>
 
                 {/* Fixed Amount */}
@@ -661,7 +923,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
             <button
               type="submit"
               className="flex-1 px-4 py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              disabled={loading || Object.keys(errors).length > 0}
+              disabled={loading || Object.keys(errors).filter(key => errors[key] && errors[key].trim() !== '').length > 0}
             >
               {account ? 'Update Account' : 'Create'}
             </button>
@@ -670,6 +932,35 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
       </div>
     </div>
       
+      {/* DPS Tooltip - Portal to avoid overflow issues */}
+      {showDpsTooltip && !isMobile && createPortal(
+        <div
+          ref={tooltipRef}
+          className="fixed z-[100] w-64 sm:w-72 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein"
+          style={{
+            top: `${tooltipPosition.top}px`,
+            left: `${tooltipPosition.left}px`,
+          }}
+          onMouseEnter={() => setShowDpsTooltip(true)}
+          onMouseLeave={() => setShowDpsTooltip(false)}
+        >
+          {/* Arrow pointer pointing left towards icon */}
+          <div className="absolute right-full top-1/2 -translate-y-1/2 w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-r-[6px] border-r-gray-200 dark:border-r-gray-700"></div>
+          <div className="absolute right-full top-1/2 -translate-y-1/2 -mr-[1px] w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-r-[5px] border-r-white dark:border-r-gray-900"></div>
+          <div className="space-y-2">
+            <p className="font-medium">Daily Profit Sharing (DPS)</p>
+            <p className="text-xs">Automatically transfer a portion of your daily income to a savings account to build wealth over time.</p>
+            <ul className="text-xs space-y-1">
+              <li>• <strong>Monthly:</strong> Fixed amount transferred monthly</li>
+              <li>• <strong>Flexible:</strong> Percentage of daily income</li>
+              <li>• <strong>Fixed Amount:</strong> Set a specific amount to transfer</li>
+              <li>• <strong>Custom Amount:</strong> Choose amount each time</li>
+            </ul>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Mobile Modal for DPS Info */}
       {showDpsMobileModal && isMobile && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">

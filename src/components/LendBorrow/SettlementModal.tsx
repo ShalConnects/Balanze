@@ -170,7 +170,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           account_id: selectedAccountId,
           type: record.type === 'lend' ? 'income' : 'expense', // For lend: we receive money (income), for borrow: we pay money (expense)
           amount: partialAmount,
-          description: `${record.type === 'lend' ? 'Received partial return from' : 'Made partial payment to'} ${record.person_name}`,
+          description: `${record.type === 'lend' ? 'Partial return from' : 'Partial return to'} ${record.person_name}`,
           category: 'Lend/Borrow',
           date: returnDate.toISOString().split('T')[0],
           tags: ['lend_borrow', 'loan', 'partial'],

@@ -11,36 +11,30 @@ import { toast } from 'sonner';
 export const showToast = {
   success: (message: string, options?: { duration?: number }) => {
     return toast.success(message, {
-      position: 'top-right',
       duration: options?.duration || 3000,
     });
   },
 
   error: (message: string, options?: { duration?: number }) => {
     return toast.error(message, {
-      position: 'top-right',
       duration: options?.duration || 5000,
     });
   },
 
   info: (message: string, options?: { duration?: number }) => {
     return toast.info(message, {
-      position: 'top-right',
       duration: options?.duration || 4000,
     });
   },
 
   warning: (message: string, options?: { duration?: number }) => {
     return toast.warning(message, {
-      position: 'top-right',
       duration: options?.duration || 4000,
     });
   },
 
   loading: (message: string) => {
-    return toast.loading(message, {
-      position: 'top-right',
-    });
+    return toast.loading(message);
   },
 
   // Utility functions
@@ -68,7 +62,6 @@ export const showToast = {
       loading,
       success,
       error,
-      position: 'top-right',
     });
   }
 };

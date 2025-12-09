@@ -13,7 +13,11 @@ import {
   User,
   Check,
   RotateCw,
-  X
+  X,
+  Wallet,
+  Handshake,
+  MessageSquare,
+  FileText
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
@@ -887,69 +891,6 @@ These memories are my gift to you.`
     }
   };
 
-  const toggleDataInclusion = async (key: keyof typeof settings.includeData) => {
-    if (!user) return;
-
-    const updatedIncludeData = {
-      ...settings.includeData,
-      [key]: !settings.includeData[key],
-    };
-
-    setSettings(prev => ({
-      ...prev,
-      includeData: updatedIncludeData,
-    }));
-
-    // Save to database
-    try {
-      // First try to update existing record
-      const { data: updateData, error: updateError } = await supabase
-        .from('last_wish_settings')
-        .update({
-          is_enabled: settings.isEnabled,
-          check_in_frequency: settings.checkInFrequency,
-          last_check_in: settings.lastCheckIn,
-          recipients: settings.recipients,
-          include_data: updatedIncludeData,
-          message: settings.message,
-          is_active: settings.isActive,
-          delivery_triggered: false,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id)
-        .select();
-
-      // If no rows were updated (user doesn't exist), insert new record
-      if (!updateError && (!updateData || updateData.length === 0)) {
-        const { error: insertError } = await supabase
-          .from('last_wish_settings')
-          .insert({
-            user_id: user.id,
-            is_enabled: settings.isEnabled,
-            check_in_frequency: settings.checkInFrequency,
-            last_check_in: settings.lastCheckIn,
-            recipients: settings.recipients,
-            include_data: updatedIncludeData,
-            message: settings.message,
-            is_active: settings.isActive,
-            delivery_triggered: false,
-            updated_at: new Date().toISOString(),
-          });
-        
-        if (insertError) throw insertError;
-      } else if (updateError) {
-        throw updateError;
-      }
-
-      toast.success('Data inclusion settings updated');
-    } catch (error) {
-
-
-      toast.error(`Failed to update data inclusion: ${(error as any)?.message || 'Unknown error'}`);
-    }
-  };
-
-
   // Don't render for free users
   if (!isPremium) {
     return (
@@ -1310,13 +1251,13 @@ These memories are my gift to you.`
       )}
 
       {/* System Control Panel */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm mb-6">
-        <div className="flex flex-col lg:flex-row gap-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 shadow-sm mb-6">
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
           {/* System Toggle Card */}
           <div className="lg:w-1/3">
             <div className="h-full flex flex-col justify-center">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">System Control</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">System Control</h3>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -1365,55 +1306,95 @@ These memories are my gift to you.`
           {/* Divider */}
           <div className="hidden lg:block w-px bg-gray-200 dark:bg-gray-700"></div>
 
-          {/* Monitoring Configuration */}
+          {/* What will be sent */}
           <div className="lg:w-2/3">
             <div className="h-full flex flex-col">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Duration</h3>
-              <div className="grid grid-cols-5 gap-2 flex-1">
-                {[7, 14, 30, 60, 90].map((days) => (
-                  <label key={days} className={`relative cursor-pointer p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
-                    settings.checkInFrequency === days
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="frequency"
-                      value={days}
-                      checked={settings.checkInFrequency === days}
-                      onChange={(e) => updateCheckInFrequency(parseFloat(e.target.value))}
-                      className="sr-only"
-                    />
-                    <div className="text-lg font-bold text-gray-900 dark:text-white">
-                      {days}
+              <div className="p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/20 rounded-xl border border-blue-200/50 dark:border-blue-800/50 shadow-sm">
+                <p className="text-xs sm:text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2 sm:mb-3 flex items-center gap-2">
+                  <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
+                  What will be sent:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
+                  <div className="flex items-start gap-2 sm:gap-2.5 p-2 sm:p-2.5 rounded-lg bg-white/60 dark:bg-gray-800/40 hover:bg-white/80 dark:hover:bg-gray-800/60 transition-colors">
+                    <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-gray-900 dark:text-gray-100">Bank Accounts</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 leading-tight">With balances, organized by currency</p>
                     </div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">
-                      days
+                  </div>
+                  <div className="flex items-start gap-2 sm:gap-2.5 p-2 sm:p-2.5 rounded-lg bg-white/60 dark:bg-gray-800/40 hover:bg-white/80 dark:hover:bg-gray-800/60 transition-colors">
+                    <Handshake className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-gray-900 dark:text-gray-100">Lend & Borrow</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 leading-tight">Active records only</p>
                     </div>
-                  </label>
-                ))}
+                  </div>
+                  <div className="flex items-start gap-2 sm:gap-2.5 p-2 sm:p-2.5 rounded-lg bg-white/60 dark:bg-gray-800/40 hover:bg-white/80 dark:hover:bg-gray-800/60 transition-colors">
+                    <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-gray-900 dark:text-gray-100">Personal Message</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 leading-tight">Your legacy documentation</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 sm:gap-2.5 p-2 sm:p-2.5 rounded-lg bg-white/60 dark:bg-gray-800/40 hover:bg-white/80 dark:hover:bg-gray-800/60 transition-colors">
+                    <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-gray-900 dark:text-gray-100">Secure PDF</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 leading-tight">Encrypted document delivery</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
-                System will monitor user activity and trigger data distribution after the selected period of inactivity.
-              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Beneficiaries and Data Configuration */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      {/* Check-in Frequency & Beneficiaries Configuration */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
+        {/* Check-in Frequency */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 shadow-sm">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">Check-in Frequency</h3>
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+            {[7, 14, 30, 60, 90].map((days) => (
+              <label key={days} className={`relative cursor-pointer p-2 sm:p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
+                settings.checkInFrequency === days
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                  : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+              }`}>
+                <input
+                  type="radio"
+                  name="frequency"
+                  value={days}
+                  checked={settings.checkInFrequency === days}
+                  onChange={(e) => updateCheckInFrequency(parseFloat(e.target.value))}
+                  className="sr-only"
+                />
+                <div className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                  {days}
+                </div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  days
+                </div>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
+            System will monitor user activity and trigger data distribution after the selected period of inactivity.
+          </p>
+        </div>
+
         {/* Authorized Beneficiaries */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Authorized Beneficiaries</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Configure who will receive your financial data</p>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Authorized Beneficiaries</h3>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">Configure who will receive your financial data</p>
             </div>
             <button
               onClick={() => setShowRecipientModal(true)}
               disabled={settings.recipients.length >= 3}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 text-sm font-medium shadow-sm transition-colors"
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm font-medium shadow-sm transition-colors w-full sm:w-auto"
             >
               <Plus className="w-4 h-4" />
               <span>Add ({settings.recipients.length}/3)</span>
@@ -1421,30 +1402,30 @@ These memories are my gift to you.`
           </div>
           
           {settings.recipients.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                <User className="w-8 h-8 text-gray-400" />
+            <div className="text-center py-6 sm:py-8">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <User className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">No beneficiaries configured</p>
-              <p className="text-xs text-gray-400 dark:text-gray-500">Add authorized beneficiaries to receive your financial data</p>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-2">No beneficiaries configured</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 px-2">Add authorized beneficiaries to receive your financial data</p>
             </div>
           ) : (
             <div className="space-y-3">
               {settings.recipients.map((recipient) => (
-                <div key={recipient.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-600 rounded-full flex items-center justify-center">
-                      <User className="w-5 h-5 text-blue-600 dark:text-blue-300" />
+                <div key={recipient.id} className="flex items-center justify-between gap-3 p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-300" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 dark:text-white text-sm">{recipient.name}</div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">{recipient.email}</div>
+                      <div className="font-medium text-gray-900 dark:text-white text-xs sm:text-sm truncate">{recipient.name}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 truncate">{recipient.email}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-500 capitalize">{recipient.relationship}</div>
                     </div>
                   </div>
                   <button
                     onClick={() => removeRecipient(recipient.id)}
-                    className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex-shrink-0"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -1453,56 +1434,20 @@ These memories are my gift to you.`
             </div>
           )}
         </div>
-
-        {/* Data Export Configuration */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Data Export Configuration</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Select which data to include in the export</p>
-          </div>
-          
-          <div className="space-y-2">
-            {Object.entries(settings.includeData).map(([key, value]) => (
-              <label key={key} className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                value 
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
-                  : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-              }`}>
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    checked={value}
-                    onChange={() => toggleDataInclusion(key as keyof typeof settings.includeData)}
-                    className="text-blue-600 focus:ring-blue-500 w-4 h-4"
-                  />
-                  <div>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">
-                      {key.replace(/([A-Z])/g, ' $1').trim()}
-                    </span>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">
-                      {dataSummary[key as keyof typeof dataSummary] || 0} items
-                    </div>
-                  </div>
-                </div>
-                <div className={`w-3 h-3 rounded-full ${value ? 'bg-blue-500' : 'bg-gray-300'}`} />
-              </label>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Legacy Documentation Editor */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4 sm:mb-6">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Legacy Documentation</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Create documentation to accompany your financial data</p>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Legacy Documentation</h3>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">Create documentation to accompany your financial data</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             {/* Preview Button */}
             <button
               onClick={() => setShowPreview(true)}
-              className="px-4 py-2 bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-600 flex items-center space-x-2 text-sm font-medium transition-colors"
+              className="px-3 sm:px-4 py-2 bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-600 flex items-center space-x-2 text-xs sm:text-sm font-medium transition-colors"
             >
               <Eye className="w-4 h-4" />
               <span>Preview</span>
@@ -1511,7 +1456,7 @@ These memories are my gift to you.`
             {!isMobile && (
               <button
                 onClick={toggleEditorMode}
-                className="px-3 py-2 bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-600 transition-colors text-sm font-medium"
+                className="px-3 py-2 bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-600 transition-colors text-xs sm:text-sm font-medium"
                 title={useSimpleEditor ? "Switch to Rich Editor" : "Switch to Simple Editor"}
               >
                 {useSimpleEditor ? "Rich Editor" : "Simple Editor"}

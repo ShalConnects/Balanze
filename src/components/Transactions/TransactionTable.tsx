@@ -4,6 +4,7 @@ import { Transaction, Account } from '../../types';
 import { formatCurrency } from '../../utils/accountUtils';
 import { format } from 'date-fns';
 import { LendBorrowInfoModal } from './LendBorrowInfoModal';
+import { toast } from 'sonner';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -39,6 +40,13 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
   getAccountName
 }) => {
   const [showLendBorrowInfo, setShowLendBorrowInfo] = useState(false);
+  
+  const handleCopyAmount = (amount: number, currency: string) => {
+    const formattedAmount = formatCurrency(amount, currency);
+    navigator.clipboard.writeText(formattedAmount);
+    toast.success('Amount copied to clipboard');
+  };
+  
   // Memoize expensive calculations
   const transactionData = useMemo(() => {
     return transactions.map(transaction => {
@@ -174,11 +182,21 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <div className="text-sm font-semibold">
+                    <div className="text-sm font-semibold flex items-center justify-end gap-1.5">
                       <span className={transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
                         {transaction.type === 'income' ? '+' : '-'}
                         {formatCurrency(transaction.amount, account?.currency || 'USD')}
                       </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopyAmount(transaction.amount, account?.currency || 'USD');
+                        }}
+                        className="opacity-60 hover:opacity-100 transition-opacity"
+                        title="Copy amount"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -253,7 +271,20 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium text-gray-900 dark:text-white">Financial Details</h4>
                           <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                            <div><span className="font-medium">Amount:</span> {formatCurrency(transaction.amount, account?.currency || 'USD')}</div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium">Amount:</span> 
+                              <span>{formatCurrency(transaction.amount, account?.currency || 'USD')}</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopyAmount(transaction.amount, account?.currency || 'USD');
+                                }}
+                                className="opacity-60 hover:opacity-100 transition-opacity"
+                                title="Copy amount"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
                             {transaction.saving_amount && (
                               <div><span className="font-medium">Saved:</span> {formatCurrency(transaction.saving_amount, account?.currency || 'USD')}</div>
                             )}
