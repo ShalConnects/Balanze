@@ -42,7 +42,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
   const [showLendBorrowInfo, setShowLendBorrowInfo] = useState(false);
   
   const handleCopyAmount = (amount: number, currency: string) => {
-    const formattedAmount = formatCurrency(amount, currency);
+    const formattedAmount = Math.abs(amount).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
     navigator.clipboard.writeText(formattedAmount);
     toast.success('Amount copied to clipboard');
   };

@@ -500,19 +500,26 @@ const LandingPage: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <button 
-                    onClick={() => navigate('/auth')}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
-                  >
-                    Start Your Free Trial
-                    <ArrowRight className="w-5 h-5 ml-2 inline" />
-                  </button>
-                  <button
-                    className="text-gray-700 dark:text-gray-300 px-8 py-4 rounded-lg text-lg font-semibold hover:text-gray-900 dark:hover:text-white transition-colors border-2 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
-                    onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-                  >
-                    View Features
-                  </button>
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <button 
+                        onClick={() => navigate('/auth')}
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                      >
+                        Start Your Free Trial
+                        <ArrowRight className="w-5 h-5 ml-2 inline" />
+                      </button>
+                      <button
+                        className="text-gray-700 dark:text-gray-300 px-8 py-4 rounded-lg text-lg font-semibold hover:text-gray-900 dark:hover:text-white transition-colors border-2 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
+                        onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                      >
+                        View Features
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Sign up is free — no credit card required
+                    </p>
+                  </div>
                 </>
               )}
             </div>
@@ -867,21 +874,26 @@ const LandingPage: React.FC = () => {
             </div>
 
             {/* Enhanced Demo CTA */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <button
-                onClick={() => window.open('/dashboard-demo-only', '_blank')}
-                className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center space-x-2 w-full sm:w-auto"
-              >
-                <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
-                <span>Try Live Demo</span>
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-              <button
-                onClick={() => navigate('/auth')}
-                className="bg-transparent border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 w-full sm:w-auto"
-              >
-                Start Free Trial
-              </button>
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <button
+                  onClick={() => window.open('/dashboard-demo-only', '_blank')}
+                  className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center space-x-2 w-full sm:w-auto"
+                >
+                  <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                  <span>Try Live Demo</span>
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+                <button
+                  onClick={() => navigate('/auth')}
+                  className="bg-transparent border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 w-full sm:w-auto"
+                >
+                  Start Free Trial
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Sign up is free — no credit card required
+              </p>
             </div>
           </div>
         </div>
@@ -1398,13 +1410,18 @@ const LandingPage: React.FC = () => {
             </div>
             
             <div className="mt-8 text-center">
-              <button
-                onClick={() => navigate('/auth')}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg inline-flex items-center"
-              >
-                Start Your Free Trial
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </button>
+              <div className="flex flex-col items-center gap-3">
+                <button
+                  onClick={() => navigate('/auth')}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg inline-flex items-center"
+                >
+                  Start Your Free Trial
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </button>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Sign up is free — no credit card required
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -1556,12 +1573,17 @@ const LandingPage: React.FC = () => {
               </ul>
 
               <div className="mt-auto pt-4 lg:pt-5">
-                <button
-                  className="w-full rounded-lg px-3 lg:px-4 py-2 lg:py-2.5 text-sm font-medium transition-colors bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-800 dark:hover:bg-gray-600"
-                  onClick={() => navigate('/auth')}
-                >
-                  Get Started Free
-                </button>
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    className="w-full rounded-lg px-3 lg:px-4 py-2 lg:py-2.5 text-sm font-medium transition-colors bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-800 dark:hover:bg-gray-600"
+                    onClick={() => navigate('/auth')}
+                  >
+                    Get Started Free
+                  </button>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 text-center">
+                    Sign up is free
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -1789,20 +1811,25 @@ const LandingPage: React.FC = () => {
               </div>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <button
-                onClick={() => navigate('/auth')}
-                className="bg-white text-purple-600 px-10 py-5 rounded-lg text-lg font-bold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-2xl inline-flex items-center"
-              >
-                Start Free Trial Now
-                <ArrowRight className="w-6 h-6 ml-2" />
-              </button>
-              <button
-                onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
-                className="bg-transparent border-2 border-white text-white px-10 py-5 rounded-lg text-lg font-bold hover:bg-white/10 transition-all duration-300 inline-flex items-center"
-              >
-                View Pricing
-              </button>
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <button
+                  onClick={() => navigate('/auth')}
+                  className="bg-white text-purple-600 px-10 py-5 rounded-lg text-lg font-bold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-2xl inline-flex items-center"
+                >
+                  Start Free Trial Now
+                  <ArrowRight className="w-6 h-6 ml-2" />
+                </button>
+                <button
+                  onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="bg-transparent border-2 border-white text-white px-10 py-5 rounded-lg text-lg font-bold hover:bg-white/10 transition-all duration-300 inline-flex items-center"
+                >
+                  View Pricing
+                </button>
+              </div>
+              <p className="text-sm text-white/90">
+                Sign up is free — no credit card required
+              </p>
             </div>
             
             {/* Trust indicators */}

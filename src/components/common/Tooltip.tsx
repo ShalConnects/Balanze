@@ -2,6 +2,7 @@
 // Simple tooltip component for achievement badges
 
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 interface TooltipProps {
@@ -23,7 +24,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   const [isVisible, setIsVisible] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLSpanElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout>();
 
   const showTooltip = () => {
@@ -61,8 +62,6 @@ export const Tooltip: React.FC<TooltipProps> = ({
 
     const triggerRect = triggerRef.current.getBoundingClientRect();
     const tooltipRect = tooltipRef.current.getBoundingClientRect();
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const spacing = 8;
@@ -72,61 +71,47 @@ export const Tooltip: React.FC<TooltipProps> = ({
 
     switch (placement) {
       case 'top':
-        top = triggerRect.top + scrollTop - tooltipRect.height - spacing;
-        left = triggerRect.left + scrollLeft + (triggerRect.width - tooltipRect.width) / 2;
-        // Adjust if tooltip would go off-screen at the top
-        if (top < scrollTop + spacing) {
-          top = triggerRect.bottom + scrollTop + spacing; // Show below instead
+        // Position tooltip centered above the trigger, using scroll offsets like EnhancedTooltip
+        top = triggerRect.top + window.scrollY - tooltipRect.height - spacing;
+        left = triggerRect.left + window.scrollX + (triggerRect.width / 2) - (tooltipRect.width / 2);
+        // If would go off top, show below instead
+        if (top < window.scrollY + spacing) {
+          top = triggerRect.bottom + window.scrollY + spacing;
         }
         break;
       case 'bottom':
-        top = triggerRect.bottom + scrollTop + spacing;
-        left = triggerRect.left + scrollLeft + (triggerRect.width - tooltipRect.width) / 2;
-        // Adjust if tooltip would go off-screen at the bottom
-        if (top + tooltipRect.height > scrollTop + viewportHeight - spacing) {
-          top = triggerRect.top + scrollTop - tooltipRect.height - spacing; // Show above instead
+        top = triggerRect.bottom + window.scrollY + spacing;
+        left = triggerRect.left + window.scrollX + (triggerRect.width / 2) - (tooltipRect.width / 2);
+        if (top + tooltipRect.height > window.scrollY + viewportHeight - spacing) {
+          top = triggerRect.top + window.scrollY - tooltipRect.height - spacing;
         }
         break;
       case 'left':
-        top = triggerRect.top + scrollTop + (triggerRect.height - tooltipRect.height) / 2;
-        left = triggerRect.left + scrollLeft - tooltipRect.width - spacing;
-        // Adjust if tooltip would go off-screen to the left
-        if (left < scrollLeft + spacing) {
-          left = triggerRect.right + scrollLeft + spacing; // Show to the right instead
+        top = triggerRect.top + window.scrollY + (triggerRect.height / 2) - (tooltipRect.height / 2);
+        left = triggerRect.left + window.scrollX - tooltipRect.width - spacing;
+        if (left < window.scrollX + spacing) {
+          left = triggerRect.right + window.scrollX + spacing;
         }
         break;
       case 'right':
-        top = triggerRect.top + scrollTop + (triggerRect.height - tooltipRect.height) / 2;
-        left = triggerRect.right + scrollLeft + spacing;
-        // Adjust if tooltip would go off-screen to the right
-        if (left + tooltipRect.width > scrollLeft + viewportWidth - spacing) {
-          left = triggerRect.left + scrollLeft - tooltipRect.width - spacing; // Show to the left instead
+        top = triggerRect.top + window.scrollY + (triggerRect.height / 2) - (tooltipRect.height / 2);
+        left = triggerRect.right + window.scrollX + spacing;
+        if (left + tooltipRect.width > window.scrollX + viewportWidth - spacing) {
+          left = triggerRect.left + window.scrollX - tooltipRect.width - spacing;
         }
         break;
     }
 
-    // Ensure tooltip doesn't go off-screen horizontally
-    if (left < scrollLeft + spacing) {
-      left = scrollLeft + spacing;
-    }
-    if (left + tooltipRect.width > scrollLeft + viewportWidth - spacing) {
-      left = scrollLeft + viewportWidth - tooltipRect.width - spacing;
-    }
-
-    // Ensure tooltip doesn't go off-screen vertically
-    if (top < scrollTop + spacing) {
-      top = scrollTop + spacing;
-    }
-    if (top + tooltipRect.height > scrollTop + viewportHeight - spacing) {
-      top = scrollTop + viewportHeight - tooltipRect.height - spacing;
-    }
+    // Clamp to viewport (with scroll offsets)
+    left = Math.max(window.scrollX + spacing, Math.min(left, window.scrollX + viewportWidth - tooltipRect.width - spacing));
+    top = Math.max(window.scrollY + spacing, Math.min(top, window.scrollY + viewportHeight - tooltipRect.height - spacing));
 
     setPosition({ top, left });
   };
 
   useEffect(() => {
     if (isVisible) {
-      // Small delay to ensure tooltip is rendered before calculating position
+      // Use setTimeout like EnhancedTooltip to ensure tooltip is rendered before calculating position
       const timeoutId = setTimeout(() => {
         updatePosition();
       }, 0);
@@ -187,9 +172,10 @@ export const Tooltip: React.FC<TooltipProps> = ({
   };
 
   return (
-    <div className="relative inline-block">
-      <div
+    <>
+      <span
         ref={triggerRef}
+        className="relative inline-flex items-center"
         onMouseEnter={() => {
           if (!isMobile) {
             showTooltip();
@@ -211,39 +197,40 @@ export const Tooltip: React.FC<TooltipProps> = ({
             hideTooltip();
           }
         }}
-        className="inline-block"
       >
         {children}
-      </div>
+      </span>
       
-      {isVisible && (
-        <div
-          ref={tooltipRef}
-          className={`
-            fixed z-50 px-3 py-2 text-sm text-white bg-gray-900 dark:bg-gray-800 rounded-lg shadow-lg
-            max-w-xs break-words
-            ${isMobile ? 'touch-manipulation' : ''}
-            ${className}
-          `}
-          style={{
-            top: position.top,
-            left: position.left,
-          }}
-          onClick={(e) => {
-            if (isMobile) {
-              e.stopPropagation();
-            }
-          }}
-        >
-          {content}
+      {isVisible &&
+        createPortal(
           <div
+            ref={tooltipRef}
             className={`
-              absolute w-0 h-0 border-4
-              ${getArrowClasses()}
+              absolute z-[9999] px-3 py-2 text-sm text-white bg-gray-900 dark:bg-gray-800 rounded-lg shadow-lg
+              max-w-xs break-words
+              ${isMobile ? 'touch-manipulation' : ''}
+              ${className}
             `}
-          />
-        </div>
-      )}
-    </div>
+            style={{
+              top: position.top,
+              left: position.left,
+            }}
+            onClick={(e) => {
+              if (isMobile) {
+                e.stopPropagation();
+              }
+            }}
+          >
+            {content}
+            <div
+              className={`
+                absolute w-0 h-0 border-4
+                ${getArrowClasses()}
+              `}
+            />
+          </div>,
+          document.body
+        )}
+    </>
   );
 };

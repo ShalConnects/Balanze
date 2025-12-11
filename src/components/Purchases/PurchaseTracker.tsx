@@ -2123,15 +2123,20 @@ export const PurchaseTracker: React.FC = () => {
                 status: prev.status === 'purchased' ? 'all' : 'purchased'
               }));
             }}
-            className={`bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2 cursor-pointer transition-all ${
+            className={`relative bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2 cursor-pointer transition-all ${
               filters.status === 'purchased' 
                 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700' 
                 : 'hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
+            {filters.status === 'purchased' && (
+              <span className="absolute top-1 right-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-600 text-white">
+                Active
+              </span>
+            )}
             <div className="flex items-center justify-between">
               <div className="text-left">
-                                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Completed</p>
+                                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Purchased</p>
                 <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>{purchasedCount}</p>
                 <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
                   {(() => {
@@ -2151,12 +2156,17 @@ export const PurchaseTracker: React.FC = () => {
                 status: prev.status === 'planned' ? 'all' : 'planned'
               }));
             }}
-            className={`bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2 cursor-pointer transition-all ${
+            className={`relative bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2 cursor-pointer transition-all ${
               filters.status === 'planned' 
                 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700' 
                 : 'hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
+            {filters.status === 'planned' && (
+              <span className="absolute top-1 right-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-600 text-white">
+                Active
+              </span>
+            )}
             <div className="flex items-center justify-between">
               <div className="text-left">
                 <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Planned</p>

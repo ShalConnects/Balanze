@@ -146,6 +146,9 @@ export const LendBorrowTableView: React.FC = () => {
   const mobileFilterMenuRef = useRef<HTMLDivElement>(null);
   const presetDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Ref to track which records we've fetched return history for
+  const fetchedReturnHistoryRef = useRef<Set<string>>(new Set());
+
   // State for row expansion
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   
@@ -164,6 +167,21 @@ export const LendBorrowTableView: React.FC = () => {
       fetchAccounts();
     }
   }, [user, fetchLendBorrowRecordsCallback, fetchAccounts]);
+
+  // Fetch return history for all non-settled records when records are loaded
+  useEffect(() => {
+    if (!user || !lendBorrowRecords || lendBorrowRecords.length === 0) return;
+
+    // Only fetch for records that are not settled (settled records don't need return history)
+    const recordsToFetch = lendBorrowRecords
+      .filter(record => record.status !== 'settled')
+      .map(record => record.id)
+      .filter(id => !fetchedReturnHistoryRef.current.has(id)); // Only fetch if we haven't fetched it yet
+
+    if (recordsToFetch.length > 0) {
+      fetchReturnHistoryBatch(recordsToFetch);
+    }
+  }, [user, lendBorrowRecords]);
 
   // Check and update overdue status for records
   const updateOverdueStatus = async (records: LendBorrow[]) => {
@@ -508,7 +526,13 @@ export const LendBorrowTableView: React.FC = () => {
 
   // Fetch return history for a record
   const fetchReturnHistory = async (recordId: string) => {
+    // Skip if already fetched and we have the data
+    if (fetchedReturnHistoryRef.current.has(recordId) && returnHistory[recordId] !== undefined) {
+      return;
+    }
+
     try {
+      fetchedReturnHistoryRef.current.add(recordId);
       const { data, error } = await supabase
         .from('lend_borrow_returns')
         .select('*')
@@ -522,6 +546,59 @@ export const LendBorrowTableView: React.FC = () => {
       }));
     } catch (error) {
       console.error('Error fetching return history:', error);
+      // Remove from fetched set on error so it can be retried
+      fetchedReturnHistoryRef.current.delete(recordId);
+    }
+  };
+
+  // Fetch return history for multiple records in batches
+  const fetchReturnHistoryBatch = async (recordIds: string[], batchSize: number = 10) => {
+    if (recordIds.length === 0) return;
+    
+    // Process in batches
+    for (let i = 0; i < recordIds.length; i += batchSize) {
+      const batch = recordIds.slice(i, i + batchSize);
+      
+      try {
+        const { data, error } = await supabase
+          .from('lend_borrow_returns')
+          .select('*')
+          .in('lend_borrow_id', batch)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Group returns by record ID
+        const groupedReturns: Record<string, LendBorrowReturn[]> = {};
+        (data || []).forEach((returnItem: LendBorrowReturn) => {
+          if (!groupedReturns[returnItem.lend_borrow_id]) {
+            groupedReturns[returnItem.lend_borrow_id] = [];
+          }
+          groupedReturns[returnItem.lend_borrow_id].push(returnItem);
+        });
+
+        // Update state with all returns from this batch
+        setReturnHistory(prev => {
+          const updated = { ...prev };
+          batch.forEach(recordId => {
+            updated[recordId] = groupedReturns[recordId] || [];
+          });
+          return updated;
+        });
+
+        // Mark records as fetched only after successful fetch
+        batch.forEach(recordId => {
+          fetchedReturnHistoryRef.current.add(recordId);
+        });
+
+        // Small delay between batches to avoid overwhelming the system
+        if (i + batchSize < recordIds.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } catch (error) {
+        console.error('Error fetching return history batch:', error);
+        // Don't mark as fetched on error so they can be retried
+      }
     }
   };
 

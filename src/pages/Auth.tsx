@@ -529,13 +529,20 @@ export const Auth: React.FC = () => {
                 setForgotPasswordMessage(null);
                 setForgotPasswordSuccess(null);
               }}
-              className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-all duration-200 ${
+              className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-2 ${
                 activeTab === 'signup'
                   ? 'bg-white/30 dark:bg-gray-600/30 backdrop-blur-sm text-gray-900 dark:text-white shadow-sm border border-white/20 dark:border-gray-700/20'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/10 dark:hover:bg-gray-800/10'
               }`}
             >
-              Sign Up
+              <span>Sign Up</span>
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold ${
+                activeTab === 'signup'
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                  : 'bg-green-100/70 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+              }`}>
+                FREE
+              </span>
             </button>
           </div>
 
