@@ -242,7 +242,7 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
                 </td>
                 <td className="px-6 py-[0.7rem] text-center">
                   <div className="flex justify-center gap-2 items-center" onClick={(e) => e.stopPropagation()}>
-                    {(!isDpsSavingsAccount && account.type !== 'cash') && (
+                    {!isDpsSavingsAccount && (
                       <button
                         onClick={async () => {
                           await onUpdateAccount(account.id, { isActive: !account.isActive });

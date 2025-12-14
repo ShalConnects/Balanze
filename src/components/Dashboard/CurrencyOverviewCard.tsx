@@ -35,7 +35,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   const [showTooltip, setShowTooltip] = useState(false);
   const [showMobileModal, setShowMobileModal] = useState(false);
   const { isMobile } = useMobileDetection();
-  // Get all active accounts for this currency
+  // Get all active accounts for this currency (exclude inactive/hidden accounts from totals)
   const currencyAccounts = accounts.filter(acc => acc.currency === currency && acc.isActive);
   
   // Separate DPS and regular accounts based on has_dps field (consistent with account section)
@@ -123,6 +123,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
     });
     return balance;
   }
+  // Calculate total balance using only active accounts (inactive/hidden accounts excluded)
   const totalBalance = currencyAccounts.reduce((sum, acc) => sum + getAccountBalanceAtDate(acc, endDate), 0);
 
   // Minimal header (Option 1): compute last updated timestamp for this currency
@@ -330,7 +331,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
         {/* Amount row */}
         <div className="flex items-center justify-between mb-1">
            <div className="text-base sm:text-lg lg:text-xl font-bold tabular-nums text-gray-900 dark:text-white">
-             {formatCurrency(totalBalance, currency)}
+             {formatCurrency(regularAccountsTotal + dpsTotal, currency)}
            </div>
           
           {/* Right side: Delta, sparkline, and info button - all on same row */}
@@ -387,7 +388,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
               </button>
               {showTooltip && !isMobile && (
                 <div className="absolute right-0 top-full z-50 mt-2 w-56 sm:w-64 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-2 sm:p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
-                  <div className="font-semibold mb-2">Total: {formatCurrency(totalBalance, currency)}</div>
+                  <div className="font-semibold mb-2">Total: {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
                   
                   {/* Regular Accounts */}
                   {sortedRegularAccounts.length > 0 && (
@@ -507,7 +508,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowMobileModal(false)} />
           <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-64 animate-fadein">
             <div className="flex items-center justify-between mb-2">
-              <div className="font-semibold text-gray-700 dark:text-gray-200">Total: {formatCurrency(totalBalance, currency)}</div>
+              <div className="font-semibold text-gray-700 dark:text-gray-200">Total: {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
               <button
                 onClick={() => setShowMobileModal(false)}
                 className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
