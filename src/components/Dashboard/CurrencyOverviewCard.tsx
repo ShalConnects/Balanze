@@ -38,12 +38,31 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   // Get all active accounts for this currency
   const currencyAccounts = accounts.filter(acc => acc.currency === currency && acc.isActive);
   
-  // Separate DPS and regular accounts based on account name
-  const dpsAccounts = currencyAccounts.filter(acc => acc.name.toLowerCase().includes('dps'));
-  const regularAccounts = currencyAccounts.filter(acc => !acc.name.toLowerCase().includes('dps'));
+  // Separate DPS and regular accounts based on has_dps field (consistent with account section)
+  // Main accounts with DPS enabled
+  const dpsMainAccounts = currencyAccounts.filter(acc => acc.has_dps === true);
+  // Regular accounts (excluding DPS savings accounts which are linked accounts)
+  const regularAccounts = currencyAccounts.filter(acc => {
+    // Exclude accounts that are linked as DPS savings accounts
+    const isDpsSavingsAccount = accounts.some(otherAccount => 
+      otherAccount.dps_savings_account_id === acc.id
+    );
+    return !acc.has_dps && !isDpsSavingsAccount;
+  });
+  
+  // Get DPS savings accounts (the linked accounts where DPS money is stored)
+  // Only show DPS savings accounts where the main account has DPS enabled
+  const dpsSavingsAccounts = currencyAccounts.filter(acc => {
+    return accounts.some(mainAccount => 
+      mainAccount.dps_savings_account_id === acc.id && 
+      mainAccount.has_dps === true &&
+      mainAccount.currency === currency &&
+      mainAccount.isActive
+    );
+  });
   
   // Sort accounts: zero balance accounts at the end of their respective lists
-  const sortedDpsAccounts = [...dpsAccounts].sort((a, b) => {
+  const sortedDpsSavingsAccounts = [...dpsSavingsAccounts].sort((a, b) => {
     const balanceA = a.calculated_balance || 0;
     const balanceB = b.calculated_balance || 0;
     const isZeroA = balanceA === 0;
@@ -61,8 +80,8 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
     return isZeroA ? 1 : -1; // Zero balances go to end
   });
   
-  // Calculate DPS total
-  const dpsTotal = sortedDpsAccounts.reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0);
+  // Calculate DPS total from DPS savings accounts (where the money actually is)
+  const dpsTotal = sortedDpsSavingsAccounts.reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0);
   
   // Calculate regular accounts total
   const regularAccountsTotal = sortedRegularAccounts.reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0);
@@ -399,12 +418,12 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                   )}
                   
                   {/* DPS Accounts */}
-                  {sortedDpsAccounts.length > 0 && (
+                  {sortedDpsSavingsAccounts.length > 0 && (
                     <>
                       <div className="my-2 pt-2">
-                        <div className="font-medium mb-1">DPS Accounts ({sortedDpsAccounts.length}):</div>
+                        <div className="font-medium mb-1">DPS Accounts ({sortedDpsSavingsAccounts.length}):</div>
                         <ul className="space-y-1">
-                          {sortedDpsAccounts.map(acc => {
+                          {sortedDpsSavingsAccounts.map(acc => {
                             const balance = acc.calculated_balance || 0;
                             const isNegative = balance < 0;
                             const isZero = balance === 0;
@@ -526,12 +545,12 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
             )}
             
             {/* DPS Accounts */}
-            {sortedDpsAccounts.length > 0 && (
+            {sortedDpsSavingsAccounts.length > 0 && (
               <>
                 <div className="my-2 pt-2">
-                  <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">DPS Accounts ({sortedDpsAccounts.length}):</div>
+                  <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">DPS Accounts ({sortedDpsSavingsAccounts.length}):</div>
                   <ul className="space-y-1 max-h-32 overflow-y-auto">
-                    {sortedDpsAccounts.map(acc => {
+                    {sortedDpsSavingsAccounts.map(acc => {
                       const balance = acc.calculated_balance || 0;
                       const isNegative = balance < 0;
                       const isZero = balance === 0;

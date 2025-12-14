@@ -523,11 +523,27 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         delete supabaseUpdates.isActive;
       }
       
-      // Set DPS fields on supabaseUpdates
-      supabaseUpdates.has_dps = updates.has_dps || false;
-      supabaseUpdates.dps_type = updates.has_dps ? updates.dps_type : null;
-      supabaseUpdates.dps_amount_type = updates.has_dps ? updates.dps_amount_type : null;
-      supabaseUpdates.dps_fixed_amount = updates.has_dps && updates.dps_amount_type === 'fixed' ? updates.dps_fixed_amount : null;
+      // Only update DPS fields if they are explicitly provided in updates
+      // This prevents clearing DPS fields when only toggling isActive
+      if ('has_dps' in updates) {
+        supabaseUpdates.has_dps = updates.has_dps || false;
+        supabaseUpdates.dps_type = updates.has_dps ? updates.dps_type : null;
+        supabaseUpdates.dps_amount_type = updates.has_dps ? updates.dps_amount_type : null;
+        supabaseUpdates.dps_fixed_amount = updates.has_dps && updates.dps_amount_type === 'fixed' ? updates.dps_fixed_amount : null;
+      }
+      // If dps_type, dps_amount_type, or dps_fixed_amount are explicitly provided, update them
+      if ('dps_type' in updates) {
+        supabaseUpdates.dps_type = updates.dps_type;
+      }
+      if ('dps_amount_type' in updates) {
+        supabaseUpdates.dps_amount_type = updates.dps_amount_type;
+      }
+      if ('dps_fixed_amount' in updates) {
+        supabaseUpdates.dps_fixed_amount = updates.dps_fixed_amount;
+      }
+      if ('dps_savings_account_id' in updates) {
+        supabaseUpdates.dps_savings_account_id = updates.dps_savings_account_id;
+      }
       
       // Remove isActive from supabaseUpdates if it exists (it should be is_active now)
       delete supabaseUpdates.isActive;
@@ -638,10 +654,41 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   
   deleteAccount: async (id, transaction_id) => {
     set({ loading: true, error: null });
-    // Remove references from main accounts
+    
+    // Get the account being deleted to check if it has a linked DPS savings account
+    const { data: accountToDelete, error: fetchError } = await supabase
+      .from('accounts')
+      .select('dps_savings_account_id, has_dps')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError) {
+      set({ loading: false, error: fetchError.message });
+      if (transaction_id) showToast.error(`Account deletion failed (Transaction ID: ${transaction_id.slice(0,8)})`);
+      return;
+    }
+    
+    // If this account has a linked DPS savings account, delete it first
+    if (accountToDelete?.dps_savings_account_id) {
+      const dpsAccountId = accountToDelete.dps_savings_account_id;
+      
+      // Delete all dps_transfers referencing the DPS account
+      await supabase.from('dps_transfers').delete().or(`to_account_id.eq.${dpsAccountId},from_account_id.eq.${dpsAccountId}`);
+      
+      // Delete the DPS savings account
+      const { error: dpsDeleteError } = await supabase.from('accounts').delete().eq('id', dpsAccountId);
+      if (dpsDeleteError) {
+        console.error('Error deleting DPS savings account:', dpsDeleteError);
+        // Continue with main account deletion even if DPS deletion fails
+      }
+    }
+    
+    // Remove references from main accounts (if this is a DPS account being deleted)
     await supabase.from('accounts').update({ dps_savings_account_id: null }).eq('dps_savings_account_id', id);
+    
     // Delete all dps_transfers referencing this account
     await supabase.from('dps_transfers').delete().or(`to_account_id.eq.${id},from_account_id.eq.${id}`);
+    
     // Now delete the account
     const { error } = await supabase.from('accounts').delete().eq('id', id);
     if (error) {
