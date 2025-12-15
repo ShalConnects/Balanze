@@ -1858,46 +1858,63 @@ export const LendBorrowTableView: React.FC = () => {
                         {/* Expanded Row Content */}
                         {isRowExpanded(record.id) && (
                           <tr>
-                            <td colSpan={6} className="px-4 sm:px-6 py-4 sm:py-6 bg-gray-50 dark:bg-gray-800">
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                            <td colSpan={6} className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6 bg-white dark:bg-gray-900">
+                              <div className="flex flex-col md:flex-row lg:flex-row gap-3 sm:gap-4 md:gap-5 w-full">
                                 {/* Record Details */}
-                                <div className="space-y-2">
-                                  <h4 className="font-semibold text-gray-900 dark:text-white">Record Details</h4>
-                                  <div className="space-y-1 text-sm" style={{ fontSize: '12px' }}>
-                                    <div style={{ marginTop: 0 }}><span className="font-medium">Type:</span> 
-                                      <span className={`ml-1 inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getRecordTypeColor(record.type)}`}>
+                                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 flex-1 min-w-0">
+                                  <h4 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm mb-2 sm:mb-3 pb-1.5 sm:pb-2 border-b border-gray-200 dark:border-gray-700">Record Details</h4>
+                                  <div className="text-xs sm:text-sm [&>div:not(:first-child)]:mt-[5px]">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Type:</span> 
+                                      <span className={`inline-flex px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${getRecordTypeColor(record.type)}`}>
                                         {record.type === 'lend' ? 'Lend' : 'Borrow'}
                                       </span>
                                     </div>
-                                    <div style={{ marginTop: 0 }}><span className="font-medium">Amount:</span> {formatCurrency(record.amount, record.currency)}</div>
-                                    <div style={{ marginTop: 0 }}><span className="font-medium">Currency:</span> {record.currency}</div>
-                                    <div style={{ marginTop: 0 }}><span className="font-medium">Date:</span> {record.created_at ? (isNaN(new Date(record.created_at).getTime()) ? 'No date' : format(new Date(record.created_at), 'MMM dd, yyyy')) : 'No date'}</div>
-                                    <div style={{ marginTop: 0 }}><span className="font-medium">Due Date:</span> {record.due_date ? (isNaN(new Date(record.due_date).getTime()) ? 'No date' : format(new Date(record.due_date), 'MMM dd, yyyy')) : 'No date'}</div>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Amount:</span>
+                                      <span className="text-gray-900 dark:text-white font-semibold text-xs sm:text-sm break-words">{formatCurrency(record.amount, record.currency)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Currency:</span>
+                                      <span className="text-gray-900 dark:text-white text-xs sm:text-sm">{record.currency}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Date:</span>
+                                      <span className="text-gray-900 dark:text-white text-xs sm:text-sm break-words">{record.created_at ? (isNaN(new Date(record.created_at).getTime()) ? 'No date' : format(new Date(record.created_at), 'MMM dd, yyyy')) : 'No date'}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Due Date:</span>
+                                      <span className="text-gray-900 dark:text-white text-xs sm:text-sm break-words">{record.due_date ? (isNaN(new Date(record.due_date).getTime()) ? 'No date' : format(new Date(record.due_date), 'MMM dd, yyyy')) : 'No date'}</span>
+                                    </div>
                                   </div>
                                 </div>
 
                                 {/* Status Information */}
-                                <div className="space-y-2">
-                                  <h4 className="font-semibold text-gray-900 dark:text-white">Status Information</h4>
-                                  <div className="space-y-1 text-sm" style={{ fontSize: '12px' }}>
-                                    <div style={{ marginTop: 0 }}><span className="font-medium">Status:</span> 
-                                      <span className={`ml-1 inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                                        isOverdue ? 'bg-red-100 text-red-800' : getRecordStatusColor(record.status)
+                                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 flex-1 min-w-0">
+                                  <h4 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm mb-2 sm:mb-3 pb-1.5 sm:pb-2 border-b border-gray-200 dark:border-gray-700">Status Information</h4>
+                                  <div className="text-xs sm:text-sm [&>div:not(:first-child)]:mt-[5px]">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Status:</span> 
+                                      <span className={`inline-flex px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
+                                        isOverdue ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : getRecordStatusColor(record.status)
                                       }`}>
                                         {isOverdue ? 'Overdue' : record.status.charAt(0).toUpperCase() + record.status.slice(1)}
                                       </span>
                                     </div>
                                     {record.due_date && record.status !== 'settled' && (
-                                      <div style={{ marginTop: 0 }} className={`font-medium ${
-                                        daysDiff < 0 
-                                          ? 'text-red-600 dark:text-red-400' 
-                                          : daysDiff <= 7 
-                                            ? 'text-orange-600 dark:text-orange-400' 
-                                            : 'text-blue-600 dark:text-blue-400'
-                                      }`}>
-                                        {daysDiff < 0 ? `${Math.abs(daysDiff)} days overdue` : 
-                                         daysDiff > 0 ? `${daysDiff} days left` : 
-                                         'Due today'}
+                                      <div className="flex items-center justify-between gap-2 mt-[5px]">
+                                        <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Time Remaining:</span>
+                                        <span className={`font-semibold text-xs sm:text-sm break-words ${
+                                          daysDiff < 0 
+                                            ? 'text-red-600 dark:text-red-400' 
+                                            : daysDiff <= 7 
+                                              ? 'text-orange-600 dark:text-orange-400' 
+                                              : 'text-blue-600 dark:text-blue-400'
+                                        }`}>
+                                          {daysDiff < 0 ? `${Math.abs(daysDiff)} days overdue` : 
+                                           daysDiff > 0 ? `${daysDiff} days left` : 
+                                           'Due today'}
+                                        </span>
                                       </div>
                                     )}
                                     {(() => {
@@ -1905,7 +1922,10 @@ export const LendBorrowTableView: React.FC = () => {
                                       const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
                                       if (totalReturned > 0) {
                                         return (
-                                          <div style={{ marginTop: 0 }}><span className="font-medium">Total Returned:</span> {formatCurrency(totalReturned, record.currency)}</div>
+                                          <div className="flex items-center justify-between gap-2 mt-[5px]">
+                                            <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Total Returned:</span>
+                                            <span className="text-gray-900 dark:text-white font-semibold text-xs sm:text-sm break-words">{formatCurrency(totalReturned, record.currency)}</span>
+                                          </div>
                                         );
                                       }
                                       return null;
@@ -1915,37 +1935,90 @@ export const LendBorrowTableView: React.FC = () => {
                                       const totalReturned = recordReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
                                       const remainingAmount = record.amount - totalReturned;
                                       return (
-                                        <div style={{ marginTop: 0 }}><span className="font-medium">Remaining Amount:</span> {formatCurrency(remainingAmount, record.currency)}</div>
+                                        <div className="flex items-center justify-between gap-2 mt-[5px]">
+                                          <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Remaining Amount:</span>
+                                          <span className="text-gray-900 dark:text-white font-semibold text-xs sm:text-sm break-words">{formatCurrency(remainingAmount, record.currency)}</span>
+                                        </div>
                                       );
                                     })()}
                                   </div>
                                 </div>
 
                                 {/* Account Information */}
-                                <div className="space-y-2">
-                                  <h4 className="font-semibold text-gray-900 dark:text-white">Account Information</h4>
-                                  <div className="space-y-1 text-sm" style={{ fontSize: '12px' }}>
+                                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 flex-1 min-w-0">
+                                  <h4 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm mb-2 sm:mb-3 pb-1.5 sm:pb-2 border-b border-gray-200 dark:border-gray-700">Account Information</h4>
+                                  <div className="text-xs sm:text-sm [&>div:not(:first-child)]:mt-[5px]">
                                     {record.affect_account_balance && record.account_id ? (
                                       <>
                                         {(() => {
                                           const account = accounts.find(acc => acc.id === record.account_id);
                                           return account ? (
                                             <>
-                                              <div style={{ marginTop: 0 }}><span className="font-medium">Account:</span> {account.name}</div>
-                                              <div style={{ marginTop: 0 }}><span className="font-medium">Balance:</span> {formatCurrency(account.calculated_balance || 0, account.currency)}</div>
+                                              <div className="flex items-center justify-between gap-2">
+                                                <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Account:</span>
+                                                <span className="text-gray-900 dark:text-white text-xs sm:text-sm break-words">{account.name}</span>
+                                              </div>
+                                              <div className="flex items-center justify-between gap-2 mt-[5px]">
+                                                <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Balance:</span>
+                                                <span className="text-gray-900 dark:text-white font-semibold text-xs sm:text-sm break-words">{formatCurrency(account.calculated_balance || 0, account.currency)}</span>
+                                              </div>
+                                              {(() => {
+                                                const recordReturns = returnHistory[record.id] || [];
+                                                const returnAccountIds = [...new Set(recordReturns.filter(ret => ret.account_id).map(ret => ret.account_id))] as string[];
+                                                const hasReturnsWithoutAccount = recordReturns.some(ret => !ret.account_id);
+                                                
+                                                if (returnAccountIds.length > 0 || hasReturnsWithoutAccount) {
+                                                  const returnAccounts = returnAccountIds.map(id => accounts.find(acc => acc.id === id)).filter(Boolean);
+                                                  const accountNames = returnAccounts.map(acc => acc!.name);
+                                                  if (hasReturnsWithoutAccount) {
+                                                    accountNames.push('Cash/Other');
+                                                  }
+                                                  
+                                                  return (
+                                                    <div className="flex items-center justify-between gap-2 mt-[5px]">
+                                                      <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Returns to:</span>
+                                                      <span className="text-gray-900 dark:text-white text-xs sm:text-sm break-words">{accountNames.join(', ')}</span>
+                                                    </div>
+                                                  );
+                                                }
+                                                return null;
+                                              })()}
                                             </>
                                           ) : (
-                                            <div style={{ marginTop: 0 }} className="text-gray-500 dark:text-gray-400">Account not found</div>
+                                            <div className="text-gray-500 dark:text-gray-400 text-center py-2 text-xs sm:text-sm">Account not found</div>
                                           );
                                         })()}
                                       </>
                                     ) : (
-                                      <div style={{ marginTop: 0 }} className="text-gray-500 dark:text-gray-400">Record Only</div>
+                                      <>
+                                        <div className="text-gray-500 dark:text-gray-400 text-center py-2 text-xs sm:text-sm">Record Only</div>
+                                        {(() => {
+                                          const recordReturns = returnHistory[record.id] || [];
+                                          const returnAccountIds = [...new Set(recordReturns.filter(ret => ret.account_id).map(ret => ret.account_id))] as string[];
+                                          const hasReturnsWithoutAccount = recordReturns.some(ret => !ret.account_id);
+                                          
+                                          if (returnAccountIds.length > 0 || hasReturnsWithoutAccount) {
+                                            const returnAccounts = returnAccountIds.map(id => accounts.find(acc => acc.id === id)).filter(Boolean);
+                                            const accountNames = returnAccounts.map(acc => acc!.name);
+                                            if (hasReturnsWithoutAccount) {
+                                              accountNames.push('Cash/Other');
+                                            }
+                                            
+                                            return (
+                                              <div className="flex items-center justify-between gap-2 mt-[5px]">
+                                                <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Returns to:</span>
+                                                <span className="text-gray-900 dark:text-white text-xs sm:text-sm break-words">{accountNames.join(', ')}</span>
+                                              </div>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
+                                      </>
                                     )}
                                     {record.notes && (
-                                      <div style={{ marginTop: 0 }} className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                        <div className="font-medium mb-1">Notes:</div>
-                                        <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">{record.notes}</div>
+                                      <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-700">
+                                        <div className="font-medium mb-1.5 sm:mb-2 text-gray-900 dark:text-white text-xs sm:text-sm">Notes:</div>
+                                        <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words text-[11px] sm:text-xs leading-relaxed">{record.notes}</div>
                                       </div>
                                     )}
                                   </div>
