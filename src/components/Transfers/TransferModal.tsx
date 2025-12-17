@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Dialog } from '@headlessui/react';
 import { useFinanceStore } from '../../store/useFinanceStore';
+import { useAuthStore } from '../../store/authStore';
 import { Account } from '../../types';
-import { formatCurrency } from '../../utils/currency';
+import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
 import { format } from 'date-fns';
 import { formatTimeUTC } from '../../utils/timezoneUtils';
 import { supabase } from '../../lib/supabase';
@@ -23,6 +24,7 @@ interface TransferModalProps {
 
 export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, mode = 'currency' }) => {
   const { accounts, transfer, loading, error } = useFinanceStore();
+  const { profile } = useAuthStore();
   const { isMobile } = useMobileDetection();
   const [formData, setFormData] = useState({
     from_account_id: '',
@@ -56,18 +58,36 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
     // First filter for active accounts only
     const activeAccounts = accounts.filter(account => account.isActive);
     
+    let filtered: Account[];
     switch (mode) {
       case 'dps':
         // For DPS transfers, show only DPS accounts
-        return activeAccounts.filter(account => account.name.includes('(DPS)'));
+        filtered = activeAccounts.filter(account => account.name.includes('(DPS)'));
+        break;
       case 'inbetween':
         // For in-between transfers, show only main (non-DPS) accounts (exclude any with '(DPS)' in the name)
-        return activeAccounts.filter(account => !account.name.includes('(DPS)'));
+        filtered = activeAccounts.filter(account => !account.name.includes('(DPS)'));
+        break;
       case 'currency':
       default:
         // For currency transfers, show only main (non-DPS) accounts (exclude any with '(DPS)' in the name)
-        return activeAccounts.filter(account => !account.name.includes('(DPS)'));
+        filtered = activeAccounts.filter(account => !account.name.includes('(DPS)'));
+        break;
     }
+    
+    // Sort accounts: default currency first, then by currency alphabetically, then by balance (descending)
+    const defaultCurrency = profile?.local_currency || 'USD';
+    return filtered.sort((a, b) => {
+      // Default currency first
+      if (a.currency === defaultCurrency && b.currency !== defaultCurrency) return -1;
+      if (a.currency !== defaultCurrency && b.currency === defaultCurrency) return 1;
+      // Then sort by currency alphabetically
+      if (a.currency !== b.currency) {
+        return a.currency.localeCompare(b.currency);
+      }
+      // Within same currency, sort by balance (descending - highest first)
+      return (b.calculated_balance || 0) - (a.calculated_balance || 0);
+    });
   };
 
   const availableAccounts = getFilteredAccounts();
@@ -321,7 +341,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
                     onChange={(value: string) => handleAccountChange('from_account_id', value)}
                     options={availableAccounts.map((account: Account) => ({
                       value: account.id,
-                      label: `${account.name} (${account.type}) • ${formatCurrency(account.calculated_balance, account.currency)}`
+                      label: `${account.name} (${getCurrencySymbol(account.currency)}${Number(account.calculated_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
                     }))}
                     placeholder="Select account"
                     disabled={loading}
@@ -341,7 +361,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
                     onChange={(value: string) => handleAccountChange('to_account_id', value)}
                     options={destinationAccounts.map((account: Account) => ({
                       value: account.id,
-                      label: `${account.name} (${account.type}) • ${formatCurrency(account.calculated_balance, account.currency)}`
+                      label: `${account.name} (${getCurrencySymbol(account.currency)}${Number(account.calculated_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
                     }))}
                     placeholder="Select account"
                     disabled={loading}

@@ -34,6 +34,7 @@ interface TransactionFormProps {
 
 export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onClose, transactionToEdit, duplicateFrom, isOpen = true }) => {
   const accounts = useFinanceStore(state => state.accounts);
+  const { profile } = useAuthStore();
   const categories = useFinanceStore(state => state.categories);
   const purchaseCategories = useFinanceStore(state => state.purchaseCategories);
   const addTransaction = useFinanceStore(state => state.addTransaction);
@@ -1089,6 +1090,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 }}
                 options={accounts
                   .filter(account => account.isActive && !account.name.includes('(DPS)'))
+                  .sort((a, b) => {
+                    const defaultCurrency = profile?.local_currency || 'USD';
+                    // Default currency first
+                    if (a.currency === defaultCurrency && b.currency !== defaultCurrency) return -1;
+                    if (a.currency !== defaultCurrency && b.currency === defaultCurrency) return 1;
+                    // Then sort by currency alphabetically
+                    if (a.currency !== b.currency) {
+                      return a.currency.localeCompare(b.currency);
+                    }
+                    // Within same currency, sort by balance (descending - highest first)
+                    return (b.calculated_balance || 0) - (a.calculated_balance || 0);
+                  })
                   .map((account) => ({
                     value: account.id,
                     label: `${account.name} (${getCurrencySymbol(account.currency)}${Number(account.calculated_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`

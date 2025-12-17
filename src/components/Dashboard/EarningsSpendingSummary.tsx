@@ -266,21 +266,21 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
           
           {insights.highestSpender && insights.highestSpender.spending > 0 && (
             <p>
-              <strong>{insights.highestSpender.currency}</strong> has your highest spending at 
+              <strong>{insights.highestSpender.currency}</strong> has your highest spending at{' '}
               {formatCurrency(insights.highestSpender.spending, insights.highestSpender.currency)}
             </p>
           )}
           
           {insights.positiveCurrencies.length > 0 && (
             <p>
-              <strong>{insights.positiveCurrencies.length}</strong> currency{insights.positiveCurrencies.length !== 1 ? 'ies are' : ' is'} 
+              <strong>{insights.positiveCurrencies.length}</strong> currency{insights.positiveCurrencies.length !== 1 ? 'ies are' : ' is'}{' '}
               performing well with positive net results
             </p>
           )}
           
           {insights.negativeCurrencies.length > 0 && (
             <p>
-              <strong>{insights.negativeCurrencies.length}</strong> currency{insights.negativeCurrencies.length !== 1 ? 'ies need' : ' needs'} 
+              <strong>{insights.negativeCurrencies.length}</strong> currency{insights.negativeCurrencies.length !== 1 ? 'ies need' : ' needs'}{' '}
               attention with negative net results
             </p>
           )}

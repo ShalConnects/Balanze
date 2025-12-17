@@ -151,7 +151,6 @@ export const CurrencyPortfolioSummary: React.FC<CurrencyPortfolioSummaryProps> =
             const rate = await getExchangeRate(currency, baseCurrency);
             rates[currency] = rate;
           } catch (error) {
-            console.warn(`Failed to load exchange rate for ${currency}:`, error);
             rates[currency] = 1;
           }
         } else {

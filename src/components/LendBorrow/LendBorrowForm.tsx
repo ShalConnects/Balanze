@@ -59,11 +59,19 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
   // Currency will be automatically set from the selected account
   // No need for currency dropdown since it comes from the account
 
-  // Sort accounts to show default account first
-  const sortedAccountOptions = [
-    ...accounts.filter(acc => acc.id === profile?.default_account_id),
-    ...accounts.filter(acc => acc.id !== profile?.default_account_id)
-  ];
+  // Sort accounts: default currency first, then by currency alphabetically, then by balance (descending)
+  const sortedAccountOptions = accounts.sort((a, b) => {
+    const defaultCurrency = profile?.local_currency || 'USD';
+    // Default currency first
+    if (a.currency === defaultCurrency && b.currency !== defaultCurrency) return -1;
+    if (a.currency !== defaultCurrency && b.currency === defaultCurrency) return 1;
+    // Then sort by currency alphabetically
+    if (a.currency !== b.currency) {
+      return a.currency.localeCompare(b.currency);
+    }
+    // Within same currency, sort by balance (descending - highest first)
+    return (b.calculated_balance || 0) - (a.calculated_balance || 0);
+  });
 
   // Auto-set currency when account is selected
   useEffect(() => {
@@ -468,7 +476,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                     options={sortedAccountOptions
                       .map(account => ({
                         value: account.id,
-                        label: `${account.name} (${account.currency}) - ${getCurrencySymbol(account.currency)}${account.calculated_balance?.toFixed(2) || '0.00'}`
+                        label: `${account.name} (${getCurrencySymbol(account.currency)}${Number(account.calculated_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
                       }))
                     }
                     placeholder="Select account *"

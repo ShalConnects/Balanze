@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { StatCard } from './StatCard';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { LineChart, Line } from 'recharts';
-import { Info, Calendar, Clock, X } from 'lucide-react';
+import { Info, Calendar, Clock, X, TrendingUp, TrendingDown } from 'lucide-react';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { isLendBorrowTransaction } from '../../utils/transactionUtils';
 
@@ -21,6 +22,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   t,
   formatCurrency,
 }) => {
+  const navigate = useNavigate();
   // Use '1m' as default
   const [period, setPeriod] = useState<'1m' | '3m' | '6m' | '1y'>('1m');
 
@@ -259,6 +261,14 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   }
   const incomeChange = getPercentChange(filteredIncome, prevIncome);
   const expensesChange = getPercentChange(filteredExpenses, prevExpenses);
+  
+  // Calculate net change (income - expenses)
+  const netChange = filteredIncome - filteredExpenses;
+  const prevNetChange = prevIncome - prevExpenses;
+  const netChangePercent = getPercentChange(netChange, prevNetChange);
+  
+  // Calculate total account count
+  const totalAccountCount = currencyAccounts.length;
 
   // Generate sparkline data based on filter
   let sparkData: { name: string; income: number; expense: number }[] = [];
@@ -325,33 +335,46 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   }
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 sm:p-4 lg:p-5 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 h-full flex flex-col">
+    <div 
+      className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-3 sm:p-4 lg:p-5 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 h-full flex flex-col cursor-pointer group"
+      onClick={() => navigate('/analytics')}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          navigate('/analytics');
+        }
+      }}
+      aria-label={`View ${currency} currency analytics`}
+    >
       {/* Mobile-optimized header */}
-      <div className="mb-4">
+      <div className="mb-3 sm:mb-4">
         {/* Amount row */}
-        <div className="flex items-center justify-between mb-1">
-           <div className="text-base sm:text-lg lg:text-xl font-bold tabular-nums text-gray-900 dark:text-white">
+        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 xs:gap-1 mb-1">
+           <div className="text-base sm:text-lg lg:text-xl xl:text-2xl font-bold tabular-nums text-gray-900 dark:text-white break-words">
              {formatCurrency(regularAccountsTotal + dpsTotal, currency)}
            </div>
           
           {/* Right side: Delta, sparkline, and info button - all on same row */}
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 w-full xs:w-auto justify-end xs:justify-start">
             {/* Delta - compact for mobile */}
             {formatBalanceChange(balanceChange) && (
-              <span className={`text-xs font-medium flex items-center gap-0.5 ${formatBalanceChange(balanceChange)!.color}`}>
-                <span className="text-xs">{formatBalanceChange(balanceChange)!.arrow}</span>
-                <span>{formatBalanceChange(balanceChange)!.text}</span>
+              <span className={`text-[10px] xs:text-xs font-medium flex items-center gap-0.5 ${formatBalanceChange(balanceChange)!.color} whitespace-nowrap`}>
+                <span className="text-[10px] xs:text-xs flex-shrink-0">{formatBalanceChange(balanceChange)!.arrow}</span>
+                <span className="truncate max-w-[60px] xs:max-w-none">{formatBalanceChange(balanceChange)!.text}</span>
               </span>
             )}
             
             {/* Sparkline - compact for mobile */}
             {sparkData.length > 1 && (
-              <div className="w-8 h-4 sm:w-10 sm:h-5 lg:w-12 lg:h-6 flex items-center">
+              <div className="w-8 h-4 sm:w-10 sm:h-5 lg:w-12 lg:h-6 flex items-center flex-shrink-0">
                 <LineChart 
                   width={32} 
                   height={16} 
                   data={sparkData} 
                   margin={{ top: 1, right: 1, left: 1, bottom: 1 }}
+                  className="w-full h-full"
                 >
                   <Line 
                     type="monotone" 
@@ -374,7 +397,8 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                 onMouseLeave={() => !isMobile && setShowTooltip(false)}
                 onFocus={() => !isMobile && setShowTooltip(true)}
                 onBlur={() => !isMobile && setShowTooltip(false)}
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   if (isMobile) {
                     setShowMobileModal(true);
                   } else {
@@ -453,16 +477,41 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
           </div>
         </div>
         
-        {/* Timestamp row */}
-        <div className="text-[11px] text-gray-500 dark:text-gray-400">
-          {getRelativeTimeString(lastCurrencyActivityDate)}
+        {/* Net change and timestamp row */}
+        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-1 xs:gap-0 mt-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {netChangePercent !== null && (
+              <div className={`flex items-center gap-1 text-[10px] xs:text-xs font-semibold ${
+                netChangePercent > 0 
+                  ? 'text-green-600 dark:text-green-400' 
+                  : netChangePercent < 0 
+                  ? 'text-red-600 dark:text-red-400' 
+                  : 'text-gray-500 dark:text-gray-400'
+              }`}>
+                {netChangePercent > 0 ? (
+                  <TrendingUp className="w-2.5 h-2.5 xs:w-3 xs:h-3 flex-shrink-0" />
+                ) : netChangePercent < 0 ? (
+                  <TrendingDown className="w-2.5 h-2.5 xs:w-3 xs:h-3 flex-shrink-0" />
+                ) : null}
+                <span className="whitespace-nowrap">Net: {formatCurrency(netChange, currency)}</span>
+              </div>
+            )}
+          </div>
+          <div className="text-[10px] xs:text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
+            {getRelativeTimeString(lastCurrencyActivityDate)}
+          </div>
         </div>
       </div>
       
       {/* Compact period selector */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-          {t('dashboard.currencyOverview', { currencyCode: currency })}
+      <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 xs:gap-0 mb-3">
+        <h2 className="text-[11px] xs:text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 xs:gap-2 flex-wrap">
+          <span className="whitespace-nowrap">{t('dashboard.currencyOverview', { currencyCode: currency })}</span>
+          {totalAccountCount > 0 && (
+            <span className="inline-flex items-center justify-center min-w-[16px] xs:min-w-[18px] h-[16px] xs:h-[18px] px-1 xs:px-1.5 text-[9px] xs:text-[10px] font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full flex-shrink-0">
+              {totalAccountCount}
+            </span>
+          )}
         </h2>
         <CustomDropdown
           options={[
@@ -474,26 +523,27 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
           value={period}
           onChange={val => setPeriod(val as '1m' | '3m' | '6m' | '1y')}
           fullWidth={false}
-          className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-xs h-7 min-h-0 hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg px-3 py-1"
-          style={{ padding: '6px 12px', minWidth: '100px' }}
+          className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-[10px] xs:text-xs h-6 xs:h-7 min-h-0 hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg px-2 xs:px-3 py-1 w-full xs:w-auto"
+          style={{ padding: isMobile ? '4px 8px' : '6px 12px', minWidth: isMobile ? '80px' : '100px' }}
           dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
+          onClick={(e) => e.stopPropagation()}
         />
       </div>
       
       {/* Mobile-optimized stats grid */}
-      <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-3 flex-1">
-        <div className="w-full">
+      <div className="grid grid-cols-2 xs:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-2 xs:gap-2.5 sm:gap-3 flex-1">
+        <div className="w-full min-w-0">
           <StatCard
-            title={<span className="text-[13px]">{t('dashboard.monthlyIncome')}</span>}
+            title={<span className="text-[11px] xs:text-[12px] sm:text-[13px]">{t('dashboard.monthlyIncome')}</span>}
             value={formatCurrency(filteredIncome, currency)}
             color="green"
             gradient={false}
             animated={true}
           />
         </div>
-        <div className="w-full">
+        <div className="w-full min-w-0">
           <StatCard
-            title={<span className="text-[13px]">{t('dashboard.monthlyExpenses')}</span>}
+            title={<span className="text-[11px] xs:text-[12px] sm:text-[13px]">{t('dashboard.monthlyExpenses')}</span>}
             value={formatCurrency(filteredExpenses, currency)}
             color="red"
             gradient={false}
@@ -504,13 +554,22 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
 
       {/* Mobile Modal for Account Info */}
       {showMobileModal && isMobile && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setShowMobileModal(false)} />
-          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-64 animate-fadein">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" onClick={(e) => {
+          e.stopPropagation();
+          setShowMobileModal(false);
+        }}>
+          <div className="fixed inset-0 bg-black/50" onClick={(e) => {
+            e.stopPropagation();
+            setShowMobileModal(false);
+          }} />
+          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-64 animate-fadein" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-2">
               <div className="font-semibold text-gray-700 dark:text-gray-200">Total: {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
               <button
-                onClick={() => setShowMobileModal(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMobileModal(false);
+                }}
                 className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />

@@ -257,7 +257,7 @@ export const useNotificationStore = create<NotificationStore>()(
               title: '🎉 Multi-Currency Support',
               message: 'Track your finances in multiple currencies! Now you can manage accounts in USD, EUR, GBP, and more.',
               actionText: 'Try Multi-Currency',
-              actionUrl: '/currency-analytics',
+              actionUrl: '/analytics',
               icon: '💱',
               priority: 'high',
               targetAudience: 'all',

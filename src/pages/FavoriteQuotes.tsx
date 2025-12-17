@@ -59,7 +59,6 @@ export const FavoriteQuotes: React.FC = () => {
 
   // Function to restore quote widget to dashboard
   const handleShowQuoteWidgetFromPage = useCallback(async () => {
-    console.log('Restoring Quote widget to dashboard');
     setIsRestoringWidget(true);
     
     try {
@@ -68,8 +67,6 @@ export const FavoriteQuotes: React.FC = () => {
       
       // Update local state
       setIsQuoteWidgetHidden(false);
-      
-      console.log('Quote widget restored, new state:', false);
     } finally {
       setIsRestoringWidget(false);
     }
@@ -118,13 +115,7 @@ export const FavoriteQuotes: React.FC = () => {
   };
 
   const applyMobileFilters = () => {
-    console.log('Applying temp filters:', tempFilters);
-    console.log('Current tableFilters before update:', tableFilters);
     setTableFilters({ 
-      search: tableFilters.search, 
-      category: tempFilters.category 
-    });
-    console.log('Updated tableFilters should be:', { 
       search: tableFilters.search, 
       category: tempFilters.category 
     });
@@ -211,7 +202,6 @@ export const FavoriteQuotes: React.FC = () => {
 
   // Filter quotes based on search
   const filteredQuotes = useMemo(() => {
-    console.log('Filtering quotes with filters:', tableFilters);
     // If a record is selected via deep link, prioritize showing only that record
     if (hasSelection && isFromSearch && selectedRecord) {
       return [selectedRecord];
@@ -220,7 +210,6 @@ export const FavoriteQuotes: React.FC = () => {
     // First apply basic filters
     let filtered = favoriteQuotes.filter(quote => {
       const matchesCategory = tableFilters.category === '' || quote.category === tableFilters.category;
-      console.log(`Quote "${quote.quote}" category: ${quote.category}, filter: ${tableFilters.category}, matches: ${matchesCategory}`);
       return matchesCategory;
     });
 
@@ -463,7 +452,6 @@ export const FavoriteQuotes: React.FC = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          console.log('Apply button clicked!');
                           applyMobileFilters();
                         }}
                         onTouchStart={(e) => {
@@ -509,9 +497,7 @@ export const FavoriteQuotes: React.FC = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        console.log('Mobile filter "All" clicked');
                         setTempFilters({ ...tempFilters, category: '' });
-                        console.log('Temp filters after "All" update:', { ...tempFilters, category: '' });
                       }}
                       className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                         tempFilters.category === '' 
@@ -526,9 +512,7 @@ export const FavoriteQuotes: React.FC = () => {
                         key={category}
                         onClick={(e) => {
                           e.stopPropagation();
-                          console.log('Mobile filter category clicked:', category);
                           setTempFilters({ ...tempFilters, category });
-                          console.log('Temp filters after update:', { ...tempFilters, category });
                         }}
                         className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                           tempFilters.category === category 

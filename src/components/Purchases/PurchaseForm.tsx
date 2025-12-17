@@ -859,10 +859,24 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                 {(formData.status !== 'planned' && formData.status !== 'cancelled') && !excludeFromCalculation && (
                   <div className="relative">
                     <CustomDropdown
-                      options={accounts.filter(acc => acc.isActive && !acc.name.includes('(DPS)')).map(acc => ({
-                        label: `${acc.name} (${getCurrencySymbol(acc.currency)}${Number(acc.calculated_balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`,
-                        value: acc.id
-                      }))}
+                      options={accounts
+                        .filter(acc => acc.isActive && !acc.name.includes('(DPS)'))
+                        .sort((a, b) => {
+                          const defaultCurrency = profile?.local_currency || 'USD';
+                          // Default currency first
+                          if (a.currency === defaultCurrency && b.currency !== defaultCurrency) return -1;
+                          if (a.currency !== defaultCurrency && b.currency === defaultCurrency) return 1;
+                          // Then sort by currency alphabetically
+                          if (a.currency !== b.currency) {
+                            return a.currency.localeCompare(b.currency);
+                          }
+                          // Within same currency, sort by balance (descending - highest first)
+                          return (b.calculated_balance || 0) - (a.calculated_balance || 0);
+                        })
+                        .map(acc => ({
+                          label: `${acc.name} (${getCurrencySymbol(acc.currency)}${Number(acc.calculated_balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`,
+                          value: acc.id
+                        }))}
                       value={selectedAccountId}
                       onChange={val => {
                         handleAccountChange(val);

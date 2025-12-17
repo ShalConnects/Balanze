@@ -38,6 +38,7 @@ import { detectUserContext } from '../../utils/humorContext';
 import { HumorEngine } from '../../utils/humorEngine';
 import BudgetChart from '../charts/BudgetChart';
 import { supabase } from '../../lib/supabase';
+import { EarningsSpendingSummary } from '../Dashboard/EarningsSpendingSummary';
 
 export const AnalyticsView: React.FC = () => {
   const { getActiveTransactions, getDashboardStats, getActiveAccounts, purchases, lendBorrowRecords, getCategories } = useFinanceStore();
@@ -47,6 +48,18 @@ export const AnalyticsView: React.FC = () => {
   const accounts = getActiveAccounts();
   const stats = getDashboardStats();
   const categories = getCategories();
+  
+  // Calculate currency analytics states
+  const activeAccounts = useMemo(() => {
+    return accounts.filter(acc => acc.isActive);
+  }, [accounts]);
+  
+  const uniqueCurrencies = useMemo(() => {
+    return new Set(activeAccounts.map(acc => acc.currency));
+  }, [activeAccounts]);
+  
+  const hasMultipleCurrencies = uniqueCurrencies.size > 1;
+  const hasNoAccounts = activeAccounts.length === 0;
   const [selectedPeriod, setSelectedPeriod] = useState<'current' | 'last3' | 'last6' | 'last12'>('current');
   const [selectedCurrency, setSelectedCurrency] = useState(stats.byCurrency[0]?.currency || 'USD');
   const [showTrends, setShowTrends] = useState(true);
@@ -54,8 +67,34 @@ export const AnalyticsView: React.FC = () => {
     total: true,
     budget: false,
     purchase: false,
-    lendBorrow: false
+    lendBorrow: false,
+    currency: false
   });
+  const [currencyPeriod, setCurrencyPeriod] = useState<'1m' | '3m' | '6m' | '1y'>('1m');
+  
+  // Helper: Map account_id to currency (moved early for use in functions)
+  const accountCurrencyMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    accounts.forEach(acc => { map[acc.id] = acc.currency; });
+    return map;
+  }, [accounts]);
+
+  // Get transactions for selected currency (moved early for use in functions)
+  const getCurrencyTransactions = (currency: string) => {
+    return transactions.filter(t => {
+      const accCurrency = accountCurrencyMap[t.account_id];
+      return accCurrency === currency;
+    });
+  };
+
+  // Get current currency stats (moved early for use in functions)
+  const currentCurrencyStats = useMemo(() => {
+    return stats.byCurrency.find(s => s.currency === selectedCurrency);
+  }, [stats.byCurrency, selectedCurrency]);
+  
+  const currencyTransactions = useMemo(() => {
+    return getCurrencyTransactions(selectedCurrency);
+  }, [transactions, accountCurrencyMap, selectedCurrency]);
   
   // Budget data state
   const [budgetData, setBudgetData] = useState<any[]>([]);
@@ -266,7 +305,7 @@ ${accounts.map(a =>
   };
 
   // Accordion toggle function - only one section can be open at a time
-  const toggleAccordion = (accordion: 'total' | 'budget' | 'purchase' | 'lendBorrow') => {
+  const toggleAccordion = (accordion: 'total' | 'budget' | 'purchase' | 'lendBorrow' | 'currency') => {
     setExpandedAccordions(prev => {
       // If clicking the same section, keep it open (no toggle behavior)
       if (prev[accordion]) {
@@ -277,7 +316,8 @@ ${accounts.map(a =>
         total: accordion === 'total',
         budget: accordion === 'budget',
         purchase: accordion === 'purchase',
-        lendBorrow: accordion === 'lendBorrow'
+        lendBorrow: accordion === 'lendBorrow',
+        currency: accordion === 'currency'
       };
       return newState;
     });
@@ -1283,24 +1323,6 @@ ${accounts.map(a =>
     return `🌱 Starting income level`;
   };
 
-  // Helper: Map account_id to currency
-  const accountCurrencyMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    accounts.forEach(acc => { map[acc.id] = acc.currency; });
-    return map;
-  }, [accounts]);
-
-  // Get transactions for selected currency
-  const getCurrencyTransactions = (currency: string) => {
-    return transactions.filter(t => {
-      const accCurrency = accountCurrencyMap[t.account_id];
-      return accCurrency === currency;
-    });
-  };
-
-  // Get current currency stats
-  const currentCurrencyStats = stats.byCurrency.find(s => s.currency === selectedCurrency);
-  const currencyTransactions = getCurrencyTransactions(selectedCurrency);
 
   // Filter currencies based on profile.selected_currencies
   const currencyOptions = useMemo(() => {
@@ -2238,52 +2260,67 @@ ${accounts.map(a =>
   };
 
   return (
-    <div data-tour="analytics-overview" className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+    <div data-tour="analytics-overview" className="space-y-3 sm:space-y-4 md:space-y-6 px-2 sm:px-4 md:px-6 lg:px-0">
 
       {/* Accordion Structure */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {/* Tab-Style Navigation */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="flex border-b border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
             <button 
               onClick={() => toggleAccordion('total')}
-              className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-center font-medium transition-colors text-sm sm:text-base ${
+              className={`flex-1 min-w-[80px] px-2 sm:px-3 md:px-6 py-2 sm:py-3 md:py-4 text-center font-medium transition-colors text-xs sm:text-sm md:text-base whitespace-nowrap ${
                 expandedAccordions.total 
                   ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
                   : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
             >
-              <span className="hidden sm:inline">Total Analytics</span>
+              <span className="hidden md:inline">Total Analytics</span>
+              <span className="hidden sm:inline md:hidden">Total</span>
               <span className="sm:hidden">Total</span>
             </button>
             <button 
               onClick={() => toggleAccordion('budget')}
-              className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-center font-medium transition-colors text-sm sm:text-base ${
+              className={`flex-1 min-w-[80px] px-2 sm:px-3 md:px-6 py-2 sm:py-3 md:py-4 text-center font-medium transition-colors text-xs sm:text-sm md:text-base whitespace-nowrap ${
                 expandedAccordions.budget 
                   ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
                   : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
             >
-              <span className="hidden sm:inline">Budget Analytics</span>
+              <span className="hidden md:inline">Budget Analytics</span>
+              <span className="hidden sm:inline md:hidden">Budget</span>
               <span className="sm:hidden">Budget</span>
             </button>
             <button 
               onClick={() => toggleAccordion('purchase')}
-              className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-center font-medium transition-colors text-sm sm:text-base ${
+              className={`flex-1 min-w-[80px] px-2 sm:px-3 md:px-6 py-2 sm:py-3 md:py-4 text-center font-medium transition-colors text-xs sm:text-sm md:text-base whitespace-nowrap ${
                 expandedAccordions.purchase 
                   ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
                   : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
             >
-              <span className="hidden sm:inline">Purchase Analytics</span>
+              <span className="hidden md:inline">Purchase Analytics</span>
+              <span className="hidden sm:inline md:hidden">Purchase</span>
               <span className="sm:hidden">Purchase</span>
+            </button>
+            <button 
+              onClick={() => toggleAccordion('currency')}
+              className={`flex-1 min-w-[80px] px-2 sm:px-3 md:px-6 py-2 sm:py-3 md:py-4 text-center font-medium transition-colors text-xs sm:text-sm md:text-base whitespace-nowrap ${
+                expandedAccordions.currency 
+                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              <span className="hidden md:inline">Currency Analytics</span>
+              <span className="hidden sm:inline md:hidden">Currency</span>
+              <span className="sm:hidden">Currency</span>
             </button>
           </div>
 
-          {/* Shared Filter Bar - Hidden for Budget Analytics */}
-          {!expandedAccordions.budget && (
-            <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50/30 to-purple-50/30 dark:from-blue-900/10 dark:to-purple-900/10">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+          {/* Shared Filter Bar - Hidden for Budget and Currency Analytics */}
+          {!expandedAccordions.budget && !expandedAccordions.currency && (
+            <div className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50/30 to-purple-50/30 dark:from-blue-900/10 dark:to-purple-900/10">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-4">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
                   {/* Currency Filter */}
                   <div className="flex-1 sm:flex-none">
@@ -2357,8 +2394,33 @@ ${accounts.map(a =>
             </div>
           )}
 
+          {/* Currency Analytics Filter Bar - Period Filter */}
+          {expandedAccordions.currency && (
+            <div className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50/30 to-purple-50/30 dark:from-blue-900/10 dark:to-purple-900/10">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-4">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+                  {/* Period Filter */}
+                  <div className="flex-1 sm:flex-none">
+                    <CustomDropdown
+                      value={currencyPeriod}
+                      onChange={(value) => setCurrencyPeriod(value as '1m' | '3m' | '6m' | '1y')}
+                      options={[
+                        { value: '1m', label: '1 Month' },
+                        { value: '3m', label: '3 Months' },
+                        { value: '6m', label: '6 Months' },
+                        { value: '1y', label: '1 Year' }
+                      ]}
+                      placeholder="Select Period"
+                      className="w-full sm:w-auto"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {expandedAccordions.total && (
-            <div className="px-3 sm:px-6 pb-4 sm:pb-6 space-y-4 sm:space-y-6" style={{ marginTop: '10px' }}>
+            <div className="px-3 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6 space-y-3 sm:space-y-4 md:space-y-6" style={{ marginTop: '10px' }}>
       {/* Monthly Trends Chart - Full Width */}
       {showTrends && <div data-tour="balance-trend" style={{ marginTop: '10px' }}><MonthlyTrendsChart /></div>}
 
@@ -2374,14 +2436,14 @@ ${accounts.map(a =>
           )}
 
           {expandedAccordions.budget && (
-            <div>
+            <div className="px-2 sm:px-3 md:px-4 pb-3 sm:pb-4 md:pb-6">
               {/* Budget Chart */}
               <BudgetChart data={budgetData} currency={selectedCurrency} />
             </div>
           )}
 
           {expandedAccordions.purchase && (
-            <div className="px-3 sm:px-6 pb-4 sm:pb-6 space-y-4 sm:space-y-6" style={{ marginTop: '10px' }}>
+            <div className="px-3 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6 space-y-3 sm:space-y-4 md:space-y-6" style={{ marginTop: '10px' }}>
               {/* KPI Cards */}
               <PurchaseKPICards />
 
@@ -2389,6 +2451,32 @@ ${accounts.map(a =>
 
               {/* Alerts */}
               <PurchaseAlertsComponent />
+            </div>
+          )}
+
+          {expandedAccordions.currency && (
+            <div className="px-3 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6 space-y-4 sm:space-y-5 md:space-y-6" style={{ marginTop: '10px' }}>
+              {hasNoAccounts ? (
+                <div className="text-center py-8 sm:py-10 md:py-12">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                    <BarChart3 className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <h3 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                    No Currency Data Available
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 px-4">
+                    Add accounts with different currencies to see currency analytics.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <EarningsSpendingSummary
+                    transactions={transactions}
+                    accounts={accounts}
+                    period={currencyPeriod}
+                  />
+                </>
+              )}
             </div>
           )}
         </div>

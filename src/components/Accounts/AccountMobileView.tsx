@@ -55,16 +55,6 @@ export const AccountMobileView: React.FC<AccountMobileViewProps> = React.memo(({
           const isDpsSavingsAccount = account.dps_savings_account_id ? true : false;
           // Alternative condition - check if it's a DPS account
           const isDpsAccount = account.has_dps || account.dps_savings_account_id;
-          
-          // Debug logging
-          console.log('Account:', account.name, {
-            type: account.type,
-            isDpsSavingsAccount,
-            isDpsAccount,
-            has_dps: account.has_dps,
-            dps_savings_account_id: account.dps_savings_account_id,
-            shouldShowDelete: !isDpsAccount && account.type !== 'cash'
-          });
 
           return (
             <div

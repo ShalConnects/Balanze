@@ -245,13 +245,6 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
         const balance = parseFloat(formData.balance);
         // Use ref to get latest formData for DPS checks (handles async state updates)
         const currentFormData = formDataRef.current;
-        console.log('[Balance Validation]', {
-          balance,
-          has_dps: currentFormData.has_dps,
-          dps_amount_type: currentFormData.dps_amount_type,
-          formDataHasDps: formData.has_dps,
-          existingError: errors.balance
-        });
         if (isNaN(balance)) {
           newErrors.balance = 'Initial balance is required';
         } else if (balance < 0) {
@@ -264,22 +257,13 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
         // Check DPS validation when balance changes - use ref for latest DPS state
         // First, clear any existing DPS-related error if conditions are not met
         const shouldClearDpsError = !currentFormData.has_dps || currentFormData.dps_amount_type !== 'fixed' || balance > 0;
-        console.log('[Balance Validation] Should clear DPS error?', shouldClearDpsError, {
-          has_dps: currentFormData.has_dps,
-          dps_amount_type: currentFormData.dps_amount_type,
-          balance,
-          newErrorsBalance: newErrors.balance,
-          errorsBalance: errors.balance
-        });
         if (shouldClearDpsError) {
           // Clear DPS error if DPS is disabled, amount type is not fixed, or balance is greater than zero
           if (newErrors.balance && newErrors.balance.includes('DPS with fixed amount')) {
-            console.log('[Balance Validation] Clearing DPS error from newErrors');
             delete newErrors.balance;
           }
           // Also check and clear from existing errors
           if (errors.balance && errors.balance.includes('DPS with fixed amount')) {
-            console.log('[Balance Validation] Clearing DPS error from existing errors');
             delete newErrors.balance;
           }
         }
@@ -289,12 +273,9 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
                                   currentFormData.dps_amount_type === 'fixed' && 
                                   balance === 0 &&
                                   touched.balance; // Only show error if balance field has been touched
-        console.log('[Balance Validation] Should set DPS error?', shouldSetDpsError, { touched: touched.balance });
         if (shouldSetDpsError) {
-          console.log('[Balance Validation] Setting DPS error');
           newErrors.balance = 'Initial balance must be greater than zero to create DPS with fixed amount';
         }
-        console.log('[Balance Validation] Final newErrors.balance:', newErrors.balance);
         break;
         
       case 'dps_fixed_amount':
@@ -316,26 +297,15 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
         // Use ref to get latest formData (handles async state updates)
         const currentFormDataDps = formDataRef.current;
         const currentBalance = parseFloat(currentFormDataDps.balance);
-        console.log('[DPS Validation]', {
-          field,
-          has_dps: currentFormDataDps.has_dps,
-          dps_amount_type: currentFormDataDps.dps_amount_type,
-          formDataHasDps: formData.has_dps,
-          currentBalance,
-          existingError: errors.balance
-        });
         // First, clear any existing DPS-related error if conditions are not met
         const shouldClearDpsErrorDps = !currentFormDataDps.has_dps || currentFormDataDps.dps_amount_type !== 'fixed' || currentBalance > 0;
-        console.log('[DPS Validation] Should clear DPS error?', shouldClearDpsErrorDps);
         if (shouldClearDpsErrorDps) {
           // Clear DPS error if DPS is disabled, amount type is not fixed, or balance is greater than zero
           if (newErrors.balance && newErrors.balance.includes('DPS with fixed amount')) {
-            console.log('[DPS Validation] Clearing DPS error from newErrors');
             delete newErrors.balance;
           }
           // Also check and clear from existing errors
           if (errors.balance && errors.balance.includes('DPS with fixed amount')) {
-            console.log('[DPS Validation] Clearing DPS error from existing errors');
             delete newErrors.balance;
           }
         }
@@ -345,21 +315,12 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
                                      currentFormDataDps.dps_amount_type === 'fixed' && 
                                      currentBalance === 0 &&
                                      touched.balance; // Only show error if balance field has been touched
-        console.log('[DPS Validation] Should set DPS error?', shouldSetDpsErrorDps, { touched: touched.balance });
         if (shouldSetDpsErrorDps) {
-          console.log('[DPS Validation] Setting DPS error');
           newErrors.balance = 'Initial balance must be greater than zero to create DPS with fixed amount';
         }
-        console.log('[DPS Validation] Final newErrors.balance:', newErrors.balance);
         break;
     }
     
-    console.log('[validateField] Setting errors:', {
-      field,
-      newErrors,
-      balanceError: newErrors.balance,
-      allErrors: Object.keys(newErrors)
-    });
     setErrors(newErrors);
   };
 
@@ -402,22 +363,12 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
     }
     
     // Additional DPS validation
-    console.log('[validateForm] DPS validation check', {
-      has_dps: formData.has_dps,
-      dps_amount_type: formData.dps_amount_type,
-      balance,
-      shouldValidate: formData.has_dps && formData.dps_amount_type === 'fixed',
-      existingBalanceError: errors.balance,
-      currentAllErrorsBalance: allErrors.balance
-    });
     
     // IMPORTANT: Only set DPS error if DPS is actually enabled
     // If DPS is disabled, explicitly ensure we don't have a DPS error
     if (!formData.has_dps || formData.dps_amount_type !== 'fixed') {
-      console.log('[validateForm] DPS not enabled - ensuring no DPS-related balance error');
       // Explicitly remove DPS error if it exists in allErrors
       if (allErrors.balance && allErrors.balance.includes('DPS with fixed amount')) {
-        console.log('[validateForm] Removing DPS error from allErrors');
         delete allErrors.balance;
       }
       // Also clear from existing errors state (in case it was set before)
@@ -426,10 +377,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
       // DPS is enabled and amount type is fixed - check if balance is zero
       // Only set error if balance has been touched (i.e., user has interacted or form is being submitted)
       if (balance === 0 && touched.balance) {
-        console.log('[validateForm] Setting DPS error - balance is 0, DPS is enabled, and balance is touched');
         allErrors.balance = 'Initial balance must be greater than zero to create DPS with fixed amount';
-      } else if (balance === 0 && !touched.balance) {
-        console.log('[validateForm] Not setting DPS error - balance is 0 but field not touched yet');
       } else {
         // Balance is not zero - validate fixed amount
         const amount = parseFloat(formData.dps_fixed_amount);
@@ -440,30 +388,19 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
         }
         // Make sure we don't have a DPS balance error if balance is > 0
         if (allErrors.balance && allErrors.balance.includes('DPS with fixed amount')) {
-          console.log('[validateForm] Removing DPS error - balance is not zero');
           delete allErrors.balance;
         }
       }
-    } else {
-      console.log('[validateForm] DPS validation skipped - conditions not met');
     }
     
     // Final check: If DPS is disabled, make absolutely sure no DPS error exists
     if (!formData.has_dps || formData.dps_amount_type !== 'fixed') {
       if (allErrors.balance && allErrors.balance.includes('DPS with fixed amount')) {
-        console.log('[validateForm] Final cleanup - removing DPS error');
         delete allErrors.balance;
       }
     }
     
     // Update errors state
-    console.log('[validateForm] Setting allErrors:', {
-      allErrors,
-      balanceError: allErrors.balance,
-      allErrorKeys: Object.keys(allErrors),
-      has_dps: formData.has_dps,
-      touched_balance: touched.balance
-    });
     setErrors(allErrors);
     
     // Return validation result
@@ -570,7 +507,6 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
 
   const handleDpsCheckbox = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
-    console.log('[handleDpsCheckbox] DPS toggled:', checked);
     handleFieldChange('has_dps', checked);
     
     if (!checked) {
@@ -587,7 +523,6 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
         formDataRef.current = newData;
         // Immediately validate balance to clear DPS error
         setTimeout(() => {
-          console.log('[handleDpsCheckbox] Validating balance after DPS disabled');
           validateField('balance');
         }, 0);
         return newData;

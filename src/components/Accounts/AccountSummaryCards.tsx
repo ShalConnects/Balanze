@@ -118,13 +118,15 @@ export const AccountSummaryCards: React.FC<AccountSummaryCardsProps> = ({
         insight={transactionInsight || 'No transactions'}
       />
       
-      <StatCard
-        title="DPS Accounts"
-        value={dpsAccounts.length.toString()}
-        icon={<Target />}
-        color="blue"
-        insight={dpsTypeInsight || 'No DPS accounts'}
-      />
+      {dpsAccounts.length > 0 && (
+        <StatCard
+          title="DPS Accounts"
+          value={dpsAccounts.length.toString()}
+          icon={<Target />}
+          color="blue"
+          insight={dpsTypeInsight || 'No DPS accounts'}
+        />
+      )}
 
       <StatCard
         title="Total Balance"

@@ -118,7 +118,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   // Retry function for failed data loads
   const retryDataLoad = useCallback(async () => {
     if (retryCount >= 3) {
-      console.warn('Max retry attempts reached, giving up');
       return;
     }
     
@@ -140,7 +139,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
       setInitialDataFetched(true);
       setRetryCount(0); // Reset retry count on success
     } catch (error) {
-      console.error('Retry failed:', error);
       setDashboardLoading(false);
       setHasLoadError(true);
     }
@@ -179,8 +177,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
       return;
       
     } catch (error) {
-      console.error('Error refreshing dashboard data:', error);
-      
       // Clear timeout on error as well
       if (timeoutId) {
         clearTimeout(timeoutId);
@@ -507,7 +503,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         setLoadingMessage('');
 
       } catch (error) {
-        console.error('Dashboard data fetch error:', error);
         // Error - still show dashboard but mark as having an error
         setDashboardLoading(false);
         setInitialDataFetched(true);
@@ -526,7 +521,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   useEffect(() => {
     if (dashboardLoading && user) {
       const timeoutId = setTimeout(() => {
-        console.warn('Dashboard loading timeout reached, showing dashboard anyway');
         setDashboardLoading(false);
         setInitialDataFetched(true);
         setHasLoadError(true);
@@ -543,7 +537,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
       try {
         await handleRefresh();
       } catch (error) {
-        console.error('Error handling global data refresh:', error);
+        // Error handled silently
       }
     };
 
@@ -712,7 +706,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                   </p>
                 </div>
                 <button
-                  onClick={() => navigate('/currency-analytics')}
+                  onClick={() => navigate('/analytics')}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
                 >
                   <span>View Analytics</span>

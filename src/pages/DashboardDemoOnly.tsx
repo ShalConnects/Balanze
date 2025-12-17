@@ -1937,7 +1937,7 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
                   </p>
                 </div>
                 <button
-                  onClick={() => navigate('/currency-analytics')}
+                  onClick={() => navigate('/analytics')}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
                 >
                   <span>View Analytics</span>

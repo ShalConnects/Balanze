@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Dialog } from '@headlessui/react';
+import { ArrowLeftRight } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { AccountsPageSkeleton, AccountFormSkeleton } from './AccountsPageSkeleton';
@@ -7,6 +9,8 @@ import { AccountSummaryCards } from './AccountSummaryCards';
 import { AccountTable } from './AccountTable';
 import { AccountMobileView } from './AccountMobileView';
 import { AccountForm } from './AccountForm';
+import { TransferModal } from '../Transfers/TransferModal';
+import { DPSTransferModal } from '../Transfers/DPSTransferModal';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 export const AccountsViewWithSkeleton: React.FC = () => {
@@ -52,6 +56,12 @@ export const AccountsViewWithSkeleton: React.FC = () => {
   } | null>(null);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  // Transfer modal states
+  const [showTransferTypeModal, setShowTransferTypeModal] = useState(false);
+  const [showCurrencyTransferModal, setShowCurrencyTransferModal] = useState(false);
+  const [showDpsTransferModal, setShowDpsTransferModal] = useState(false);
+  const [showInBetweenTransferModal, setShowInBetweenTransferModal] = useState(false);
 
   // Load data on component mount
   useEffect(() => {
@@ -130,6 +140,31 @@ export const AccountsViewWithSkeleton: React.FC = () => {
     setExpandedRows(newExpandedRows);
   };
 
+  // Handle transfer type selection
+  const handleSelectTransferType = (type: 'currency' | 'dps' | 'inbetween') => {
+    setShowTransferTypeModal(false);
+    if (type === 'currency') {
+      setShowCurrencyTransferModal(true);
+    } else if (type === 'dps') {
+      setShowDpsTransferModal(true);
+    } else if (type === 'inbetween') {
+      setShowInBetweenTransferModal(true);
+    }
+  };
+
+  // Refresh accounts after transfer
+  const handleTransferClose = async (type: 'currency' | 'dps' | 'inbetween') => {
+    if (type === 'currency') {
+      setShowCurrencyTransferModal(false);
+    } else if (type === 'dps') {
+      setShowDpsTransferModal(false);
+    } else if (type === 'inbetween') {
+      setShowInBetweenTransferModal(false);
+    }
+    // Refresh accounts to update balances
+    await fetchAccounts();
+  };
+
   const handleMoveAccountUp = async (accountId: string) => {
     try {
       const currentIndex = sortedAccounts.findIndex(acc => acc.id === accountId);
@@ -144,7 +179,6 @@ export const AccountsViewWithSkeleton: React.FC = () => {
         updateAccountPosition(targetAccount.id, currentIndex)
       ]);
     } catch (error) {
-      console.error('Failed to move account up:', error);
       // Optionally show user feedback
     }
   };
@@ -163,7 +197,6 @@ export const AccountsViewWithSkeleton: React.FC = () => {
         updateAccountPosition(targetAccount.id, currentIndex)
       ]);
     } catch (error) {
-      console.error('Failed to move account down:', error);
       // Optionally show user feedback
     }
   };
@@ -244,6 +277,13 @@ export const AccountsViewWithSkeleton: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               <span>Add Account</span>
+            </button>
+            <button
+              onClick={() => setShowTransferTypeModal(true)}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2"
+            >
+              <ArrowLeftRight className="w-4 h-4" />
+              <span>Transfer</span>
             </button>
           </div>
         </div>
@@ -381,6 +421,63 @@ export const AccountsViewWithSkeleton: React.FC = () => {
             <p className="text-gray-700 dark:text-gray-300 font-medium text-sm">{loadingMessage}</p>
           </div>
         </div>
+      )}
+
+      {/* Transfer Type Selection Modal */}
+      <Dialog open={showTransferTypeModal} onClose={() => setShowTransferTypeModal(false)} className="relative z-50">
+        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="mx-auto max-w-xs rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl">
+            <Dialog.Title className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              Select Transfer Type
+            </Dialog.Title>
+            <div className="flex flex-col gap-4">
+              <button
+                onClick={() => handleSelectTransferType('currency')}
+                className="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors text-left"
+              >
+                <div className="font-medium">Currency Transfer</div>
+                <div className="text-sm opacity-90">Transfer between any accounts with exchange rates</div>
+              </button>
+              <button
+                onClick={() => handleSelectTransferType('dps')}
+                className="bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 transition-colors text-left"
+              >
+                <div className="font-medium">DPS Transfer</div>
+                <div className="text-sm opacity-90">Automatic savings transfers from DPS accounts</div>
+              </button>
+              <button
+                onClick={() => handleSelectTransferType('inbetween')}
+                className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-3 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-left"
+              >
+                <div className="font-medium">In-between Transfer</div>
+                <div className="text-sm opacity-90">Transfer between accounts within the same currency</div>
+              </button>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
+
+      {/* Transfer Modals */}
+      {showCurrencyTransferModal && (
+        <TransferModal 
+          isOpen={showCurrencyTransferModal} 
+          onClose={() => handleTransferClose('currency')} 
+          mode="currency" 
+        />
+      )}
+      {showDpsTransferModal && (
+        <DPSTransferModal 
+          isOpen={showDpsTransferModal} 
+          onClose={() => handleTransferClose('dps')} 
+        />
+      )}
+      {showInBetweenTransferModal && (
+        <TransferModal 
+          isOpen={showInBetweenTransferModal} 
+          onClose={() => handleTransferClose('inbetween')} 
+          mode="inbetween" 
+        />
       )}
     </div>
   );

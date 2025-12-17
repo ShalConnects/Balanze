@@ -90,7 +90,6 @@ export const QuoteFilters: React.FC<QuoteFiltersProps> = ({
                 </button>
                 {quoteCategories.map(category => {
                   const capitalizedCategory = category ? category.charAt(0).toUpperCase() + category.slice(1) : category;
-                  console.log('Category:', category, 'Capitalized:', capitalizedCategory);
                   return (
                     <button
                       key={category}

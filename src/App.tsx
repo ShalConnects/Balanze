@@ -51,7 +51,6 @@ const PurchaseCategories = lazy(() => import('./components/Purchases/PurchaseCat
 const PurchaseAnalytics = lazy(() => import('./components/Purchases/PurchaseAnalytics').then(m => ({ default: m.PurchaseAnalytics })));
 const LendBorrowAnalytics = lazy(() => import('./components/LendBorrow/LendBorrowAnalytics').then(m => ({ default: m.LendBorrowAnalytics })));
 const AnalyticsView = lazy(() => import('./components/Reports/AnalyticsView').then(m => ({ default: m.AnalyticsView })));
-const CurrencyAnalytics = lazy(() => import('./components/Reports/CurrencyAnalytics').then(m => ({ default: m.CurrencyAnalytics })));
 const Settings = lazy(() => import('./components/Dashboard/Settings').then(m => ({ default: m.Settings })));
 const PaymentHistoryPage = lazy(() => import('./pages/PaymentHistoryPage').then(m => ({ default: m.PaymentHistoryPage })));
 const HelpAndSupport = lazy(() => import('./pages/HelpAndSupport'));
@@ -771,7 +770,7 @@ function AppContent() {
         <Route path="/purchase-analytics" element={user ? <MainLayout><PurchaseAnalytics /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/lent-borrow-analytics" element={user ? <MainLayout><LendBorrowAnalytics /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/analytics" element={user ? <MainLayout><AnalyticsView /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/currency-analytics" element={user ? <MainLayout><CurrencyAnalytics /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/currency-analytics" element={user ? <Navigate to="/analytics" replace /> : <Navigate to="/login" />} />
         <Route path="/settings" element={user ? <MainLayout><Settings /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/payment-history" element={user ? <PaymentHistoryPage /> : <Navigate to="/login" />} />
         <Route path="/help" element={user ? <HelpLayout><HelpAndSupport /></HelpLayout> : <Navigate to="/login" />} />

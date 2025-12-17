@@ -24,28 +24,32 @@ export const formatCurrency = (amount: number, currency: string = 'USD') => {
         currency = 'USD';
     }
     
+    const symbol = getCurrencySymbol(currency);
+    const isNegative = amount < 0;
+    const absAmount = Math.abs(amount);
+    
     if (currency === 'BDT') {
-        const symbol = getCurrencySymbol(currency);
-        return `${symbol}${Math.abs(amount).toLocaleString('en-BD', { 
+        const formatted = absAmount.toLocaleString('en-BD', { 
             minimumFractionDigits: 2, 
             maximumFractionDigits: 2 
-        })}`;
+        });
+        return isNegative ? `-${symbol}${formatted}` : `${symbol}${formatted}`;
     }
     
     try {
-        const symbol = getCurrencySymbol(currency);
-        return new Intl.NumberFormat('en-US', {
+        const formatted = new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency,
             currencyDisplay: 'narrowSymbol'
-        }).format(Math.abs(amount)).replace(currency, symbol);
+        }).format(absAmount).replace(currency, symbol);
+        return isNegative ? `-${formatted}` : formatted;
     } catch (error) {
-        const symbol = getCurrencySymbol('USD');
-        return new Intl.NumberFormat('en-US', {
+        const formatted = new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: 'USD',
             currencyDisplay: 'narrowSymbol'
-        }).format(Math.abs(amount)).replace('USD', symbol);
+        }).format(absAmount).replace('USD', symbol);
+        return isNegative ? `-${formatted}` : formatted;
     }
 };
 

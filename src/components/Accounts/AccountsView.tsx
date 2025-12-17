@@ -1,10 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Edit2, Trash2, DollarSign, Info, PlusCircle, InfoIcon, Search, ArrowLeft, Wallet, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown, X, Loader2 } from 'lucide-react';
+import { Dialog } from '@headlessui/react';
+import { Plus, Edit2, Trash2, DollarSign, Info, PlusCircle, InfoIcon, Search, ArrowLeft, Wallet, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown, X, Loader2, ArrowLeftRight } from 'lucide-react';
 import { isToday, isYesterday, isThisWeek, format, differenceInDays } from 'date-fns';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { AccountForm } from './AccountForm';
 import { TransactionForm } from '../Transactions/TransactionForm';
+import { TransferModal } from '../Transfers/TransferModal';
+import { DPSTransferModal } from '../Transfers/DPSTransferModal';
 import { Account } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
@@ -75,6 +78,12 @@ export const AccountsView: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [hoveredDpsAccount, setHoveredDpsAccount] = useState<string | null>(null);
   const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
+  
+  // Transfer modal states
+  const [showTransferTypeModal, setShowTransferTypeModal] = useState(false);
+  const [showCurrencyTransferModal, setShowCurrencyTransferModal] = useState(false);
+  const [showDpsTransferModal, setShowDpsTransferModal] = useState(false);
+  const [showInBetweenTransferModal, setShowInBetweenTransferModal] = useState(false);
   
   // Android detection
   const isAndroid = /Android/i.test(navigator.userAgent);
@@ -778,25 +787,12 @@ export const AccountsView: React.FC = () => {
 
   // Track component renders
   useEffect(() => {
-    console.log('[AccountsView] Component rendered', {
-      timestamp: new Date().toISOString(),
-      showDpsDeleteModal,
-      hasContext: !!dpsDeleteContext,
-      isDeletingDPS,
-      accountsCount: accounts.length
-    });
+    // Component render tracking removed
   });
 
   // Track modal state changes
   useEffect(() => {
-    console.log('[DPS Delete Modal] State changed', {
-      showDpsDeleteModal,
-      hasContext: !!dpsDeleteContext,
-      isDeletingDPS,
-      hasError: !!dpsDeleteError,
-      contextMainId: dpsDeleteContext?.mainAccountId,
-      contextDpsId: dpsDeleteContext?.dpsAccountId
-    });
+    // Modal state tracking removed
   }, [showDpsDeleteModal, dpsDeleteContext, isDeletingDPS, dpsDeleteError]);
 
   // Click outside handlers for dropdowns
@@ -871,16 +867,32 @@ export const AccountsView: React.FC = () => {
   };
 
   // New DPS delete handler with balance transfer
+  // Handle transfer type selection
+  const handleSelectTransferType = useCallback((type: 'currency' | 'dps' | 'inbetween') => {
+    setShowTransferTypeModal(false);
+    if (type === 'currency') {
+      setShowCurrencyTransferModal(true);
+    } else if (type === 'dps') {
+      setShowDpsTransferModal(true);
+    } else if (type === 'inbetween') {
+      setShowInBetweenTransferModal(true);
+    }
+  }, []);
+
+  // Refresh accounts after transfer
+  const handleTransferClose = useCallback(async (type: 'currency' | 'dps' | 'inbetween') => {
+    if (type === 'currency') {
+      setShowCurrencyTransferModal(false);
+    } else if (type === 'dps') {
+      setShowDpsTransferModal(false);
+    } else if (type === 'inbetween') {
+      setShowInBetweenTransferModal(false);
+    }
+    // Refresh accounts to update balances
+    await fetchAccounts();
+  }, [fetchAccounts]);
+
   const handleDeleteDPSWithTransfer = async (mainAccount: Account, dpsAccount: Account) => {
-    console.log('[DPS Delete] Opening modal - START', { 
-      mainAccountId: mainAccount.id, 
-      dpsAccountId: dpsAccount.id,
-      dpsBalance: dpsAccount.calculated_balance,
-      currentShowModal: showDpsDeleteModal,
-      currentContext: dpsDeleteContext,
-      timestamp: new Date().toISOString()
-    });
-    
     // Set context first
     setDpsDeleteContext({ 
       mainAccountId: mainAccount.id, 
@@ -892,9 +904,7 @@ export const AccountsView: React.FC = () => {
     setIsDeletingDPS(false);
     
     // Set modal visible last to ensure context is ready
-    console.log('[DPS Delete] Setting modal to visible');
     setShowDpsDeleteModal(true);
-    console.log('[DPS Delete] Modal state set to open - modal should appear now');
   };
 
   const handleMoveAccountUp = async (accountId: string) => {
@@ -911,7 +921,6 @@ export const AccountsView: React.FC = () => {
         updateAccountPosition(targetAccount.id, currentIndex)
       ]);
     } catch (error) {
-      console.error('Failed to move account up:', error);
       // Optionally show user feedback
     }
   };
@@ -930,16 +939,12 @@ export const AccountsView: React.FC = () => {
         updateAccountPosition(targetAccount.id, currentIndex)
       ]);
     } catch (error) {
-      console.error('Failed to move account down:', error);
       // Optionally show user feedback
     }
   };
 
   const confirmDeleteDPS = useCallback(async (moveToMainAccount: boolean) => {
-    console.log('[DPS Delete] Function called', { moveToMainAccount, isDeletingDPS, hasContext: !!dpsDeleteContext });
-    
     if (!dpsDeleteContext || isDeletingDPS) {
-      console.log('[DPS Delete] Early return', { hasContext: !!dpsDeleteContext, isDeletingDPS });
       return;
     }
     
@@ -947,15 +952,7 @@ export const AccountsView: React.FC = () => {
     const mainAccount = accounts.find(a => a.id === dpsDeleteContext.mainAccountId);
     const dpsAccount = accounts.find(a => a.id === dpsDeleteContext.dpsAccountId);
     
-    console.log('[DPS Delete] Accounts found', { 
-      mainAccount: !!mainAccount, 
-      dpsAccount: !!dpsAccount,
-      mainAccountId: dpsDeleteContext.mainAccountId,
-      dpsAccountId: dpsDeleteContext.dpsAccountId
-    });
-    
     if (!mainAccount) {
-      console.error('[DPS Delete] Main account not found');
       setDpsDeleteError('Main account not found');
       return;
     }
@@ -967,29 +964,17 @@ export const AccountsView: React.FC = () => {
     const dpsAccountUserId = dpsAccount?.user_id || mainAccountUserId;
     const dpsAccountName = dpsAccount?.name || 'DPS Account';
     
-    console.log('[DPS Delete] Setting loading state to true');
     setIsDeletingDPS(true);
     setDpsDeleteError(null);
     const transactionId = generateTransactionId('account_delete');
     
-    console.log('[DPS Delete] Starting deletion process', { 
-      moveToMainAccount, 
-      transactionId,
-      dpsBalance,
-      dpsCurrency
-    });
-    
     try {
       if (moveToMainAccount) {
-        console.log('[DPS Delete] Path: Move to Main Account');
-        
         // Batch all operations: update account, delete account, add transaction
         // Note: updateAccount and deleteAccount will call fetchAccounts internally,
         // but we'll call it once more at the end to ensure consistency
-        console.log('[DPS Delete] Starting Promise.all for updateAccount and deleteAccount');
         await Promise.all([
           (async () => {
-            console.log('[DPS Delete] Starting updateAccount');
             await updateAccount(mainAccount.id, {
               dps_savings_account_id: null,
               has_dps: false,
@@ -997,18 +982,13 @@ export const AccountsView: React.FC = () => {
               dps_amount_type: null,
               dps_fixed_amount: null
             });
-            console.log('[DPS Delete] updateAccount completed');
           })(),
           (async () => {
-            console.log('[DPS Delete] Starting deleteAccount');
             await deleteAccount(dpsAccount.id, transactionId);
-            console.log('[DPS Delete] deleteAccount completed');
           })()
         ]);
-        console.log('[DPS Delete] Promise.all completed');
         
         // Add income transaction to main account
-        console.log('[DPS Delete] Adding transaction to main account');
         await useFinanceStore.getState().addTransaction({
           account_id: mainAccount.id,
           amount: dpsBalance,
@@ -1019,34 +999,20 @@ export const AccountsView: React.FC = () => {
           user_id: mainAccountUserId,
           tags: ['dps_deletion'],
         });
-        console.log('[DPS Delete] Transaction added');
         
         // Final fetch to ensure all data is synced
-        console.log('[DPS Delete] Calling final fetchAccounts');
         await fetchAccounts();
-        console.log('[DPS Delete] Final fetchAccounts completed');
         
-        console.log('[DPS Delete] Success - closing modal - BEFORE setState', {
-          timestamp: new Date().toISOString()
-        });
         toast.success('DPS account deleted and balance moved to Cash Wallet');
         setShowDpsDeleteModal(false);
         setDpsDeleteContext(null);
-        console.log('[DPS Delete] Success - closing modal - AFTER setState', {
-          timestamp: new Date().toISOString()
-        });
       } else {
-        console.log('[DPS Delete] Path: Move to Cash Wallet');
-        
         // Find cash account for the same currency (before any operations)
         let cashAccount = accounts.find(a => a.type === 'cash' && a.currency === dpsCurrency);
         let cashAccountId: string | null = null;
         let cashAccountUserId: string | null = null;
         
-        console.log('[DPS Delete] Cash account lookup', { found: !!cashAccount, currency: dpsCurrency });
-        
         if (!cashAccount) {
-          console.log('[DPS Delete] Creating new cash account');
           // Create a new cash account for this currency
           const newAccountName = 'Cash Wallet';
           const newAccount = {
@@ -1062,19 +1028,15 @@ export const AccountsView: React.FC = () => {
           const created = await useFinanceStore.getState().addAccount(newAccount);
           cashAccountId = created?.id || null;
           cashAccountUserId = dpsAccountUserId;
-          console.log('[DPS Delete] New cash account created', { cashAccountId });
           toast.success(`New Cash Wallet created for ${dpsCurrency}`);
         } else {
           cashAccountId = cashAccount.id;
           cashAccountUserId = cashAccount.user_id;
-          console.log('[DPS Delete] Using existing cash account', { cashAccountId });
         }
         
         // Batch all operations: update main account, delete DPS account
-        console.log('[DPS Delete] Starting Promise.all for updateAccount and deleteAccount (cash wallet path)');
         await Promise.all([
           (async () => {
-            console.log('[DPS Delete] Starting updateAccount (cash wallet path)');
             await updateAccount(mainAccount.id, {
               dps_savings_account_id: null,
               has_dps: false,
@@ -1082,19 +1044,14 @@ export const AccountsView: React.FC = () => {
               dps_amount_type: null,
               dps_fixed_amount: null
             });
-            console.log('[DPS Delete] updateAccount completed (cash wallet path)');
           })(),
           (async () => {
-            console.log('[DPS Delete] Starting deleteAccount (cash wallet path)');
             await deleteAccount(dpsAccount.id, transactionId);
-            console.log('[DPS Delete] deleteAccount completed (cash wallet path)');
           })()
         ]);
-        console.log('[DPS Delete] Promise.all completed (cash wallet path)');
         
         // Add income transaction to cash account if we have the ID
         if (cashAccountId && cashAccountUserId) {
-          console.log('[DPS Delete] Adding transaction to cash account', { cashAccountId });
           await useFinanceStore.getState().addTransaction({
             account_id: cashAccountId,
             amount: dpsBalance,
@@ -1105,31 +1062,20 @@ export const AccountsView: React.FC = () => {
             user_id: cashAccountUserId,
             tags: ['dps_deletion'],
           });
-          console.log('[DPS Delete] Transaction added to cash account');
         }
         
         // Final fetch to ensure all data is synced
-        console.log('[DPS Delete] Calling final fetchAccounts (cash wallet path)');
         await fetchAccounts();
-        console.log('[DPS Delete] Final fetchAccounts completed (cash wallet path)');
         
-        console.log('[DPS Delete] Success - closing modal (cash wallet path) - BEFORE setState', {
-          timestamp: new Date().toISOString()
-        });
         toast.success('DPS account deleted and balance moved to Cash Wallet');
         setShowDpsDeleteModal(false);
         setDpsDeleteContext(null);
-        console.log('[DPS Delete] Success - closing modal (cash wallet path) - AFTER setState', {
-          timestamp: new Date().toISOString()
-        });
       }
     } catch (error: any) {
-      console.error('[DPS Delete] Error occurred', error);
       const errorMessage = error?.message || 'Failed to delete DPS account';
       setDpsDeleteError(errorMessage);
       toast.error(errorMessage);
     } finally {
-      console.log('[DPS Delete] Setting loading state to false');
       setIsDeletingDPS(false);
     }
   }, [dpsDeleteContext, isDeletingDPS, accounts, updateAccount, deleteAccount, fetchAccounts]);
@@ -1138,34 +1084,9 @@ export const AccountsView: React.FC = () => {
   // The Portal is created inside useMemo so it's only recreated when dependencies change
   // NOTE: This must be defined AFTER confirmDeleteDPS to avoid hoisting issues
   const dpsDeleteModalContent = useMemo(() => {
-    console.log('[DPS Delete Modal] useMemo called', {
-      showDpsDeleteModal,
-      hasContext: !!dpsDeleteContext,
-      isDeletingDPS,
-      hasError: !!dpsDeleteError,
-      contextMainId: dpsDeleteContext?.mainAccountId,
-      contextDpsId: dpsDeleteContext?.dpsAccountId,
-      contextBalance: dpsDeleteContext?.dpsBalance,
-      confirmDeleteDPSType: typeof confirmDeleteDPS,
-      timestamp: new Date().toISOString()
-    });
-    
     if (!showDpsDeleteModal || !dpsDeleteContext) {
-      console.log('[DPS Delete Modal] Returning null - modal should not be visible', {
-        showDpsDeleteModal,
-        hasContext: !!dpsDeleteContext
-      });
       return null;
     }
-    
-    console.log('[DPS Delete Modal] Creating modal with Portal', { 
-      isDeletingDPS, 
-      hasContext: !!dpsDeleteContext,
-      dpsBalance: dpsDeleteContext.dpsBalance,
-      mainAccountId: dpsDeleteContext.mainAccountId,
-      dpsAccountId: dpsDeleteContext.dpsAccountId,
-      timestamp: new Date().toISOString()
-    });
     
     // Check if main account is a cash account - if so, hide cash wallet option
     const mainAccount = accounts.find(a => a.id === dpsDeleteContext.mainAccountId);
@@ -1185,14 +1106,6 @@ export const AccountsView: React.FC = () => {
     const existingCashAccount = showCashWalletOption && dpsAccount
       ? accounts.find(a => a.type === 'cash' && a.currency === dpsDeleteContext.dpsCurrency)
       : null;
-    
-    console.log('[DPS Delete Modal] Account check', {
-      mainAccountType: mainAccount?.type,
-      isMainAccountCash,
-      showCashWalletOption,
-      transactionCount,
-      lastTransactionDate
-    });
     
     const modalJSX = (
       <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4" onClick={isDeletingDPS ? undefined : () => setShowDpsDeleteModal(false)}>
@@ -1338,10 +1251,6 @@ export const AccountsView: React.FC = () => {
     
     // Create Portal inside useMemo so it's only recreated when dependencies change
     const portal = createPortal(modalJSX, document.body);
-    console.log('[DPS Delete Modal] Portal created', {
-      timestamp: new Date().toISOString(),
-      portalType: typeof portal
-    });
     return portal;
   }, [showDpsDeleteModal, dpsDeleteContext, isDeletingDPS, dpsDeleteError, confirmDeleteDPS, accounts, transactions, getTransactionsByAccount]);
 
@@ -1694,6 +1603,15 @@ export const AccountsView: React.FC = () => {
                 </button>
                 
                 <button
+                  onClick={() => setShowTransferTypeModal(true)}
+                  className="bg-purple-600 text-white px-2 py-1.5 h-8 w-8 rounded-md hover:bg-purple-700 transition-colors flex items-center justify-center"
+                  title="Transfer"
+                  aria-label="Transfer"
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                </button>
+                
+                <button
                   data-tour="add-account"
                   onClick={() => {
                     setEditingAccount(null);
@@ -1770,29 +1688,31 @@ export const AccountsView: React.FC = () => {
                       <span className="text-blue-600" style={{ fontSize: '1.2rem' }}>#</span>
                     </div>
                   </div>
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-left">
-                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400">DPS Accounts</p>
-                        <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>{filteredAccounts.filter(a => a.has_dps).length}</p>
-                        <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
-                          {(() => {
-                            const dpsAccounts = filteredAccounts.filter(a => a.has_dps);
-                            const dpsTypeBreakdown = dpsAccounts.reduce((acc, account) => {
-                              const dpsType = account.dps_type || 'flexible';
-                              acc[dpsType] = (acc[dpsType] || 0) + 1;
-                              return acc;
-                            }, {} as Record<string, number>);
-                            const breakdown = Object.entries(dpsTypeBreakdown)
-                              .map(([type, count]) => `${count} ${type}`)
-                              .join(', ');
-                            return breakdown || 'No DPS accounts';
-                          })()}
-                        </p>
+                  {filteredAccounts.filter(a => a.has_dps).length > 0 && (
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
+                      <div className="flex items-center justify-between">
+                        <div className="text-left">
+                          <p className="text-xs font-medium text-gray-600 dark:text-gray-400">DPS Accounts</p>
+                          <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>{filteredAccounts.filter(a => a.has_dps).length}</p>
+                          <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                            {(() => {
+                              const dpsAccounts = filteredAccounts.filter(a => a.has_dps);
+                              const dpsTypeBreakdown = dpsAccounts.reduce((acc, account) => {
+                                const dpsType = account.dps_type || 'flexible';
+                                acc[dpsType] = (acc[dpsType] || 0) + 1;
+                                return acc;
+                              }, {} as Record<string, number>);
+                              const breakdown = Object.entries(dpsTypeBreakdown)
+                                .map(([type, count]) => `${count} ${type}`)
+                                .join(', ');
+                              return breakdown || 'No DPS accounts';
+                            })()}
+                          </p>
+                        </div>
+                        <svg className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2l4 -4m5.618 -4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176 -1.332 9 -6.03 9 -11.622 0 -1.042 -.133 -2.052 -.382 -3.016z" /></svg>
                       </div>
-                      <svg className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2l4 -4m5.618 -4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176 -1.332 9 -6.03 9 -11.622 0 -1.042 -.133 -2.052 -.382 -3.016z" /></svg>
                     </div>
-                  </div>
+                  )}
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
                     <div className="flex items-center justify-between">
                       <div className="text-left">
@@ -4024,6 +3944,63 @@ export const AccountsView: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Transfer Type Selection Modal */}
+      <Dialog open={showTransferTypeModal} onClose={() => setShowTransferTypeModal(false)} className="relative z-50">
+        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="mx-auto max-w-xs rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl">
+            <Dialog.Title className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              Select Transfer Type
+            </Dialog.Title>
+            <div className="flex flex-col gap-4">
+              <button
+                onClick={() => handleSelectTransferType('currency')}
+                className="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors text-left"
+              >
+                <div className="font-medium">Currency Transfer</div>
+                <div className="text-sm opacity-90">Transfer between any accounts with exchange rates</div>
+              </button>
+              <button
+                onClick={() => handleSelectTransferType('dps')}
+                className="bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 transition-colors text-left"
+              >
+                <div className="font-medium">DPS Transfer</div>
+                <div className="text-sm opacity-90">Automatic savings transfers from DPS accounts</div>
+              </button>
+              <button
+                onClick={() => handleSelectTransferType('inbetween')}
+                className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-3 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-left"
+              >
+                <div className="font-medium">In-between Transfer</div>
+                <div className="text-sm opacity-90">Transfer between accounts within the same currency</div>
+              </button>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
+
+      {/* Transfer Modals */}
+      {showCurrencyTransferModal && (
+        <TransferModal 
+          isOpen={showCurrencyTransferModal} 
+          onClose={() => handleTransferClose('currency')} 
+          mode="currency" 
+        />
+      )}
+      {showDpsTransferModal && (
+        <DPSTransferModal 
+          isOpen={showDpsTransferModal} 
+          onClose={() => handleTransferClose('dps')} 
+        />
+      )}
+      {showInBetweenTransferModal && (
+        <TransferModal 
+          isOpen={showInBetweenTransferModal} 
+          onClose={() => handleTransferClose('inbetween')} 
+          mode="inbetween" 
+        />
       )}
     </div>
   );
