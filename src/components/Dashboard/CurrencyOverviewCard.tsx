@@ -1,9 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatCard } from './StatCard';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
-import { LineChart, Line } from 'recharts';
-import { Info, Calendar, Clock, X, TrendingUp, TrendingDown } from 'lucide-react';
+import { Info, X, TrendingUp, TrendingDown } from 'lucide-react';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { isLendBorrowTransaction } from '../../utils/transactionUtils';
 
@@ -64,7 +63,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   });
   
   // Sort accounts: zero balance accounts at the end of their respective lists
-  const sortedDpsSavingsAccounts = [...dpsSavingsAccounts].sort((a, b) => {
+  const sortedDpsSavingsAccounts = [...(dpsSavingsAccounts || [])].sort((a, b) => {
     const balanceA = a.calculated_balance || 0;
     const balanceB = b.calculated_balance || 0;
     const isZeroA = balanceA === 0;
@@ -73,7 +72,17 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
     return isZeroA ? 1 : -1; // Zero balances go to end
   });
   
-  const sortedRegularAccounts = [...regularAccounts].sort((a, b) => {
+  const sortedRegularAccounts = [...(regularAccounts || [])].sort((a, b) => {
+    const balanceA = a.calculated_balance || 0;
+    const balanceB = b.calculated_balance || 0;
+    const isZeroA = balanceA === 0;
+    const isZeroB = balanceB === 0;
+    if (isZeroA === isZeroB) return 0; // Maintain original order within same group
+    return isZeroA ? 1 : -1; // Zero balances go to end
+  });
+  
+  // Combine regular accounts and DPS main accounts for display (both are shown in "Accounts" section)
+  const sortedAllRegularAccounts = [...(regularAccounts || []), ...(dpsMainAccounts || [])].sort((a, b) => {
     const balanceA = a.calculated_balance || 0;
     const balanceB = b.calculated_balance || 0;
     const isZeroA = balanceA === 0;
@@ -85,39 +94,58 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   // Calculate DPS total from DPS savings accounts (where the money actually is)
   const dpsTotal = sortedDpsSavingsAccounts.reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0);
   
-  // Calculate regular accounts total
-  const regularAccountsTotal = sortedRegularAccounts.reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0);
+  // Calculate regular accounts total (includes DPS main accounts for display consistency)
+  const regularAccountsTotal = sortedAllRegularAccounts.reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0);
 
-  // Force re-render when transactions or accounts change
-  useEffect(() => {
-    // This will trigger a re-render when the props change
-  }, [allTransactions, accounts, currency]);
+  // Date range logic - memoized for performance
+  const { startDate, endDate, prevStartDate, prevEndDate } = useMemo(() => {
+    const now = new Date();
+    let start: Date;
+    let end: Date;
+    let prevStart: Date;
+    let prevEnd: Date;
+    
+    if (period === '1m') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
+      prevEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+    } else if (period === '3m') {
+      start = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      prevStart = new Date(now.getFullYear(), now.getMonth() - 5, 1, 0, 0, 0);
+      prevEnd = new Date(now.getFullYear(), now.getMonth() - 3, 0, 23, 59, 59);
+    } else if (period === '6m') {
+      start = new Date(now.getFullYear(), now.getMonth() - 5, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      prevStart = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0);
+      prevEnd = new Date(now.getFullYear(), now.getMonth() - 6, 0, 23, 59, 59);
+    } else {
+      start = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      prevStart = new Date(now.getFullYear() - 1, now.getMonth(), 1, 0, 0, 0);
+      prevEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+    }
+    
+    return { startDate: start, endDate: end, prevStartDate: prevStart, prevEndDate: prevEnd };
+  }, [period]);
 
-  // Date range logic
-  const now = new Date();
-  let startDate: Date;
-  let endDate: Date;
-  if (period === '1m') {
-    startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-  } else if (period === '3m') {
-    startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0);
-    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-  } else if (period === '6m') {
-    startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1, 0, 0, 0);
-    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-  } else {
-    startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0);
-    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-  }
-
-  // Calculate balance as of endDate for each account
+  // Calculate balance as of endDate for each account - optimized with pre-filtered transactions
+  const accountTransactionsMap = useMemo(() => {
+    const map: Record<string, typeof allTransactions> = {};
+    currencyAccounts.forEach(acc => {
+      map[acc.id] = allTransactions.filter(t => t.account_id === acc.id);
+    });
+    return map;
+  }, [allTransactions, currencyAccounts]);
+  
   function getAccountBalanceAtDate(account: any, endDate: Date) {
     // Start with initial balance
     let balance = account.initial_balance || 0;
-    // Add all transactions for this account up to endDate
-    allTransactions.forEach(t => {
-      if (t.account_id === account.id && new Date(t.date) <= endDate) {
+    // Use pre-filtered transactions for this account
+    const accountTransactions = accountTransactionsMap[account.id] || [];
+    accountTransactions.forEach(t => {
+      if (new Date(t.date) <= endDate) {
         if (t.type === 'income') balance += t.amount;
         else if (t.type === 'expense') balance -= t.amount;
         // If you have transfer logic, handle here as well
@@ -125,8 +153,6 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
     });
     return balance;
   }
-  // Calculate total balance using only active accounts (inactive/hidden accounts excluded)
-  const totalBalance = currencyAccounts.reduce((sum, acc) => sum + getAccountBalanceAtDate(acc, endDate), 0);
 
   // Minimal header (Option 1): compute last updated timestamp for this currency
   const lastCurrencyActivityDate = useMemo(() => {
@@ -151,8 +177,6 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
     return `Updated ${diffDay}d ago`;
   }
 
-  // Option 2: Calculate balance change from previous period (moved after prevStartDate is defined)
-
   function formatBalanceChange(change: number | null) {
     if (change === null) return null;
     if (change === 0) return { text: '0%', color: 'text-gray-500', arrow: '' };
@@ -169,78 +193,67 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
     };
   }
 
-  // Filter transactions for this currency and period
-  const filteredTransactions = allTransactions.filter(t => {
-    const accCurrency = accountCurrencyMap[t.account_id];
-    const tDate = new Date(t.date);
-    return accCurrency === currency && tDate >= startDate && tDate <= endDate;
-  });
+  // Filter transactions for this currency and period - memoized for performance
+  const filteredTransactions = useMemo(() => {
+    return allTransactions.filter(t => {
+      const accCurrency = accountCurrencyMap[t.account_id];
+      const tDate = new Date(t.date);
+      return accCurrency === currency && tDate >= startDate && tDate <= endDate;
+    });
+  }, [allTransactions, accountCurrencyMap, currency, startDate, endDate]);
   
-  const filteredIncome = filteredTransactions
-    .filter(t => t.type === 'income' && 
-      !t.tags?.some((tag: string) => 
-        tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
-      ) &&
-      !isLendBorrowTransaction(t)
-    )
-    .reduce((sum, t) => sum + t.amount, 0);
+  const filteredIncome = useMemo(() => {
+    return filteredTransactions
+      .filter(t => t.type === 'income' && 
+        !t.tags?.some((tag: string) => 
+          tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
+        ) &&
+        !isLendBorrowTransaction(t)
+      )
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [filteredTransactions]);
     
-  const filteredExpenses = filteredTransactions
-    .filter(t => t.type === 'expense' && 
-      !t.tags?.some((tag: string) => 
-        tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
-      ) &&
-      !isLendBorrowTransaction(t)
-    )
-    .reduce((sum, t) => sum + t.amount, 0);
+  const filteredExpenses = useMemo(() => {
+    return filteredTransactions
+      .filter(t => t.type === 'expense' && 
+        !t.tags?.some((tag: string) => 
+          tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
+        ) &&
+        !isLendBorrowTransaction(t)
+      )
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [filteredTransactions]);
 
-  // Debug logging for BDT currency
-  if (currency === 'BDT') {
-    const expenseTransactions = filteredTransactions.filter(t => t.type === 'expense' && !t.tags?.some((tag: string) => 
-      tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
-    ));
-    
-  }
-
-
-
-
-
-  // Compare label logic
-  let prevStartDate: Date, prevEndDate: Date, compareLabel: string;
-  if (period === '1m') {
-    prevStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
-    prevEndDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-    compareLabel = 'Compared to previous month';
-  } else if (period === '3m') {
-    prevStartDate = new Date(now.getFullYear(), now.getMonth() - 5, 1, 0, 0, 0);
-    prevEndDate = new Date(now.getFullYear(), now.getMonth() - 3, 0, 23, 59, 59);
-    compareLabel = 'Compared to previous 3 months';
-  } else if (period === '6m') {
-    prevStartDate = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0);
-    prevEndDate = new Date(now.getFullYear(), now.getMonth() - 6, 0, 23, 59, 59);
-    compareLabel = 'Compared to previous 6 months';
-  } else {
-    prevStartDate = new Date(now.getFullYear() - 1, now.getMonth(), 1, 0, 0, 0);
-    prevEndDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-    compareLabel = 'Compared to previous year';
-  }
-  // Previous period transactions
-  const prevFilteredTransactions = allTransactions.filter(t => {
-    const accCurrency = accountCurrencyMap[t.account_id];
-    const tDate = new Date(t.date);
-    return accCurrency === currency && tDate >= prevStartDate && tDate <= prevEndDate;
-  });
-  const prevIncome = prevFilteredTransactions
-    .filter(t => t.type === 'income' && !t.tags?.some((tag: string) => 
-      tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
-    ))
-    .reduce((sum, t) => sum + t.amount, 0);
-  const prevExpenses = prevFilteredTransactions
-    .filter(t => t.type === 'expense' && !t.tags?.some((tag: string) => 
-      tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
-    ))
-    .reduce((sum, t) => sum + t.amount, 0);
+  // Previous period transactions - memoized for performance
+  const prevFilteredTransactions = useMemo(() => {
+    return allTransactions.filter(t => {
+      const accCurrency = accountCurrencyMap[t.account_id];
+      const tDate = new Date(t.date);
+      return accCurrency === currency && tDate >= prevStartDate && tDate <= prevEndDate;
+    });
+  }, [allTransactions, accountCurrencyMap, currency, prevStartDate, prevEndDate]);
+  
+  const prevIncome = useMemo(() => {
+    return prevFilteredTransactions
+      .filter(t => t.type === 'income' && 
+        !t.tags?.some((tag: string) => 
+          tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
+        ) &&
+        !isLendBorrowTransaction(t)
+      )
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [prevFilteredTransactions]);
+  
+  const prevExpenses = useMemo(() => {
+    return prevFilteredTransactions
+      .filter(t => t.type === 'expense' && 
+        !t.tags?.some((tag: string) => 
+          tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
+        ) &&
+        !isLendBorrowTransaction(t)
+      )
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [prevFilteredTransactions]);
 
   // Option 2: Calculate balance change from previous period
   const balanceChange = useMemo(() => {
@@ -251,7 +264,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
     if (prevTotalBalance === 0) return 100; // New data, show 100% increase
     
     return ((currentTotalBalance - prevTotalBalance) / Math.abs(prevTotalBalance)) * 100;
-  }, [currencyAccounts, prevStartDate, endDate]);
+  }, [currencyAccounts, prevStartDate, endDate, accountTransactionsMap]);
 
   // Calculate percent change
   function getPercentChange(current: number, prev: number) {
@@ -259,80 +272,14 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
     if (prev === 0 && current > 0) return 100; // New data, show 100% increase
     return ((current - prev) / Math.abs(prev)) * 100;
   }
-  const incomeChange = getPercentChange(filteredIncome, prevIncome);
-  const expensesChange = getPercentChange(filteredExpenses, prevExpenses);
   
   // Calculate net change (income - expenses)
   const netChange = filteredIncome - filteredExpenses;
   const prevNetChange = prevIncome - prevExpenses;
   const netChangePercent = getPercentChange(netChange, prevNetChange);
   
-  // Calculate total account count
-  const totalAccountCount = currencyAccounts.length;
-
-  // Generate sparkline data based on filter
-  let sparkData: { name: string; income: number; expense: number }[] = [];
-  if (period === '1m') {
-    // Daily data for the month
-    const daysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    for (let d = 1; d <= daysInMonth(start); d++) {
-      const day = new Date(start.getFullYear(), start.getMonth(), d);
-      const dayStr = day.toISOString().slice(0, 10);
-      const dayIncome = filteredTransactions.filter(t => t.type === 'income' && t.date.slice(0, 10) === dayStr).reduce((sum, t) => sum + t.amount, 0);
-      const dayExpense = filteredTransactions.filter(t => t.type === 'expense' && t.date.slice(0, 10) === dayStr).reduce((sum, t) => sum + t.amount, 0);
-      sparkData.push({ name: dayStr, income: dayIncome, expense: dayExpense });
-    }
-  } else {
-    // Monthly data for the year
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    for (let m = 0; m <= end.getMonth(); m++) {
-      const month = new Date(start.getFullYear(), m, 1);
-      const monthStr = month.toLocaleString('default', { month: 'short' });
-      const monthIncome = filteredTransactions.filter(t => t.type === 'income' && new Date(t.date).getMonth() === m).reduce((sum, t) => sum + t.amount, 0);
-      const monthExpense = filteredTransactions.filter(t => t.type === 'expense' && new Date(t.date).getMonth() === m).reduce((sum, t) => sum + t.amount, 0);
-      sparkData.push({ name: monthStr, income: monthIncome, expense: monthExpense });
-    }
-  }
-  // Determine trend color
-  function getTrendColor(arr: number[], isExpense = false) {
-    if (arr.length < 2) return '#9ca3af'; // gray-400
-    const first = arr[0], last = arr[arr.length - 1];
-    if (last > first) return isExpense ? '#ef4444' : '#22c55e'; // up: green, down: red
-    if (last < first) return isExpense ? '#22c55e' : '#ef4444'; // up: green, down: red
-    return '#9ca3af'; // gray
-  }
-  const incomeArr = sparkData.map(d => d.income);
-  const expenseArr = sparkData.map(d => d.expense);
-  const incomeColor = getTrendColor(incomeArr, false);
-  const expenseColor = getTrendColor(expenseArr, true);
-
-  function renderInsight(change: number | null, label: string, isExpense = false) {
-    if (change === null) {
-      return <span className="text-xs text-gray-400">No data available</span>;
-    }
-    const isZero = change === 0;
-    
-    // For income: positive change is good (green), negative change is bad (red)
-    // For expenses: positive change is bad (red), negative change is good (green)
-    let color: string;
-    if (isZero) {
-      color = 'text-gray-400';
-    } else if (isExpense) {
-      // For expenses: positive change = bad (red), negative change = good (green)
-      color = change > 0 ? 'text-red-600' : 'text-green-600';
-    } else {
-      // For income: positive change = good (green), negative change = bad (red)
-      color = change > 0 ? 'text-green-600' : 'text-red-600';
-    }
-    
-    const sign = change > 0 ? '+' : '';
-    return (
-      <span className={`text-xs font-semibold ${color}`}>{sign}{Math.round(change)}% {label}</span>
-    );
-  }
+  // Calculate total account count - match what's actually displayed in the tooltip
+  const totalAccountCount = (sortedAllRegularAccounts?.length || 0) + (sortedDpsSavingsAccounts?.length || 0);
 
   return (
     <div 
@@ -351,48 +298,19 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
       {/* Mobile-optimized header */}
       <div className="mb-3 sm:mb-4">
         {/* Amount row */}
-        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 xs:gap-1 mb-1">
+        <div className="flex flex-row items-center justify-between gap-1 mb-1">
            <div className="text-base sm:text-lg lg:text-xl xl:text-2xl font-bold tabular-nums text-gray-900 dark:text-white break-words">
              {formatCurrency(regularAccountsTotal + dpsTotal, currency)}
            </div>
           
-          {/* Right side: Delta, sparkline, and info button - all on same row */}
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 w-full xs:w-auto justify-end xs:justify-start">
-            {/* Delta - compact for mobile */}
-            {formatBalanceChange(balanceChange) && (
-              <span className={`text-[10px] xs:text-xs font-medium flex items-center gap-0.5 ${formatBalanceChange(balanceChange)!.color} whitespace-nowrap`}>
-                <span className="text-[10px] xs:text-xs flex-shrink-0">{formatBalanceChange(balanceChange)!.arrow}</span>
-                <span className="truncate max-w-[60px] xs:max-w-none">{formatBalanceChange(balanceChange)!.text}</span>
-              </span>
-            )}
-            
-            {/* Sparkline - compact for mobile */}
-            {sparkData.length > 1 && (
-              <div className="w-8 h-4 sm:w-10 sm:h-5 lg:w-12 lg:h-6 flex items-center flex-shrink-0">
-                <LineChart 
-                  width={32} 
-                  height={16} 
-                  data={sparkData} 
-                  margin={{ top: 1, right: 1, left: 1, bottom: 1 }}
-                  className="w-full h-full"
-                >
-                  <Line 
-                    type="monotone" 
-                    dataKey="income" 
-                    stroke={incomeColor} 
-                    strokeWidth={1} 
-                    dot={false} 
-                    isAnimationActive={false}
-                  />
-                </LineChart>
-              </div>
-            )}
-            
-            {/* Info button - compact for mobile */}
+          {/* Right side: Info button and period selector - all on same row */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 w-auto justify-end">
+            {/* Combined info button with account count - compact for mobile */}
             <div className="relative">
               <button
                 type="button"
-                className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-110 active:scale-95"
+                className="flex items-center gap-1.5 sm:gap-1.5 px-0 py-[6px] sm:py-[6px] min-h-[36px] sm:min-h-[36px] min-w-[36px] sm:min-w-[36px] rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
                 onMouseEnter={() => !isMobile && setShowTooltip(true)}
                 onMouseLeave={() => !isMobile && setShowTooltip(false)}
                 onFocus={() => !isMobile && setShowTooltip(true)}
@@ -408,18 +326,23 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                 tabIndex={0}
                 aria-label="Show account info"
               >
-                <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200" />
+                <Info className="w-4 h-4 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200 flex-shrink-0" />
+                {totalAccountCount > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[18px] sm:min-w-[18px] h-[18px] sm:h-[18px] px-1.5 sm:px-1.5 text-[10px] sm:text-[10px] font-medium bg-gradient-to-br from-blue-500 to-purple-500 dark:from-blue-400 dark:to-purple-400 text-white rounded-full flex-shrink-0">
+                    {totalAccountCount}
+                  </span>
+                )}
               </button>
               {showTooltip && !isMobile && (
                 <div className="absolute right-0 top-full z-50 mt-2 w-56 sm:w-64 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-2 sm:p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
                   <div className="font-semibold mb-2">Total: {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
                   
-                  {/* Regular Accounts */}
-                  {sortedRegularAccounts.length > 0 && (
+                  {/* Regular Accounts (includes DPS main accounts) */}
+                  {sortedAllRegularAccounts.length > 0 && (
                     <>
-                      <div className="font-medium mb-1">Accounts ({sortedRegularAccounts.length}):</div>
+                      <div className="font-medium mb-1">Accounts ({sortedAllRegularAccounts.length}):</div>
                       <ul className="space-y-1">
-                        {sortedRegularAccounts.map(acc => {
+                        {sortedAllRegularAccounts.map(acc => {
                           const balance = acc.calculated_balance || 0;
                           const isNegative = balance < 0;
                           const isZero = balance === 0;
@@ -474,11 +397,30 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                 </div>
               )}
             </div>
+            
+            {/* Period selector - compact for mobile */}
+            <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+              <CustomDropdown
+                options={[
+                  { value: '1m', label: '1 Month' },
+                  { value: '3m', label: '3 Months' },
+                  { value: '6m', label: '6 Months' },
+                  { value: '1y', label: '1 Year' },
+                ]}
+                value={period}
+                onChange={val => setPeriod(val as '1m' | '3m' | '6m' | '1y')}
+                fullWidth={false}
+                className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-[9px] xs:text-[10px] sm:text-xs h-6 xs:h-7 min-h-0 hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg px-2 xs:px-3 py-1 w-auto"
+                style={{ padding: isMobile ? '4px 8px' : '6px 12px', minWidth: isMobile ? '80px' : '100px' }}
+                dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
           </div>
         </div>
         
         {/* Net change and timestamp row */}
-        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-1 xs:gap-0 mt-2">
+        <div className="flex flex-row items-center justify-between gap-0 mt-2">
           <div className="flex items-center gap-2 flex-wrap">
             {netChangePercent !== null && (
               <div className={`flex items-center gap-1 text-[10px] xs:text-xs font-semibold ${
@@ -497,37 +439,19 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
               </div>
             )}
           </div>
-          <div className="text-[10px] xs:text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
-            {getRelativeTimeString(lastCurrencyActivityDate)}
+          <div className="flex items-center gap-2">
+            {/* Delta - balance change percentage */}
+            {formatBalanceChange(balanceChange) && (
+              <span className={`text-[10px] xs:text-[11px] font-medium flex items-center gap-0.5 ${formatBalanceChange(balanceChange)!.color} whitespace-nowrap`}>
+                <span className="text-[10px] xs:text-[11px] flex-shrink-0">{formatBalanceChange(balanceChange)!.arrow}</span>
+                <span>{formatBalanceChange(balanceChange)!.text}</span>
+              </span>
+            )}
+            <div className="text-[10px] xs:text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
+              {getRelativeTimeString(lastCurrencyActivityDate)}
+            </div>
           </div>
         </div>
-      </div>
-      
-      {/* Compact period selector */}
-      <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 xs:gap-0 mb-3">
-        <h2 className="text-[11px] xs:text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 xs:gap-2 flex-wrap">
-          <span className="whitespace-nowrap">{t('dashboard.currencyOverview', { currencyCode: currency })}</span>
-          {totalAccountCount > 0 && (
-            <span className="inline-flex items-center justify-center min-w-[16px] xs:min-w-[18px] h-[16px] xs:h-[18px] px-1 xs:px-1.5 text-[9px] xs:text-[10px] font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full flex-shrink-0">
-              {totalAccountCount}
-            </span>
-          )}
-        </h2>
-        <CustomDropdown
-          options={[
-            { value: '1m', label: '1 Month' },
-            { value: '3m', label: '3 Months' },
-            { value: '6m', label: '6 Months' },
-            { value: '1y', label: '1 Year' },
-          ]}
-          value={period}
-          onChange={val => setPeriod(val as '1m' | '3m' | '6m' | '1y')}
-          fullWidth={false}
-          className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-[10px] xs:text-xs h-6 xs:h-7 min-h-0 hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg px-2 xs:px-3 py-1 w-full xs:w-auto"
-          style={{ padding: isMobile ? '4px 8px' : '6px 12px', minWidth: isMobile ? '80px' : '100px' }}
-          dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
-          onClick={(e) => e.stopPropagation()}
-        />
       </div>
       
       {/* Mobile-optimized stats grid */}
@@ -576,12 +500,12 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
               </button>
             </div>
             
-            {/* Regular Accounts */}
-            {sortedRegularAccounts.length > 0 && (
+            {/* Regular Accounts (includes DPS main accounts) */}
+            {sortedAllRegularAccounts.length > 0 && (
               <>
-                <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">Accounts ({sortedRegularAccounts.length}):</div>
+                <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">Accounts ({sortedAllRegularAccounts.length}):</div>
                 <ul className="space-y-1 max-h-48 overflow-y-auto">
-                  {sortedRegularAccounts.map(acc => {
+                  {sortedAllRegularAccounts.map(acc => {
                     const balance = acc.calculated_balance || 0;
                     const isNegative = balance < 0;
                     const isZero = balance === 0;

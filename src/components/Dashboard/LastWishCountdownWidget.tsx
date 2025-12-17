@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
 import { 
@@ -53,6 +53,30 @@ export const LastWishCountdownWidget: React.FC = () => {
   const [showDetails, setShowDetails] = useState(false);
   const [deliveryData, setDeliveryData] = useState<DeliveryData | null>(null);
   const [isDelivered, setIsDelivered] = useState(false);
+  const [immediateCheckTriggered, setImmediateCheckTriggered] = useState(false);
+
+  // Trigger immediate check for overdue users (backup to hourly cron)
+  const triggerImmediateCheck = useCallback(async () => {
+    if (!user || immediateCheckTriggered) return;
+    
+    try {
+      // Call the API endpoint to check for overdue users
+      const response = await fetch('/api/last-wish-public', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        setImmediateCheckTriggered(true);
+        // Silently trigger - no user notification needed
+      }
+    } catch (error) {
+      // Silently fail - hourly cron will handle it
+      console.error('Immediate Last Wish check failed:', error);
+    }
+  }, [user, immediateCheckTriggered]);
 
   useEffect(() => {
     if (!user) {
@@ -161,6 +185,17 @@ export const LastWishCountdownWidget: React.FC = () => {
             isFinalHour,
             timeLeft: finalHourTimeData || undefined
           });
+          
+          // Trigger immediate check if overdue and not already triggered
+          if (isOverdue && !immediateCheckTriggered) {
+            // Use setTimeout to avoid calling during render
+            setTimeout(() => {
+              triggerImmediateCheck();
+            }, 0);
+          } else if (!isOverdue) {
+            // Reset flag if not overdue
+            setImmediateCheckTriggered(false);
+          }
         } else {
           setCountdown({
             daysLeft: data.check_in_frequency,
@@ -177,7 +212,7 @@ export const LastWishCountdownWidget: React.FC = () => {
     };
     
     fetchLastWish();
-  }, [user]);
+  }, [user, triggerImmediateCheck, immediateCheckTriggered]);
 
   // Real-time countdown timer - updates every second when enabled
   useEffect(() => {
@@ -247,6 +282,11 @@ export const LastWishCountdownWidget: React.FC = () => {
               timeLeft: { hours: totalHours, minutes: totalMinutes, seconds: totalSeconds }
             } : null);
 
+            // Trigger immediate check if overdue and not already triggered
+            if (isOverdue && !immediateCheckTriggered) {
+              triggerImmediateCheck();
+            }
+
           }
         };
         
@@ -257,7 +297,7 @@ export const LastWishCountdownWidget: React.FC = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [enabled, user?.id, countdown?.daysLeft]); // Update when enabled state or user changes
+  }, [enabled, user?.id, countdown?.daysLeft, immediateCheckTriggered, triggerImmediateCheck]); // Update when enabled state or user changes
   
   // Don't render for free users
   if (!isPremium) {
@@ -277,6 +317,7 @@ export const LastWishCountdownWidget: React.FC = () => {
       if (error) {
         toast.error('Failed to check in. Please try again.');
       } else {
+        setImmediateCheckTriggered(false); // Reset flag on successful check-in
         toast.success('Check-in successful! Your data is safe.');
         // Refresh the widget
         window.location.reload();

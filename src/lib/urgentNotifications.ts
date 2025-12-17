@@ -46,6 +46,9 @@ export class UrgentNotificationService {
     this.lastCheck = now;
 
     try {
+      // Clean up duplicate notifications first
+      await this.cleanupDuplicateNotifications(userId);
+      
       // Clear old urgent notifications that are no longer relevant
       await this.clearOldUrgentNotifications(userId);
       
@@ -58,7 +61,7 @@ export class UrgentNotificationService {
       }
       
     } catch (error) {
-
+      console.error('Error in checkAndCreateUrgentNotifications:', error);
     }
   }
 
@@ -81,48 +84,130 @@ export class UrgentNotificationService {
     }
   }
 
+  private async cleanupDuplicateNotifications(userId: string): Promise<void> {
+    try {
+      // Get all urgent notifications for this user
+      const urgencyPrefixes = ['🚨 URGENT:', '⚠️ DUE SOON:', '📅 UPCOMING:'];
+      
+      for (const prefix of urgencyPrefixes) {
+        const { data: notifications, error } = await supabase
+          .from('notifications')
+          .select('id, title, created_at, is_read')
+          .eq('user_id', userId)
+          .like('title', `${prefix}%`)
+          .is('deleted', false)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error(`Error fetching ${prefix} notifications:`, error);
+          continue;
+        }
+
+        if (!notifications || notifications.length <= 1) {
+          continue; // No duplicates
+        }
+
+        // Group by title to find duplicates
+        const titleGroups = new Map<string, typeof notifications>();
+        notifications.forEach(notif => {
+          if (!titleGroups.has(notif.title)) {
+            titleGroups.set(notif.title, []);
+          }
+          titleGroups.get(notif.title)!.push(notif);
+        });
+
+        // For each title group with duplicates, keep only the most recent unread one
+        for (const [title, group] of titleGroups) {
+          if (group.length <= 1) continue;
+
+          // Sort by: unread first, then by created_at desc
+          group.sort((a, b) => {
+            if (a.is_read !== b.is_read) {
+              return a.is_read ? 1 : -1; // Unread first
+            }
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          });
+
+          // Keep the first one (most recent unread, or most recent if all read)
+          const toKeep = group[0];
+          const toDelete = group.slice(1);
+
+          if (toDelete.length > 0) {
+            const idsToDelete = toDelete.map(n => n.id);
+            await supabase
+              .from('notifications')
+              .update({ deleted: true })
+              .in('id', idsToDelete);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error cleaning up duplicate notifications:', error);
+    }
+  }
+
   private async clearOldUrgentNotifications(userId: string): Promise<void> {
     try {
       // Get all lend/borrow records that are no longer active or overdue
       const { data: inactiveLendBorrow, error: lbError } = await supabase
         .from('lend_borrow')
-        .select('id')
+        .select('id, person_name, type')
         .eq('user_id', userId)
-        .not('status', 'eq', 'active')
-        .not('status', 'eq', 'overdue');
+        .not('status', 'in', '(active,overdue)');
 
       if (lbError) {
-
+        console.error('Error fetching inactive lend/borrow records:', lbError);
+        return;
       }
 
       // Get all purchases that are no longer planned
       const { data: completedPurchases, error: pError } = await supabase
         .from('purchases')
-        .select('id')
+        .select('id, title')
         .eq('user_id', userId)
         .not('status', 'eq', 'planned');
 
       if (pError) {
-
+        console.error('Error fetching completed purchases:', pError);
+        // Continue even if purchases query fails
       }
 
-      // Clear notifications for inactive items
-      const inactiveIds = [
-        ...(inactiveLendBorrow || []).map(item => `lend_borrow_${item.id}`),
-        ...(completedPurchases || []).map(item => `purchase_${item.id}`)
-      ];
+      // Build notification titles that should be deleted
+      const titlesToDelete: string[] = [];
+      
+      if (inactiveLendBorrow && inactiveLendBorrow.length > 0) {
+        inactiveLendBorrow.forEach(record => {
+          const baseTitle = `${record.person_name} ${record.type === 'lend' ? 'owes you' : 'you owe'}`;
+          titlesToDelete.push(`🚨 URGENT: ${baseTitle}`);
+          titlesToDelete.push(`⚠️ DUE SOON: ${baseTitle}`);
+          titlesToDelete.push(`📅 UPCOMING: ${baseTitle}`);
+        });
+      }
 
-      if (inactiveIds.length > 0) {
-        for (const id of inactiveIds) {
+      if (completedPurchases && completedPurchases.length > 0) {
+        completedPurchases.forEach(purchase => {
+          const baseTitle = `Planned purchase: ${purchase.title}`;
+          titlesToDelete.push(`🚨 URGENT: ${baseTitle}`);
+          titlesToDelete.push(`⚠️ DUE SOON: ${baseTitle}`);
+          titlesToDelete.push(`📅 UPCOMING: ${baseTitle}`);
+        });
+      }
+
+      // Delete notifications matching these titles (in batches if needed)
+      if (titlesToDelete.length > 0) {
+        // Supabase .in() has a limit, so process in batches of 100
+        const batchSize = 100;
+        for (let i = 0; i < titlesToDelete.length; i += batchSize) {
+          const batch = titlesToDelete.slice(i, i + batchSize);
           await supabase
             .from('notifications')
             .update({ deleted: true })
             .eq('user_id', userId)
-            .eq('type', 'urgent');
+            .in('title', batch);
         }
       }
     } catch (error) {
-
+      console.error('Error clearing old urgent notifications:', error);
     }
   }
 
@@ -240,28 +325,7 @@ export class UrgentNotificationService {
   }
 
   private async createUrgentNotification(userId: string, item: UrgentItem): Promise<void> {
-    // Create a unique identifier for this urgent item
-    const uniqueIdentifier = `${item.type}_${item.id}`;
-    
-    // Check if any notification (read or unread, not deleted) already exists for this specific item
-    const { data: existingNotifications, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .is('deleted', false);
-
-    if (error) {
-
-      return;
-    }
-
-    // Find if any notification contains the unique identifier in the body
-    const alreadyExists = (existingNotifications || []).some((n) => n.title === title && n.body === body);
-    if (alreadyExists) {
-      // Don't create duplicate notifications - one already exists
-      return;
-    }
-
+    // Determine notification type and prefix first
     let notificationType: 'warning' | 'error' | 'info' = 'info';
     let urgencyPrefix = '';
     let category: 'overdue' | 'due_soon' | 'upcoming' = 'upcoming';
@@ -282,14 +346,57 @@ export class UrgentNotificationService {
 
     const title = `${urgencyPrefix}${item.title}`;
     const body = `${item.message} - ${this.getTimeDescription(item.daysUntil)}`;
+    
+    // Add unique identifier to body for tracking (doesn't affect duplicate detection)
+    const bodyWithId = `${body} [ID:${item.type}_${item.id}]`;
 
-    // Create the notification directly in the database
+    // Check if a notification with the same title already exists (not deleted)
+    // Title is stable (person name + type), body changes daily so we check by title only
+    const { data: existingNotifications, error } = await supabase
+      .from('notifications')
+      .select('id, is_read, created_at')
+      .eq('user_id', userId)
+      .eq('title', title)
+      .is('deleted', false)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error('Error checking for existing notifications:', error);
+      return;
+    }
+
+    // If notification exists, handle it based on read status
+    if (existingNotifications && existingNotifications.length > 0) {
+      const existing = existingNotifications[0];
+      
+      // If notification is already read, don't recreate it - user has acknowledged it
+      // Only update unread notifications to reflect current status
+      if (existing.is_read) {
+        // Notification was read - user has acknowledged it, don't recreate
+        return;
+      }
+      
+      // Notification exists and is unread - update it to reflect current status
+      // (days overdue may have changed, or status may have changed from due_soon to overdue)
+      await supabase
+        .from('notifications')
+        .update({ 
+          body: bodyWithId,
+          type: notificationType
+          // Keep is_read as false (don't change read status)
+        })
+        .eq('id', existing.id);
+      return;
+    }
+
+    // Create new notification if none exists
     await createNotification(
       userId,
       title,
       notificationType,
-      body,
-      true, // isUrgent
+      bodyWithId,
+      true, // shouldShowToast
       category
     );
   }
