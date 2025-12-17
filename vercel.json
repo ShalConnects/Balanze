@@ -119,7 +119,7 @@
   "crons": [
     {
       "path": "/api/last-wish-public",
-      "schedule": "0 * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/process-recurring-transactions",
