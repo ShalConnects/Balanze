@@ -54,6 +54,8 @@ export const TransactionList: React.FC<{
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | undefined>();
   const [transactionToDuplicate, setTransactionToDuplicate] = useState<Transaction | undefined>();
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
+  const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
   const { getActiveAccounts, getActiveTransactions, deleteTransaction, updateTransaction, fetchTransactions, categories, purchaseCategories, accounts: allAccounts } = useFinanceStore();
   const accounts = getActiveAccounts(); // For filtering dropdowns, keep active accounts
   const allAccountsForLookup = allAccounts; // Use all accounts for lookups to show inactive account info
@@ -774,6 +776,32 @@ export const TransactionList: React.FC<{
       displayTransaction,
       childInstances
     };
+  };
+
+  const toggleDescription = (transactionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedDescriptions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(transactionId)) {
+        newSet.delete(transactionId);
+      } else {
+        newSet.add(transactionId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAccountName = (transactionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedAccounts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(transactionId)) {
+        newSet.delete(transactionId);
+      } else {
+        newSet.add(transactionId);
+      }
+      return newSet;
+    });
   };
 
   const handleEdit = (transaction: Transaction) => {
@@ -2104,7 +2132,20 @@ export const TransactionList: React.FC<{
                         )}
                         <td className="px-6 py-2">
                           <div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">{formatTransactionDescription(transaction.description)}</div>
+                            <div 
+                              className="text-sm font-medium text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors" 
+                              title={formatTransactionDescription(transaction.description)}
+                              onClick={(e) => toggleDescription(transaction.id, e)}
+                            >
+                              {(() => {
+                                const desc = formatTransactionDescription(transaction.description);
+                                const isExpanded = expandedDescriptions.has(transaction.id);
+                                if (desc.length > 15 && !isExpanded) {
+                                  return desc.substring(0, 15) + '...';
+                                }
+                                return desc;
+                              })()}
+                            </div>
                             {transaction.transaction_id && (
                               <button
                                 onClick={() => handleCopyTransactionId(transaction.transaction_id!)}
@@ -2130,7 +2171,20 @@ export const TransactionList: React.FC<{
                         {columnVisibility.account && (
                           <td className="px-6 py-2 text-center">
                             <div className="flex items-center justify-center gap-1.5">
-                              <span className="text-sm text-gray-900 dark:text-white">{getAccountName(transaction.account_id)}</span>
+                              <span 
+                                className="text-sm text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors" 
+                                title={getAccountName(transaction.account_id)}
+                                onClick={(e) => toggleAccountName(transaction.id, e)}
+                              >
+                                {(() => {
+                                  const accountName = getAccountName(transaction.account_id);
+                                  const isExpanded = expandedAccounts.has(transaction.id);
+                                  if (accountName.length > 15 && !isExpanded) {
+                                    return accountName.substring(0, 15) + '...';
+                                  }
+                                  return accountName;
+                                })()}
+                              </span>
                               {isAccountInactive(transaction.account_id) && (
                                 <Tooltip 
                                   content="Account is hidden"
@@ -2171,12 +2225,12 @@ export const TransactionList: React.FC<{
                           <td className="px-6 py-2 text-center">
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               {transaction.type === 'income' ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
-                                  <ArrowDownRight className="w-3 h-3" /> Income
+                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300" title="Income">
+                                  <ArrowDownRight className="w-3 h-3" />
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300">
-                                  <ArrowUpRight className="w-3 h-3" /> Expense
+                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300" title="Expense">
+                                  <ArrowUpRight className="w-3 h-3" />
                                 </span>
                               )}
                             </div>
@@ -2453,8 +2507,19 @@ export const TransactionList: React.FC<{
                     <div className="px-3 pb-2">
                       {/* Description and Amount on Same Row */}
                       <div className="flex items-center justify-between gap-3" style={{ marginTop: '0px', marginBottom: '10px' }}>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white flex-1 min-w-0">
-                          {formatTransactionDescription(transaction.description)}
+                        <div 
+                          className="text-sm font-medium text-gray-900 dark:text-white flex-1 min-w-0 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors" 
+                          title={formatTransactionDescription(transaction.description)}
+                          onClick={(e) => toggleDescription(transaction.id, e)}
+                        >
+                          {(() => {
+                            const desc = formatTransactionDescription(transaction.description);
+                            const isExpanded = expandedDescriptions.has(transaction.id);
+                            if (desc.length > 15 && !isExpanded) {
+                              return desc.substring(0, 15) + '...';
+                            }
+                            return desc;
+                          })()}
                         </div>
                         <div className={`text-sm font-bold flex-shrink-0 flex items-center gap-1.5 ${
                           transaction.type === 'income' 
@@ -2535,7 +2600,20 @@ export const TransactionList: React.FC<{
                     {/* Card Footer - Account and Actions */}
                     <div className="flex items-center justify-between px-3 pb-3 pt-2 border-t border-gray-100 dark:border-gray-800">
                       <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 font-medium">
-                        <span>{getAccountName(transaction.account_id)}</span>
+                        <span 
+                          className="cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors" 
+                          title={getAccountName(transaction.account_id)}
+                          onClick={(e) => toggleAccountName(transaction.id, e)}
+                        >
+                          {(() => {
+                            const accountName = getAccountName(transaction.account_id);
+                            const isExpanded = expandedAccounts.has(transaction.id);
+                            if (accountName.length > 15 && !isExpanded) {
+                              return accountName.substring(0, 15) + '...';
+                            }
+                            return accountName;
+                          })()}
+                        </span>
                         {isAccountInactive(transaction.account_id) && (
                           <Tooltip 
                             content="Account is hidden"
@@ -2787,7 +2865,20 @@ export const TransactionList: React.FC<{
                       </div>
                       <div className="col-span-6">
                         <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">{formatTransactionDescription(transaction.description)}</div>
+                        <div 
+                          className="text-sm font-medium text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors" 
+                          title={formatTransactionDescription(transaction.description)}
+                          onClick={(e) => toggleDescription(transaction.id, e)}
+                        >
+                          {(() => {
+                            const desc = formatTransactionDescription(transaction.description);
+                            const isExpanded = expandedDescriptions.has(transaction.id);
+                            if (desc.length > 15 && !isExpanded) {
+                              return desc.substring(0, 15) + '...';
+                            }
+                            return desc;
+                          })()}
+                        </div>
                         {transaction.transaction_id && (
                           <button
                             onClick={() => handleCopyTransactionId(transaction.transaction_id!)}
@@ -2885,7 +2976,20 @@ export const TransactionList: React.FC<{
                       <div className="col-span-6">
                         <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Account</div>
                         <div className="flex items-center gap-1.5 text-sm text-gray-900 dark:text-white">
-                          <span>{getAccountName(transaction.account_id)}</span>
+                          <span 
+                            className="cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors" 
+                            title={getAccountName(transaction.account_id)}
+                            onClick={(e) => toggleAccountName(transaction.id, e)}
+                          >
+                            {(() => {
+                              const accountName = getAccountName(transaction.account_id);
+                              const isExpanded = expandedAccounts.has(transaction.id);
+                              if (accountName.length > 15 && !isExpanded) {
+                                return accountName.substring(0, 15) + '...';
+                              }
+                              return accountName;
+                            })()}
+                          </span>
                           {isAccountInactive(transaction.account_id) && (
                             <Tooltip 
                               content="Account is hidden"

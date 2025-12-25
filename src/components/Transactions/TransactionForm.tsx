@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, AlertCircle, HelpCircle } from 'lucide-react';
+import { X, AlertCircle, HelpCircle, EyeOff } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
 import { Transaction } from '../../types/index';
@@ -50,6 +50,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const { isMobile } = useMobileDetection();
   const isEditMode = !!transactionToEdit;
   const transactionToInitialize = transactionToEdit || duplicateFrom;
+  
+  // Check if the transaction's account is hidden when editing
+  const isAccountHidden = isEditMode && transactionToEdit?.account_id 
+    ? !accounts.find(acc => acc.id === transactionToEdit.account_id)?.isActive 
+    : false;
 
   const [data, setData] = useState({
     account_id: accountId || getDefaultAccountId(),
@@ -133,6 +138,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
 
   const validateForm = React.useCallback(() => {
     const newErrors: Record<string, string> = {};
+    
+    // Prevent editing transactions with hidden accounts
+    if (isAccountHidden) {
+      newErrors.account_id = 'Cannot edit transaction with hidden account. Please activate the account first.';
+      setErrors(newErrors);
+      return false;
+    }
     
     if (!data.account_id) {
       newErrors.account_id = 'Account is required';
@@ -1078,6 +1090,21 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           </button>
         </div>
 
+        {/* Alert banner for hidden account */}
+        {isAccountHidden && (
+          <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-3">
+            <EyeOff className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                This transaction belongs to a hidden account.
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                Please activate the account in Account Settings to edit this transaction.
+              </p>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-7">
           {/* Grid: Main Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-[1.15rem] gap-y-[1.40rem]">
@@ -1088,24 +1115,45 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                   setData({ ...data, account_id: value });
                   if (errors.account_id) setErrors({ ...errors, account_id: '' });
                 }}
-                options={accounts
-                  .filter(account => account.isActive && !account.name.includes('(DPS)'))
-                  .sort((a, b) => {
-                    const defaultCurrency = profile?.local_currency || 'USD';
-                    // Default currency first
-                    if (a.currency === defaultCurrency && b.currency !== defaultCurrency) return -1;
-                    if (a.currency !== defaultCurrency && b.currency === defaultCurrency) return 1;
-                    // Then sort by currency alphabetically
-                    if (a.currency !== b.currency) {
-                      return a.currency.localeCompare(b.currency);
+                disabled={isAccountHidden}
+                options={(() => {
+                  // Get active accounts (excluding DPS accounts)
+                  let availableAccounts = accounts.filter(account => account.isActive && !account.name.includes('(DPS)'));
+                  
+                  // If editing a transaction, include its current account even if hidden/inactive
+                  if (isEditMode && transactionToEdit?.account_id) {
+                    const currentAccount = accounts.find(acc => acc.id === transactionToEdit.account_id);
+                    if (currentAccount && !currentAccount.name.includes('(DPS)')) {
+                      // Add the current account if it's not already in the list
+                      const accountExists = availableAccounts.some(acc => acc.id === currentAccount.id);
+                      if (!accountExists) {
+                        availableAccounts = [...availableAccounts, currentAccount];
+                      }
                     }
-                    // Within same currency, sort by balance (descending - highest first)
-                    return (b.calculated_balance || 0) - (a.calculated_balance || 0);
-                  })
-                  .map((account) => ({
-                    value: account.id,
-                    label: `${account.name} (${getCurrencySymbol(account.currency)}${Number(account.calculated_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
-                  }))}
+                  }
+                  
+                  return availableAccounts
+                    .sort((a, b) => {
+                      const defaultCurrency = profile?.local_currency || 'USD';
+                      // Default currency first
+                      if (a.currency === defaultCurrency && b.currency !== defaultCurrency) return -1;
+                      if (a.currency !== defaultCurrency && b.currency === defaultCurrency) return 1;
+                      // Then sort by currency alphabetically
+                      if (a.currency !== b.currency) {
+                        return a.currency.localeCompare(b.currency);
+                      }
+                      // Within same currency, sort by balance (descending - highest first)
+                      return (b.calculated_balance || 0) - (a.calculated_balance || 0);
+                    })
+                    .map((account) => {
+                      const accountLabel = `${account.name} (${getCurrencySymbol(account.currency)}${Number(account.calculated_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+                      
+                      return {
+                        value: account.id,
+                        label: accountLabel
+                      };
+                    });
+                })()}
                 placeholder="Select account *"
                 fullWidth={true}
               />
@@ -1115,6 +1163,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                   {errors.account_id}
                 </span>
               )}
+              {!errors.account_id && data.account_id && (() => {
+                const selectedAccount = accounts.find(acc => acc.id === data.account_id);
+                if (selectedAccount && !selectedAccount.isActive) {
+                  return (
+                    <div className="absolute left-0 -bottom-5 flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
+                      <EyeOff className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span>Account is hidden. Activate in Account Settings to use.</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
             <div className="relative">
               <input
@@ -1124,6 +1184,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 step="0.01"
                 value={data.amount}
                 ref={amountRef}
+                disabled={isAccountHidden}
                 onChange={(e) => {
                   setData({ ...data, amount: e.target.value });
                   if (errors.amount) setErrors({ ...errors, amount: '' });
@@ -1166,6 +1227,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                   }
                   if (errors.type) setErrors({ ...errors, type: '' });
                 }}
+                disabled={isAccountHidden}
                 options={[
                   { value: 'expense', label: 'Expense' },
                   { value: 'income', label: 'Income' },
@@ -1192,6 +1254,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                       setData(prev => ({ ...prev, category: '' }));
                     }
                   }}
+                  disabled={isAccountHidden}
                   options={[
                     { value: 'regular_expense', label: 'Regular Expense' },
                     { value: 'purchase', label: 'Purchase' },
@@ -1213,6 +1276,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                     if (errors.category) setErrors({ ...errors, category: '' });
                   }
                 }}
+                disabled={isAccountHidden}
                 options={
                   data.type === 'income'
                     ? [
@@ -1263,6 +1327,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 name="description"
                 value={data.description}
                 ref={descriptionRef}
+                disabled={isAccountHidden}
                 onChange={(e) => {
                   setData({ ...data, description: e.target.value });
                   setIsSuggestionsOpen(true);
@@ -1361,6 +1426,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                     setData({ ...data, date: date ? format(date, 'yyyy-MM-dd') : '' });
                     if (errors.date) setErrors({ ...errors, date: '' });
                   }}
+                  disabled={isAccountHidden}
                   onBlur={() => handleDropdownBlur('date')}
                   placeholderText="Date *"
                   dateFormat="yyyy-MM-dd"
@@ -1548,8 +1614,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                   </label>
                 </div>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="number"
+              <input
+                type="number"
+                disabled={isAccountHidden}
                     min="0"
                     value={donationValue === undefined ? '' : donationValue}
                     onChange={e => setDonationValue(e.target.value === '' ? undefined : Number(e.target.value))}
@@ -1617,7 +1684,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               <button
                 type="submit"
                 className="px-6 py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[80px]"
-                disabled={isLoading || !isFormValid}
+                disabled={isLoading || !isFormValid || isAccountHidden}
               >
                 {isEditMode ? 'Update' : 'Make Transaction'}
               </button>

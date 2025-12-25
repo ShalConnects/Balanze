@@ -39,6 +39,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
   formatCurrency,
   getAccountName
 }) => {
+  const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
   const [showLendBorrowInfo, setShowLendBorrowInfo] = useState(false);
   
   const handleCopyAmount = (amount: number, currency: string) => {
@@ -136,7 +137,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-900 dark:text-white">
                       <div className="font-medium truncate max-w-xs" title={transaction.description}>
-                        {transaction.description}
+                        {transaction.description.length > 15 ? transaction.description.substring(0, 15) + '...' : transaction.description}
                       </div>
                       {transaction.tags && transaction.tags.length > 0 && (
                         <div className="flex items-center mt-1 space-x-1">
@@ -155,7 +156,31 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900 dark:text-white">
-                      {getAccountName(transaction.account_id)}
+                      <div 
+                        className="font-medium cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors" 
+                        title={getAccountName(transaction.account_id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedAccounts(prev => {
+                            const newSet = new Set(prev);
+                            if (newSet.has(transaction.id)) {
+                              newSet.delete(transaction.id);
+                            } else {
+                              newSet.add(transaction.id);
+                            }
+                            return newSet;
+                          });
+                        }}
+                      >
+                        {(() => {
+                          const accountName = getAccountName(transaction.account_id);
+                          const isExpanded = expandedAccounts.has(transaction.id);
+                          if (accountName.length > 15 && !isExpanded) {
+                            return accountName.substring(0, 15) + '...';
+                          }
+                          return accountName;
+                        })()}
+                      </div>
                     </div>
                     {account && (
                       <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -165,22 +190,16 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     {isTransfer ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200">
-                        Transfer
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200" title="Transfer">
+                        <ArrowUpRight className="w-4 h-4" />
                       </span>
                     ) : transaction.type === 'income' ? (
-                      <div className="flex items-center justify-center">
-                        <ArrowUpRight className="w-4 h-4 text-green-600 dark:text-green-400 mr-1" />
-                        <span className="text-sm text-green-600 dark:text-green-400 font-medium">
-                          Income
-                        </span>
+                      <div className="flex items-center justify-center" title="Income">
+                        <ArrowUpRight className="w-4 h-4 text-green-600 dark:text-green-400" />
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center">
-                        <ArrowDownRight className="w-4 h-4 text-red-600 dark:text-red-400 mr-1" />
-                        <span className="text-sm text-red-600 dark:text-red-400 font-medium">
-                          Expense
-                        </span>
+                      <div className="flex items-center justify-center" title="Expense">
+                        <ArrowDownRight className="w-4 h-4 text-red-600 dark:text-red-400" />
                       </div>
                     )}
                   </td>
