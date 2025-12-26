@@ -1691,6 +1691,9 @@ function createPDFBuffer(user, recipient, data, settings) {
 }
 
 async function sendDataToRecipient(user, recipient, userData, settings, isTestMode = false) {
+  const TARGET_USER_ID = 'd1fe3ccc-3c57-4621-866a-6d0643137d53';
+  const isTargetUser = user.id === TARGET_USER_ID;
+  
   const metadata = {
     userId: user.id,
     recipientEmail: recipient.email,
@@ -1698,9 +1701,16 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
     isTestMode
   };
 
+  if (isTargetUser) {
+    console.log(`[SEND-DATA-TO-RECIPIENT] 🎯 Starting for target user, recipient: ${recipient.name} (${recipient.email})`);
+  }
+
   // Validate recipient email before attempting to send
   const emailValidation = validateEmail(recipient.email);
   if (!emailValidation.valid) {
+    if (isTargetUser) {
+      console.error(`[SEND-DATA-TO-RECIPIENT] ❌ Email validation failed: ${emailValidation.error}`);
+    }
     await logError('sendDataToRecipient', new Error(emailValidation.error), {
       ...metadata,
       validationError: true
@@ -1708,21 +1718,51 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
     return { success: false, error: emailValidation.error, validationError: true };
   }
 
+  if (isTargetUser) {
+    console.log(`[SEND-DATA-TO-RECIPIENT] ✅ Email validated successfully`);
+  }
+
   // Use retry mechanism for sending email
   return await retryWithBackoff(
     async () => {
   try {
+    if (isTargetUser) {
+      console.log(`[SEND-DATA-TO-RECIPIENT] Filtering data based on settings...`);
+    }
+    
     // Filter data based on user preferences
     const filteredData = filterDataBySettings(userData, settings.include_data);
+
+    if (isTargetUser) {
+      console.log(`[SEND-DATA-TO-RECIPIENT] Creating email content...`);
+    }
 
     // Create email content
     const emailContent = createEmailContent(user, recipient, filteredData, settings, isTestMode);
 
+    if (isTargetUser) {
+      console.log(`[SEND-DATA-TO-RECIPIENT] Generating PDF...`);
+    }
+
     // Generate PDF
     const pdfBuffer = await createPDFBuffer(user, recipient, filteredData, settings);
 
+    if (isTargetUser) {
+      console.log(`[SEND-DATA-TO-RECIPIENT] PDF generated, size: ${pdfBuffer.length} bytes`);
+    }
+
     // Get user's display name for subject
     const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || user.email;
+
+    if (isTargetUser) {
+      console.log(`[SEND-DATA-TO-RECIPIENT] Preparing email:`, {
+        from: process.env.SMTP_USER,
+        to: recipient.email,
+        subject: `${isTestMode ? '🧪 Test - ' : ''}Last Wish Delivery from ${userName}`,
+        hasPDF: !!pdfBuffer,
+        pdfSize: pdfBuffer?.length || 0
+      });
+    }
 
     // Send email
     const mailOptions = {
@@ -1739,7 +1779,18 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
       ]
     };
 
+    if (isTargetUser) {
+      console.log(`[SEND-DATA-TO-RECIPIENT] 📤 Sending email via SMTP...`);
+    }
+
     const result = await transporter.sendMail(mailOptions);
+
+    if (isTargetUser) {
+      console.log(`[SEND-DATA-TO-RECIPIENT] ✅ Email sent successfully!`, {
+        messageId: result.messageId,
+        response: result.response
+      });
+    }
 
         // Log successful delivery
         try {
@@ -1810,16 +1861,37 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
 async function sendLastWishEmail(userId, testMode = false) {
   const startTime = Date.now();
   const metadata = { userId, testMode };
+  const TARGET_USER_ID = 'd1fe3ccc-3c57-4621-866a-6d0643137d53';
+  const isTargetUser = userId === TARGET_USER_ID;
+
+  if (isTargetUser) {
+    console.log(`[SEND-LAST-WISH-EMAIL] 🎯 STARTING for target user: ${userId}`);
+    console.log(`[SEND-LAST-WISH-EMAIL] Test mode: ${testMode}`);
+  }
 
   try {
     // Check if SMTP is configured
     if (!transporter) {
       const error = new Error('SMTP not configured. Please set up SMTP settings in environment variables.');
+      if (isTargetUser) {
+        console.error(`[SEND-LAST-WISH-EMAIL] ❌ SMTP not configured!`);
+        console.error(`[SEND-LAST-WISH-EMAIL] SMTP_HOST: ${process.env.SMTP_HOST || 'NOT SET'}`);
+        console.error(`[SEND-LAST-WISH-EMAIL] SMTP_USER: ${process.env.SMTP_USER ? 'SET' : 'NOT SET'}`);
+        console.error(`[SEND-LAST-WISH-EMAIL] SMTP_PASS: ${process.env.SMTP_PASS ? 'SET' : 'NOT SET'}`);
+      }
       await logError('sendLastWishEmail', error, { ...metadata, smtpCheck: true });
       throw error;
     }
 
+    if (isTargetUser) {
+      console.log(`[SEND-LAST-WISH-EMAIL] ✅ SMTP transporter is configured`);
+    }
+
     // Get user's Last Wish settings with retry
+    if (isTargetUser) {
+      console.log(`[SEND-LAST-WISH-EMAIL] Fetching settings for target user...`);
+    }
+    
     const settings = await retryWithBackoff(
       async () => {
         const { data, error: settingsError } = await supabase
@@ -1829,8 +1901,23 @@ async function sendLastWishEmail(userId, testMode = false) {
       .single();
 
         if (settingsError || !data) {
+          if (isTargetUser) {
+            console.error(`[SEND-LAST-WISH-EMAIL] ❌ Settings not found. Error:`, settingsError);
+          }
       throw new Error('Last Wish settings not found');
     }
+        
+        if (isTargetUser) {
+          console.log(`[SEND-LAST-WISH-EMAIL] ✅ Settings found:`, {
+            is_enabled: data.is_enabled,
+            is_active: data.is_active,
+            delivery_triggered: data.delivery_triggered,
+            recipient_count: data.recipients?.length || 0,
+            check_in_frequency: data.check_in_frequency,
+            last_check_in: data.last_check_in
+          });
+        }
+        
         return data;
       },
       2, // maxRetries for settings fetch
@@ -1888,10 +1975,27 @@ async function sendLastWishEmail(userId, testMode = false) {
     );
 
     // Gather user data with error logging
+    if (isTargetUser) {
+      console.log(`[SEND-LAST-WISH-EMAIL] Gathering user data...`);
+    }
+    
     let userData;
     try {
       userData = await gatherUserData(userId);
+      
+      if (isTargetUser) {
+        console.log(`[SEND-LAST-WISH-EMAIL] ✅ User data gathered:`, {
+          accounts: userData.accounts?.length || 0,
+          transactions: userData.transactions?.length || 0,
+          purchases: userData.purchases?.length || 0,
+          lendBorrow: userData.lendBorrow?.length || 0,
+          savings: userData.donationSavings?.length || 0
+        });
+      }
     } catch (dataError) {
+      if (isTargetUser) {
+        console.error(`[SEND-LAST-WISH-EMAIL] ❌ Failed to gather user data:`, dataError);
+      }
       await logError('sendLastWishEmail', dataError, {
         ...metadata,
         operation: 'gatherUserData'
@@ -1901,9 +2005,26 @@ async function sendLastWishEmail(userId, testMode = false) {
 
     // Send emails to all valid recipients
     const results = [];
+    if (isTargetUser) {
+      console.log(`[SEND-LAST-WISH-EMAIL] Starting to send emails to ${recipientsToSend.length} recipient(s)...`);
+    }
+
     for (const recipient of recipientsToSend) {
+      if (isTargetUser) {
+        console.log(`[SEND-LAST-WISH-EMAIL] 📧 Sending email to: ${recipient.name} (${recipient.email})`);
+      }
+      
       try {
       const result = await sendDataToRecipient(user.user, recipient, userData, settings, testMode);
+      
+      if (isTargetUser) {
+        console.log(`[SEND-LAST-WISH-EMAIL] Email result for ${recipient.email}:`, {
+          success: result.success,
+          messageId: result.messageId,
+          error: result.error
+        });
+      }
+      
       results.push({
         recipient: recipient.email,
           recipientName: recipient.name,
