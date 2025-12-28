@@ -334,7 +334,7 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 sm:p-4 lg:p-5 shadow-sm border border-blue-200/50 dark:border-blue-800/50 h-full flex flex-col">
+      <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm border border-blue-200/50 dark:border-blue-800/50 h-full flex flex-col">
         <div className="flex items-center justify-between mb-3">
           {/* <h2 className="text-lg font-bold text-gray-900 dark:text-white">Donations & Savings</h2> */}
         </div>
@@ -368,7 +368,7 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
 
   return (
     <div 
-      className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 sm:p-4 lg:p-5 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative h-full flex flex-col"
+      className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative h-full flex flex-col"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -391,7 +391,7 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
       )}
       
       {/* Header - Responsive layout */}
-      <div className="flex items-center justify-between mb-4 pr-8">
+      <div className="flex items-center justify-between mb-2 pr-8">
         {/* Left side - Info button */}
         <div className="flex items-center gap-2 flex-1">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Donations</h2>

@@ -14,13 +14,14 @@ interface WelcomeModalProps {
 }
 
 export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onStartTour }) => {
-  const { profile } = useAuthStore();
+  const { profile, signOut } = useAuthStore();
   const { addAccount, fetchAccounts, fetchCategories } = useFinanceStore();
   const { setLoading } = useLoadingContext();
   
   const [selectedCurrency, setSelectedCurrency] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   // Get currency options from user's profile
   const currencyOptions = React.useMemo(() => {
@@ -207,6 +208,12 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
     }
   };
 
+  const handleSignOut = async () => {
+    setShowSignOutConfirm(false);
+    onClose(); // Close the welcome modal
+    await signOut(); // Then sign out
+  };
+
   if (!isOpen) return null;
 
   // Prevent escape key from closing modal during currency selection
@@ -278,6 +285,18 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
             )}
           </button>
         )}
+
+        {/* Sign Out Link */}
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => setShowSignOutConfirm(true)}
+            disabled={isCreating}
+            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Not ready? Sign out
+          </button>
+        </div>
       </div>
 
       {/* Currency Selection Modal */}
@@ -335,6 +354,43 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
                 className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sign Out Confirmation Modal */}
+      {showSignOutConfirm && (
+        <div className="fixed inset-0 flex items-center justify-center z-[100001]">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100000]" />
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm mx-4 z-[100001] shadow-xl">
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Sign Out?
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                You haven't finished setup. Signing out will require you to complete this step next time you log in.
+              </p>
+              <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                Continue signing out?
+              </p>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowSignOutConfirm(false)}
+                className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
+              >
+                Sign Out
               </button>
             </div>
           </div>

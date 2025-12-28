@@ -111,6 +111,8 @@ function AppContent() {
   
   // Welcome modal state
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [welcomeModalChecked, setWelcomeModalChecked] = useState(false);
+  const welcomeModalCheckRef = useRef(false);
   
   // Post-account creation tour state
   const [showPostAccountTour, setShowPostAccountTour] = useState(false);
@@ -638,11 +640,27 @@ function AppContent() {
     }
   }, [user, loading, profile]);
 
+  // Reset check ref when user changes
+  useEffect(() => {
+    if (user) {
+      welcomeModalCheckRef.current = false;
+      setWelcomeModalChecked(false);
+    }
+  }, [user?.id]);
+
   // Check if user has accounts and show welcome modal if needed
   useEffect(() => {
+    // Prevent multiple checks
+    if (welcomeModalCheckRef.current) {
+      return;
+    }
+    
     if (user && !loading && profile) {
       const checkAndShowWelcomeModal = async () => {
         try {
+          // Mark as checking to prevent re-runs
+          welcomeModalCheckRef.current = true;
+          
           // Ensure profile exists - wait for it if needed
           let currentProfile = profile;
           if (!currentProfile) {
@@ -656,17 +674,34 @@ function AppContent() {
           
           // If profile still doesn't exist, don't show modal yet
           if (!currentProfile) {
+            welcomeModalCheckRef.current = false; // Reset to allow retry
             return;
           }
           
-          // Add a timeout to prevent hanging
-          const timeoutId = setTimeout(() => {
-            // If we timeout, assume new user and show modal
-            setShowWelcomeModal(true);
+          // Check if accounts already exist in store before fetching
+          const existingAccounts = useFinanceStore.getState().accounts;
+          if (existingAccounts.length > 0) {
+            // User already has accounts, don't show modal
+            setShowWelcomeModal(false);
             setWelcomeModalChecked(true);
+            return;
+          }
+          
+          // Add a timeout to prevent hanging (only if no accounts found)
+          let timeoutId: NodeJS.Timeout | null = null;
+          let timeoutTriggered = false;
+          
+          timeoutId = setTimeout(() => {
+            timeoutTriggered = true;
+            // Only show modal on timeout if we still have no accounts
+            const accountsAfterTimeout = useFinanceStore.getState().accounts;
+            if (accountsAfterTimeout.length === 0) {
+              setShowWelcomeModal(true);
+              setWelcomeModalChecked(true);
+            }
           }, 5000); // 5 second timeout
           
-          // First, fetch accounts to get the real count
+          // Fetch accounts to get the real count
           await fetchAccounts();
           
           // Get fresh accounts count after fetch
@@ -674,10 +709,12 @@ function AppContent() {
           const hasAccounts = freshAccounts.length > 0;
           
           // Clear timeout since we got results
-          clearTimeout(timeoutId);
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
           
           // Only show modal if user has NO accounts (regardless of default currency)
-          if (!hasAccounts) {
+          if (!hasAccounts && !timeoutTriggered) {
             setShowWelcomeModal(true);
           } else {
             setShowWelcomeModal(false);
@@ -686,9 +723,17 @@ function AppContent() {
           // Mark as checked to prevent re-running when profile loads
           setWelcomeModalChecked(true);
         } catch (error) {
-
-          // On error, assume new user and show modal
-          setShowWelcomeModal(true);
+          console.error('Error checking for welcome modal:', error);
+          
+          // On error, check if accounts exist in store before assuming new user
+          const accountsOnError = useFinanceStore.getState().accounts;
+          if (accountsOnError.length > 0) {
+            // User has accounts, don't show modal
+            setShowWelcomeModal(false);
+          } else {
+            // No accounts found, might be new user - show modal
+            setShowWelcomeModal(true);
+          }
           setWelcomeModalChecked(true);
         }
       };

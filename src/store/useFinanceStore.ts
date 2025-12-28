@@ -299,10 +299,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   closeUpgradeModal: () => set({ upgradeModal: { isOpen: false, type: 'limit', feature: '', currentUsage: { current: 0, limit: 0, type: '' } } }),
 
   fetchAccounts: async () => {
+    console.log('[fetchAccounts] CALLED', { timestamp: new Date().toISOString(), stackTrace: new Error().stack });
     set({ loading: true, error: null });
     
     const { user } = useAuthStore.getState();
     if (!user) {
+      console.log('[fetchAccounts] No user - returning early');
       return set({ loading: false, error: 'Not authenticated' });
     }
     
@@ -341,11 +343,13 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
 
     set({ accounts, loading: false });
+    console.log('[fetchAccounts] COMPLETED', { accountCount: accounts.length, timestamp: new Date().toISOString() });
     
     // Mock data (commented out):
     // const mockAccounts = [...];
     // set({ accounts: mockAccounts, loading: false });
     } catch (error: any) {
+      console.error('[fetchAccounts] ERROR', { error, timestamp: new Date().toISOString() });
       set({ loading: false, error: error.message });
     }
   },
@@ -498,8 +502,19 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   },
   
   updateAccount: async (id, updates) => {
+    console.log('[updateAccount] START', { id, updates, timestamp: new Date().toISOString() });
+    
+    // Check if this is a simple update (like isActive toggle) that shouldn't trigger global loading
+    const isSimpleUpdate = Object.keys(updates).length === 1 && 'isActive' in updates;
+    console.log('[updateAccount] Update type', { isSimpleUpdate, updates });
+    
     try {
-      set({ loading: true, error: null });
+      // Only set global loading for complex updates that might take longer
+      if (!isSimpleUpdate) {
+        set({ loading: true, error: null });
+      } else {
+        set({ error: null });
+      }
       const { user } = useAuthStore.getState();
       if (!user) throw new Error('Not authenticated');
 
@@ -611,13 +626,71 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         .eq('id', id);
 
       if (error) throw error;
-      await get().fetchAccounts();
-      // Debug log after fetch
-      // Accounts updated after DPS changes
-      set({ loading: false });
+
+      // Optimistic update: Update local state immediately for better UX
+      // Only refetch if DPS-related changes were made (which affect multiple accounts)
+      const hasDpsChanges = updates.has_dps !== undefined || 
+                            updates.dps_type !== undefined || 
+                            updates.dps_amount_type !== undefined ||
+                            updates.dps_fixed_amount !== undefined ||
+                            updates.dps_savings_account_id !== undefined;
+
+      console.log('[updateAccount] Update strategy', { hasDpsChanges, updates });
+
+      if (hasDpsChanges) {
+        // DPS changes may affect multiple accounts, so refetch all
+        console.log('[updateAccount] DPS changes detected - calling fetchAccounts()');
+        await get().fetchAccounts();
+        console.log('[updateAccount] fetchAccounts() completed');
+      } else {
+        // Simple updates (like isActive toggle) - update local state immediately
+        console.log('[updateAccount] Simple update - updating local state only (no refetch)');
+        
+        // Show toast notification for isActive toggle
+        if (typeof updates.isActive !== 'undefined') {
+          const accountName = currentAccount.name;
+          if (updates.isActive) {
+            showToast.success(`Account "${accountName}" activated successfully`);
+          } else {
+            showToast.success(`Account "${accountName}" deactivated successfully`);
+          }
+        }
+        
+        set((state) => {
+          const updatedAccounts = state.accounts.map(account => {
+            if (account.id === id) {
+              // Merge updates into the account
+              const updatedAccount = { ...account };
+              if (typeof updates.isActive !== 'undefined') {
+                updatedAccount.isActive = updates.isActive;
+              }
+              if (updates.name !== undefined) updatedAccount.name = updates.name;
+              if (updates.type !== undefined) updatedAccount.type = updates.type;
+              if (updates.currency !== undefined) updatedAccount.currency = updates.currency;
+              if (updates.description !== undefined) updatedAccount.description = updates.description;
+              if (updates.initial_balance !== undefined) updatedAccount.initial_balance = updates.initial_balance;
+              console.log('[updateAccount] Account updated in state', { id, oldState: account, newState: updatedAccount });
+              return updatedAccount;
+            }
+            return account;
+          });
+          return { accounts: updatedAccounts, loading: isSimpleUpdate ? get().loading : false };
+        });
+        console.log('[updateAccount] Local state updated successfully');
+      }
     } catch (err: any) {
+      console.error('[updateAccount] ERROR', { id, updates, error: err });
       set({ error: err.message || 'Failed to update account', loading: false });
+      
+      // Show error toast for isActive toggle failures
+      if (typeof updates.isActive !== 'undefined') {
+        const accountName = get().accounts.find(a => a.id === id)?.name || 'Account';
+        showToast.error(`Failed to ${updates.isActive ? 'activate' : 'deactivate'} account "${accountName}"`);
+      }
+      
       throw err;
+    } finally {
+      console.log('[updateAccount] END', { id, timestamp: new Date().toISOString() });
     }
   },
 

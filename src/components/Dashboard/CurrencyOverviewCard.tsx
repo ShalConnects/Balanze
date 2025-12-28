@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatCard } from './StatCard';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
-import { Info, X, TrendingUp, TrendingDown } from 'lucide-react';
+import { Info, X } from 'lucide-react';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { isLendBorrowTransaction } from '../../utils/transactionUtils';
 
@@ -283,7 +283,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
 
   return (
     <div 
-      className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-3 sm:p-4 lg:p-5 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 h-full flex flex-col cursor-pointer group"
+      className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 h-full flex flex-col cursor-pointer group"
       onClick={() => navigate('/analytics')}
       role="button"
       tabIndex={0}
@@ -296,20 +296,25 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
       aria-label={`View ${currency} currency analytics`}
     >
       {/* Mobile-optimized header */}
-      <div className="mb-3 sm:mb-4">
+      <div className="mb-0">
         {/* Amount row */}
-        <div className="flex flex-row items-center justify-between gap-1 mb-1">
-           <div className="text-base sm:text-lg lg:text-xl xl:text-2xl font-bold tabular-nums text-gray-900 dark:text-white break-words">
-             {formatCurrency(regularAccountsTotal + dpsTotal, currency)}
+        <div className="flex flex-row items-center justify-between gap-2 sm:gap-3 mb-1 min-w-0">
+           <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+             <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+               Balance{totalAccountCount > 0 ? ` (${totalAccountCount})` : ''}:
+             </span>
+             <span className="text-xs sm:text-sm font-bold tabular-nums text-gray-900 dark:text-white truncate" title={formatCurrency(regularAccountsTotal + dpsTotal, currency)}>
+               {formatCurrency(regularAccountsTotal + dpsTotal, currency)}
+             </span>
            </div>
           
           {/* Right side: Info button and period selector - all on same row */}
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 w-auto justify-end">
+          <div className="flex items-center gap-[0.1rem] flex-shrink-0 w-auto justify-end">
             {/* Combined info button with account count - compact for mobile */}
             <div className="relative">
               <button
                 type="button"
-                className="flex items-center gap-1.5 sm:gap-1.5 px-0 py-[6px] sm:py-[6px] min-h-[36px] sm:min-h-[36px] min-w-[36px] sm:min-w-[36px] rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation"
+                className="flex items-center justify-center p-0 h-7 w-7 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
                 onMouseEnter={() => !isMobile && setShowTooltip(true)}
                 onMouseLeave={() => !isMobile && setShowTooltip(false)}
@@ -327,14 +332,9 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                 aria-label="Show account info"
               >
                 <Info className="w-4 h-4 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200 flex-shrink-0" />
-                {totalAccountCount > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[18px] sm:min-w-[18px] h-[18px] sm:h-[18px] px-1.5 sm:px-1.5 text-[10px] sm:text-[10px] font-medium bg-gradient-to-br from-blue-500 to-purple-500 dark:from-blue-400 dark:to-purple-400 text-white rounded-full flex-shrink-0">
-                    {totalAccountCount}
-                  </span>
-                )}
               </button>
               {showTooltip && !isMobile && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-56 sm:w-64 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-2 sm:p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
+                <div className="absolute right-0 top-full z-50 mt-2 w-56 sm:w-64 max-w-[90vw] rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-2 sm:p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
                   <div className="font-semibold mb-2">Total: {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
                   
                   {/* Regular Accounts (includes DPS main accounts) */}
@@ -410,52 +410,17 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                 value={period}
                 onChange={val => setPeriod(val as '1m' | '3m' | '6m' | '1y')}
                 fullWidth={false}
-                className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-[9px] xs:text-[10px] sm:text-xs h-6 xs:h-7 min-h-0 hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg px-2 xs:px-3 py-1 w-auto"
-                style={{ padding: isMobile ? '4px 8px' : '6px 12px', minWidth: isMobile ? '80px' : '100px' }}
+                className="bg-white dark:bg-gray-700 border-0 text-gray-700 dark:text-gray-200 text-xs sm:text-sm h-7 min-h-0 hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-lg px-2 sm:px-3 py-1 w-auto min-w-[80px] sm:min-w-[100px]"
                 dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
           </div>
         </div>
-        
-        {/* Net change and timestamp row */}
-        <div className="flex flex-row items-center justify-between gap-0 mt-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            {netChangePercent !== null && (
-              <div className={`flex items-center gap-1 text-[10px] xs:text-xs font-semibold ${
-                netChangePercent > 0 
-                  ? 'text-green-600 dark:text-green-400' 
-                  : netChangePercent < 0 
-                  ? 'text-red-600 dark:text-red-400' 
-                  : 'text-gray-500 dark:text-gray-400'
-              }`}>
-                {netChangePercent > 0 ? (
-                  <TrendingUp className="w-2.5 h-2.5 xs:w-3 xs:h-3 flex-shrink-0" />
-                ) : netChangePercent < 0 ? (
-                  <TrendingDown className="w-2.5 h-2.5 xs:w-3 xs:h-3 flex-shrink-0" />
-                ) : null}
-                <span className="whitespace-nowrap">Net: {formatCurrency(netChange, currency)}</span>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Delta - balance change percentage */}
-            {formatBalanceChange(balanceChange) && (
-              <span className={`text-[10px] xs:text-[11px] font-medium flex items-center gap-0.5 ${formatBalanceChange(balanceChange)!.color} whitespace-nowrap`}>
-                <span className="text-[10px] xs:text-[11px] flex-shrink-0">{formatBalanceChange(balanceChange)!.arrow}</span>
-                <span>{formatBalanceChange(balanceChange)!.text}</span>
-              </span>
-            )}
-            <div className="text-[10px] xs:text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
-              {getRelativeTimeString(lastCurrencyActivityDate)}
-            </div>
-          </div>
-        </div>
       </div>
       
       {/* Mobile-optimized stats grid */}
-      <div className="grid grid-cols-2 xs:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-2 xs:gap-2.5 sm:gap-3 flex-1">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 flex-1">
         <div className="w-full min-w-0">
           <StatCard
             title={<span className="text-[11px] xs:text-[12px] sm:text-[13px]">{t('dashboard.monthlyIncome')}</span>}
@@ -478,7 +443,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
 
       {/* Mobile Modal for Account Info */}
       {showMobileModal && isMobile && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" onClick={(e) => {
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={(e) => {
           e.stopPropagation();
           setShowMobileModal(false);
         }}>

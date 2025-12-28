@@ -1584,8 +1584,7 @@ function createPDFBuffer(user, recipient, data, settings) {
       updateTotalPages();
 
       // BANK ACCOUNTS SECTION (Grouped by Currency, Excluding Zero Balances)
-      // Filter accounts to exclude zero balances
-      const accountsWithBalance = (data.accounts || []).filter(acc => parseFloat(acc.calculated_balance) !== 0);
+      // accountsWithBalance already declared above for TOC
       
       if (accountsWithBalance.length > 0) {
         // Group accounts by currency

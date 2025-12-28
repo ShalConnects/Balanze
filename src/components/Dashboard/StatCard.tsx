@@ -157,7 +157,7 @@ export const StatCard: React.FC<StatCardProps> = ({
             
             <div className="relative flex items-center justify-between">
                 <div className="flex-1">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 tracking-wide uppercase transition-colors duration-300 group-hover:text-gray-600 dark:group-hover:text-gray-300">{title}</p>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-0 tracking-wide uppercase transition-colors duration-300 group-hover:text-gray-600 dark:group-hover:text-gray-300">{title}</p>
                     <p className={`text-base sm:text-lg font-bold mb-1 transition-all duration-500 group-hover:scale-105 ${valueColors[color] || valueColors.gray}`}>
                         {displayValue}
                     </p>
@@ -190,7 +190,7 @@ export const StatCard: React.FC<StatCardProps> = ({
             </div>
             
             {(insight || trendGraph) && (
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex items-center justify-between mt-2 pt-0 border-t border-gray-100 dark:border-gray-700">
                     {insight && (
                         <div className="flex-1 min-w-0 mr-2">
                             <div 

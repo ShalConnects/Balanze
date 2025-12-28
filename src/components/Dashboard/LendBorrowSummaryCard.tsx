@@ -260,7 +260,7 @@ export const LendBorrowSummaryCard: React.FC = () => {
   return (
     <div 
       ref={cardRef} 
-      className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative"
+      className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -282,7 +282,7 @@ export const LendBorrowSummaryCard: React.FC = () => {
         </button>
       )}
       
-      <div className="flex items-center justify-between mb-4 pr-8">
+      <div className="flex items-center justify-between mb-2 pr-8">
         <div className="flex items-center gap-2 flex-1">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">L&B</h2>
           <div className="relative flex items-center">
@@ -381,7 +381,7 @@ export const LendBorrowSummaryCard: React.FC = () => {
         <div className="text-center text-gray-400 py-8">Loading...</div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-0">
             <div className="w-full relative">
               <StatCard
                 title="Total Lent"

@@ -71,6 +71,19 @@ export const AccountsView: React.FC = () => {
   const { isPremiumPlan } = usePlanFeatures();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // Debug: Track page reloads
+  React.useEffect(() => {
+    console.log('[AccountsView] Component mounted/updated', { timestamp: new Date().toISOString() });
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      console.warn('[AccountsView] PAGE RELOAD DETECTED - beforeunload event', { timestamp: new Date().toISOString() });
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      console.log('[AccountsView] Component unmounting', { timestamp: new Date().toISOString() });
+    };
+  }, []);
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
@@ -635,7 +648,9 @@ export const AccountsView: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    console.log('[AccountsView] useEffect triggered', { user: user?.id, fetchAccountsCallback });
     if (user) {
+      console.log('[AccountsView] Calling fetchAccountsCallback from useEffect');
       fetchAccountsCallback();
     }
   }, [user, fetchAccountsCallback]);
@@ -1430,6 +1445,18 @@ export const AccountsView: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Mobile Transfer Button */}
+                <div className="md:hidden">
+                  <button
+                    onClick={() => setShowTransferTypeModal(true)}
+                    className="bg-purple-600 text-white px-2 py-1.5 rounded-md hover:bg-purple-700 transition-colors flex items-center justify-center text-[13px] h-8 w-8"
+                    title="Transfer"
+                    aria-label="Transfer"
+                  >
+                    <ArrowLeftRight className="w-4 h-4" />
+                  </button>
+                </div>
+
                 {/* Mobile Add Account Button */}
                 <div className="md:hidden">
                   <button
@@ -2005,8 +2032,18 @@ export const AccountsView: React.FC = () => {
                               {/* Action buttons: Only hide delete for cash and DPS savings accounts. Show info, edit, add transaction, and toggle for cash accounts. */}
                               {!isDpsSavingsAccount && (
                                 <button
-                                  onClick={async () => {
-                                    await updateAccount(account.id, { isActive: !account.isActive });
+                                  type="button"
+                                  onClick={async (e) => {
+                                    console.log('[Account Toggle] Button clicked', { accountId: account.id, currentState: account.isActive, event: e });
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    console.log('[Account Toggle] Calling updateAccount', { accountId: account.id, newState: !account.isActive });
+                                    try {
+                                      await updateAccount(account.id, { isActive: !account.isActive });
+                                      console.log('[Account Toggle] updateAccount completed successfully');
+                                    } catch (error) {
+                                      console.error('[Account Toggle] updateAccount error:', error);
+                                    }
                                   }}
                                   className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 ${account.isActive ? 'bg-green-600' : 'bg-gray-300'}`}
                                   title={account.isActive ? 'Deactivate Account' : 'Activate Account'}
@@ -2400,8 +2437,18 @@ export const AccountsView: React.FC = () => {
                             <div className="flex justify-center gap-2 items-center" onClick={(e) => e.stopPropagation()}>
                               {!isDpsSavingsAccount && (
                                 <button
-                                  onClick={async () => {
-                                    await updateAccount(account.id, { isActive: !account.isActive });
+                                  type="button"
+                                  onClick={async (e) => {
+                                    console.log('[Account Toggle] Button clicked', { accountId: account.id, currentState: account.isActive, event: e });
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    console.log('[Account Toggle] Calling updateAccount', { accountId: account.id, newState: !account.isActive });
+                                    try {
+                                      await updateAccount(account.id, { isActive: !account.isActive });
+                                      console.log('[Account Toggle] updateAccount completed successfully');
+                                    } catch (error) {
+                                      console.error('[Account Toggle] updateAccount error:', error);
+                                    }
                                   }}
                                   className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 ${account.isActive ? 'bg-green-600' : 'bg-gray-300'}`}
                                   title={account.isActive ? 'Deactivate Account' : 'Activate Account'}
@@ -2759,7 +2806,10 @@ export const AccountsView: React.FC = () => {
                               <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                                 {!isDpsSavingsAccount && (
                                   <button
-                                    onClick={async () => {
+                                    type="button"
+                                    onClick={async (e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                       await updateAccount(account.id, { isActive: !account.isActive });
                                     }}
                                     className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 ${account.isActive ? 'bg-green-600' : 'bg-gray-300'}`}
@@ -3096,7 +3146,10 @@ export const AccountsView: React.FC = () => {
                               <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                                 {!isDpsSavingsAccount && (
                                   <button
-                                    onClick={async () => {
+                                    type="button"
+                                    onClick={async (e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                       await updateAccount(account.id, { isActive: !account.isActive });
                                     }}
                                     className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 ${account.isActive ? 'bg-green-600' : 'bg-gray-300'}`}

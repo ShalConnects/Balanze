@@ -719,7 +719,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
 
           {/* Currency Sections & Donations - Responsive grid */}
-          <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 items-stretch">
             {stats.byCurrency.length > 0 ? (
               stats.byCurrency.map(({ currency }) => (
                 <div key={currency} className="w-full h-full">
@@ -765,7 +765,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
             {/* Purchase Overview */}
             {purchases.length > 0 && showPurchasesWidget && (
               <div 
-                className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative"
+                className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative"
                 onMouseEnter={handlePurchaseWidgetMouseEnter}
                 onMouseLeave={handlePurchaseWidgetMouseLeave}
               >
@@ -787,7 +787,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                   </button>
                 )}
                 
-                <div className="flex items-center justify-between mb-4 pr-8">
+                <div className="flex items-center justify-between mb-2 pr-8">
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">Purchases</h2>
                   <Link 
                     to="/purchases" 
@@ -798,7 +798,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                   </Link>
                 </div>
                 {/* Purchase Stats Cards - Responsive grid */}
-                <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-0">
                   <StatCard
                     title="Planned"
                     value={totalPlannedPurchases.toString()}
