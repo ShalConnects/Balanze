@@ -759,7 +759,7 @@ export const AccountsView: React.FC = () => {
   // Sort filtered accounts for table display only
   const filteredAccountsForTable = useMemo(() => {
     return sortData(filteredAccounts);
-  }, [filteredAccounts, sortConfig, transactions]);
+  }, [filteredAccounts, sortConfig, sortData]);
 
   // Group accounts by currency when showing all currencies
   const groupedAccountsByCurrency = useMemo(() => {
@@ -1252,7 +1252,7 @@ export const AccountsView: React.FC = () => {
     // Create Portal inside useMemo so it's only recreated when dependencies change
     const portal = createPortal(modalJSX, document.body);
     return portal;
-  }, [showDpsDeleteModal, dpsDeleteContext, isDeletingDPS, dpsDeleteError, confirmDeleteDPS, accounts, transactions, getTransactionsByAccount]);
+  }, [showDpsDeleteModal, dpsDeleteContext, isDeletingDPS, dpsDeleteError, confirmDeleteDPS, accounts, getTransactionsByAccount]);
 
   // Set default cardCurrency to first available currency
   useEffect(() => {
@@ -1298,7 +1298,7 @@ export const AccountsView: React.FC = () => {
       document.addEventListener('keydown', handleEscape);
       return () => document.removeEventListener('keydown', handleEscape);
     }
-  }, [showMobileFilterMenu]);
+  }, [showMobileFilterMenu, handleCloseModal]);
 
   if (loading) {
     return (

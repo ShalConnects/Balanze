@@ -39,13 +39,13 @@ export const CurrencyPortfolioSummary: React.FC<CurrencyPortfolioSummaryProps> =
     return Array.from(currencies).sort();
   }, [accounts]);
 
-  // Calculate current month date range
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
   // Calculate currency summaries
   const currencySummaries = useMemo((): CurrencySummary[] => {
+    // Calculate current month date range inside useMemo
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    
     return allCurrencies.map(currency => {
       // Filter transactions for this currency and current month
       const currencyTransactions = transactions.filter(t => {
@@ -101,7 +101,7 @@ export const CurrencyPortfolioSummary: React.FC<CurrencyPortfolioSummaryProps> =
         convertedNet
       };
     });
-  }, [transactions, accounts, allCurrencies, startOfMonth, endOfMonth, exchangeRates]);
+  }, [transactions, accounts, allCurrencies, exchangeRates]);
 
   // Calculate totals
   const totals = useMemo(() => {

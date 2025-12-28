@@ -146,7 +146,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
     };
     
     fetchUserProfile();
-  }, [profile?.id]);
+  }, [profile?.id, formData.currency]);
 
   // Update form data when account prop changes
   useEffect(() => {

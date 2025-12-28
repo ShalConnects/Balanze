@@ -58,7 +58,6 @@ const Investments = lazy(() => import('./pages/Investments').then(m => ({ defaul
 const SimpleInvestments = lazy(() => import('./pages/SimpleInvestments').then(m => ({ default: m.SimpleInvestments })));
 const History = lazy(() => import('./pages/History').then(m => ({ default: m.History })));
 const HelpLayout = lazy(() => import('./components/Layout/HelpLayout').then(m => ({ default: m.HelpLayout })));
-const PublicHelpLayout = lazy(() => import('./components/Layout/PublicHelpLayout').then(m => ({ default: m.PublicHelpLayout })));
 const PublicHelpCenter = lazy(() => import('./pages/PublicHelpCenter'));
 const TopicClusterHub = lazy(() => import('./pages/TopicClusterHub'));
 const PublicArticlePage = lazy(() => import('./pages/PublicArticlePage'));
@@ -103,22 +102,19 @@ const HomeRoute: React.FC = () => {
 function AppContent() {
   const user = useAuthStore((state) => state.user);
   const profile = useAuthStore((state) => state.profile);
-  const checkAuthState = useAuthStore((state) => state.checkAuthState);
   const { isDarkMode } = useThemeStore();
   const handleEmailConfirmation = useAuthStore((state) => state.handleEmailConfirmation);
   const [loading, setLoading] = useState(true);
   const initialized = useRef(false);
   const { isLoading: globalLoading, loadingMessage } = useLoadingContext();
-  const location = useLocation();
   const { isMobile } = useMobileDetection();
   
   // Welcome modal state
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
-  const [welcomeModalChecked, setWelcomeModalChecked] = useState(false);
   
   // Post-account creation tour state
   const [showPostAccountTour, setShowPostAccountTour] = useState(false);
-  const { accounts, fetchAccounts, fetchAllData } = useFinanceStore();
+  const { fetchAccounts, fetchAllData } = useFinanceStore();
   const { initializeDefaultNotifications } = useNotificationStore();
   const { fetchNotifications } = useNotificationsStore();
   
@@ -231,7 +227,7 @@ function AppContent() {
             }
             break;
             
-          case 'SIGNED_OUT':
+          case 'SIGNED_OUT': {
             // Don't clear success message when signing out
             const currentState = useAuthStore.getState();
             useAuthStore.setState({
@@ -292,7 +288,7 @@ function AppContent() {
           });
           
           if (error) {
-
+            // Error handling - continue with flow
           } else if (data.user) {
             await handleEmailConfirmation();
           }
@@ -309,8 +305,7 @@ function AppContent() {
           try {
           await setUserAndProfile(currentUser, null);
 
-          } catch (error) {
-
+          } catch {
             // Continue anyway to prevent hanging
           }
         } else {
@@ -318,8 +313,8 @@ function AppContent() {
 
           setUserAndProfile(null, null);
         }
-      } catch (error) {
-
+      } catch {
+        // Error handling - continue with initialization
       } finally {
         clearTimeout(timeoutId);
         setLoading(false);
@@ -612,7 +607,7 @@ function AppContent() {
       // Fetch notifications from database
       fetchNotifications();
     }
-  }, [user, loading, initializeDefaultNotifications]);
+  }, [user, loading, initializeDefaultNotifications, fetchNotifications]);
 
   // Check for premium intent after authentication
   useEffect(() => {

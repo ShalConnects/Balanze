@@ -27,7 +27,9 @@ export const AIChatBot: React.FC<AIChatBotProps> = ({
 }) => {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
-  const setIsOpen = onOpenChange ? (open: boolean) => onOpenChange(open) : setInternalIsOpen;
+  const setIsOpen = useMemo(() => {
+    return onOpenChange ? (open: boolean) => onOpenChange(open) : setInternalIsOpen;
+  }, [onOpenChange]);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
