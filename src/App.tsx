@@ -236,6 +236,7 @@ function AppContent() {
               profile: null
             });
             break;
+          }
             
           case 'TOKEN_REFRESHED':
             if (currentUser && currentUser.email_confirmed_at) {
