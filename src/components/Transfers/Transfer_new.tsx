@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Search, ChevronUp, ChevronDown, Filter, TrendingUp, ArrowRight, Eye } from 'lucide-react';
+import { Plus, Search, ChevronUp, ChevronDown, Filter, TrendingUp, ArrowRight, Eye, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatTimeUTC } from '../../utils/timezoneUtils';
 import { useFinanceStore } from '../../store/useFinanceStore';
@@ -1388,9 +1388,19 @@ export const Transfer_new: React.FC = () => {
         <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="mx-auto max-w-xs rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl">
-            <Dialog.Title className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              Select Transfer Type
-            </Dialog.Title>
+            <div className="flex items-center justify-between mb-4">
+              <Dialog.Title className="text-lg font-medium text-gray-900 dark:text-white">
+                Select Transfer Type
+              </Dialog.Title>
+              <button
+                type="button"
+                onClick={() => setShowTransferTypeModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                aria-label="Close modal"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
             <div className="flex flex-col gap-4">
               <button
                 onClick={() => { setShowTransferTypeModal(false); setShowCurrencyTransferModal(true); }}

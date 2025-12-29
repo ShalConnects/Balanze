@@ -221,14 +221,55 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.from_account_id || !formData.to_account_id || !formData.amount) return;
+    
+    // Prevent duplicate submissions
+    if (loading) return;
+    
+    if (!formData.from_account_id || !formData.to_account_id || !formData.amount) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
 
-    if (!fromAccount || !toAccount) return;
+    if (!fromAccount || !toAccount) {
+      toast.error('Please select valid accounts');
+      return;
+    }
+
+    // Check if accounts are still active
+    if (!fromAccount.isActive || !toAccount.isActive) {
+      toast.error('One or both accounts are inactive. Please select active accounts.');
+      return;
+    }
+
+    // Validate amount
+    const amount = parseFloat(formData.amount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount greater than 0');
+      return;
+    }
+
+    // Validate maximum amount (prevent extremely large transfers)
+    if (amount > 999999999) {
+      toast.error('Amount is too large. Maximum transfer amount is 999,999,999');
+      return;
+    }
+
+    // Check for insufficient funds
+    if (fromAccount.calculated_balance < amount) {
+      toast.error(`Insufficient funds. Available balance: ${formatCurrency(fromAccount.calculated_balance, fromAccount.currency)}`);
+      return;
+    }
 
     // Validate exchange rate
     const rate = parseFloat(formData.exchange_rate);
     if (!isValidExchangeRate(rate)) {
       toast.error('Please enter a valid exchange rate (between 0 and 10,000)');
+      return;
+    }
+
+    // Prevent zero exchange rate (would result in zero transfer)
+    if (rate === 0) {
+      toast.error('Exchange rate cannot be zero');
       return;
     }
 
@@ -240,7 +281,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
       await transfer({
         from_account_id: formData.from_account_id,
         to_account_id: formData.to_account_id,
-        from_amount: parseFloat(formData.amount),
+        from_amount: amount,
         exchange_rate: rate,
         note: formData.note,
         transaction_id: transactionId
@@ -251,7 +292,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
                           mode === 'dps' ? 'DPS Transfer' : 
                           'Currency Transfer';
       const successMessage = createSuccessMessage(transferType, transactionId, 
-        `${formatCurrency(parseFloat(formData.amount), fromAccount.currency)} from ${fromAccount.name} to ${toAccount.name}`);
+        `${formatCurrency(amount, fromAccount.currency)} from ${fromAccount.name} to ${toAccount.name}`);
       toast.success(successMessage);
 
       setFormData({
@@ -262,14 +303,22 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
         note: ''
       });
       
-      // Refresh transfer history for all transfer types
-      fetchTransferHistory();
+      // Refresh transfer history for all transfer types (only for DPS mode)
+      if (mode === 'dps') {
+        try {
+          await fetchTransferHistory();
+        } catch (err) {
+          // Silently fail - history refresh is not critical
+          console.error('Failed to refresh transfer history:', err);
+        }
+      }
       
       // Only close modal after success
       onClose();
-    } catch (err) {
-
-      toast.error('Transfer failed. Please try again.');
+    } catch (err: any) {
+      // Show specific error message if available
+      const errorMessage = err?.message || 'Transfer failed. Please try again.';
+      toast.error(errorMessage);
     } finally {
       // Set loading state to false
       useFinanceStore.setState({ loading: false });
@@ -317,11 +366,26 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
         
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="mx-auto max-w-4xl w-full rounded-lg bg-white dark:bg-gray-900 p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-            <Dialog.Title className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              {mode === 'inbetween' ? 'In-between Transfer' : 
-               mode === 'dps' ? 'DPS Transfer' : 
-               'Currency Transfer'}
-            </Dialog.Title>
+            <div className="flex items-center justify-between mb-4">
+              <Dialog.Title className="text-lg font-medium text-gray-900 dark:text-white">
+                {mode === 'inbetween' ? 'In-between Transfer' : 
+                 mode === 'dps' ? 'DPS Transfer' : 
+                 'Currency Transfer'}
+              </Dialog.Title>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onClose();
+                }}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                aria-label="Close modal"
+                disabled={loading}
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
 
             {error && (
               <div className="mb-4 p-4 text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/20 rounded-md">
@@ -552,7 +616,11 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, m
               <div className="flex justify-end space-x-3 pt-2">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onClose();
+                  }}
                   className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                   disabled={loading}
                 >

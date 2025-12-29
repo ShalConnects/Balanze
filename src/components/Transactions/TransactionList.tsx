@@ -2623,7 +2623,7 @@ export const TransactionList: React.FC<{
                           </Tooltip>
                         )}
                         {account && account.calculated_balance !== undefined && (
-                          <span className="ml-1.5">• {formatCurrency(account.calculated_balance, account.currency)}</span>
+                          <span style={{ margin: 0 }}>• {formatCurrency(account.calculated_balance, account.currency)}</span>
                         )}
                       </div>
                       <div className="flex gap-1">

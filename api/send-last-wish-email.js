@@ -1637,8 +1637,7 @@ function createPDFBuffer(user, recipient, data, settings) {
       }
 
       // LEND/BORROW SECTION (Only Active/Unsettled Records)
-      // Filter to only show active records
-      const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active');
+      // Filter to only show active records (activeLendBorrow already declared above for TOC)
       
       if (activeLendBorrow.length > 0) {
         doc.addPage();

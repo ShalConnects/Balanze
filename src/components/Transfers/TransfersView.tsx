@@ -5,7 +5,7 @@ import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
 import { formatTimeUTC } from '../../utils/timezoneUtils';
 
-import { ArrowRight, Plus, Search, Copy, ChevronDown, Filter, RefreshCw } from 'lucide-react';
+import { ArrowRight, Plus, Search, Copy, ChevronDown, Filter, RefreshCw, X } from 'lucide-react';
 
 import { formatCurrency } from '../../utils/currency';
 
@@ -1064,12 +1064,19 @@ export const TransfersView: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
 
           <Dialog.Panel className="mx-auto max-w-xs rounded-lg bg-white p-6 shadow-xl">
-
-            <Dialog.Title className="text-lg font-medium text-gray-900 mb-4">
-
-              Select Transfer Type
-
-            </Dialog.Title>
+            <div className="flex items-center justify-between mb-4">
+              <Dialog.Title className="text-lg font-medium text-gray-900">
+                Select Transfer Type
+              </Dialog.Title>
+              <button
+                type="button"
+                onClick={() => setShowTransferTypeModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
+                aria-label="Close modal"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
 
             <div className="flex flex-col gap-4">
 

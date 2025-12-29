@@ -756,16 +756,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
               </div>
             )}
             
-          </div>
-
-
-          {/* Purchase Overview & L&B Summary Row - Responsive grid */}
-          {hasAnyWidgetVisible && (
-            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6">
             {/* Purchase Overview */}
             {purchases.length > 0 && showPurchasesWidget && (
               <div 
-                className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative"
+                className="w-full h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative flex flex-col"
                 onMouseEnter={handlePurchaseWidgetMouseEnter}
                 onMouseLeave={handlePurchaseWidgetMouseLeave}
               >
@@ -798,7 +792,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                   </Link>
                 </div>
                 {/* Purchase Stats Cards - Responsive grid */}
-                <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-0">
+                <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-0 flex-1">
                   <StatCard
                     title="Planned"
                     value={totalPlannedPurchases.toString()}
@@ -813,21 +807,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                 </div>
               </div>
             )}
+            
             {/* L&B Summary Card */}
             {isPremium && hasLendBorrowRecords && showLendBorrowWidget && (
-              <div className="w-full">
+              <div className="w-full h-full">
                 <LendBorrowSummaryCard />
               </div>
             )}
             
             {/* Transfer Summary Card */}
             {hasTransfers && showTransferWidget && (
-              <div className="w-full">
+              <div className="w-full h-full">
                 <TransferSummaryCard />
               </div>
             )}
+            
           </div>
-          )}
 
           {/* Motivational Quote - Hidden on mobile, shown on desktop */}
           <div className="hidden lg:block">

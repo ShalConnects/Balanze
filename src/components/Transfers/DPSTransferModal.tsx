@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog } from '@headlessui/react';
+import { X } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Account } from '../../types';
 import { generateTransactionId, createSuccessMessage } from '../../utils/transactionId';
@@ -20,22 +21,110 @@ export const DPSTransferModal: React.FC<DPSTransferModalProps> = ({ isOpen, onCl
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const selectedAccount = dpsAccounts.find(a => a.id === selectedAccountId);
   const linkedSavingsAccount = selectedAccount && accounts.find(a => a.id === selectedAccount.dps_savings_account_id);
   const fixedAmount = selectedAccount?.dps_amount_type === 'fixed' ? selectedAccount.dps_fixed_amount : null;
   const isFixedAmount = selectedAccount && selectedAccount.dps_amount_type === 'fixed';
 
+  // Cleanup timeout on unmount or when modal closes
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  // Clear timeout when modal closes
+  useEffect(() => {
+    if (!isOpen && timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, [isOpen]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent duplicate submissions
+    if (loading) return;
+    
+    if (!selectedAccountId) {
+      setError('Please select a DPS account.');
+      toast.error('Please select a DPS account');
+      return;
+    }
+    
+    if (!selectedAccount || !linkedSavingsAccount) {
+      setError('Invalid account selection.');
+      toast.error('Invalid account selection');
+      return;
+    }
+
+    // Check if accounts are still active
+    if (!selectedAccount.isActive || !linkedSavingsAccount.isActive) {
+      const errorMsg = 'One or both accounts are inactive. Please select active accounts.';
+      setError(errorMsg);
+      toast.error(errorMsg);
+      return;
+    }
+
+    // Check if DPS is still enabled
+    if (!selectedAccount.has_dps) {
+      const errorMsg = 'DPS is no longer enabled for this account.';
+      setError(errorMsg);
+      toast.error(errorMsg);
+      return;
+    }
+    
     let transferAmount = amount;
     if (isFixedAmount && selectedAccount?.dps_fixed_amount != null) {
       transferAmount = selectedAccount.dps_fixed_amount.toString();
     }
+    
     if (!isFixedAmount && !amount) {
       setError('Please enter an amount.');
+      toast.error('Please enter an amount');
       return;
     }
+    
+    // Validate amount
+    const amountValue = parseFloat(transferAmount);
+    if (isNaN(amountValue) || amountValue <= 0) {
+      setError('Please enter a valid amount greater than 0.');
+      toast.error('Please enter a valid amount greater than 0');
+      return;
+    }
+
+    // Validate fixed amount if applicable
+    if (isFixedAmount && selectedAccount.dps_fixed_amount != null) {
+      if (selectedAccount.dps_fixed_amount <= 0) {
+        const errorMsg = 'Fixed DPS amount must be greater than 0. Please update the account settings.';
+        setError(errorMsg);
+        toast.error(errorMsg);
+        return;
+      }
+    }
+
+    // Validate maximum amount (prevent extremely large transfers)
+    if (amountValue > 999999999) {
+      const errorMsg = 'Amount is too large. Maximum transfer amount is 999,999,999';
+      setError(errorMsg);
+      toast.error(errorMsg);
+      return;
+    }
+    
+    // Check for insufficient funds
+    if (selectedAccount.calculated_balance < amountValue) {
+      const errorMsg = `Insufficient funds. Available balance: ${formatCurrency(selectedAccount.calculated_balance, selectedAccount.currency)}`;
+      setError(errorMsg);
+      toast.error(errorMsg);
+      return;
+    }
+    
     setError('');
     setSuccess('');
     try {
@@ -44,26 +133,35 @@ export const DPSTransferModal: React.FC<DPSTransferModalProps> = ({ isOpen, onCl
       
       await transferDPS({
         from_account_id: selectedAccountId,
-        amount: parseFloat(transferAmount),
+        amount: amountValue,
         transaction_id: transactionId
       });
       
       // Show success toast with transaction ID
       const successMessage = createSuccessMessage('DPS Transfer', transactionId, 
-        `${transferAmount} from ${selectedAccount?.name} to ${linkedSavingsAccount?.name}`);
+        `${formatCurrency(amountValue, selectedAccount.currency)} from ${selectedAccount.name} to ${linkedSavingsAccount.name}`);
       toast.success(successMessage);
       
       setSuccess('DPS transfer successful!');
       setAmount('');
       setSelectedAccountId('');
-      setTimeout(() => {
+      
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      // Set new timeout with cleanup
+      timeoutRef.current = setTimeout(() => {
         setSuccess('');
         onClose();
+        timeoutRef.current = null;
       }, 1200);
     } catch (err: any) {
-
-      setError(err.message || 'Failed to transfer.');
-      toast.error('DPS transfer failed. Please try again.');
+      // Show specific error message if available
+      const errorMessage = err?.message || 'DPS transfer failed. Please try again.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -79,10 +177,25 @@ export const DPSTransferModal: React.FC<DPSTransferModalProps> = ({ isOpen, onCl
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
       <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <Dialog.Panel className="mx-auto max-w-4xl w-full rounded-lg bg-white p-6 shadow-xl">
-          <Dialog.Title className="text-lg font-medium text-gray-900 mb-4">
-            DPS Transfer
-          </Dialog.Title>
+        <Dialog.Panel className="mx-auto max-w-4xl w-full rounded-lg bg-white dark:bg-gray-900 p-6 shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <Dialog.Title className="text-lg font-medium text-gray-900 dark:text-white">
+              DPS Transfer
+            </Dialog.Title>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              aria-label="Close modal"
+              disabled={loading}
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
           {dpsAccounts.length === 0 ? (
             <div className="text-center py-8 bg-white rounded-lg border border-gray-200">
               <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">

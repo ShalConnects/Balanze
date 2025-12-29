@@ -112,7 +112,7 @@ export const TransactionMobileView: React.FC<TransactionMobileViewProps> = React
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     {getAccountName(transaction.account_id)}
                     {account && account.calculated_balance !== undefined && (
-                      <span className="ml-1.5">• {formatCurrency(account.calculated_balance, account.currency)}</span>
+                      <span style={{ margin: 0 }}>• {formatCurrency(account.calculated_balance, account.currency)}</span>
                     )}
                   </div>
                 </div>
