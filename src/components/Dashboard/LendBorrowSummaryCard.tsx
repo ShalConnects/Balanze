@@ -5,13 +5,18 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { LendBorrow } from '../../types/index';
 import { StatCard } from './StatCard';
-import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { formatCurrency } from '../../utils/currency';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { toast } from 'sonner';
 
-export const LendBorrowSummaryCard: React.FC = () => {
+interface LendBorrowSummaryCardProps {
+  filterCurrency?: string;
+}
+
+export const LendBorrowSummaryCard: React.FC<LendBorrowSummaryCardProps> = ({ 
+  filterCurrency = '' 
+}) => {
   const { user, profile } = useAuthStore();
   
   // Check if user has Premium plan for L&B
@@ -22,7 +27,6 @@ export const LendBorrowSummaryCard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showLentTooltip, setShowLentTooltip] = useState(false);
   const [showLentMobileModal, setShowLentMobileModal] = useState(false);
-  const [filterCurrency, setFilterCurrency] = useState('');
   const [tooltipPosition, setTooltipPosition] = useState<'center' | 'right'>('center');
   const [isHovered, setIsHovered] = useState(false);
   const [showCrossTooltip, setShowCrossTooltip] = useState(false);
@@ -84,12 +88,6 @@ export const LendBorrowSummaryCard: React.FC = () => {
     return recordCurrencies;
   }, [profile?.selected_currencies, recordCurrencies]);
 
-  // Set default currency filter
-  useEffect(() => {
-    if (!filterCurrency && filteredCurrencies.length > 0) {
-      setFilterCurrency(filteredCurrencies[0]);
-    }
-  }, [filteredCurrencies, filterCurrency]);
 
   // Load user preferences for L&B widget visibility
   useEffect(() => {
@@ -308,80 +306,86 @@ export const LendBorrowSummaryCard: React.FC = () => {
             {showLentTooltip && !isMobile && (
               <div 
                 ref={tooltipRef}
-                className={`absolute top-full z-50 mt-2 w-80 sm:w-96 md:w-[28rem] max-w-[calc(100vw-2rem)] rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-2 sm:p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein ${
-                  tooltipPosition === 'center' 
-                    ? 'left-1/2 -translate-x-1/2' 
-                    : 'right-0'
-                }`}
+                className="absolute left-1/2 top-full z-50 mt-2 w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-3 sm:p-4 text-xs text-gray-700 dark:text-gray-200 animate-fadein"
               >
-                <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
-                  {/* Left side - Lend list */}
-                  <div className="min-w-0">
-                    <div className="font-medium mb-1.5 sm:mb-2 text-[11px] sm:text-xs bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent truncate">Lent To ({Object.keys(lentByPerson).length})</div>
-                    {Object.keys(lentByPerson).length > 0 ? (
-                      <>
-                        <ul className="space-y-0.5 sm:space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
-                          {Object.entries(lentByPerson).map(([person, amount]) => (
-                            <li key={person} className="flex justify-between">
-                              <span className="truncate max-w-[90px] sm:max-w-[100px] md:max-w-[120px] text-[10px] sm:text-[11px] bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent min-w-0" title={person}>{person}</span>
-                              <span className="ml-1 sm:ml-2 tabular-nums text-[10px] sm:text-[11px] bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent flex-shrink-0">{formatCurrency(amount, filterCurrency)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-gray-200 dark:border-gray-700">
-                          <div className="flex justify-between">
-                            <span className="font-semibold text-[11px] sm:text-xs bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">Total</span>
-                            <span className="ml-1 sm:ml-2 tabular-nums font-semibold text-[11px] sm:text-xs bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent flex-shrink-0">{formatCurrency(totalActiveLent, filterCurrency)}</span>
-                          </div>
+                <div className="space-y-2 sm:space-y-3">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    {/* Left side - Lend list */}
+                    <div className="min-w-0">
+                      <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">Lent To ({Object.keys(lentByPerson).length})</div>
+                      {Object.keys(lentByPerson).length > 0 ? (
+                        <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent break-words">
+                          {formatCurrency(totalActiveLent, filterCurrency)}
                         </div>
-                      </>
-                    ) : (
-                      <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">No active loans</div>
-                    )}
-                  </div>
-                  
-                  {/* Right side - Borrow list */}
-                  <div className="min-w-0">
-                    <div className="font-medium mb-1.5 sm:mb-2 text-[11px] sm:text-xs bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent truncate">Borrowed From ({Object.keys(borrowedByPerson).length})</div>
-                    {Object.keys(borrowedByPerson).length > 0 ? (
-                      <>
-                        <ul className="space-y-0.5 sm:space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
-                          {Object.entries(borrowedByPerson).map(([person, amount]) => (
-                            <li key={person} className="flex justify-between">
-                              <span className="truncate max-w-[90px] sm:max-w-[100px] md:max-w-[120px] text-[10px] sm:text-[11px] bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent min-w-0" title={person}>{person}</span>
-                              <span className="ml-1 sm:ml-2 tabular-nums text-[10px] sm:text-[11px] bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent flex-shrink-0">{formatCurrency(amount, filterCurrency)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-gray-200 dark:border-gray-700">
-                          <div className="flex justify-between">
-                            <span className="font-semibold text-[11px] sm:text-xs bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">Total</span>
-                            <span className="ml-1 sm:ml-2 tabular-nums font-semibold text-[11px] sm:text-xs bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent flex-shrink-0">{formatCurrency(totalActiveBorrowed, filterCurrency)}</span>
-                          </div>
+                      ) : (
+                        <div className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-500">No active loans</div>
+                      )}
+                    </div>
+
+                    {/* Right side - Borrow list */}
+                    <div className="min-w-0">
+                      <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">Borrowed From ({Object.keys(borrowedByPerson).length}):</div>
+                      {Object.keys(borrowedByPerson).length > 0 ? (
+                        <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent break-words">
+                          {formatCurrency(totalActiveBorrowed, filterCurrency)}
                         </div>
-                      </>
-                    ) : (
-                      <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">No active borrows</div>
-                    )}
+                      ) : (
+                        <div className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-500">No active borrows</div>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Detailed Lists */}
+                  {(Object.keys(lentByPerson).length > 0 || Object.keys(borrowedByPerson).length > 0) && (
+                    <>
+                      <div className="border-t border-gray-200 dark:border-gray-700 mt-2"></div>
+                      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                        {/* Left side - Lend list */}
+                        {Object.keys(lentByPerson).length > 0 && (
+                          <div>
+                            <div className="mb-1">
+                              <div className="font-semibold text-gray-900 dark:text-gray-100 text-[10px] sm:text-[11px]">Lent To</div>
+                            </div>
+                            <ul className="space-y-0.5 max-h-32 sm:max-h-40 overflow-y-auto">
+                              {Object.entries(lentByPerson).map(([person, amount]) => (
+                                <li key={person} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
+                                  <span className="truncate flex-1 text-[10px] sm:text-[11px] text-gray-700 dark:text-gray-300 min-w-0" title={person}>{person}</span>
+                                  <span className="ml-2 tabular-nums font-medium text-[10px] sm:text-[11px] text-gray-900 dark:text-gray-100 flex-shrink-0">
+                                    {formatCurrency(amount, filterCurrency)}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {/* Right side - Borrow list */}
+                        {Object.keys(borrowedByPerson).length > 0 && (
+                          <div>
+                            <div className="mb-1">
+                              <div className="font-semibold text-gray-900 dark:text-gray-100 text-[10px] sm:text-[11px]">Borrowed From</div>
+                            </div>
+                            <ul className="space-y-0.5 max-h-32 sm:max-h-40 overflow-y-auto">
+                              {Object.entries(borrowedByPerson).map(([person, amount]) => (
+                                <li key={person} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
+                                  <span className="truncate flex-1 text-[10px] sm:text-[11px] text-gray-700 dark:text-gray-300 min-w-0" title={person}>{person}</span>
+                                  <span className="ml-2 tabular-nums font-medium text-[10px] sm:text-[11px] text-gray-900 dark:text-gray-100 flex-shrink-0">
+                                    {formatCurrency(amount, filterCurrency)}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {/* Currency Filter using CustomDropdown */}
-          <div className="relative">
-            <CustomDropdown
-              options={filteredCurrencies.map(currency => ({ value: currency, label: currency }))}
-              value={filterCurrency}
-              onChange={setFilterCurrency}
-              fullWidth={false}
-              className="bg-transparent border shadow-none text-gray-500 text-xs h-7 min-h-0 hover:bg-gray-100 focus:ring-0 focus:outline-none"
-              style={{ padding: '10px', paddingRight: '5px', border: '1px solid rgb(229 231 235 / var(--tw-bg-opacity, 1))' }}
-              dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
-            />
-          </div>
           <Link 
             to="/lent-borrow" 
             className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200"

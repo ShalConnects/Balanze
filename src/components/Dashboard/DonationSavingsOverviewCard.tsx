@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Heart, TrendingUp, ArrowRight, Info, X, Clock, Calendar } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
-import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { StatCard } from './StatCard';
 import { Link } from 'react-router-dom';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
@@ -12,17 +11,18 @@ import { toast } from 'sonner';
 interface DonationSavingsOverviewCardProps {
   t: (key: string, options?: any) => string;
   formatCurrency: (amount: number, currency: string) => string;
+  filterCurrency?: string;
 }
 
 export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardProps> = ({ 
   t, 
-  formatCurrency 
+  formatCurrency,
+  filterCurrency = ''
 }) => {
   const accounts = useFinanceStore(state => state.accounts);
   const transactions = useFinanceStore(state => state.transactions);
   const donationSavingRecords = useFinanceStore(state => state.donationSavingRecords);
   const { user, profile } = useAuthStore();
-  const [filterCurrency, setFilterCurrency] = useState('');
   const [loading, setLoading] = useState(true);
   const [showTooltip, setShowTooltip] = useState(false);
   const [showMobileModal, setShowMobileModal] = useState(false);
@@ -42,27 +42,6 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
     return Array.from(new Set(accounts.map(a => a.currency)));
   }, [accounts]);
 
-  // Set default currency filter
-  useEffect(() => {
-    if (!filterCurrency) {
-      // First try to use profile's local currency
-      if (profile?.local_currency) {
-        setFilterCurrency(profile.local_currency);
-      }
-      // Then try profile's selected currencies
-      else if (profile?.selected_currencies && profile.selected_currencies.length > 0) {
-        setFilterCurrency(profile.selected_currencies[0]);
-      }
-      // Then try available account currencies
-      else if (recordCurrencies.length > 0) {
-        setFilterCurrency(recordCurrencies[0]);
-      }
-      // Fallback to USD if no currencies available
-      else {
-        setFilterCurrency('USD');
-      }
-    }
-  }, [recordCurrencies, filterCurrency, profile]);
 
   // Set loading to false when we have data
   useEffect(() => {
@@ -502,18 +481,6 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
         
         {/* Right side - Controls */}
         <div className="flex items-center gap-3">
-          {/* Currency Filter using CustomDropdown */}
-          <div className="relative">
-            <CustomDropdown
-              options={currencyOptions}
-              value={filterCurrency}
-              onChange={setFilterCurrency}
-              fullWidth={false}
-              className="bg-transparent border shadow-none text-gray-500 text-xs h-7 min-h-0 hover:bg-gray-100 focus:ring-0 focus:outline-none"
-              style={{ padding: '10px', paddingRight: '5px', border: '1px solid rgb(229 231 235 / var(--tw-bg-opacity, 1))' }}
-              dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
-            />
-          </div>
           <Link 
             to="/donations" 
             className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200 whitespace-nowrap"

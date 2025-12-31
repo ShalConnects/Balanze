@@ -301,7 +301,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
         <div className="flex flex-row items-center justify-between gap-1.5 sm:gap-2 md:gap-3 mb-1 min-w-0">
            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
              <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-               Balance{totalAccountCount > 0 ? ` (${totalAccountCount})` : ''}:
+               {currency}{totalAccountCount > 0 ? ` (${totalAccountCount})` : ''}:
              </span>
              <span className="text-xs sm:text-sm font-bold tabular-nums text-gray-900 dark:text-white" title={formatCurrency(regularAccountsTotal + dpsTotal, currency)}>
                {formatCurrency(regularAccountsTotal + dpsTotal, currency)}
@@ -331,65 +331,40 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                </button>
                {showTooltip && !isMobile && (
                  <div className="absolute left-0 top-full z-50 mt-2 w-56 sm:w-64 max-w-[90vw] rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-2 sm:p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
-                   <div className="font-semibold mb-2">Total: {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
+                   <div className="font-semibold mb-2">Total ({totalAccountCount}): {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
                    
-                   {/* Regular Accounts (includes DPS main accounts) */}
-                   {sortedAllRegularAccounts.length > 0 && (
-                     <>
-                       <div className="font-medium mb-1">Accounts ({sortedAllRegularAccounts.length}):</div>
-                       <ul className="space-y-1">
-                         {sortedAllRegularAccounts.map(acc => {
-                           const balance = acc.calculated_balance || 0;
-                           const isNegative = balance < 0;
-                           const isZero = balance === 0;
-                           return (
-                             <li key={acc.id} className={`flex justify-between ${isZero ? 'opacity-50' : ''}`}>
-                               <span className={`truncate max-w-[100px] sm:max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
-                               <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
-                                 {formatCurrency(balance, currency)}
-                               </span>
-                             </li>
-                           );
-                         })}
-                       </ul>
-                       <div className="mt-1 pt-1 border-t border-gray-200 dark:border-gray-700">
-                         <div className="flex justify-between font-medium">
-                           <span>Total Accounts:</span>
-                           <span className="tabular-nums">{formatCurrency(regularAccountsTotal, currency)}</span>
-                         </div>
-                       </div>
-                     </>
-                   )}
-                   
-                   {/* DPS Accounts */}
-                   {sortedDpsSavingsAccounts.length > 0 && (
-                     <>
-                       <div className="my-2 pt-2">
-                         <div className="font-medium mb-1">DPS Accounts ({sortedDpsSavingsAccounts.length}):</div>
-                         <ul className="space-y-1">
-                           {sortedDpsSavingsAccounts.map(acc => {
-                             const balance = acc.calculated_balance || 0;
-                             const isNegative = balance < 0;
-                             const isZero = balance === 0;
-                             return (
-                               <li key={acc.id} className={`flex justify-between ${isZero ? 'opacity-50' : ''}`}>
-                                 <span className={`truncate max-w-[100px] sm:max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
-                                 <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
-                                   {formatCurrency(balance, currency)}
-                                 </span>
-                               </li>
-                             );
-                           })}
-                         </ul>
-                         <div className="mt-1 pt-1 border-t border-gray-200 dark:border-gray-700">
-                           <div className="flex justify-between font-medium">
-                             <span>Total DPS:</span>
-                             <span className="tabular-nums">{formatCurrency(dpsTotal, currency)}</span>
-                           </div>
-                         </div>
-                       </div>
-                     </>
-                   )}
+                   {/* All Accounts - Regular first, then DPS */}
+                   <ul className="space-y-1">
+                     {/* Regular Accounts (includes DPS main accounts) */}
+                     {sortedAllRegularAccounts.map(acc => {
+                       const balance = acc.calculated_balance || 0;
+                       const isNegative = balance < 0;
+                       const isZero = balance === 0;
+                       return (
+                         <li key={acc.id} className={`flex justify-between ${isZero ? 'opacity-50' : ''}`}>
+                           <span className={`truncate max-w-[100px] sm:max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
+                           <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
+                             {formatCurrency(balance, currency)}
+                           </span>
+                         </li>
+                       );
+                     })}
+                     
+                     {/* DPS Accounts */}
+                     {sortedDpsSavingsAccounts.map(acc => {
+                       const balance = acc.calculated_balance || 0;
+                       const isNegative = balance < 0;
+                       const isZero = balance === 0;
+                       return (
+                         <li key={acc.id} className={`flex justify-between ${isZero ? 'opacity-50' : ''}`}>
+                           <span className={`truncate max-w-[100px] sm:max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
+                           <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
+                             {formatCurrency(balance, currency)}
+                           </span>
+                         </li>
+                       );
+                     })}
+                   </ul>
                  </div>
                )}
              </div>
@@ -452,7 +427,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
           }} />
           <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-64 animate-fadein" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-2">
-              <div className="font-semibold text-gray-700 dark:text-gray-200">Total: {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
+              <div className="font-semibold text-gray-700 dark:text-gray-200">Total ({totalAccountCount}): {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -464,63 +439,38 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
               </button>
             </div>
             
-            {/* Regular Accounts (includes DPS main accounts) */}
-            {sortedAllRegularAccounts.length > 0 && (
-              <>
-                <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">Accounts ({sortedAllRegularAccounts.length}):</div>
-                <ul className="space-y-1 max-h-48 overflow-y-auto">
-                  {sortedAllRegularAccounts.map(acc => {
-                    const balance = acc.calculated_balance || 0;
-                    const isNegative = balance < 0;
-                    const isZero = balance === 0;
-                    return (
-                      <li key={acc.id} className={`flex justify-between text-xs ${isZero ? 'opacity-50 text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
-                        <span className={`truncate max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
-                        <span className={`ml-2 tabular-nums ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
-                          {formatCurrency(balance, currency)}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <div className="mt-1 pt-1 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex justify-between font-medium text-xs text-gray-700 dark:text-gray-200">
-                    <span>Total Accounts:</span>
-                    <span className="tabular-nums">{formatCurrency(regularAccountsTotal, currency)}</span>
-                  </div>
-                </div>
-              </>
-            )}
-            
-            {/* DPS Accounts */}
-            {sortedDpsSavingsAccounts.length > 0 && (
-              <>
-                <div className="my-2 pt-2">
-                  <div className="font-medium mb-1 text-gray-700 dark:text-gray-200">DPS Accounts ({sortedDpsSavingsAccounts.length}):</div>
-                  <ul className="space-y-1 max-h-32 overflow-y-auto">
-                    {sortedDpsSavingsAccounts.map(acc => {
-                      const balance = acc.calculated_balance || 0;
-                      const isNegative = balance < 0;
-                      const isZero = balance === 0;
-                      return (
-                        <li key={acc.id} className={`flex justify-between text-xs ${isZero ? 'opacity-50 text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
-                          <span className={`truncate max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
-                          <span className={`ml-2 tabular-nums ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
-                            {formatCurrency(balance, currency)}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <div className="mt-1 pt-1 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex justify-between font-medium text-xs text-gray-700 dark:text-gray-200">
-                      <span>Total DPS:</span>
-                      <span className="tabular-nums">{formatCurrency(dpsTotal, currency)}</span>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
+            {/* All Accounts - Regular first, then DPS */}
+            <ul className="space-y-1 max-h-64 overflow-y-auto">
+              {/* Regular Accounts (includes DPS main accounts) */}
+              {sortedAllRegularAccounts.map(acc => {
+                const balance = acc.calculated_balance || 0;
+                const isNegative = balance < 0;
+                const isZero = balance === 0;
+                return (
+                  <li key={acc.id} className={`flex justify-between text-xs ${isZero ? 'opacity-50 text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                    <span className={`truncate max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
+                    <span className={`ml-2 tabular-nums ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
+                      {formatCurrency(balance, currency)}
+                    </span>
+                  </li>
+                );
+              })}
+              
+              {/* DPS Accounts */}
+              {sortedDpsSavingsAccounts.map(acc => {
+                const balance = acc.calculated_balance || 0;
+                const isNegative = balance < 0;
+                const isZero = balance === 0;
+                return (
+                  <li key={acc.id} className={`flex justify-between text-xs ${isZero ? 'opacity-50 text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                    <span className={`truncate max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
+                    <span className={`ml-2 tabular-nums ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
+                      {formatCurrency(balance, currency)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </div>
       )}

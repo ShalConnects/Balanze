@@ -1,14 +1,14 @@
 import React from 'react';
-import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, EyeOff } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { format } from 'date-fns';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { getCurrencySymbol } from '../../utils/currency';
+import { Tooltip } from '../common/Tooltip';
 
 export const RecentTransactions: React.FC = () => {
-  const { getActiveAccounts } = useFinanceStore();
-  const accounts = getActiveAccounts();
+  const { accounts: allAccounts } = useFinanceStore();
   const allTransactions = useFinanceStore((state) => state.transactions); // Get all transactions
   
   const formatCurrency = (amount: number, currency: string) => {
@@ -42,8 +42,10 @@ export const RecentTransactions: React.FC = () => {
     <div className="max-h-[400px] overflow-y-auto">
       <div className="space-y-0 pb-4">
         {recentTransactions.map((transaction) => {
-          const account = accounts.find(a => a.id === transaction.account_id);
+          const account = allAccounts.find(a => a.id === transaction.account_id);
           const currency = account?.currency || 'USD';
+          const isAccountHidden = account ? !account.isActive : false;
+          const accountName = account?.name || 'Unknown Account';
           return (
             <div
               key={transaction.id}
@@ -69,7 +71,17 @@ export const RecentTransactions: React.FC = () => {
                   {transaction.type === 'income' ? '+' : '-'}
                   {formatCurrency(transaction.amount, currency)}
                 </p>
-                <p className="text-xs text-gray-500">{account?.name || 'Unknown Account'}</p>
+                <div className="flex items-center justify-end gap-1">
+                  <p className="text-xs text-gray-500">{accountName}</p>
+                  {isAccountHidden && (
+                    <Tooltip 
+                      content="Account is hidden"
+                      placement="top"
+                    >
+                      <EyeOff className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+                    </Tooltip>
+                  )}
+                </div>
               </div>
             </div>
           );

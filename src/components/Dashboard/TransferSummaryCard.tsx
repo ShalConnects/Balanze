@@ -9,8 +9,14 @@ import { getPreference, setPreference } from '../../lib/userPreferences';
 import { toast } from 'sonner';
 import { formatCurrency } from '../../utils/currency';
 
-export const TransferSummaryCard: React.FC = () => {
-    const { user } = useAuthStore();
+interface TransferSummaryCardProps {
+    filterCurrency?: string;
+}
+
+export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({ 
+    filterCurrency = '' 
+}) => {
+    const { user, profile } = useAuthStore();
     
     const [transfers, setTransfers] = useState<any[]>([]);
     const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
@@ -260,48 +266,57 @@ export const TransferSummaryCard: React.FC = () => {
         ];
     }, [combinedTransfers, processedDpsTransfers]);
 
-    const totalTransfers = allTransfers.length;
+
+    // Filter transfers by selected currency
+    const filteredTransfers = useMemo(() => {
+        if (!filterCurrency) return allTransfers;
+        return allTransfers.filter(t => 
+            (t.fromCurrency === filterCurrency) || (t.toCurrency === filterCurrency)
+        );
+    }, [allTransfers, filterCurrency]);
+
+    const totalTransfers = filteredTransfers.length;
     
     const thisMonthTransfers = useMemo(() => {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         
-        return allTransfers.filter(transfer => {
+        return filteredTransfers.filter(transfer => {
             const transferDate = new Date(transfer.date);
             return transferDate >= startOfMonth && transferDate <= endOfMonth;
         }).length;
-    }, [allTransfers]);
+    }, [filteredTransfers]);
 
-    const currencyTransfers = allTransfers.filter(t => t.type === 'currency').length;
-    const inAccountTransfers = allTransfers.filter(t => t.type === 'inbetween').length;
-    const dpsTransfersCount = allTransfers.filter(t => t.type === 'dps').length;
+    const currencyTransfers = filteredTransfers.filter(t => t.type === 'currency').length;
+    const inAccountTransfers = filteredTransfers.filter(t => t.type === 'inbetween').length;
+    const dpsTransfersCount = filteredTransfers.filter(t => t.type === 'dps').length;
 
-    // Calculate total amounts by type
+    // Calculate total amounts by type (filtered by currency)
     const currencyTransfersTotal = useMemo(() => {
-        return allTransfers
-            .filter(t => t.type === 'currency')
+        return filteredTransfers
+            .filter(t => t.type === 'currency' && t.fromCurrency === filterCurrency)
             .reduce((sum, t) => sum + (t.fromAmount || 0), 0);
-    }, [allTransfers]);
+    }, [filteredTransfers, filterCurrency]);
 
     const inAccountTransfersTotal = useMemo(() => {
-        return allTransfers
-            .filter(t => t.type === 'inbetween')
+        return filteredTransfers
+            .filter(t => t.type === 'inbetween' && t.fromCurrency === filterCurrency)
             .reduce((sum, t) => sum + (t.fromAmount || 0), 0);
-    }, [allTransfers]);
+    }, [filteredTransfers, filterCurrency]);
 
     const dpsTransfersTotal = useMemo(() => {
-        return allTransfers
-            .filter(t => t.type === 'dps')
+        return filteredTransfers
+            .filter(t => t.type === 'dps' && t.fromCurrency === filterCurrency)
             .reduce((sum, t) => sum + (t.fromAmount || 0), 0);
-    }, [allTransfers]);
+    }, [filteredTransfers, filterCurrency]);
 
-    // Get recent transfers (last 3)
+    // Get recent transfers (last 3) - filtered by currency
     const recentTransfers = useMemo(() => {
-        return allTransfers
+        return filteredTransfers
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .slice(0, 3);
-    }, [allTransfers]);
+    }, [filteredTransfers]);
 
     if (allTransfers.length === 0) {
         return null;
@@ -360,42 +375,75 @@ export const TransferSummaryCard: React.FC = () => {
                         {showTransferTooltip && !isMobile && (
                             <div 
                                 ref={tooltipRef}
-                                className={`absolute top-full z-50 mt-2 w-64 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein ${
-                                    tooltipPosition === 'center' 
-                                        ? 'left-1/2 -translate-x-1/2' 
-                                        : 'right-0'
-                                }`}
+                                className="absolute left-1/2 top-full z-50 mt-2 w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-3 sm:p-4 text-xs text-gray-700 dark:text-gray-200 animate-fadein"
                             >
-                                <div className="font-semibold mb-1">Transfer Summary:</div>
-                                
-                                <div className="space-y-1 mb-2">
-                                    <div className="text-gray-700 dark:text-gray-200">Currency Exchange ({currencyTransfers})</div>
-                                    <div className="text-gray-700 dark:text-gray-200">In-Account ({inAccountTransfers})</div>
-                                    <div className="text-gray-700 dark:text-gray-200">DPS Auto-Save ({dpsTransfersCount})</div>
+                                <div className="space-y-2 sm:space-y-3">
+                                    {/* Transfer Types - Side by Side */}
+                                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                                        {/* Currency Exchange */}
+                                        <div className="min-w-0">
+                                            <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">Currency Exchange ({currencyTransfers}):</div>
+                                    {currencyTransfers > 0 ? (
+                                        <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent break-words">
+                                            {formatCurrency(currencyTransfersTotal, filterCurrency || 'USD')}
+                                        </div>
+                                    ) : (
+                                        <div className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-500">No currency exchanges</div>
+                                    )}
                                 </div>
-                                
-                                {recentTransfers.length > 0 && (
-                                    <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
-                                        <div className="font-semibold mb-1">Recent Transfers:</div>
-                                        <ul className="space-y-1">
-                                            {recentTransfers.map((transfer, index) => {
-                                                const fromName = transfer.fromAccount?.name || 'Unknown';
-                                                const toName = transfer.toAccount?.name || 'Unknown';
-                                                const currency = transfer.fromCurrency || 'USD';
-                                                return (
-                                                    <li key={index} className="flex justify-between">
-                                                        <span className="truncate max-w-[120px]" title={`${fromName} → ${toName}`}>
-                                                            {fromName} → {toName}
-                                                        </span>
-                                                        <span className="ml-2 tabular-nums">
-                                                            {formatCurrency(transfer.fromAmount || 0, currency)}
-                                                        </span>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
+
+                                {/* In-Account Transfers */}
+                                <div className="min-w-0">
+                                    <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">In-Account ({inAccountTransfers}):</div>
+                                    {inAccountTransfers > 0 ? (
+                                        <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent break-words">
+                                            {formatCurrency(inAccountTransfersTotal, filterCurrency || 'USD')}
+                                        </div>
+                                    ) : (
+                                        <div className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-500">No in-account transfers</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* DPS Auto-Save */}
+                            {dpsTransfersCount > 0 && (
+                                <div className="min-w-0">
+                                    <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5">DPS Auto-Save ({dpsTransfersCount}):</div>
+                                    <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent break-words">
+                                        {formatCurrency(dpsTransfersTotal, filterCurrency || 'USD')}
                                     </div>
-                                )}
+                                </div>
+                            )}
+
+                                    {/* Recent Transfers */}
+                                    {recentTransfers.length > 0 && (
+                                        <>
+                                            <div className="border-t border-gray-200 dark:border-gray-700 mt-2"></div>
+                                            <div>
+                                                <div className="mb-1">
+                                                    <div className="font-semibold text-gray-900 dark:text-gray-100 text-[10px] sm:text-[11px]">Recent Transfers</div>
+                                                </div>
+                                                <ul className="space-y-0.5 max-h-32 sm:max-h-40 overflow-y-auto">
+                                                    {recentTransfers.map((transfer, index) => {
+                                                        const fromName = transfer.fromAccount?.name || 'Unknown';
+                                                        const toName = transfer.toAccount?.name || 'Unknown';
+                                                        const currency = transfer.fromCurrency || 'USD';
+                                                        return (
+                                                            <li key={index} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
+                                                                <span className="truncate flex-1 text-[10px] sm:text-[11px] text-gray-700 dark:text-gray-300 min-w-0" title={`${fromName} → ${toName}`}>
+                                                                    {fromName} → {toName}
+                                                                </span>
+                                                                <span className="ml-2 tabular-nums font-medium text-[10px] sm:text-[11px] text-gray-900 dark:text-gray-100 flex-shrink-0">
+                                                                    {formatCurrency(transfer.fromAmount || 0, currency)}
+                                                                </span>
+                                                            </li>
+                                                        );
+                                                    })}
+                                                </ul>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -434,46 +482,84 @@ export const TransferSummaryCard: React.FC = () => {
             {showTransferMobileModal && isMobile && (
                 <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
                     <div className="fixed inset-0 bg-black/50" onClick={() => setShowTransferMobileModal(false)} />
-                    <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-80 max-w-[90vw] animate-fadein">
-                        <div className="flex items-center justify-between mb-1">
-                            <div className="font-medium text-gray-700 dark:text-gray-200">Transfer Summary:</div>
+                    <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 md:w-96 max-w-md animate-fadein">
+                        <div className="flex items-center justify-between mb-3 sm:mb-4">
+                            <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">Transfers Info</div>
                             <button
                                 onClick={() => setShowTransferMobileModal(false)}
-                                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
                                 aria-label="Close modal"
                             >
                                 <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                             </button>
                         </div>
-                        
-                        <div className="space-y-1 mb-2">
-                            <div className="text-xs text-gray-700 dark:text-gray-200">Currency Exchange ({currencyTransfers})</div>
-                            <div className="text-xs text-gray-700 dark:text-gray-200">In-Account ({inAccountTransfers})</div>
-                            <div className="text-xs text-gray-700 dark:text-gray-200">DPS Auto-Save ({dpsTransfersCount})</div>
-                        </div>
-                        
-                        {recentTransfers.length > 0 && (
-                            <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
-                                <div className="font-medium mb-1 text-xs text-gray-700 dark:text-gray-200">Recent Transfers:</div>
-                                <ul className="space-y-1 max-h-32 overflow-y-auto">
-                                    {recentTransfers.map((transfer, index) => {
-                                        const fromName = transfer.fromAccount?.name || 'Unknown';
-                                        const toName = transfer.toAccount?.name || 'Unknown';
-                                        const currency = transfer.fromCurrency || 'USD';
-                                        return (
-                                            <li key={index} className="flex justify-between text-xs text-gray-700 dark:text-gray-200">
-                                                <span className="truncate max-w-[120px]" title={`${fromName} → ${toName}`}>
-                                                    {fromName} → {toName}
-                                                </span>
-                                                <span className="ml-2 tabular-nums">
-                                                    {formatCurrency(transfer.fromAmount || 0, currency)}
-                                                </span>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
+                        <div className="space-y-3 sm:space-y-4">
+                            {/* Transfer Types - Side by Side */}
+                            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                                {/* Currency Exchange */}
+                                <div className="min-w-0">
+                                    <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1 truncate">Currency Exchange ({currencyTransfers}):</div>
+                                    {currencyTransfers > 0 ? (
+                                        <div className="font-medium text-xs sm:text-sm bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent break-words">
+                                            {formatCurrency(currencyTransfersTotal, filterCurrency || 'USD')}
+                                        </div>
+                                    ) : (
+                                        <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500">No currency exchanges</div>
+                                    )}
+                                </div>
+
+                                {/* In-Account Transfers */}
+                                <div className="min-w-0">
+                                    <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1 truncate">In-Account ({inAccountTransfers}):</div>
+                                    {inAccountTransfers > 0 ? (
+                                        <div className="font-medium text-xs sm:text-sm bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent break-words">
+                                            {formatCurrency(inAccountTransfersTotal, filterCurrency || 'USD')}
+                                        </div>
+                                    ) : (
+                                        <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500">No in-account transfers</div>
+                                    )}
+                                </div>
                             </div>
-                        )}
+
+                            {/* DPS Auto-Save */}
+                            {dpsTransfersCount > 0 && (
+                                <div className="min-w-0">
+                                    <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1">DPS Auto-Save ({dpsTransfersCount}):</div>
+                                    <div className="font-medium text-xs sm:text-sm bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent break-words">
+                                        {formatCurrency(dpsTransfersTotal, filterCurrency || 'USD')}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Recent Transfers */}
+                            {recentTransfers.length > 0 && (
+                                <>
+                                    <div className="border-t border-gray-200 dark:border-gray-700 mt-3"></div>
+                                    <div>
+                                        <div className="mb-1">
+                                            <div className="font-semibold text-[10px] sm:text-xs text-gray-900 dark:text-gray-100">Recent Transfers</div>
+                                        </div>
+                                        <ul className="space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
+                                            {recentTransfers.map((transfer, index) => {
+                                                const fromName = transfer.fromAccount?.name || 'Unknown';
+                                                const toName = transfer.toAccount?.name || 'Unknown';
+                                                const currency = transfer.fromCurrency || 'USD';
+                                                return (
+                                                    <li key={index} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
+                                                        <span className="truncate flex-1 text-[10px] sm:text-xs text-gray-700 dark:text-gray-300 min-w-0" title={`${fromName} → ${toName}`}>
+                                                            {fromName} → {toName}
+                                                        </span>
+                                                        <span className="ml-2 tabular-nums font-medium text-[10px] sm:text-xs text-gray-900 dark:text-gray-100 flex-shrink-0">
+                                                            {formatCurrency(transfer.fromAmount || 0, currency)}
+                                                        </span>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

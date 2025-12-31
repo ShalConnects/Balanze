@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, CreditCard, Banknote, ArrowRight, ShoppingCart, Clock, CheckCircle, XCircle, PieChart, LineChart, X } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, Banknote, ArrowRight, ShoppingCart, Clock, CheckCircle, XCircle, PieChart, LineChart, X, Info } from 'lucide-react';
 import { PieChart as RechartsPieChart, Pie, Cell, LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
@@ -25,6 +25,7 @@ import { StickyNote } from '../StickyNote';
 // NotesAndTodosWidget loaded dynamically to reduce initial bundle size
 // import { NotesAndTodosWidget } from './NotesAndTodosWidget';
 import { PurchaseForm } from '../Purchases/PurchaseForm';
+import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { SkeletonCard, SkeletonChart } from '../common/Skeleton';
 import { DashboardSkeleton } from './DashboardSkeleton';
@@ -66,6 +67,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   // Subscribe to store data changes to make stats reactive
   const storeAccounts = useFinanceStore((state) => state.accounts);
   const storeTransactions = useFinanceStore((state) => state.transactions);
+  const donationSavingRecords = useFinanceStore((state) => state.donationSavingRecords);
   
   // Use local loading state for dashboard instead of global store loading
   // Initialize with true to prevent flash of empty state
@@ -324,6 +326,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   const [showPurchasesWidget, setShowPurchasesWidget] = useState(true);
   const [isPurchaseWidgetHovered, setIsPurchaseWidgetHovered] = useState(false);
   const [showPurchaseCrossTooltip, setShowPurchaseCrossTooltip] = useState(false);
+  const [showPurchaseInfoTooltip, setShowPurchaseInfoTooltip] = useState(false);
+  const [showPurchaseInfoMobileModal, setShowPurchaseInfoMobileModal] = useState(false);
+  const [dashboardCurrencyFilter, setDashboardCurrencyFilter] = useState('');
   const purchaseTooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -425,25 +430,58 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
   // Save Purchases widget visibility preference to database
   const handlePurchasesWidgetToggle = async (show: boolean) => {
-    // Update localStorage immediately for instant UI response
-    localStorage.setItem('showPurchasesWidget', JSON.stringify(show));
+    // Immediate UI update (optimistic update)
     setShowPurchasesWidget(show);
+    localStorage.setItem('showPurchasesWidget', JSON.stringify(show));
     window.dispatchEvent(new CustomEvent('showPurchasesWidgetChanged'));
     
+    // Save to database asynchronously (non-blocking)
     if (user?.id) {
-      try {
-        await setPreference(user.id, 'showPurchasesWidget', show);
-        toast.success('Preference saved!', {
-          description: show ? 'Purchases widget will be shown' : 'Purchases widget hidden'
-        });
-      } catch (error) {
-        toast.error('Failed to save preference', {
-          description: 'Your preference will be saved locally only'
-        });
-      }
-    } else {
-      toast.info('Preference saved locally', {
-        description: 'Sign in to sync preferences across devices'
+      setPreference(user.id, 'showPurchasesWidget', show).catch(() => {
+        // Silent fail - already saved locally
+      });
+    }
+  };
+
+  // Toggle handlers for other widgets - Optimized for immediate UI response
+  const handleDonationsWidgetToggle = async (show: boolean) => {
+    // Immediate UI update (optimistic update)
+    setShowDonationsSavingsWidget(show);
+    localStorage.setItem('showDonationsSavingsWidget', JSON.stringify(show));
+    window.dispatchEvent(new CustomEvent('showDonationsSavingsWidgetChanged'));
+    
+    // Save to database asynchronously (non-blocking)
+    if (user?.id) {
+      setPreference(user.id, 'showDonationsSavingsWidget', show).catch(() => {
+        // Silent fail - already saved locally
+      });
+    }
+  };
+
+  const handleLendBorrowWidgetToggle = async (show: boolean) => {
+    // Immediate UI update (optimistic update)
+    setShowLendBorrowWidget(show);
+    localStorage.setItem('showLendBorrowWidget', JSON.stringify(show));
+    window.dispatchEvent(new CustomEvent('showLendBorrowWidgetChanged'));
+    
+    // Save to database asynchronously (non-blocking)
+    if (user?.id) {
+      setPreference(user.id, 'showLendBorrowWidget', show).catch(() => {
+        // Silent fail - already saved locally
+      });
+    }
+  };
+
+  const handleTransferWidgetToggle = async (show: boolean) => {
+    // Immediate UI update (optimistic update)
+    setShowTransferWidget(show);
+    localStorage.setItem('showTransferWidget', JSON.stringify(show));
+    window.dispatchEvent(new CustomEvent('showTransferWidgetChanged'));
+    
+    // Save to database asynchronously (non-blocking)
+    if (user?.id) {
+      setPreference(user.id, 'showTransferWidget', show).catch(() => {
+        // Silent fail - already saved locally
       });
     }
   };
@@ -451,6 +489,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   // Get purchase analytics
   const purchaseAnalytics = useFinanceStore((state) => state.getMultiCurrencyPurchaseAnalytics());
   const purchases = useFinanceStore((state) => state.purchases);
+  
+  // Get all available currencies from all sources (accounts, purchases, etc.)
+  const allAvailableCurrencies = useMemo(() => {
+    const currencies = new Set<string>();
+    // From accounts
+    accounts.forEach(a => {
+      if (a.currency) currencies.add(a.currency);
+    });
+    // From purchases
+    purchases.forEach(p => {
+      if (p.currency) currencies.add(p.currency);
+    });
+    return Array.from(currencies).sort();
+  }, [accounts, purchases]);
+
+  // Filter currencies based on profile.selected_currencies
+  const filteredDashboardCurrencies = useMemo(() => {
+    if (profile?.selected_currencies && profile.selected_currencies.length > 0) {
+      return allAvailableCurrencies.filter(c => profile.selected_currencies?.includes?.(c));
+    }
+    return allAvailableCurrencies;
+  }, [profile?.selected_currencies, allAvailableCurrencies]);
+
+  // Set default currency filter for dashboard
+  useEffect(() => {
+    if (!dashboardCurrencyFilter && filteredDashboardCurrencies.length > 0) {
+      // First try to use profile's local currency
+      if (profile?.local_currency && filteredDashboardCurrencies.includes(profile.local_currency)) {
+        setDashboardCurrencyFilter(profile.local_currency);
+      } else if (filteredDashboardCurrencies.length > 0) {
+        setDashboardCurrencyFilter(filteredDashboardCurrencies[0]);
+      }
+    }
+  }, [dashboardCurrencyFilter, filteredDashboardCurrencies, profile?.local_currency]);
+
+  // Filter purchases by selected currency
+  const filteredPurchases = useMemo(() => {
+    if (!dashboardCurrencyFilter) return purchases;
+    return purchases.filter(p => (p.currency || 'USD') === dashboardCurrencyFilter);
+  }, [purchases, dashboardCurrencyFilter]);
   
   // Check if any widget in the Purchase/LendBorrow/Transfer row will be visible
   const hasAnyWidgetVisible = useMemo(() => {
@@ -460,15 +538,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     return hasPurchase || hasLendBorrow || hasTransfer;
   }, [purchases.length, showPurchasesWidget, isPremium, hasLendBorrowRecords, showLendBorrowWidget, hasTransfers, showTransferWidget]);
   
-  // Calculate purchase overview stats
-  const totalPlannedPurchases = purchases.filter(p => p.status === 'planned').length;
-  const totalPurchasedItems = purchases.filter(p => p.status === 'purchased').length;
-  const totalCancelledItems = purchases.filter(p => p.status === 'cancelled').length;
-  const totalPlannedValue = purchases
+  // Calculate purchase overview stats (filtered by currency)
+  const totalPlannedPurchases = filteredPurchases.filter(p => p.status === 'planned').length;
+  const totalPurchasedItems = filteredPurchases.filter(p => p.status === 'purchased').length;
+  const totalCancelledItems = filteredPurchases.filter(p => p.status === 'cancelled').length;
+  const totalPlannedValue = filteredPurchases
     .filter(p => p.status === 'planned')
     .reduce((sum, p) => sum + p.price, 0);
-  const recentPurchases = purchases
+  const totalPurchasedValue = filteredPurchases
     .filter(p => p.status === 'purchased')
+    .reduce((sum, p) => sum + p.price, 0);
+  const recentPurchases = filteredPurchases
+    .filter(p => p.status === 'purchased')
+    .sort((a, b) => new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime())
+    .slice(0, 5);
+  const recentPlannedPurchases = filteredPurchases
+    .filter(p => p.status === 'planned')
     .sort((a, b) => new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime())
     .slice(0, 5);
 
@@ -691,26 +776,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-700 relative">
               <button
                 onClick={() => handleMultiCurrencyAnalyticsToggle(false)}
-                className="absolute top-1/2 right-2 transform -translate-y-1/2 p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
+                className="absolute top-2 right-2 sm:top-1/2 sm:right-2 sm:transform sm:-translate-y-1/2 p-1.5 sm:p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 transition-colors min-h-[44px] sm:min-h-0 min-w-[44px] sm:min-w-0"
                 aria-label="Close Multi-Currency Analytics"
               >
                 <X className="w-5 h-5" />
               </button>
-              <div className="flex items-center justify-between pr-8">
-                <div>
-                  <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 pr-10 sm:pr-8">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-blue-900 dark:text-blue-100">
                     Multi-Currency Analytics
                   </h3>
-                  <p className="text-blue-700 dark:text-blue-300 text-sm">
+                  <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300 mt-1">
                     You have {stats.byCurrency.length} currencies. Get detailed insights and comparisons.
                   </p>
                 </div>
                 <button
                   onClick={() => navigate('/analytics')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 sm:py-2 rounded-lg transition-colors flex items-center justify-center space-x-2 w-full sm:w-auto min-h-[44px] sm:min-h-0 text-sm sm:text-base"
                 >
                   <span>View Analytics</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 flex-shrink-0" />
                 </button>
               </div>
             </div>
@@ -719,7 +804,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
 
           {/* Currency Sections & Donations - Responsive grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 items-start auto-rows-fr">
             {stats.byCurrency.length > 0 ? (
               stats.byCurrency.map(({ currency }) => (
                 <div key={currency} className="w-full h-full">
@@ -746,12 +831,122 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                 </div>
               ))
             )}
+          </div>
+
+          {/* Shared Currency Filter & Card Visibility - After Currency Cards */}
+          {(() => {
+            // Check which cards are available
+            const hasDpsAccounts = storeAccounts.some(a => a.has_dps && a.currency === dashboardCurrencyFilter);
+            const hasDonationRecords = donationSavingRecords?.some(record => {
+              if (!record.transaction_id) {
+                const currencyMatch = record.note?.match(/\(?Currency:\s*([A-Z]{3})\)?/);
+                const manualCurrency = currencyMatch ? currencyMatch[1] : 'USD';
+                return manualCurrency === dashboardCurrencyFilter;
+              }
+              const transaction = storeTransactions.find(t => t.id === record.transaction_id);
+              const account = transaction ? storeAccounts.find(a => a.id === transaction.account_id) : undefined;
+              return account && account.currency === dashboardCurrencyFilter;
+            });
+            const hasDonations = hasDpsAccounts || hasDonationRecords;
+            const hasPurchases = purchases.length > 0;
+            const hasLendBorrow = isPremium && hasLendBorrowRecords;
+            const hasTransfersCard = hasTransfers;
+            const hasAnyCards = hasDonations || hasPurchases || hasLendBorrow || hasTransfersCard;
+            const hasMultipleCurrencies = filteredDashboardCurrencies.length > 1;
+            
+            // Show section if there are multiple currencies OR if there are cards to toggle
+            if (!hasMultipleCurrencies && !hasAnyCards) return null;
+            
+            return (
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 sm:gap-3 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-2.5 sm:p-3 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50">
+                {/* Left side: Currency Filter */}
+                {hasMultipleCurrencies && (
+                  <div className="flex items-center gap-2 w-full md:w-auto">
+                    <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap flex-shrink-0">Currency:</span>
+                    <CustomDropdown
+                      options={filteredDashboardCurrencies.map(currency => ({ value: currency, label: currency }))}
+                      value={dashboardCurrencyFilter}
+                      onChange={setDashboardCurrencyFilter}
+                      fullWidth={false}
+                      className="bg-transparent border shadow-none text-gray-700 dark:text-gray-300 text-xs sm:text-sm h-9 sm:h-7 min-h-[44px] sm:min-h-0 hover:bg-white/50 dark:hover:bg-gray-700/50 focus:ring-0 focus:outline-none touch-manipulation"
+                      style={{ padding: '8px 12px', border: '1px solid rgb(229 231 235 / var(--tw-bg-opacity, 1))', minWidth: '80px' }}
+                      dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
+                    />
+                  </div>
+                )}
+                
+                {/* Right side: Card Visibility Toggles */}
+                {hasAnyCards && (
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto">
+                    <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap flex-shrink-0">Show cards:</span>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1 md:flex-initial">
+                      {/* Donations Checkbox */}
+                      {hasDonations && (
+                        <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0 min-h-[44px] sm:min-h-0 px-1 sm:px-0">
+                          <input
+                            type="checkbox"
+                            checked={showDonationsSavingsWidget}
+                            onChange={(e) => handleDonationsWidgetToggle(e.target.checked)}
+                            className="w-5 h-5 sm:w-4 sm:h-4 accent-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600 flex-shrink-0 touch-manipulation"
+                          />
+                          <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors whitespace-nowrap">Donations</span>
+                        </label>
+                      )}
+                      
+                      {/* Purchases Checkbox */}
+                      {hasPurchases && (
+                        <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0 min-h-[44px] sm:min-h-0 px-1 sm:px-0">
+                          <input
+                            type="checkbox"
+                            checked={showPurchasesWidget}
+                            onChange={(e) => handlePurchasesWidgetToggle(e.target.checked)}
+                            className="w-5 h-5 sm:w-4 sm:h-4 accent-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600 flex-shrink-0 touch-manipulation"
+                          />
+                          <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors whitespace-nowrap">Purchases</span>
+                        </label>
+                      )}
+                      
+                      {/* L&B Checkbox */}
+                      {hasLendBorrow && (
+                        <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0 min-h-[44px] sm:min-h-0 px-1 sm:px-0">
+                          <input
+                            type="checkbox"
+                            checked={showLendBorrowWidget}
+                            onChange={(e) => handleLendBorrowWidgetToggle(e.target.checked)}
+                            className="w-5 h-5 sm:w-4 sm:h-4 accent-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600 flex-shrink-0 touch-manipulation"
+                          />
+                          <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors whitespace-nowrap">L&B</span>
+                        </label>
+                      )}
+                      
+                      {/* Transfers Checkbox */}
+                      {hasTransfersCard && (
+                        <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0 min-h-[44px] sm:min-h-0 px-1 sm:px-0">
+                          <input
+                            type="checkbox"
+                            checked={showTransferWidget}
+                            onChange={(e) => handleTransferWidgetToggle(e.target.checked)}
+                            className="w-5 h-5 sm:w-4 sm:h-4 accent-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600 flex-shrink-0 touch-manipulation"
+                          />
+                          <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors whitespace-nowrap">Transfers</span>
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Donations, Purchase, L&B, Transfer - Responsive grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 items-start auto-rows-fr">
             {/* Donations Overview Card - Place after currency cards */}
             {showDonationsSavingsWidget && (
-              <div className="w-full h-full">
+              <div className="w-full h-full animate-fadeIn">
                 <DonationSavingsOverviewCard
                   t={t}
                   formatCurrency={formatCurrency}
+                  filterCurrency={dashboardCurrencyFilter}
                 />
               </div>
             )}
@@ -759,7 +954,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
             {/* Purchase Overview */}
             {purchases.length > 0 && showPurchasesWidget && (
               <div 
-                className="w-full h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative flex flex-col"
+                className="w-full h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative flex flex-col animate-fadeIn"
                 onMouseEnter={handlePurchaseWidgetMouseEnter}
                 onMouseLeave={handlePurchaseWidgetMouseLeave}
               >
@@ -782,14 +977,93 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                 )}
                 
                 <div className="flex items-center justify-between mb-2 pr-8">
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">Purchases</h2>
-                  <Link 
-                    to="/purchases" 
-                    className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
-                  >
-                    <span>View All</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
+                  <div className="flex items-center gap-2 flex-1">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">Purchases</h2>
+                    <div className="relative flex items-center">
+                      <button
+                        type="button"
+                        className="ml-1 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-110 active:scale-95"
+                        onMouseEnter={() => !isMobile && setShowPurchaseInfoTooltip(true)}
+                        onMouseLeave={() => !isMobile && setShowPurchaseInfoTooltip(false)}
+                        onFocus={() => !isMobile && setShowPurchaseInfoTooltip(true)}
+                        onBlur={() => !isMobile && setShowPurchaseInfoTooltip(false)}
+                        onClick={() => {
+                          if (isMobile) {
+                            setShowPurchaseInfoMobileModal(true);
+                          } else {
+                            setShowPurchaseInfoTooltip(v => !v);
+                          }
+                        }}
+                        tabIndex={0}
+                        aria-label="Show purchases info"
+                      >
+                        <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200" />
+                      </button>
+                      {showPurchaseInfoTooltip && !isMobile && (
+                        <div className="absolute left-1/2 top-full z-40 mt-2 w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-3 sm:p-4 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
+                          <div className="space-y-2 sm:space-y-3">
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                              {/* Planned Purchases */}
+                              <div className="min-w-0">
+                                <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">Planned ({totalPlannedPurchases}):</div>
+                                {totalPlannedPurchases > 0 ? (
+                                  <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent break-words">
+                                    {formatCurrency(totalPlannedValue, dashboardCurrencyFilter || 'USD')}
+                                  </div>
+                                ) : (
+                                  <div className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-500">No planned purchases</div>
+                                )}
+                              </div>
+
+                              {/* Purchased Items */}
+                              <div className="min-w-0">
+                                <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">Purchased ({totalPurchasedItems}):</div>
+                                {totalPurchasedItems > 0 ? (
+                                  <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent break-words">
+                                    {formatCurrency(totalPurchasedValue, dashboardCurrencyFilter || 'USD')}
+                                  </div>
+                                ) : (
+                                  <div className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-500">No purchases yet</div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Recent Purchases */}
+                            {recentPurchases.length > 0 && (
+                              <>
+                                <div className="border-t border-gray-200 dark:border-gray-700 mt-2"></div>
+                                <div>
+                                  <div className="mb-1">
+                                    <div className="font-semibold text-gray-900 dark:text-gray-100 text-[10px] sm:text-[11px]">Recent Purchases</div>
+                                  </div>
+                                  <ul className="space-y-0.5 max-h-32 sm:max-h-40 overflow-y-auto">
+                                    {recentPurchases.map((purchase) => (
+                                      <li key={purchase.id} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
+                                        <span className="truncate flex-1 text-[10px] sm:text-[11px] text-gray-700 dark:text-gray-300 min-w-0" title={purchase.item_name}>{purchase.item_name}</span>
+                                        <span className="ml-2 tabular-nums font-medium text-[10px] sm:text-[11px] text-gray-900 dark:text-gray-100 flex-shrink-0">
+                                          {formatCurrency(purchase.price, purchase.currency)}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Link 
+                      to="/purchases" 
+                      className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
+                    >
+                      <span>View All</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  </div>
                 </div>
                 {/* Purchase Stats Cards - Responsive grid */}
                 <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-0 flex-1">
@@ -807,18 +1081,87 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                 </div>
               </div>
             )}
+
+            {/* Mobile Modal for Purchases Info */}
+            {showPurchaseInfoMobileModal && isMobile && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/50" onClick={() => setShowPurchaseInfoMobileModal(false)} />
+                <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 md:w-96 max-w-md animate-fadein">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">Purchases Info</div>
+                    <button
+                      onClick={() => setShowPurchaseInfoMobileModal(false)}
+                      className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
+                      aria-label="Close modal"
+                    >
+                      <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                    </button>
+                  </div>
+                  <div className="space-y-3 sm:space-y-4">
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                      {/* Planned Purchases */}
+                      <div className="min-w-0">
+                                    <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1 truncate">Planned ({totalPlannedPurchases}):</div>
+                                    {totalPlannedPurchases > 0 ? (
+                                      <div className="font-medium text-xs sm:text-sm bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent break-words">
+                                        {formatCurrency(totalPlannedValue, dashboardCurrencyFilter || 'USD')}
+                                      </div>
+                                    ) : (
+                                      <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500">No planned purchases</div>
+                                    )}
+                                  </div>
+
+                                  {/* Purchased Items */}
+                                  <div className="min-w-0">
+                                    <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1 truncate">Purchased ({totalPurchasedItems}):</div>
+                                    {totalPurchasedItems > 0 ? (
+                                      <div className="font-medium text-xs sm:text-sm bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent break-words">
+                                        {formatCurrency(totalPurchasedValue, dashboardCurrencyFilter || 'USD')}
+                                      </div>
+                        ) : (
+                          <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500">No purchases yet</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Recent Purchases */}
+                    {recentPurchases.length > 0 && (
+                      <>
+                        <div className="border-t border-gray-200 dark:border-gray-700 mt-3"></div>
+                        <div>
+                          <div className="mb-1">
+                            <div className="font-semibold text-[10px] sm:text-xs text-gray-900 dark:text-gray-100">Recent Purchases</div>
+                          </div>
+                          <ul className="space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
+                            {recentPurchases.map((purchase) => (
+                              <li key={purchase.id} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
+                                <span className="truncate flex-1 text-[10px] sm:text-xs text-gray-700 dark:text-gray-300 min-w-0" title={purchase.item_name}>{purchase.item_name}</span>
+                                <span className="ml-2 tabular-nums font-medium text-[10px] sm:text-xs text-gray-900 dark:text-gray-100 flex-shrink-0">
+                                  {formatCurrency(purchase.price, purchase.currency)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* L&B Summary Card */}
             {isPremium && hasLendBorrowRecords && showLendBorrowWidget && (
-              <div className="w-full h-full">
-                <LendBorrowSummaryCard />
+              <div className="w-full h-full animate-fadeIn">
+                <LendBorrowSummaryCard filterCurrency={dashboardCurrencyFilter} />
               </div>
             )}
             
             {/* Transfer Summary Card */}
             {hasTransfers && showTransferWidget && (
-              <div className="w-full h-full">
-                <TransferSummaryCard />
+              <div className="w-full h-full animate-fadeIn">
+                <TransferSummaryCard filterCurrency={dashboardCurrencyFilter} />
               </div>
             )}
             
