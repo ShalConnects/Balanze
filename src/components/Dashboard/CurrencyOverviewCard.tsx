@@ -298,106 +298,105 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
       {/* Mobile-optimized header */}
       <div className="mb-0">
         {/* Amount row */}
-        <div className="flex flex-row items-center justify-between gap-2 sm:gap-3 mb-1 min-w-0">
-           <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+        <div className="flex flex-row items-center justify-between gap-1.5 sm:gap-2 md:gap-3 mb-1 min-w-0">
+           <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
              <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
                Balance{totalAccountCount > 0 ? ` (${totalAccountCount})` : ''}:
              </span>
-             <span className="text-xs sm:text-sm font-bold tabular-nums text-gray-900 dark:text-white truncate" title={formatCurrency(regularAccountsTotal + dpsTotal, currency)}>
+             <span className="text-xs sm:text-sm font-bold tabular-nums text-gray-900 dark:text-white" title={formatCurrency(regularAccountsTotal + dpsTotal, currency)}>
                {formatCurrency(regularAccountsTotal + dpsTotal, currency)}
              </span>
+             {/* Info button with account count - positioned immediately after total amount */}
+             <div className="relative flex-shrink-0">
+               <button
+                 type="button"
+                 className="flex items-center justify-center p-0 h-6 w-6 sm:h-7 sm:w-7 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation"
+                 style={{ WebkitTapHighlightColor: 'transparent' }}
+                 onMouseEnter={() => !isMobile && setShowTooltip(true)}
+                 onMouseLeave={() => !isMobile && setShowTooltip(false)}
+                 onFocus={() => !isMobile && setShowTooltip(true)}
+                 onBlur={() => !isMobile && setShowTooltip(false)}
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   if (isMobile) {
+                     setShowMobileModal(true);
+                   } else {
+                     setShowTooltip(v => !v);
+                   }
+                 }}
+                 tabIndex={0}
+                 aria-label="Show account info"
+               >
+                 <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200 flex-shrink-0" />
+               </button>
+               {showTooltip && !isMobile && (
+                 <div className="absolute left-0 top-full z-50 mt-2 w-56 sm:w-64 max-w-[90vw] rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-2 sm:p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
+                   <div className="font-semibold mb-2">Total: {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
+                   
+                   {/* Regular Accounts (includes DPS main accounts) */}
+                   {sortedAllRegularAccounts.length > 0 && (
+                     <>
+                       <div className="font-medium mb-1">Accounts ({sortedAllRegularAccounts.length}):</div>
+                       <ul className="space-y-1">
+                         {sortedAllRegularAccounts.map(acc => {
+                           const balance = acc.calculated_balance || 0;
+                           const isNegative = balance < 0;
+                           const isZero = balance === 0;
+                           return (
+                             <li key={acc.id} className={`flex justify-between ${isZero ? 'opacity-50' : ''}`}>
+                               <span className={`truncate max-w-[100px] sm:max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
+                               <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
+                                 {formatCurrency(balance, currency)}
+                               </span>
+                             </li>
+                           );
+                         })}
+                       </ul>
+                       <div className="mt-1 pt-1 border-t border-gray-200 dark:border-gray-700">
+                         <div className="flex justify-between font-medium">
+                           <span>Total Accounts:</span>
+                           <span className="tabular-nums">{formatCurrency(regularAccountsTotal, currency)}</span>
+                         </div>
+                       </div>
+                     </>
+                   )}
+                   
+                   {/* DPS Accounts */}
+                   {sortedDpsSavingsAccounts.length > 0 && (
+                     <>
+                       <div className="my-2 pt-2">
+                         <div className="font-medium mb-1">DPS Accounts ({sortedDpsSavingsAccounts.length}):</div>
+                         <ul className="space-y-1">
+                           {sortedDpsSavingsAccounts.map(acc => {
+                             const balance = acc.calculated_balance || 0;
+                             const isNegative = balance < 0;
+                             const isZero = balance === 0;
+                             return (
+                               <li key={acc.id} className={`flex justify-between ${isZero ? 'opacity-50' : ''}`}>
+                                 <span className={`truncate max-w-[100px] sm:max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
+                                 <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
+                                   {formatCurrency(balance, currency)}
+                                 </span>
+                               </li>
+                             );
+                           })}
+                         </ul>
+                         <div className="mt-1 pt-1 border-t border-gray-200 dark:border-gray-700">
+                           <div className="flex justify-between font-medium">
+                             <span>Total DPS:</span>
+                             <span className="tabular-nums">{formatCurrency(dpsTotal, currency)}</span>
+                           </div>
+                         </div>
+                       </div>
+                     </>
+                   )}
+                 </div>
+               )}
+             </div>
            </div>
           
-          {/* Right side: Info button and period selector - all on same row */}
+          {/* Right side: Period selector */}
           <div className="flex items-center gap-[0.1rem] flex-shrink-0 w-auto justify-end">
-            {/* Combined info button with account count - compact for mobile */}
-            <div className="relative">
-              <button
-                type="button"
-                className="flex items-center justify-center p-0 h-7 w-7 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation"
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-                onMouseEnter={() => !isMobile && setShowTooltip(true)}
-                onMouseLeave={() => !isMobile && setShowTooltip(false)}
-                onFocus={() => !isMobile && setShowTooltip(true)}
-                onBlur={() => !isMobile && setShowTooltip(false)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isMobile) {
-                    setShowMobileModal(true);
-                  } else {
-                    setShowTooltip(v => !v);
-                  }
-                }}
-                tabIndex={0}
-                aria-label="Show account info"
-              >
-                <Info className="w-4 h-4 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200 flex-shrink-0" />
-              </button>
-              {showTooltip && !isMobile && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-56 sm:w-64 max-w-[90vw] rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-2 sm:p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
-                  <div className="font-semibold mb-2">Total: {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
-                  
-                  {/* Regular Accounts (includes DPS main accounts) */}
-                  {sortedAllRegularAccounts.length > 0 && (
-                    <>
-                      <div className="font-medium mb-1">Accounts ({sortedAllRegularAccounts.length}):</div>
-                      <ul className="space-y-1">
-                        {sortedAllRegularAccounts.map(acc => {
-                          const balance = acc.calculated_balance || 0;
-                          const isNegative = balance < 0;
-                          const isZero = balance === 0;
-                          return (
-                            <li key={acc.id} className={`flex justify-between ${isZero ? 'opacity-50' : ''}`}>
-                              <span className={`truncate max-w-[100px] sm:max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
-                              <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
-                                {formatCurrency(balance, currency)}
-                              </span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                      <div className="mt-1 pt-1 border-t border-gray-200 dark:border-gray-700">
-                        <div className="flex justify-between font-medium">
-                          <span>Total Accounts:</span>
-                          <span className="tabular-nums">{formatCurrency(regularAccountsTotal, currency)}</span>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                  
-                  {/* DPS Accounts */}
-                  {sortedDpsSavingsAccounts.length > 0 && (
-                    <>
-                      <div className="my-2 pt-2">
-                        <div className="font-medium mb-1">DPS Accounts ({sortedDpsSavingsAccounts.length}):</div>
-                        <ul className="space-y-1">
-                          {sortedDpsSavingsAccounts.map(acc => {
-                            const balance = acc.calculated_balance || 0;
-                            const isNegative = balance < 0;
-                            const isZero = balance === 0;
-                            return (
-                              <li key={acc.id} className={`flex justify-between ${isZero ? 'opacity-50' : ''}`}>
-                                <span className={`truncate max-w-[100px] sm:max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
-                                <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
-                                  {formatCurrency(balance, currency)}
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        <div className="mt-1 pt-1 border-t border-gray-200 dark:border-gray-700">
-                          <div className="flex justify-between font-medium">
-                            <span>Total DPS:</span>
-                            <span className="tabular-nums">{formatCurrency(dpsTotal, currency)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            
             {/* Period selector - compact for mobile */}
             <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
               <CustomDropdown

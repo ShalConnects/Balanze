@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Last Wish Email - Final Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #718096;
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+        
+        .email-container {
+            max-width: 650px;
+            margin: 0 auto;
+        }
+        
+        @media (max-width: 650px) {
+            .email-container {
+                max-width: 100%;
+            }
+            
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .financial-summary {
+                padding: 20px;
+            }
+            
+            .email-body {
+                padding: 0 15px;
+            }
+            
+            .email-header {
+                padding: 30px 20px;
+            }
+            
+            .email-header h1 {
+                font-size: 24px;
+            }
+        }
+        
+        .email-preview {
+            background: #111827;
+            color: #e5e7eb;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+        
+        .email-header {
+            background: #1f2937;
+            padding: 40px;
+            text-align: center;
+            border-bottom: 2px solid #374151;
+            margin-bottom: 30px;
+        }
+        
+        .email-header h1 {
+            color: #f9fafb;
+            font-size: 28px;
+            margin-bottom: 0;
+        }
+        
+        .email-header p {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+        
+        .email-body {
+            padding: 0 20px;
+        }
+        
+        .greeting {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #374151;
+        }
+        
+        .greeting h2 {
+            color: #f9fafb;
+            font-size: 24px;
+            margin-bottom: 16px;
+        }
+        
+        .greeting p {
+            color: #d1d5db;
+            margin-bottom: 0;
+        }
+        
+        .info-card {
+            background: #1f2937;
+            border-left: 3px solid #4b5563;
+            padding: 5px 10px;
+            border-radius: 6px;
+            margin-bottom: 28px;
+        }
+        
+        .info-card h3 {
+            color: #f3f4f6;
+            margin: 0 0 14px 0;
+            font-size: 17px;
+        }
+        
+        .info-card p {
+            color: #d1d5db;
+            margin: 0;
+            line-height: 1.75;
+        }
+        
+        .message-card {
+            background: #1f2937;
+            border-left: 3px solid #6b7280;
+            padding: 5px 10px;
+            border-radius: 6px;
+            margin-bottom: 28px;
+        }
+        
+        .message-card h3 {
+            color: #f3f4f6;
+            margin: 0 0 14px 0;
+            font-size: 17px;
+        }
+        
+        .message-card p {
+            color: #d1d5db;
+            margin: 0;
+            line-height: 1.8;
+            font-size: 15px;
+            font-style: italic;
+        }
+        
+        .financial-summary {
+            /* background: #1f2937; */
+            /* border: 1px solid #374151; */
+            border-radius: 6px;
+            /* padding: 32px; */
+            margin-bottom: 28px;
+        }
+        
+        .financial-summary h3 {
+            color: #f9fafb;
+            margin: 0 0 10px 0;
+            font-size: 19px;
+            font-weight: 600;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .summary-item {
+            background: #111827;
+            padding: 18px;
+            border-radius: 6px;
+            border: 1px solid #374151;
+            text-align: center;
+        }
+        
+        .summary-label {
+            color: #9ca3af;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .summary-value {
+            color: #f9fafb;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .summary-subvalue {
+            color: #6b7280;
+            font-size: 12px;
+        }
+        
+        .summary-section {
+            background: #111827;
+            padding: 18px;
+            border-radius: 6px;
+            border: 1px solid #374151;
+            margin-top: 16px;
+        }
+        
+        .summary-section h4 {
+            color: #f3f4f6;
+            font-size: 14px;
+            margin: 0 0 12px 0;
+        }
+        
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #374151;
+        }
+        
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+        
+        .summary-row-label {
+            color: #9ca3af;
+        }
+        
+        .summary-row-value {
+            color: #e5e7eb;
+            font-weight: 500;
+        }
+        
+        .summary-row-value.positive {
+            color: #48bb78;
+        }
+        
+        .summary-row-value.negative {
+            color: #f56565;
+        }
+        
+        .divider {
+            height: 1px;
+            background: #374151;
+            margin: 32px 0;
+            border: none;
+        }
+        
+        .meta-info {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #374151;
+        }
+        
+        .meta-item {
+            display: flex;
+            justify-content: space-between;
+            /* padding: 8px 0; */
+            font-size: 13px;
+        }
+        
+        .meta-label {
+            color: #9ca3af;
+        }
+        
+        .meta-value {
+            color: #e5e7eb;
+            font-weight: 500;
+        }
+        
+        .attachment-card {
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-left: 3px solid #6b7280;
+            border-radius: 6px;
+            padding: 28px;
+            margin-bottom: 28px;
+            text-align: center;
+        }
+        
+        .attachment-card h3 {
+            color: #f3f4f6;
+            margin: 0 0 18px 0;
+            font-size: 17px;
+        }
+        
+        .file-badge {
+            display: inline-block;
+            background: #111827;
+            padding: 12px 20px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #d1d5db;
+            border: 1px solid #374151;
+            margin-bottom: 16px;
+        }
+        
+        .attachment-card p {
+            color: #9ca3af;
+            font-size: 13px;
+            margin: 0;
+        }
+        
+        .privacy-card {
+            background: #1f2937;
+            border-left: 3px solid #6b7280;
+            padding: 5px 10px;
+            border-radius: 6px;
+            margin-bottom: 28px;
+        }
+        
+        .privacy-card h3 {
+            color: #f3f4f6;
+            margin: 0 0 14px 0;
+            font-size: 17px;
+        }
+        
+        .privacy-card p {
+            color: #d1d5db;
+            margin: 0;
+            line-height: 1.75;
+        }
+        
+        .email-footer {
+            background: #0f172a;
+            color: #9ca3af;
+            padding: 32px 40px;
+            text-align: center;
+            border-top: 1px solid #1f2937;
+            margin-top: 30px;
+        }
+        
+        .email-footer p {
+            margin: 8px 0;
+            font-size: 12px;
+        }
+        
+        .email-footer strong {
+            font-size: 13px;
+            color: #d1d5db;
+        }
+        
+        .email-footer .support-text {
+            margin-top: 16px;
+            font-size: 11px;
+            color: #6b7280;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📧 Last Wish Email - Final Preview</h1>
+        <p class="subtitle">Final Email Template with Financial Summary</p>
+        
+        <div class="email-container">
+            <div class="email-preview">
+                    <div class="email-header">
+                        <h1>Last Wish Delivery</h1>
+                        <p>Important Financial Information</p>
+                    </div>
+                    
+                    <div class="email-body">
+                        <div class="greeting">
+                            <h2>Dear Saka,</h2>
+                            <p>We are reaching out to you with important information regarding the financial records of <strong>Shalauddin Kader</strong>, who designated you as a trusted recipient through the Last Wish system.</p>
+                            <p>We understand that receiving this information may come during a difficult time. Please know that this delivery is part of a system designed to ensure continuity and care for loved ones, and we extend our deepest sympathies and support.</p>
+                        </div>
+                        
+                        <!-- Personal Message Card -->
+                        <div class="message-card">
+                            <h3>Personal Message from Shalauddin Kader</h3>
+                            <p>If you're reading this, it means I haven't been able to check in as planned. I want you to know that I trust you completely with this information. Please use it wisely and take care of the things that matter most. Thank you for being there for me.</p>
+                        </div>
+                        
+                        <div class="divider"></div>
+                        
+                        <!-- Financial Summary -->
+                        <div class="financial-summary">
+                            <h3>Financial Summary</h3>
+                            <div class="summary-grid">
+                                <div class="summary-item">
+                                    <div class="summary-label">Total Assets (BDT)</div>
+                                    <div class="summary-value">৳336,794.24</div>
+                                    <div class="summary-subvalue">9 accounts</div>
+                                </div>
+                                <div class="summary-item">
+                                    <div class="summary-label">Total Assets (USD)</div>
+                                    <div class="summary-value">$10,549.61</div>
+                                    <div class="summary-subvalue">1 account</div>
+                                </div>
+                            </div>
+                            <div class="summary-section">
+                                <h4>Account Summary</h4>
+                                <div class="summary-row">
+                                    <span class="summary-row-label">Total Accounts:</span>
+                                    <span class="summary-row-value">10 accounts</span>
+                                </div>
+                                <div class="summary-row">
+                                    <span class="summary-row-label">Currencies:</span>
+                                    <span class="summary-row-value">BDT, USD</span>
+                                </div>
+                            </div>
+                            <div class="summary-section">
+                                <h4>Lend/Borrow Summary</h4>
+                                <div class="summary-row">
+                                    <span class="summary-row-label">Total Lent:</span>
+                                    <span class="summary-row-value positive" id="total-lent">Loading...</span>
+                                </div>
+                                <div class="summary-row">
+                                    <span class="summary-row-label">Total Borrowed:</span>
+                                    <span class="summary-row-value negative" id="total-borrowed">Loading...</span>
+                                </div>
+                                <div class="summary-row">
+                                    <span class="summary-row-label">Active Records:</span>
+                                    <span class="summary-row-value" id="active-records">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="divider"></div>
+                        
+                        <!-- Attachment Card -->
+                        <div class="attachment-card">
+                            <h3>Financial Data Attached</h3>
+                            <div class="file-badge">financial-data-backup.pdf</div>
+                            <p>
+                                A PDF document containing the financial records you have been designated to receive.
+                            </p>
+                        </div>
+                        
+                        <div class="divider"></div>
+                        
+                        <!-- About This Delivery -->
+                        <div class="info-card">
+                            <h3>About This Delivery</h3>
+                            <p>
+                                This delivery was automatically triggered because <strong>Shalauddin Kader</strong> had not checked in within the specified time period (30 days).
+                            </p>
+                            <div class="meta-info">
+                                <div class="meta-item">
+                                    <span class="meta-label">Last Check-in:</span>
+                                    <span class="meta-value">November 16, 2025</span>
+                                </div>
+                                <div class="meta-item">
+                                    <span class="meta-label">Last Account Activity:</span>
+                                    <span class="meta-value">December 29, 2025</span>
+                                </div>
+                                <div class="meta-item">
+                                    <span class="meta-label">Days Overdue:</span>
+                                    <span class="meta-value">13 days</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="divider"></div>
+                        
+                        <!-- Privacy Card -->
+                        <div class="privacy-card">
+                            <h3>Confidentiality & Privacy</h3>
+                            <p>This information contains sensitive financial data and personal records. Please store it securely, respect the privacy of the account holder, and only use it as intended. If you have any concerns about receiving this information or need assistance, please contact our support team.</p>
+                        </div>
+                        
+                        <!-- Footer -->
+                        <div class="email-footer">
+                            <p><strong>Balanze</strong></p>
+                            <p>Delivery Date: December 30, 2025</p>
+                            <p class="support-text">
+                                For support or questions, please contact: hello@shalconnects.com
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Fetch real lend/borrow data for salauddin.kader406@gmail.com
+        const USER_ID = 'd1fe3ccc-3c57-4621-866a-6d0643137d53';
+        
+        // Set these in browser console: window.SUPABASE_URL and window.SUPABASE_KEY
+        const SUPABASE_URL = window.SUPABASE_URL || '';
+        const SUPABASE_KEY = window.SUPABASE_KEY || '';
+        
+        const formatCurrency = (amount, currency = 'USD') => {
+            const symbols = { USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', INR: '₹', CAD: '$', AUD: '$' };
+            const symbol = symbols[currency] || currency;
+            return `${symbol}${Math.abs(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        };
+        
+        async function fetchLendBorrowData() {
+            if (!SUPABASE_URL || !SUPABASE_KEY) {
+                // Fallback: Show instructions
+                console.log('💡 To see real data:');
+                console.log('1. Open browser console (F12)');
+                console.log('2. Set: window.SUPABASE_URL = "your-url"');
+                console.log('3. Set: window.SUPABASE_KEY = "your-key"');
+                console.log('4. Refresh the page');
+                console.log('Or run the SQL query in get_user_lendborrow_data.sql');
+                return;
+            }
+            
+            try {
+                const { createClient } = supabase;
+                const client = createClient(SUPABASE_URL, SUPABASE_KEY);
+                
+                // Fetch all lend/borrow records
+                const { data: lendBorrow, error } = await client
+                    .from('lend_borrow')
+                    .select('*')
+                    .eq('user_id', USER_ID);
+                
+                if (error) {
+                    console.error('Error fetching data:', error);
+                    return;
+                }
+                
+                // Filter active records (matching email handler logic)
+                const activeLendBorrow = (lendBorrow || []).filter(lb => lb.status === 'active');
+                const activeLent = activeLendBorrow.filter(lb => lb.type === 'lent' || lb.type === 'lend');
+                const activeBorrowed = activeLendBorrow.filter(lb => lb.type === 'borrowed' || lb.type === 'borrow');
+                
+                // Calculate totals by currency (matching email handler logic)
+                const lentByCurrency = {};
+                activeLent.forEach(lb => {
+                    const currency = lb.currency || 'USD';
+                    if (!lentByCurrency[currency]) {
+                        lentByCurrency[currency] = 0;
+                    }
+                    lentByCurrency[currency] += parseFloat(lb.amount) || 0;
+                });
+                
+                const borrowedByCurrency = {};
+                activeBorrowed.forEach(lb => {
+                    const currency = lb.currency || 'USD';
+                    if (!borrowedByCurrency[currency]) {
+                        borrowedByCurrency[currency] = 0;
+                    }
+                    borrowedByCurrency[currency] += parseFloat(lb.amount) || 0;
+                });
+                
+                // Display totals (matching email handler format)
+                const lentDisplay = Object.keys(lentByCurrency).length === 0 
+                    ? '$0.00' 
+                    : Object.entries(lentByCurrency).map(([currency, amount]) => formatCurrency(amount, currency)).join(', ');
+                
+                const borrowedDisplay = Object.keys(borrowedByCurrency).length === 0 
+                    ? '$0.00' 
+                    : Object.entries(borrowedByCurrency).map(([currency, amount]) => formatCurrency(amount, currency)).join(', ');
+                
+                document.getElementById('total-lent').textContent = lentDisplay;
+                document.getElementById('total-borrowed').textContent = borrowedDisplay;
+                document.getElementById('active-records').textContent = `${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}`;
+                
+                console.log('✅ Lend/Borrow data loaded:', {
+                    totalLent: lentDisplay,
+                    totalBorrowed: borrowedDisplay,
+                    activeRecords: activeLendBorrow.length,
+                    details: { lentByCurrency, borrowedByCurrency }
+                });
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        // Fetch data when page loads
+        document.addEventListener('DOMContentLoaded', fetchLendBorrowData);
+    </script>
+</body>
+</html>
+

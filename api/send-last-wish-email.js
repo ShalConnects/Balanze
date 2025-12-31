@@ -219,7 +219,7 @@ async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 1000, context
   throw lastError;
 }
 
-async function gatherUserData(userId) {
+export async function gatherUserData(userId) {
   const data = {};
   const metadata = { userId, operation: 'gatherUserData' };
 
@@ -327,7 +327,7 @@ async function gatherUserData(userId) {
   }
 }
 
-function filterDataBySettings(userData, includeSettings) {
+export function filterDataBySettings(userData, includeSettings) {
   const filtered = {};
   
   if (includeSettings.accounts) {
@@ -479,17 +479,37 @@ function calculateDateInfo(settings, data) {
   // Get inactivity threshold from settings
   const inactivityThreshold = settings.inactivity_days || 30;
   
+  // Get check-in information
+  const lastCheckIn = settings.last_check_in ? new Date(settings.last_check_in) : null;
+  const checkInFrequency = settings.check_in_frequency || 30;
+  
+  // Calculate days overdue
+  let daysOverdue = null;
+  if (lastCheckIn) {
+    const expectedCheckIn = new Date(lastCheckIn);
+    expectedCheckIn.setDate(expectedCheckIn.getDate() + checkInFrequency);
+    const diffTime = now - expectedCheckIn;
+    if (diffTime > 0) {
+      daysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    } else {
+      daysOverdue = 0;
+    }
+  }
+  
   return {
     setupDate,
     lastActivityDate,
     inactivityPeriod,
     inactivityThreshold,
     deliveryDate: now,
+    lastCheckIn,
+    checkInFrequency,
+    daysOverdue,
     formatDate
   };
 }
 
-function createEmailContent(user, recipient, data, settings, isTestMode = false) {
+export function createEmailContent(user, recipient, data, settings, isTestMode = false) {
   const totalAccounts = data.accounts?.length || 0;
   const totalTransactions = data.transactions?.length || 0;
   const totalPurchases = data.purchases?.length || 0;
@@ -820,6 +840,85 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
           font-weight: 400;
         }
         
+        /* Financial Summary */
+        .financial-summary {
+          margin-bottom: 28px;
+        }
+        .financial-summary h3 {
+          color: #f9fafb;
+          margin: 0 0 20px 0;
+          font-size: 19px;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+        }
+        .summary-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 16px;
+          margin-bottom: 20px;
+        }
+        .summary-item {
+          background: #111827;
+          padding: 18px;
+          border-radius: 6px;
+          border: 1px solid #374151;
+          text-align: center;
+        }
+        .summary-label {
+          color: #9ca3af;
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 1.2px;
+          margin-bottom: 8px;
+          font-weight: 500;
+        }
+        .summary-value {
+          color: #f9fafb;
+          font-size: 24px;
+          font-weight: 600;
+          margin-bottom: 4px;
+        }
+        .summary-subvalue {
+          color: #6b7280;
+          font-size: 12px;
+        }
+        .summary-section {
+          background: #111827;
+          padding: 18px;
+          border-radius: 6px;
+          border: 1px solid #374151;
+          margin-top: 16px;
+        }
+        .summary-section h4 {
+          color: #f3f4f6;
+          font-size: 14px;
+          margin: 0 0 12px 0;
+          font-weight: 600;
+        }
+        .summary-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 8px 0;
+          font-size: 13px;
+          border-bottom: 1px solid #374151;
+        }
+        .summary-row:last-child {
+          border-bottom: none;
+        }
+        .summary-row-label {
+          color: #9ca3af;
+        }
+        .summary-row-value {
+          color: #e5e7eb;
+          font-weight: 500;
+        }
+        .summary-row-value.positive {
+          color: #48bb78;
+        }
+        .summary-row-value.negative {
+          color: #f56565;
+        }
+        
         /* Account Breakdown */
         .account-breakdown {
           margin-top: 24px;
@@ -1071,34 +1170,6 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
               </p>
             </div>
 
-            <div class="divider"></div>
-
-            <!-- Financial Metrics -->
-            <div class="financial-metrics">
-              <h3>Financial Overview</h3>
-              <div class="metrics-grid">
-                <div class="metric-item">
-                  <div class="metric-label">Total Assets</div>
-                  <div class="metric-value">
-                    ${Object.keys(assetsByCurrency).length > 0 ? 
-                      Object.entries(assetsByCurrency).map(([currency, amount]) => 
-                        formatCurrencyWithSymbol(amount, currency)
-                      ).join('<br>') : 
-                      formatCurrencyWithSymbol(0, 'USD')
-                    }
-                  </div>
-                  <div class="metric-subvalue">
-                    ${Object.keys(accountsByCurrency).length > 0 ? 
-                      Object.entries(accountsByCurrency).map(([currency, count]) => 
-                        `${count} account${count !== 1 ? 's' : ''} (${currency})`
-                      ).join(', ') : 
-                      `Across ${totalAccounts} account${totalAccounts !== 1 ? 's' : ''}`
-                    }
-                  </div>
-                </div>
-              </div>
-            </div>
-
             ${settings.message ? `
               <!-- Personal Message Card -->
               <div class="message-card">
@@ -1107,43 +1178,63 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
               </div>
             ` : ''}
 
-            ${(activeLent.length > 0 || activeBorrowed.length > 0) ? `
-            <!-- Lent & Borrow Section -->
-            <div class="financial-metrics">
-              <h3>Lent & Borrow</h3>
-              <div class="metrics-grid">
-                ${activeLent.length > 0 ? `
-                <div class="metric-item">
-                  <div class="metric-label">Total Lent</div>
-                  <div class="metric-value">
-                    ${Object.entries(lentByCurrency).map(([currency, amount]) => 
-                      formatCurrencyWithSymbol(amount, currency)
-                    ).join('<br>')}
+            <div class="divider"></div>
+
+            <!-- Financial Summary -->
+            <div class="financial-summary">
+              <h3>Financial Summary</h3>
+              <div class="summary-grid">
+                ${Object.entries(assetsByCurrency).map(([currency, amount]) => `
+                  <div class="summary-item">
+                    <div class="summary-label">Total Assets (${currency})</div>
+                    <div class="summary-value">${formatCurrencyWithSymbol(amount, currency)}</div>
+                    <div class="summary-subvalue">${accountsByCurrency[currency] || 0} account${(accountsByCurrency[currency] || 0) !== 1 ? 's' : ''}</div>
                   </div>
-                  <div class="metric-subvalue">${activeLent.length} active record${activeLent.length !== 1 ? 's' : ''}</div>
-                </div>
-                ` : ''}
-                ${activeBorrowed.length > 0 ? `
-                <div class="metric-item">
-                  <div class="metric-label">Total Borrowed</div>
-                  <div class="metric-value">
-                    ${Object.entries(borrowedByCurrency).map(([currency, amount]) => 
-                      formatCurrencyWithSymbol(amount, currency)
-                    ).join('<br>')}
+                `).join('')}
+                ${Object.keys(assetsByCurrency).length === 0 ? `
+                  <div class="summary-item">
+                    <div class="summary-label">Total Assets</div>
+                    <div class="summary-value">${formatCurrencyWithSymbol(0, 'USD')}</div>
+                    <div class="summary-subvalue">0 accounts</div>
                   </div>
-                  <div class="metric-subvalue">${activeBorrowed.length} active record${activeBorrowed.length !== 1 ? 's' : ''}</div>
-                </div>
                 ` : ''}
               </div>
+              <div class="summary-section">
+                <h4>Account Summary</h4>
+                <div class="summary-row">
+                  <span class="summary-row-label">Total Accounts:</span>
+                  <span class="summary-row-value">${totalAccounts} account${totalAccounts !== 1 ? 's' : ''}</span>
+                </div>
+                <div class="summary-row">
+                  <span class="summary-row-label">Currencies:</span>
+                  <span class="summary-row-value">${Object.keys(assetsByCurrency).length > 0 ? Object.keys(assetsByCurrency).join(', ') : 'N/A'}</span>
+                </div>
+              </div>
+              <div class="summary-section">
+                <h4>Lend/Borrow Summary</h4>
+                <div class="summary-row">
+                  <span class="summary-row-label">Total Lent:</span>
+                  <span class="summary-row-value positive">${Object.keys(lentByCurrency).length > 0 ? Object.entries(lentByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</span>
+                </div>
+                <div class="summary-row">
+                  <span class="summary-row-label">Total Borrowed:</span>
+                  <span class="summary-row-value negative">${Object.keys(borrowedByCurrency).length > 0 ? Object.entries(borrowedByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</span>
+                </div>
+                <div class="summary-row">
+                  <span class="summary-row-label">Active Records:</span>
+                  <span class="summary-row-value">${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}</span>
+                </div>
+              </div>
             </div>
-            ` : ''}
+
+            <div class="divider"></div>
 
             <!-- Attachment Card -->
             <div class="attachment-card">
-              <h3>Complete Financial Data Attached</h3>
+              <h3>Financial Data Attached</h3>
               <div class="file-badge">${isTestMode ? 'test-' : ''}financial-data-backup.pdf</div>
               <p style="margin-top: 16px; color: #9ca3af; font-size: 13px;">
-                This PDF contains comprehensive financial records, including account information and active lend/borrow records, organized by currency.
+                A PDF document containing the financial records you have been designated to receive.
               </p>
             </div>
 
@@ -1153,24 +1244,20 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
             <div class="info-card">
               <h3>About This Delivery</h3>
               <p>
-                This delivery was automatically triggered based on the Last Wish settings activated by <strong>${userName}</strong>. The Last Wish system ensures that financial records are securely delivered to designated recipients when specific conditions are met, providing peace of mind and ensuring important information reaches those who need it.
+                This delivery was automatically triggered because <strong>${userName}</strong> had not checked in within the specified time period (${dateInfo.checkInFrequency || 'N/A'} days).
               </p>
               <div class="meta-info">
                 <div class="meta-item">
-                  <span class="meta-label">Last Wish Activated:</span>
-                  <span class="meta-value">${dateInfo.setupDate ? dateInfo.formatDate(dateInfo.setupDate) : 'N/A'}</span>
+                  <span class="meta-label">Last Check-in:</span>
+                  <span class="meta-value">${dateInfo.lastCheckIn ? dateInfo.formatDate(dateInfo.lastCheckIn) : 'N/A'}</span>
                 </div>
                 <div class="meta-item">
                   <span class="meta-label">Last Account Activity:</span>
                   <span class="meta-value">${dateInfo.lastActivityDate ? dateInfo.formatDate(dateInfo.lastActivityDate) : 'N/A'}</span>
                 </div>
                 <div class="meta-item">
-                  <span class="meta-label">Account Status:</span>
-                  <span class="meta-value">${dateInfo.inactivityPeriod === null ? 'N/A' : dateInfo.inactivityPeriod === 0 ? 'Recently active (delivery triggered per Last Wish settings)' : dateInfo.inactivityPeriod + ' days of inactivity'}</span>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-label">Delivery Trigger:</span>
-                  <span class="meta-value">Automatic delivery based on ${dateInfo.inactivityThreshold}-day inactivity threshold configuration</span>
+                  <span class="meta-label">Days Overdue:</span>
+                  <span class="meta-value">${dateInfo.daysOverdue !== null && dateInfo.daysOverdue !== undefined ? dateInfo.daysOverdue + ' days' : 'N/A'}</span>
                 </div>
               </div>
             </div>
@@ -1188,8 +1275,7 @@ function createEmailContent(user, recipient, data, settings, isTestMode = false)
 
           <!-- Email Footer -->
           <div class="email-footer">
-            <p><strong>Last Wish System - Balanze</strong></p>
-            <p>Automated delivery • Sent with care and respect</p>
+            <p><strong>Balanze</strong></p>
             <p>Delivery Date: ${dateInfo.formatDate(dateInfo.deliveryDate)}</p>
             <p style="margin-top: 16px; font-size: 11px; color: #6b7280;">
               For support or questions, please contact: hello@shalconnects.com
@@ -1343,7 +1429,7 @@ function generateCSVExport(data, settings) {
   return csvRows.join('\n');
 }
 
-function createPDFBuffer(user, recipient, data, settings) {
+export function createPDFBuffer(user, recipient, data, settings) {
   return new Promise((resolve, reject) => {
     try {
       // Calculate financial metrics and date info
@@ -1557,20 +1643,29 @@ function createPDFBuffer(user, recipient, data, settings) {
       
       let tocY = doc.y;
       const tocItems = [];
+      
       // Filter accounts to exclude zero balances
       const accountsWithBalance = (data.accounts || []).filter(acc => parseFloat(acc.calculated_balance) !== 0);
+      
+      // Filter lend/borrow to only active records (used in TOC and Financial Summary)
+      const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active');
+      
+      // Calculate page numbers (Financial Summary is page 3, then accounts, then lend/borrow)
+      let currentPage = 3; // Financial Summary page
+      tocItems.push({ title: 'Financial Summary', page: currentPage });
+      currentPage++;
+      
       if (accountsWithBalance.length > 0) {
         // Group by currency and add each currency group
         const currencies = [...new Set(accountsWithBalance.map(acc => acc.currency || 'USD'))];
-        currencies.forEach((currency, index) => {
-          tocItems.push({ title: `Accounts - ${currency}`, page: doc.bufferedPageRange().count + 1 + index });
+        currencies.forEach((currency) => {
+          tocItems.push({ title: `Accounts - ${currency}`, page: currentPage });
+          currentPage++;
         });
       }
-      // Filter lend/borrow to only active records
-      const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active');
+      
       if (activeLendBorrow.length > 0) {
-        const accountsPageCount = accountsWithBalance.length > 0 ? [...new Set(accountsWithBalance.map(acc => acc.currency || 'USD'))].length : 0;
-        tocItems.push({ title: 'Lend/Borrow Records', page: doc.bufferedPageRange().count + 1 + accountsPageCount });
+        tocItems.push({ title: 'Lend/Borrow Records', page: currentPage });
       }
       
       tocItems.forEach((item, index) => {
@@ -1583,6 +1678,123 @@ function createPDFBuffer(user, recipient, data, settings) {
       addHeaderFooter(2, 2);
       updateTotalPages();
 
+      // FINANCIAL SUMMARY PAGE
+      doc.addPage();
+      addWatermark();
+      updateTotalPages();
+      addHeaderFooter(totalPages, totalPages);
+      
+      doc.fillColor('#f9fafb').fontSize(20).font('Helvetica-Bold')
+        .text('Financial Summary', 50, 80);
+      doc.moveDown(1.5);
+      
+      // Calculate assets by currency
+      const assetsByCurrency = {};
+      const accountsByCurrency = {};
+      (data.accounts || []).forEach(account => {
+        const currency = account.currency || 'USD';
+        const balance = parseFloat(account.calculated_balance) || 0;
+        if (!assetsByCurrency[currency]) {
+          assetsByCurrency[currency] = 0;
+          accountsByCurrency[currency] = 0;
+        }
+        assetsByCurrency[currency] += balance;
+        accountsByCurrency[currency] += 1;
+      });
+      
+      // Calculate lend/borrow totals (activeLendBorrow already declared above)
+      const activeLent = activeLendBorrow.filter(lb => lb.type === 'lent' || lb.type === 'lend');
+      const activeBorrowed = activeLendBorrow.filter(lb => lb.type === 'borrowed' || lb.type === 'borrow');
+      
+      const lentByCurrency = {};
+      activeLent.forEach(lb => {
+        const currency = lb.currency || 'USD';
+        if (!lentByCurrency[currency]) {
+          lentByCurrency[currency] = 0;
+        }
+        lentByCurrency[currency] += parseFloat(lb.amount) || 0;
+      });
+      
+      const borrowedByCurrency = {};
+      activeBorrowed.forEach(lb => {
+        const currency = lb.currency || 'USD';
+        if (!borrowedByCurrency[currency]) {
+          borrowedByCurrency[currency] = 0;
+        }
+        borrowedByCurrency[currency] += parseFloat(lb.amount) || 0;
+      });
+      
+      // Total Assets Section
+      doc.fillColor('#f3f4f6').fontSize(14).font('Helvetica-Bold')
+        .text('Total Assets', 50, doc.y);
+      doc.moveDown(0.5);
+      
+      if (Object.keys(assetsByCurrency).length > 0) {
+        Object.entries(assetsByCurrency).forEach(([currency, amount]) => {
+          doc.fillColor('#d1d5db').fontSize(11).font('Helvetica')
+            .text(`${formatCurrency(amount, currency)} (${currency})`, 70, doc.y);
+          doc.fillColor('#9ca3af').fontSize(9)
+            .text(`${accountsByCurrency[currency]} account${accountsByCurrency[currency] !== 1 ? 's' : ''}`, 70, doc.y + 12);
+          doc.moveDown(1);
+        });
+      } else {
+        doc.fillColor('#9ca3af').fontSize(10).font('Helvetica')
+          .text('No accounts with balance', 70, doc.y);
+        doc.moveDown(1);
+      }
+      
+      doc.moveDown(1);
+      
+      // Account Summary
+      doc.fillColor('#f3f4f6').fontSize(14).font('Helvetica-Bold')
+        .text('Account Summary', 50, doc.y);
+      doc.moveDown(0.5);
+      
+      const totalAccounts = (data.accounts || []).length;
+      doc.fillColor('#d1d5db').fontSize(11).font('Helvetica')
+        .text(`Total Accounts: ${totalAccounts}`, 70, doc.y);
+      doc.moveDown(0.7);
+      doc.fillColor('#d1d5db').fontSize(11).font('Helvetica')
+        .text(`Currencies: ${Object.keys(assetsByCurrency).length > 0 ? Object.keys(assetsByCurrency).join(', ') : 'N/A'}`, 70, doc.y);
+      
+      doc.moveDown(1.5);
+      
+      // Lend/Borrow Summary
+      doc.fillColor('#f3f4f6').fontSize(14).font('Helvetica-Bold')
+        .text('Lend/Borrow Summary', 50, doc.y);
+      doc.moveDown(0.5);
+      
+      if (Object.keys(lentByCurrency).length > 0) {
+        doc.fillColor('#48bb78').fontSize(11).font('Helvetica')
+          .text('Total Lent:', 70, doc.y);
+        Object.entries(lentByCurrency).forEach(([currency, amount]) => {
+          doc.fillColor('#48bb78').fontSize(10)
+            .text(`  ${formatCurrency(amount, currency)} (${currency})`, 90, doc.y);
+          doc.moveDown(0.6);
+        });
+      } else {
+        doc.fillColor('#9ca3af').fontSize(10).font('Helvetica')
+          .text('Total Lent: $0.00', 70, doc.y);
+        doc.moveDown(0.6);
+      }
+      
+      if (Object.keys(borrowedByCurrency).length > 0) {
+        doc.fillColor('#f56565').fontSize(11).font('Helvetica')
+          .text('Total Borrowed:', 70, doc.y);
+        Object.entries(borrowedByCurrency).forEach(([currency, amount]) => {
+          doc.fillColor('#f56565').fontSize(10)
+            .text(`  ${formatCurrency(amount, currency)} (${currency})`, 90, doc.y);
+          doc.moveDown(0.6);
+        });
+      } else {
+        doc.fillColor('#9ca3af').fontSize(10).font('Helvetica')
+          .text('Total Borrowed: $0.00', 70, doc.y);
+        doc.moveDown(0.6);
+      }
+      
+      doc.fillColor('#d1d5db').fontSize(11).font('Helvetica')
+        .text(`Active Records: ${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}`, 70, doc.y);
+      
       // BANK ACCOUNTS SECTION (Grouped by Currency, Excluding Zero Balances)
       // accountsWithBalance already declared above for TOC
       
