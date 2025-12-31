@@ -327,6 +327,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   const [isPurchaseWidgetHovered, setIsPurchaseWidgetHovered] = useState(false);
   const [showPurchaseCrossTooltip, setShowPurchaseCrossTooltip] = useState(false);
   const [showPurchaseInfoTooltip, setShowPurchaseInfoTooltip] = useState(false);
+  
+  // Widget visibility dropdown state
+  const [showWidgetsDropdown, setShowWidgetsDropdown] = useState(false);
+  const widgetsDropdownRef = useRef<HTMLDivElement>(null);
   const [showPurchaseInfoMobileModal, setShowPurchaseInfoMobileModal] = useState(false);
   const [dashboardCurrencyFilter, setDashboardCurrencyFilter] = useState('');
   const purchaseTooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -427,6 +431,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
       }
     };
   }, []);
+
+  // Handle click outside widgets dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (widgetsDropdownRef.current && !widgetsDropdownRef.current.contains(event.target as Node)) {
+        setShowWidgetsDropdown(false);
+      }
+    }
+    if (showWidgetsDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showWidgetsDropdown]);
 
   // Save Purchases widget visibility preference to database
   const handlePurchasesWidgetToggle = async (show: boolean) => {
@@ -858,78 +877,91 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
             if (!hasMultipleCurrencies && !hasAnyCards) return null;
             
             return (
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 sm:gap-3 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-2.5 sm:p-3 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50">
+              <div className="flex flex-row items-center justify-between gap-2 sm:gap-3 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-lg p-2 sm:p-2.5 border border-blue-200/50 dark:border-blue-800/50 shadow-sm">
                 {/* Left side: Currency Filter */}
                 {hasMultipleCurrencies && (
-                  <div className="flex items-center gap-2 w-full md:w-auto">
-                    <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap flex-shrink-0">Currency:</span>
+                  <div className="flex items-center gap-2 flex-1 md:flex-initial">
+                    <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap flex-shrink-0">Currency:</span>
                     <CustomDropdown
                       options={filteredDashboardCurrencies.map(currency => ({ value: currency, label: currency }))}
                       value={dashboardCurrencyFilter}
                       onChange={setDashboardCurrencyFilter}
                       fullWidth={false}
-                      className="bg-transparent border shadow-none text-gray-700 dark:text-gray-300 text-xs sm:text-sm h-9 sm:h-7 min-h-[44px] sm:min-h-0 hover:bg-white/50 dark:hover:bg-gray-700/50 focus:ring-0 focus:outline-none touch-manipulation"
-                      style={{ padding: '8px 12px', border: '1px solid rgb(229 231 235 / var(--tw-bg-opacity, 1))', minWidth: '80px' }}
+                      className="bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm h-8 min-h-0 hover:bg-blue-50 dark:hover:bg-blue-900/30 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-md px-2 sm:px-3 py-1 w-auto min-w-[80px] sm:min-w-[100px]"
                       dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
                     />
                   </div>
                 )}
                 
-                {/* Right side: Card Visibility Toggles */}
+                {/* Right side: Widget Visibility Dropdown */}
                 {hasAnyCards && (
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto">
-                    <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap flex-shrink-0">Show cards:</span>
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1 md:flex-initial">
-                      {/* Donations Checkbox */}
-                      {hasDonations && (
-                        <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0 min-h-[44px] sm:min-h-0 px-1 sm:px-0">
-                          <input
-                            type="checkbox"
-                            checked={showDonationsSavingsWidget}
-                            onChange={(e) => handleDonationsWidgetToggle(e.target.checked)}
-                            className="w-5 h-5 sm:w-4 sm:h-4 accent-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600 flex-shrink-0 touch-manipulation"
-                          />
-                          <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors whitespace-nowrap">Donations</span>
-                        </label>
-                      )}
-                      
-                      {/* Purchases Checkbox */}
-                      {hasPurchases && (
-                        <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0 min-h-[44px] sm:min-h-0 px-1 sm:px-0">
-                          <input
-                            type="checkbox"
-                            checked={showPurchasesWidget}
-                            onChange={(e) => handlePurchasesWidgetToggle(e.target.checked)}
-                            className="w-5 h-5 sm:w-4 sm:h-4 accent-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600 flex-shrink-0 touch-manipulation"
-                          />
-                          <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors whitespace-nowrap">Purchases</span>
-                        </label>
-                      )}
-                      
-                      {/* L&B Checkbox */}
-                      {hasLendBorrow && (
-                        <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0 min-h-[44px] sm:min-h-0 px-1 sm:px-0">
-                          <input
-                            type="checkbox"
-                            checked={showLendBorrowWidget}
-                            onChange={(e) => handleLendBorrowWidgetToggle(e.target.checked)}
-                            className="w-5 h-5 sm:w-4 sm:h-4 accent-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600 flex-shrink-0 touch-manipulation"
-                          />
-                          <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors whitespace-nowrap">L&B</span>
-                        </label>
-                      )}
-                      
-                      {/* Transfers Checkbox */}
-                      {hasTransfersCard && (
-                        <label className="flex items-center gap-2 cursor-pointer group flex-shrink-0 min-h-[44px] sm:min-h-0 px-1 sm:px-0">
-                          <input
-                            type="checkbox"
-                            checked={showTransferWidget}
-                            onChange={(e) => handleTransferWidgetToggle(e.target.checked)}
-                            className="w-5 h-5 sm:w-4 sm:h-4 accent-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600 flex-shrink-0 touch-manipulation"
-                          />
-                          <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors whitespace-nowrap">Transfers</span>
-                        </label>
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-auto" ref={widgetsDropdownRef}>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowWidgetsDropdown(!showWidgetsDropdown)}
+                        className="bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm h-8 min-h-0 hover:bg-blue-50 dark:hover:bg-blue-900/30 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-md px-2 sm:px-3 py-1 w-auto min-w-[100px] sm:min-w-[120px] flex items-center justify-between"
+                        aria-label="Toggle widget visibility"
+                      >
+                        <span>Widgets</span>
+                        <svg className={`w-4 h-4 ml-2 transition-transform ${showWidgetsDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {showWidgetsDropdown && (
+                        <div className="absolute right-0 top-full z-50 mt-1 w-48 bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700 rounded-lg shadow-lg p-2">
+                          {/* Donations Checkbox */}
+                          {hasDonations && (
+                            <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={showDonationsSavingsWidget}
+                                onChange={(e) => handleDonationsWidgetToggle(e.target.checked)}
+                                className="w-4 h-4 accent-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600"
+                              />
+                              <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Donations</span>
+                            </label>
+                          )}
+                          
+                          {/* Purchases Checkbox */}
+                          {hasPurchases && (
+                            <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={showPurchasesWidget}
+                                onChange={(e) => handlePurchasesWidgetToggle(e.target.checked)}
+                                className="w-4 h-4 accent-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600"
+                              />
+                              <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Purchases</span>
+                            </label>
+                          )}
+                          
+                          {/* L&B Checkbox */}
+                          {hasLendBorrow && (
+                            <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={showLendBorrowWidget}
+                                onChange={(e) => handleLendBorrowWidgetToggle(e.target.checked)}
+                                className="w-4 h-4 accent-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600"
+                              />
+                              <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">L&B</span>
+                            </label>
+                          )}
+                          
+                          {/* Transfers Checkbox */}
+                          {hasTransfersCard && (
+                            <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={showTransferWidget}
+                                onChange={(e) => handleTransferWidgetToggle(e.target.checked)}
+                                className="w-4 h-4 accent-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600"
+                              />
+                              <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Transfers</span>
+                            </label>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
