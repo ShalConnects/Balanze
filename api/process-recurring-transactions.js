@@ -121,6 +121,7 @@ async function processRecurringTransactions() {
     let processedCount = 0;
 
     for (const recurringTransaction of recurringTransactions) {
+      let createdTransaction = null; // Track created transaction for cleanup if needed
       try {
         // Validate recurring_frequency
         if (!recurringTransaction.recurring_frequency || 
@@ -142,13 +143,19 @@ async function processRecurringTransactions() {
           continue;
         }
 
+        // Validate occurrence date is not in the future
+        const occurrenceDateObj = new Date(occurrenceDate);
+        const todayDate = new Date(today);
+        if (occurrenceDateObj > todayDate) {
+          // Occurrence date is in the future, skip processing
+          continue;
+        }
+
         // Check if end date has passed
         if (recurringTransaction.recurring_end_date) {
           const endDate = new Date(recurringTransaction.recurring_end_date);
-          const todayDate = new Date(today);
-          const occurrenceDateObj = new Date(occurrenceDate);
           
-          // Skip if end date has passed
+          // Skip if end date has passed (strictly less than today)
           if (endDate < todayDate) {
             // Mark as expired by setting next_occurrence_date to null
             await supabase
@@ -158,7 +165,7 @@ async function processRecurringTransactions() {
             continue;
           }
           
-          // Skip if occurrence date is after end date
+          // Skip if occurrence date is after end date (allow equal dates)
           if (occurrenceDateObj > endDate) {
             // Mark as expired
             await supabase
@@ -195,14 +202,19 @@ async function processRecurringTransactions() {
           .maybeSingle();
 
         if (existingInstance) {
-          // Instance already exists, update next_occurrence_date and skip
+          // Instance already exists, update next_occurrence_date and occurrence_count, then skip
           const nextOccurrenceDate = calculateNextOccurrence(
             occurrenceDate,
             recurringTransaction.recurring_frequency
           );
+          const occurrenceCount = (recurringTransaction.occurrence_count || 0) + 1;
           await supabase
             .from('transactions')
-            .update({ next_occurrence_date: nextOccurrenceDate })
+            .update({ 
+              next_occurrence_date: nextOccurrenceDate,
+              occurrence_count: occurrenceCount,
+              updated_at: new Date().toISOString()
+            })
             .eq('id', recurringTransaction.id);
           continue;
         }
@@ -233,7 +245,7 @@ async function processRecurringTransactions() {
         };
 
         // Insert the new transaction
-        const { data: createdTransaction, error: insertError } = await supabase
+        const { data: insertedTransaction, error: insertError } = await supabase
           .from('transactions')
           .insert(newTransaction)
           .select('id, transaction_id')
@@ -246,6 +258,8 @@ async function processRecurringTransactions() {
           });
           continue;
         }
+        
+        createdTransaction = insertedTransaction;
 
         // Create donation records for income transactions with donations
         if (recurringTransaction.type === 'income' && recurringTransaction.donation_amount && recurringTransaction.donation_amount > 0 && createdTransaction) {
@@ -310,6 +324,20 @@ async function processRecurringTransactions() {
           .eq('id', recurringTransaction.id);
 
         if (updateError) {
+          // If update fails, clean up the orphaned child transaction and related records
+          if (createdTransaction) {
+            // Delete donation records first (if any were created)
+            await supabase
+              .from('donation_saving_records')
+              .delete()
+              .eq('transaction_id', createdTransaction.id);
+            
+            // Delete the orphaned child transaction
+            await supabase
+              .from('transactions')
+              .delete()
+              .eq('id', createdTransaction.id);
+          }
           errors.push({
             transactionId: recurringTransaction.id,
             error: `Failed to update recurring transaction: ${updateError.message}`,
@@ -317,7 +345,7 @@ async function processRecurringTransactions() {
         } else {
           processedCount++;
           
-          // Create notification for the user
+          // Create notification for the user (only on successful update)
           await createRecurringTransactionNotification(
             recurringTransaction.user_id,
             recurringTransaction
@@ -325,6 +353,25 @@ async function processRecurringTransactions() {
         }
 
       } catch (error) {
+        // If an error occurs after transaction creation, clean up orphaned records
+        if (createdTransaction) {
+          try {
+            // Delete donation records first (if any were created)
+            await supabase
+              .from('donation_saving_records')
+              .delete()
+              .eq('transaction_id', createdTransaction.id);
+            
+            // Delete the orphaned child transaction
+            await supabase
+              .from('transactions')
+              .delete()
+              .eq('id', createdTransaction.id);
+          } catch (cleanupError) {
+            // Log cleanup error but don't fail the main error reporting
+            console.error(`Error during cleanup of orphaned transaction ${createdTransaction.id}:`, cleanupError);
+          }
+        }
         errors.push({
           transactionId: recurringTransaction.id,
           error: error.message || 'Unknown error',

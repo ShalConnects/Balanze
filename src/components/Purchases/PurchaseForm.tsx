@@ -19,6 +19,7 @@ import { CategoryModal } from '../common/CategoryModal';
 import { getDefaultAccountId } from '../../utils/defaultAccount';
 import { generateTransactionId } from '../../utils/transactionId';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { AmountAdjustmentModal } from '../common/AmountAdjustmentModal';
 
 
 interface PurchaseFormProps {
@@ -89,6 +90,9 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const itemNameRef = useRef<HTMLInputElement>(null);
   const isSubmittingRef = useRef(false);
+
+  // Amount adjustment modal state
+  const [showAmountModal, setShowAmountModal] = useState(false);
   
   // Autocomplete state for item name
   const [showItemNameSuggestions, setShowItemNameSuggestions] = useState(false);
@@ -204,6 +208,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
       useFinanceStore.getState().fetchPurchaseCategories();
     }
   }, [isOpen, user, purchaseCategories.length]);
+
 
   // Generate item name suggestions
   const generateItemNameSuggestions = (input: string) => {
@@ -353,12 +358,25 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     
     // For planned purchases, require price as well
     if (formData.status === 'planned') {
-      const isValid = hasRequiredFields && formData.price && !isNaN(Number(formData.price)) && Number(formData.price) > 0;
+      let isValidPrice: boolean;
+      if (amountMode === 'adjust' && originalPrice !== null) {
+        const calculated = getCalculatedPrice();
+        isValidPrice = calculated !== null && calculated > 0;
+      } else {
+        isValidPrice = formData.price && !isNaN(Number(formData.price)) && Number(formData.price) > 0;
+      }
+      const isValid = hasRequiredFields && isValidPrice;
       return isValid;
     }
     
     if (formData.status === 'purchased') {
-      const hasValidPrice = formData.price && !isNaN(Number(formData.price)) && Number(formData.price) > 0;
+      let hasValidPrice: boolean;
+      if (amountMode === 'adjust' && originalPrice !== null) {
+        const calculated = getCalculatedPrice();
+        hasValidPrice = calculated !== null && calculated > 0;
+      } else {
+        hasValidPrice = formData.price && !isNaN(Number(formData.price)) && Number(formData.price) > 0;
+      }
       // If excluding from calculation, account is not required
       if (excludeFromCalculation) {
         return hasRequiredFields && hasValidPrice;
@@ -467,9 +485,21 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
               throw new Error('Selected account is not active');
             }
             
+            // Calculate final price for transaction
+            let finalPriceForTransaction: number;
+            if (amountMode === 'adjust' && originalPrice !== null) {
+              const calculated = getCalculatedPrice();
+              if (calculated === null) {
+                throw new Error('Invalid price adjustment');
+              }
+              finalPriceForTransaction = calculated;
+            } else {
+              finalPriceForTransaction = parseFloat(formData.price);
+            }
+
             const transactionData = {
               account_id: selectedAccountId,
-              amount: parseFloat(formData.price),
+              amount: finalPriceForTransaction,
               type: 'expense' as 'expense',
               category: formData.category,
               description: formData.item_name,
@@ -1005,17 +1035,30 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                     onChange={e => {
                       handleFormChange('price', e.target.value);
                     }}
+                    onClick={(e) => {
+                      // Open modal when clicking on price field (only when editing)
+                      if (editingPurchase && editingPurchase.price) {
+                        e.preventDefault();
+                        setShowAmountModal(true);
+                      }
+                    }}
                     onBlur={handleBlur}
-                    className={`w-full px-4 pr-[32px] text-[14px] h-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors bg-gray-100 font-medium ${fieldErrors.price && touched.price ? 'border-red-500 ring-red-200' : 'border-gray-300'}`}
+                    className={`w-full px-4 pr-[32px] text-[14px] h-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors bg-gray-100 font-medium ${fieldErrors.price && touched.price ? 'border-red-500 ring-red-200' : 'border-gray-300'} ${editingPurchase && editingPurchase.price ? 'cursor-pointer' : ''}`}
                     placeholder="0.00 *"
                     required
                     autoComplete="off"
                     disabled={isLoading}
+                    readOnly={editingPurchase && editingPurchase.price ? true : false}
                   />
-                  {formData.price && (
+                  {formData.price && !editingPurchase && (
                     <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onClick={() => handleFormChange('price', '')} tabIndex={-1} aria-label="Clear price">
                       <X className="w-4 h-4" />
                     </button>
+                  )}
+                  {editingPurchase && editingPurchase.price && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-600 dark:text-blue-400">
+                      Click to edit
+                    </div>
                   )}
                   <span className="text-gray-500 text-sm absolute right-8 top-2">
                     {formData.status === 'planned' || excludeFromCalculation 
@@ -1132,6 +1175,23 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
         title="Add New Expense Category"
         isIncomeCategory={false}
       />
+      
+      {/* Amount Adjustment Modal */}
+      {editingPurchase && editingPurchase.price && (
+        <AmountAdjustmentModal
+          isOpen={showAmountModal}
+          onClose={() => setShowAmountModal(false)}
+          currentAmount={editingPurchase.price}
+          onConfirm={(newAmount) => {
+            handleFormChange('price', newAmount.toString());
+            setShowAmountModal(false);
+          }}
+          currencySymbol={getCurrencySymbol(formData.status === 'planned' || excludeFromCalculation 
+            ? formData.currency 
+            : (accounts.find(a => a.id === selectedAccountId)?.currency || formData.currency))}
+          label="Price"
+        />
+      )}
     </>
   );
 }; 

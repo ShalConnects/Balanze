@@ -98,6 +98,7 @@ interface FinanceStore {
     attachments: PurchaseAttachment[];
   }) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  forceNextOccurrence: (transactionId: string) => Promise<void>;
   
   fetchCategories: (currency?: string) => Promise<void>;
   addCategory: (category: Omit<Category, 'id'>) => Promise<void>;
@@ -1086,6 +1087,221 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       get().fetchPurchases()
     ]);
     set({ loading: false });
+  },
+
+  forceNextOccurrence: async (transactionId: string) => {
+    set({ loading: true, error: null });
+    try {
+      const { user } = useAuthStore.getState();
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+
+      // Get the recurring transaction
+      const { data: recurringTransaction, error: fetchError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', transactionId)
+        .eq('is_recurring', true)
+        .single();
+
+      if (fetchError || !recurringTransaction) {
+        throw new Error('Recurring transaction not found');
+      }
+
+      // Validate transaction is active and not paused
+      if (recurringTransaction.is_paused) {
+        throw new Error('Cannot force occurrence for paused recurring transaction');
+      }
+
+      // Validate next_occurrence_date exists
+      const storedOccurrenceDate = recurringTransaction.next_occurrence_date || recurringTransaction.date;
+      if (!storedOccurrenceDate) {
+        throw new Error('Missing next occurrence date');
+      }
+
+      // Validate recurring_frequency
+      if (!recurringTransaction.recurring_frequency || 
+          !['daily', 'weekly', 'monthly', 'yearly'].includes(recurringTransaction.recurring_frequency)) {
+        throw new Error(`Invalid recurring frequency: ${recurringTransaction.recurring_frequency}`);
+      }
+
+      // When forcing, always use today's date for the new transaction instance
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const occurrenceDate = today.toISOString().split('T')[0]; // Use today's date for forced instance
+      const occurrenceDateObj = new Date(occurrenceDate);
+
+      // Check if end date has passed
+      if (recurringTransaction.recurring_end_date) {
+        const endDate = new Date(recurringTransaction.recurring_end_date);
+        if (endDate < today) {
+          throw new Error('Recurring transaction has expired');
+        }
+        if (occurrenceDateObj > endDate) {
+          throw new Error('Occurrence date is after end date');
+        }
+      }
+
+      // Validate account exists
+      const { data: account, error: accountError } = await supabase
+        .from('accounts')
+        .select('id')
+        .eq('id', recurringTransaction.account_id)
+        .eq('user_id', recurringTransaction.user_id)
+        .single();
+
+      if (accountError || !account) {
+        throw new Error('Account not found or inaccessible');
+      }
+
+      // Check for duplicate processing (check for today's date since we're forcing it now)
+      const { data: existingInstance } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('parent_recurring_id', recurringTransaction.id)
+        .eq('date', occurrenceDate)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingInstance) {
+        throw new Error('Instance already exists for this occurrence date');
+      }
+
+      // Calculate next occurrence date (helper function)
+      const calculateNextOccurrence = (currentDate: string, frequency: string): string => {
+        const date = new Date(currentDate);
+        const originalDay = date.getDate();
+        
+        switch (frequency) {
+          case 'daily':
+            date.setDate(date.getDate() + 1);
+            break;
+          case 'weekly':
+            date.setDate(date.getDate() + 7);
+            break;
+          case 'monthly':
+            date.setMonth(date.getMonth() + 1);
+            if (date.getDate() !== originalDay) {
+              date.setDate(0);
+            }
+            break;
+          case 'yearly':
+            const originalMonth = date.getMonth();
+            date.setFullYear(date.getFullYear() + 1);
+            if (originalMonth === 1 && originalDay === 29 && date.getMonth() === 2) {
+              date.setDate(0);
+            }
+            break;
+        }
+        return date.toISOString().split('T')[0];
+      };
+
+      // Calculate next occurrence date from today (the date we're using for the forced instance)
+      const nextOccurrenceDate = calculateNextOccurrence(
+        occurrenceDate,
+        recurringTransaction.recurring_frequency
+      );
+
+      // Create new transaction instance - CRITICAL: is_recurring must be false
+      const newTransaction = {
+        user_id: recurringTransaction.user_id,
+        account_id: recurringTransaction.account_id,
+        type: recurringTransaction.type,
+        amount: 0, // Start with 0, user can edit
+        description: recurringTransaction.description,
+        category: recurringTransaction.category,
+        date: occurrenceDate,
+        tags: recurringTransaction.tags || [],
+        saving_amount: 0,
+        donation_amount: 0,
+        is_recurring: false, // ✅ CRITICAL: Instance is NOT recurring
+        parent_recurring_id: recurringTransaction.id, // ✅ Link to parent
+        transaction_id: generateTransactionId(),
+        created_at: getLocalISOString(),
+        updated_at: getLocalISOString(),
+      };
+
+      // Insert the new transaction
+      const { data: createdTransaction, error: insertError } = await supabase
+        .from('transactions')
+        .insert(newTransaction)
+        .select('id, transaction_id')
+        .single();
+
+      if (insertError) {
+        throw new Error(`Failed to create instance: ${insertError.message}`);
+      }
+
+      // Create donation records for income transactions with donations
+      if (recurringTransaction.type === 'income' && recurringTransaction.donation_amount && recurringTransaction.donation_amount > 0 && createdTransaction) {
+        try {
+          const { data: parentDonationRecords, error: donationFetchError } = await supabase
+            .from('donation_saving_records')
+            .select('*')
+            .eq('transaction_id', recurringTransaction.id)
+            .eq('type', 'donation')
+            .limit(1)
+            .maybeSingle();
+
+          if (!donationFetchError && parentDonationRecords) {
+            const { error: donationInsertError } = await supabase
+              .from('donation_saving_records')
+              .insert({
+                user_id: recurringTransaction.user_id,
+                transaction_id: createdTransaction.id,
+                custom_transaction_id: createdTransaction.transaction_id,
+                type: 'donation',
+                amount: Math.abs(recurringTransaction.donation_amount),
+                mode: parentDonationRecords.mode || 'fixed',
+                mode_value: parentDonationRecords.mode_value || recurringTransaction.donation_amount,
+                status: 'pending',
+              });
+
+            if (donationInsertError) {
+              console.error(`Failed to create donation record: ${donationInsertError.message}`);
+            }
+          }
+        } catch (donationError) {
+          console.error(`Error creating donation record: ${donationError}`);
+        }
+      }
+
+      // Update occurrence count and next occurrence date
+      const occurrenceCount = (recurringTransaction.occurrence_count || 0) + 1;
+      const { error: updateError } = await supabase
+        .from('transactions')
+        .update({
+          occurrence_count: occurrenceCount,
+          next_occurrence_date: nextOccurrenceDate,
+          updated_at: getLocalISOString(),
+        })
+        .eq('id', recurringTransaction.id);
+
+      if (updateError) {
+        // Clean up orphaned child transaction if update fails
+        if (createdTransaction) {
+          await supabase
+            .from('donation_saving_records')
+            .delete()
+            .eq('transaction_id', createdTransaction.id);
+          await supabase
+            .from('transactions')
+            .delete()
+            .eq('id', createdTransaction.id);
+        }
+        throw new Error(`Failed to update recurring transaction: ${updateError.message}`);
+      }
+
+      // Refresh transactions to show the new instance
+      await get().fetchTransactions();
+      set({ loading: false });
+      showToast.success('Next occurrence created successfully');
+    } catch (err: any) {
+      set({ loading: false, error: err.message || 'Failed to force next occurrence' });
+      showToast.error(err.message || 'Failed to force next occurrence');
+      throw err;
+    }
   },
   
   fetchCategories: async (currency?: string) => {

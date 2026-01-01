@@ -23,6 +23,7 @@ import { getFilteredCategoriesForTransaction } from '../../utils/categoryFilteri
 import { useDescriptionSuggestions } from '../../hooks/useDescriptionSuggestions';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { AmountAdjustmentModal } from '../common/AmountAdjustmentModal';
 
 interface TransactionFormProps {
   accountId?: string;
@@ -96,6 +97,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const [showPurchaseDetails, setShowPurchaseDetails] = useState(false);
   const [showPurchaseNote, setShowPurchaseNote] = useState(false);
 
+  // Amount adjustment modal state
+  const [showAmountModal, setShowAmountModal] = useState(false);
+  const [amountMode, setAmountMode] = useState<'set' | 'adjust'>('set');
+  const [originalAmount, setOriginalAmount] = useState<number | null>(null);
+
   // Check if selected category is a purchase category - memoized to prevent infinite re-renders
   const isPurchaseCategory = React.useMemo(() =>
     isExpenseType === 'purchase' && purchaseCategories.some(cat => cat.category_name === data.category),
@@ -135,6 +141,33 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     Object.keys(errors).length === 0,
     [data.account_id, data.amount, data.type, data.category, data.date, errors, isExpenseType]
   );
+
+  // Helper function to calculate final amount based on mode
+  const getCalculatedAmount = React.useCallback((): number | null => {
+    if (!data.amount || !data.amount.trim()) return null;
+
+    if (amountMode === 'set') {
+      const parsed = parseFloat(data.amount);
+      return isNaN(parsed) ? null : parsed;
+    } else {
+      // Adjust mode: parse for +28, -28, or plain numbers
+      const trimmed = data.amount.trim();
+      let adjustment = 0;
+      
+      if (trimmed.startsWith('+') || trimmed.startsWith('-')) {
+        adjustment = parseFloat(trimmed);
+      } else {
+        adjustment = parseFloat(trimmed);
+      }
+      
+      if (isNaN(adjustment) || originalAmount === null) {
+        return null;
+      }
+      
+      const finalAmount = originalAmount + adjustment;
+      return finalAmount >= 0 ? finalAmount : null;
+    }
+  }, [data.amount, amountMode, originalAmount]);
 
   const validateForm = React.useCallback(() => {
     const newErrors: Record<string, string> = {};
@@ -240,6 +273,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         is_recurring: transactionToEdit.is_recurring,
         recurring_frequency: (transactionToEdit.recurring_frequency as 'daily' | 'weekly' | 'monthly' | 'yearly') || 'monthly'
       });
+          
+          // Set original amount and reset to set mode for editing
+          setOriginalAmount(transactionToEdit.amount);
+          setAmountMode('set');
           
             // Set expense type based on category
       if (transactionToEdit.type === 'expense') {
@@ -448,6 +485,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   }, [isOpen]);
 
   // Debug logging for form state changes - removed to prevent infinite re-renders
+
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name } = e.target;
@@ -700,7 +738,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         if (data.type === 'income' && donationValue !== undefined && !isNaN(donationValue)) {
           if (donationType === 'percent') {
             // Calculate percentage of the transaction amount
-            const baseAmount = Math.abs(parseFloat(data.amount));
+            const baseAmount = Math.abs(parseFloat(data.amount) || 0);
             donation_amount = baseAmount * (donationValue / 100);
           } else {
             donation_amount = Math.abs(donationValue);
@@ -719,10 +757,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
 
 
 
+          // Get amount for cash withdrawal
+          const cashAmount = parseFloat(data.amount);
+
           // Create withdrawal transaction
           const withdrawalData = {
             account_id: data.account_id,
-            amount: parseFloat(data.amount),
+            amount: cashAmount,
             type: 'expense' as const,
             category: 'Cash Withdrawal',
             description: data.description || 'Cash Withdrawal',
@@ -736,7 +777,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           // Create deposit transaction for cash account
           const depositData = {
             account_id: cashAccount.id,
-            amount: parseFloat(data.amount),
+            amount: cashAmount,
             type: 'income' as const,
             category: 'Cash Deposit',
             description: data.description || 'Cash Withdrawal',
@@ -830,9 +871,21 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         } else {
 
           // Handle regular transaction
+          // Calculate final amount based on mode
+          let finalAmount: number;
+          if (amountMode === 'adjust' && originalAmount !== null) {
+            const calculated = getCalculatedAmount();
+            if (calculated === null) {
+              throw new Error('Invalid amount adjustment');
+            }
+            finalAmount = calculated;
+          } else {
+            finalAmount = parseFloat(data.amount);
+          }
+
           const transactionData: any = {
             account_id: data.account_id,
-            amount: parseFloat(data.amount),
+            amount: finalAmount,
             type: data.type as 'income' | 'expense',
             category: data.category,
             description: data.description,
@@ -1052,6 +1105,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const selectedAccount = accounts.find(a => a.id === data.account_id);
   const currency = selectedAccount?.currency || 'USD';
   const currencySymbol = getCurrencySymbol(currency);
+  
+  // Get currency symbol for amount modal
+  const modalCurrencySymbol = selectedAccount ? getCurrencySymbol(selectedAccount.currency) : currencySymbol;
   const amountNumber = parseFloat(data.amount) || 0;
   let donationCalculated = 0;
   if (donationType === 'percent' && donationValue !== undefined && !isNaN(donationValue)) {
@@ -1189,14 +1245,22 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                   setData({ ...data, amount: e.target.value });
                   if (errors.amount) setErrors({ ...errors, amount: '' });
                 }}
+                onClick={(e) => {
+                  // Open modal when clicking on amount field (only when editing)
+                  if (isEditMode && transactionToEdit) {
+                    e.preventDefault();
+                    setShowAmountModal(true);
+                  }
+                }}
                 onBlur={handleBlur}
-                className={`${getInputClasses('amount')} pr-8`}
+                className={`${getInputClasses('amount')} pr-8 ${isEditMode && transactionToEdit ? 'cursor-pointer' : ''}`}
                 required
                 aria-describedby={errors.amount ? 'amount-error' : undefined}
                 placeholder="0.00 *"
                 autoComplete="off"
+                readOnly={isEditMode && transactionToEdit ? true : false}
               />
-              {data.amount && (
+              {data.amount && !isEditMode && (
                 <button
                   type="button"
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
@@ -1206,6 +1270,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 >
                   <X className="w-4 h-4" />
                 </button>
+              )}
+              {isEditMode && transactionToEdit && (
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-600 dark:text-blue-400">
+                  Click to edit
+                </div>
               )}
               {errors.amount && (touched.amount || formSubmitted) && (
                 <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1">
@@ -1746,6 +1815,21 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         }}
         onClose={() => setShowCategoryModal(false)}
       />
+      
+      {/* Amount Adjustment Modal */}
+      {isEditMode && transactionToEdit && (
+        <AmountAdjustmentModal
+          isOpen={showAmountModal}
+          onClose={() => setShowAmountModal(false)}
+          currentAmount={transactionToEdit.amount}
+          onConfirm={(newAmount) => {
+            setData({ ...data, amount: newAmount.toString() });
+            setShowAmountModal(false);
+          }}
+          currencySymbol={modalCurrencySymbol}
+          label="Amount"
+        />
+      )}
     </div>
   );
 };

@@ -15,6 +15,7 @@ import { Loader } from '../../components/common/Loader';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getCurrencySymbol } from '../../utils/currency';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { AmountAdjustmentModal } from '../common/AmountAdjustmentModal';
 
 interface LendBorrowFormProps {
   record?: LendBorrow;
@@ -41,11 +42,18 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
     account_id: record?.account_id || profile?.default_account_id || '',
     affect_account_balance: record?.affect_account_balance ?? true,
   });
+  
+  // Store amount as string for adjust mode parsing
+  const [amountInput, setAmountInput] = useState<string>(record?.amount ? String(record.amount) : '');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const typeRef = useRef<HTMLInputElement | null>(null);
   const personNameRef = useRef<HTMLInputElement | null>(null);
   const notesRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Amount adjustment mode state
+  const [amountMode, setAmountMode] = useState<'set' | 'adjust'>('set');
+  const [originalAmount, setOriginalAmount] = useState<number | null>(null);
   
   // Autocomplete state for person name
   const [showPersonNameSuggestions, setShowPersonNameSuggestions] = useState(false);
@@ -89,6 +97,58 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
       typeRef.current.focus();
     }
   }, []);
+
+  // Initialize original amount when editing
+  useEffect(() => {
+    if (record && record.amount) {
+      setOriginalAmount(record.amount);
+      setAmountMode('set');
+      setAmountInput(String(record.amount));
+    } else if (!record) {
+      setOriginalAmount(null);
+      setAmountMode('set');
+      setAmountInput('');
+    }
+  }, [record?.id]);
+
+  // Helper function to parse amount input and calculate final amount
+  const parseAmountInput = (input: string): { displayValue: string; finalAmount: number | null } => {
+    if (!input.trim()) {
+      return { displayValue: '', finalAmount: null };
+    }
+
+    if (amountMode === 'set') {
+      // In set mode, just return the parsed value
+      const parsed = parseFloat(input);
+      return { displayValue: input, finalAmount: isNaN(parsed) ? null : parsed };
+    } else {
+      // In adjust mode, parse for +28, -28, or plain numbers
+      const trimmed = input.trim();
+      let adjustment = 0;
+      
+      if (trimmed.startsWith('+') || trimmed.startsWith('-')) {
+        // Parse +28 or -28
+        adjustment = parseFloat(trimmed);
+      } else {
+        // Plain number is treated as adjustment
+        adjustment = parseFloat(trimmed);
+      }
+      
+      if (isNaN(adjustment) || originalAmount === null) {
+        return { displayValue: input, finalAmount: null };
+      }
+      
+      const finalAmount = originalAmount + adjustment;
+      return { displayValue: input, finalAmount: finalAmount >= 0 ? finalAmount : null };
+    }
+  };
+
+  // Get the calculated final amount for display
+  const getCalculatedAmount = (): number | null => {
+    if (!amountInput || !amountInput.trim()) return null;
+    const result = parseAmountInput(amountInput);
+    return result.finalAmount;
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -519,11 +579,24 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                   step="0.01"
                   value={form.amount || ''}
                   onChange={handleChange}
+                  onClick={(e) => {
+                    // Open modal when clicking on amount field (only when editing)
+                    if (record && record.amount) {
+                      e.preventDefault();
+                      setShowAmountModal(true);
+                    }
+                  }}
                   onBlur={handleBlur}
-                  className={getInputClasses('amount') + ' min-w-[150px]'}
+                  className={getInputClasses('amount') + ` min-w-[150px] ${record && record.amount ? 'cursor-pointer' : ''}`}
                   placeholder="0.00 *"
                   autoComplete="off"
+                  readOnly={record && record.amount ? true : false}
                 />
+                {record && record.amount && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-600 dark:text-blue-400">
+                    Click to edit
+                  </div>
+                )}
                 {errors.amount && touched.amount ? (
                   <p className="mt-1 text-xs text-red-600 flex items-center min-h-[20px]">
                     <AlertCircle className="w-4 h-4 mr-1" />
@@ -624,6 +697,23 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
           </form>
         </div>
       </div>
+      
+      {/* Amount Adjustment Modal */}
+      {record && record.amount && (
+        <AmountAdjustmentModal
+          isOpen={showAmountModal}
+          onClose={() => setShowAmountModal(false)}
+          currentAmount={record.amount}
+          onConfirm={(newAmount) => {
+            setForm(prev => ({ ...prev, amount: newAmount }));
+            setShowAmountModal(false);
+          }}
+          currencySymbol={form.affect_account_balance && form.account_id
+            ? getCurrencySymbol(accounts.find(acc => acc.id === form.account_id)?.currency || 'USD')
+            : getCurrencySymbol(form.currency || 'USD')}
+          label="Amount"
+        />
+      )}
     </>
   );
 }; 

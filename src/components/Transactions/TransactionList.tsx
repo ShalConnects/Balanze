@@ -56,7 +56,7 @@ export const TransactionList: React.FC<{
   const [transactionToDuplicate, setTransactionToDuplicate] = useState<Transaction | undefined>();
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
-  const { getActiveAccounts, getActiveTransactions, deleteTransaction, updateTransaction, fetchTransactions, categories, purchaseCategories, accounts: allAccounts } = useFinanceStore();
+  const { getActiveAccounts, getActiveTransactions, deleteTransaction, updateTransaction, fetchTransactions, categories, purchaseCategories, accounts: allAccounts, forceNextOccurrence } = useFinanceStore();
   const accounts = getActiveAccounts(); // For filtering dropdowns, keep active accounts
   const allAccountsForLookup = allAccounts; // Use all accounts for lookups to show inactive account info
   const activeTransactions = getActiveTransactions();
@@ -440,6 +440,7 @@ export const TransactionList: React.FC<{
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [showLendBorrowInfo, setShowLendBorrowInfo] = useState(false);
   const [expandedRecurringIds, setExpandedRecurringIds] = useState<Set<string>>(new Set());
+  const [forcingOccurrenceIds, setForcingOccurrenceIds] = useState<Set<string>>(new Set());
 
   // Column visibility state with localStorage persistence
   // Note: date, description, amount, and actions are always visible
@@ -2258,7 +2259,11 @@ export const TransactionList: React.FC<{
                                        }}
                                        className="text-gray-500 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
                                      >
-                                       <Repeat className="w-4 h-4" />
+                                       {expandedRecurringIds.has(transaction.id) ? (
+                                         <ChevronUp className="w-4 h-4" />
+                                       ) : (
+                                         <ChevronDown className="w-4 h-4" />
+                                       )}
                                      </button>
                                    </Tooltip>
                                  )}
@@ -2332,40 +2337,70 @@ export const TransactionList: React.FC<{
                               <div className="space-y-4">
                                 {/* Recurring Schedule Details */}
                                 {isParentRecurring && (
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div>
-                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Frequency</p>
-                                      <p className="text-sm text-gray-900 dark:text-white">{getFrequencyLabel(displayTransaction.recurring_frequency)}</p>
+                                  <>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                      <div>
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Frequency</p>
+                                        <p className="text-sm text-gray-900 dark:text-white">{getFrequencyLabel(displayTransaction.recurring_frequency)}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Occurrence</p>
+                                        <div className="flex items-center gap-1.5">
+                                          <p className="text-sm text-gray-900 dark:text-white">
+                                            {displayTransaction.next_occurrence_date
+                                              ? format(new Date(displayTransaction.next_occurrence_date), 'MMM dd, yyyy')
+                                              : 'N/A'}
+                                          </p>
+                                          {!displayTransaction.is_paused && displayTransaction.next_occurrence_date && (
+                                            <Tooltip content="Force Next Occurrence" placement="top">
+                                              <button
+                                                onClick={async (e) => {
+                                                  e.stopPropagation();
+                                                  if (forcingOccurrenceIds.has(displayTransaction.id)) return;
+                                                  setForcingOccurrenceIds(prev => new Set(prev).add(displayTransaction.id));
+                                                  try {
+                                                    await forceNextOccurrence(displayTransaction.id);
+                                                  } catch (error) {
+                                                    // Error already handled in store
+                                                  } finally {
+                                                    setForcingOccurrenceIds(prev => {
+                                                      const next = new Set(prev);
+                                                      next.delete(displayTransaction.id);
+                                                      return next;
+                                                    });
+                                                  }
+                                                }}
+                                                disabled={forcingOccurrenceIds.has(displayTransaction.id)}
+                                                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                              >
+                                                <Repeat className={`w-3.5 h-3.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 ${forcingOccurrenceIds.has(displayTransaction.id) ? 'animate-spin text-blue-600 dark:text-blue-400' : ''}`} />
+                                              </button>
+                                            </Tooltip>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
+                                        <p className={`text-sm font-medium ${displayTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                          {displayTransaction.is_paused ? 'Paused' : 'Active'}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">End Date</p>
+                                        <p className="text-sm text-gray-900 dark:text-white">
+                                          {displayTransaction.recurring_end_date
+                                            ? format(new Date(displayTransaction.recurring_end_date), 'MMM dd, yyyy')
+                                            : 'No end date'}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Occurrence Count</p>
+                                        <p className="text-sm text-gray-900 dark:text-white">
+                                          {displayTransaction.occurrence_count || 0} {displayTransaction.occurrence_count === 1 ? 'time' : 'times'}
+                                        </p>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Occurrence</p>
-                                      <p className="text-sm text-gray-900 dark:text-white">
-                                        {displayTransaction.next_occurrence_date
-                                          ? format(new Date(displayTransaction.next_occurrence_date), 'MMM dd, yyyy')
-                                          : 'N/A'}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
-                                      <p className={`text-sm font-medium ${displayTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
-                                        {displayTransaction.is_paused ? 'Paused' : 'Active'}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">End Date</p>
-                                      <p className="text-sm text-gray-900 dark:text-white">
-                                        {displayTransaction.recurring_end_date
-                                          ? format(new Date(displayTransaction.recurring_end_date), 'MMM dd, yyyy')
-                                          : 'No end date'}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Occurrence Count</p>
-                                      <p className="text-sm text-gray-900 dark:text-white">
-                                        {displayTransaction.occurrence_count || 0} {displayTransaction.occurrence_count === 1 ? 'time' : 'times'}
-                                      </p>
-                                    </div>
-                                  </div>
+                                  </>
                                 )}
                                 {!isParentRecurring && parentTransaction && (
                                   <div className="border-l-4 border-blue-500 pl-4">
@@ -2647,7 +2682,11 @@ export const TransactionList: React.FC<{
                                      }}
                                      className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
                                    >
-                                     <Repeat className="w-3.5 h-3.5" />
+                                     {expandedRecurringIds.has(transaction.id) ? (
+                                       <ChevronUp className="w-3.5 h-3.5" />
+                                     ) : (
+                                       <ChevronDown className="w-3.5 h-3.5" />
+                                     )}
                                    </button>
                                  </Tooltip>
                                )}
@@ -2721,40 +2760,70 @@ export const TransactionList: React.FC<{
                         <div className="px-3 pb-3 border-t border-gray-200 dark:border-gray-700 pt-3 space-y-3">
                           {/* Recurring Schedule Details */}
                           {isParentRecurring && (
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Frequency</p>
-                                <p className="text-sm text-gray-900 dark:text-white">{getFrequencyLabel(displayTransaction.recurring_frequency)}</p>
+                            <>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Frequency</p>
+                                  <p className="text-sm text-gray-900 dark:text-white">{getFrequencyLabel(displayTransaction.recurring_frequency)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Occurrence</p>
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      {displayTransaction.next_occurrence_date
+                                        ? format(new Date(displayTransaction.next_occurrence_date), 'MMM dd, yyyy')
+                                        : 'N/A'}
+                                    </p>
+                                    {!displayTransaction.is_paused && displayTransaction.next_occurrence_date && (
+                                      <Tooltip content="Force Next Occurrence" placement="top">
+                                        <button
+                                          onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if (forcingOccurrenceIds.has(displayTransaction.id)) return;
+                                            setForcingOccurrenceIds(prev => new Set(prev).add(displayTransaction.id));
+                                            try {
+                                              await forceNextOccurrence(displayTransaction.id);
+                                            } catch (error) {
+                                              // Error already handled in store
+                                            } finally {
+                                              setForcingOccurrenceIds(prev => {
+                                                const next = new Set(prev);
+                                                next.delete(displayTransaction.id);
+                                                return next;
+                                              });
+                                            }
+                                          }}
+                                          disabled={forcingOccurrenceIds.has(displayTransaction.id)}
+                                          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          <Repeat className={`w-3.5 h-3.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 ${forcingOccurrenceIds.has(displayTransaction.id) ? 'animate-spin text-blue-600 dark:text-blue-400' : ''}`} />
+                                        </button>
+                                      </Tooltip>
+                                    )}
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
+                                  <p className={`text-sm font-medium ${displayTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                    {displayTransaction.is_paused ? 'Paused' : 'Active'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">End Date</p>
+                                  <p className="text-sm text-gray-900 dark:text-white">
+                                    {displayTransaction.recurring_end_date
+                                      ? format(new Date(displayTransaction.recurring_end_date), 'MMM dd, yyyy')
+                                      : 'No end date'}
+                                  </p>
+                                </div>
+                                <div className="col-span-2">
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Occurrence Count</p>
+                                  <p className="text-sm text-gray-900 dark:text-white">
+                                    {displayTransaction.occurrence_count || 0} {displayTransaction.occurrence_count === 1 ? 'time' : 'times'}
+                                  </p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Occurrence</p>
-                                <p className="text-sm text-gray-900 dark:text-white">
-                                  {displayTransaction.next_occurrence_date
-                                    ? format(new Date(displayTransaction.next_occurrence_date), 'MMM dd, yyyy')
-                                    : 'N/A'}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
-                                <p className={`text-sm font-medium ${displayTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
-                                  {displayTransaction.is_paused ? 'Paused' : 'Active'}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">End Date</p>
-                                <p className="text-sm text-gray-900 dark:text-white">
-                                  {displayTransaction.recurring_end_date
-                                    ? format(new Date(displayTransaction.recurring_end_date), 'MMM dd, yyyy')
-                                    : 'No end date'}
-                                </p>
-                              </div>
-                              <div className="col-span-2">
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Occurrence Count</p>
-                                <p className="text-sm text-gray-900 dark:text-white">
-                                  {displayTransaction.occurrence_count || 0} {displayTransaction.occurrence_count === 1 ? 'time' : 'times'}
-                                </p>
-                              </div>
-                            </div>
+                            </>
                           )}
                           {!isParentRecurring && parentTransaction && (
                             <div className="border-l-4 border-blue-500 pl-3">
@@ -3029,40 +3098,70 @@ export const TransactionList: React.FC<{
                         <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-3 space-y-3">
                           {/* Recurring Schedule Details */}
                           {isParentRecurring && (
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Frequency</p>
-                                <p className="text-sm text-gray-900 dark:text-white">{getFrequencyLabel(displayTransaction.recurring_frequency)}</p>
+                            <>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Frequency</p>
+                                  <p className="text-sm text-gray-900 dark:text-white">{getFrequencyLabel(displayTransaction.recurring_frequency)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Occurrence</p>
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      {displayTransaction.next_occurrence_date
+                                        ? format(new Date(displayTransaction.next_occurrence_date), 'MMM dd, yyyy')
+                                        : 'N/A'}
+                                    </p>
+                                    {!displayTransaction.is_paused && displayTransaction.next_occurrence_date && (
+                                      <Tooltip content="Force Next Occurrence" placement="top">
+                                        <button
+                                          onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if (forcingOccurrenceIds.has(displayTransaction.id)) return;
+                                            setForcingOccurrenceIds(prev => new Set(prev).add(displayTransaction.id));
+                                            try {
+                                              await forceNextOccurrence(displayTransaction.id);
+                                            } catch (error) {
+                                              // Error already handled in store
+                                            } finally {
+                                              setForcingOccurrenceIds(prev => {
+                                                const next = new Set(prev);
+                                                next.delete(displayTransaction.id);
+                                                return next;
+                                              });
+                                            }
+                                          }}
+                                          disabled={forcingOccurrenceIds.has(displayTransaction.id)}
+                                          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          <Repeat className={`w-3.5 h-3.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 ${forcingOccurrenceIds.has(displayTransaction.id) ? 'animate-spin text-blue-600 dark:text-blue-400' : ''}`} />
+                                        </button>
+                                      </Tooltip>
+                                    )}
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
+                                  <p className={`text-sm font-medium ${displayTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                    {displayTransaction.is_paused ? 'Paused' : 'Active'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">End Date</p>
+                                  <p className="text-sm text-gray-900 dark:text-white">
+                                    {displayTransaction.recurring_end_date
+                                      ? format(new Date(displayTransaction.recurring_end_date), 'MMM dd, yyyy')
+                                      : 'No end date'}
+                                  </p>
+                                </div>
+                                <div className="col-span-2">
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Occurrence Count</p>
+                                  <p className="text-sm text-gray-900 dark:text-white">
+                                    {displayTransaction.occurrence_count || 0} {displayTransaction.occurrence_count === 1 ? 'time' : 'times'}
+                                  </p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Occurrence</p>
-                                <p className="text-sm text-gray-900 dark:text-white">
-                                  {displayTransaction.next_occurrence_date
-                                    ? format(new Date(displayTransaction.next_occurrence_date), 'MMM dd, yyyy')
-                                    : 'N/A'}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
-                                <p className={`text-sm font-medium ${displayTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
-                                  {displayTransaction.is_paused ? 'Paused' : 'Active'}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">End Date</p>
-                                <p className="text-sm text-gray-900 dark:text-white">
-                                  {displayTransaction.recurring_end_date
-                                    ? format(new Date(displayTransaction.recurring_end_date), 'MMM dd, yyyy')
-                                    : 'No end date'}
-                                </p>
-                              </div>
-                              <div className="col-span-2">
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Occurrence Count</p>
-                                <p className="text-sm text-gray-900 dark:text-white">
-                                  {displayTransaction.occurrence_count || 0} {displayTransaction.occurrence_count === 1 ? 'time' : 'times'}
-                                </p>
-                              </div>
-                            </div>
+                            </>
                           )}
                           {!isParentRecurring && parentTransaction && (
                             <div className="border-l-4 border-blue-500 pl-3">

@@ -473,7 +473,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     if (user?.id) {
       setPreference(user.id, 'showDonationsSavingsWidget', show).catch(() => {
         // Silent fail - already saved locally
-      });
+        });
     }
   };
 
@@ -487,8 +487,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     if (user?.id) {
       setPreference(user.id, 'showLendBorrowWidget', show).catch(() => {
         // Silent fail - already saved locally
-      });
-    }
+        });
+      }
   };
 
   const handleTransferWidgetToggle = async (show: boolean) => {
@@ -1010,7 +1010,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                 
                 <div className="flex items-center justify-between mb-2 pr-8">
                   <div className="flex items-center gap-2 flex-1">
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">Purchases</h2>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">Purchases</h2>
                     <div className="relative flex items-center">
                       <button
                         type="button"
@@ -1088,13 +1088,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Link 
-                      to="/purchases" 
-                      className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
-                    >
-                      <span>View All</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
+                  <Link 
+                    to="/purchases" 
+                    className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
+                  >
+                    <span>View All</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
                   </div>
                 </div>
                 {/* Purchase Stats Cards - Responsive grid */}

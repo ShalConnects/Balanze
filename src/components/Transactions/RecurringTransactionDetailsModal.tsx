@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
-import { X, Calendar, RefreshCw, Pause, Play, Hash, Infinity, ArrowRight } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { X, Calendar, RefreshCw, Pause, Play, Hash, Infinity, ArrowRight, Repeat } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { format } from 'date-fns';
 import { formatCurrency } from '../../utils/currency';
+import { useFinanceStore } from '../../store/useFinanceStore';
+import { Tooltip } from '../common/Tooltip';
 
 interface RecurringTransactionDetailsModalProps {
   isOpen: boolean;
@@ -21,6 +23,9 @@ export const RecurringTransactionDetailsModal: React.FC<RecurringTransactionDeta
   getAccountName,
   selectedCurrency,
 }) => {
+  const forceNextOccurrence = useFinanceStore(state => state.forceNextOccurrence);
+  const [isForcing, setIsForcing] = useState(false);
+
   if (!isOpen || !transaction) return null;
 
   // Determine if this is a parent recurring transaction or a child instance
@@ -136,13 +141,36 @@ export const RecurringTransactionDetailsModal: React.FC<RecurringTransactionDeta
                   </div>
                   <div className="flex items-start gap-3">
                     <Calendar className="w-5 h-5 text-gray-400 dark:text-gray-500 mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Occurrence</p>
-                      <p className="text-sm text-gray-900 dark:text-white">
-                        {displayTransaction.next_occurrence_date
-                          ? format(new Date(displayTransaction.next_occurrence_date), 'MMM dd, yyyy')
-                          : 'N/A'}
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          {displayTransaction.next_occurrence_date
+                            ? format(new Date(displayTransaction.next_occurrence_date), 'MMM dd, yyyy')
+                            : 'N/A'}
+                        </p>
+                        {!displayTransaction.is_paused && displayTransaction.next_occurrence_date && (
+                          <Tooltip content="Force Next Occurrence" placement="top">
+                            <button
+                              onClick={async () => {
+                                if (isForcing) return;
+                                setIsForcing(true);
+                                try {
+                                  await forceNextOccurrence(displayTransaction.id);
+                                } catch (error) {
+                                  // Error already handled in store
+                                } finally {
+                                  setIsForcing(false);
+                                }
+                              }}
+                              disabled={isForcing}
+                              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Repeat className={`w-3.5 h-3.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 ${isForcing ? 'animate-spin text-blue-600 dark:text-blue-400' : ''}`} />
+                            </button>
+                          </Tooltip>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
