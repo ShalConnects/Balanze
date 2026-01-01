@@ -1,22 +1,57 @@
+/**
+ * Get currency symbol using Intl.NumberFormat for maximum compatibility
+ * Falls back to manual mapping for currencies that need special handling
+ */
 export const getCurrencySymbol = (currency: string): string => {
-    switch (currency) {
-        case 'BDT':
-            return '৳';
-        case 'USD':
-            return '$';
-        case 'GBP':
-            return '£';
-        case 'EUR':
-            return '€';
-        case 'CAD':
-            return 'C$';
-        case 'JPY':
-            return '¥';
-        case 'AUD':
-            return 'A$';
-        default:
-            return currency;
+    if (!currency || currency.trim() === '') {
+        return '$';
     }
+    
+    // Special cases that need manual handling
+    const specialSymbols: Record<string, string> = {
+        'BDT': '৳',
+        'USD': '$',
+        'GBP': '£',
+        'EUR': '€',
+        'JPY': '¥',
+        'INR': '₹',
+        'CNY': '¥',
+        'KRW': '₩',
+        'RUB': '₽',
+        'TRY': '₺',
+        'ILS': '₪',
+        'PHP': '₱',
+        'THB': '฿',
+    };
+    
+    // Return special symbol if available
+    if (specialSymbols[currency]) {
+        return specialSymbols[currency];
+    }
+    
+    // Use Intl.NumberFormat to get symbol for any ISO currency code
+    try {
+        const formatter = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: currency,
+            currencyDisplay: 'narrowSymbol',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        });
+        
+        // Extract symbol from formatted string (e.g., "$1" -> "$")
+        const parts = formatter.formatToParts(1);
+        const symbolPart = parts.find(part => part.type === 'currency');
+        
+        if (symbolPart && symbolPart.value) {
+            return symbolPart.value;
+        }
+    } catch (error) {
+        // If Intl.NumberFormat fails, fall back to currency code
+    }
+    
+    // Final fallback: return currency code
+    return currency;
 };
 
 export const formatCurrency = (amount: number, currency: string = 'USD') => {

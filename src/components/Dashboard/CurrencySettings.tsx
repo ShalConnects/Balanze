@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Check, Star, CreditCard, Wallet, Building } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Check, Star, CreditCard, Wallet, Building, Search, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { getCurrencySymbol } from '../../utils/currency';
+import { getAllCurrencies, getPopularCurrencies, getCurrencyName } from '../../utils/currencies';
 import { setDefaultAccount } from '../../utils/defaultAccount';
 import { showToast } from '../../lib/toast';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
@@ -21,9 +22,44 @@ export const CurrencySettings: React.FC<CurrencySettingsProps> = ({ hideTitle = 
   const [localCurrency, setLocalCurrency] = useState<string>('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedDefaultAccount, setSelectedDefaultAccount] = useState<string>('');
+  const [currencySearchQuery, setCurrencySearchQuery] = useState('');
 
-  // Available currencies
-  const availableCurrencies = ['USD', 'BDT', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'];
+  // Get all available currencies
+  const allCurrencies = useMemo(() => {
+    const popular = getPopularCurrencies();
+    const all = getAllCurrencies();
+    
+    // Combine: popular first, then rest (excluding duplicates)
+    const popularSet = new Set(popular);
+    const rest = all.filter(c => !popularSet.has(c));
+    
+    return [...popular, ...rest];
+  }, []);
+
+  // Filter and sort currencies: selected currencies first, then rest
+  const availableCurrencies = useMemo(() => {
+    let filtered = allCurrencies;
+    
+    // Filter by search query if provided
+    if (currencySearchQuery.trim()) {
+      const query = currencySearchQuery.toLowerCase().trim();
+      filtered = allCurrencies.filter(currency => {
+        const code = currency.toLowerCase();
+        const name = getCurrencyName(currency).toLowerCase();
+        return code.includes(query) || name.includes(query);
+      });
+    }
+    
+    // Sort: selected currencies first, then rest
+    return filtered.sort((a, b) => {
+      const aSelected = selectedCurrencies.includes(a);
+      const bSelected = selectedCurrencies.includes(b);
+      
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+      return 0; // Keep original order for both selected or both unselected
+    });
+  }, [allCurrencies, currencySearchQuery, selectedCurrencies]);
 
   // Load current settings
   useEffect(() => {
@@ -256,10 +292,44 @@ export const CurrencySettings: React.FC<CurrencySettingsProps> = ({ hideTitle = 
             </p>
           </div>
         </div>
+        
+        {/* Search Input */}
+        <div className="mb-4 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search currency (e.g., USD, Dollar, Euro)..."
+            value={currencySearchQuery}
+            onChange={(e) => setCurrencySearchQuery(e.target.value)}
+            className="w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          {currencySearchQuery && (
+            <button
+              onClick={() => setCurrencySearchQuery('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Results count */}
+        {currencySearchQuery && (
+          <div className="mb-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+            {availableCurrencies.length === 0 ? (
+              <span>No currencies found matching "{currencySearchQuery}"</span>
+            ) : (
+              <span>Found {availableCurrencies.length} {availableCurrencies.length === 1 ? 'currency' : 'currencies'}</span>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2 sm:gap-2.5 lg:gap-3">
-          {/* Responsive Currency Grid */}
-          <div className="w-full grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-2.5 lg:gap-3">
-            {availableCurrencies.map((currency) => {
+          {/* Compact Scrollable Currency Grid - 2 rows only */}
+          {availableCurrencies.length > 0 ? (
+            <div className="w-full overflow-y-auto" style={{ maxHeight: '140px' }}>
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 gap-2">
+                {availableCurrencies.map((currency) => {
               const isSelected = selectedCurrencies.includes(currency);
               const isPrimary = localCurrency === currency;
               const isDisabled = !isPremium;
@@ -267,7 +337,7 @@ export const CurrencySettings: React.FC<CurrencySettingsProps> = ({ hideTitle = 
               return (
                 <div
                   key={currency}
-                  className={`group relative p-2.5 sm:p-3 lg:p-4 rounded-lg sm:rounded-xl border-2 transition-all duration-200 bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm min-w-0 ${
+                  className={`group relative p-2 rounded-lg border-2 transition-all duration-200 bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm min-w-0 ${
                     isSelected
                       ? 'border-blue-500 dark:border-blue-400 bg-gradient-to-br from-blue-50/80 via-indigo-50/80 to-purple-50/80 dark:from-blue-900/30 dark:via-indigo-900/30 dark:to-purple-900/30 shadow-md'
                       : 'border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-700'
@@ -279,24 +349,24 @@ export const CurrencySettings: React.FC<CurrencySettingsProps> = ({ hideTitle = 
                   onClick={() => !isDisabled && toggleCurrency(currency)}
                 >
                   <div className="text-center min-w-0">
-                    <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-1.5 lg:mb-2 leading-none">
+                    <div className="text-lg font-bold text-gray-900 dark:text-white mb-1 leading-none">
                       {getCurrencySymbol(currency)}
                     </div>
-                    <div className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 truncate">{currency}</div>
+                    <div className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate">{currency}</div>
                     {isSelected && (
-                      <div className="absolute top-1 sm:top-1.5 lg:top-2 right-1 sm:right-1.5 lg:right-2 p-0.5 sm:p-1 lg:p-1.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full shadow-sm">
-                        <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 lg:w-3.5 lg:h-3.5 text-white" />
+                      <div className="absolute top-1 right-1 p-0.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full shadow-sm">
+                        <Check className="w-2.5 h-2.5 text-white" />
                       </div>
                     )}
                     {isPrimary && (
-                      <div className="absolute bottom-1 sm:bottom-1.5 lg:bottom-2 right-1 sm:right-1.5 lg:right-2 p-0.5 sm:p-1 lg:p-1.5 bg-yellow-500 rounded-full shadow-sm">
-                        <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3 lg:w-3.5 lg:h-3.5 text-white fill-current" />
+                      <div className="absolute bottom-1 right-1 p-0.5 bg-yellow-500 rounded-full shadow-sm">
+                        <Star className="w-2.5 h-2.5 text-white fill-current" />
                       </div>
                     )}
                   </div>
                   {isSelected && !isPrimary && isPremium && (
                     <button
-                      className="absolute -bottom-1.5 sm:-bottom-2 lg:-bottom-2.5 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-[10px] sm:text-xs font-medium px-2 sm:px-2.5 lg:px-3 py-0.5 sm:py-1 rounded-full hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-md opacity-0 group-hover:opacity-100 whitespace-nowrap"
+                      className="absolute -bottom-1.5 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-[10px] font-medium px-2 py-0.5 rounded-full hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-md opacity-0 group-hover:opacity-100 whitespace-nowrap z-10"
                       onClick={(e) => {
                         e.stopPropagation();
                         updateLocalCurrency(currency);
@@ -306,9 +376,21 @@ export const CurrencySettings: React.FC<CurrencySettingsProps> = ({ hideTitle = 
                     </button>
                   )}
                 </div>
-              );
-            })}
-          </div>
+                );
+              })}
+              </div>
+            </div>
+          ) : (
+            <div className="w-full text-center py-8 text-gray-500 dark:text-gray-400">
+              <p>No currencies found matching "{currencySearchQuery}"</p>
+              <button
+                onClick={() => setCurrencySearchQuery('')}
+                className="mt-2 text-blue-600 dark:text-blue-400 hover:underline text-sm"
+              >
+                Clear search
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

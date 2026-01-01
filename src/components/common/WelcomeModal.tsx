@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Loader2, Search, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { toast } from 'sonner';
 import { getCurrencySymbol } from '../../utils/currency';
+import { getAllCurrencies, getPopularCurrencies, getCurrencyName } from '../../utils/currencies';
 import { supabase } from '../../lib/supabase';
 import { useLoadingContext } from '../../context/LoadingContext';
 
@@ -22,20 +23,40 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
   const [isCreating, setIsCreating] = useState(false);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [currencySearchQuery, setCurrencySearchQuery] = useState('');
 
-  // Get currency options from user's profile
-  const currencyOptions = React.useMemo(() => {
-    // Force use common currencies for new users (when welcome modal shows)
-    // This ensures new users always see the full list
-    const commonCurrencies = [
-      'USD', 'BDT', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'
-    ];
+  // Get all available currencies
+  const allCurrencies = useMemo(() => {
+    const popular = getPopularCurrencies();
+    const all = getAllCurrencies();
     
-    return commonCurrencies.map(currency => ({
+    // Combine: popular first, then rest (excluding duplicates)
+    const popularSet = new Set(popular);
+    const rest = all.filter(c => !popularSet.has(c));
+    
+    return [...popular, ...rest];
+  }, []);
+
+  // Get currency options with search filter
+  const currencyOptions = useMemo(() => {
+    const query = currencySearchQuery.toLowerCase().trim();
+    
+    let filtered = allCurrencies;
+    
+    if (query) {
+      filtered = allCurrencies.filter(currency => {
+        const code = currency.toLowerCase();
+        const name = getCurrencyName(currency).toLowerCase();
+        return code.includes(query) || name.includes(query);
+      });
+    }
+    
+    return filtered.map(currency => ({
       value: currency,
-      label: `${currency} (${getCurrencySymbol(currency)})`
+      label: `${currency} (${getCurrencySymbol(currency)})`,
+      name: getCurrencyName(currency)
     }));
-  }, [profile]);
+  }, [allCurrencies, currencySearchQuery]);
 
   const handleContinue = async () => {
     if (!selectedCurrency || isCreating) return; // Prevent multiple calls
@@ -303,7 +324,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
       {showCurrencyModal && (
         <div className="fixed inset-0 flex items-center justify-center z-[100001]">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100000]" />
-          <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm mx-4 z-[100001] shadow-xl">
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md mx-4 z-[100001] shadow-xl max-h-[90vh] flex flex-col">
             <div className="text-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Select Currency
@@ -322,35 +343,127 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
               </div>
             </div>
 
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {currencyOptions.map(option => (
+            {/* Search Input */}
+            <div className="mb-4 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search currency (e.g., USD, Dollar, Euro)..."
+                value={currencySearchQuery}
+                onChange={(e) => setCurrencySearchQuery(e.target.value)}
+                className="w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                autoFocus
+              />
+              {currencySearchQuery && (
                 <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => {
-                    setSelectedCurrency(option.value);
-                    setShowCurrencyModal(false);
-                  }}
-                  className={`w-full flex items-center text-left text-sm rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors px-4 py-3 ${
-                    selectedCurrency === option.value 
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold' 
-                      : 'text-gray-700 dark:text-gray-100'
-                  }`}
+                  onClick={() => setCurrencySearchQuery('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  <span className="flex-1">{option.label}</span>
-                  {selectedCurrency === option.value && (
-                    <svg className="w-5 h-5 text-white ml-2" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
+                  <X className="w-4 h-4" />
                 </button>
-              ))}
+              )}
             </div>
 
-            <div className="mt-6 flex gap-3">
+            {/* Currency List */}
+            <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
+              {currencyOptions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <p>No currencies found matching "{currencySearchQuery}"</p>
+                </div>
+              ) : (
+                <>
+                  {/* Popular Currencies Section (only show if no search query) */}
+                  {!currencySearchQuery && (
+                    <>
+                      <div className="sticky top-0 bg-white dark:bg-gray-800 py-2 z-10">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                          Popular Currencies
+                        </p>
+                      </div>
+                      {currencyOptions.filter(opt => getPopularCurrencies().includes(opt.value)).map(option => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCurrency(option.value);
+                            setShowCurrencyModal(false);
+                            setCurrencySearchQuery('');
+                          }}
+                          className={`w-full flex items-center justify-between text-left text-sm rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors px-4 py-3 ${
+                            selectedCurrency === option.value 
+                              ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold' 
+                              : 'text-gray-700 dark:text-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg font-semibold">{getCurrencySymbol(option.value)}</span>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{option.value}</span>
+                              <span className={`text-xs ${selectedCurrency === option.value ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
+                                {option.name}
+                              </span>
+                            </div>
+                          </div>
+                          {selectedCurrency === option.value && (
+                            <svg className="w-5 h-5 text-white ml-2 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </button>
+                      ))}
+                      <div className="sticky top-0 bg-white dark:bg-gray-800 py-2 z-10 mt-2">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                          All Currencies
+                        </p>
+                      </div>
+                    </>
+                  )}
+                  
+                  {/* All Currencies (or filtered results) */}
+                  {currencyOptions
+                    .filter(opt => currencySearchQuery || !getPopularCurrencies().includes(opt.value))
+                    .map(option => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCurrency(option.value);
+                          setShowCurrencyModal(false);
+                          setCurrencySearchQuery('');
+                        }}
+                        className={`w-full flex items-center justify-between text-left text-sm rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors px-4 py-3 ${
+                          selectedCurrency === option.value 
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold' 
+                            : 'text-gray-700 dark:text-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg font-semibold">{getCurrencySymbol(option.value)}</span>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{option.value}</span>
+                            <span className={`text-xs ${selectedCurrency === option.value ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
+                              {option.name}
+                            </span>
+                          </div>
+                        </div>
+                        {selectedCurrency === option.value && (
+                          <svg className="w-5 h-5 text-white ml-2 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                </>
+              )}
+            </div>
+
+            <div className="mt-4 flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
               <button
                 type="button"
-                onClick={() => setShowCurrencyModal(false)}
+                onClick={() => {
+                  setShowCurrencyModal(false);
+                  setCurrencySearchQuery('');
+                }}
                 className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
               >
                 Cancel

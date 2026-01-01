@@ -4,6 +4,8 @@ import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
 import { useLoadingContext } from '../../context/LoadingContext';
+import { getCurrencySymbol } from '../../utils/currency';
+import { getCurrencyName } from '../../utils/currencies';
 
 export interface CategoryModalProps {
   open: boolean;
@@ -29,16 +31,8 @@ export interface CategoryModalProps {
   isIncomeCategory?: boolean;
 }
 
-// Currency data with symbols and full names
-const currencyData = {
-  USD: { symbol: '$', name: 'US Dollar' },
-  BDT: { symbol: '৳', name: 'Bangladeshi Taka' },
-  EUR: { symbol: '€', name: 'Euro' },
-  GBP: { symbol: '£', name: 'British Pound' },
-  JPY: { symbol: '¥', name: 'Japanese Yen' },
-  CAD: { symbol: 'C$', name: 'Canadian Dollar' },
-  AUD: { symbol: 'A$', name: 'Australian Dollar' },
-};
+// Note: Currency symbols and names are now retrieved dynamically using
+// getCurrencySymbol() and getCurrencyName() from utils
 
 export const CategoryModal: React.FC<CategoryModalProps> = ({
   open,
@@ -74,7 +68,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
   // Create enhanced currency options with symbols and full names
   const enhancedCurrencyOptions = userCurrencyOptions.map(currency => ({
     value: currency,
-    label: `${currencyData[currency as keyof typeof currencyData]?.symbol || currency} ${currency} - ${currencyData[currency as keyof typeof currencyData]?.name || currency}`
+    label: `${getCurrencySymbol(currency)} ${currency} - ${getCurrencyName(currency)}`
   }));
 
   const [formData, setFormData] = useState({ ...initialValues });

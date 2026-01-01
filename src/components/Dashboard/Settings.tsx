@@ -5,8 +5,9 @@ import { AccountManagement } from './AccountManagement';
 import { PlansAndUsage } from './PlansAndUsage';
 import { LW } from './LW';
 import { PaymentHistory } from './PaymentHistory';
+import { AboutSettings } from './AboutSettings';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronDown, Settings as SettingsIcon, Filter, Check, Globe, FolderTree, CreditCard, User, Crown, Receipt } from 'lucide-react';
+import { ChevronDown, Settings as SettingsIcon, Filter, Check, Globe, FolderTree, CreditCard, User, Crown, Receipt, Info } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 interface TabItem {
@@ -27,7 +28,7 @@ export const Settings: React.FC = () => {
   // Initialize activeTab from URL parameter or default to general
   const getInitialTab = () => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['general', 'categories', 'account-management', 'plans-usage', 'last-wish'].includes(tabParam)) {
+    if (tabParam && ['general', 'categories', 'account-management', 'plans-usage', 'last-wish', 'about'].includes(tabParam)) {
       // If user tries to access Last Wish tab but is not premium, redirect to general
       if (tabParam === 'last-wish' && !isPremium) {
         return 'general';
@@ -53,13 +54,14 @@ export const Settings: React.FC = () => {
     { id: 'plans-usage', label: 'Plans & Usage', icon: CreditCard },
     { id: 'payment-history', label: 'Payment', icon: Receipt },
     { id: 'account-management', label: 'Account', icon: User },
-    ...(isPremium ? [{ id: 'last-wish', label: 'Last Wish', icon: Crown, premium: true }] : [])
+    ...(isPremium ? [{ id: 'last-wish', label: 'Last Wish', icon: Crown, premium: true }] : []),
+    { id: 'about', label: 'About', icon: Info }
   ];
 
   // Handle URL parameters for tab selection
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['general', 'categories', 'account-management', 'plans-usage', 'payment-history', 'last-wish'].includes(tabParam)) {
+    if (tabParam && ['general', 'categories', 'account-management', 'plans-usage', 'payment-history', 'last-wish', 'about'].includes(tabParam)) {
       // If user tries to access Last Wish tab but is not premium, redirect to general
       if (tabParam === 'last-wish' && !isPremium) {
         setActiveTab('general');
@@ -270,6 +272,9 @@ export const Settings: React.FC = () => {
         )}
         {activeTab === 'payment-history' && (
           <PaymentHistory hideTitle />
+        )}
+        {activeTab === 'about' && (
+          <AboutSettings hideTitle />
         )}
         {activeTab === 'last-wish' && (
           <LW setActiveTab={setActiveTab} />

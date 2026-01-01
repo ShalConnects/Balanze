@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, Heart, Calendar } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
@@ -11,6 +11,8 @@ import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 import { parseISO, format } from 'date-fns';
 import { useLoadingContext } from '../../context/LoadingContext';
+import { getAllCurrencies, getCurrencyName } from '../../utils/currencies';
+import { getCurrencySymbol } from '../../utils/currency';
 
 interface ManualDonationModalProps {
   isOpen: boolean;
@@ -58,20 +60,21 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
     fetchProfile();
   }, [user]);
 
-  // Currency options: only show selected_currencies if available, else all
-  const allCurrencyOptions = [
-    { value: 'USD', label: 'USD' },
-    { value: 'EUR', label: 'EUR' },
-    { value: 'GBP', label: 'GBP' },
-    { value: 'BDT', label: 'BDT' },
-    { value: 'JPY', label: 'JPY' },
-    { value: 'CAD', label: 'CAD' },
-    { value: 'AUD', label: 'AUD' },
-  ];
+  // Currency options: use user's selected currencies if available, else show all major currencies
+  const allCurrencyOptions = useMemo(() => {
+    const allCurrencies = getAllCurrencies();
+    return allCurrencies.map(currency => ({
+      value: currency,
+      label: `${currency} (${getCurrencySymbol(currency)}) - ${getCurrencyName(currency)}`
+    }));
+  }, []);
   
-  const currencyOptions = profile?.selected_currencies && profile.selected_currencies.length > 0
-    ? allCurrencyOptions.filter(opt => profile.selected_currencies?.includes(opt.value))
-    : allCurrencyOptions;
+  const currencyOptions = useMemo(() => {
+    if (profile?.selected_currencies && profile.selected_currencies.length > 0) {
+      return allCurrencyOptions.filter(opt => profile.selected_currencies?.includes(opt.value));
+    }
+    return allCurrencyOptions;
+  }, [allCurrencyOptions, profile?.selected_currencies]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -206,7 +206,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         .upsert(dbPayload, {
           onConflict: 'id',
         })
-        .select()
+        .select('id, full_name, profile_picture, local_currency, selected_currencies, default_account_id, subscription')
         .single();
 
       if (error) {
@@ -223,6 +223,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         local_currency: data.local_currency,
         selected_currencies: data.selected_currencies,
         default_account_id: data.default_account_id,
+        subscription: data.subscription || get().profile?.subscription || { plan: 'free', status: 'active' },
       };
       
       set({ profile: profileData });

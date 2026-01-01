@@ -16,8 +16,9 @@ export const CURRENCY_SYMBOLS: Record<string, string> = {
 // Account types
 export const ACCOUNT_TYPES = ['checking', 'savings', 'credit', 'investment', 'cash', 'lend_borrow'] as const;
 
-// Currency options
-export const CURRENCY_OPTIONS = ['USD', 'BDT', 'EUR', 'GBP', 'JPY', 'ALL', 'INR', 'CAD', 'AUD'] as const;
+// Currency options - Note: 'ALL' is removed as it's not a real currency (only used for filters)
+// For full currency list, import from utils/currencies.ts
+export const CURRENCY_OPTIONS = ['USD', 'BDT', 'EUR', 'GBP', 'JPY', 'INR', 'CAD', 'AUD', 'CNY', 'CHF'] as const;
 
 /**
  * Format currency amount with proper symbol
