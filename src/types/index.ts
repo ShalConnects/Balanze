@@ -355,3 +355,8 @@ export interface PaymentHistoryStats {
 export * from './investment';
 export * from './simple-investment';
 
+// =====================================================
+// CLIENT MANAGEMENT EXPORTS
+// =====================================================
+export * from './client';
+

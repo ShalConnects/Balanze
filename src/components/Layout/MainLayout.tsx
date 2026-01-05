@@ -99,6 +99,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'purchases': return 'Purchases';
       case 'purchase-categories': return 'Purchase Categories';
       case 'lent-borrow': return 'Lent & Borrow';
+      case 'clients': return 'Clients';
+      case 'orders': return 'Orders';
+      case 'invoices': return 'Invoices';
       case 'achievements': return 'Achievements';
       case 'settings': return 'Settings';
       case 'about': return 'About';
@@ -167,13 +170,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                         ? 'Track and manage all your purchases.'
                         : currentView === 'lent-borrow'
                           ? 'Track and manage all your lending and borrowing activities'
-                          : currentView === 'history'
-                            ? 'Track all your financial activities and changes'
-                            : currentView === 'favorite-quotes'
-                              ? 'Manage your favorite motivational quotes and inspiration'
-                              : currentView === 'achievements'
-                                ? 'Unlock badges and track your financial journey progress'
-                                : undefined
+                          : currentView === 'clients'
+                            ? 'Manage your clients and track their information'
+                            : currentView === 'history'
+                              ? 'Track all your financial activities and changes'
+                              : currentView === 'favorite-quotes'
+                                ? 'Manage your favorite motivational quotes and inspiration'
+                                : currentView === 'achievements'
+                                  ? 'Unlock badges and track your financial journey progress'
+                                  : undefined
             )}
           />
           <main className={`flex-1 p-1 sm:p-2 lg:p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 max-w-full pb-safe-bottom ${isBrowser && isMobile ? 'browser-bottom-nav-spacing' : ''}`}>

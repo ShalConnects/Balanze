@@ -21,6 +21,10 @@ import { LendBorrowSummaryCard } from './LendBorrowSummaryCard';
 import { TransferSummaryCard } from './TransferSummaryCard';
 import { CurrencyOverviewCard } from './CurrencyOverviewCard';
 import { DonationSavingsOverviewCard } from './DonationSavingsOverviewCard';
+import { ClientTasksWidget } from './ClientTasksWidget';
+import { ClientsSummaryWidget } from './ClientsSummaryWidget';
+import { TaskRemindersWidget } from './TaskRemindersWidget';
+import { useClientStore } from '../../store/useClientStore';
 import { StickyNote } from '../StickyNote';
 // NotesAndTodosWidget loaded dynamically to reduce initial bundle size
 // import { NotesAndTodosWidget } from './NotesAndTodosWidget';
@@ -240,6 +244,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     return saved !== null ? JSON.parse(saved) : true;
   });
   
+  const [showClientsWidget, setShowClientsWidget] = useState(() => {
+    const saved = localStorage.getItem('showClientsWidget');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  
+  // Get clients from store
+  const clients = useClientStore((state) => state.clients);
+  const fetchClients = useClientStore((state) => state.fetchClients);
+  
   // Listen to localStorage changes for widget visibility
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -254,6 +267,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
       }
       if (e.key === 'showDonationsSavingsWidget' && e.newValue !== null) {
         setShowDonationsSavingsWidget(JSON.parse(e.newValue));
+      }
+      if (e.key === 'showClientsWidget' && e.newValue !== null) {
+        setShowClientsWidget(JSON.parse(e.newValue));
       }
     };
     
@@ -274,6 +290,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
       if (savedDonationsSavings !== null) {
         setShowDonationsSavingsWidget(JSON.parse(savedDonationsSavings));
       }
+      const savedClients = localStorage.getItem('showClientsWidget');
+      if (savedClients !== null) {
+        setShowClientsWidget(JSON.parse(savedClients));
+      }
     };
     
     window.addEventListener('storage', handleStorageChange);
@@ -281,6 +301,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     window.addEventListener('showLendBorrowWidgetChanged', handleCustomStorageChange);
     window.addEventListener('showTransferWidgetChanged', handleCustomStorageChange);
     window.addEventListener('showDonationsSavingsWidgetChanged', handleCustomStorageChange);
+    window.addEventListener('showClientsWidgetChanged', handleCustomStorageChange);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -288,6 +309,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
       window.removeEventListener('showLendBorrowWidgetChanged', handleCustomStorageChange);
       window.removeEventListener('showTransferWidgetChanged', handleCustomStorageChange);
       window.removeEventListener('showDonationsSavingsWidgetChanged', handleCustomStorageChange);
+      window.removeEventListener('showClientsWidgetChanged', handleCustomStorageChange);
     };
   }, []);
   
@@ -505,6 +527,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     }
   };
 
+  // Handle Clients widget toggle
+  const handleClientsWidgetToggle = async (show: boolean) => {
+    setShowClientsWidget(show);
+    localStorage.setItem('showClientsWidget', JSON.stringify(show));
+    window.dispatchEvent(new CustomEvent('showClientsWidgetChanged'));
+    
+    if (user?.id) {
+      setPreference(user.id, 'showClientsWidget', show).catch(() => {
+        // Silent fail - already saved locally
+      });
+    }
+  };
+
+  // Fetch clients on mount
+  useEffect(() => {
+    fetchClients();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Get purchase analytics
   const purchaseAnalytics = useFinanceStore((state) => state.getMultiCurrencyPurchaseAnalytics());
   const purchases = useFinanceStore((state) => state.purchases);
@@ -579,14 +620,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
   // Initial data fetch when dashboard loads
   useEffect(() => {
+    // Only fetch data when user is authenticated and data hasn't been fetched yet
+    if (!user || initialDataFetched) {
+      return;
+    }
+    
+    let isMounted = true;
+    
     const refreshData = async () => {
       try {
-        // Wait for user to be authenticated
-        if (!user) {
-          // Keep showing skeleton while waiting for user authentication
-          return;
-        }
-
         // Reset error state and start loading
         setHasLoadError(false);
         setDashboardLoading(true);
@@ -602,24 +644,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         ]);
 
         // Success - hide loading
-        setDashboardLoading(false);
-        setInitialDataFetched(true);
-        setLoadingMessage('');
+        if (isMounted) {
+          setDashboardLoading(false);
+          setInitialDataFetched(true);
+          setLoadingMessage('');
+        }
 
       } catch (error) {
         // Error - still show dashboard but mark as having an error
-        setDashboardLoading(false);
-        setInitialDataFetched(true);
-        setHasLoadError(true);
-        setLoadingMessage('');
+        if (isMounted) {
+          setDashboardLoading(false);
+          setInitialDataFetched(true);
+          setHasLoadError(true);
+          setLoadingMessage('');
+        }
       }
     };
     
-    // Only fetch data when user is authenticated and data hasn't been fetched yet
-    if (user && !initialDataFetched) {
-      refreshData();
-    }
-  }, [user, initialDataFetched, setLoadingMessage]);
+    refreshData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [user, initialDataFetched]); // Only depend on user and initialDataFetched - functions are memoized
 
   // Force loading state to false after a timeout to prevent infinite loading
   useEffect(() => {
@@ -820,7 +867,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
             </div>
           )}
 
+          {/* Task Reminders Widget - Top priority */}
+          <TaskRemindersWidget />
 
+          {/* Client Tasks Widget - Full Width Row */}
+          {/* <ClientTasksWidget /> */}
 
           {/* Currency Sections & Donations - Responsive grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 items-start auto-rows-fr">
@@ -870,7 +921,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
             const hasPurchases = purchases.length > 0;
             const hasLendBorrow = isPremium && hasLendBorrowRecords;
             const hasTransfersCard = hasTransfers;
-            const hasAnyCards = hasDonations || hasPurchases || hasLendBorrow || hasTransfersCard;
+            const hasClientsCard = clients.length > 0 && showClientsWidget;
+            const hasAnyCards = hasDonations || hasPurchases || hasLendBorrow || hasTransfersCard || hasClientsCard;
             const hasMultipleCurrencies = filteredDashboardCurrencies.length > 1;
             
             // Show section if there are multiple currencies OR if there are cards to toggle
@@ -959,6 +1011,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                                 className="w-4 h-4 accent-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600"
                               />
                               <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Transfers</span>
+                            </label>
+                          )}
+                          
+                          {/* Clients Checkbox */}
+                          {hasClientsCard && (
+                            <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={showClientsWidget}
+                                onChange={(e) => handleClientsWidgetToggle(e.target.checked)}
+                                className="w-4 h-4 accent-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600"
+                              />
+                              <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Clients</span>
                             </label>
                           )}
                         </div>
@@ -1196,6 +1261,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                 <TransferSummaryCard filterCurrency={dashboardCurrencyFilter} />
               </div>
             )}
+            
+            {/* Clients Summary Widget */}
+            {/* {clients.length > 0 && showClientsWidget && (
+              <div className="w-full h-full animate-fadeIn">
+                <ClientsSummaryWidget filterCurrency={dashboardCurrencyFilter} />
+              </div>
+            )} */}
             
           </div>
 

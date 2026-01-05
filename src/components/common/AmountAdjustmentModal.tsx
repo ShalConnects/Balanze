@@ -18,14 +18,14 @@ export const AmountAdjustmentModal: React.FC<AmountAdjustmentModalProps> = ({
   currencySymbol = '',
   label = 'Amount'
 }) => {
-  const [mode, setMode] = useState<'set' | 'adjust'>('set');
+  const [mode, setMode] = useState<'set' | 'adjust'>('adjust');
   const [inputValue, setInputValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setMode('set');
-      setInputValue(currentAmount.toString());
+      setMode('adjust');
+      setInputValue('');
       // Focus input after modal opens
       setTimeout(() => {
         inputRef.current?.focus();
@@ -156,20 +156,6 @@ export const AmountAdjustmentModal: React.FC<AmountAdjustmentModalProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setMode('set');
-                  setInputValue(currentAmount.toString());
-                }}
-                className={`flex-1 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
-                  mode === 'set'
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                Set {label}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
                   setMode('adjust');
                   setInputValue('');
                 }}
@@ -180,6 +166,20 @@ export const AmountAdjustmentModal: React.FC<AmountAdjustmentModalProps> = ({
                 }`}
               >
                 Adjust {label}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('set');
+                  setInputValue(currentAmount.toString());
+                }}
+                className={`flex-1 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
+                  mode === 'set'
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                Set {label}
               </button>
             </div>
           </div>

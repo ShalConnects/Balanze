@@ -145,7 +145,7 @@ BEGIN
             updated_at
         ) VALUES (
             v_user_id,
-            'Cash (' || p_currency || ')',
+            'Cash Wallet',
             'cash',
             p_initial_balance,
             p_initial_balance,

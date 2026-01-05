@@ -7,6 +7,7 @@ interface PlanFeatures {
   max_transactions: number;
   max_currencies: number;
   max_purchases: number;
+  max_clients: number;
   analytics: boolean;
   priority_support: boolean;
   export_data: boolean;
@@ -34,6 +35,11 @@ interface UsageStats {
     percentage: number;
   };
   purchases: {
+    current: number;
+    limit: number;
+    percentage: number;
+  };
+  clients: {
     current: number;
     limit: number;
     percentage: number;
@@ -72,6 +78,7 @@ export const usePlanFeatures = () => {
         max_transactions_per_month: 25,
         max_currencies: 1,
         max_purchases: 50,
+        max_clients: 5,
         analytics: false,
         priority_support: false,
         export_data: false,
@@ -147,13 +154,18 @@ export const usePlanFeatures = () => {
     return usageStats.purchases.limit === -1 || usageStats.purchases.current < usageStats.purchases.limit;
   };
 
-  const isNearLimit = (type: 'accounts' | 'currencies' | 'transactions' | 'purchases'): boolean => {
+  const canCreateClient = (): boolean => {
+    if (!usageStats || !usageStats.clients) return true;
+    return usageStats.clients.limit === -1 || usageStats.clients.current < usageStats.clients.limit;
+  };
+
+  const isNearLimit = (type: 'accounts' | 'currencies' | 'transactions' | 'purchases' | 'clients'): boolean => {
     if (!usageStats) return false;
     const stats = usageStats[type];
     return stats.percentage >= 80 && stats.percentage < 100;
   };
 
-  const isAtLimit = (type: 'accounts' | 'currencies' | 'transactions' | 'purchases'): boolean => {
+  const isAtLimit = (type: 'accounts' | 'currencies' | 'transactions' | 'purchases' | 'clients'): boolean => {
     if (!usageStats) return false;
     const stats = usageStats[type];
     return stats.percentage >= 100;
@@ -170,6 +182,7 @@ export const usePlanFeatures = () => {
       unlimited_currencies: 'You\'ve reached your currency limit. Upgrade to Premium for unlimited currencies.',
       unlimited_transactions: 'You\'ve reached your monthly transaction limit. Upgrade to Premium for unlimited transactions.',
       unlimited_purchases: 'You\'ve reached your purchase limit. Upgrade to Premium for unlimited purchases.',
+      unlimited_clients: 'You\'ve reached your client limit. Upgrade to Premium for unlimited clients.',
     };
     return messages[feature] || 'This feature requires a Premium plan.';
   };
@@ -191,6 +204,7 @@ export const usePlanFeatures = () => {
     canAddCurrency,
     canCreateTransaction,
     canCreatePurchase,
+    canCreateClient,
     isNearLimit,
     isAtLimit,
     

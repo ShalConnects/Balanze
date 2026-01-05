@@ -161,11 +161,12 @@ export class UrgentNotificationService {
       }
 
       // Get all purchases that are no longer planned
+      // Use .neq() instead of .not() for better compatibility
       const { data: completedPurchases, error: pError } = await supabase
         .from('purchases')
         .select('id, title')
         .eq('user_id', userId)
-        .not('status', 'eq', 'planned');
+        .neq('status', 'planned');
 
       if (pError) {
         console.error('Error fetching completed purchases:', pError);
@@ -193,17 +194,33 @@ export class UrgentNotificationService {
         });
       }
 
-      // Delete notifications matching these titles (in batches if needed)
+      // Delete notifications matching these titles (in smaller batches to avoid URL length issues)
       if (titlesToDelete.length > 0) {
-        // Supabase .in() has a limit, so process in batches of 100
-        const batchSize = 100;
+        // Use smaller batch size (50) to prevent URL length issues with long titles
+        const batchSize = 50;
         for (let i = 0; i < titlesToDelete.length; i += batchSize) {
           const batch = titlesToDelete.slice(i, i + batchSize);
-          await supabase
-            .from('notifications')
-            .update({ deleted: true })
-            .eq('user_id', userId)
-            .in('title', batch);
+          try {
+            await supabase
+              .from('notifications')
+              .update({ deleted: true })
+              .eq('user_id', userId)
+              .in('title', batch);
+          } catch (error) {
+            // If batch fails (e.g., URL too long), try individual deletes for this batch
+            console.warn('Batch delete failed, trying individual deletes:', error);
+            for (const title of batch) {
+              try {
+                await supabase
+                  .from('notifications')
+                  .update({ deleted: true })
+                  .eq('user_id', userId)
+                  .eq('title', title);
+              } catch (individualError) {
+                console.error('Failed to delete notification:', title, individualError);
+              }
+            }
+          }
         }
       }
     } catch (error) {

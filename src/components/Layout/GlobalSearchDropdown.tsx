@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, DollarSign } from 'lucide-react';
+import { Search, DollarSign, Users, CheckSquare, FileText } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
+import { useClientStore } from '../../store/useClientStore';
 import { supabase } from '../../lib/supabase';
 import Fuse from 'fuse.js';
 import { useNavigate } from 'react-router-dom';
@@ -89,6 +90,21 @@ const SYNONYMS: Record<string, string[]> = {
   debt: ['loan', 'borrowing', 'liability', 'obligation'],
   loan: ['debt', 'borrowing', 'advance', 'credit'],
   
+  // Client/Customer synonyms
+  client: ['customer', 'contact', 'client', 'account', 'partner', 'vendor'],
+  customer: ['client', 'contact', 'account', 'buyer', 'purchaser'],
+  contact: ['client', 'customer', 'person', 'individual', 'company'],
+  
+  // Task/Project synonyms
+  task: ['todo', 'job', 'work', 'assignment', 'project', 'item', 'action'],
+  todo: ['task', 'job', 'work', 'assignment', 'item'],
+  project: ['task', 'work', 'assignment', 'job', 'undertaking'],
+  
+  // Invoice/Billing synonyms
+  invoice: ['bill', 'receipt', 'statement', 'charge', 'payment request'],
+  bill: ['invoice', 'receipt', 'statement', 'charge', 'payment'],
+  receipt: ['invoice', 'bill', 'statement', 'proof of payment'],
+  
   // Categories
   food: ['dining', 'restaurant', 'groceries', 'meals', 'eating'],
   transport: ['travel', 'commute', 'gas', 'fuel', 'transportation'],
@@ -149,6 +165,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   isOverlay = false 
 }) => {
   const { globalSearchTerm, transactions, accounts, setGlobalSearchTerm, purchases, lendBorrowRecords, donationSavingRecords } = useFinanceStore();
+  const { clients, tasks, invoices } = useClientStore();
   const navigate = useNavigate();
   const [transfers, setTransfers] = useState<any[]>([]);
   const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
@@ -171,6 +188,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   const [showAllPurchases, setShowAllPurchases] = useState(false);
   const [showAllTransfers, setShowAllTransfers] = useState(false);
   const [showAllAccounts, setShowAllAccounts] = useState(false);
+  const [showAllClients, setShowAllClients] = useState(false);
+  const [showAllTasks, setShowAllTasks] = useState(false);
+  const [showAllInvoices, setShowAllInvoices] = useState(false);
 
   // Handle result click navigation
   const handleResultClick = (type: string, item: any) => {
@@ -214,6 +234,25 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       case 'donation':
 
         navigate(`/donations?selected=${itemId}&from=search`);
+        break;
+      case 'client':
+        navigate(`/clients?selected=${itemId}&from=search`);
+        break;
+      case 'task':
+        // Navigate to client page with task highlighted
+        if (item?.client_id) {
+          navigate(`/clients?selected=${item.client_id}&from=search&highlight=task-${itemId}`);
+        } else {
+          navigate(`/clients?from=search`);
+        }
+        break;
+      case 'invoice':
+        // Navigate to client page with invoice highlighted
+        if (item?.client_id) {
+          navigate(`/clients?selected=${item.client_id}&from=search&highlight=invoice-${itemId}`);
+        } else {
+          navigate(`/clients?from=search`);
+        }
         break;
       default:
 
@@ -287,9 +326,33 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       }
     });
     
+    // Get suggestions from clients
+    (clients || []).forEach(client => {
+      if (client.name?.toLowerCase().includes(queryLower)) {
+        suggestions.push(client.name);
+      }
+      if (client.company_name?.toLowerCase().includes(queryLower)) {
+        suggestions.push(client.company_name);
+      }
+    });
+    
+    // Get suggestions from tasks
+    (tasks || []).forEach(task => {
+      if (task.title?.toLowerCase().includes(queryLower)) {
+        suggestions.push(task.title);
+      }
+    });
+    
+    // Get suggestions from invoices
+    (invoices || []).forEach(invoice => {
+      if (invoice.invoice_number?.toLowerCase().includes(queryLower)) {
+        suggestions.push(invoice.invoice_number);
+      }
+    });
+    
     // Remove duplicates and limit to 3 suggestions
     return [...new Set(suggestions)].slice(0, 3);
-  }, [transactions, accounts, purchases, lendBorrowRecords]);
+  }, [transactions, accounts, purchases, lendBorrowRecords, clients, tasks, invoices]);
 
   // Debounce search input for performance
   useEffect(() => {
@@ -454,6 +517,51 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     ignoreLocation: true,
     useExtendedSearch: true,
   });
+  const fuseClients = new Fuse(clients || [], {
+    threshold: 0.3,
+    keys: [
+      { name: 'name', weight: 0.35 },
+      { name: 'company_name', weight: 0.25 },
+      { name: 'email', weight: 0.15 },
+      { name: 'source', weight: 0.1 },
+      { name: 'tags', weight: 0.1 },
+      { name: 'phone', weight: 0.05 },
+    ],
+    includeMatches: true,
+    minMatchCharLength: 1,
+    findAllMatches: true,
+    ignoreLocation: true,
+    useExtendedSearch: true,
+  });
+  const fuseTasks = new Fuse(tasks || [], {
+    threshold: 0.3,
+    keys: [
+      { name: 'title', weight: 0.4 },
+      { name: 'description', weight: 0.25 },
+      { name: 'status', weight: 0.15 },
+      { name: 'priority', weight: 0.1 },
+    ],
+    includeMatches: true,
+    minMatchCharLength: 1,
+    findAllMatches: true,
+    ignoreLocation: true,
+    useExtendedSearch: true,
+  });
+  const fuseInvoices = new Fuse(invoices || [], {
+    threshold: 0.3,
+    keys: [
+      { name: 'invoice_number', weight: 0.35 },
+      { name: 'status', weight: 0.15 },
+      { name: 'total', weight: 0.1 },
+      { name: 'notes', weight: 0.1 },
+      { name: 'payment_status', weight: 0.05 },
+    ],
+    includeMatches: true,
+    minMatchCharLength: 1,
+    findAllMatches: true,
+    ignoreLocation: true,
+    useExtendedSearch: true,
+  });
 
   // Memoized search results with caching
   const searchResults = useMemo(() => {
@@ -464,7 +572,10 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         fuzzyTransfers: [],
         fuzzyPurchases: [],
         fuzzyLendBorrow: [],
-        fuzzyDonations: []
+        fuzzyDonations: [],
+        fuzzyClients: [],
+        fuzzyTasks: [],
+        fuzzyInvoices: []
       };
     }
 
@@ -484,7 +595,10 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       fuzzyTransfers: fuseTransfers.search(expandedQuery),
       fuzzyPurchases: fusePurchases.search(expandedQuery),
       fuzzyLendBorrow: fuseLendBorrow.search(expandedQuery),
-      fuzzyDonations: fuseDonations.search(expandedQuery)
+      fuzzyDonations: fuseDonations.search(expandedQuery),
+      fuzzyClients: fuseClients.search(expandedQuery),
+      fuzzyTasks: fuseTasks.search(expandedQuery),
+      fuzzyInvoices: fuseInvoices.search(expandedQuery)
     };
 
     // Cache results (limit cache size to prevent memory issues)
@@ -497,9 +611,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     searchCache.set(cacheKey, results);
 
     return results;
-  }, [debouncedSearch, fuseTransactions, fuseAccounts, fuseTransfers, fusePurchases, fuseLendBorrow, fuseDonations, searchCache]);
+  }, [debouncedSearch, fuseTransactions, fuseAccounts, fuseTransfers, fusePurchases, fuseLendBorrow, fuseDonations, fuseClients, fuseTasks, fuseInvoices, searchCache]);
 
-  const { fuzzyTransactions, fuzzyAccounts, fuzzyTransfers, fuzzyPurchases, fuzzyLendBorrow, fuzzyDonations } = searchResults;
+  const { fuzzyTransactions, fuzzyAccounts, fuzzyTransfers, fuzzyPurchases, fuzzyLendBorrow, fuzzyDonations, fuzzyClients, fuzzyTasks, fuzzyInvoices } = searchResults;
 
   // Simple date-based sorting function - latest first within each category
   const sortByLatest = (results: any[]) => {
@@ -520,12 +634,15 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   const rankedPurchases = search ? sortByLatest(fuzzyPurchases) : [];
   const rankedLendBorrow = search ? sortByLatest(fuzzyLendBorrow) : [];
   const rankedDonations = search ? sortByLatest(fuzzyDonations) : [];
+  const rankedClients = search ? sortByLatest(fuzzyClients) : [];
+  const rankedTasks = search ? sortByLatest(fuzzyTasks) : [];
+  const rankedInvoices = search ? sortByLatest(fuzzyInvoices) : [];
 
 
   // Debug logging - REMOVED to prevent console flooding
 
   // Calculate total results for keyboard navigation
-  const totalResults = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length;
+  const totalResults = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length + rankedClients.length + rankedTasks.length + rankedInvoices.length;
 
   // Highlight helper
   function highlight(text: string, matches: any[]): React.ReactNode {
@@ -1025,6 +1142,146 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
           </div>
         )}
 
+        {/* Clients Section */}
+        {rankedClients.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-teal-500 rounded-full"></span>
+              Clients ({rankedClients.length})
+            </h3>
+            <div className="space-y-2">
+              {(showAllClients ? rankedClients : rankedClients.slice(0, 3)).map((res, index) => {
+                const clientOffset = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length;
+                return (
+                  <button
+                    key={`client-${index}`}
+                    onClick={() => handleResultClick('client', res.item)}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                      highlightedIdx === clientOffset + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-teal-100 dark:bg-teal-900/20 rounded-lg flex items-center justify-center">
+                        <Users className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {highlight(res.item.name || '', (res.matches?.filter((m: any) => m.key === 'name') ?? []) as any[])}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {res.item.company_name || res.item.email || ''} • {res.item.source || 'No source'}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+              {rankedClients.length > 3 && (
+                <button
+                  className="w-full text-center text-xs text-blue-600 dark:text-blue-400 mt-2"
+                  onClick={() => setShowAllClients(v => !v)}
+                >
+                  {showAllClients ? 'Show less' : `Show more (${rankedClients.length - 3})`}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tasks Section */}
+        {rankedTasks.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
+              Tasks ({rankedTasks.length})
+            </h3>
+            <div className="space-y-2">
+              {(showAllTasks ? rankedTasks : rankedTasks.slice(0, 3)).map((res, index) => {
+                const taskOffset = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length + rankedClients.length;
+                const client = clients?.find(c => c.id === res.item.client_id);
+                return (
+                  <button
+                    key={`task-${index}`}
+                    onClick={() => handleResultClick('task', res.item)}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                      highlightedIdx === taskOffset + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg flex items-center justify-center">
+                        <CheckSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {highlight(res.item.title || '', (res.matches?.filter((m: any) => m.key === 'title') ?? []) as any[])}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {client?.name || 'Unknown Client'} • {res.item.status?.replace('_', ' ') || ''} • {res.item.priority || ''}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+              {rankedTasks.length > 3 && (
+                <button
+                  className="w-full text-center text-xs text-blue-600 dark:text-blue-400 mt-2"
+                  onClick={() => setShowAllTasks(v => !v)}
+                >
+                  {showAllTasks ? 'Show less' : `Show more (${rankedTasks.length - 3})`}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Invoices Section */}
+        {rankedInvoices.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-cyan-500 rounded-full"></span>
+              Invoices ({rankedInvoices.length})
+            </h3>
+            <div className="space-y-2">
+              {(showAllInvoices ? rankedInvoices : rankedInvoices.slice(0, 3)).map((res, index) => {
+                const invoiceOffset = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length + rankedClients.length + rankedTasks.length;
+                const client = clients?.find(c => c.id === res.item.client_id);
+                return (
+                  <button
+                    key={`invoice-${index}`}
+                    onClick={() => handleResultClick('invoice', res.item)}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                      highlightedIdx === invoiceOffset + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-cyan-100 dark:bg-cyan-900/20 rounded-lg flex items-center justify-center">
+                        <FileText className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {highlight(res.item.invoice_number || '', (res.matches?.filter((m: any) => m.key === 'invoice_number') ?? []) as any[])}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {client?.name || 'Unknown Client'} • {formatCurrency(res.item.total || 0, res.item.currency || 'USD')} • {res.item.status || ''}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+              {rankedInvoices.length > 3 && (
+                <button
+                  className="w-full text-center text-xs text-blue-600 dark:text-blue-400 mt-2"
+                  onClick={() => setShowAllInvoices(v => !v)}
+                >
+                  {showAllInvoices ? 'Show less' : `Show more (${rankedInvoices.length - 3})`}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Donations Section */}
         {rankedDonations.length > 0 && (
           <div className="mb-6">
@@ -1033,25 +1290,27 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
               Donations ({rankedDonations.length})
             </h3>
             <div className="space-y-2">
-              {rankedDonations.slice(0, 3).map((res, index) => (
-                <button
-                  key={`donation-${index}`}
-                  onClick={() => handleResultClick('donation', res.item)}
-                  className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                    highlightedIdx === rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
-                      <svg className="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {highlight(res.item.type || '', (res.matches?.filter((m: any) => m.key === 'type') ?? []) as any[])}
+              {rankedDonations.slice(0, 3).map((res, index) => {
+                const donationOffset = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length;
+                return (
+                  <button
+                    key={`donation-${index}`}
+                    onClick={() => handleResultClick('donation', res.item)}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                      highlightedIdx === donationOffset + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {highlight(res.item.type || '', (res.matches?.filter((m: any) => m.key === 'type') ?? []) as any[])}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                         {(() => {
                           // For donations, we need to find the currency from the linked transaction
                           let currency = 'USD';
@@ -1073,17 +1332,18 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                           const cleanNote = res.item.note.replace(/\(?Currency:\s*[A-Z]{3}\)?/g, '').trim();
                           return cleanNote ? ` • ${cleanNote.substring(0, 30)}${cleanNote.length > 30 ? '...' : ''}` : '';
                         })()}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
 
         {/* No Results */}
-        {search && rankedTransactions.length === 0 && rankedPurchases.length === 0 && rankedTransfers.length === 0 && rankedAccounts.length === 0 && rankedLendBorrow.length === 0 && rankedDonations.length === 0 && (
+        {search && rankedTransactions.length === 0 && rankedPurchases.length === 0 && rankedTransfers.length === 0 && rankedAccounts.length === 0 && rankedLendBorrow.length === 0 && rankedDonations.length === 0 && rankedClients.length === 0 && rankedTasks.length === 0 && rankedInvoices.length === 0 && (
           <div className="text-center py-8">
             <div className="text-gray-400 dark:text-gray-500 mb-2">
               <Search className="w-8 h-8 mx-auto" />

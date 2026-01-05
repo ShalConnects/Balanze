@@ -1,9 +1,11 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
 import { formatTimeUTC } from '../utils/timezoneUtils';
 import { useAuthStore } from '../store/authStore';
+import { useFinanceStore } from '../store/useFinanceStore';
+import { useClientStore } from '../store/useClientStore';
 import { HistorySkeleton, HistoryMobileSkeleton, HistoryShimmerSkeleton } from '../components/History/HistorySkeleton';
 import {
   DollarSign,
@@ -35,7 +37,11 @@ import {
   FileText,
   ShoppingBag,
   ArrowUpDown,
-  ChevronUp
+  ChevronUp,
+  Mail,
+  Target,
+  Users,
+  CheckSquare
 } from 'lucide-react';
 
 interface ActivityLog {
@@ -55,12 +61,28 @@ interface Statistics {
   accounts: number;
   transfers: number;
   lend_borrow: number;
+  clients: number;
+  tasks: number;
+  invoices: number;
   today: number;
   thisWeek: number;
 }
 
 export const History: React.FC = () => {
   const { user } = useAuthStore();
+  const { 
+    transactions, 
+    accounts, 
+    donationSavingRecords, 
+    savingsGoals,
+    lendBorrowRecords,
+    fetchTransactions,
+    fetchAccounts,
+    fetchDonationSavingRecords,
+    fetchSavingsGoals,
+    fetchLendBorrowRecords
+  } = useFinanceStore();
+  const { clients, fetchClients } = useClientStore();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -75,6 +97,9 @@ export const History: React.FC = () => {
     accounts: 0,
     transfers: 0,
     lend_borrow: 0,
+    clients: 0,
+    tasks: 0,
+    invoices: 0,
     today: 0,
     thisWeek: 0
   });
@@ -251,6 +276,14 @@ export const History: React.FC = () => {
 
   useEffect(() => {
     fetchLogs();
+    if (user) {
+      fetchTransactions();
+      fetchAccounts();
+      fetchDonationSavingRecords();
+      fetchSavingsGoals();
+      fetchLendBorrowRecords();
+      fetchClients();
+    }
   }, [user]);
 
   const handleRefresh = async () => {
@@ -269,6 +302,9 @@ export const History: React.FC = () => {
       accounts: logs.filter(log => matchType(log, 'account')).length,
       transfers: logs.filter(log => matchType(log, 'transfer')).length,
       lend_borrow: logs.filter(log => matchType(log, 'lend_borrow')).length,
+      clients: logs.filter(log => matchType(log, 'client')).length,
+      tasks: logs.filter(log => matchType(log, 'task') || matchType(log, 'client_task')).length,
+      invoices: logs.filter(log => matchType(log, 'invoice')).length,
       today: logs.filter(log => new Date(log.created_at) >= today).length,
       thisWeek: logs.filter(log => new Date(log.created_at) >= thisWeek).length
     };
@@ -367,7 +403,10 @@ export const History: React.FC = () => {
   }, []);
 
   const getEntityIcon = (entityType: string) => {
-    switch (entityType.toLowerCase()) {
+    if (!entityType) return <Info className="w-3 h-3" />;
+    
+    const type = entityType.toLowerCase();
+    switch (type) {
       case 'account':
         return <CreditCard className="w-3 h-3" />;
       case 'transaction':
@@ -380,7 +419,24 @@ export const History: React.FC = () => {
         return <PiggyBank className="w-3 h-3" />;
       case 'user':
         return <User className="w-3 h-3" />;
+      case 'client':
+        return <Users className="w-3 h-3" />;
+      case 'task':
+      case 'client_task':
+        return <CheckSquare className="w-3 h-3" />;
+      case 'invoice':
+        return <FileText className="w-3 h-3" />;
       default:
+        // Handle partial matches
+        if (type.includes('client')) {
+          return <Users className="w-3 h-3" />;
+        }
+        if (type.includes('task')) {
+          return <CheckSquare className="w-3 h-3" />;
+        }
+        if (type.includes('invoice')) {
+          return <FileText className="w-3 h-3" />;
+        }
         return <Info className="w-3 h-3" />;
     }
   };
@@ -467,6 +523,158 @@ export const History: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Calculate year statistics based on available data
+  const yearStats = useMemo(() => {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const endOfYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+
+    // Filter transactions for this year
+    const yearTransactions = transactions.filter(t => {
+      const txDate = new Date(t.date);
+      return txDate >= startOfYear && txDate <= endOfYear;
+    });
+
+    // Income (earned) - exclude lend/borrow transactions
+    const incomeTransactions = yearTransactions.filter(t => 
+      t.type === 'income' && 
+      !t.description?.toLowerCase().includes('lend') && 
+      !t.description?.toLowerCase().includes('borrow')
+    );
+    const earned = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+    // Savings - from savings goals and savings category transactions
+    const yearSavingsFromGoals = savingsGoals
+      .filter(sg => {
+        const createdDate = new Date(sg.created_at);
+        return createdDate >= startOfYear && createdDate <= endOfYear;
+      })
+      .reduce((sum, sg) => sum + (sg.current_amount || 0), 0);
+
+    const yearSavingsFromTransactions = yearTransactions
+      .filter(t => t.type === 'income' && t.category === 'Savings')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const thisYearSavings = yearSavingsFromGoals + yearSavingsFromTransactions;
+    const allTimeSavings = savingsGoals.reduce((sum, sg) => sum + (sg.current_amount || 0), 0) +
+      transactions.filter(t => t.type === 'income' && t.category === 'Savings').reduce((sum, t) => sum + t.amount, 0);
+
+    // Expenses (spend) - exclude lend/borrow transactions
+    const expenseTransactions = yearTransactions.filter(t => 
+      t.type === 'expense' && 
+      !t.description?.toLowerCase().includes('lend') && 
+      !t.description?.toLowerCase().includes('borrow')
+    );
+    const spend = expenseTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+    // Donations - filter by status and type
+    const yearDonations = donationSavingRecords.filter(record => {
+      if (record.status !== 'donated' || record.type !== 'donation') return false;
+      const recordDate = new Date(record.created_at);
+      return recordDate >= startOfYear && recordDate <= endOfYear;
+    });
+
+    const donateNormal = yearDonations
+      .filter(record => {
+        const note = record.note?.toLowerCase() || '';
+        return !note.includes('gaza');
+      })
+      .reduce((sum, r) => sum + (r.amount || 0), 0);
+
+    const donateGaza = yearDonations
+      .filter(record => {
+        const note = record.note?.toLowerCase() || '';
+        return note.includes('gaza');
+      })
+      .reduce((sum, r) => sum + (r.amount || 0), 0);
+
+    // Lend/Borrow statistics
+    const yearLendBorrow = lendBorrowRecords.filter(lb => {
+      const createdDate = new Date(lb.created_at);
+      return createdDate >= startOfYear && createdDate <= endOfYear;
+    });
+    const activeLendBorrow = lendBorrowRecords.filter(lb => lb.status === 'active');
+    const totalLD = activeLendBorrow.length;
+    const totalLDAmount = activeLendBorrow.reduce((sum, lb) => sum + (lb.amount || 0), 0);
+
+    // DPS Total - Sum of all DPS savings account balances
+    const dpsTotal = accounts
+      .filter(acc => {
+        return accounts.some(mainAccount => 
+          mainAccount.dps_savings_account_id === acc.id && 
+          mainAccount.has_dps === true
+        );
+      })
+      .reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0);
+
+    // Clients - Count clients created this year
+    const clientsAdded = clients.filter(c => {
+      const createdDate = new Date(c.created_at);
+      return createdDate >= startOfYear && createdDate <= endOfYear;
+    }).length;
+
+    // Additional metrics based on available data
+    const totalTransactions = yearTransactions.length;
+    const netIncome = earned - spend;
+    const savingsGoalsActive = savingsGoals.filter(sg => {
+      if (!sg.target_amount || sg.target_amount === 0) return false;
+      const progress = (sg.current_amount || 0) / sg.target_amount;
+      return progress < 1; // Not yet completed
+    }).length;
+    const savingsGoalsCompleted = savingsGoals.filter(sg => {
+      if (!sg.target_amount || sg.target_amount === 0) return false;
+      return (sg.current_amount || 0) >= sg.target_amount;
+    }).length;
+
+    return {
+      earned,
+      thisYearSavings,
+      allTimeSavings,
+      spend,
+      netIncome,
+      donateNormal,
+      donateGaza,
+      totalLD,
+      totalLDAmount,
+      dpsTotal,
+      clientsAdded,
+      totalTransactions,
+      savingsGoalsActive,
+      savingsGoalsCompleted,
+      yearLendBorrowCount: yearLendBorrow.length
+    };
+  }, [transactions, accounts, donationSavingRecords, savingsGoals, clients, lendBorrowRecords]);
+
+  // Format currency helper
+  const formatCurrency = (amount: number, currency: string = 'USD') => {
+    if (currency === 'BDT') {
+      return `৳${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
+  // Get primary currency from accounts or default to USD
+  const primaryCurrency = useMemo(() => {
+    if (accounts.length > 0) {
+      const currencyCounts: Record<string, number> = {};
+      accounts.forEach(acc => {
+        currencyCounts[acc.currency] = (currencyCounts[acc.currency] || 0) + 1;
+      });
+      return Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'USD';
+    }
+    return 'USD';
+  }, [accounts]);
+
+  // Check if BDT is available
+  const hasBDT = useMemo(() => {
+    return accounts.some(acc => acc.currency === 'BDT');
+  }, [accounts]);
+
   if (loading) {
     return isMobile ? <HistoryMobileSkeleton /> : <HistorySkeleton />;
   }
@@ -480,6 +688,191 @@ export const History: React.FC = () => {
             <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
               <RefreshCw className="w-4 h-4 animate-spin" />
               <span className="text-sm font-medium">Refreshing...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Year Statistics Section - Hidden for now */}
+        {false && (
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                This Year ({new Date().getFullYear()})
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Income & Savings */}
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="w-4 h-4 text-green-600" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Income & Savings</span>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Earned</span>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {formatCurrency(yearStats.earned, primaryCurrency)}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">This Year Savings</span>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {formatCurrency(yearStats.thisYearSavings, primaryCurrency)}
+                    </p>
+                  </div>
+                  <div className="pt-1 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">All Time Savings</span>
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {formatCurrency(yearStats.allTimeSavings, primaryCurrency)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Expenses */}
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-4 h-4 text-red-600" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Expenses</span>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {formatCurrency(yearStats.spend, primaryCurrency)}
+                  </p>
+                  {hasBDT && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {formatCurrency(yearStats.spend, 'BDT')}
+                    </p>
+                  )}
+                  <div className="pt-1 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Net Income</span>
+                      <p className={`text-sm font-medium ${yearStats.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency(yearStats.netIncome, primaryCurrency)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Donations */}
+              {yearStats.donateNormal > 0 || yearStats.donateGaza > 0 ? (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2 mb-2">
+                    <PiggyBank className="w-4 h-4 text-purple-600" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Donations</span>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Normal</span>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {formatCurrency(yearStats.donateNormal, primaryCurrency)}
+                      </p>
+                    </div>
+                    {yearStats.donateGaza > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Gaza</span>
+                        <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                          {formatCurrency(yearStats.donateGaza, primaryCurrency)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Lend/Borrow */}
+              {yearStats.totalLD > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CreditCard className="w-4 h-4 text-indigo-600" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Lend/Borrow</span>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {yearStats.totalLD} Active
+                    </p>
+                    {hasBDT ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {formatCurrency(yearStats.totalLDAmount, 'BDT')}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {formatCurrency(yearStats.totalLDAmount, primaryCurrency)}
+                      </p>
+                    )}
+                    {yearStats.yearLendBorrowCount > 0 && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {yearStats.yearLendBorrowCount} created this year
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* DPS Total */}
+              {yearStats.dpsTotal > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2 mb-2">
+                    <PiggyBank className="w-4 h-4 text-teal-600" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">DPS Total</span>
+                  </div>
+                  {hasBDT ? (
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {formatCurrency(yearStats.dpsTotal, 'BDT')}
+                    </p>
+                  ) : (
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {formatCurrency(yearStats.dpsTotal, primaryCurrency)}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Savings Goals */}
+              {yearStats.savingsGoalsActive > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Target className="w-4 h-4 text-orange-600" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Savings Goals</span>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {yearStats.savingsGoalsActive} Active
+                    </p>
+                    {yearStats.savingsGoalsCompleted > 0 && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {yearStats.savingsGoalsCompleted} Completed
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Clients */}
+              {yearStats.clientsAdded > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-4 h-4 text-pink-600" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Clients Added</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{yearStats.clientsAdded}</p>
+                </div>
+              )}
+
+              {/* Transaction Summary */}
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Transactions</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{yearStats.totalTransactions}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">This year</p>
+              </div>
             </div>
           </div>
         )}
@@ -538,13 +931,13 @@ export const History: React.FC = () => {
                     >
                       All Types
                     </button>
-                    {['transaction', 'purchase', 'account', 'transfer', 'lend_borrow'].map(type => (
+                    {['transaction', 'purchase', 'account', 'transfer', 'lend_borrow', 'client', 'task', 'invoice'].map(type => (
                   <button
                     key={type}
                         onClick={() => { setTableFilters({ ...tableFilters, entityType: type }); setShowEntityTypeMenu(false); }}
                         className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 ${tableFilters.entityType === type ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200' : ''}`}
                   >
-                    {type === 'lend_borrow' ? 'Lend & Borrow' : type.charAt(0).toUpperCase() + type.slice(1)}
+                    {type === 'lend_borrow' ? 'Lend & Borrow' : type === 'task' ? 'Task' : type === 'client' ? 'Client' : type === 'invoice' ? 'Invoice' : type.charAt(0).toUpperCase() + type.slice(1)}
                   </button>
                 ))}
               </div>
@@ -776,9 +1169,12 @@ export const History: React.FC = () => {
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Transfers
                       </th>
-                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Lend & Borrow
-                        </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Lend & Borrow
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Clients
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
@@ -788,6 +1184,11 @@ export const History: React.FC = () => {
                       const accountCount = dateLogs.filter(log => matchType(log, 'account')).length;
                       const transferCount = dateLogs.filter(log => matchType(log, 'transfer')).length;
                       const lendBorrowCount = dateLogs.filter(log => matchType(log, 'lend_borrow')).length;
+                      // Combine clients, tasks, and invoices under Clients column
+                      const clientCount = dateLogs.filter(log => matchType(log, 'client')).length;
+                      const taskCount = dateLogs.filter(log => matchType(log, 'task') || matchType(log, 'client_task')).length;
+                      const invoiceCount = dateLogs.filter(log => matchType(log, 'invoice')).length;
+                      const clientsTotal = clientCount + taskCount + invoiceCount;
                       const isExpanded = isRowExpanded(date);
 
                       return (
@@ -821,10 +1222,13 @@ export const History: React.FC = () => {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900 dark:text-white">
                               {lendBorrowCount}
                             </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900 dark:text-white">
+                              {clientsTotal}
+                            </td>
                           </tr>
                           {isExpanded && (
                             <tr>
-                              <td colSpan={8} className="px-0 py-0">
+                              <td colSpan={9} className="px-0 py-0">
                                 <div className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                                   <div className="p-4">
                                     <div className="space-y-2">
@@ -923,6 +1327,11 @@ export const History: React.FC = () => {
                   const accountCount = dateLogs.filter(log => matchType(log, 'account')).length;
                   const transferCount = dateLogs.filter(log => matchType(log, 'transfer')).length;
                   const lendBorrowCount = dateLogs.filter(log => matchType(log, 'lend_borrow')).length;
+                  // Combine clients, tasks, and invoices under Clients column
+                  const clientCount = dateLogs.filter(log => matchType(log, 'client')).length;
+                  const taskCount = dateLogs.filter(log => matchType(log, 'task') || matchType(log, 'client_task')).length;
+                  const invoiceCount = dateLogs.filter(log => matchType(log, 'invoice')).length;
+                  const clientsTotal = clientCount + taskCount + invoiceCount;
                   const isExpanded = isRowExpanded(date);
 
                   return (

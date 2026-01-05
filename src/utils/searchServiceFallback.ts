@@ -452,6 +452,56 @@ export const SEARCH_CONFIGS = {
     findAllMatches: true,
     ignoreLocation: true,
     useExtendedSearch: true
+  },
+  
+  clients: {
+    threshold: 0.3,
+    keys: [
+      { name: 'name', weight: 0.35 },
+      { name: 'company_name', weight: 0.25 },
+      { name: 'email', weight: 0.15 },
+      { name: 'source', weight: 0.1 },
+      { name: 'tags', weight: 0.1 },
+      { name: 'phone', weight: 0.05 }
+    ],
+    includeMatches: true,
+    minMatchCharLength: 1,
+    findAllMatches: true,
+    ignoreLocation: true,
+    useExtendedSearch: true
+  },
+  
+  tasks: {
+    threshold: 0.3,
+    keys: [
+      { name: 'title', weight: 0.4 },
+      { name: 'description', weight: 0.25 },
+      { name: 'status', weight: 0.15 },
+      { name: 'priority', weight: 0.1 },
+      { name: 'client.name', weight: 0.1 }
+    ],
+    includeMatches: true,
+    minMatchCharLength: 1,
+    findAllMatches: true,
+    ignoreLocation: true,
+    useExtendedSearch: true
+  },
+  
+  invoices: {
+    threshold: 0.3,
+    keys: [
+      { name: 'invoice_number', weight: 0.35 },
+      { name: 'client.name', weight: 0.25 },
+      { name: 'status', weight: 0.15 },
+      { name: 'total', weight: 0.1 },
+      { name: 'notes', weight: 0.1 },
+      { name: 'payment_status', weight: 0.05 }
+    ],
+    includeMatches: true,
+    minMatchCharLength: 1,
+    findAllMatches: true,
+    ignoreLocation: true,
+    useExtendedSearch: true
   }
 };
 

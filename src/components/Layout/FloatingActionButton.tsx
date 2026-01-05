@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Wallet, CreditCard, ArrowLeftRight, ShoppingCart, Handshake, MessageCircle } from 'lucide-react';
+import { Plus, Wallet, CreditCard, ArrowLeftRight, ShoppingCart, Handshake, MessageCircle, Users } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Dialog, Transition } from '@headlessui/react';
 import { TransferModal } from '../Transfers/TransferModal';
@@ -7,7 +7,7 @@ import { DPSTransferModal } from '../Transfers/DPSTransferModal';
 import { AccountForm } from '../Accounts/AccountForm';
 import { TransactionForm } from '../Transactions/TransactionForm';
 import { BulkTransactionForm } from '../Transactions/BulkTransactionForm';
-
+import { ClientForm } from '../Clients/ClientForm';
 import { LendBorrowForm } from '../LendBorrow/LendBorrowForm';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -62,6 +62,7 @@ export const FloatingActionButton: React.FC = () => {
   const [showAIChat, setShowAIChat] = useState(false);
   const [showTip, setShowTip] = useState(true);
   const [showBulkTransactionForm, setShowBulkTransactionForm] = useState(false);
+  const [showClientForm, setShowClientForm] = useState(false);
   const { isMobile, isBrowser } = useMobileDetection();
   const { isMobileSidebarOpen } = useMobileSidebar();
   // Detect Android for proper bottom offset
@@ -187,6 +188,7 @@ export const FloatingActionButton: React.FC = () => {
     // { label: 'Bulk Add Transactions', icon: CreditCard, color: 'bg-blue-500', onClick: () => handleAction(handleAddBulkTransactions), delay: '190ms' },
     { label: 'Add Purchase', icon: ShoppingCart, color: 'bg-orange-600', onClick: () => handleAction(handleAddPurchase), delay: '150ms' },
     { label: 'Lent & Borrow', icon: Handshake, color: 'bg-indigo-600', onClick: () => handleAction(() => setShowLendBorrowForm(true)), delay: '100ms' },
+    { label: 'Add Client', icon: Users, color: 'bg-teal-600', onClick: () => handleAction(() => setShowClientForm(true)), delay: '75ms' },
     { label: t('dashboard.addAccount'), icon: Wallet, color: 'bg-green-600', onClick: () => handleAction(() => setShowAccountFormLocal(true)), delay: '50ms' },
     { label: t('dashboard.transfer'), icon: ArrowLeftRight, color: 'bg-purple-600', onClick: handleTransfer, delay: '0ms' },
   ], [t, handleAction, handleAddTransaction, handleAddPurchase, setShowLendBorrowForm, setShowAccountFormLocal, handleTransfer]);
@@ -317,6 +319,13 @@ export const FloatingActionButton: React.FC = () => {
         <LendBorrowForm 
           onClose={() => setShowLendBorrowForm(false)} 
           onSubmit={handleAddLendBorrowRecord}
+        />
+      )}
+
+      {showClientForm && (
+        <ClientForm 
+          isOpen={showClientForm} 
+          onClose={() => setShowClientForm(false)} 
         />
       )}
 

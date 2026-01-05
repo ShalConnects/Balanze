@@ -4,7 +4,7 @@ import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
 import { CategoryChart } from './CategoryChart';
 import { MonthlyTrend } from './MonthlyTrend';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
 import { TransactionChart } from '../Dashboard/TransactionChart';
 import { AccountsOverview } from '../Dashboard/AccountsOverview';
 import { isLendBorrowTransaction } from '../../utils/transactionUtils';
@@ -16,7 +16,7 @@ export const ReportsView: React.FC = () => {
   const transactions = getActiveTransactions();
   const stats = getDashboardStats();
   const categories = getCategories();
-  const [selectedPeriod, setSelectedPeriod] = useState<'current' | 'last3' | 'last6' | 'last12'>('current');
+  const [selectedPeriod, setSelectedPeriod] = useState<'current' | 'last3' | 'last6' | 'last12' | 'thisYear'>('current');
   
   // Filter currencies based on user's selected currencies
   const availableCurrencies = profile?.selected_currencies && profile.selected_currencies.length > 0
@@ -42,11 +42,14 @@ export const ReportsView: React.FC = () => {
       case 'last12':
         startDate = startOfMonth(subMonths(now, 11));
         break;
+      case 'thisYear':
+        startDate = startOfYear(now);
+        break;
       default:
         startDate = startOfMonth(now);
     }
 
-    const endDate = endOfMonth(now);
+    const endDate = selectedPeriod === 'thisYear' ? endOfYear(now) : endOfMonth(now);
     
     return transactions.filter(transaction => {
       const transactionDate = new Date(transaction.date);
@@ -88,6 +91,8 @@ export const ReportsView: React.FC = () => {
         return 'Last 6 Months';
       case 'last12':
         return 'Last 12 Months';
+      case 'thisYear':
+        return `This Year (${new Date().getFullYear()})`;
       default:
         return 'Current Month';
     }
@@ -140,6 +145,7 @@ export const ReportsView: React.FC = () => {
             <option value="last3">Last 3 Months</option>
             <option value="last6">Last 6 Months</option>
             <option value="last12">Last 12 Months</option>
+            <option value="thisYear">This Year</option>
           </select>
           <button
             onClick={exportReport}

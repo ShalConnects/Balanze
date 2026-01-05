@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { Edit2, Trash2, Copy, ArrowUpRight, ArrowDownRight, Calendar, Tag, Info, Link } from 'lucide-react';
+import { Edit2, Trash2, Copy, ArrowUpRight, ArrowDownRight, Calendar, Tag, Info, Link, FileText } from 'lucide-react';
 import { Transaction, Account } from '../../types';
 import { formatCurrency } from '../../utils/accountUtils';
 import { format } from 'date-fns';
 import { LendBorrowInfoModal } from './LendBorrowInfoModal';
+import { TransactionNoteModal } from './TransactionNoteModal';
 import { toast } from 'sonner';
+import { useFinanceStore } from '../../store/useFinanceStore';
+import { Tooltip } from '../common/Tooltip';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -41,6 +44,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
 }) => {
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
   const [showLendBorrowInfo, setShowLendBorrowInfo] = useState(false);
+  const [noteModalTransaction, setNoteModalTransaction] = useState<Transaction | null>(null);
+  const isSavingNoteRef = React.useRef(false);
+  const lastClosedModalTimeRef = React.useRef<number>(0);
+  const { updateTransaction, transactions: storeTransactions } = useFinanceStore();
   
   const handleCopyAmount = (amount: number, currency: string) => {
     const formattedAmount = Math.abs(amount).toLocaleString('en-US', {
@@ -49,6 +56,39 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
     });
     navigator.clipboard.writeText(formattedAmount);
     toast.success('Amount copied to clipboard');
+  };
+
+  const handleNoteSave = async (note: string) => {
+    console.log('💾 [TransactionTable] handleNoteSave called', { 
+      transactionId: noteModalTransaction?.id, 
+      note, 
+      noteLength: note.length 
+    });
+    isSavingNoteRef.current = true;
+    try {
+      if (noteModalTransaction) {
+        console.log('💾 [TransactionTable] Calling updateTransaction', {
+          id: noteModalTransaction.id,
+          note
+        });
+        await updateTransaction(noteModalTransaction.id, { note });
+        console.log('💾 [TransactionTable] updateTransaction completed');
+        // Don't update noteModalTransaction state here - let the modal close
+        // The store's optimistic update will handle the UI update automatically
+        console.log('💾 [TransactionTable] Note saved, store will handle UI update');
+      } else {
+        console.warn('💾 [TransactionTable] No noteModalTransaction set');
+      }
+    } catch (error) {
+      console.error('💾 [TransactionTable] Error saving note:', error);
+      throw error; // Re-throw so modal can handle it
+    } finally {
+      // Small delay to prevent modal from reopening during re-render
+      setTimeout(() => {
+        isSavingNoteRef.current = false;
+        console.log('💾 [TransactionTable] Save flag cleared');
+      }, 100);
+    }
   };
   
   // Memoize expensive calculations
@@ -230,6 +270,49 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
                       >
                         <Copy className="w-4 h-4" />
                       </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          // Prevent opening modal if we just closed it (within 500ms)
+                          const timeSinceLastClose = Date.now() - lastClosedModalTimeRef.current;
+                          if (timeSinceLastClose < 500) {
+                            console.log('🖱️ [TransactionTable] Ignoring click - modal just closed', { timeSinceLastClose });
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return;
+                          }
+                          
+                          if (isSavingNoteRef.current) {
+                            console.log('🖱️ [TransactionTable] Ignoring click - save in progress');
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return;
+                          }
+                          
+                          // Prevent if modal is already open for this transaction
+                          if (noteModalTransaction?.id === transaction.id) {
+                            console.log('🖱️ [TransactionTable] Ignoring click - modal already open for this transaction');
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return;
+                          }
+                          
+                          console.log('🖱️ [TransactionTable] Note icon clicked', {
+                            transactionId: transaction.id,
+                            hasNote: !!(transaction.note && transaction.note.trim().length > 0)
+                          });
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setNoteModalTransaction(transaction);
+                          console.log('🖱️ [TransactionTable] Modal transaction set');
+                        }}
+                        className={transaction.note && transaction.note.trim().length > 0 
+                          ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300" 
+                          : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"}
+                        title={transaction.note && transaction.note.trim().length > 0 ? "View/Edit note" : "Add note"}
+                      >
+                        <FileText className="w-4 h-4" />
+                      </button>
                       {isPurchase && (
                         <div
                           className="text-gray-500 dark:text-gray-400"
@@ -336,6 +419,18 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
                             {!transaction.tags || transaction.tags.length === 0 && (
                               <div className="text-gray-400">No tags</div>
                             )}
+                            {transaction.note && transaction.note.trim().length > 0 ? (
+                              <div>
+                                <span className="font-medium">Note:</span>
+                                <Tooltip content={transaction.note} placement="top">
+                                  <div className="mt-1 text-gray-700 dark:text-gray-200 break-words cursor-help">
+                                    {transaction.note}
+                                  </div>
+                                </Tooltip>
+                              </div>
+                            ) : (
+                              <div className="text-gray-400">No note</div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -353,6 +448,21 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
          isOpen={showLendBorrowInfo}
          onClose={() => setShowLendBorrowInfo(false)}
        />
+       
+       {/* Transaction Note Modal */}
+       {noteModalTransaction && (
+         <TransactionNoteModal
+           isOpen={!!noteModalTransaction}
+           onClose={() => {
+             console.log('❌ [TransactionTable] Modal close called');
+             lastClosedModalTimeRef.current = Date.now();
+             setNoteModalTransaction(null);
+           }}
+           transactionId={noteModalTransaction.id}
+           currentNote={noteModalTransaction.note}
+           onSave={handleNoteSave}
+         />
+       )}
      </div>
    );
  });

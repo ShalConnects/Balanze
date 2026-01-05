@@ -13,7 +13,11 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Wallet,
-  Trophy
+  Trophy,
+  Users,
+  FileText,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
@@ -37,6 +41,11 @@ const navigation = [
   { name: 'navigation.lendBorrow', id: 'lent-borrow', icon: Handshake },
   // { name: 'navigation.investments', id: 'investments', icon: Wallet },
   // { name: 'navigation.simpleInvestments', id: 'simple-investments', icon: TrendingUp },
+  { 
+    name: 'navigation.clients', 
+    id: 'clients', 
+    icon: Users
+  },
   { name: 'navigation.analytics', id: 'analytics', icon: PieChart },
   { name: 'navigation.settings', id: 'settings', icon: Settings },
 ];
@@ -45,6 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
   const { t } = useTranslation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(['clients'])); // Clients expanded by default
   const dropdownRef = useRef<HTMLDivElement>(null);
   const userSectionRef = useRef<HTMLDivElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{top: number, left: number, direction: 'down' | 'up'} | null>(null);
@@ -222,8 +232,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
           >
             {navigation.map((item) => {
               const Icon = item.icon;
-              const isActive = currentView === item.id;
-              const isAnalyticsActive = Boolean(currentView === 'analytics');
+              const isActive = currentView === item.id || (item.subItems && item.subItems.some(sub => sub.id === currentView));
+              const hasSubItems = item.subItems && item.subItems.length > 0;
+              const isExpanded = expandedItems.has(item.id);
+              const showSubItems = hasSubItems && isExpanded && ((!isMobile && !effectiveCollapsed) || (isMobile && isOpen));
               
               return (
                 <div key={item.id}>
@@ -235,7 +247,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
                       if (isDemoPage) {
                         return;
                       }
-                      onViewChange(item.id);
+                      if (hasSubItems) {
+                        // Toggle expansion
+                        setExpandedItems(prev => {
+                          const newSet = new Set(prev);
+                          if (newSet.has(item.id)) {
+                            newSet.delete(item.id);
+                          } else {
+                            newSet.add(item.id);
+                          }
+                          return newSet;
+                        });
+                        // Also navigate to the main item
+                        onViewChange(item.id);
+                      } else {
+                        onViewChange(item.id);
+                      }
                     }}
                     data-tour={item.id === 'accounts' ? 'accounts-nav' : undefined}
                     className={`
@@ -262,11 +289,61 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
                       } : {}}
                     />
                     {(!isMobile && !effectiveCollapsed) || (isMobile && isOpen) ? (
-                      <span className={`${isActive ? 'text-gradient-primary' : ''} text-[14px] font-bold`}>{t(item.name)}</span>
+                      <>
+                        <span className={`${isActive ? 'text-gradient-primary' : ''} text-[14px] font-bold flex-1 text-left`}>{t(item.name)}</span>
+                        {hasSubItems && (
+                          isExpanded ? (
+                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-gray-400" />
+                          )
+                        )}
+                      </>
                     ) : null}
                   </button>
                   
-                  {/* Subcategories for Analytics */}
+                  {/* Sub-items */}
+                  {showSubItems && item.subItems && (
+                    <div className="ml-4 mt-1 space-y-1">
+                      {item.subItems.map((subItem) => {
+                        const SubIcon = subItem.icon;
+                        const isSubActive = currentView === subItem.id;
+                        return (
+                          <button
+                            key={subItem.id}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (isDemoPage) return;
+                              onViewChange(subItem.id);
+                            }}
+                            className={`
+                              w-full flex items-center rounded-lg sidebar-nav-item
+                              px-4 py-2 space-x-3
+                              ${isSubActive 
+                                ? 'sidebar-active-simple font-semibold' 
+                                : 'text-gray-500 dark:text-gray-400 hover:bg-gradient-to-r hover:from-gray-50 hover:via-blue-50/30 hover:to-gray-50 dark:hover:from-gray-700/50 dark:hover:via-blue-900/10 dark:hover:to-gray-700/50 hover:text-gray-700 dark:hover:text-gray-300'
+                              }
+                              touch-active
+                            `}
+                          >
+                            <SubIcon 
+                              className={`w-4 h-4 ${isSubActive ? 'text-gradient-primary' : 'text-gray-400 dark:text-gray-500'}`}
+                              style={isSubActive ? {
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)'
+                                  : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                backgroundClip: 'text'
+                              } : {}}
+                            />
+                            <span className={`${isSubActive ? 'text-gradient-primary' : ''} text-[13px] font-medium`}>{t(subItem.name)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}

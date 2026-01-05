@@ -938,22 +938,46 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     notes: string;
     attachments: PurchaseAttachment[];
   }) => {
+    console.log('🔄 [Store] updateTransaction called', { id, transaction, purchaseDetails });
     const currentState = get();
     const originalTransaction = currentState.transactions.find(t => t.id === id);
     
     if (!originalTransaction) {
+      console.error('🔄 [Store] Transaction not found', { id });
       set({ error: 'Transaction not found' });
       return;
     }
     
-    // OPTIMISTIC UPDATE: Update UI immediately with new data
-    const optimisticTransaction = { ...originalTransaction, ...transaction };
-    const optimisticTransactions = currentState.transactions.map(t => 
-      t.id === id ? optimisticTransaction : t
-    );
+    console.log('🔄 [Store] Original transaction found', {
+      id: originalTransaction.id,
+      currentNote: originalTransaction.note,
+      newNote: transaction.note
+    });
     
-    // Update UI instantly - no loading state for better UX
-    set({ transactions: optimisticTransactions, error: null });
+    // Check if only note field is being updated
+    const isNoteOnlyUpdate = Object.keys(transaction).length === 1 && 'note' in transaction;
+    
+    // For note-only updates, skip optimistic update to prevent unnecessary re-renders/remounts
+    // The UI will update once the server responds, which is fast enough for note changes
+    if (!isNoteOnlyUpdate) {
+      // OPTIMISTIC UPDATE: Update UI immediately with new data (for non-note updates)
+      const optimisticTransaction = { ...originalTransaction, ...transaction };
+      const optimisticTransactions = currentState.transactions.map(t => 
+        t.id === id ? optimisticTransaction : t
+      );
+      
+      console.log('🔄 [Store] Applying optimistic update', {
+        transactionId: optimisticTransaction.id,
+        note: optimisticTransaction.note
+      });
+      
+      // Update UI instantly - no loading state for better UX
+      set({ transactions: optimisticTransactions, error: null });
+      
+      console.log('🔄 [Store] Optimistic update applied, proceeding with database update');
+    } else {
+      console.log('🔄 [Store] Note-only update: skipping optimistic update to prevent remount');
+    }
     
     try {
       // Perform actual database updates in the background
@@ -983,11 +1007,60 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       const currentTransaction = currentTransactionResult.data;
       const updatedTransaction = updateResult.data;
       
-      // Update with actual server response (in case server modified the data)
-      const serverUpdatedTransactions = currentState.transactions.map(t => 
-        t.id === id ? updatedTransaction : t
-      );
-      set({ transactions: serverUpdatedTransactions });
+      // Check if only note field was updated
+      const isNoteOnlyUpdate = Object.keys(transaction).length === 1 && 'note' in transaction;
+      
+      // Get current state (may or may not have optimistic update depending on update type)
+      const stateAfterOptimistic = get();
+      const existingTransaction = stateAfterOptimistic.transactions.find(t => t.id === id);
+      
+      // For note-only updates, we skipped optimistic update, so always update with server response
+      // For other updates, check if transaction actually changed
+      let transactionChanged = true;
+      if (isNoteOnlyUpdate) {
+        // For note-only updates, always update (we skipped optimistic update)
+        // Compare note to see if it actually changed
+        const currentNote = existingTransaction?.note || '';
+        const serverNote = updatedTransaction.note || '';
+        transactionChanged = currentNote !== serverNote;
+        
+        if (!transactionChanged) {
+          console.log('🔄 [Store] Note-only update: note unchanged, skipping state update', {
+            transactionId: id,
+            note: serverNote
+          });
+        } else {
+          console.log('🔄 [Store] Note-only update: updating state with server response', {
+            transactionId: id,
+            oldNote: currentNote,
+            newNote: serverNote
+          });
+        }
+      } else {
+        // For other updates, do full comparison
+        transactionChanged = !existingTransaction || 
+          JSON.stringify(existingTransaction) !== JSON.stringify(updatedTransaction);
+      }
+      
+      if (transactionChanged) {
+        const serverUpdatedTransactions = stateAfterOptimistic.transactions.map(t => 
+          t.id === id ? updatedTransaction : t
+        );
+        console.log('🔄 [Store] Setting server updated transactions', {
+          transactionId: id,
+          arrayLength: serverUpdatedTransactions.length,
+          isNewArray: serverUpdatedTransactions !== stateAfterOptimistic.transactions,
+          noteField: updatedTransaction.note,
+          isNoteOnlyUpdate
+        });
+        set({ transactions: serverUpdatedTransactions, error: null });
+        console.log('🔄 [Store] Store state updated - this will trigger re-renders');
+      } else {
+        console.log('🔄 [Store] Transaction unchanged, skipping state update', {
+          transactionId: id,
+          isNoteOnlyUpdate
+        });
+      }
       
       // Background operations that don't affect immediate UI
       const backgroundOperations: Promise<any>[] = [];

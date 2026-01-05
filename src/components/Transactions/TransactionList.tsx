@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check, EyeOff } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check, EyeOff, FileText } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -26,13 +26,14 @@ import { useNavigate } from 'react-router-dom';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
 import { LendBorrowInfoModal } from './LendBorrowInfoModal';
+import { TransactionNoteModal } from './TransactionNoteModal';
 import { useExport } from '../../hooks/useExport';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { FinancialHealthCard } from './FinancialHealthCard';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { isLendBorrowTransaction } from '../../utils/transactionUtils';
 
-export const TransactionList: React.FC<{ 
+const TransactionListComponent: React.FC<{ 
   transactions: Transaction[];
   selectedRecord?: any;
   selectedId?: string | null;
@@ -49,6 +50,30 @@ export const TransactionList: React.FC<{
   selectedRecordRef, 
   clearSelection 
 }) => {
+  
+  // Log component mount/unmount and track ref initialization
+  useEffect(() => {
+    const mountTime = Date.now();
+    console.log('🔄 [TransactionList] Component MOUNTED', {
+      timestamp: mountTime,
+      lastClosedTimeRef: lastClosedModalTimeRef.current,
+      isSavingRef: isSavingNoteRef.current,
+      transactionsCount: transactions.length
+    });
+    
+    // Check if page was refreshed
+    const navigationType = (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming)?.type;
+    console.log('🔄 [TransactionList] Navigation type:', navigationType);
+    
+    return () => {
+      console.log('🔄 [TransactionList] Component UNMOUNTING', {
+        timestamp: Date.now(),
+        lastClosedTimeRef: lastClosedModalTimeRef.current,
+        isSavingRef: isSavingNoteRef.current,
+        mountDuration: Date.now() - mountTime
+      });
+    };
+  }, [transactions.length]);
   
   // Record selection functionality is now passed as props from parent component
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -439,6 +464,34 @@ export const TransactionList: React.FC<{
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [showLendBorrowInfo, setShowLendBorrowInfo] = useState(false);
+  const [noteModalTransaction, setNoteModalTransaction] = useState<Transaction | null>(null);
+  const isSavingNoteRef = useRef(false);
+  const lastClosedModalTimeRef = useRef<number>(0);
+  
+  // Initialize ref from sessionStorage to persist across remounts
+  useEffect(() => {
+    const stored = sessionStorage.getItem('transactionNoteModalLastClosed');
+    if (stored) {
+      const storedTime = parseInt(stored, 10);
+      // Only use if it's recent (within last 5 seconds)
+      if (Date.now() - storedTime < 5000) {
+        lastClosedModalTimeRef.current = storedTime;
+        console.log('🔄 [TransactionList] Restored timestamp from sessionStorage', { storedTime });
+      }
+    }
+  }, []);
+  
+  // Log ref state on every render
+  useEffect(() => {
+    console.log('🔄 [TransactionList] Render cycle', {
+      lastClosedTime: lastClosedModalTimeRef.current,
+      isSaving: isSavingNoteRef.current,
+      timestamp: Date.now(),
+      transactionsLength: transactions.length,
+      noteModalOpen: !!noteModalTransaction
+    });
+  });
+  
   const [expandedRecurringIds, setExpandedRecurringIds] = useState<Set<string>>(new Set());
   const [forcingOccurrenceIds, setForcingOccurrenceIds] = useState<Set<string>>(new Set());
 
@@ -813,6 +866,44 @@ export const TransactionList: React.FC<{
   const handleDuplicate = (transaction: Transaction) => {
     setTransactionToDuplicate(transaction);
     setIsFormOpen(true);
+  };
+
+  const handleNoteSave = async (note: string) => {
+    console.log('💾 [TransactionList] handleNoteSave called', { 
+      transactionId: noteModalTransaction?.id, 
+      note, 
+      noteLength: note.length,
+      currentSaveFlag: isSavingNoteRef.current
+    });
+    isSavingNoteRef.current = true;
+    console.log('💾 [TransactionList] Save flag set to true');
+    try {
+      if (noteModalTransaction) {
+        console.log('💾 [TransactionList] Calling updateTransaction', {
+          id: noteModalTransaction.id,
+          note
+        });
+        await updateTransaction(noteModalTransaction.id, { note });
+        console.log('💾 [TransactionList] updateTransaction completed');
+        // Don't update noteModalTransaction state here - let the modal close
+        // The store's optimistic update will handle the UI update automatically
+        console.log('💾 [TransactionList] Note saved, store will handle UI update');
+      } else {
+        console.warn('💾 [TransactionList] No noteModalTransaction set');
+      }
+    } catch (error) {
+      console.error('💾 [TransactionList] Error saving note:', error);
+      throw error; // Re-throw so modal can handle it
+    } finally {
+      // Longer delay to prevent modal from reopening during re-render
+      setTimeout(() => {
+        isSavingNoteRef.current = false;
+        console.log('💾 [TransactionList] Save flag cleared after delay', {
+          clearedAt: Date.now(),
+          lastCloseTime: lastClosedModalTimeRef.current
+        });
+      }, 2000);
+    }
   };
 
   // Handle pause/resume for recurring transactions
@@ -2250,6 +2341,104 @@ export const TransactionList: React.FC<{
                                </Tooltip>
                              ) : (
                                <>
+                                 <Tooltip content={transaction.note && transaction.note.trim().length > 0 ? "View/Edit note" : "Add note"} placement="top">
+                                   <button
+                                     type="button"
+                                     tabIndex={-1}
+                                     onMouseDown={(e) => {
+                                       // Prevent opening modal if we just closed it (within 1000ms)
+                                       const timeSinceLastClose = Date.now() - lastClosedModalTimeRef.current;
+                                       if (timeSinceLastClose < 1000) {
+                                         console.log('🖱️ [TransactionList] Ignoring mousedown - modal just closed', { timeSinceLastClose });
+                                         e.preventDefault();
+                                         e.stopPropagation();
+                                         return;
+                                       }
+                                       
+                                       if (isSavingNoteRef.current) {
+                                         console.log('🖱️ [TransactionList] Ignoring mousedown - save in progress');
+                                         e.preventDefault();
+                                         e.stopPropagation();
+                                         return;
+                                       }
+                                       
+                                       // Prevent if modal is already open for this transaction
+                                       if (noteModalTransaction?.id === transaction.id) {
+                                         console.log('🖱️ [TransactionList] Ignoring mousedown - modal already open for this transaction');
+                                         e.preventDefault();
+                                         e.stopPropagation();
+                                         return;
+                                       }
+                                     }}
+                                     onClick={(e) => {
+                                       const currentTime = Date.now();
+                                       // Check both ref and sessionStorage (in case component remounted)
+                                       const storedTime = sessionStorage.getItem('transactionNoteModalLastClosed');
+                                       const storedLastClosed = storedTime ? parseInt(storedTime, 10) : 0;
+                                       const lastClosed = lastClosedModalTimeRef.current || storedLastClosed;
+                                       const timeSinceClose = currentTime - lastClosed;
+                                       
+                                       console.log('🖱️ [TransactionList] onClick triggered', {
+                                         transactionId: transaction.id,
+                                         lastClosedTime: lastClosed,
+                                         refValue: lastClosedModalTimeRef.current,
+                                         storedValue: storedLastClosed,
+                                         currentTime: currentTime,
+                                         timeSinceLastClose: timeSinceClose,
+                                         isSaving: isSavingNoteRef.current,
+                                         currentModalId: noteModalTransaction?.id,
+                                         isSameTransaction: noteModalTransaction?.id === transaction.id,
+                                         eventType: e.type,
+                                         isTrusted: e.isTrusted,
+                                         detail: (e.nativeEvent as any)?.detail,
+                                         button: (e.nativeEvent as any)?.button
+                                       });
+                                       
+                                       // Prevent opening modal if we just closed it (within 3000ms)
+                                       if (timeSinceClose < 3000) {
+                                         console.log('🛡️ [TransactionList] BLOCKED: Modal just closed', { 
+                                           timeSinceLastClose: timeSinceClose, 
+                                           threshold: 3000,
+                                           lastClosed,
+                                           refValue: lastClosedModalTimeRef.current,
+                                           storedValue: storedLastClosed
+                                         });
+                                         e.preventDefault();
+                                         e.stopPropagation();
+                                         return;
+                                       }
+                                       
+                                       if (isSavingNoteRef.current) {
+                                         console.log('🛡️ [TransactionList] BLOCKED: Save in progress');
+                                         e.preventDefault();
+                                         e.stopPropagation();
+                                         return;
+                                       }
+                                       
+                                       // Prevent if modal is already open for this transaction
+                                       if (noteModalTransaction?.id === transaction.id) {
+                                         console.log('🛡️ [TransactionList] BLOCKED: Modal already open for this transaction');
+                                         e.preventDefault();
+                                         e.stopPropagation();
+                                         return;
+                                       }
+                                       
+                                       console.log('✅ [TransactionList] Note icon clicked - ALLOWED', {
+                                         transactionId: transaction.id,
+                                         hasNote: !!(transaction.note && transaction.note.trim().length > 0)
+                                       });
+                                       e.preventDefault();
+                                       e.stopPropagation();
+                                       setNoteModalTransaction(transaction);
+                                       console.log('✅ [TransactionList] Modal transaction set');
+                                     }}
+                                     className={transaction.note && transaction.note.trim().length > 0 
+                                       ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors" 
+                                       : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"}
+                                   >
+                                     <FileText className="w-4 h-4" />
+                                   </button>
+                                 </Tooltip>
                                  {(transaction.is_recurring || transaction.parent_recurring_id) && (
                                    <Tooltip content={expandedRecurringIds.has(transaction.id) ? 'Collapse recurring details' : 'Expand recurring details'} placement="top">
                                      <button
@@ -2629,6 +2818,15 @@ export const TransactionList: React.FC<{
                             </>
                           ) : null;
                         })()}
+                        {/* Note Display */}
+                        {transaction.note && transaction.note.trim().length > 0 && (
+                          <Tooltip content={transaction.note} placement="top">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 cursor-help">
+                              <FileText className="w-2.5 h-2.5" />
+                              {transaction.note}
+                            </span>
+                          </Tooltip>
+                        )}
                       </div>
                     </div>
 
@@ -2673,6 +2871,63 @@ export const TransactionList: React.FC<{
                            </Tooltip>
                          ) : (
                            <>
+                               <Tooltip content={transaction.note && transaction.note.trim().length > 0 ? "View/Edit note" : "Add note"} placement="top">
+                                 <button
+                                   type="button"
+                                   onClick={(e) => {
+                                     // Prevent opening modal if we just closed it (within 500ms)
+                                     const timeSinceLastClose = Date.now() - lastClosedModalTimeRef.current;
+                                     const currentTime = Date.now();
+                                     // Check both ref and sessionStorage (in case component remounted)
+                                     const storedTime = sessionStorage.getItem('transactionNoteModalLastClosed');
+                                     const storedLastClosed = storedTime ? parseInt(storedTime, 10) : 0;
+                                     const lastClosed = lastClosedModalTimeRef.current || storedLastClosed;
+                                     const timeSinceClose = currentTime - lastClosed;
+                                     
+                                     // Prevent opening modal if we just closed it (within 3000ms)
+                                     if (timeSinceClose < 3000) {
+                                       console.log('🛡️ [TransactionList] BLOCKED: Modal just closed (mobile)', { 
+                                         timeSinceLastClose: timeSinceClose, 
+                                         threshold: 3000,
+                                         lastClosed,
+                                         refValue: lastClosedModalTimeRef.current,
+                                         storedValue: storedLastClosed
+                                       });
+                                       e.preventDefault();
+                                       e.stopPropagation();
+                                       return;
+                                     }
+                                     
+                                     if (isSavingNoteRef.current) {
+                                       console.log('🛡️ [TransactionList] BLOCKED: Save in progress (mobile)');
+                                       e.preventDefault();
+                                       e.stopPropagation();
+                                       return;
+                                     }
+                                     
+                                     // Prevent if modal is already open for this transaction
+                                     if (noteModalTransaction?.id === transaction.id) {
+                                       console.log('🛡️ [TransactionList] BLOCKED: Modal already open for this transaction (mobile)');
+                                       e.preventDefault();
+                                       e.stopPropagation();
+                                       return;
+                                     }
+                                     
+                                     console.log('✅ [TransactionList] Note icon clicked - ALLOWED (mobile)', {
+                                       transactionId: transaction.id,
+                                       hasNote: !!(transaction.note && transaction.note.trim().length > 0)
+                                     });
+                                     e.preventDefault();
+                                     e.stopPropagation();
+                                     setNoteModalTransaction(transaction);
+                                   }}
+                                   className={transaction.note && transaction.note.trim().length > 0 
+                                     ? "p-1.5 text-blue-600 dark:text-blue-400 rounded-md transition-colors hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20" 
+                                     : "p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"}
+                                 >
+                                   <FileText className="w-3.5 h-3.5" />
+                                 </button>
+                               </Tooltip>
                                {(transaction.is_recurring || transaction.parent_recurring_id) && (
                                  <Tooltip content={expandedRecurringIds.has(transaction.id) ? 'Collapse recurring details' : 'Expand recurring details'} placement="top">
                                    <button
@@ -3313,6 +3568,43 @@ export const TransactionList: React.FC<{
         isOpen={showLendBorrowInfo}
         onClose={() => setShowLendBorrowInfo(false)}
       />
+      
+      {/* Transaction Note Modal */}
+      {noteModalTransaction && (
+        <TransactionNoteModal
+          isOpen={!!noteModalTransaction}
+          onClose={() => {
+            const closeTime = Date.now();
+            console.log('❌ [TransactionList] Modal close called', {
+              closeTime,
+              previousCloseTime: lastClosedModalTimeRef.current,
+              refObject: lastClosedModalTimeRef
+            });
+            lastClosedModalTimeRef.current = closeTime;
+            // Store in sessionStorage to persist across remounts
+            sessionStorage.setItem('transactionNoteModalLastClosed', closeTime.toString());
+            console.log('❌ [TransactionList] Timestamp set in ref and sessionStorage', { 
+              timestamp: lastClosedModalTimeRef.current,
+              refCurrent: lastClosedModalTimeRef.current,
+              refObject: lastClosedModalTimeRef
+            });
+            setNoteModalTransaction(null);
+            console.log('❌ [TransactionList] Modal state cleared');
+            
+            // Verify timestamp persists after state update
+            setTimeout(() => {
+              console.log('❌ [TransactionList] Timestamp check after 100ms', {
+                timestamp: lastClosedModalTimeRef.current,
+                shouldBe: closeTime,
+                sessionStorage: sessionStorage.getItem('transactionNoteModalLastClosed')
+              });
+            }, 100);
+          }}
+          transactionId={noteModalTransaction.id}
+          currentNote={noteModalTransaction.note}
+          onSave={handleNoteSave}
+        />
+      )}
 
       {/* Mobile Filter Modal */}
       {showMobileFilterMenu && (
@@ -3706,3 +3998,42 @@ export const TransactionList: React.FC<{
     </div>
   );
 };
+
+// Memoize to prevent remounts when transactions array reference changes but content is the same
+export const TransactionList = React.memo(TransactionListComponent, (prevProps, nextProps) => {
+  // Quick check: if array reference is the same, props are equal
+  if (prevProps.transactions === nextProps.transactions) {
+    // Still need to check other props
+    if (prevProps.selectedId === nextProps.selectedId &&
+        prevProps.isFromSearch === nextProps.isFromSearch &&
+        prevProps.hasSelection === nextProps.hasSelection &&
+        prevProps.selectedRecord === nextProps.selectedRecord) {
+      return true; // All props equal, skip re-render
+    }
+  }
+  
+  // Array reference changed - check if content is actually different
+  if (prevProps.transactions.length !== nextProps.transactions.length) {
+    return false; // Length changed, allow re-render
+  }
+  
+  // Check if any transaction changed by comparing IDs and critical fields
+  // We use a hash of ID + note + updated_at to detect changes efficiently
+  const prevHash = prevProps.transactions.map(t => `${t.id}:${t.note || ''}:${t.updated_at || ''}`).join('|');
+  const nextHash = nextProps.transactions.map(t => `${t.id}:${t.note || ''}:${t.updated_at || ''}`).join('|');
+  
+  if (prevHash !== nextHash) {
+    return false; // Content changed, allow re-render
+  }
+  
+  // Check if other props changed
+  if (prevProps.selectedId !== nextProps.selectedId ||
+      prevProps.isFromSearch !== nextProps.isFromSearch ||
+      prevProps.hasSelection !== nextProps.hasSelection ||
+      prevProps.selectedRecord !== nextProps.selectedRecord) {
+    return false; // Other props changed, allow re-render
+  }
+  
+  // Props are the same, skip re-render (prevent remount)
+  return true;
+});
