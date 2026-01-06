@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Search, Edit2, Trash2, Building2, Mail, Phone, MapPin, Tag, X, Filter, FileText, ShoppingCart, ChevronUp, ChevronDown, Info, ChevronRight } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Building2, Mail, Phone, MapPin, Tag, X, Filter, FileText, ShoppingCart, ChevronUp, ChevronDown, Info, ChevronRight, Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useClientStore } from '../../store/useClientStore';
 import { Client } from '../../types/client';
@@ -19,6 +19,118 @@ import {
   ClientFiltersSkeleton 
 } from './ClientSkeleton';
 import { ClientTasksWidget } from '../Dashboard/ClientTasksWidget';
+import { ClientNoteModal } from './ClientNoteModal';
+
+// Tag Management Component
+interface ClientTagManagerProps {
+  client: Client;
+  onTagAdded: () => void;
+  onTagRemoved: () => void;
+}
+
+const ClientTagManager: React.FC<ClientTagManagerProps> = React.memo(({ client, onTagAdded, onTagRemoved }) => {
+  const { updateClient } = useClientStore();
+  const [tagInput, setTagInput] = useState('');
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const tagInputRef = useRef<HTMLInputElement>(null);
+  const tagSuggestionsRef = useRef<HTMLDivElement>(null);
+  
+  const commonTags = [
+    'Fiverr', 'Upwork', 'Freelancer', 'Premium', 'Long-term',
+    'One-time', 'Referral', 'Website', 'Social Media', 'Repeat Client', 'VIP', 'Corporate'
+  ];
+  
+  const getFilteredSuggestions = () => {
+    return commonTags.filter(tag => 
+      !client.tags?.includes(tag) &&
+      tag.toLowerCase().includes(tagInput.toLowerCase())
+    );
+  };
+  
+  const handleAddTag = async (tag?: string) => {
+    const tagToAdd = tag || tagInput.trim();
+    if (tagToAdd && !client.tags?.includes(tagToAdd)) {
+      const updatedTags = [...(client.tags || []), tagToAdd];
+      try {
+        await updateClient(client.id, { tags: updatedTags });
+        setTagInput('');
+        setShowTagSuggestions(false);
+        toast.success('Tag added successfully');
+        onTagAdded();
+      } catch (error) {
+        toast.error('Failed to add tag');
+      }
+    }
+  };
+  
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (tagSuggestionsRef.current && !tagSuggestionsRef.current.contains(event.target as Node)) {
+        setShowTagSuggestions(false);
+      }
+    }
+    if (showTagSuggestions) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showTagSuggestions]);
+  
+  return (
+    <div className="relative" ref={tagSuggestionsRef}>
+      <div className="flex gap-1">
+        <input
+          type="text"
+          ref={tagInputRef}
+          value={tagInput}
+          onChange={(e) => {
+            setTagInput(e.target.value);
+            setShowTagSuggestions(true);
+          }}
+          onFocus={() => setShowTagSuggestions(true)}
+          onKeyPress={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleAddTag();
+            }
+          }}
+          className="flex-1 px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+          placeholder="Add tag..."
+        />
+        <button
+          type="button"
+          onClick={() => handleAddTag()}
+          className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!tagInput.trim()}
+        >
+          Add
+        </button>
+      </div>
+      
+      {/* Tag Suggestions */}
+      {showTagSuggestions && getFilteredSuggestions().length > 0 && (
+        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-32 overflow-y-auto">
+          <div className="p-2">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 px-1">Suggestions:</div>
+            <div className="flex flex-wrap gap-1">
+              {getFilteredSuggestions().map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => handleAddTag(tag)}
+                  className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+ClientTagManager.displayName = 'ClientTagManager';
 
 export const ClientList: React.FC = () => {
   const navigate = useNavigate();
@@ -38,6 +150,7 @@ export const ClientList: React.FC = () => {
     getTasksByClient,
     updateTask,
     updateInvoice,
+    updateClient,
     deleteClient
   } = useClientStore();
 
@@ -114,6 +227,8 @@ export const ClientList: React.FC = () => {
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [taskStatusMenuOpen, setTaskStatusMenuOpen] = useState<string | null>(null);
   const [invoiceStatusMenuOpen, setInvoiceStatusMenuOpen] = useState<string | null>(null);
+  const [noteModalClient, setNoteModalClient] = useState<Client | null>(null);
+  const isSavingNoteRef = useRef(false);
 
   // Sorting state
   const [sortConfig, setSortConfig] = useState<{
@@ -298,6 +413,46 @@ export const ClientList: React.FC = () => {
     if (deletingClient) {
       await deleteClient(deletingClient.id);
       setDeletingClient(null);
+    }
+  };
+
+  const handleRemoveTag = async (clientId: string, tagToRemove: string) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+    
+    const updatedTags = (client.tags || []).filter(tag => tag !== tagToRemove);
+    try {
+      await updateClient(clientId, { tags: updatedTags });
+      toast.success('Tag removed successfully');
+    } catch (error) {
+      toast.error('Failed to remove tag');
+    }
+  };
+
+  const handleCopyToClipboard = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${type} copied to clipboard`);
+    } catch (error) {
+      toast.error('Failed to copy to clipboard');
+    }
+  };
+
+  const handleNoteSave = async (note: string) => {
+    isSavingNoteRef.current = true;
+    try {
+      if (noteModalClient) {
+        await updateClient(noteModalClient.id, { notes: note });
+        // Don't update noteModalClient state here - let the modal close
+        // The store's optimistic update will handle the UI update automatically
+      }
+    } catch (error) {
+      throw error; // Re-throw so modal can handle it
+    } finally {
+      // Small delay to prevent modal from reopening during re-render
+      setTimeout(() => {
+        isSavingNoteRef.current = false;
+      }, 100);
     }
   };
 
@@ -626,7 +781,7 @@ export const ClientList: React.FC = () => {
             </div>
 
             {/* Summary Cards - matching AccountsView pattern */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 p-2 sm:p-3 lg:p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 p-2 sm:p-3 lg:p-4">
               {(() => {
                 const activeClients = filteredClients.filter(c => c.status === 'active');
                 const inactiveClients = filteredClients.filter(c => c.status === 'inactive');
@@ -813,10 +968,21 @@ export const ClientList: React.FC = () => {
                                       {client.tags.slice(0, 2).map((tag) => (
                                         <span
                                           key={tag}
-                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-[10px]"
+                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-[10px] group"
                                         >
                                           <Tag className="w-2.5 h-2.5" />
                                           {tag}
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleRemoveTag(client.id, tag);
+                                            }}
+                                            className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:text-blue-900 dark:hover:text-blue-100 transition-opacity ml-0.5"
+                                            title="Remove tag"
+                                            aria-label={`Remove ${tag} tag`}
+                                          >
+                                            <X className="w-2.5 h-2.5" />
+                                          </button>
                                         </span>
                                       ))}
                                       {client.tags.length > 2 && (
@@ -864,7 +1030,7 @@ export const ClientList: React.FC = () => {
                                     e.stopPropagation();
                                     handleEdit(client);
                                   }}
-                                  className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 p-1"
+                                  className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 p-1.5"
                                   aria-label="Edit client"
                                   title="Edit"
                                 >
@@ -873,9 +1039,26 @@ export const ClientList: React.FC = () => {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    // Prevent if modal is already open for this client
+                                    if (noteModalClient?.id === client.id || isSavingNoteRef.current) {
+                                      return;
+                                    }
+                                    setNoteModalClient(client);
+                                  }}
+                                  className={client.notes && client.notes.trim().length > 0 
+                                    ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 p-1.5" 
+                                    : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 p-1.5"}
+                                  title={client.notes && client.notes.trim().length > 0 ? "View/Edit note" : "Add note"}
+                                  aria-label={client.notes && client.notes.trim().length > 0 ? "View/Edit note" : "Add note"}
+                                >
+                                  <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setDeletingClient(client);
                                   }}
-                                  className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 p-1"
+                                  className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 p-1.5"
                                   aria-label="Delete client"
                                   title="Delete"
                                 >
@@ -889,7 +1072,7 @@ export const ClientList: React.FC = () => {
                           {isRowExpanded(client.id) && (
                           <tr className="bg-gray-50 dark:bg-gray-800">
                             <td colSpan={6} className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5">
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
                                   {/* Contact & Company */}
                                   <div className="space-y-2 sm:space-y-3">
                                     <h4 className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">Contact & Company</h4>
@@ -901,12 +1084,34 @@ export const ClientList: React.FC = () => {
                                             <div className="flex items-center gap-1.5">
                                               <Mail className="w-3 h-3 text-gray-400 flex-shrink-0" />
                                               <span className="break-words">{client.email}</span>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleCopyToClipboard(client.email!, 'Email');
+                                                }}
+                                                className="ml-1 p-0.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                                title="Copy email"
+                                                aria-label="Copy email"
+                                              >
+                                                <Copy className="w-3 h-3" />
+                                              </button>
                                             </div>
                                           )}
                                           {client.phone && (
                                             <div className="flex items-center gap-1.5">
                                               <Phone className="w-3 h-3 text-gray-400 flex-shrink-0" />
                                               <span>{client.phone}</span>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleCopyToClipboard(client.phone!, 'Phone');
+                                                }}
+                                                className="ml-1 p-0.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                                title="Copy phone"
+                                                aria-label="Copy phone"
+                                              >
+                                                <Copy className="w-3 h-3" />
+                                              </button>
                                             </div>
                                           )}
                                         </div>
@@ -951,15 +1156,43 @@ export const ClientList: React.FC = () => {
                                         </div>
                                       )}
                                       
-                                      {/* Notes */}
-                                      {client.notes && (
-                                        <div className="pt-1 space-y-1 border-t border-gray-200 dark:border-gray-700">
-                                          <div>
-                                            <span className="font-medium">Notes:</span>
-                                            <div className="mt-1 text-gray-500 dark:text-gray-400 break-words">{client.notes}</div>
+                                      {/* Tags */}
+                                      <div className="pt-1 space-y-1 border-t border-gray-200 dark:border-gray-700">
+                                        <div className="font-medium mb-1">Tags:</div>
+                                        {client.tags && client.tags.length > 0 ? (
+                                          <div className="flex flex-wrap gap-1 mb-2">
+                                            {client.tags.map((tag) => (
+                                              <span
+                                                key={tag}
+                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded text-[10px] group"
+                                              >
+                                                <Tag className="w-2.5 h-2.5" />
+                                                {tag}
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRemoveTag(client.id, tag);
+                                                  }}
+                                                  className="opacity-0 group-hover:opacity-100 hover:text-blue-900 dark:hover:text-blue-100 transition-opacity ml-0.5"
+                                                  title="Remove tag"
+                                                  aria-label={`Remove ${tag} tag`}
+                                                >
+                                                  <X className="w-2.5 h-2.5" />
+                                                </button>
+                                              </span>
+                                            ))}
                                           </div>
-                                        </div>
-                                      )}
+                                        ) : (
+                                          <div className="text-gray-400 italic text-xs mb-2">No tags</div>
+                                        )}
+                                        {/* Tag Management */}
+                                        <ClientTagManager 
+                                          key={`tag-manager-${client.id}`}
+                                          client={client} 
+                                          onTagAdded={() => {}}
+                                          onTagRemoved={() => {}}
+                                        />
+                                      </div>
                                     </div>
                                   </div>
                                   
@@ -1076,7 +1309,7 @@ export const ClientList: React.FC = () => {
                                           const clientInvoices = getInvoicesByClient(client.id);
                                           
                                           if (clientInvoices.length === 0) {
-                                            return <div className="text-gray-400 italic text-[10px]">No invoices yet</div>;
+                                            return <div className="text-gray-400 italic text-xs">No invoices yet</div>;
                                           }
                                           
                                           const currency = client.default_currency || 'USD';
@@ -1103,7 +1336,7 @@ export const ClientList: React.FC = () => {
                                               };
                                               
                                               return (
-                                                <div key={invoice.id} className="p-1.5 bg-gray-50 dark:bg-gray-800/50 rounded text-[10px]">
+                                                <div key={invoice.id} className="p-1.5 bg-gray-50 dark:bg-gray-800/50 rounded text-xs">
                                                   <div className="flex items-center justify-between">
                                                     <div className="flex-1 min-w-0">
                                                       <div className="font-medium truncate">{invoice.invoice_number}</div>
@@ -1118,12 +1351,12 @@ export const ClientList: React.FC = () => {
                                                             e.stopPropagation();
                                                             setInvoiceStatusMenuOpen(invoiceStatusMenuOpen === invoice.id ? null : invoice.id);
                                                           }}
-                                                          className={`text-[10px] font-medium px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${statusColors[invoice.status] || 'text-gray-600'}`}
+                                                          className={`text-xs font-medium px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${statusColors[invoice.status] || 'text-gray-600'}`}
                                                         >
                                                           {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                                                         </button>
                                                         {invoiceStatusMenuOpen === invoice.id && (
-                                                          <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg min-w-[140px]">
+                                                          <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg min-w-[140px] max-w-[calc(100vw-2rem)]">
                                                             {[
                                                               { label: 'Draft', value: 'draft' },
                                                               { label: 'Sent', value: 'sent' },
@@ -1140,7 +1373,7 @@ export const ClientList: React.FC = () => {
                                                                   // Refresh all invoices to ensure data consistency
                                                                   fetchInvoices();
                                                                 }}
-                                                                className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                                                                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
                                                                   invoice.status === statusOption.value
                                                                     ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
                                                                     : 'text-gray-700 dark:text-gray-300'
@@ -1152,7 +1385,7 @@ export const ClientList: React.FC = () => {
                                                           </div>
                                                         )}
                                                       </div>
-                                                      <div className={`text-[10px] mt-0.5 ${paymentStatusColors[invoice.payment_status] || 'text-gray-400'}`}>
+                                                      <div className={`text-xs mt-0.5 ${paymentStatusColors[invoice.payment_status] || 'text-gray-400'}`}>
                                                         {invoice.payment_status.charAt(0).toUpperCase() + invoice.payment_status.slice(1)}
                                                       </div>
                                                     </div>
@@ -1164,6 +1397,7 @@ export const ClientList: React.FC = () => {
                                       </div>
                                     </div>
                                     )}
+                                  </div>
                                   
                                   {/* Tasks */}
                                   <div className="space-y-2 sm:space-y-3">
@@ -1188,12 +1422,12 @@ export const ClientList: React.FC = () => {
                                         <span className="sm:hidden">Create</span>
                                       </button>
                                     </div>
-                                    <div className="text-[11px] sm:text-xs text-gray-600 dark:text-gray-300 space-y-1.5 sm:space-y-2">
+                                    <div className="text-[11px] sm:text-xs lg:text-[11px] text-gray-600 dark:text-gray-300 space-y-1.5 sm:space-y-2">
                                       {(() => {
                                         const clientTasks = getTasksByClient(client.id);
                                         
                                         if (clientTasks.length === 0) {
-                                          return <div className="text-gray-400 italic">No tasks yet</div>;
+                                          return <div className="text-gray-400 italic text-[11px] lg:text-[11px]">No tasks yet</div>;
                                         }
                                         
                                         return clientTasks
@@ -1226,24 +1460,24 @@ export const ClientList: React.FC = () => {
                                             return (
                                               <div key={task.id} className={`flex justify-between items-start p-2 rounded-md ${isOverdue ? 'bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50' : 'bg-gray-50 dark:bg-gray-800/50'}`}>
                                                 <div className="flex-1 min-w-0">
-                                                  <div className="font-medium truncate">{task.title}</div>
+                                                  <div className="font-medium truncate text-xs sm:text-sm lg:text-[11px]">{task.title}</div>
                                                   {task.description && (
-                                                    <div className="text-gray-500 dark:text-gray-400 text-[10px] mt-0.5 line-clamp-1">
+                                                    <div className="text-gray-500 dark:text-gray-400 text-xs lg:text-[10px] mt-0.5 line-clamp-2 lg:line-clamp-1">
                                                       {task.description}
                                                     </div>
                                                   )}
                                                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                                                     {task.due_date && (
-                                                      <span className={`text-[10px] ${isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                      <span className={`text-xs lg:text-[10px] ${isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
                                                         {isOverdue ? `Overdue ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''}` : `Due: ${new Date(task.due_date).toLocaleDateString()}`}
                                                       </span>
                                                     )}
                                                     {isOverdue && (
-                                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 font-medium">
+                                                      <span className="text-xs lg:text-[10px] px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 font-medium">
                                                         Overdue
                                                       </span>
                                                     )}
-                                                    <span className={`text-[10px] font-medium ${priorityColors[task.priority]}`}>
+                                                    <span className={`text-xs lg:text-[10px] font-medium ${priorityColors[task.priority]}`}>
                                                       {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
                                                     </span>
                                                   </div>
@@ -1255,12 +1489,12 @@ export const ClientList: React.FC = () => {
                                                         e.stopPropagation();
                                                         setTaskStatusMenuOpen(taskStatusMenuOpen === task.id ? null : task.id);
                                                       }}
-                                                      className={`text-[10px] font-medium px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${statusColors[task.status]}`}
+                                                      className={`text-xs lg:text-[10px] font-medium px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${statusColors[task.status]}`}
                                                     >
                                                       {task.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                                     </button>
                                                     {taskStatusMenuOpen === task.id && (
-                                                      <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg min-w-[160px]">
+                                                      <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg min-w-[160px] max-w-[calc(100vw-2rem)]">
                                                         {[
                                                           { label: 'In Progress', value: 'in_progress' },
                                                           { label: 'Waiting on Client', value: 'waiting_on_client' },
@@ -1277,7 +1511,7 @@ export const ClientList: React.FC = () => {
                                                               // Refresh all tasks to ensure data consistency
                                                               fetchTasks();
                                                             }}
-                                                            className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                                                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
                                                               task.status === statusOption.value
                                                                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
                                                                 : 'text-gray-700 dark:text-gray-300'
@@ -1290,7 +1524,7 @@ export const ClientList: React.FC = () => {
                                                     )}
                                                   </div>
                                                   {task.completed_date && (
-                                                    <div className="text-[10px] text-gray-400 mt-0.5">
+                                                    <div className="text-xs text-gray-400 mt-0.5">
                                                       {new Date(task.completed_date).toLocaleDateString()}
                                                     </div>
                                                   )}
@@ -1304,7 +1538,6 @@ export const ClientList: React.FC = () => {
                                     )}
                                   </div>
                                 </div>
-                              </div>
                             </td>
                             </tr>
                           )}
@@ -1331,105 +1564,168 @@ export const ClientList: React.FC = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3 p-4">
+                  <div className="space-y-3 sm:space-y-4 px-3 sm:px-4">
                     {filteredClients.map((client) => {
                       const clientOrders = getOrdersByClient(client.id);
                       const clientInvoices = getInvoicesByClient(client.id);
+                      const totalOrderValue = clientOrders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
+                      const totalInvoiceValue = clientInvoices.reduce((sum, invoice) => sum + (Number(invoice.total_amount) || 0), 0);
+                      const currency = client.default_currency || 'USD';
+                      const currencySymbol = {
+                        USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', INR: '₹', CAD: '$', AUD: '$'
+                      }[currency] || currency;
                       
                       return (
                         <div
                           key={client.id}
-                          className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-all duration-200"
+                          className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-5 shadow-sm hover:shadow-md transition-all duration-200"
                         >
-                          {/* Client Header */}
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center space-x-3">
-                              <div 
-                                className={`w-3 h-3 rounded-full ${client.status === 'active' ? 'bg-green-500' : client.status === 'inactive' ? 'bg-yellow-500' : 'bg-gray-400'}`}
-                                role="status"
-                                aria-label={`${client.status} client`}
-                              />
-                              <div>
-                                <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {client.name}
-                                </div>
-                                {client.company_name && (
-                                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                    {client.company_name}
-                                  </div>
-                                )}
+                          {/* Card Header - Client Name and Total Value on same line */}
+                          <div className="flex items-center justify-between mb-3 sm:mb-4">
+                            <div className="text-sm sm:text-base font-medium text-gray-900 dark:text-white flex-1 min-w-0 pr-2">
+                              {client.name}
+                            </div>
+                            <div className="flex flex-col items-end flex-shrink-0">
+                              <div className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                                {currencySymbol}{(totalOrderValue + totalInvoiceValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                              <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                                {clientOrders.length} orders, {clientInvoices.length} invoices
                               </div>
                             </div>
-                            <div className="text-right">
-                              <div className="text-xs text-gray-500 dark:text-gray-400">{client.default_currency || 'USD'}</div>
-                              {getStatusBadge(client.status)}
+                          </div>
+                          
+                          {/* Card Body - Status badge and Source badge */}
+                          <div className="mb-3 sm:mb-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center space-x-2 sm:space-x-2.5 flex-wrap">
+                                <span className={`inline-flex items-center px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium ${
+                                  client.status === 'active' 
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                    : client.status === 'inactive'
+                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                                }`}>
+                                  {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
+                                </span>
+                                {client.company_name && (
+                                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate max-w-[150px]">
+                                    {client.company_name}
+                                  </span>
+                                )}
+                              </div>
+                              {client.source && (
+                                <span className={`inline-flex items-center justify-center px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium flex-shrink-0 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300`}>
+                                  {client.source}
+                                </span>
+                              )}
                             </div>
                           </div>
-
-                          {/* Client Stats */}
-                          <div className="flex items-center justify-between mb-3 text-xs text-gray-500 dark:text-gray-400">
-                            <div className="flex items-center gap-3">
-                              <span>{clientOrders.length} orders</span>
-                              <span>{clientInvoices.length} invoices</span>
+                          
+                          {/* Card Footer - Created Date and Actions */}
+                          <div className="flex items-center justify-between pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-gray-200 dark:border-gray-700">
+                            <div className="text-xs sm:text-sm">
+                              <div className="text-gray-600 dark:text-gray-400">
+                                Created: {new Date(client.created_at).toLocaleDateString()}
+                              </div>
                             </div>
-                            {client.source && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                {client.source}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
-                            <button
-                              onClick={() => toggleRowExpansion(client.id)}
-                              className="flex items-center text-blue-600 dark:text-blue-400 text-sm font-medium"
-                            >
-                              <Info className="w-4 h-4 mr-1" />
-                              Details
-                              <ChevronRight className={`w-4 h-4 ml-1 transition-transform ${isRowExpanded(client.id) ? 'rotate-90' : ''}`} />
-                            </button>
-                            
-                            <div className="flex items-center space-x-2">
+                            <div className="flex gap-1.5 sm:gap-2">
                               <button
                                 onClick={() => handleEdit(client)}
-                                className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                title="Edit client"
+                                className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 rounded-lg transition-colors hover:text-green-600 dark:hover:text-green-400 active:text-green-600 hover:bg-gray-100 dark:hover:bg-gray-700 touch-manipulation"
+                                title="Edit"
                                 aria-label={`Edit ${client.name} client`}
                               >
-                                <Edit2 className="w-4 h-4" />
+                                <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                              </button>
+                              
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (noteModalClient?.id === client.id || isSavingNoteRef.current) {
+                                    return;
+                                  }
+                                  setNoteModalClient(client);
+                                }}
+                                className={`p-2 sm:p-2.5 rounded-lg transition-colors touch-manipulation ${
+                                  client.notes && client.notes.trim().length > 0
+                                    ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                }`}
+                                title={client.notes && client.notes.trim().length > 0 ? "View/Edit note" : "Add note"}
+                                aria-label={client.notes && client.notes.trim().length > 0 ? "View/Edit note" : "Add note"}
+                              >
+                                <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                               </button>
                               
                               <button
                                 onClick={() => setDeletingClient(client)}
-                                className="p-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                title="Delete client"
+                                className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 rounded-lg transition-colors hover:text-red-600 dark:hover:text-red-400 active:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 touch-manipulation"
+                                title="Delete"
                                 aria-label={`Delete ${client.name} client`}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                              </button>
+                              
+                              <button
+                                onClick={() => toggleRowExpansion(client.id)}
+                                className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 rounded-lg transition-colors hover:text-blue-600 dark:hover:text-blue-400 active:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 touch-manipulation"
+                                title="View details"
+                                aria-label="View details"
+                              >
+                                <svg 
+                                  className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isRowExpanded(client.id) ? 'rotate-90' : ''}`} 
+                                  fill="none" 
+                                  stroke="currentColor" 
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m9 18 6-6-6-6" />
+                                </svg>
                               </button>
                             </div>
                           </div>
 
-                          {/* Expanded Content - Mobile */}
+                          {/* Expandable Content */}
                           {isRowExpanded(client.id) && (
-                            <div className="mt-3 pt-3 sm:pt-4 border-t border-gray-100 dark:border-gray-700">
-                              <div className="space-y-3 sm:space-y-4">
-                                {/* Contact Info */}
+                            <div className="mt-4 sm:mt-5 pt-4 sm:pt-5 px-0 sm:px-2 border-t border-gray-200 dark:border-gray-700">
+                              <div className="space-y-4 sm:space-y-5">
+                                {/* Contact Information */}
                                 {(client.email || client.phone || client.address || client.city || client.state || client.postal_code || client.country) && (
-                                  <div>
-                                    <h4 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2">Contact</h4>
-                                    <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 space-y-1 sm:space-y-1.5">
+                                  <div className="space-y-2 sm:space-y-3">
+                                    <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">Contact Information</h4>
+                                    <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                                       {client.email && (
                                         <div className="flex items-center gap-1.5">
                                           <Mail className="w-3 h-3 text-gray-400 flex-shrink-0" />
                                           <span className="truncate">{client.email}</span>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleCopyToClipboard(client.email!, 'Email');
+                                            }}
+                                            className="ml-1 p-0.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                            title="Copy email"
+                                            aria-label="Copy email"
+                                          >
+                                            <Copy className="w-3 h-3" />
+                                          </button>
                                         </div>
                                       )}
                                       {client.phone && (
                                         <div className="flex items-center gap-1.5">
                                           <Phone className="w-3 h-3 text-gray-400 flex-shrink-0" />
                                           <span>{client.phone}</span>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleCopyToClipboard(client.phone!, 'Phone');
+                                            }}
+                                            className="ml-1 p-0.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                            title="Copy phone"
+                                            aria-label="Copy phone"
+                                          >
+                                            <Copy className="w-3 h-3" />
+                                          </button>
                                         </div>
                                       )}
                                       {(client.address || client.city || client.state || client.postal_code || client.country) && (
@@ -1449,11 +1745,11 @@ export const ClientList: React.FC = () => {
                                   </div>
                                 )}
 
-                                {/* Company Info */}
+                                {/* Company Information */}
                                 {(client.company_name || client.tax_id || client.website || client.source) && (
-                                  <div>
-                                    <h4 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2">Company</h4>
-                                    <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 space-y-1 sm:space-y-1.5">
+                                  <div className="space-y-2 sm:space-y-3 mt-4 sm:mt-5">
+                                    <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">Company Information</h4>
+                                    <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                                       {client.company_name && (
                                         <div>
                                           <span className="font-medium">Name:</span> {client.company_name}
@@ -1497,9 +1793,9 @@ export const ClientList: React.FC = () => {
                                   }
                                   
                                   return (
-                                    <div>
-                                      <h4 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2">Financial Summary</h4>
-                                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 space-y-1 sm:space-y-1.5">
+                                    <div className="space-y-2 sm:space-y-3 mt-4 sm:mt-5">
+                                      <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">Financial Summary</h4>
+                                      <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                                         {clientOrders.length > 0 && (
                                           <div>
                                             <span className="font-medium">Orders:</span> {clientOrders.length} ({currencySymbol}{totalOrderValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
@@ -1511,29 +1807,32 @@ export const ClientList: React.FC = () => {
                                           </div>
                                         )}
                                       </div>
+                                    </div>
+                                  );
+                                })()}
 
-                                      {/* Invoices List - Inside Financial Summary */}
-                                      <div className="pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-700 mt-2 sm:mt-3">
-                                        <div className="flex items-center justify-between mb-1.5 sm:mb-2 gap-2">
-                                          <h5 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Invoices</h5>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setInvoiceClientId(client.id);
-                                              setShowInvoiceForm(true);
-                                            }}
-                                            className="flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-[11px] bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors whitespace-nowrap"
-                                          >
-                                            <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                                            Create
-                                          </button>
-                                        </div>
-                                        <div className="space-y-1.5 sm:space-y-2">
+                                {/* Invoices */}
+                                <div className="space-y-2 sm:space-y-3 mt-4 sm:mt-5">
+                                  <div className="flex items-center justify-between mb-1.5 sm:mb-2 gap-2">
+                                    <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">Invoices</h4>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setInvoiceClientId(client.id);
+                                        setShowInvoiceForm(true);
+                                      }}
+                                      className="flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 text-xs bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors whitespace-nowrap"
+                                    >
+                                      <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                                      Create
+                                    </button>
+                                  </div>
+                                  <div className="space-y-1.5 sm:space-y-2">
                                     {(() => {
                                       const clientInvoices = getInvoicesByClient(client.id);
                                       
                                       if (clientInvoices.length === 0) {
-                                        return <div className="text-gray-400 italic text-[10px]">No invoices yet</div>;
+                                        return <div className="text-gray-400 italic text-xs">No invoices yet</div>;
                                       }
                                       
                                       const currency = client.default_currency || 'USD';
@@ -1560,7 +1859,7 @@ export const ClientList: React.FC = () => {
                                           };
                                           
                                           return (
-                                            <div key={invoice.id} className="p-1.5 bg-gray-50 dark:bg-gray-800/50 rounded text-[10px]">
+                                            <div key={invoice.id} className="p-1.5 bg-gray-50 dark:bg-gray-800/50 rounded text-xs">
                                               <div className="flex items-center justify-between">
                                                 <div className="flex-1 min-w-0">
                                                   <div className="font-medium truncate">{invoice.invoice_number}</div>
@@ -1575,12 +1874,12 @@ export const ClientList: React.FC = () => {
                                                         e.stopPropagation();
                                                         setInvoiceStatusMenuOpen(invoiceStatusMenuOpen === invoice.id ? null : invoice.id);
                                                       }}
-                                                      className={`text-[10px] font-medium px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${statusColors[invoice.status] || 'text-gray-600'}`}
+                                                      className={`text-xs font-medium px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${statusColors[invoice.status] || 'text-gray-600'}`}
                                                     >
                                                       {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                                                     </button>
                                                     {invoiceStatusMenuOpen === invoice.id && (
-                                                      <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg min-w-[140px]">
+                                                      <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg min-w-[140px] max-w-[calc(100vw-2rem)]">
                                                         {[
                                                           { label: 'Draft', value: 'draft' },
                                                           { label: 'Sent', value: 'sent' },
@@ -1596,7 +1895,7 @@ export const ClientList: React.FC = () => {
                                                               setInvoiceStatusMenuOpen(null);
                                                               fetchInvoices(client.id);
                                                             }}
-                                                            className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                                                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
                                                               invoice.status === statusOption.value
                                                                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
                                                                 : 'text-gray-700 dark:text-gray-300'
@@ -1608,7 +1907,7 @@ export const ClientList: React.FC = () => {
                                                       </div>
                                                     )}
                                                   </div>
-                                                  <div className={`text-[10px] mt-0.5 ${paymentStatusColors[invoice.payment_status] || 'text-gray-400'}`}>
+                                                  <div className={`text-xs mt-0.5 ${paymentStatusColors[invoice.payment_status] || 'text-gray-400'}`}>
                                                     {invoice.payment_status.charAt(0).toUpperCase() + invoice.payment_status.slice(1)}
                                                   </div>
                                                 </div>
@@ -1617,34 +1916,49 @@ export const ClientList: React.FC = () => {
                                           );
                                         });
                                     })()}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })()}
+                                  </div>
+                                </div>
 
                                 {/* Tags */}
-                                {client.tags && client.tags.length > 0 && (
-                                  <div>
-                                    <h4 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2">Tags</h4>
-                                    <div className="flex flex-wrap gap-1 sm:gap-1.5">
+                                <div className="space-y-2 sm:space-y-3 mt-4 sm:mt-5">
+                                  <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">Tags</h4>
+                                  {client.tags && client.tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 sm:gap-1.5 mb-2">
                                       {client.tags.map((tag) => (
                                         <span
                                           key={tag}
-                                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full text-xs"
+                                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full text-xs group"
                                         >
                                           <Tag className="w-2.5 h-2.5" />
                                           {tag}
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleRemoveTag(client.id, tag);
+                                            }}
+                                            className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:text-blue-900 dark:hover:text-blue-100 transition-opacity ml-0.5"
+                                            title="Remove tag"
+                                            aria-label={`Remove ${tag} tag`}
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </button>
                                         </span>
                                       ))}
                                     </div>
-                                  </div>
-                                )}
+                                  )}
+                                  {/* Tag Management */}
+                                  <ClientTagManager 
+                                    key={`tag-manager-card-${client.id}`}
+                                    client={client} 
+                                    onTagAdded={() => {}}
+                                    onTagRemoved={() => {}}
+                                  />
+                                </div>
 
                                 {/* Tasks */}
-                                <div>
+                                <div className="space-y-2 sm:space-y-3 mt-4 sm:mt-5">
                                   <div className="flex items-center justify-between mb-1.5 sm:mb-2 gap-2">
-                                    <h4 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Tasks</h4>
+                                    <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">Tasks</h4>
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -1663,7 +1977,7 @@ export const ClientList: React.FC = () => {
                                       const clientTasks = getTasksByClient(client.id);
                                       
                                       if (clientTasks.length === 0) {
-                                        return <div className="text-gray-400 italic text-[10px]">No tasks yet</div>;
+                                        return <div className="text-gray-400 italic text-xs">No tasks yet</div>;
                                       }
                                       
                                       return clientTasks
@@ -1694,7 +2008,7 @@ export const ClientList: React.FC = () => {
                                             : 0;
                                           
                                           return (
-                                            <div key={task.id} className={`p-1.5 rounded text-[10px] ${isOverdue ? 'bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50' : 'bg-gray-50 dark:bg-gray-800/50'}`}>
+                                            <div key={task.id} className={`p-1.5 rounded text-xs ${isOverdue ? 'bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50' : 'bg-gray-50 dark:bg-gray-800/50'}`}>
                                               <div className="font-medium truncate">{task.title}</div>
                                               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                                 {task.due_date && (
@@ -1716,12 +2030,12 @@ export const ClientList: React.FC = () => {
                                                       e.stopPropagation();
                                                       setTaskStatusMenuOpen(taskStatusMenuOpen === task.id ? null : task.id);
                                                     }}
-                                                    className={`font-medium px-2 py-0.5 rounded text-[10px] hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${statusColors[task.status]}`}
+                                                    className={`font-medium px-2 py-0.5 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${statusColors[task.status]}`}
                                                   >
                                                     {task.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                                   </button>
                                                   {taskStatusMenuOpen === task.id && (
-                                                    <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg min-w-[160px]">
+                                                    <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg min-w-[160px] max-w-[calc(100vw-2rem)]">
                                                       {[
                                                         { label: 'In Progress', value: 'in_progress' },
                                                         { label: 'Waiting on Client', value: 'waiting_on_client' },
@@ -1737,7 +2051,7 @@ export const ClientList: React.FC = () => {
                                                             setTaskStatusMenuOpen(null);
                                                             fetchTasks(client.id);
                                                           }}
-                                                          className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                                                          className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
                                                             task.status === statusOption.value
                                                               ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
                                                               : 'text-gray-700 dark:text-gray-300'
@@ -1960,6 +2274,20 @@ export const ClientList: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Client Note Modal */}
+      {noteModalClient && (
+        <ClientNoteModal
+          isOpen={!!noteModalClient}
+          onClose={() => {
+            isSavingNoteRef.current = false;
+            setNoteModalClient(null);
+          }}
+          clientId={noteModalClient.id}
+          currentNote={noteModalClient.notes}
+          onSave={handleNoteSave}
+        />
       )}
 
       {/* Delete Confirmation Modal */}

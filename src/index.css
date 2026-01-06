@@ -769,8 +769,7 @@
   /* Mobile sidebar improvements */
   .sidebar-mobile {
     @apply fixed left-0 top-0 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 z-[99999] transform transition-all duration-300 ease-in-out;
-    /* Android safe area support */
-    padding-top: max(env(safe-area-inset-top, 0px), 16px);
+    /* Safe area support for bottom only (top padding only for Android via .capacitor-android) */
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   

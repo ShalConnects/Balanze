@@ -18,7 +18,7 @@ export const TaskRemindersWidget: React.FC = () => {
   }, []);
 
   // Filter out completed and cancelled tasks
-  const allActiveTasks = tasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled');
+  const allActiveTasks = (tasks || []).filter(task => task.status !== 'completed' && task.status !== 'cancelled');
 
   // Calculate urgent tasks with prioritization
   const urgentTasks = useMemo(() => {
@@ -144,15 +144,28 @@ export const TaskRemindersWidget: React.FC = () => {
     }
   }, [stats.overdue, isExpanded]);
 
+  // Calculate if there are any urgent tasks (overdue, due today, or urgent priority)
+  const hasUrgentTasks = stats.overdue > 0 || stats.dueToday > 0 || stats.urgent > 0;
+
+  // Hide widget if no tasks exist or if loading and no tasks
   if (tasksLoading && tasks.length === 0) {
     return null;
   }
 
+  // Hide widget if there are no tasks at all (including completed/cancelled)
+  if (tasks.length === 0) {
+    return null;
+  }
+
+  // Hide widget if there are no active tasks
   if (allActiveTasks.length === 0) {
     return null;
   }
 
-  const hasUrgentTasks = stats.overdue > 0 || stats.dueToday > 0 || stats.urgent > 0;
+  // Hide widget if there are no urgent tasks (overdue, due today, or urgent priority)
+  if (!hasUrgentTasks) {
+    return null;
+  }
 
   return (
     <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 shadow-sm hover:shadow-lg transition-all duration-300">

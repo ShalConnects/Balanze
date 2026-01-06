@@ -67,6 +67,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
   
   const { isMobile, isVerySmall } = useMobileDetection();
   
+  // Android detection
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const isCapacitor = !!(window as any).Capacitor;
+  const isAndroidApp = isAndroid && isCapacitor;
+  
   // Swipe-to-close functionality
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -226,9 +231,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
           {/* Navigation */}
           <nav 
             data-tour="navigation"
-            className={`flex-1 space-y-2 pt-4 pl-2 ${
+            className={`flex-1 space-y-2 pl-2 ${
               isMobile ? (isOpen ? 'pr-4' : 'pr-2') : (effectiveCollapsed ? 'pr-2' : 'pr-4')
             }`}
+            style={{ paddingTop: '10px' }}
           >
             {navigation.map((item) => {
               const Icon = item.icon;

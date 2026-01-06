@@ -1029,7 +1029,37 @@ const TransactionListComponent: React.FC<{
         if (filters.type !== 'all' && t.type !== filters.type) return false;
         if (filters.account !== 'all' && t.account_id !== filters.account) return false;
         if (filters.currency && allAccountsForLookup.find(a => a.id === t.account_id)?.currency !== filters.currency) return false;
-        if (filters.showRecurringOnly && !t.is_recurring) return false;
+        
+        // When recurring filter is active, show only parent recurring transactions and ignore date filter
+        if (filters.showRecurringOnly) {
+          // Only show parent recurring transactions (is_recurring === true AND no parent_recurring_id)
+          if (!t.is_recurring || t.parent_recurring_id) return false;
+          // Skip date filter when recurring filter is active
+        } else {
+          // Apply date filter only when recurring filter is not active
+          if (filters.dateRange.start && filters.dateRange.end) {
+            const txDate = new Date(t.date);
+            const startDate = new Date(filters.dateRange.start);
+            const endDate = new Date(filters.dateRange.end);
+            
+            // For "this month" filter, use the same logic as Dashboard
+            if (filters.dateRange.start === new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10) &&
+                filters.dateRange.end === new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10)) {
+              // This is "this month" filter - use same timezone logic as Dashboard
+              const localStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
+              const localEndDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+              
+              // Convert to UTC with timezone offset (same as Dashboard)
+              const utcStartDate = new Date(localStartDate.getTime() - (localStartDate.getTimezoneOffset() * 60000));
+              const utcEndDate = new Date(localEndDate.getTime() - (localEndDate.getTimezoneOffset() * 60000) + (24 * 60 * 60 * 1000) - 1);
+              
+              if (txDate < utcStartDate || txDate > utcEndDate) return false;
+            } else {
+              // For other date ranges, use the original logic
+              if (txDate < startDate || txDate > endDate) return false;
+            }
+          }
+        }
         
         // New: Filter by recently modified transactions
         if (filters.showModifiedOnly) {
@@ -1040,28 +1070,6 @@ const TransactionListComponent: React.FC<{
           if (modifiedDate < cutoffDate) return false;
         }
         
-        if (filters.dateRange.start && filters.dateRange.end) {
-          const txDate = new Date(t.date);
-          const startDate = new Date(filters.dateRange.start);
-          const endDate = new Date(filters.dateRange.end);
-          
-          // For "this month" filter, use the same logic as Dashboard
-          if (filters.dateRange.start === new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10) &&
-              filters.dateRange.end === new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10)) {
-            // This is "this month" filter - use same timezone logic as Dashboard
-            const localStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
-            const localEndDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-            
-            // Convert to UTC with timezone offset (same as Dashboard)
-            const utcStartDate = new Date(localStartDate.getTime() - (localStartDate.getTimezoneOffset() * 60000));
-            const utcEndDate = new Date(localEndDate.getTime() - (localEndDate.getTimezoneOffset() * 60000) + (24 * 60 * 60 * 1000) - 1);
-            
-            if (txDate < utcStartDate || txDate > utcEndDate) return false;
-          } else {
-            // For other date ranges, use the original logic
-            if (txDate < startDate || txDate > endDate) return false;
-          }
-        }
         return true;
       });
 

@@ -1530,90 +1530,115 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
 
           {/* Recurring Transaction Section - Moved to be more visible */}
           {/* Only show for premium users and not for purchase transactions */}
-          {/* Hide if editing a transaction that's part of a recurring series (parent or child) */}
+          {/* Hide if editing a parent recurring transaction (is_recurring === true), but show (disabled) for child transactions */}
           {data.type && isPremiumPlan && isExpenseType !== 'purchase' && 
-           !(isEditMode && transactionToEdit && (transactionToEdit.parent_recurring_id || transactionToEdit.is_recurring)) && (
+           !(isEditMode && transactionToEdit && transactionToEdit.is_recurring) && (
             <div className="border border-gray-100 dark:border-gray-700 rounded-lg p-4 mb-2 bg-gray-50 dark:bg-gray-800">
               <div className="relative">
                 <div className="flex items-center gap-2 mb-0">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <span className="relative flex items-center">
-                      <input
-                        type="checkbox"
-                        id="recurring"
-                        checked={data.is_recurring}
-                        onChange={(e) => setData({ ...data, is_recurring: e.target.checked })}
-                        className="sr-only"
-                      />
-                      <span className={`block w-5 h-5 rounded border-2 transition-all ${
-                        data.is_recurring
-                          ? 'border-blue-600 bg-blue-600 dark:border-blue-500 dark:bg-blue-500'
-                          : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-700'
-                      }`}>
-                        {data.is_recurring && (
-                          <svg className="w-3 h-3 text-white absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </span>
-                    </span>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Recurring Transaction
-                    </span>
-                  </label>
+                  {(() => {
+                    const isChildTransaction = isEditMode && transactionToEdit?.parent_recurring_id;
+                    return (
+                      <label className={`flex items-center gap-2 select-none ${isChildTransaction ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                        <span className="relative flex items-center">
+                          <input
+                            type="checkbox"
+                            id="recurring"
+                            checked={data.is_recurring}
+                            disabled={isChildTransaction}
+                            onChange={(e) => {
+                              if (!isChildTransaction) {
+                                setData({ ...data, is_recurring: e.target.checked });
+                              }
+                            }}
+                            className="sr-only"
+                          />
+                          <span className={`block w-5 h-5 rounded border-2 transition-all ${
+                            isChildTransaction
+                              ? 'border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-800 cursor-not-allowed'
+                              : data.is_recurring
+                              ? 'border-blue-600 bg-blue-600 dark:border-blue-500 dark:bg-blue-500'
+                              : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-700'
+                          }`}>
+                            {data.is_recurring && (
+                              <svg className="w-3 h-3 text-white absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </span>
+                        </span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Recurring Transaction
+                        </span>
+                      </label>
+                    );
+                  })()}
                 </div>
               </div>
               
-              {data.is_recurring && (
-                <div className="space-y-3 mt-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                      Frequency *
-                    </label>
-                    <CustomDropdown
-                      value={data.recurring_frequency}
-                      onChange={(value: string) => setData({ ...data, recurring_frequency: value as 'daily' | 'weekly' | 'monthly' | 'yearly' })}
-                      options={[
-                        { value: 'daily', label: 'Daily' },
-                        { value: 'weekly', label: 'Weekly' },
-                        { value: 'monthly', label: 'Monthly' },
-                        { value: 'yearly', label: 'Yearly' },
-                      ]}
-                      placeholder="Select frequency"
-                      fullWidth={true}
-                      className="relative"
-                      style={{ position: 'relative', zIndex: 1 }}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                      End Date (Optional)
-                    </label>
-                    <div className={getInputClasses('recurring_end_date') + ' flex items-center bg-gray-100 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full'}>
-                      <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <DatePicker
-                        selected={recurringEndDate ? parseISO(recurringEndDate) : null}
-                        onChange={date => setRecurringEndDate(date ? format(date, 'yyyy-MM-dd') : undefined)}
-                        placeholderText="No end date (recur forever)"
-                        dateFormat="yyyy-MM-dd"
-                        className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px]"
-                        calendarClassName="z-[100000] shadow-lg border border-gray-200 rounded-lg !font-sans"
-                        popperPlacement="bottom-start"
-                        showPopperArrow={false}
-                        wrapperClassName="w-full"
-                        isClearable
-                        minDate={parseISO(data.date)}
-                        autoComplete="off"
+              {data.is_recurring && (() => {
+                const isChildTransaction = isEditMode && transactionToEdit?.parent_recurring_id;
+                return (
+                  <div className="space-y-3 mt-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        Frequency *
+                      </label>
+                      <CustomDropdown
+                        value={data.recurring_frequency}
+                        disabled={isChildTransaction}
+                        onChange={(value: string) => {
+                          if (!isChildTransaction) {
+                            setData({ ...data, recurring_frequency: value as 'daily' | 'weekly' | 'monthly' | 'yearly' });
+                          }
+                        }}
+                        options={[
+                          { value: 'daily', label: 'Daily' },
+                          { value: 'weekly', label: 'Weekly' },
+                          { value: 'monthly', label: 'Monthly' },
+                          { value: 'yearly', label: 'Yearly' },
+                        ]}
+                        placeholder="Select frequency"
+                        fullWidth={true}
+                        className="relative"
+                        style={{ position: 'relative', zIndex: 1 }}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        End Date (Optional)
+                      </label>
+                      <div className={`${getInputClasses('recurring_end_date')} flex items-center bg-gray-100 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full ${isChildTransaction ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                        <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <DatePicker
+                          selected={recurringEndDate ? parseISO(recurringEndDate) : null}
+                          onChange={date => {
+                            if (!isChildTransaction) {
+                              setRecurringEndDate(date ? format(date, 'yyyy-MM-dd') : undefined);
+                            }
+                          }}
+                          disabled={isChildTransaction}
+                          placeholderText="No end date (recur forever)"
+                          dateFormat="yyyy-MM-dd"
+                          className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px]"
+                          calendarClassName="z-[100000] shadow-lg border border-gray-200 rounded-lg !font-sans"
+                          popperPlacement="bottom-start"
+                          showPopperArrow={false}
+                          wrapperClassName="w-full"
+                          isClearable
+                          minDate={parseISO(data.date)}
+                          autoComplete="off"
                         popperProps={{ strategy: 'fixed' }}
                       />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">Leave empty for unlimited recurring transactions</p>
                   </div>
                 </div>
-              )}
+                );
+              })()}
             </div>
           )}
 

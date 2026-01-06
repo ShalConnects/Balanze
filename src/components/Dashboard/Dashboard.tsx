@@ -21,6 +21,7 @@ import { LendBorrowSummaryCard } from './LendBorrowSummaryCard';
 import { TransferSummaryCard } from './TransferSummaryCard';
 import { CurrencyOverviewCard } from './CurrencyOverviewCard';
 import { DonationSavingsOverviewCard } from './DonationSavingsOverviewCard';
+import { ClientsOverviewCard } from './ClientsOverviewCard';
 import { ClientTasksWidget } from './ClientTasksWidget';
 import { ClientsSummaryWidget } from './ClientsSummaryWidget';
 import { TaskRemindersWidget } from './TaskRemindersWidget';
@@ -835,7 +836,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
       {/* Main Dashboard Content */}
       <div data-tour="dashboard" className="flex flex-col lg:flex-row gap-6">
         {/* Main Content - Full width on mobile, flex-1 on desktop */}
-        <div className="flex-1 space-y-6">
+        <div className="flex-1 space-y-4 sm:space-y-6">
 
           {/* Multi-Currency Quick Access */}
           {stats.byCurrency.length > 1 && showMultiCurrencyAnalytics && (
@@ -874,7 +875,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           {/* <ClientTasksWidget /> */}
 
           {/* Currency Sections & Donations - Responsive grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 items-start auto-rows-fr">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 items-start auto-rows-fr">
             {stats.byCurrency.length > 0 ? (
               stats.byCurrency.map(({ currency }) => (
                 <div key={currency} className="w-full h-full">
@@ -921,7 +922,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
             const hasPurchases = purchases.length > 0;
             const hasLendBorrow = isPremium && hasLendBorrowRecords;
             const hasTransfersCard = hasTransfers;
-            const hasClientsCard = clients.length > 0 && showClientsWidget;
+            const hasClientsCard = clients.length > 0;
             const hasAnyCards = hasDonations || hasPurchases || hasLendBorrow || hasTransfersCard || hasClientsCard;
             const hasMultipleCurrencies = filteredDashboardCurrencies.length > 1;
             
@@ -929,7 +930,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
             if (!hasMultipleCurrencies && !hasAnyCards) return null;
             
             return (
-              <div className="flex flex-row items-center justify-between gap-2 sm:gap-3 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-lg p-2 sm:p-2.5 border border-blue-200/50 dark:border-blue-800/50 shadow-sm">
+              <div className="flex flex-row items-center justify-between gap-2 sm:gap-3 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-lg p-2 sm:p-2.5 border border-blue-200/50 dark:border-blue-800/50 shadow-sm mt-4 sm:mt-6">
                 {/* Left side: Currency Filter */}
                 {hasMultipleCurrencies && (
                   <div className="flex items-center gap-2 flex-1 md:flex-initial">
@@ -1036,7 +1037,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           })()}
 
           {/* Donations, Purchase, L&B, Transfer - Responsive grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 items-start auto-rows-fr">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 items-start auto-rows-fr">
             {/* Donations Overview Card - Place after currency cards */}
             {showDonationsSavingsWidget && (
               <div className="w-full h-full animate-fadeIn">
@@ -1262,12 +1263,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
               </div>
             )}
             
-            {/* Clients Summary Widget */}
-            {/* {clients.length > 0 && showClientsWidget && (
+            {/* Clients Overview Card */}
+            {clients.length > 0 && showClientsWidget && (
               <div className="w-full h-full animate-fadeIn">
-                <ClientsSummaryWidget filterCurrency={dashboardCurrencyFilter} />
+                <ClientsOverviewCard filterCurrency={dashboardCurrencyFilter} />
               </div>
-            )} */}
+            )}
             
           </div>
 
@@ -1277,8 +1278,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           </div>
 
           {/* Recent Transactions - Hidden on mobile, shown on desktop */}
-          <div className="hidden lg:block w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700">
-            <div className="flex items-center justify-between mb-4">
+          <div className="hidden lg:block w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-3 sm:p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('dashboard.recentTransactions')}</h2>
               <Link 
                 to="/transactions" 

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowRight, ChevronDown, ChevronUp, AlertCircle, Flame, Calendar } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ChevronDown, ChevronUp, AlertCircle, Flame, Calendar } from 'lucide-react';
 import { useClientStore } from '../../store/useClientStore';
 import { Task } from '../../types/client';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
@@ -25,7 +24,7 @@ export const ClientTasksWidget: React.FC = () => {
   const { tasks, clients, fetchTasks, fetchClients, updateTask, updateTaskPositions, deleteTask, error, tasksLoading } = useClientStore();
   const { isMobile } = useMobileDetection();
   const [statusMenuOpen, setStatusMenuOpen] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false); // Default to collapsed
+  const [isExpanded, setIsExpanded] = useState(true); // Default to expanded
   const [isDraggingTask, setIsDraggingTask] = useState<string | null>(null);
   const [optimisticTasks, setOptimisticTasks] = useState<Task[] | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -357,40 +356,6 @@ export const ClientTasksWidget: React.FC = () => {
             Client Tasks ({allActiveTasks.length})
           </h2>
           
-          {/* Collapsed State Indicators - Desktop (inline badges) */}
-          {!isExpanded && (
-            <div className="hidden md:flex items-center gap-1 xs:gap-1.5 sm:gap-2 ml-1 sm:ml-2 flex-wrap">
-              {stats.overdue > 0 && (
-                <span className="inline-flex items-center gap-0.5 xs:gap-1 px-1.5 xs:px-2 sm:px-2.5 py-0.5 xs:py-1 rounded-full text-[9px] xs:text-[10px] sm:text-xs font-semibold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 shadow-sm">
-                  <AlertCircle className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5" />
-                  <span className="hidden lg:inline">{stats.overdue} Overdue</span>
-                  <span className="lg:hidden">{stats.overdue}</span>
-                </span>
-              )}
-              {stats.dueToday > 0 && (
-                <span className="inline-flex items-center gap-0.5 xs:gap-1 px-1.5 xs:px-2 sm:px-2.5 py-0.5 xs:py-1 rounded-full text-[9px] xs:text-[10px] sm:text-xs font-semibold bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 shadow-sm">
-                  <Calendar className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5" />
-                  <span className="hidden lg:inline">{stats.dueToday} Due Today</span>
-                  <span className="lg:hidden">{stats.dueToday}</span>
-                </span>
-              )}
-              {stats.urgent > 0 && (
-                <span className="inline-flex items-center gap-0.5 xs:gap-1 px-1.5 xs:px-2 sm:px-2.5 py-0.5 xs:py-1 rounded-full text-[9px] xs:text-[10px] sm:text-xs font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-sm">
-                  <Flame className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5" />
-                  <span className="hidden lg:inline">{stats.urgent} Urgent</span>
-                  <span className="lg:hidden">{stats.urgent}</span>
-                </span>
-              )}
-              {stats.dueThisWeek > 0 && (
-                <span className="inline-flex items-center gap-0.5 xs:gap-1 px-1.5 xs:px-2 sm:px-2.5 py-0.5 xs:py-1 rounded-full text-[9px] xs:text-[10px] sm:text-xs font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-sm">
-                  <Calendar className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5" />
-                  <span className="hidden lg:inline">{stats.dueThisWeek} Due This Week</span>
-                  <span className="lg:hidden">{stats.dueThisWeek}</span>
-                </span>
-              )}
-            </div>
-          )}
-          
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -407,15 +372,40 @@ export const ClientTasksWidget: React.FC = () => {
             )}
           </button>
         </div>
-        <Link 
-          to="/clients" 
-          onClick={(e) => e.stopPropagation()}
-          className="text-xs sm:text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex-shrink-0 self-start sm:self-auto mt-0.5 sm:mt-0"
-        >
-          <span className="hidden sm:inline">View All</span>
-          <span className="sm:hidden">All</span>
-          <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
-        </Link>
+        
+        {/* Collapsed State Indicators - Desktop (right side badges) */}
+        {!isExpanded && (
+          <div className="hidden md:flex items-center gap-1 xs:gap-1.5 sm:gap-2 flex-wrap">
+            {stats.overdue > 0 && (
+              <span className="inline-flex items-center gap-0.5 xs:gap-1 px-1.5 xs:px-2 sm:px-2.5 py-0.5 xs:py-1 rounded-full text-[9px] xs:text-[10px] sm:text-xs font-semibold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 shadow-sm">
+                <AlertCircle className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden lg:inline">{stats.overdue} Overdue</span>
+                <span className="lg:hidden">{stats.overdue}</span>
+              </span>
+            )}
+            {stats.dueToday > 0 && (
+              <span className="inline-flex items-center gap-0.5 xs:gap-1 px-1.5 xs:px-2 sm:px-2.5 py-0.5 xs:py-1 rounded-full text-[9px] xs:text-[10px] sm:text-xs font-semibold bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 shadow-sm">
+                <Calendar className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden lg:inline">{stats.dueToday} Due Today</span>
+                <span className="lg:hidden">{stats.dueToday}</span>
+              </span>
+            )}
+            {stats.urgent > 0 && (
+              <span className="inline-flex items-center gap-0.5 xs:gap-1 px-1.5 xs:px-2 sm:px-2.5 py-0.5 xs:py-1 rounded-full text-[9px] xs:text-[10px] sm:text-xs font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-sm">
+                <Flame className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden lg:inline">{stats.urgent} Urgent</span>
+                <span className="lg:hidden">{stats.urgent}</span>
+              </span>
+            )}
+            {stats.dueThisWeek > 0 && (
+              <span className="inline-flex items-center gap-0.5 xs:gap-1 px-1.5 xs:px-2 sm:px-2.5 py-0.5 xs:py-1 rounded-full text-[9px] xs:text-[10px] sm:text-xs font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-sm">
+                <Calendar className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden lg:inline">{stats.dueThisWeek} Due This Week</span>
+                <span className="lg:hidden">{stats.dueThisWeek}</span>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Error Message */}
