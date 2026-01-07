@@ -1170,11 +1170,11 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
               </p>
             </div>
 
-            ${settings.message ? `
+            ${settings.message && settings.message.trim() && settings.message.trim() !== 'This is the personal message' ? `
               <!-- Personal Message Card -->
               <div class="message-card">
                 <h3>Personal Message from ${userName}</h3>
-                <p>${settings.message}</p>
+                <p>${settings.message.trim()}</p>
               </div>
             ` : ''}
 
@@ -1455,8 +1455,18 @@ export function createPDFBuffer(user, recipient, data, settings) {
       doc.on('error', reject);
       
       // Helper functions for formatting
+      // Note: Using "BDT" text instead of ৳ symbol to avoid font compatibility issues in PDF
       const formatCurrency = (amount, currency = 'USD') => {
-        const symbols = { USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', INR: '₹', CAD: '$', AUD: '$' };
+        const symbols = { 
+          USD: '$', 
+          BDT: 'BDT ',  // Use text instead of ৳ to avoid Unicode font issues
+          EUR: '€', 
+          GBP: '£', 
+          JPY: '¥', 
+          INR: '₹', 
+          CAD: '$', 
+          AUD: '$' 
+        };
         const symbol = symbols[currency] || currency;
         return `${symbol}${Math.abs(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       };
@@ -1524,10 +1534,14 @@ export function createPDFBuffer(user, recipient, data, settings) {
       const recipientName = recipient.name || recipient.email;
       const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Account holder';
 
-      // Track total pages (will be updated)
+      // Track current page and total pages
+      let currentPageNum = 1;
       let totalPages = 1;
       const updateTotalPages = () => {
         totalPages = doc.bufferedPageRange().count;
+      };
+      const getCurrentPage = () => {
+        return doc.bufferedPageRange().start + 1;
       };
       
       // Helper to draw table
@@ -1578,7 +1592,8 @@ export function createPDFBuffer(user, recipient, data, settings) {
             doc.addPage();
             addWatermark();
             updateTotalPages();
-            addHeaderFooter(totalPages, totalPages);
+            currentPageNum = getCurrentPage();
+            addHeaderFooter(currentPageNum, totalPages);
             currentY = 80;
           }
           
@@ -1633,10 +1648,15 @@ export function createPDFBuffer(user, recipient, data, settings) {
       
       addHeaderFooter(1, 1);
       updateTotalPages();
+      currentPageNum = 1;
       
       // TABLE OF CONTENTS
       doc.addPage();
       addWatermark();
+      updateTotalPages();
+      currentPageNum = 2;
+      addHeaderFooter(currentPageNum, totalPages);
+      
       doc.fillColor('#f9fafb').fontSize(20).font('Helvetica-Bold')
         .text('Table of Contents', 50, 80);
       doc.moveDown(1);
@@ -1651,21 +1671,21 @@ export function createPDFBuffer(user, recipient, data, settings) {
       const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active' || lb.status === 'overdue');
       
       // Calculate page numbers (Financial Summary is page 3, then accounts, then lend/borrow)
-      let currentPage = 3; // Financial Summary page
-      tocItems.push({ title: 'Financial Summary', page: currentPage });
-      currentPage++;
+      let tocPageNum = 3; // Financial Summary page
+      tocItems.push({ title: 'Financial Summary', page: tocPageNum });
+      tocPageNum++;
       
       if (accountsWithBalance.length > 0) {
         // Group by currency and add each currency group
         const currencies = [...new Set(accountsWithBalance.map(acc => acc.currency || 'USD'))];
         currencies.forEach((currency) => {
-          tocItems.push({ title: `Accounts - ${currency}`, page: currentPage });
-          currentPage++;
+          tocItems.push({ title: `Accounts - ${currency}`, page: tocPageNum });
+          tocPageNum++;
         });
       }
       
       if (activeLendBorrow.length > 0) {
-        tocItems.push({ title: 'Lend/Borrow Records', page: currentPage });
+        tocItems.push({ title: 'Lend/Borrow Records', page: tocPageNum });
       }
       
       tocItems.forEach((item, index) => {
@@ -1674,15 +1694,13 @@ export function createPDFBuffer(user, recipient, data, settings) {
         doc.fillColor('#6b7280').fontSize(9)
           .text(`........ ${item.page}`, doc.page.width - 100, tocY + (index * 20), { align: 'right' });
       });
-      
-      addHeaderFooter(2, 2);
-      updateTotalPages();
 
       // FINANCIAL SUMMARY PAGE
       doc.addPage();
       addWatermark();
       updateTotalPages();
-      addHeaderFooter(totalPages, totalPages);
+      currentPageNum = 3;
+      addHeaderFooter(currentPageNum, totalPages);
       
       doc.fillColor('#f9fafb').fontSize(20).font('Helvetica-Bold')
         .text('Financial Summary', 50, 80);
@@ -1817,7 +1835,8 @@ export function createPDFBuffer(user, recipient, data, settings) {
           }
           addWatermark();
           updateTotalPages();
-          addHeaderFooter(totalPages, totalPages);
+          currentPageNum = getCurrentPage();
+          addHeaderFooter(currentPageNum, totalPages);
           
           doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
             .text(`Accounts - ${currency}`, 50, 80);
@@ -1855,7 +1874,8 @@ export function createPDFBuffer(user, recipient, data, settings) {
         doc.addPage();
         addWatermark();
         updateTotalPages();
-        addHeaderFooter(totalPages, totalPages);
+        currentPageNum = getCurrentPage();
+        addHeaderFooter(currentPageNum, totalPages);
         
         doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
           .text('Lend/Borrow Records', 50, 80);
@@ -2102,6 +2122,35 @@ async function sendLastWishEmail(userId, testMode = false) {
       console.log(`[SEND-LAST-WISH-EMAIL] Fetching settings for target user...`);
     }
     
+    // First, atomically mark as triggered to prevent duplicate sends
+    // This must happen BEFORE fetching settings to prevent race conditions
+    const { data: lockData, error: lockError } = await supabase
+      .from('last_wish_settings')
+      .update({ 
+        delivery_triggered: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('delivery_triggered', false) // Only update if not already triggered
+      .select();
+    
+    if (lockError) {
+      await logError('sendLastWishEmail', lockError, { ...metadata, operation: 'lockSettings' });
+      throw new Error(`Failed to lock settings: ${lockError.message}`);
+    }
+    
+    // If no rows were updated, it means delivery_triggered was already true
+    if (!lockData || lockData.length === 0) {
+      if (isTargetUser) {
+        console.log(`[SEND-LAST-WISH-EMAIL] ⚠️ Settings already marked as triggered, skipping to prevent duplicates`);
+      }
+      return res.status(200).json({
+        success: false,
+        message: 'Last Wish delivery already triggered for this user',
+        skipped: true
+      });
+    }
+    
     const settings = await retryWithBackoff(
       async () => {
         const { data, error: settingsError } = await supabase
@@ -2259,7 +2308,7 @@ async function sendLastWishEmail(userId, testMode = false) {
       }
     }
 
-    // Mark as delivered (only if not in test mode and at least one email succeeded)
+    // Mark as inactive (delivery_triggered was already set at the start to prevent duplicates)
     if (!testMode) {
       const successCount = results.filter(r => r.success).length;
       if (successCount > 0) {
@@ -2268,7 +2317,6 @@ async function sendLastWishEmail(userId, testMode = false) {
         .from('last_wish_settings')
         .update({ 
           is_active: false,
-          delivery_triggered: true,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', userId);
@@ -2279,6 +2327,22 @@ async function sendLastWishEmail(userId, testMode = false) {
             successCount
           });
           // Don't fail the whole operation if settings update fails
+        }
+      } else {
+        // If all emails failed, reset delivery_triggered to allow retry
+        try {
+          await supabase
+            .from('last_wish_settings')
+            .update({ 
+              delivery_triggered: false,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', userId);
+        } catch (resetError) {
+          await logError('sendLastWishEmail', resetError, {
+            ...metadata,
+            operation: 'resetDeliveryTriggered'
+          });
         }
       }
     }

@@ -183,15 +183,19 @@ export default async function handler(req, res) {
             message: emailResult.message
           });
           
-          // Mark as delivered to prevent duplicate processing
-          const updateResult = await supabase
-            .from('last_wish_settings')
-            .update({ delivery_triggered: true })
-            .eq('user_id', user.user_id);
-          
+          // Note: delivery_triggered is already set by the email handler to prevent duplicates
+          // No need to update here to avoid race conditions
+        } else if (emailResult && emailResult.skipped) {
           if (isTargetUser) {
-            console.log(`[LAST-WISH-PUBLIC] Update delivery_triggered result:`, JSON.stringify(updateResult, null, 2));
+            console.log(`[LAST-WISH-PUBLIC] ⚠️ Email skipped (already triggered) for target user`);
           }
+          
+          emailResults.push({
+            user_id: user.user_id,
+            success: false,
+            skipped: true,
+            message: emailResult.message || 'Already triggered'
+          });
         } else {
           if (isTargetUser) {
             console.error(`[LAST-WISH-PUBLIC] ❌ Email failed for target user. Error:`, emailResult?.error || 'Unknown error');
