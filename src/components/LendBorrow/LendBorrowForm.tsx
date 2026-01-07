@@ -16,6 +16,8 @@ import { useLoadingContext } from '../../context/LoadingContext';
 import { getCurrencySymbol } from '../../utils/currency';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { AmountAdjustmentModal } from '../common/AmountAdjustmentModal';
+import { supabase } from '../../lib/supabase';
+import { EyeOff } from 'lucide-react';
 
 interface LendBorrowFormProps {
   record?: LendBorrow;
@@ -54,11 +56,20 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
   // Amount adjustment mode state
   const [amountMode, setAmountMode] = useState<'set' | 'adjust'>('set');
   const [originalAmount, setOriginalAmount] = useState<number | null>(null);
+  const [showAmountModal, setShowAmountModal] = useState(false);
   
   // Autocomplete state for person name
   const [showPersonNameSuggestions, setShowPersonNameSuggestions] = useState(false);
   const [personNameSuggestions, setPersonNameSuggestions] = useState<string[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  
+  // Partial returns state for validation
+  const [partialReturns, setPartialReturns] = useState<any[]>([]);
+
+  // Check if the record's account is hidden/inactive when editing
+  const isAccountHidden = record && record.account_id 
+    ? !accounts.find(acc => acc.id === record.account_id)?.isActive 
+    : false;
 
   // Responsive: stack fields vertically on mobile
   const fieldRowClass = 'flex flex-col sm:flex-row gap-2 sm:gap-x-4 sm:items-center';
@@ -67,19 +78,37 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
   // Currency will be automatically set from the selected account
   // No need for currency dropdown since it comes from the account
 
-  // Sort accounts: default currency first, then by currency alphabetically, then by balance (descending)
-  const sortedAccountOptions = accounts.sort((a, b) => {
-    const defaultCurrency = profile?.local_currency || 'USD';
-    // Default currency first
-    if (a.currency === defaultCurrency && b.currency !== defaultCurrency) return -1;
-    if (a.currency !== defaultCurrency && b.currency === defaultCurrency) return 1;
-    // Then sort by currency alphabetically
-    if (a.currency !== b.currency) {
-      return a.currency.localeCompare(b.currency);
+  // Filter and sort accounts: only active accounts (excluding DPS), but include current account if editing
+  const sortedAccountOptions = React.useMemo(() => {
+    // Get active accounts (excluding DPS accounts)
+    let availableAccounts = accounts.filter(account => account.isActive && !account.name.includes('(DPS)'));
+    
+    // If editing a record, include its current account even if hidden/inactive
+    if (record?.account_id) {
+      const currentAccount = accounts.find(acc => acc.id === record.account_id);
+      if (currentAccount && !currentAccount.name.includes('(DPS)')) {
+        // Add the current account if it's not already in the list
+        const accountExists = availableAccounts.some(acc => acc.id === currentAccount.id);
+        if (!accountExists) {
+          availableAccounts = [...availableAccounts, currentAccount];
+        }
+      }
     }
-    // Within same currency, sort by balance (descending - highest first)
-    return (b.calculated_balance || 0) - (a.calculated_balance || 0);
-  });
+    
+    // Sort: default currency first, then by currency alphabetically, then by balance (descending)
+    const defaultCurrency = profile?.local_currency || 'USD';
+    return availableAccounts.sort((a, b) => {
+      // Default currency first
+      if (a.currency === defaultCurrency && b.currency !== defaultCurrency) return -1;
+      if (a.currency !== defaultCurrency && b.currency === defaultCurrency) return 1;
+      // Then sort by currency alphabetically
+      if (a.currency !== b.currency) {
+        return a.currency.localeCompare(b.currency);
+      }
+      // Within same currency, sort by balance (descending - highest first)
+      return (b.calculated_balance || 0) - (a.calculated_balance || 0);
+    });
+  }, [accounts, record?.account_id, profile?.local_currency]);
 
   // Auto-set currency when account is selected
   useEffect(() => {
@@ -108,6 +137,29 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
       setOriginalAmount(null);
       setAmountMode('set');
       setAmountInput('');
+    }
+  }, [record?.id]);
+
+  // Fetch partial returns when editing
+  useEffect(() => {
+    if (record?.id) {
+      const fetchPartialReturns = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('lend_borrow_returns')
+            .select('*')
+            .eq('lend_borrow_id', record.id)
+            .order('created_at', { ascending: false });
+          if (error) throw error;
+          setPartialReturns(data || []);
+        } catch (error) {
+          console.error('Error fetching partial returns:', error);
+          setPartialReturns([]);
+        }
+      };
+      fetchPartialReturns();
+    } else {
+      setPartialReturns([]);
     }
   }, [record?.id]);
 
@@ -152,6 +204,13 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
+    
+    // Prevent editing records with hidden accounts
+    if (isAccountHidden) {
+      newErrors.account_id = 'Cannot edit record with hidden account. Please activate the account first.';
+      setErrors(newErrors);
+      return false;
+    }
     
     if (!form.person_name.trim()) {
       newErrors.person_name = 'Person name is required';
@@ -270,6 +329,30 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
     e.preventDefault();
     setTouched({ person_name: true, amount: true, type: true });
     
+    // Prevent editing settled records
+    if (record && record.status === 'settled') {
+      toast.error('Cannot edit a settled record');
+      return;
+    }
+
+    // Validate amount >= total partial returns when editing
+    if (record && form.amount) {
+      const totalReturned = partialReturns.reduce((sum, ret) => sum + ret.amount, 0) + (record.partial_return_amount || 0);
+      if (form.amount < totalReturned) {
+        toast.error(`Amount cannot be less than total partial returns (${getCurrencySymbol(form.currency || 'USD')}${totalReturned.toFixed(2)})`);
+        setErrors(prev => ({ ...prev, amount: `Amount must be at least ${getCurrencySymbol(form.currency || 'USD')}${totalReturned.toFixed(2)}` }));
+        return;
+      }
+    }
+
+    // Warn about account_id changes for records with transactions
+    if (record && record.account_id && record.transaction_id && form.account_id !== record.account_id) {
+      const confirmed = window.confirm('Changing the account for a record with existing transactions may cause inconsistencies. Are you sure you want to continue?');
+      if (!confirmed) {
+        return;
+      }
+    }
+    
     // Ensure currency is set from the selected account (only for account-linked records)
     if (form.affect_account_balance && form.account_id) {
       const selectedAccount = accounts.find(acc => acc.id === form.account_id);
@@ -371,6 +454,21 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
             </button>
           </div>
 
+          {/* Alert banner for hidden account */}
+          {isAccountHidden && (
+            <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-3">
+              <EyeOff className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  This record belongs to a hidden account.
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                  Please activate the account in Account Settings to edit this record.
+                </p>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Account Balance Toggle */}
             <div className="w-full" style={{ marginTop: 0, marginBottom: '15px' }}>
@@ -442,7 +540,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                     { value: 'borrow', label: t('lendBorrow.borrow') },
                   ]}
                   placeholder="Type *"
-                  disabled={!!record}
+                  disabled={isAccountHidden || !!record}
                 />
                 {errors.type && touched.type ? (
                   <p className="mt-1 text-xs text-red-600 flex items-center min-h-[20px]">
@@ -471,6 +569,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                   placeholder="Enter person's name *"
                   autoComplete="off"
                   autoFocus={!record}
+                  disabled={isAccountHidden}
                 />
                 {form.person_name && (
                   <button
@@ -540,7 +639,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                       }))
                     }
                     placeholder="Select account *"
-                    disabled={!!record}
+                    disabled={isAccountHidden}
                   />
                 ) : (
                   <CustomDropdown
@@ -553,7 +652,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                       }))
                     }
                     placeholder="Select currency *"
-                    disabled={!!record}
+                    disabled={isAccountHidden || !!record}
                   />
                 )}
                 {errors.account_id && touched.account_id ? (
@@ -581,7 +680,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                   onChange={handleChange}
                   onClick={(e) => {
                     // Open modal when clicking on amount field (only when editing)
-                    if (record && record.amount) {
+                    if (record && record.amount && !isAccountHidden) {
                       e.preventDefault();
                       setShowAmountModal(true);
                     }
@@ -590,7 +689,8 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                   className={getInputClasses('amount') + ` min-w-[150px] ${record && record.amount ? 'cursor-pointer' : ''}`}
                   placeholder="0.00 *"
                   autoComplete="off"
-                  readOnly={record && record.amount ? true : false}
+                  readOnly={(record && record.amount) || isAccountHidden ? true : false}
+                  disabled={isAccountHidden}
                 />
                 {record && record.amount && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-600 dark:text-blue-400">
@@ -627,6 +727,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                   highlightDates={[today]}
                   isClearable
                   autoComplete="off"
+                  disabled={isAccountHidden}
                 />
                 <button
                   type="button"
@@ -655,6 +756,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
                 onBlur={handleBlur}
                 className={getInputClasses('notes') + ' w-full resize-none h-[100px] pr-8'}
                 placeholder="Add any notes, description, or additional details about this transaction"
+                disabled={isAccountHidden}
               />
               {form.notes && (
                 <button
@@ -688,7 +790,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
               <button
                 type="submit"
                 className="px-4 py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[80px]"
-                disabled={isLoading || !isFormValid}
+                disabled={isLoading || !isFormValid || isAccountHidden}
               >
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 {record ? 'Update' : 'Add'}

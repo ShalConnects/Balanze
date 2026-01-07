@@ -615,6 +615,21 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
               </div>
             </div>
             
+            {/* Upgrade Button for Free Users - Desktop only */}
+            {!isMobile && profile?.subscription?.plan === 'free' && (
+              <button
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  navigate('/settings?tab=plans-usage');
+                }}
+                className="flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 sm:py-1.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-xs font-medium hover:from-blue-700 hover:to-purple-700 transition-all shadow-sm hover:shadow-md flex-shrink-0 touch-button touch-active min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
+                title="Upgrade to Premium"
+              >
+                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="hidden sm:inline md:hidden lg:inline">Upgrade</span>
+              </button>
+            )}
+            
             {/* User Menu */}
             <div className="relative flex-shrink-0">
               <button

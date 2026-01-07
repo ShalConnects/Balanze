@@ -370,14 +370,14 @@ function calculateFinancialMetrics(data) {
     return sum + (parseFloat(asset.current_value || asset.total_value || 0) || 0);
   }, 0);
   
-  // Calculate outstanding debts (borrowed amounts that are still active)
+  // Calculate outstanding debts (borrowed amounts that are still active or overdue)
   const outstandingDebts = lendBorrow
-    .filter(lb => lb.type === 'borrowed' && lb.status === 'active')
+    .filter(lb => (lb.type === 'borrow' || lb.type === 'borrowed') && (lb.status === 'active' || lb.status === 'overdue'))
     .reduce((sum, lb) => sum + (parseFloat(lb.amount) || 0), 0);
   
-  // Calculate amounts owed to user (lent amounts that are still active)
+  // Calculate amounts owed to user (lent amounts that are still active or overdue)
   const amountsOwed = lendBorrow
-    .filter(lb => lb.type === 'lent' && lb.status === 'active')
+    .filter(lb => (lb.type === 'lend' || lb.type === 'lent') && (lb.status === 'active' || lb.status === 'overdue'))
     .reduce((sum, lb) => sum + (parseFloat(lb.amount) || 0), 0);
   
   // Net worth = Total assets + Investments - Outstanding debts + Amounts owed
@@ -543,10 +543,10 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
     accountsByCurrency[currency] += 1;
   });
 
-  // Calculate Lent & Borrow metrics (only active records)
-  const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active');
-  const activeLent = activeLendBorrow.filter(lb => lb.type === 'lent' || lb.type === 'lend');
-  const activeBorrowed = activeLendBorrow.filter(lb => lb.type === 'borrowed' || lb.type === 'borrow');
+  // Calculate Lent & Borrow metrics (active and overdue records)
+  const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active' || lb.status === 'overdue');
+  const activeLent = activeLendBorrow.filter(lb => lb.type === 'lend' || lb.type === 'lent');
+  const activeBorrowed = activeLendBorrow.filter(lb => lb.type === 'borrow' || lb.type === 'borrowed');
   
   // Calculate totals by currency for lent
   const lentByCurrency = {};
@@ -1647,8 +1647,8 @@ export function createPDFBuffer(user, recipient, data, settings) {
       // Filter accounts to exclude zero balances
       const accountsWithBalance = (data.accounts || []).filter(acc => parseFloat(acc.calculated_balance) !== 0);
       
-      // Filter lend/borrow to only active records (used in TOC and Financial Summary)
-      const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active');
+      // Filter lend/borrow to active and overdue records (used in TOC and Financial Summary)
+      const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active' || lb.status === 'overdue');
       
       // Calculate page numbers (Financial Summary is page 3, then accounts, then lend/borrow)
       let currentPage = 3; // Financial Summary page
@@ -1703,8 +1703,8 @@ export function createPDFBuffer(user, recipient, data, settings) {
       });
       
       // Calculate lend/borrow totals (activeLendBorrow already declared above)
-      const activeLent = activeLendBorrow.filter(lb => lb.type === 'lent' || lb.type === 'lend');
-      const activeBorrowed = activeLendBorrow.filter(lb => lb.type === 'borrowed' || lb.type === 'borrow');
+      const activeLent = activeLendBorrow.filter(lb => lb.type === 'lend' || lb.type === 'lent');
+      const activeBorrowed = activeLendBorrow.filter(lb => lb.type === 'borrow' || lb.type === 'borrowed');
       
       const lentByCurrency = {};
       activeLent.forEach(lb => {

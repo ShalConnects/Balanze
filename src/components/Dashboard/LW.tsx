@@ -1355,26 +1355,34 @@ These memories are my gift to you.`
         {/* Check-in Frequency */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 shadow-sm">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">Check-in Frequency</h3>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-            {[7, 14, 30, 60, 90].map((days) => (
-              <label key={days} className={`relative cursor-pointer p-2 sm:p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
-                settings.checkInFrequency === days
+          <div className="grid grid-cols-3 sm:grid-cols-7 gap-2">
+            {[
+              { value: 0.0417, label: '1', unit: 'hour' },
+              { value: 1, label: '1', unit: 'day' },
+              { value: 7, label: '7', unit: 'days' },
+              { value: 14, label: '14', unit: 'days' },
+              { value: 30, label: '30', unit: 'days' },
+              { value: 60, label: '60', unit: 'days' },
+              { value: 90, label: '90', unit: 'days' }
+            ].map((option) => (
+              <label key={option.value} className={`relative cursor-pointer p-2 sm:p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
+                Math.abs(settings.checkInFrequency - option.value) < 0.0001
                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                   : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
               }`}>
                 <input
                   type="radio"
                   name="frequency"
-                  value={days}
-                  checked={settings.checkInFrequency === days}
+                  value={option.value}
+                  checked={Math.abs(settings.checkInFrequency - option.value) < 0.0001}
                   onChange={(e) => updateCheckInFrequency(parseFloat(e.target.value))}
                   className="sr-only"
                 />
                 <div className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
-                  {days}
+                  {option.label}
                 </div>
                 <div className="text-xs text-gray-600 dark:text-gray-400">
-                  days
+                  {option.unit}
                 </div>
               </label>
             ))}

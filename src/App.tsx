@@ -67,6 +67,7 @@ const SitemapPage = lazy(() => import('./pages/SitemapPage'));
 const DonationsSavingsPage = lazy(() => import('./pages/DonationsSavingsPage'));
 const FavoriteQuotes = lazy(() => import('./pages/FavoriteQuotes').then(m => ({ default: m.FavoriteQuotes })));
 const Achievements = lazy(() => import('./pages/Achievements'));
+const HabitGarden = lazy(() => import('./components/Habits/HabitGarden').then(m => ({ default: m.HabitGarden })));
 const KBArticlePage = lazy(() => import('./pages/KBArticlePage'));
 const KBSitemapPage = lazy(() => import('./pages/KBSitemapPage'));
 const KBRobotsPage = lazy(() => import('./pages/KBRobotsPage'));
@@ -814,6 +815,7 @@ function AppContent() {
         <Route path="/analytics" element={user ? <MainLayout><AnalyticsView /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/currency-analytics" element={user ? <Navigate to="/analytics" replace /> : <Navigate to="/login" />} />
         <Route path="/clients" element={user ? <MainLayout><ClientList /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/habits" element={user ? <MainLayout><HabitGarden /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/settings" element={user ? <MainLayout><Settings /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/payment-history" element={user ? <PaymentHistoryPage /> : <Navigate to="/login" />} />
         <Route path="/help" element={user ? <HelpLayout><HelpAndSupport /></HelpLayout> : <Navigate to="/login" />} />

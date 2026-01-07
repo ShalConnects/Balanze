@@ -17,7 +17,9 @@ import {
   Users,
   FileText,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Sprout,
+  Sparkles
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
@@ -44,8 +46,10 @@ const navigation = [
   { 
     name: 'navigation.clients', 
     id: 'clients', 
-    icon: Users
+    icon: Users,
+    isNew: true
   },
+  { name: 'navigation.habits', id: 'habits', icon: Sprout, isNew: true },
   { name: 'navigation.analytics', id: 'analytics', icon: PieChart },
   { name: 'navigation.settings', id: 'settings', icon: Settings },
 ];
@@ -61,6 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
   const navigate = useNavigate();
   const location = useLocation();
   const { isSidebarCollapsed, toggleSidebar, isDarkMode } = useThemeStore();
+  const { profile } = useAuthStore();
   
   // Check if we're on a demo page
   const isDemoPage = location.pathname.includes('/dashboard-demo');
@@ -228,6 +233,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
             </button>
           </div>
           
+          {/* Upgrade Button for Free Users - Mobile only */}
+          {isMobile && isOpen && profile?.subscription?.plan === 'free' && (
+            <div className={`px-4 pb-3 ${
+              isMobile ? (isOpen ? 'px-4' : 'px-2') : (effectiveCollapsed ? 'px-2' : 'px-4')
+            }`}>
+              <button
+                onClick={() => {
+                  triggerHapticFeedback('light');
+                  navigate('/settings?tab=plans-usage');
+                }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-blue-700 hover:to-purple-700 transition-all shadow-sm hover:shadow-md touch-button touch-active min-h-[44px]"
+                title="Upgrade to Premium"
+              >
+                <Sparkles className="w-4 h-4 flex-shrink-0" />
+                <span>Upgrade to Premium</span>
+              </button>
+            </div>
+          )}
+          
           {/* Navigation */}
           <nav 
             data-tour="navigation"
@@ -297,6 +321,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
                     {(!isMobile && !effectiveCollapsed) || (isMobile && isOpen) ? (
                       <>
                         <span className={`${isActive ? 'text-gradient-primary' : ''} text-[14px] font-bold flex-1 text-left`}>{t(item.name)}</span>
+                        {item.isNew && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                            New
+                          </span>
+                        )}
                         {hasSubItems && (
                           isExpanded ? (
                             <ChevronDown className="w-4 h-4 text-gray-400" />

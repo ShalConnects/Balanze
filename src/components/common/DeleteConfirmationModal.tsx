@@ -6,8 +6,8 @@ interface DeleteConfirmationModalProps {
   onClose: () => void;
   onConfirm: () => void;
   title?: string;
-  message?: string;
-  recordDetails: React.ReactNode;
+  message?: string | React.ReactNode;
+  recordDetails?: React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
 }
@@ -42,9 +42,11 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
 
         <div className="mb-6">
           <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 mb-4">{message}</p>
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4">
-            {recordDetails}
-          </div>
+          {recordDetails && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4">
+              {recordDetails}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-row gap-3 justify-end">

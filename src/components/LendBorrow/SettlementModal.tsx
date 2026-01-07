@@ -43,12 +43,33 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
   const amountRef = useRef<HTMLInputElement | null>(null);
 
 
-  // Filter accounts by currency and sort to show default account first
-  const currencyFilteredAccounts = accounts.filter(acc => acc.currency === record.currency);
-  const sortedAccountOptions = [
-    ...currencyFilteredAccounts.filter(acc => acc.id === profile?.default_account_id),
-    ...currencyFilteredAccounts.filter(acc => acc.id !== profile?.default_account_id)
-  ];
+  // Filter accounts by currency, only active accounts (excluding DPS), but include current account if editing
+  const sortedAccountOptions = React.useMemo(() => {
+    // Get active accounts matching currency (excluding DPS accounts)
+    let availableAccounts = accounts.filter(acc => 
+      acc.currency === record.currency && 
+      acc.isActive && 
+      !acc.name.includes('(DPS)')
+    );
+    
+    // If record has an account, include it even if inactive (for context when editing)
+    if (record.account_id) {
+      const currentAccount = accounts.find(acc => acc.id === record.account_id);
+      if (currentAccount && currentAccount.currency === record.currency && !currentAccount.name.includes('(DPS)')) {
+        const accountExists = availableAccounts.some(acc => acc.id === currentAccount.id);
+        if (!accountExists) {
+          availableAccounts = [...availableAccounts, currentAccount];
+        }
+      }
+    }
+    
+    // Sort: default account first, then by balance (descending)
+    return availableAccounts.sort((a, b) => {
+      if (a.id === profile?.default_account_id && b.id !== profile?.default_account_id) return -1;
+      if (a.id !== profile?.default_account_id && b.id === profile?.default_account_id) return 1;
+      return (b.calculated_balance || 0) - (a.calculated_balance || 0);
+    });
+  }, [accounts, record.currency, record.account_id, profile?.default_account_id]);
 
   // Set default account on mount (only if it matches the record's currency)
   useEffect(() => {
@@ -58,7 +79,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
         setSelectedAccountId(profile.default_account_id);
       } else if (sortedAccountOptions.length > 0) {
         // If default account doesn't match currency, select the first available account
-        setSelectedAccountId(sortedAccountOptions[0].value);
+        setSelectedAccountId(sortedAccountOptions[0].id);
       }
     }
   }, [profile?.default_account_id, selectedAccountId, record.currency, accounts, sortedAccountOptions]);
@@ -79,10 +100,23 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
   // Check if record has existing partial returns/payments
   const hasPartialReturns = returnHistory.length > 0 || (record.partial_return_amount && record.partial_return_amount > 0) || false;
 
-  // Auto-set settlement method for record-only entries with partial history
+  // Auto-set settlement method based on record type and partial returns
   useEffect(() => {
-    if (!record.account_id && hasPartialReturns) {
-      setSettlementMethod('account');
+    // For account-linked records: default to 'account' (since original transaction affected balance)
+    if (record.account_id) {
+      if (hasPartialReturns) {
+        setSettlementMethod('account');
+      } else {
+        setSettlementMethod('account');
+      }
+    } 
+    // For record-only entries: default based on partial returns
+    else if (!record.account_id) {
+      if (hasPartialReturns) {
+        setSettlementMethod('account');
+      } else {
+        setSettlementMethod('simple');
+      }
     }
   }, [record.account_id, hasPartialReturns]);
 
@@ -130,6 +164,11 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
   };
 
   const handlePartialReturn = async () => {
+    // Check if record is already settled
+    if (record.status === 'settled') {
+      toast.error('This record is already settled');
+      return;
+    }
 
     const validationError = validatePartialAmount();
     if (validationError) {
@@ -137,10 +176,19 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
       return;
     }
 
-    // Only require account selection for account-linked records or when user selects account settlement
-    if ((record.account_id || (!record.account_id && settlementMethod === 'account')) && !selectedAccountId) {
+    // Only require account selection when using account settlement method
+    if (settlementMethod === 'account' && !selectedAccountId) {
       setErrors({ account: 'Please select an account' });
       return;
+    }
+
+    // Validate account currency matches record currency
+    if (settlementMethod === 'account' && selectedAccountId) {
+      const selectedAccount = accounts.find(acc => acc.id === selectedAccountId);
+      if (selectedAccount && selectedAccount.currency !== record.currency) {
+        setErrors({ account: `Account currency (${selectedAccount.currency}) must match record currency (${record.currency})` });
+        return;
+      }
     }
 
     setLoading(true);
@@ -153,7 +201,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           lend_borrow_id: record.id,
           amount: partialAmount,
           return_date: returnDate.toISOString(),
-          account_id: (record.account_id || (!record.account_id && settlementMethod === 'account')) ? selectedAccountId : null, // Only store account_id if using account settlement
+          account_id: settlementMethod === 'account' ? selectedAccountId : null, // Only store account_id if using account settlement
         }])
         .select()
         .single();
@@ -242,9 +290,14 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
   };
 
   const handleFullSettlement = () => {
+    // Check if record is already settled
+    if (record.status === 'settled') {
+      toast.error('This record is already settled');
+      return;
+    }
 
-    // For record-only entries with simple settlement, just mark as settled
-    if (!record.account_id && settlementMethod === 'simple') {
+    // For simple settlement (both record-only and account-linked), just mark as settled
+    if (settlementMethod === 'simple') {
       // Update record status to settled without account transaction
       supabase
         .from('lend_borrow')
@@ -266,10 +319,19 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
       return;
     }
 
-    // For account-linked records or account settlement method, require account selection
-    if ((record.account_id || (!record.account_id && settlementMethod === 'account')) && !selectedAccountId) {
+    // For account settlement method, require account selection
+    if (settlementMethod === 'account' && !selectedAccountId) {
       setErrors({ account: 'Please select an account' });
       return;
+    }
+
+    // Validate account currency matches record currency
+    if (settlementMethod === 'account' && selectedAccountId) {
+      const selectedAccount = accounts.find(acc => acc.id === selectedAccountId);
+      if (selectedAccount && selectedAccount.currency !== record.currency) {
+        setErrors({ account: `Account currency (${selectedAccount.currency}) must match record currency (${record.currency})` });
+        return;
+      }
     }
     
     onSettle(selectedAccountId);
@@ -277,8 +339,8 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
   };
 
   const getSettlementMessage = () => {
-    // For record-only entries with simple settlement, show different message
-    if (!record.account_id && settlementMethod === 'simple' && !hasPartialReturns) {
+    // For simple settlement (both record-only and account-linked), show different message
+    if (settlementMethod === 'simple' && !hasPartialReturns) {
       if (settlementType === 'full') {
         return `This will mark the record as settled without affecting any account balances.`;
       } else {
@@ -286,7 +348,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
       }
     }
     
-    // For account-linked records or account settlement method
+    // For account settlement method (both record-only and account-linked)
     if (settlementType === 'full') {
       if (record.type === 'lend') {
         return `Which account did you receive the full repayment of ${record.amount} ${record.currency} in?`;
@@ -351,8 +413,8 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
             )}
           </div>
 
-          {/* Settlement Method Selection for Record-Only Entries - Only show when no partial history and simple method selected */}
-          {!record.account_id && !hasPartialReturns && settlementMethod === 'simple' && (
+          {/* Settlement Method Selection - Show for all records to let users choose between simple and account settlement */}
+          {(
             <div className="mb-6">
               <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">
                 How would you like to settle this record?
@@ -433,13 +495,25 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
             </div>
           )}
 
+          {/* Warning for account-linked records choosing simple settlement */}
+          {record.account_id && settlementMethod === 'simple' && (
+            <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <div className="flex items-start">
+                <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mr-2 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                  <strong>Note:</strong> This record was created with an account transaction. Settling without account will mark it as settled but won't reverse the account balance change. Consider using "Settle with account" to maintain accurate account balances.
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Account Selection */}
           <div className="mb-4">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
               {getSettlementMessage()}
             </p>
-            {/* Only show account selection for account-linked records or when user selects account settlement for record-only */}
-            {(record.account_id || (!record.account_id && settlementMethod === 'account')) && (
+            {/* Show account selection when user selects account settlement method */}
+            {settlementMethod === 'account' && (
               <>
             {sortedAccountOptions.length > 0 ? (
               <CustomDropdown
@@ -472,8 +546,8 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           </div>
 
 
-          {/* Settlement Type Selection - Only show for account-linked records or when user selects account settlement */}
-          {(record.account_id || (!record.account_id && settlementMethod === 'account')) && (
+          {/* Settlement Type Selection - Only show when using account settlement method */}
+          {settlementMethod === 'account' && (
           <div className="mb-4">
             <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">
               Settlement Type
@@ -675,7 +749,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
              <button
                onClick={settlementType === 'full' ? handleFullSettlement : handlePartialReturn}
                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-               disabled={loading || shouldBeSettled || (hasPartialReturns && settlementType === 'full') || (settlementType === 'partial' && (!!validatePartialAmount() || ((record.account_id || (!record.account_id && settlementMethod === 'account')) && !selectedAccountId)))}
+               disabled={loading || shouldBeSettled || (hasPartialReturns && settlementType === 'full') || (settlementType === 'partial' && (!!validatePartialAmount() || (settlementMethod === 'account' && !selectedAccountId)))}
              >
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {shouldBeSettled 

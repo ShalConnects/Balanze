@@ -642,6 +642,11 @@ export const LendBorrowTableView: React.FC = () => {
 
   // Handle record actions
   const handleEditRecord = (record: LendBorrow) => {
+    // Prevent editing settled records
+    if (record.status === 'settled') {
+      toast.error('Cannot edit a settled record');
+      return;
+    }
     setEditingRecord(record);
     setShowLendBorrowForm(true);
   };
@@ -653,10 +658,10 @@ export const LendBorrowTableView: React.FC = () => {
     const wrappedDelete = wrapAsync(async () => {
       setLoadingMessage('Deleting record...');
       try {
-        // Get the current record to check for associated transaction
+        // Get the current record to check for status, transaction, and partial returns
         const { data: currentRecord, error: fetchError } = await supabase
           .from('lend_borrow')
-          .select('transaction_id, affect_account_balance')
+          .select('transaction_id, affect_account_balance, status, currency')
           .eq('id', recordId)
           .eq('user_id', user.id)
           .single();
@@ -667,7 +672,50 @@ export const LendBorrowTableView: React.FC = () => {
           return;
         }
 
-        // Step 1: Delete associated transaction FIRST if it exists
+        // Enforce settled record restriction
+        if (currentRecord.status === 'settled') {
+          toast.error('Cannot delete a settled record');
+          return;
+        }
+
+        // Check for partial returns
+        const { data: partialReturns, error: returnsError } = await supabase
+          .from('lend_borrow_returns')
+          .select('id, amount')
+          .eq('lend_borrow_id', recordId);
+
+        if (returnsError) {
+          console.error('Error fetching partial returns:', returnsError);
+          // Continue with deletion even if we can't fetch returns
+        }
+
+        const hasPartialReturns = partialReturns && partialReturns.length > 0;
+        if (hasPartialReturns) {
+          const totalReturned = partialReturns.reduce((sum, ret) => sum + ret.amount, 0);
+          const confirmed = window.confirm(
+            `This record has ${partialReturns.length} partial return(s) totaling ${getCurrencySymbol(currentRecord.currency || 'USD')}${totalReturned.toFixed(2)}. ` +
+            `Deleting this record will also delete all associated partial returns. Are you sure you want to continue?`
+          );
+          if (!confirmed) {
+            return;
+          }
+        }
+
+        // Step 1: Delete associated partial returns FIRST
+        if (hasPartialReturns) {
+          const { error: deleteReturnsError } = await supabase
+            .from('lend_borrow_returns')
+            .delete()
+            .eq('lend_borrow_id', recordId);
+
+          if (deleteReturnsError) {
+            console.error('Error deleting partial returns:', deleteReturnsError);
+            toast.error('Failed to delete associated partial returns');
+            return;
+          }
+        }
+
+        // Step 2: Delete associated transaction if it exists
         if (currentRecord.transaction_id && currentRecord.affect_account_balance) {
           const { error: transactionError } = await supabase
             .from('transactions')
@@ -682,7 +730,7 @@ export const LendBorrowTableView: React.FC = () => {
           }
         }
 
-        // Step 2: Disable account balance effects to prevent triggers
+        // Step 3: Disable account balance effects to prevent triggers
         const { error: disableError } = await supabase
           .from('lend_borrow')
           .update({ affect_account_balance: false })
@@ -695,7 +743,7 @@ export const LendBorrowTableView: React.FC = () => {
           return;
         }
 
-        // Step 3: Delete the lend/borrow record
+        // Step 4: Delete the lend/borrow record
         const { error } = await supabase
           .from('lend_borrow')
           .delete()
@@ -709,7 +757,10 @@ export const LendBorrowTableView: React.FC = () => {
         }
 
         // Successfully deleted record
-        toast.success('Record and associated transaction deleted successfully!');
+        const successMessage = hasPartialReturns
+          ? 'Record, partial returns, and associated transaction deleted successfully!'
+          : 'Record and associated transaction deleted successfully!';
+        toast.success(successMessage);
         
         // Refresh data to show updated list
         await Promise.all([
@@ -737,19 +788,44 @@ export const LendBorrowTableView: React.FC = () => {
     if (!user) return;
     
     try {
-      // Create settlement transaction
+      // Check if record is already settled
+      if (record.status === 'settled') {
+        toast.error('This record is already settled');
+        return;
+      }
+
+      // Validate account currency matches record currency
+      const selectedAccount = accounts.find(acc => acc.id === accountId);
+      if (!selectedAccount) {
+        toast.error('Selected account not found');
+        return;
+      }
+      if (selectedAccount.currency !== record.currency) {
+        toast.error(`Account currency (${selectedAccount.currency}) must match record currency (${record.currency})`);
+        return;
+      }
+
+      // Calculate remaining amount (accounting for partial returns)
+      const remainingAmount = calculateRemainingAmount(record);
+      if (remainingAmount <= 0) {
+        toast.error('Record is already fully settled');
+        return;
+      }
+
+      // Create settlement transaction with remaining amount
+      const settlementTransactionId = `LB${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`;
       const settlementTransaction = {
         user_id: user.id,
         account_id: accountId,
         type: record.type === 'lend' ? 'income' : 'expense', // Lend settlement = income, borrow settlement = expense
-        amount: record.amount,
+        amount: remainingAmount,
         description: record.type === 'lend' 
           ? `Repayment from ${record.person_name}` 
           : `Repayment to ${record.person_name}`,
         category: 'Lend/Borrow',
         date: new Date().toISOString().split('T')[0],
         tags: ['lend_borrow', 'settlement'],
-        transaction_id: `LB${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`
+        transaction_id: settlementTransactionId
       };
 
       // Insert settlement transaction
@@ -771,7 +847,13 @@ export const LendBorrowTableView: React.FC = () => {
 
       if (updateError) {
         console.error('Update record error:', updateError);
-        toast.error('Failed to update record status');
+        // Rollback: delete the transaction we just created
+        await supabase
+          .from('transactions')
+          .delete()
+          .eq('transaction_id', settlementTransactionId)
+          .eq('user_id', user.id);
+        toast.error('Failed to update record status. Transaction has been rolled back.');
         return;
       }
 
@@ -878,18 +960,17 @@ export const LendBorrowTableView: React.FC = () => {
 
   // Set default currency when component loads
   useEffect(() => {
-    if (currencyOptions.length > 0 && !tableFilters.currency) {
-      const defaultCurrency = profile?.local_currency || currencyOptions[0];
-      setTableFilters(prev => ({ ...prev, currency: defaultCurrency }));
+    if (currencyOptions.length > 0) {
+      const currentCurrency = tableFilters.currency;
+      // Set default currency if empty or if current currency is not in available options
+      if (!currentCurrency || (currentCurrency && !currencyOptions.includes(currentCurrency))) {
+        const defaultCurrency = profile?.local_currency || currencyOptions[0];
+        if (defaultCurrency) {
+          setTableFilters(prev => ({ ...prev, currency: defaultCurrency }));
+        }
+      }
     }
-  }, [currencyOptions, profile?.local_currency]);
-
-  // Update currency when profile changes
-  useEffect(() => {
-    if (profile?.local_currency && !tableFilters.currency) {
-      setTableFilters(prev => ({ ...prev, currency: profile.local_currency || '' }));
-    }
-  }, [profile?.local_currency]);
+  }, [currencyOptions, profile?.local_currency, tableFilters.currency]);
 
   // Sync tempFilters with tableFilters when mobile filter modal opens
   useEffect(() => {

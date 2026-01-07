@@ -37,12 +37,20 @@ import { DashboardSkeleton } from './DashboardSkeleton';
 import { LastWishCountdownWidget } from './LastWishCountdownWidget';
 import { MotivationalQuote } from './MotivationalQuote';
 import { MobileAccordionWidget } from './MobileAccordionWidget';
+import { HabitGardenWidget } from '../Habits/HabitGardenWidget';
+import { WidgetSection } from './WidgetSection';
 import { getPreference, setPreference } from '../../lib/userPreferences';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { DraggableWidget } from './DraggableWidget';
+import { WidgetSettingsPanel, WidgetConfig } from './WidgetSettingsPanel';
+import { Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import PullToRefreshDashboard from './PullToRefreshDashboard';
 import { supabase } from '../../lib/supabase';
 import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { UpgradeBanner } from '../common/UpgradeBanner';
 
 
 interface DashboardProps {
@@ -85,6 +93,75 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   const [retryCount, setRetryCount] = useState(0);
   // Lazy load NotesAndTodosWidget to reduce initial bundle size
   const [NotesAndTodosWidget, setNotesAndTodosWidget] = useState<React.ComponentType | null>(null);
+
+  // Widget configuration state
+  const getDefaultWidgets = (): WidgetConfig[] => [
+    { id: 'task-reminders', name: 'Task Reminders', visible: true, order: 0 },
+    { id: 'last-wish', name: 'Last Wish', visible: true, order: 1 },
+    { id: 'habit-garden', name: 'Habit Garden', visible: true, order: 2 },
+    { id: 'notes-todos', name: 'Notes & Todos', visible: true, order: 3 },
+  ];
+
+  const loadWidgetConfig = (): WidgetConfig[] => {
+    const saved = localStorage.getItem('dashboard-widget-config');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return getDefaultWidgets();
+      }
+    }
+    return getDefaultWidgets();
+  };
+
+  const [widgetConfig, setWidgetConfig] = useState<WidgetConfig[]>(loadWidgetConfig);
+  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+
+  // Save widget config to localStorage
+  useEffect(() => {
+    localStorage.setItem('dashboard-widget-config', JSON.stringify(widgetConfig));
+  }, [widgetConfig]);
+
+  // Drag and drop sensors - optimized for both touch and mouse
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px movement before activating drag
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = widgetConfig.findIndex(w => w.id === active.id);
+    const newIndex = widgetConfig.findIndex(w => w.id === over.id);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const newConfig = arrayMove(widgetConfig, oldIndex, newIndex).map((w, index) => ({
+        ...w,
+        order: index,
+      }));
+      setWidgetConfig(newConfig);
+    }
+  };
+
+  const handleWidgetUpdate = (updatedWidgets: WidgetConfig[]) => {
+    setWidgetConfig(updatedWidgets);
+  };
+
+  const handleResetWidgets = () => {
+    setWidgetConfig(getDefaultWidgets());
+  };
+
+  // Get visible widgets sorted by order
+  const visibleWidgets = widgetConfig
+    .filter(w => w.visible)
+    .sort((a, b) => a.order - b.order);
 
   // Lazy load NotesAndTodosWidget after initial render
   useEffect(() => {
@@ -838,6 +915,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         {/* Main Content - Full width on mobile, flex-1 on desktop */}
         <div className="flex-1 space-y-4 sm:space-y-6">
 
+          {/* Upgrade Banner for Free Users */}
+          <UpgradeBanner />
+
           {/* Multi-Currency Quick Access */}
           {stats.byCurrency.length > 1 && showMultiCurrencyAnalytics && (
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-700 relative">
@@ -946,10 +1026,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                   </div>
                 )}
                 
-                {/* Right side: Widget Visibility Dropdown */}
-                {hasAnyCards && (
-                  <div className="flex items-center gap-2 flex-shrink-0 ml-auto" ref={widgetsDropdownRef}>
-                    <div className="relative">
+                {/* Right side: Widget Visibility Dropdown and Right Sidebar Customize */}
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 ml-auto">
+                  {/* Right Sidebar Customize Button - Hidden on mobile since sidebar is hidden */}
+                  <button
+                    type="button"
+                    onClick={() => setShowSettingsPanel(true)}
+                    className="hidden lg:flex bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm h-8 min-h-0 hover:bg-blue-50 dark:hover:bg-blue-900/30 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-md px-2 sm:px-3 py-1 items-center gap-1.5 sm:gap-2"
+                    title="Customize right sidebar widgets"
+                  >
+                    <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                    <span className="text-xs font-medium text-gray-900 dark:text-white whitespace-nowrap">Right Sidebar</span>
+                  </button>
+                  
+                  {/* Widget Visibility Dropdown */}
+                  {hasAnyCards && (
+                    <div className="relative" ref={widgetsDropdownRef}>
                       <button
                         type="button"
                         onClick={() => setShowWidgetsDropdown(!showWidgetsDropdown)}
@@ -1030,8 +1122,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             );
           })()}
@@ -1295,8 +1387,60 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
         {/* Right Sidebar - Hidden on mobile, shown on desktop */}
         <div className="hidden lg:block w-72 space-y-6">
-          <LastWishCountdownWidget />
-          {NotesAndTodosWidget ? <NotesAndTodosWidget /> : null}
+          {/* Widgets with Drag & Drop */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={visibleWidgets.map(w => w.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <WidgetSection>
+                {visibleWidgets.map((config) => {
+                if (config.id === 'task-reminders') {
+                  return (
+                    <DraggableWidget key={config.id} id={config.id}>
+                      <TaskRemindersWidget />
+                    </DraggableWidget>
+                  );
+                }
+                if (config.id === 'last-wish') {
+                  return (
+                    <DraggableWidget key={config.id} id={config.id}>
+                      <LastWishCountdownWidget />
+                    </DraggableWidget>
+                  );
+                }
+                if (config.id === 'habit-garden') {
+                  return (
+                    <DraggableWidget key={config.id} id={config.id}>
+                      <HabitGardenWidget />
+                    </DraggableWidget>
+                  );
+                }
+                if (config.id === 'notes-todos' && NotesAndTodosWidget) {
+                  return (
+                    <DraggableWidget key={config.id} id={config.id}>
+                      <NotesAndTodosWidget />
+                    </DraggableWidget>
+                  );
+                }
+                return null;
+              })}
+              </WidgetSection>
+            </SortableContext>
+          </DndContext>
+
+          {/* Settings Panel */}
+          <WidgetSettingsPanel
+            isOpen={showSettingsPanel}
+            onClose={() => setShowSettingsPanel(false)}
+            widgets={widgetConfig}
+            onUpdate={handleWidgetUpdate}
+            onReset={handleResetWidgets}
+          />
         </div>
 
         {/* Mobile Bottom Section - Accordion Layout */}

@@ -100,6 +100,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'purchase-categories': return 'Purchase Categories';
       case 'lent-borrow': return 'Lent & Borrow';
       case 'clients': return 'Clients';
+      case 'habits': return 'Habit Garden';
       case 'orders': return 'Orders';
       case 'invoices': return 'Invoices';
       case 'achievements': return 'Achievements';
@@ -172,13 +173,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                           ? 'Track and manage all your lending and borrowing activities'
                           : currentView === 'clients'
                             ? 'Manage your clients and track their information'
-                            : currentView === 'history'
-                              ? 'Track all your financial activities and changes'
-                              : currentView === 'favorite-quotes'
-                                ? 'Manage your favorite motivational quotes and inspiration'
-                                : currentView === 'achievements'
-                                  ? 'Unlock badges and track your financial journey progress'
-                                  : undefined
+                            : currentView === 'habits'
+                              ? 'Gamify your daily habits and build consistency'
+                              : currentView === 'history'
+                                ? 'Track all your financial activities and changes'
+                                : currentView === 'favorite-quotes'
+                                  ? 'Manage your favorite motivational quotes and inspiration'
+                                  : currentView === 'achievements'
+                                    ? 'Unlock badges and track your financial journey progress'
+                                    : undefined
             )}
           />
           <main className={`flex-1 p-1 sm:p-2 lg:p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 max-w-full pb-safe-bottom ${isBrowser && isMobile ? 'browser-bottom-nav-spacing' : ''}`}>

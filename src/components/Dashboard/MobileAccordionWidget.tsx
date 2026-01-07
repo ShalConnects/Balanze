@@ -8,6 +8,7 @@ import { RecentTransactions } from './RecentTransactions';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { HabitGardenWidget } from '../Habits/HabitGardenWidget';
 
 interface MobileAccordionWidgetProps {
   isDemo?: boolean;
@@ -84,7 +85,7 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
                 Extras
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {isDemo || isPremium ? 'Last Wish • ' : ''}Daily Inspiration • Notes
+                {isDemo || isPremium ? 'Last Wish • ' : ''}Daily Inspiration • Notes • Habits
               </p>
             </div>
           </div>
@@ -141,9 +142,16 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
             )}
 
             {/* Notes & Tasks Section */}
-            <div>
+            <div className="border-b border-gray-200 dark:border-gray-700">
               <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
                 {NotesAndTodosWidget ? <NotesAndTodosWidget /> : null}
+              </div>
+            </div>
+
+            {/* Habits Section */}
+            <div>
+              <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
+                <HabitGardenWidget />
               </div>
             </div>
           </div>
