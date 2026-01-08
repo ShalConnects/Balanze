@@ -1170,7 +1170,12 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
               </p>
             </div>
 
-            ${settings.message && settings.message.trim() && settings.message.trim() !== 'This is the personal message' ? `
+            ${settings.message && settings.message.trim() && 
+              settings.message.trim() !== 'This is the personal message' && 
+              settings.message.trim() !== 'Create documentation to accompany your financial data' &&
+              !settings.message.trim().toLowerCase().includes('create documentation') &&
+              !settings.message.trim().toLowerCase().includes('legacy documentation') &&
+              settings.message.trim().length > 10 ? `
               <!-- Personal Message Card -->
               <div class="message-card">
                 <h3>Personal Message from ${userName}</h3>
@@ -1502,9 +1507,12 @@ export function createPDFBuffer(user, recipient, data, settings) {
       };
       
       // Add header/footer function
-      const addHeaderFooter = (pageNum, totalPages) => {
+      const addHeaderFooter = (pageNum) => {
         const pageHeight = doc.page.height;
         const pageWidth = doc.page.width;
+        
+        // Calculate total pages dynamically
+        const currentTotalPages = doc.bufferedPageRange().count;
         
         // Header
         doc.save();
@@ -1516,7 +1524,7 @@ export function createPDFBuffer(user, recipient, data, settings) {
         doc.save();
         doc.fontSize(8).fillColor('#6b7280');
         doc.text(
-          `Page ${pageNum} of ${totalPages} | Generated: ${formatDate(new Date())} | Balanze Last Wish System`,
+          `Page ${pageNum} of ${currentTotalPages} | Generated: ${formatDate(new Date())} | Balanze Last Wish System`,
           50,
           pageHeight - 30,
           { align: 'left', width: pageWidth - 100 }
@@ -1534,12 +1542,8 @@ export function createPDFBuffer(user, recipient, data, settings) {
       const recipientName = recipient.name || recipient.email;
       const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Account holder';
 
-      // Track current page and total pages
+      // Track current page
       let currentPageNum = 1;
-      let totalPages = 1;
-      const updateTotalPages = () => {
-        totalPages = doc.bufferedPageRange().count;
-      };
       const getCurrentPage = () => {
         return doc.bufferedPageRange().start + 1;
       };
@@ -1591,9 +1595,8 @@ export function createPDFBuffer(user, recipient, data, settings) {
           if (currentY + rowHeight > doc.page.height - 80) {
             doc.addPage();
             addWatermark();
-            updateTotalPages();
             currentPageNum = getCurrentPage();
-            addHeaderFooter(currentPageNum, totalPages);
+            addHeaderFooter(currentPageNum);
             currentY = 80;
           }
           
@@ -1646,16 +1649,14 @@ export function createPDFBuffer(user, recipient, data, settings) {
         .text('This document contains sensitive financial information. Handle with care and store securely.', 
           50, doc.y, { align: 'center', width: doc.page.width - 100 });
       
-      addHeaderFooter(1, 1);
-      updateTotalPages();
+      addHeaderFooter(1);
       currentPageNum = 1;
       
       // TABLE OF CONTENTS
       doc.addPage();
       addWatermark();
-      updateTotalPages();
       currentPageNum = 2;
-      addHeaderFooter(currentPageNum, totalPages);
+      addHeaderFooter(currentPageNum);
       
       doc.fillColor('#f9fafb').fontSize(20).font('Helvetica-Bold')
         .text('Table of Contents', 50, 80);
@@ -1698,9 +1699,8 @@ export function createPDFBuffer(user, recipient, data, settings) {
       // FINANCIAL SUMMARY PAGE
       doc.addPage();
       addWatermark();
-      updateTotalPages();
       currentPageNum = 3;
-      addHeaderFooter(currentPageNum, totalPages);
+      addHeaderFooter(currentPageNum);
       
       doc.fillColor('#f9fafb').fontSize(20).font('Helvetica-Bold')
         .text('Financial Summary', 50, 80);
@@ -1827,16 +1827,15 @@ export function createPDFBuffer(user, recipient, data, settings) {
           accountsByCurrency[currency].push(acc);
         });
         
-        // Create a page for each currency
-        const currencies = Object.keys(accountsByCurrency).sort();
+        // Create a page for each currency (only if there are accounts for that currency)
+        const currencies = Object.keys(accountsByCurrency).sort().filter(currency => accountsByCurrency[currency].length > 0);
         currencies.forEach((currency, currencyIndex) => {
           if (currencyIndex > 0) {
             doc.addPage();
           }
           addWatermark();
-          updateTotalPages();
           currentPageNum = getCurrentPage();
-          addHeaderFooter(currentPageNum, totalPages);
+          addHeaderFooter(currentPageNum);
           
           doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
             .text(`Accounts - ${currency}`, 50, 80);
@@ -1847,23 +1846,27 @@ export function createPDFBuffer(user, recipient, data, settings) {
             acc.type || 'N/A',
             formatCurrency(parseFloat(acc.calculated_balance) || 0, currency),
             acc.account_number || 'N/A',
-            acc.institution || 'N/A'
+            acc.institution || 'N/A',
+            (acc.description || '').substring(0, 50) || 'N/A'
           ]);
           
-          drawTable(
-            ['Account Name', 'Type', 'Balance', 'Account Number', 'Institution'],
-            accountRows,
-            doc.y,
-            {
-              columnWidths: [
-                (doc.page.width - 100) * 0.3,
-                (doc.page.width - 100) * 0.15,
-                (doc.page.width - 100) * 0.2,
-                (doc.page.width - 100) * 0.15,
-                (doc.page.width - 100) * 0.2
-              ]
-            }
-          );
+          if (accountRows.length > 0) {
+            drawTable(
+              ['Account Name', 'Type', 'Balance', 'Account Number', 'Institution', 'Description'],
+              accountRows,
+              doc.y,
+              {
+                columnWidths: [
+                  (doc.page.width - 100) * 0.22,
+                  (doc.page.width - 100) * 0.12,
+                  (doc.page.width - 100) * 0.15,
+                  (doc.page.width - 100) * 0.12,
+                  (doc.page.width - 100) * 0.15,
+                  (doc.page.width - 100) * 0.24
+                ]
+              }
+            );
+          }
         });
       }
 
@@ -1873,9 +1876,8 @@ export function createPDFBuffer(user, recipient, data, settings) {
       if (activeLendBorrow.length > 0) {
         doc.addPage();
         addWatermark();
-        updateTotalPages();
         currentPageNum = getCurrentPage();
-        addHeaderFooter(currentPageNum, totalPages);
+        addHeaderFooter(currentPageNum);
         
         doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
           .text('Lend/Borrow Records', 50, 80);
