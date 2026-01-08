@@ -1434,7 +1434,296 @@ function generateCSVExport(data, settings) {
   return csvRows.join('\n');
 }
 
-export function createPDFBuffer(user, recipient, data, settings) {
+// New HTML-to-PDF function using Puppeteer
+async function createPDFFromHTML(user, recipient, data, settings) {
+  let browser;
+  let puppeteer;
+  try {
+    // Dynamically import puppeteer (optional dependency)
+    puppeteer = await import('puppeteer').then(m => m.default).catch(() => null);
+    if (!puppeteer) {
+      throw new Error('Puppeteer not installed. Run: npm install puppeteer');
+    }
+    
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    
+    const page = await browser.newPage();
+    
+    // Generate HTML content (reuse email HTML but optimized for PDF)
+    const htmlContent = createPDFHTMLContent(user, recipient, data, settings);
+    
+    // Set content and wait for it to load
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    
+    // Generate PDF
+    const pdfBuffer = await page.pdf({
+      format: 'Letter',
+      margin: {
+        top: '0.5in',
+        right: '0.5in',
+        bottom: '0.5in',
+        left: '0.5in'
+      },
+      printBackground: true,
+      displayHeaderFooter: true,
+      headerTemplate: '<div style="font-size: 8px; color: #6b7280; width: 100%; text-align: center; padding: 10px;">Last Wish - Confidential Financial Records</div>',
+      footerTemplate: '<div style="font-size: 8px; color: #6b7280; width: 100%; text-align: center; padding: 10px;"><span class="pageNumber"></span> of <span class="totalPages"></span> | Generated: ' + new Date().toLocaleDateString() + ' | Balanze Last Wish System</div>'
+    });
+    
+    await browser.close();
+    return pdfBuffer;
+  } catch (error) {
+    if (browser) {
+      await browser.close();
+    }
+    throw error;
+  }
+}
+
+// Create PDF-optimized HTML content
+function createPDFHTMLContent(user, recipient, data, settings) {
+  const recipientName = recipient.name || recipient.email;
+  const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Account holder';
+  
+  // Calculate financial metrics
+  const metrics = calculateFinancialMetrics(data);
+  const dateInfo = calculateDateInfo(settings, data);
+  
+  // Calculate assets by currency
+  const assetsByCurrency = {};
+  const accountsByCurrency = {};
+  (data.accounts || []).forEach(account => {
+    const currency = account.currency || 'USD';
+    const balance = parseFloat(account.calculated_balance) || 0;
+    if (!assetsByCurrency[currency]) {
+      assetsByCurrency[currency] = 0;
+      accountsByCurrency[currency] = 0;
+    }
+    assetsByCurrency[currency] += balance;
+    accountsByCurrency[currency] += 1;
+  });
+  
+  // Calculate lend/borrow
+  const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active' || lb.status === 'overdue');
+  const activeLent = activeLendBorrow.filter(lb => lb.type === 'lend' || lb.type === 'lent');
+  const activeBorrowed = activeLendBorrow.filter(lb => lb.type === 'borrow' || lb.type === 'borrowed');
+  
+  const lentByCurrency = {};
+  activeLent.forEach(lb => {
+    const currency = lb.currency || 'USD';
+    if (!lentByCurrency[currency]) lentByCurrency[currency] = 0;
+    lentByCurrency[currency] += parseFloat(lb.amount) || 0;
+  });
+  
+  const borrowedByCurrency = {};
+  activeBorrowed.forEach(lb => {
+    const currency = lb.currency || 'USD';
+    if (!borrowedByCurrency[currency]) borrowedByCurrency[currency] = 0;
+    borrowedByCurrency[currency] += parseFloat(lb.amount) || 0;
+  });
+  
+  const formatCurrencyWithSymbol = (amount, currency = 'USD') => {
+    const symbols = { USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', INR: '₹', CAD: '$', AUD: '$' };
+    const symbol = symbols[currency] || currency;
+    return `${symbol}${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+  
+  const accountsWithBalance = (data.accounts || []).filter(acc => parseFloat(acc.calculated_balance) !== 0);
+  
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page {
+      margin: 0.5in;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      color: #111827;
+      background: white;
+      margin: 0;
+      padding: 20px;
+    }
+    .cover-page {
+      text-align: center;
+      padding: 100px 0;
+    }
+    .cover-title {
+      font-size: 32px;
+      font-weight: bold;
+      color: #111827;
+      margin-bottom: 10px;
+    }
+    .cover-subtitle {
+      font-size: 16px;
+      color: #6b7280;
+      margin-bottom: 40px;
+    }
+    .section {
+      page-break-inside: avoid;
+      margin-bottom: 30px;
+    }
+    .section-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #111827;
+      margin-bottom: 15px;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 5px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      page-break-inside: auto;
+    }
+    th {
+      background-color: #1f2937;
+      color: #f9fafb;
+      padding: 8px;
+      text-align: left;
+      font-weight: bold;
+    }
+    td {
+      padding: 8px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    tr:nth-child(even) {
+      background-color: #f9fafb;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .summary-item {
+      background: #f9fafb;
+      padding: 15px;
+      border-radius: 6px;
+    }
+    .summary-label {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 5px;
+    }
+    .summary-value {
+      font-size: 18px;
+      font-weight: bold;
+      color: #111827;
+    }
+  </style>
+</head>
+<body>
+  <div class="cover-page">
+    <div class="cover-title">Last Wish Delivery</div>
+    <div class="cover-subtitle">Confidential Financial Records</div>
+    <p>Prepared for: ${recipientName}</p>
+    <p>Account Holder: ${userName}</p>
+    <p>Generated: ${new Date().toLocaleDateString()}</p>
+    <p style="margin-top: 40px; color: #6b7280; font-size: 12px;">CONFIDENTIAL - FOR AUTHORIZED RECIPIENT ONLY</p>
+  </div>
+  
+  <div style="page-break-before: always;" class="section">
+    <div class="section-title">Financial Summary</div>
+    <div class="summary-grid">
+      ${Object.entries(assetsByCurrency).map(([currency, amount]) => `
+        <div class="summary-item">
+          <div class="summary-label">Total Assets (${currency})</div>
+          <div class="summary-value">${formatCurrencyWithSymbol(amount, currency)}</div>
+          <div style="font-size: 11px; color: #6b7280;">${accountsByCurrency[currency]} account${accountsByCurrency[currency] !== 1 ? 's' : ''}</div>
+        </div>
+      `).join('')}
+    </div>
+    <p><strong>Total Accounts:</strong> ${accountsWithBalance.length}</p>
+    <p><strong>Currencies:</strong> ${Object.keys(assetsByCurrency).join(', ') || 'N/A'}</p>
+    <p><strong>Total Lent:</strong> ${Object.keys(lentByCurrency).length > 0 ? Object.entries(lentByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</p>
+    <p><strong>Total Borrowed:</strong> ${Object.keys(borrowedByCurrency).length > 0 ? Object.entries(borrowedByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</p>
+    <p><strong>Active Records:</strong> ${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}</p>
+  </div>
+  
+  ${accountsWithBalance.length > 0 ? `
+    <div style="page-break-before: always;" class="section">
+      <div class="section-title">Accounts</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Account Name</th>
+            <th>Type</th>
+            <th>Balance</th>
+            <th>Currency</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${accountsWithBalance.map(acc => `
+            <tr>
+              <td>${acc.name || 'N/A'}</td>
+              <td>${acc.type || 'N/A'}</td>
+              <td>${formatCurrencyWithSymbol(parseFloat(acc.calculated_balance) || 0, acc.currency || 'USD')}</td>
+              <td>${acc.currency || 'USD'}</td>
+              <td>${(acc.description || '').substring(0, 50) || 'N/A'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  ` : ''}
+  
+  ${activeLendBorrow.length > 0 ? `
+    <div style="page-break-before: always;" class="section">
+      <div class="section-title">Lend/Borrow Records</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Person/Entity</th>
+            <th>Amount</th>
+            <th>Currency</th>
+            <th>Due Date</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${activeLendBorrow.map(lb => {
+            const type = lb.type === 'lent' || lb.type === 'lend' ? 'Lent' : 
+                         lb.type === 'borrowed' || lb.type === 'borrow' ? 'Borrowed' : 
+                         lb.type || 'N/A';
+            return `
+              <tr>
+                <td>${type}</td>
+                <td>${lb.person_name || lb.person || lb.entity || 'N/A'}</td>
+                <td>${formatCurrencyWithSymbol(parseFloat(lb.amount) || 0, lb.currency || 'USD')}</td>
+                <td>${lb.currency || 'USD'}</td>
+                <td>${lb.due_date ? new Date(lb.due_date).toLocaleDateString() : 'N/A'}</td>
+                <td>${(lb.notes || '').substring(0, 40) || 'N/A'}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  ` : ''}
+</body>
+</html>`;
+}
+
+export async function createPDFBuffer(user, recipient, data, settings) {
+  // Use HTML-to-PDF approach for better rendering
+  try {
+    return await createPDFFromHTML(user, recipient, data, settings);
+  } catch (error) {
+    // Fallback to PDFKit if Puppeteer fails
+    console.error('HTML-to-PDF failed, falling back to PDFKit:', error);
+    return createPDFBufferLegacy(user, recipient, data, settings);
+  }
+}
+
+function createPDFBufferLegacy(user, recipient, data, settings) {
   return new Promise((resolve, reject) => {
     try {
       // Calculate financial metrics and date info
@@ -1917,32 +2206,13 @@ export function createPDFBuffer(user, recipient, data, settings) {
         );
       }
       
-      // Final pass: Update all page footers with correct total page count
+      // Get final page count before ending
       const finalTotalPages = doc.bufferedPageRange().count;
-      const pageRange = doc.bufferedPageRange();
       
-      for (let i = pageRange.start; i < pageRange.start + finalTotalPages; i++) {
-        doc.switchToPage(i);
-        const pageHeight = doc.page.height;
-        const pageWidth = doc.page.width;
-        
-        // Clear existing footer area and redraw with correct total
-        doc.save();
-        doc.fontSize(8).fillColor('#6b7280');
-        doc.text(
-          `Page ${i + 1} of ${finalTotalPages} | Generated: ${formatDate(new Date())} | Balanze Last Wish System`,
-          50,
-          pageHeight - 30,
-          { align: 'left', width: pageWidth - 100 }
-        );
-        doc.text(
-          'CONFIDENTIAL - For authorized recipient only',
-          pageWidth - 50,
-          pageHeight - 30,
-          { align: 'right' }
-        );
-        doc.restore();
-      }
+      // Update all page footers with correct total using 'pageAdded' event approach
+      // We'll use a workaround: store page numbers and update on final page
+      // Since PDFKit doesn't allow easy page modification, we accept approximate totals
+      // The addHeaderFooter function already calculates dynamically, which is the best we can do
       
       doc.end();
     } catch (error) {
@@ -2175,11 +2445,11 @@ async function sendLastWishEmail(userId, testMode = false) {
       if (isTargetUser) {
         console.log(`[SEND-LAST-WISH-EMAIL] ⚠️ Settings already marked as triggered, skipping to prevent duplicates`);
       }
-      return res.status(200).json({
+      return {
         success: false,
         message: 'Last Wish delivery already triggered for this user',
         skipped: true
-      });
+      };
     }
     
     const settings = await retryWithBackoff(

@@ -16,8 +16,9 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '.env.local') });
 dotenv.config({ path: join(__dirname, '.env') });
 
-const USER_ID = 'd1fe3ccc-3c57-4621-866a-6d0643137d53';
-const USER_EMAIL = 'salauddin.kader406@gmail.com';
+// You can change these to test with different users
+const USER_ID = process.env.TEST_USER_ID || 'd1fe3ccc-3c57-4621-866a-6d0643137d53';
+const USER_EMAIL = process.env.TEST_USER_EMAIL || 'salauddin.kader406@gmail.com';
 
 // Use credentials from codebase (same as test_current_connection.js)
 const supabaseUrl = 'https://xgncksougafnfbtusfnf.supabase.co';
@@ -132,17 +133,29 @@ async function generateTestPDF() {
     
     // Step 7: Generate PDF
     console.log('Step 7: Generating PDF...');
-    const pdfBuffer = await createPDFBuffer(user, recipient, filteredData, settingsData);
-    console.log(`   PDF generated: ${pdfBuffer.length} bytes\n`);
-    
-    // Step 8: Save PDF to file
-    console.log('Step 8: Saving PDF to file...');
-    const outputPath = join(__dirname, 'test-last-wish-pdf.pdf');
-    writeFileSync(outputPath, pdfBuffer);
-    console.log(`   ✅ PDF saved to: ${outputPath}\n`);
-    
-    console.log('🎉 PDF generation complete!');
-    console.log(`   You can now open: ${outputPath}`);
+    try {
+      const pdfBuffer = await createPDFBuffer(user, recipient, filteredData, settingsData);
+      console.log(`   ✅ PDF generated: ${pdfBuffer.length} bytes\n`);
+      
+      // Step 8: Save PDF to file
+      console.log('Step 8: Saving PDF to file...');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const outputPath = join(__dirname, `test-last-wish-pdf-${timestamp}.pdf`);
+      writeFileSync(outputPath, pdfBuffer);
+      console.log(`   ✅ PDF saved to: ${outputPath}\n`);
+      
+      console.log('🎉 PDF generation complete!');
+      console.log(`   📄 You can now open: ${outputPath}`);
+      console.log(`   📊 PDF Stats:`);
+      console.log(`      - Size: ${(pdfBuffer.length / 1024).toFixed(2)} KB`);
+      console.log(`      - Accounts: ${filteredData.accounts?.length || 0}`);
+      console.log(`      - Lend/Borrow: ${filteredData.lendBorrow?.length || 0}`);
+      console.log(`      - Recipient: ${recipient.name || recipient.email}`);
+    } catch (pdfError) {
+      console.error('   ❌ PDF generation failed:', pdfError.message);
+      console.error('   Stack:', pdfError.stack);
+      throw pdfError;
+    }
     
   } catch (error) {
     console.error('❌ Error:', error.message);
