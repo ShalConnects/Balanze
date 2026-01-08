@@ -143,6 +143,54 @@ export const LW: React.FC<LWProps> = () => {
 
 
 
+  const saveMessageToDatabase = async (messageContent: string) => {
+    if (!user) {
+      return;
+    }
+
+    try {
+      // First try to update existing record
+      const { data: updateData, error: updateError } = await supabase
+        .from('last_wish_settings')
+        .update({
+          message: messageContent,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+        .select();
+
+      // If no rows were updated (user doesn't exist), insert new record
+      if (!updateError && (!updateData || updateData.length === 0)) {
+        const { data: insertData, error: insertError } = await supabase
+          .from('last_wish_settings')
+          .insert({
+            user_id: user.id,
+            is_enabled: settings.isEnabled,
+            check_in_frequency: settings.checkInFrequency,
+            last_check_in: settings.lastCheckIn,
+            recipients: settings.recipients,
+            include_data: settings.includeData,
+            message: messageContent,
+            is_active: settings.isActive,
+            delivery_triggered: false,
+            updated_at: new Date().toISOString(),
+          })
+          .select();
+        
+        if (insertError) {
+          throw insertError;
+        }
+      } else if (updateError) {
+        throw updateError;
+      }
+
+      setSaveStatus('saved');
+    } catch (error) {
+      setSaveStatus('error');
+      toast.error(`Failed to save message: ${(error as any)?.message || 'Unknown error'}`);
+    }
+  };
+
   const handleMessageInput = (e: React.FormEvent<HTMLDivElement>) => {
     const content = e.currentTarget.innerHTML;
     setSettings(prev => ({ ...prev, message: content }));
@@ -155,10 +203,7 @@ export const LW: React.FC<LWProps> = () => {
     
     autoSaveTimeoutRef.current = setTimeout(() => {
       setSaveStatus('saving');
-      // Simulate save
-      setTimeout(() => {
-        setSaveStatus('saved');
-      }, 500);
+      saveMessageToDatabase(content);
     }, 2000);
   };
 
@@ -167,10 +212,10 @@ export const LW: React.FC<LWProps> = () => {
     if (autoSaveTimeoutRef.current) {
       clearTimeout(autoSaveTimeoutRef.current);
     }
+    
+    const content = messageEditorRef.current?.innerHTML || settings.message || '';
     setSaveStatus('saving');
-    setTimeout(() => {
-      setSaveStatus('saved');
-    }, 500);
+    saveMessageToDatabase(content);
   };
 
   const handleMessageFocus = () => {
@@ -302,9 +347,8 @@ These memories are my gift to you.`
       
       autoSaveTimeoutRef.current = setTimeout(() => {
         setSaveStatus('saving');
-        setTimeout(() => {
-          setSaveStatus('saved');
-        }, 500);
+        const contentToSave = useSimpleEditor ? simpleText : (messageEditorRef.current?.innerHTML || '');
+        saveMessageToDatabase(contentToSave);
       }, 1000);
     }
   };
@@ -358,10 +402,7 @@ These memories are my gift to you.`
     
     autoSaveTimeoutRef.current = setTimeout(() => {
       setSaveStatus('saving');
-      // Simulate save
-      setTimeout(() => {
-        setSaveStatus('saved');
-      }, 500);
+      saveMessageToDatabase(content);
     }, 2000);
   };
 
@@ -1545,6 +1586,13 @@ These memories are my gift to you.`
               <textarea
                 value={simpleText}
                 onChange={handleSimpleTextChange}
+                onBlur={() => {
+                  if (autoSaveTimeoutRef.current) {
+                    clearTimeout(autoSaveTimeoutRef.current);
+                  }
+                  setSaveStatus('saving');
+                  saveMessageToDatabase(simpleText);
+                }}
                 className="w-full p-3 min-h-[150px] max-h-[400px] resize-y focus:outline-none dark:bg-gray-700 dark:text-white text-sm border-0"
                 style={{
                   lineHeight: '1.6',
