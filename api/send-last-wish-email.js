@@ -1179,7 +1179,7 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
               <!-- Personal Message Card -->
               <div class="message-card">
                 <h3>Personal Message from ${userName}</h3>
-                <p>${settings.message.trim()}</p>
+                <div>${settings.message.trim()}</div>
               </div>
             ` : ''}
 
@@ -1207,26 +1207,26 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
               <div class="summary-section">
                 <h4>Account Summary</h4>
                 <div class="summary-row">
-                  <span class="summary-row-label">Total Accounts:</span>
+                  <span class="summary-row-label">Total Accounts: </span>
                   <span class="summary-row-value">${totalAccounts} account${totalAccounts !== 1 ? 's' : ''}</span>
                 </div>
                 <div class="summary-row">
-                  <span class="summary-row-label">Currencies:</span>
+                  <span class="summary-row-label">Currencies: </span>
                   <span class="summary-row-value">${Object.keys(assetsByCurrency).length > 0 ? Object.keys(assetsByCurrency).join(', ') : 'N/A'}</span>
                 </div>
               </div>
               <div class="summary-section">
                 <h4>Lend/Borrow Summary</h4>
                 <div class="summary-row">
-                  <span class="summary-row-label">Total Lent:</span>
+                  <span class="summary-row-label">Total Lent: </span>
                   <span class="summary-row-value positive">${Object.keys(lentByCurrency).length > 0 ? Object.entries(lentByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</span>
                 </div>
                 <div class="summary-row">
-                  <span class="summary-row-label">Total Borrowed:</span>
+                  <span class="summary-row-label">Total Borrowed: </span>
                   <span class="summary-row-value negative">${Object.keys(borrowedByCurrency).length > 0 ? Object.entries(borrowedByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</span>
                 </div>
                 <div class="summary-row">
-                  <span class="summary-row-label">Active Records:</span>
+                  <span class="summary-row-label">Active Records: </span>
                   <span class="summary-row-value">${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}</span>
                 </div>
               </div>
@@ -1829,7 +1829,8 @@ export function createPDFBuffer(user, recipient, data, settings) {
         
         // Create a page for each currency (only if there are accounts for that currency)
         const currencies = Object.keys(accountsByCurrency).sort().filter(currency => accountsByCurrency[currency].length > 0);
-        currencies.forEach((currency, currencyIndex) => {
+        if (currencies.length > 0) {
+          currencies.forEach((currency, currencyIndex) => {
           if (currencyIndex > 0) {
             doc.addPage();
           }
@@ -1867,7 +1868,8 @@ export function createPDFBuffer(user, recipient, data, settings) {
               }
             );
           }
-        });
+          });
+        }
       }
 
       // LEND/BORROW SECTION (Only Active/Unsettled Records)
@@ -1913,6 +1915,33 @@ export function createPDFBuffer(user, recipient, data, settings) {
             fontSize: 8
           }
         );
+      }
+      
+      // Final pass: Update all page footers with correct total page count
+      const finalTotalPages = doc.bufferedPageRange().count;
+      const pageRange = doc.bufferedPageRange();
+      
+      for (let i = pageRange.start; i < pageRange.start + finalTotalPages; i++) {
+        doc.switchToPage(i);
+        const pageHeight = doc.page.height;
+        const pageWidth = doc.page.width;
+        
+        // Clear existing footer area and redraw with correct total
+        doc.save();
+        doc.fontSize(8).fillColor('#6b7280');
+        doc.text(
+          `Page ${i + 1} of ${finalTotalPages} | Generated: ${formatDate(new Date())} | Balanze Last Wish System`,
+          50,
+          pageHeight - 30,
+          { align: 'left', width: pageWidth - 100 }
+        );
+        doc.text(
+          'CONFIDENTIAL - For authorized recipient only',
+          pageWidth - 50,
+          pageHeight - 30,
+          { align: 'right' }
+        );
+        doc.restore();
       }
       
       doc.end();
