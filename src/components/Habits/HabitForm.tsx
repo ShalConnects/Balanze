@@ -3,8 +3,6 @@ import { X, Loader2, AlertCircle, Sprout } from 'lucide-react';
 import { useHabitStore } from '../../store/useHabitStore';
 import { Habit, HabitInput, HabitColor } from '../../types/habit';
 import { Loader } from '../common/Loader';
-import { useMobileDetection } from '../../hooks/useMobileDetection';
-import { CustomDropdown } from '../Purchases/CustomDropdown';
 
 interface HabitFormProps {
   isOpen: boolean;
@@ -25,7 +23,6 @@ const colorOptions = [
 
 export const HabitForm: React.FC<HabitFormProps> = ({ isOpen, onClose, habit }) => {
   const { addHabit, updateHabit, loading, error } = useHabitStore();
-  const { isMobile } = useMobileDetection();
   const [formData, setFormData] = useState<HabitInput>({
     title: '',
     description: '',
@@ -162,7 +159,7 @@ export const HabitForm: React.FC<HabitFormProps> = ({ isOpen, onClose, habit }) 
               {/* Title and Color Selector - Same Row */}
               <div className="grid grid-cols-[1fr_auto] gap-2 sm:gap-3 items-start">
                 {/* Title */}
-                <div className="relative">
+                <div className="relative min-h-[3rem]">
                   <input
                     id="habit-title"
                     type="text"
@@ -174,8 +171,8 @@ export const HabitForm: React.FC<HabitFormProps> = ({ isOpen, onClose, habit }) 
                     disabled={loading}
                   />
                   {errors.title && (touched.title || formSubmitted) && (
-                    <span className="text-xs text-red-600 absolute left-0 -bottom-4 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
+                    <span className="text-xs text-red-600 dark:text-red-400 absolute left-0 top-full mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
                       {errors.title}
                     </span>
                   )}

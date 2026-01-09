@@ -51,13 +51,36 @@ import PullToRefreshDashboard from './PullToRefreshDashboard';
 import { supabase } from '../../lib/supabase';
 import { isLendBorrowTransaction } from '../../utils/transactionUtils';
 import { UpgradeBanner } from '../common/UpgradeBanner';
+import { Purchase } from '../../types';
 
+// Constants moved outside component to prevent recreation on every render
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF6B6B'];
+
+const getDefaultWidgets = (): WidgetConfig[] => [
+  { id: 'task-reminders', name: 'Task Reminders', visible: true, order: 0 },
+  { id: 'last-wish', name: 'Last Wish', visible: true, order: 1 },
+  { id: 'habit-garden', name: 'Habit Garden', visible: true, order: 2 },
+  { id: 'notes-todos', name: 'Notes & Todos', visible: true, order: 3 },
+];
+
+// Validate widget config structure - moved outside component for better performance
+const isValidWidgetConfig = (config: unknown): config is WidgetConfig[] => {
+  if (!Array.isArray(config)) return false;
+  return config.every(widget => 
+    typeof widget === 'object' &&
+    widget !== null &&
+    typeof (widget as WidgetConfig).id === 'string' &&
+    typeof (widget as WidgetConfig).name === 'string' &&
+    typeof (widget as WidgetConfig).visible === 'boolean' &&
+    typeof (widget as WidgetConfig).order === 'number'
+  );
+};
 
 interface DashboardProps {
-  onViewChange: (view: string) => void;
+  onViewChange?: (view: string) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChange }) => {
   const { isMobile } = useMobileDetection();
   const { 
     getDashboardStats, 
@@ -69,10 +92,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     setShowTransactionForm, 
     setShowAccountForm, 
     setShowTransferModal,
-    loading: storeLoading,
     showPurchaseForm,
     setShowPurchaseForm,
-    purchaseCategories,
     accounts,
     addPurchase
   } = useFinanceStore();
@@ -94,27 +115,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   // Lazy load NotesAndTodosWidget to reduce initial bundle size
   const [NotesAndTodosWidget, setNotesAndTodosWidget] = useState<React.ComponentType | null>(null);
 
-  // Widget configuration state
-  const getDefaultWidgets = (): WidgetConfig[] => [
-    { id: 'task-reminders', name: 'Task Reminders', visible: true, order: 0 },
-    { id: 'last-wish', name: 'Last Wish', visible: true, order: 1 },
-    { id: 'habit-garden', name: 'Habit Garden', visible: true, order: 2 },
-    { id: 'notes-todos', name: 'Notes & Todos', visible: true, order: 3 },
-  ];
-
-  const loadWidgetConfig = (): WidgetConfig[] => {
+  // Memoize widget config loading to prevent unnecessary localStorage reads with validation
+  const loadWidgetConfig = useCallback((): WidgetConfig[] => {
     const saved = localStorage.getItem('dashboard-widget-config');
     if (saved) {
       try {
-        return JSON.parse(saved);
-      } catch {
+        const parsed = JSON.parse(saved);
+        if (isValidWidgetConfig(parsed)) {
+          return parsed;
+        } else {
+          console.warn('Invalid widget config structure, using defaults');
+          return getDefaultWidgets();
+        }
+      } catch (error) {
+        console.error('Error parsing widget config:', error);
         return getDefaultWidgets();
       }
     }
     return getDefaultWidgets();
-  };
+  }, []);
 
-  const [widgetConfig, setWidgetConfig] = useState<WidgetConfig[]>(loadWidgetConfig);
+  const [widgetConfig, setWidgetConfig] = useState<WidgetConfig[]>(() => loadWidgetConfig());
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
   // Save widget config to localStorage
@@ -134,7 +155,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     })
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -148,33 +169,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
       }));
       setWidgetConfig(newConfig);
     }
-  };
+  }, [widgetConfig]);
 
-  const handleWidgetUpdate = (updatedWidgets: WidgetConfig[]) => {
+  const handleWidgetUpdate = useCallback((updatedWidgets: WidgetConfig[]) => {
     setWidgetConfig(updatedWidgets);
-  };
+  }, []);
 
-  const handleResetWidgets = () => {
+  const handleResetWidgets = useCallback(() => {
     setWidgetConfig(getDefaultWidgets());
-  };
+  }, []);
 
-  // Get visible widgets sorted by order
-  const visibleWidgets = widgetConfig
-    .filter(w => w.visible)
-    .sort((a, b) => a.order - b.order);
+  // Get visible widgets sorted by order - memoized for performance
+  const visibleWidgets = useMemo(() => 
+    widgetConfig
+      .filter(w => w.visible)
+      .sort((a, b) => a.order - b.order),
+    [widgetConfig]
+  );
 
-  // Lazy load NotesAndTodosWidget after initial render
+  // Lazy load NotesAndTodosWidget after initial render - with improved error handling
   useEffect(() => {
     if (!NotesAndTodosWidget) {
+      let isMounted = true;
       // Load after a short delay to prioritize critical content
       const timer = setTimeout(() => {
-        import('./NotesAndTodosWidget').then((module) => {
-          setNotesAndTodosWidget(() => module.NotesAndTodosWidget);
-        }).catch(() => {
-          // Silently fail if widget can't be loaded
-        });
+        import('./NotesAndTodosWidget')
+          .then((module) => {
+            if (isMounted && module?.NotesAndTodosWidget) {
+              setNotesAndTodosWidget(() => module.NotesAndTodosWidget);
+            }
+          })
+          .catch((error) => {
+            if (isMounted) {
+              console.error('Failed to load NotesAndTodosWidget:', error);
+              // Widget will remain null, which is handled gracefully in render
+            }
+          });
       }, 500);
-      return () => clearTimeout(timer);
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+      };
     }
   }, [NotesAndTodosWidget]);
 
@@ -199,9 +234,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     useFinanceStore.getState().fetchDonationSavingRecords();
   }, []);
 
-  // Retry function for failed data loads
+  // Retry function for failed data loads - with consistent error handling
   const retryDataLoad = useCallback(async () => {
-    if (retryCount >= 3) {
+    if (retryCount >= MAX_RETRY_ATTEMPTS) {
+      toast.error('Maximum retry attempts reached', {
+        description: 'Please refresh the page or contact support if the problem persists.'
+      });
       return;
     }
     
@@ -222,25 +260,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
       setDashboardLoading(false);
       setInitialDataFetched(true);
       setRetryCount(0); // Reset retry count on success
+      toast.success('Dashboard data loaded successfully');
     } catch (error) {
+      console.error('Error retrying data load:', error);
       setDashboardLoading(false);
       setHasLoadError(true);
+      
+      // Show user-friendly error message
+      if (retryCount < MAX_RETRY_ATTEMPTS - 1) {
+        toast.error('Failed to load data', {
+          description: `Retrying... (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})`
+        });
+      }
     }
   }, [retryCount, fetchTransactions, fetchAccounts, fetchCategories, fetchPurchaseCategories, fetchDonationSavingRecords]);
 
-  // Combined refresh handler for PullToRefresh with timeout protection
+  // Combined refresh handler for PullToRefresh with timeout protection and consistent error handling
   const handleRefresh = useCallback(async () => {
-    const startTime = Date.now();
-    
+    const abortController = new AbortController();
     let timeoutId: NodeJS.Timeout | null = null;
     
     try {
-      // Add 10-second overall timeout
+      // Add timeout protection
       const timeoutPromise = new Promise((_, reject) => {
         timeoutId = setTimeout(() => {
+          abortController.abort();
           reject(new Error('Refresh timeout'));
-        }, 10000);
+        }, REFRESH_TIMEOUT);
       });
+      
       const results = await Promise.race([
         Promise.allSettled([
           fetchTransactions(),
@@ -258,7 +306,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         clearTimeout(timeoutId);
       }
       
-      return;
+      // Check for any failed promises
+      if (Array.isArray(results)) {
+        const failures = results.filter(r => r.status === 'rejected');
+        if (failures.length > 0) {
+          console.error('Some data failed to refresh:', failures);
+          // Don't throw - allow partial success
+        }
+      }
       
     } catch (error) {
       // Clear timeout on error as well
@@ -266,7 +321,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         clearTimeout(timeoutId);
       }
       
-      throw error; // Re-throw to let PullToRefresh handle error state
+      // Only throw if not aborted (abort is expected behavior)
+      if (!abortController.signal.aborted) {
+        console.error('Error refreshing dashboard:', error);
+        throw error; // Re-throw to let PullToRefresh handle error state
+      }
     }
   }, [fetchTransactions, fetchAccounts, fetchCategories, fetchPurchaseCategories, fetchDonationSavingRecords]);
   
@@ -285,22 +344,53 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     );
   }, [storeTransactions]);
   
-  // Check if there are any DPS transfers
+  // Check if there are any DPS transfers - with caching to prevent unnecessary queries
   const [hasDpsTransfers, setHasDpsTransfers] = useState(false);
+  const dpsTransfersCacheRef = useRef<{ userId: string | undefined; hasTransfers: boolean } | null>(null);
+  
   useEffect(() => {
-    if (user?.id) {
-      supabase
-        .from('dps_transfers')
-        .select('id', { count: 'exact', head: true })
-        .then(({ count }) => {
-          setHasDpsTransfers((count || 0) > 0);
-        })
-        .catch(() => {
-          setHasDpsTransfers(false);
-        });
-    } else {
+    if (!user?.id) {
       setHasDpsTransfers(false);
+      dpsTransfersCacheRef.current = null;
+      return;
     }
+    
+    // Use cached value if available and user hasn't changed
+    if (dpsTransfersCacheRef.current?.userId === user.id) {
+      setHasDpsTransfers(dpsTransfersCacheRef.current.hasTransfers);
+      return;
+    }
+    
+    let isMounted = true;
+    const abortController = new AbortController();
+    
+    supabase
+      .from('dps_transfers')
+      .select('id', { count: 'exact', head: true })
+      .then(({ count, error }) => {
+        if (!isMounted || abortController.signal.aborted) return;
+        
+        if (error) {
+          console.error('Error checking DPS transfers:', error);
+          setHasDpsTransfers(false);
+          dpsTransfersCacheRef.current = { userId: user.id, hasTransfers: false };
+        } else {
+          const hasTransfers = (count || 0) > 0;
+          setHasDpsTransfers(hasTransfers);
+          dpsTransfersCacheRef.current = { userId: user.id, hasTransfers };
+        }
+      })
+      .catch((error) => {
+        if (!isMounted || abortController.signal.aborted) return;
+        console.error('Error checking DPS transfers:', error);
+        setHasDpsTransfers(false);
+        dpsTransfersCacheRef.current = { userId: user.id, hasTransfers: false };
+      });
+    
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [user?.id]);
   
   // Combined check for any transfers (regular or DPS)
@@ -331,46 +421,73 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   const clients = useClientStore((state) => state.clients);
   const fetchClients = useClientStore((state) => state.fetchClients);
   
-  // Listen to localStorage changes for widget visibility
+  // Listen to localStorage changes for widget visibility - with error handling
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'showPurchasesWidget' && e.newValue !== null) {
-        setShowPurchasesWidget(JSON.parse(e.newValue));
-      }
-      if (e.key === 'showLendBorrowWidget' && e.newValue !== null) {
-        setShowLendBorrowWidget(JSON.parse(e.newValue));
-      }
-      if (e.key === 'showTransferWidget' && e.newValue !== null) {
-        setShowTransferWidget(JSON.parse(e.newValue));
-      }
-      if (e.key === 'showDonationsSavingsWidget' && e.newValue !== null) {
-        setShowDonationsSavingsWidget(JSON.parse(e.newValue));
-      }
-      if (e.key === 'showClientsWidget' && e.newValue !== null) {
-        setShowClientsWidget(JSON.parse(e.newValue));
+      if (!e.newValue) return;
+      
+      try {
+        if (e.key === 'showPurchasesWidget') {
+          setShowPurchasesWidget(JSON.parse(e.newValue));
+        } else if (e.key === 'showLendBorrowWidget') {
+          setShowLendBorrowWidget(JSON.parse(e.newValue));
+        } else if (e.key === 'showTransferWidget') {
+          setShowTransferWidget(JSON.parse(e.newValue));
+        } else if (e.key === 'showDonationsSavingsWidget') {
+          setShowDonationsSavingsWidget(JSON.parse(e.newValue));
+        } else if (e.key === 'showClientsWidget') {
+          setShowClientsWidget(JSON.parse(e.newValue));
+        }
+      } catch (error) {
+        console.error(`Error parsing localStorage value for ${e.key}:`, error);
+        // Keep current state on parse error
       }
     };
     
     const handleCustomStorageChange = () => {
-      const savedPurchases = localStorage.getItem('showPurchasesWidget');
-      if (savedPurchases !== null) {
-        setShowPurchasesWidget(JSON.parse(savedPurchases));
+      try {
+        const savedPurchases = localStorage.getItem('showPurchasesWidget');
+        if (savedPurchases !== null) {
+          setShowPurchasesWidget(JSON.parse(savedPurchases));
+        }
+      } catch (error) {
+        console.error('Error parsing showPurchasesWidget from localStorage:', error);
       }
-      const savedLendBorrow = localStorage.getItem('showLendBorrowWidget');
-      if (savedLendBorrow !== null) {
-        setShowLendBorrowWidget(JSON.parse(savedLendBorrow));
+      
+      try {
+        const savedLendBorrow = localStorage.getItem('showLendBorrowWidget');
+        if (savedLendBorrow !== null) {
+          setShowLendBorrowWidget(JSON.parse(savedLendBorrow));
+        }
+      } catch (error) {
+        console.error('Error parsing showLendBorrowWidget from localStorage:', error);
       }
-      const savedTransfer = localStorage.getItem('showTransferWidget');
-      if (savedTransfer !== null) {
-        setShowTransferWidget(JSON.parse(savedTransfer));
+      
+      try {
+        const savedTransfer = localStorage.getItem('showTransferWidget');
+        if (savedTransfer !== null) {
+          setShowTransferWidget(JSON.parse(savedTransfer));
+        }
+      } catch (error) {
+        console.error('Error parsing showTransferWidget from localStorage:', error);
       }
-      const savedDonationsSavings = localStorage.getItem('showDonationsSavingsWidget');
-      if (savedDonationsSavings !== null) {
-        setShowDonationsSavingsWidget(JSON.parse(savedDonationsSavings));
+      
+      try {
+        const savedDonationsSavings = localStorage.getItem('showDonationsSavingsWidget');
+        if (savedDonationsSavings !== null) {
+          setShowDonationsSavingsWidget(JSON.parse(savedDonationsSavings));
+        }
+      } catch (error) {
+        console.error('Error parsing showDonationsSavingsWidget from localStorage:', error);
       }
-      const savedClients = localStorage.getItem('showClientsWidget');
-      if (savedClients !== null) {
-        setShowClientsWidget(JSON.parse(savedClients));
+      
+      try {
+        const savedClients = localStorage.getItem('showClientsWidget');
+        if (savedClients !== null) {
+          setShowClientsWidget(JSON.parse(savedClients));
+        }
+      } catch (error) {
+        console.error('Error parsing showClientsWidget from localStorage:', error);
       }
     };
     
@@ -391,23 +508,55 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     };
   }, []);
   
-  // Check if user has lend_borrow records
+  // Check if user has lend_borrow records - with caching to prevent unnecessary queries
   const [hasLendBorrowRecords, setHasLendBorrowRecords] = useState(false);
+  const lendBorrowCacheRef = useRef<{ userId: string | undefined; isPremium: boolean; hasRecords: boolean } | null>(null);
+  
   useEffect(() => {
-    if (isPremium && user?.id) {
-      supabase
-        .from('lend_borrow')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .then(({ count }) => {
-          setHasLendBorrowRecords((count || 0) > 0);
-        })
-        .catch(() => {
-          setHasLendBorrowRecords(false);
-        });
-    } else {
+    if (!isPremium || !user?.id) {
       setHasLendBorrowRecords(false);
+      lendBorrowCacheRef.current = null;
+      return;
     }
+    
+    // Use cached value if available and conditions haven't changed
+    if (lendBorrowCacheRef.current?.userId === user.id && 
+        lendBorrowCacheRef.current?.isPremium === isPremium) {
+      setHasLendBorrowRecords(lendBorrowCacheRef.current.hasRecords);
+      return;
+    }
+    
+    let isMounted = true;
+    const abortController = new AbortController();
+    
+    supabase
+      .from('lend_borrow')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .then(({ count, error }) => {
+        if (!isMounted || abortController.signal.aborted) return;
+        
+        if (error) {
+          console.error('Error checking lend_borrow records:', error);
+          setHasLendBorrowRecords(false);
+          lendBorrowCacheRef.current = { userId: user.id, isPremium, hasRecords: false };
+        } else {
+          const hasRecords = (count || 0) > 0;
+          setHasLendBorrowRecords(hasRecords);
+          lendBorrowCacheRef.current = { userId: user.id, isPremium, hasRecords };
+        }
+      })
+      .catch((error) => {
+        if (!isMounted || abortController.signal.aborted) return;
+        console.error('Error checking lend_borrow records:', error);
+        setHasLendBorrowRecords(false);
+        lendBorrowCacheRef.current = { userId: user.id, isPremium, hasRecords: false };
+      });
+    
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [isPremium, user?.id]);
   
   // Calculate stats reactively when store data changes
@@ -416,12 +565,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   const transactions = getActiveTransactions();
   const allTransactions = storeTransactions; // Use reactive store data
   
-  
-  
-  
-  // Debug logging for currency card issue
-
-  const [selectedCurrency, setSelectedCurrency] = useState(stats.byCurrency[0]?.currency || 'USD');
   const [showMultiCurrencyAnalytics, setShowMultiCurrencyAnalytics] = useState(true);
   const [showPurchasesWidget, setShowPurchasesWidget] = useState(true);
   const [isPurchaseWidgetHovered, setIsPurchaseWidgetHovered] = useState(false);
@@ -437,34 +580,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  // Load user preferences for multi-currency analytics
+  // Load user preferences - consolidated into single effect for better performance
   useEffect(() => {
-    if (user?.id) {
-      const loadPreferences = async () => {
-        try {
-          const showAnalytics = await getPreference(user.id, 'showMultiCurrencyAnalytics', true);
-          setShowMultiCurrencyAnalytics(showAnalytics);
-        } catch (error) {
-          setShowMultiCurrencyAnalytics(true); // Default to showing
-        }
-      };
-      loadPreferences();
-    }
-  }, [user?.id]);
-
-  // Load user preferences for purchases widget
-  useEffect(() => {
-    if (user?.id) {
-      const loadPreferences = async () => {
-        try {
-          const showWidget = await getPreference(user.id, 'showPurchasesWidget', true);
-          setShowPurchasesWidget(showWidget);
-        } catch (error) {
-          setShowPurchasesWidget(true); // Default to showing
-        }
-      };
-      loadPreferences();
-    }
+    if (!user?.id) return;
+    
+    let isMounted = true;
+    const abortController = new AbortController();
+    
+    const loadPreferences = async () => {
+      try {
+        // Load all preferences in parallel
+        const [showAnalytics, showWidget] = await Promise.all([
+          getPreference(user.id, 'showMultiCurrencyAnalytics', true),
+          getPreference(user.id, 'showPurchasesWidget', true)
+        ]);
+        
+        if (!isMounted || abortController.signal.aborted) return;
+        
+        setShowMultiCurrencyAnalytics(showAnalytics);
+        setShowPurchasesWidget(showWidget);
+      } catch (error) {
+        if (!isMounted || abortController.signal.aborted) return;
+        // Default to showing on error
+        console.error('Error loading user preferences:', error);
+        setShowMultiCurrencyAnalytics(true);
+        setShowPurchasesWidget(true);
+      }
+    };
+    
+    loadPreferences();
+    
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [user?.id]);
 
   // Save Multi-Currency Analytics visibility preference to database
@@ -618,14 +767,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     }
   };
 
-  // Fetch clients on mount
+  // Fetch clients on mount - with error handling
   useEffect(() => {
-    fetchClients();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    let isMounted = true;
+    const loadClients = async () => {
+      try {
+        await fetchClients();
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error fetching clients:', error);
+        }
+      }
+    };
+    loadClients();
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchClients]);
 
-  // Get purchase analytics
-  const purchaseAnalytics = useFinanceStore((state) => state.getMultiCurrencyPurchaseAnalytics());
   const purchases = useFinanceStore((state) => state.purchases);
   
   // Get all available currencies from all sources (accounts, purchases, etc.)
@@ -676,24 +835,56 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     return hasPurchase || hasLendBorrow || hasTransfer;
   }, [purchases.length, showPurchasesWidget, isPremium, hasLendBorrowRecords, showLendBorrowWidget, hasTransfers, showTransferWidget]);
   
-  // Calculate purchase overview stats (filtered by currency)
-  const totalPlannedPurchases = filteredPurchases.filter(p => p.status === 'planned').length;
-  const totalPurchasedItems = filteredPurchases.filter(p => p.status === 'purchased').length;
-  const totalCancelledItems = filteredPurchases.filter(p => p.status === 'cancelled').length;
-  const totalPlannedValue = filteredPurchases
-    .filter(p => p.status === 'planned')
-    .reduce((sum, p) => sum + p.price, 0);
-  const totalPurchasedValue = filteredPurchases
-    .filter(p => p.status === 'purchased')
-    .reduce((sum, p) => sum + p.price, 0);
-  const recentPurchases = filteredPurchases
-    .filter(p => p.status === 'purchased')
-    .sort((a, b) => new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime())
-    .slice(0, 5);
-  const recentPlannedPurchases = filteredPurchases
-    .filter(p => p.status === 'planned')
-    .sort((a, b) => new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime())
-    .slice(0, 5);
+  // Calculate purchase overview stats (filtered by currency) - memoized for performance
+  const purchaseStats = useMemo(() => {
+    const planned = filteredPurchases.filter(p => p.status === 'planned');
+    const purchased = filteredPurchases.filter(p => p.status === 'purchased');
+    const cancelled = filteredPurchases.filter(p => p.status === 'cancelled');
+    
+    const totalPlannedPurchases = planned.length;
+    const totalPurchasedItems = purchased.length;
+    const totalCancelledItems = cancelled.length;
+    const totalPlannedValue = planned.reduce((sum, p) => sum + p.price, 0);
+    const totalPurchasedValue = purchased.reduce((sum, p) => sum + p.price, 0);
+    
+    const recentPurchases = purchased
+      .filter(p => p.purchase_date)
+      .sort((a, b) => {
+        const dateA = a.purchase_date ? new Date(a.purchase_date).getTime() : 0;
+        const dateB = b.purchase_date ? new Date(b.purchase_date).getTime() : 0;
+        return dateB - dateA;
+      })
+      .slice(0, 5);
+    
+    const recentPlannedPurchases = planned
+      .filter(p => p.purchase_date)
+      .sort((a, b) => {
+        const dateA = a.purchase_date ? new Date(a.purchase_date).getTime() : 0;
+        const dateB = b.purchase_date ? new Date(b.purchase_date).getTime() : 0;
+        return dateB - dateA;
+      })
+      .slice(0, 5);
+    
+    return {
+      totalPlannedPurchases,
+      totalPurchasedItems,
+      totalCancelledItems,
+      totalPlannedValue,
+      totalPurchasedValue,
+      recentPurchases,
+      recentPlannedPurchases
+    };
+  }, [filteredPurchases]);
+  
+  const {
+    totalPlannedPurchases,
+    totalPurchasedItems,
+    totalCancelledItems,
+    totalPlannedValue,
+    totalPurchasedValue,
+    recentPurchases,
+    recentPlannedPurchases
+  } = purchaseStats;
 
 
   // Initial data fetch when dashboard loads
@@ -704,6 +895,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     }
     
     let isMounted = true;
+    const abortController = new AbortController();
     
     const refreshData = async () => {
       try {
@@ -721,16 +913,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
           useFinanceStore.getState().fetchPurchases()
         ]);
 
-        // Success - hide loading
-        if (isMounted) {
+        // Success - hide loading (only if not aborted)
+        if (isMounted && !abortController.signal.aborted) {
           setDashboardLoading(false);
           setInitialDataFetched(true);
           setLoadingMessage('');
         }
 
       } catch (error) {
-        // Error - still show dashboard but mark as having an error
-        if (isMounted) {
+        // Error - still show dashboard but mark as having an error (only if not aborted)
+        if (isMounted && !abortController.signal.aborted) {
           setDashboardLoading(false);
           setInitialDataFetched(true);
           setHasLoadError(true);
@@ -743,8 +935,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     
     return () => {
       isMounted = false;
+      abortController.abort();
     };
-  }, [user, initialDataFetched]); // Only depend on user and initialDataFetched - functions are memoized
+  }, [user, initialDataFetched, fetchTransactions, fetchAccounts, fetchCategories, fetchPurchaseCategories, fetchDonationSavingRecords]); // Include all dependencies
 
   // Force loading state to false after a timeout to prevent infinite loading
   useEffect(() => {
@@ -754,19 +947,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         setInitialDataFetched(true);
         setHasLoadError(true);
         setLoadingMessage('');
-      }, 8000); // 8 second timeout (reduced from 10)
+      }, DASHBOARD_LOADING_TIMEOUT);
       
       return () => clearTimeout(timeoutId);
     }
-  }, [dashboardLoading, user]);
+  }, [dashboardLoading, user, setLoadingMessage]);
 
-  // Listen for global refresh events from header
+  // Listen for global refresh events from header - with consistent error handling
   useEffect(() => {
     const handleDataRefresh = async () => {
       try {
         await handleRefresh();
       } catch (error) {
-        // Error handled silently
+        // Error is already logged in handleRefresh, just prevent unhandled rejection
+        console.error('Error in global refresh handler:', error);
       }
     };
 
@@ -780,29 +974,41 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
   // Manual refresh is handled by the Header component's refresh button
 
-  // Calculate total income and expenses (excluding transfers and lend/borrow transactions)
-  const totalIncome = transactions
-    .filter(t => t.type === 'income' && 
-      !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer')) &&
-      !isLendBorrowTransaction(t)
-    )
-    .reduce((sum, t) => sum + t.amount, 0);
-  const totalExpenses = transactions
-    .filter(t => t.type === 'expense' && 
-      !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer')) &&
-      !isLendBorrowTransaction(t)
-    )
-    .reduce((sum, t) => sum + t.amount, 0);
+  // Calculate total income and expenses (excluding transfers and lend/borrow transactions) - memoized
+  const { totalIncome, totalExpenses } = useMemo(() => {
+    const income = transactions
+      .filter(t => t.type === 'income' && 
+        !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer')) &&
+        !isLendBorrowTransaction(t)
+      )
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const expenses = transactions
+      .filter(t => t.type === 'expense' && 
+        !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer')) &&
+        !isLendBorrowTransaction(t)
+      )
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    return { totalIncome: income, totalExpenses: expenses };
+  }, [transactions]);
 
   // Use the raw accounts array from the store
   const rawAccounts = useFinanceStore((state) => state.accounts);
   
   // Debug logging for accounts and stats
 
-  // Calculate spending breakdown data for pie chart
-  const getSpendingBreakdown = () => {
+  // Constants for timeouts and thresholds
+  const DASHBOARD_LOADING_TIMEOUT = 8000; // 8 seconds
+  const REFRESH_TIMEOUT = 10000; // 10 seconds
+  const MAX_RETRY_ATTEMPTS = 3;
+  const SPENDING_ANALYSIS_DAYS = 30;
+  const TRENDS_ANALYSIS_MONTHS = 6;
+
+  // Calculate spending breakdown data for pie chart - memoized
+  const spendingData = useMemo(() => {
     const last30Days = new Date();
-    last30Days.setDate(last30Days.getDate() - 30);
+    last30Days.setDate(last30Days.getDate() - SPENDING_ANALYSIS_DAYS);
     
     const expenses = transactions.filter(t => 
       t.type === 'expense' && 
@@ -821,11 +1027,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
       name,
       value: Math.round(value * 100) / 100
     }));
-  };
+  }, [transactions]);
 
-  // Calculate monthly trends data for line chart
-  const getMonthlyTrends = () => {
-    const last6Months = Array.from({ length: 6 }, (_, i) => {
+  // Calculate monthly trends data for line chart - memoized
+  const trendsData = useMemo(() => {
+    const last6Months = Array.from({ length: TRENDS_ANALYSIS_MONTHS }, (_, i) => {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
       return {
@@ -838,7 +1044,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     transactions.forEach(transaction => {
       const transactionDate = new Date(transaction.date);
       const monthIndex = last6Months.findIndex(m => 
-        new Date().getMonth() - (5 - last6Months.indexOf(m)) === transactionDate.getMonth()
+        new Date().getMonth() - (TRENDS_ANALYSIS_MONTHS - 1 - last6Months.indexOf(m)) === transactionDate.getMonth()
       );
       
       if (monthIndex !== -1) {
@@ -851,20 +1057,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
     });
 
     return last6Months;
-  };
-
-  const spendingData = getSpendingBreakdown();
-  const trendsData = getMonthlyTrends();
+  }, [transactions]);
   
-  // Colors for pie chart
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF6B6B'];
-
   const [submittingPurchase, setSubmittingPurchase] = React.useState(false);
-  const handlePurchaseSubmit = async (data: any) => {
+  const handlePurchaseSubmit = async (data: Omit<Purchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     setSubmittingPurchase(true);
     try {
       await addPurchase(data);
       setShowPurchaseForm(false);
+      toast.success('Purchase added successfully');
+    } catch (error) {
+      console.error('Error adding purchase:', error);
+      toast.error('Failed to add purchase', {
+        description: error instanceof Error ? error.message : 'Please try again'
+      });
+      // Don't close form on error so user can retry
     } finally {
       setSubmittingPurchase(false);
     }
@@ -889,15 +1096,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                   Failed to load dashboard data
                 </p>
                 <p className="text-xs text-red-600 dark:text-red-400">
-                  Retry attempt {retryCount}/3
+                  Retry attempt {retryCount}/{MAX_RETRY_ATTEMPTS}
                 </p>
               </div>
               <button
                 onClick={retryDataLoad}
-                disabled={retryCount >= 3}
+                disabled={retryCount >= MAX_RETRY_ATTEMPTS}
                 className="text-xs bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-3 py-1 rounded transition-colors"
+                aria-label="Retry loading dashboard data"
               >
-                {retryCount >= 3 ? 'Max Retries' : 'Retry'}
+                {retryCount >= MAX_RETRY_ATTEMPTS ? 'Max Retries' : 'Retry'}
               </button>
             </div>
           </div>
@@ -947,9 +1155,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
               </div>
             </div>
           )}
-
-          {/* Task Reminders Widget - Top priority */}
-          <TaskRemindersWidget />
 
           {/* Client Tasks Widget - Full Width Row */}
           {/* <ClientTasksWidget /> */}

@@ -1434,7 +1434,7 @@ function generateCSVExport(data, settings) {
   return csvRows.join('\n');
 }
 
-// New HTML-to-PDF function using Puppeteer
+// New HTML-to-PDF function using Puppeteer (Vercel-compatible)
 async function createPDFFromHTML(user, recipient, data, settings) {
   let browser;
   let puppeteer;
@@ -1445,18 +1445,51 @@ async function createPDFFromHTML(user, recipient, data, settings) {
       throw new Error('Puppeteer not installed. Run: npm install puppeteer');
     }
     
-    browser = await puppeteer.launch({
+    // Vercel-compatible Puppeteer configuration
+    const isVercel = process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME;
+    const launchOptions = {
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-gpu'
+      ]
+    };
+    
+    // Try to use Chromium for Vercel if available
+    if (isVercel) {
+      try {
+        const chromium = await import('@sparticuz/chromium').then(m => m.default).catch(() => null);
+        if (chromium) {
+          launchOptions.executablePath = await chromium.executablePath();
+          launchOptions.args.push(...chromium.args);
+        }
+      } catch (chromiumError) {
+        console.warn('[PDF] Chromium package not available, using default Puppeteer');
+      }
+    }
+    
+    browser = await puppeteer.launch(launchOptions);
     
     const page = await browser.newPage();
+    
+    // Set a timeout for page operations (30 seconds)
+    page.setDefaultTimeout(30000);
     
     // Generate HTML content (reuse email HTML but optimized for PDF)
     const htmlContent = createPDFHTMLContent(user, recipient, data, settings);
     
     // Set content and wait for it to load
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    // Use 'domcontentloaded' for Vercel (faster, more reliable than networkidle0)
+    await page.setContent(htmlContent, { 
+      waitUntil: isVercel ? 'domcontentloaded' : 'networkidle0',
+      timeout: 30000
+    });
     
     // Generate PDF
     const pdfBuffer = await page.pdf({
@@ -1477,8 +1510,19 @@ async function createPDFFromHTML(user, recipient, data, settings) {
     return pdfBuffer;
   } catch (error) {
     if (browser) {
-      await browser.close();
+      try {
+        await browser.close();
+      } catch (closeError) {
+        console.warn('[PDF] Error closing browser:', closeError.message);
+      }
     }
+    // Log detailed error for debugging
+    console.error('[PDF] Puppeteer error details:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      isVercel: process.env.VERCEL === '1'
+    });
     throw error;
   }
 }
@@ -1718,7 +1762,11 @@ export async function createPDFBuffer(user, recipient, data, settings) {
     return await createPDFFromHTML(user, recipient, data, settings);
   } catch (error) {
     // Fallback to PDFKit if Puppeteer fails
-    console.error('HTML-to-PDF failed, falling back to PDFKit:', error);
+    console.error('[PDF] HTML-to-PDF failed, falling back to PDFKit:', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     return createPDFBufferLegacy(user, recipient, data, settings);
   }
 }

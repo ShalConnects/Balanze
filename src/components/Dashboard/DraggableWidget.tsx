@@ -14,6 +14,11 @@ export const DraggableWidget: React.FC<DraggableWidgetProps> = ({
   children,
   className = '',
 }) => {
+  // Return null if children is null to avoid empty space
+  if (children === null || children === undefined) {
+    return null;
+  }
+
   const {
     attributes,
     listeners,

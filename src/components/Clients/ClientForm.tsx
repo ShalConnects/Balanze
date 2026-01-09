@@ -280,10 +280,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('=== ClientForm: handleSubmit called ===');
-    console.log('Form data:', formData);
-    console.log('Is edit mode:', !!client);
-    
     // Mark all fields as touched
     const allFields = ['name', 'email', 'website'];
     allFields.forEach(field => {
@@ -295,12 +291,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
       return validateField(field, formData[field as keyof ClientInput]);
     });
 
-    console.log('Validation result:', isValid);
-    console.log('Form errors:', errors);
-    console.log('Name trimmed:', formData.name.trim());
-
     if (!isValid || !formData.name.trim()) {
-      console.log('Validation failed, returning early');
       return;
     }
 
@@ -316,23 +307,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
     }
 
     try {
-      console.log('Attempting to save client...');
       if (client) {
-        console.log('Updating client with ID:', client.id);
         await updateClient(client.id, formData);
       } else {
-        console.log('Adding new client...');
-        const result = await addClient(formData);
-        console.log('Add client result:', result);
+        await addClient(formData);
       }
-      console.log('Client saved successfully, closing form');
       onClose();
     } catch (error) {
-      console.error('=== ClientForm: Error saving client ===');
-      console.error('Error object:', error);
-      console.error('Error message:', error instanceof Error ? error.message : String(error));
-      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      
       // Check if it's a client limit error
       if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
         const errorMessage = error.message;

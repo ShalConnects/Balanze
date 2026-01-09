@@ -103,27 +103,27 @@ export const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
               {task.title}
             </div>
             <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
-              <span className={`px-1 sm:px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-medium ${getPriorityColor(task.priority)}`}>
-                {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+            <span className={`px-1 sm:px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-medium ${getPriorityColor(task.priority)}`}>
+              {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+            </span>
+            {isOverdue && (
+              <span className="text-[9px] sm:text-[10px] text-red-600 dark:text-red-400 flex items-center gap-0.5">
+                <AlertCircle className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+                <span className="hidden sm:inline">Overdue</span>
+                <span className="sm:hidden">!</span>
               </span>
-              {isOverdue && (
-                <span className="text-[9px] sm:text-[10px] text-red-600 dark:text-red-400 flex items-center gap-0.5">
-                  <AlertCircle className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
-                  <span className="hidden sm:inline">Overdue</span>
-                  <span className="sm:hidden">!</span>
-                </span>
-              )}
-            </div>
+            )}
+          </div>
           </div>
           <div className="flex items-center justify-between gap-2 mb-0.5">
             <div className="text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 truncate flex-1 min-w-0">
-              {clientName}
-            </div>
-            {task.due_date && (
+            {clientName}
+          </div>
+          {task.due_date && (
               <div className="text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap flex-shrink-0">
                 {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </div>
-            )}
+            </div>
+          )}
           </div>
           
           {/* Expanded Details */}

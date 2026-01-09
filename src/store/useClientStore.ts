@@ -173,15 +173,10 @@ export const useClientStore = create<ClientStore>((set, get) => ({
 
   addClient: async (clientInput: ClientInput) => {
     try {
-      console.log('=== useClientStore: addClient called ===');
-      console.log('Client input:', clientInput);
-      
       set({ loading: true, error: null });
       const { user } = useAuthStore.getState();
-      console.log('User from auth store:', user ? { id: user.id, email: user.email } : 'null');
       
       if (!user) {
-        console.error('User not authenticated');
         set({ loading: false, error: 'Not authenticated' });
         return null;
       }
@@ -195,27 +190,15 @@ export const useClientStore = create<ClientStore>((set, get) => ({
         custom_fields: clientInput.custom_fields || {}
       };
 
-      console.log('Prepared client data for insert:', clientData);
-
       const { data, error } = await supabase
         .from('clients')
         .insert(clientData)
         .select()
         .single();
 
-      console.log('Supabase insert response - data:', data);
-      console.log('Supabase insert response - error:', error);
-
       if (error) {
-        console.error('=== Supabase insert error ===');
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        console.error('Error details:', error.details);
-        console.error('Error hint:', error.hint);
         throw error;
       }
-
-      console.log('Client inserted successfully:', data);
 
       set((state) => ({
         clients: [data, ...state.clients],
@@ -225,18 +208,18 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       showToast.success('Client added successfully');
       return data;
     } catch (error: any) {
-      console.error('=== useClientStore: addClient error ===');
-      console.error('Error type:', typeof error);
-      console.error('Error object:', error);
-      console.error('Error message:', error?.message);
-      console.error('Error code:', error?.code);
-      console.error('Error details:', error?.details);
-      console.error('Error hint:', error?.hint);
-      console.error('Full error:', JSON.stringify(error, null, 2));
-      
-      const errorMessage = error?.message || 'Unknown error occurred';
+      let errorMessage = 'Failed to add client';
+      if (error?.message) {
+        if (error.message.includes('duplicate') || error.message.includes('unique')) {
+          errorMessage = 'A client with this information already exists';
+        } else if (error.message.includes('permission') || error.message.includes('policy')) {
+          errorMessage = 'You do not have permission to add clients';
+        } else {
+          errorMessage = `Failed to add client: ${error.message}`;
+        }
+      }
       set({ error: errorMessage, loading: false });
-      showToast.error('Failed to add client');
+      showToast.error(errorMessage);
       return null;
     }
   },
@@ -260,8 +243,18 @@ export const useClientStore = create<ClientStore>((set, get) => ({
 
       showToast.success('Client updated successfully');
     } catch (error: any) {
-      set({ error: error.message, loading: false });
-      showToast.error('Failed to update client');
+      let errorMessage = 'Failed to update client';
+      if (error?.message) {
+        if (error.message.includes('permission') || error.message.includes('policy')) {
+          errorMessage = 'You do not have permission to update this client';
+        } else if (error.message.includes('not found')) {
+          errorMessage = 'Client not found. It may have been deleted.';
+        } else {
+          errorMessage = `Failed to update client: ${error.message}`;
+        }
+      }
+      set({ error: errorMessage, loading: false });
+      showToast.error(errorMessage);
     }
   },
 
@@ -282,8 +275,20 @@ export const useClientStore = create<ClientStore>((set, get) => ({
 
       showToast.success('Client deleted successfully');
     } catch (error: any) {
-      set({ error: error.message, loading: false });
-      showToast.error('Failed to delete client');
+      let errorMessage = 'Failed to delete client';
+      if (error?.message) {
+        if (error.message.includes('permission') || error.message.includes('policy')) {
+          errorMessage = 'You do not have permission to delete this client';
+        } else if (error.message.includes('foreign key') || error.message.includes('constraint')) {
+          errorMessage = 'Cannot delete client: related records exist. Please delete related invoices, orders, or tasks first.';
+        } else if (error.message.includes('not found')) {
+          errorMessage = 'Client not found. It may have already been deleted.';
+        } else {
+          errorMessage = `Failed to delete client: ${error.message}`;
+        }
+      }
+      set({ error: errorMessage, loading: false });
+      showToast.error(errorMessage);
     }
   },
 
@@ -324,14 +329,14 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       if (orderIds.length > 0) {
         try {
           const { data: items } = await supabase
-            .from('order_items')
-            .select('*')
-            .in('order_id', orderIds);
+          .from('order_items')
+          .select('*')
+          .in('order_id', orderIds);
 
-          const ordersWithItems = (data || []).map((order: any) => ({
-            ...order,
-            items: (items || []).filter((item: any) => item.order_id === order.id)
-          }));
+        const ordersWithItems = (data || []).map((order: any) => ({
+          ...order,
+          items: (items || []).filter((item: any) => item.order_id === order.id)
+        }));
 
           set({ orders: ordersWithItems });
         } catch (itemsError) {
@@ -650,7 +655,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
           .eq('id', orderId);
       }
     } catch (error: any) {
-      console.error('Failed to calculate order totals:', error);
+      // Silently handle calculation errors - fallback already applied
     }
   },
 
@@ -717,18 +722,80 @@ export const useClientStore = create<ClientStore>((set, get) => ({
         return null;
       }
 
+      // Validation
+      if (!invoiceInput.client_id) {
+        set({ loading: false, error: 'Client is required' });
+        showToast.error('Client is required');
+        return null;
+      }
+
+      if (!invoiceInput.due_date) {
+        set({ loading: false, error: 'Due date is required' });
+        showToast.error('Due date is required');
+        return null;
+      }
+
+      const invoiceDate = invoiceInput.invoice_date || new Date().toISOString().split('T')[0];
+      const dueDate = invoiceInput.due_date;
+
+      // Validate date: due_date should not be before invoice_date
+      if (new Date(dueDate) < new Date(invoiceDate)) {
+        set({ loading: false, error: 'Due date cannot be before invoice date' });
+        showToast.error('Due date cannot be before invoice date');
+        return null;
+      }
+
+      // Validate amounts: ensure no negative values
+      const subtotal = invoiceInput.subtotal || 0;
+      const taxAmount = invoiceInput.tax_amount || 0;
+      const discountAmount = invoiceInput.discount_amount || 0;
+      const totalAmount = invoiceInput.total_amount || 0;
+      const paidAmount = invoiceInput.paid_amount || 0;
+
+      if (subtotal < 0 || taxAmount < 0 || discountAmount < 0 || totalAmount < 0 || paidAmount < 0) {
+        set({ loading: false, error: 'Amounts cannot be negative' });
+        showToast.error('Amounts cannot be negative');
+        return null;
+      }
+
+      // Validate invoice items if provided
+      if (invoiceInput.items && invoiceInput.items.length > 0) {
+        for (const item of invoiceInput.items) {
+          if (item.quantity <= 0) {
+            set({ loading: false, error: 'Item quantity must be greater than 0' });
+            showToast.error('Item quantity must be greater than 0');
+            return null;
+          }
+          if (item.unit_price < 0) {
+            set({ loading: false, error: 'Item unit price cannot be negative' });
+            showToast.error('Item unit price cannot be negative');
+            return null;
+          }
+          if (item.tax_rate && (item.tax_rate < 0 || item.tax_rate > 100)) {
+            set({ loading: false, error: 'Tax rate must be between 0 and 100' });
+            showToast.error('Tax rate must be between 0 and 100');
+            return null;
+          }
+          if (item.discount_rate && (item.discount_rate < 0 || item.discount_rate > 100)) {
+            set({ loading: false, error: 'Discount rate must be between 0 and 100' });
+            showToast.error('Discount rate must be between 0 and 100');
+            return null;
+          }
+        }
+      }
+
       const invoiceData = {
         ...invoiceInput,
         user_id: user.id,
-        invoice_date: invoiceInput.invoice_date || new Date().toISOString().split('T')[0],
+        invoice_date: invoiceDate,
         status: invoiceInput.status || 'draft',
         currency: invoiceInput.currency || 'USD',
         payment_status: invoiceInput.payment_status || 'unpaid',
-        subtotal: invoiceInput.subtotal || 0,
-        tax_amount: invoiceInput.tax_amount || 0,
-        discount_amount: invoiceInput.discount_amount || 0,
-        total_amount: invoiceInput.total_amount || 0,
-        paid_amount: invoiceInput.paid_amount || 0,
+        subtotal,
+        tax_amount: taxAmount,
+        discount_amount: discountAmount,
+        total_amount: totalAmount,
+        paid_amount: paidAmount,
         metadata: invoiceInput.metadata || {}
       };
 
@@ -793,6 +860,51 @@ export const useClientStore = create<ClientStore>((set, get) => ({
   updateInvoice: async (id: string, updates: Partial<InvoiceInput>) => {
     try {
       set({ loading: true, error: null });
+
+      // Validation for date updates
+      if (updates.invoice_date && updates.due_date) {
+        if (new Date(updates.due_date) < new Date(updates.invoice_date)) {
+          set({ loading: false, error: 'Due date cannot be before invoice date' });
+          showToast.error('Due date cannot be before invoice date');
+          return;
+        }
+      } else if (updates.due_date) {
+        // If only due_date is updated, check against existing invoice_date
+        const existingInvoice = get().getInvoice(id);
+        if (existingInvoice && new Date(updates.due_date) < new Date(existingInvoice.invoice_date)) {
+          set({ loading: false, error: 'Due date cannot be before invoice date' });
+          showToast.error('Due date cannot be before invoice date');
+          return;
+        }
+      }
+
+      // Validate amounts: ensure no negative values
+      if (updates.subtotal !== undefined && updates.subtotal < 0) {
+        set({ loading: false, error: 'Subtotal cannot be negative' });
+        showToast.error('Subtotal cannot be negative');
+        return;
+      }
+      if (updates.tax_amount !== undefined && updates.tax_amount < 0) {
+        set({ loading: false, error: 'Tax amount cannot be negative' });
+        showToast.error('Tax amount cannot be negative');
+        return;
+      }
+      if (updates.discount_amount !== undefined && updates.discount_amount < 0) {
+        set({ loading: false, error: 'Discount amount cannot be negative' });
+        showToast.error('Discount amount cannot be negative');
+        return;
+      }
+      if (updates.total_amount !== undefined && updates.total_amount < 0) {
+        set({ loading: false, error: 'Total amount cannot be negative' });
+        showToast.error('Total amount cannot be negative');
+        return;
+      }
+      if (updates.paid_amount !== undefined && updates.paid_amount < 0) {
+        set({ loading: false, error: 'Paid amount cannot be negative' });
+        showToast.error('Paid amount cannot be negative');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('invoices')
         .update(updates)
@@ -1037,7 +1149,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
           .eq('id', invoiceId);
       }
     } catch (error: any) {
-      console.error('Failed to calculate invoice totals:', error);
+      // Silently handle calculation errors - fallback already applied
     }
   },
 
@@ -1481,7 +1593,6 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       // Refresh tasks on error to ensure consistency
       const { fetchTasks } = get();
       await fetchTasks();
-      console.error('Failed to update task positions:', error);
     }
   },
 

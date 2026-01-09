@@ -109,7 +109,7 @@ export const ClientsSummaryWidget: React.FC<ClientsSummaryWidgetProps> = ({
   // Initial data fetch - only once
   useEffect(() => {
     if (!hasFetched) {
-      loadData();
+    loadData();
     }
   }, [loadData, hasFetched]);
 

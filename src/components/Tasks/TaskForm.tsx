@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Loader2, AlertCircle } from 'lucide-react';
+import { X, Loader2, AlertCircle } from 'lucide-react';
 import { useClientStore } from '../../store/useClientStore';
 import { Task, TaskInput } from '../../types/client';
 import { Loader } from '../common/Loader';
@@ -280,7 +280,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, task, clien
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4" />
                     {task ? 'Update Task' : 'Create Task'}
                   </>
                 )}

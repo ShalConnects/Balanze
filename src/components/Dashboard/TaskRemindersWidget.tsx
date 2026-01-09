@@ -147,7 +147,7 @@ export const TaskRemindersWidget: React.FC = () => {
   // Calculate if there are any urgent tasks (overdue, due today, or urgent priority)
   const hasUrgentTasks = stats.overdue > 0 || stats.dueToday > 0 || stats.urgent > 0;
 
-  // Hide widget if no tasks exist or if loading and no tasks
+  // Show loading state or hide if no tasks exist at all
   if (tasksLoading && tasks.length === 0) {
     return null;
   }
@@ -162,62 +162,65 @@ export const TaskRemindersWidget: React.FC = () => {
     return null;
   }
 
-  // Hide widget if there are no urgent tasks (overdue, due today, or urgent priority)
-  if (!hasUrgentTasks) {
-    return null;
-  }
-
   return (
     <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 shadow-sm hover:shadow-lg transition-all duration-300">
       {/* Header */}
       <div 
-        className="flex items-center justify-between py-2 px-4 border-b border-blue-200/50 dark:border-blue-800/50 cursor-pointer"
+        className="flex items-center justify-between py-2 px-3 xs:px-4 sm:px-4 border-b border-blue-200/50 dark:border-blue-800/50 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
+        <div className="flex items-center gap-1.5 xs:gap-2 flex-1 min-w-0">
+          <h3 className="text-xs xs:text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
             Client Task
           </h3>
-          {!isExpanded && hasUrgentTasks && (
-            <div className="flex items-center gap-1 text-[10px] sm:text-xs flex-wrap">
-              {stats.overdue > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 font-medium">
-                  {stats.overdue} overdue
-                </span>
-              )}
-              {stats.dueToday > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-medium">
-                  {stats.dueToday} today
-                </span>
-              )}
-              {stats.urgent > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium">
-                  {stats.urgent} urgent
+          {!isExpanded && (
+            <div className="flex items-center gap-0.5 xs:gap-1 text-[9px] xs:text-[10px] sm:text-xs flex-wrap">
+              {hasUrgentTasks ? (
+                <>
+                  {stats.overdue > 0 && (
+                    <span className="px-1 xs:px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 font-medium">
+                      {stats.overdue} overdue
+                    </span>
+                  )}
+                  {stats.dueToday > 0 && (
+                    <span className="px-1 xs:px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-medium">
+                      {stats.dueToday} today
+                    </span>
+                  )}
+                  {stats.urgent > 0 && (
+                    <span className="px-1 xs:px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium">
+                      {stats.urgent} urgent
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="px-1 xs:px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-medium">
+                  All clear
                 </span>
               )}
             </div>
           )}
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 flex-shrink-0">
           <Link
             to="/clients"
             onClick={(e) => e.stopPropagation()}
-            className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center gap-0.5 sm:gap-1"
+            className="text-[9px] xs:text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center gap-0.5 sm:gap-1 touch-manipulation"
           >
             <span className="hidden sm:inline">View All</span>
-            <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <ArrowRight className="w-3 xs:w-3.5 sm:w-4 h-3 xs:h-3.5 sm:h-4" />
           </Link>
           <button
             onClick={(e) => {
               e.stopPropagation();
               setIsExpanded(!isExpanded);
             }}
-            className="p-1 hover:bg-blue-100/50 dark:hover:bg-blue-800/30 rounded transition-colors"
+            className="p-1 xs:p-1.5 hover:bg-blue-100/50 dark:hover:bg-blue-800/30 rounded transition-colors touch-manipulation"
           >
             {isExpanded ? (
-              <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-400" />
+              <ChevronUp className="w-3.5 xs:w-4 sm:w-5 h-3.5 xs:h-4 sm:h-5 text-gray-600 dark:text-gray-400" />
             ) : (
-              <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-400" />
+              <ChevronDown className="w-3.5 xs:w-4 sm:w-5 h-3.5 xs:h-4 sm:h-5 text-gray-600 dark:text-gray-400" />
             )}
           </button>
         </div>
@@ -225,67 +228,76 @@ export const TaskRemindersWidget: React.FC = () => {
 
       {/* Content */}
       {isExpanded && (
-        <div className="p-3 sm:p-4">
-          {urgentTasks.length === 0 ? (
-            <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400">
-              <CheckCircle className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 opacity-50" />
-              <p className="text-xs sm:text-sm">No urgent tasks at the moment</p>
+        <div className="p-2 xs:p-3 sm:p-4">
+          {urgentTasks.length === 0 || !hasUrgentTasks ? (
+            <div className="text-center py-4 xs:py-6 sm:py-8 text-gray-500 dark:text-gray-400">
+              <CheckCircle className="w-8 xs:w-10 sm:w-12 h-8 xs:h-10 sm:h-12 mx-auto mb-2 opacity-50" />
+              <p className="text-[11px] xs:text-xs sm:text-sm">No urgent tasks at the moment</p>
             </div>
           ) : urgentTasks.length === 1 ? (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-1.5 xs:gap-2">
                 {urgentTasks.map(({ task, urgencyLabel, daysInfo }) => {
                   const clientName = getClientName(task.client_id);
                   return (
                     <div
                       key={task.id}
-                      className="flex items-center justify-between gap-2 p-2.5 bg-white/60 dark:bg-blue-900/10 rounded-md border-2 border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-600 transition-colors group"
+                      className="p-2 xs:p-2.5 sm:p-3 bg-white/60 dark:bg-blue-900/10 rounded-md border-2 border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-600 transition-colors group"
                     >
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap text-xs sm:text-sm">
-                        <span className={`px-1 py-0.5 rounded-full text-[9px] font-medium flex-shrink-0 ${getPriorityColor(task.priority)}`}>
-                          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                        </span>
-                        <span className={`text-[10px] font-medium flex-shrink-0 ${getUrgencyColor(urgencyLabel)}`}>
-                          {urgencyLabel}
-                        </span>
-                        <span className="text-gray-300 dark:text-gray-600">•</span>
-                        <h4 className="font-medium text-gray-900 dark:text-white truncate flex-1 min-w-0">
+                      {/* Line 1: Task Title with Action Icons */}
+                      <div className="flex items-center justify-between gap-1.5 xs:gap-2 mb-1 xs:mb-1.5">
+                        <h4 className="font-medium text-gray-900 dark:text-white text-[11px] xs:text-xs sm:text-sm flex-1 min-w-0">
                           {task.title}
                         </h4>
-                        <span className="text-gray-300 dark:text-gray-600">•</span>
-                        <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 truncate max-w-[100px] sm:max-w-none">
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMarkComplete(task.id);
+                            }}
+                            className="p-1 xs:p-1.5 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors rounded touch-manipulation"
+                            title="Mark as complete"
+                          >
+                            <CheckCircle className="w-3 xs:w-3.5 sm:w-4 h-3 xs:h-3.5 sm:h-4" />
+                          </button>
+                          <Link
+                            to="/clients"
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1 xs:p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded touch-manipulation"
+                            title="View task"
+                          >
+                            <Eye className="w-3 xs:w-3.5 sm:w-4 h-3 xs:h-3.5 sm:h-4" />
+                          </Link>
+                        </div>
+                      </div>
+                      {/* Line 2: Priority • Urgency • Client • Due Date */}
+                      <div className="flex items-center gap-1 xs:gap-1.5 flex-wrap text-[10px] xs:text-xs sm:text-sm">
+                        <span className={`px-0.5 xs:px-1 py-0.5 rounded-full text-[8px] xs:text-[9px] font-medium flex-shrink-0 ${getPriorityColor(task.priority)}`}>
+                          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                        </span>
+                        {/* Only show urgencyLabel for Overdue, Due Today, or Urgent - hide for Due Soon/Upcoming */}
+                        {urgencyLabel !== 'Due Soon' && urgencyLabel !== 'Upcoming' && urgencyLabel && (
+                          <>
+                            <span className={`text-[9px] xs:text-[10px] font-medium flex-shrink-0 ${getUrgencyColor(urgencyLabel)}`}>
+                              {urgencyLabel}
+                            </span>
+                            <span className="text-gray-300 dark:text-gray-600">•</span>
+                          </>
+                        )}
+                        <span className="text-[9px] xs:text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 truncate max-w-[80px] xs:max-w-[100px] sm:max-w-none">
                           {clientName}
                         </span>
-                        {urgencyLabel !== 'Due Today' && urgencyLabel !== 'Overdue' && daysInfo && (
+                        {/* Show daysInfo for Due Soon/Upcoming, or if it exists and not Overdue/Due Today */}
+                        {daysInfo && (urgencyLabel === 'Due Soon' || urgencyLabel === 'Upcoming' || (urgencyLabel !== 'Due Today' && urgencyLabel !== 'Overdue')) && (
                           <>
                             <span className="text-gray-300 dark:text-gray-600">•</span>
-                            <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                            <span className="text-[9px] xs:text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
                               {daysInfo}
                             </span>
                           </>
                         )}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMarkComplete(task.id);
-                        }}
-                        className="p-1 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors rounded"
-                        title="Mark as complete"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" />
-                      </button>
-                      <Link
-                        to="/clients"
-                        onClick={(e) => e.stopPropagation()}
-                        className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded"
-                        title="View task"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                      </Link>
                     </div>
                   </div>
                 );
@@ -294,59 +306,68 @@ export const TaskRemindersWidget: React.FC = () => {
             </>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-1.5 xs:gap-2">
                 {urgentTasks.map(({ task, urgencyLabel, daysInfo }) => {
                   const clientName = getClientName(task.client_id);
                   return (
                     <div
                       key={task.id}
-                      className="flex items-center justify-between gap-2 p-2 bg-white/60 dark:bg-blue-900/10 rounded-md border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-600 transition-colors group"
+                      className="p-2 xs:p-2.5 sm:p-3 bg-white/60 dark:bg-blue-900/10 rounded-md border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-600 transition-colors group"
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap text-xs sm:text-sm">
-                          <span className={`px-1 py-0.5 rounded-full text-[9px] font-medium flex-shrink-0 ${getPriorityColor(task.priority)}`}>
-                            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                          </span>
-                          <span className={`text-[10px] font-medium flex-shrink-0 ${getUrgencyColor(urgencyLabel)}`}>
-                            {urgencyLabel}
-                          </span>
-                          <span className="text-gray-300 dark:text-gray-600">•</span>
-                          <h4 className="font-medium text-gray-900 dark:text-white truncate flex-1 min-w-0">
+                        {/* Line 1: Task Title with Action Icons */}
+                        <div className="flex items-center justify-between gap-1.5 xs:gap-2 mb-1 xs:mb-1.5">
+                          <h4 className="font-medium text-gray-900 dark:text-white text-[11px] xs:text-xs sm:text-sm flex-1 min-w-0">
                             {task.title}
                           </h4>
-                          <span className="text-gray-300 dark:text-gray-600">•</span>
-                          <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 truncate max-w-[100px] sm:max-w-none">
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkComplete(task.id);
+                              }}
+                              className="p-1 xs:p-1.5 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors rounded touch-manipulation"
+                              title="Mark as complete"
+                            >
+                              <CheckCircle className="w-3 xs:w-3.5 sm:w-4 h-3 xs:h-3.5 sm:h-4" />
+                            </button>
+                            <Link
+                              to="/clients"
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-1 xs:p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded touch-manipulation"
+                              title="View task"
+                            >
+                              <Eye className="w-3 xs:w-3.5 sm:w-4 h-3 xs:h-3.5 sm:h-4" />
+                            </Link>
+                          </div>
+                        </div>
+                        {/* Line 2: Priority • Urgency • Client • Due Date */}
+                        <div className="flex items-center gap-1 xs:gap-1.5 flex-wrap text-[10px] xs:text-xs sm:text-sm">
+                          <span className={`px-0.5 xs:px-1 py-0.5 rounded-full text-[8px] xs:text-[9px] font-medium flex-shrink-0 ${getPriorityColor(task.priority)}`}>
+                            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                          </span>
+                          {/* Only show urgencyLabel for Overdue, Due Today, or Urgent - hide for Due Soon/Upcoming */}
+                          {urgencyLabel !== 'Due Soon' && urgencyLabel !== 'Upcoming' && urgencyLabel && (
+                            <>
+                              <span className={`text-[9px] xs:text-[10px] font-medium flex-shrink-0 ${getUrgencyColor(urgencyLabel)}`}>
+                                {urgencyLabel}
+                              </span>
+                              <span className="text-gray-300 dark:text-gray-600">•</span>
+                            </>
+                          )}
+                          <span className="text-[9px] xs:text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 truncate max-w-[80px] xs:max-w-[100px] sm:max-w-none">
                             {clientName}
                           </span>
-                          {urgencyLabel !== 'Due Today' && urgencyLabel !== 'Overdue' && daysInfo && (
+                          {/* Show daysInfo for Due Soon/Upcoming, or if it exists and not Overdue/Due Today */}
+                          {daysInfo && (urgencyLabel === 'Due Soon' || urgencyLabel === 'Upcoming' || (urgencyLabel !== 'Due Today' && urgencyLabel !== 'Overdue')) && (
                             <>
                               <span className="text-gray-300 dark:text-gray-600">•</span>
-                              <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                              <span className="text-[9px] xs:text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
                                 {daysInfo}
                               </span>
                             </>
                           )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleMarkComplete(task.id);
-                          }}
-                          className="p-1 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors rounded"
-                          title="Mark as complete"
-                        >
-                          <CheckCircle className="w-3.5 h-3.5" />
-                        </button>
-                        <Link
-                          to="/clients"
-                          onClick={(e) => e.stopPropagation()}
-                          className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded"
-                          title="View task"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </Link>
                       </div>
                     </div>
                   );
@@ -354,14 +375,14 @@ export const TaskRemindersWidget: React.FC = () => {
               </div>
 
               {/* Show More / Show All Toggle */}
-              <div className="mt-3 pt-3 border-t border-blue-200/50 dark:border-blue-800/50 flex items-center justify-between">
+              <div className="mt-2 xs:mt-3 pt-2 xs:pt-3 border-t border-blue-200/50 dark:border-blue-800/50 flex items-center justify-between flex-wrap gap-2">
                 {allActiveTasks.length > urgentTasks.length && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowAll(!showAll);
                     }}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+                    className="text-[10px] xs:text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium touch-manipulation"
                   >
                     {showAll ? 'Show only urgent tasks' : `Show all ${allActiveTasks.length} tasks`}
                   </button>
@@ -372,7 +393,7 @@ export const TaskRemindersWidget: React.FC = () => {
                       e.stopPropagation();
                       setIsExpanded(true);
                     }}
-                    className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium"
+                    className="text-[10px] xs:text-xs text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium touch-manipulation"
                   >
                     Show {Math.min(4, urgentTasks.length - 3)} more
                   </button>

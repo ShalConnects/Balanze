@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Sprout } from 'lucide-react';
+import { Plus, Sprout } from 'lucide-react';
 import { useHabitStore } from '../../store/useHabitStore';
+import { Habit } from '../../types/habit';
 import { HabitForm } from './HabitForm';
 import { HabitWeekView } from './HabitWeekView';
 import { HabitStatsTable } from './HabitStatsTable';
 import { Loader } from '../common/Loader';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { PointsDisplay } from './PointsDisplay';
-import { LevelProgress } from './LevelProgress';
 import { HabitStatsDashboard } from './HabitStatsDashboard';
 import { AchievementModal } from './AchievementModal';
 import { CelebrationAnimation } from './CelebrationAnimation';
 import { GardenPlant } from './GardenPlant';
-import { startOfWeek } from 'date-fns';
+import { startOfWeek, addDays, format, subDays } from 'date-fns';
 import { useAuthStore } from '../../store/authStore';
 
 export const HabitGarden: React.FC = () => {
@@ -29,7 +29,7 @@ export const HabitGarden: React.FC = () => {
   } = useHabitStore();
 
   const [showForm, setShowForm] = useState(false);
-  const [editingHabit, setEditingHabit] = useState<any>(null);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [deletingHabitId, setDeletingHabitId] = useState<string | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -45,15 +45,25 @@ export const HabitGarden: React.FC = () => {
       fetchHabits();
       fetchGamification();
       fetchAchievements();
-      // Fetch completions for current week
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
+      // Note: Completions are fetched by HabitWeekView when weekStart changes
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, weekStart]);
+
+  // Fetch wider date range for garden view to ensure accurate streak calculations
+  useEffect(() => {
+    if (user && viewMode === 'garden') {
+      // Fetch last 60 days of completions for accurate streak calculation
+      // Streaks can span multiple weeks, so we need a wider range
+      const today = new Date();
+      const sixtyDaysAgo = subDays(today, 60);
       fetchCompletions(
-        weekStart.toISOString().split('T')[0],
-        weekEnd.toISOString().split('T')[0]
+        format(sixtyDaysAgo, 'yyyy-MM-dd'),
+        format(today, 'yyyy-MM-dd')
       );
     }
-  }, [user, fetchHabits, fetchCompletions, fetchGamification, fetchAchievements, weekStart]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, viewMode]);
 
   // Show celebration when new achievements are unlocked
   useEffect(() => {
@@ -75,8 +85,14 @@ export const HabitGarden: React.FC = () => {
 
   const handleDeleteHabit = async () => {
     if (deletingHabitId) {
-      await deleteHabit(deletingHabitId);
-      setDeletingHabitId(null);
+      try {
+        await deleteHabit(deletingHabitId);
+        setDeletingHabitId(null);
+      } catch (error) {
+        // Error is already handled by the store (shows toast)
+        // Just close the modal
+        setDeletingHabitId(null);
+      }
     }
   };
 
@@ -207,9 +223,6 @@ export const HabitGarden: React.FC = () => {
                     {habits.map((habit) => (
                       <GardenPlant key={habit.id} habit={habit} size="md" />
                     ))}
-                  </div>
-                  <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <LevelProgress />
                   </div>
                 </div>
               </div>

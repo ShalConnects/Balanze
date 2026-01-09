@@ -204,6 +204,27 @@ export const ClientList: React.FC = () => {
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  
+  // Debounced search value for filtering
+  const [debouncedSearch, setDebouncedSearch] = useState(tableFilters.search);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Debounce search input (300ms delay)
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(tableFilters.search);
+    }, 300);
+    
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [tableFilters.search]);
 
   // Menu states
   const [showStatusMenu, setShowStatusMenu] = useState(false);
@@ -336,14 +357,14 @@ export const ClientList: React.FC = () => {
     return Array.from(currencies).sort();
   }, [clients]);
 
-  // Filter clients based on tableFilters
+  // Filter clients based on tableFilters (using debounced search)
   const filteredClients = useMemo(() => {
     let filtered = clients.filter((client) => {
-      const matchesSearch = !tableFilters.search || 
-        client.name.toLowerCase().includes(tableFilters.search.toLowerCase()) ||
-        client.email?.toLowerCase().includes(tableFilters.search.toLowerCase()) ||
-        client.phone?.toLowerCase().includes(tableFilters.search.toLowerCase()) ||
-        client.company_name?.toLowerCase().includes(tableFilters.search.toLowerCase());
+      const matchesSearch = !debouncedSearch || 
+        client.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        client.email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        client.phone?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        client.company_name?.toLowerCase().includes(debouncedSearch.toLowerCase());
 
       const matchesStatus = tableFilters.status === 'all' || client.status === tableFilters.status;
       const matchesCurrency = !tableFilters.currency || client.default_currency === tableFilters.currency;
@@ -369,7 +390,7 @@ export const ClientList: React.FC = () => {
     }
 
     return filtered;
-  }, [clients, tableFilters, sortConfig]);
+  }, [clients, debouncedSearch, tableFilters.status, tableFilters.currency, sortConfig]);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => {
@@ -960,8 +981,30 @@ export const ClientList: React.FC = () => {
                             <td className="px-3 sm:px-4 lg:px-6 py-2 sm:py-[0.6rem] lg:py-[0.7rem]">
                               <div className="flex items-center">
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">
-                                    {client.name}
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">
+                                      {client.name}
+                                    </div>
+                                    {(() => {
+                                      const clientTasks = getTasksByClient(client.id);
+                                      const overdueTasks = clientTasks.filter(task => {
+                                        if (!task.due_date || task.status === 'completed' || task.status === 'cancelled') {
+                                          return false;
+                                        }
+                                        return new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0));
+                                      });
+                                      if (overdueTasks.length > 0) {
+                                        return (
+                                          <span 
+                                            className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
+                                            title={`${overdueTasks.length} overdue task${overdueTasks.length !== 1 ? 's' : ''}`}
+                                          >
+                                            ⚠️ {overdueTasks.length}
+                                          </span>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
                                   </div>
                                   {client.tags && client.tags.length > 0 && (
                                     <div className="flex flex-wrap gap-1 mt-1">
@@ -1024,17 +1067,29 @@ export const ClientList: React.FC = () => {
                               {getStatusBadge(client.status)}
                             </td>
                             <td className="px-3 sm:px-4 lg:px-6 py-2 sm:py-[0.6rem] lg:py-[0.7rem] text-center">
-                              <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                              <div className="flex items-center justify-center gap-2">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleEdit(client);
                                   }}
-                                  className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 p-1.5"
+                                  className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                                   aria-label="Edit client"
                                   title="Edit"
                                 >
                                   <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setTaskClientId(client.id);
+                                    setShowTaskForm(true);
+                                  }}
+                                  className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                  aria-label="Create task"
+                                  title="Create Task"
+                                >
+                                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                 </button>
                                 <button
                                   onClick={(e) => {
@@ -1046,8 +1101,8 @@ export const ClientList: React.FC = () => {
                                     setNoteModalClient(client);
                                   }}
                                   className={client.notes && client.notes.trim().length > 0 
-                                    ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 p-1.5" 
-                                    : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 p-1.5"}
+                                    ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300" 
+                                    : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"}
                                   title={client.notes && client.notes.trim().length > 0 ? "View/Edit note" : "Add note"}
                                   aria-label={client.notes && client.notes.trim().length > 0 ? "View/Edit note" : "Add note"}
                                 >
@@ -1058,7 +1113,7 @@ export const ClientList: React.FC = () => {
                                     e.stopPropagation();
                                     setDeletingClient(client);
                                   }}
-                                  className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 p-1.5"
+                                  className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
                                   aria-label="Delete client"
                                   title="Delete"
                                 >
@@ -2296,7 +2351,43 @@ export const ClientList: React.FC = () => {
         onClose={() => setDeletingClient(null)}
         onConfirm={handleDelete}
         title="Delete Client"
-        message="Are you sure you want to delete this client? This action cannot be undone."
+        message={
+          deletingClient ? (
+            <>
+              <p className="mb-2">Are you sure you want to delete this client? This action cannot be undone.</p>
+              {(() => {
+                const clientTasks = deletingClient ? getTasksByClient(deletingClient.id) : [];
+                const clientInvoices = deletingClient ? getInvoicesByClient(deletingClient.id) : [];
+                const clientOrders = deletingClient ? getOrdersByClient(deletingClient.id) : [];
+                const totalRelated = clientTasks.length + clientInvoices.length + clientOrders.length;
+                
+                if (totalRelated > 0) {
+                  return (
+                    <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                      <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-2">
+                        ⚠️ This will also delete {totalRelated} related record{totalRelated !== 1 ? 's' : ''}:
+                      </p>
+                      <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1 list-disc list-inside">
+                        {clientTasks.length > 0 && (
+                          <li>{clientTasks.length} task{clientTasks.length !== 1 ? 's' : ''}</li>
+                        )}
+                        {clientInvoices.length > 0 && (
+                          <li>{clientInvoices.length} invoice{clientInvoices.length !== 1 ? 's' : ''}</li>
+                        )}
+                        {clientOrders.length > 0 && (
+                          <li>{clientOrders.length} order{clientOrders.length !== 1 ? 's' : ''}</li>
+                        )}
+                      </ul>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </>
+          ) : (
+            'Are you sure you want to delete this client? This action cannot be undone.'
+          )
+        }
         recordDetails={
           deletingClient ? (
             <div className="space-y-1">

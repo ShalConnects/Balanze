@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Check, X as XIcon, Edit2, Trash2, Plus } from 'lucide-react';
 import { Habit } from '../../types/habit';
 import { useHabitStore } from '../../store/useHabitStore';
-import { format, startOfWeek, addDays, isToday, isSameDay } from 'date-fns';
+import { format, startOfWeek, addDays, isToday } from 'date-fns';
 
 interface HabitWeekViewProps {
   habits: Habit[];
@@ -54,8 +54,10 @@ const getColorClasses = (color: string, isCompleted: boolean) => {
 export const HabitWeekView: React.FC<HabitWeekViewProps> = ({ habits, weekStart, onWeekChange, onEditHabit, onDeleteHabit, onAddHabit }) => {
   const { toggleCompletion, isCompleted, fetchCompletions } = useHabitStore();
 
-  // Calculate week dates
-  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  // Calculate week dates - memoized to prevent recalculation on every render
+  const weekDates = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  }, [weekStart]);
 
   // Fetch completions for the week when component mounts or week changes
   React.useEffect(() => {

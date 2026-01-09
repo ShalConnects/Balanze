@@ -40,7 +40,7 @@ export const RecentTransactions: React.FC = () => {
 
   return (
     <div className="max-h-[400px] overflow-y-auto">
-      <div className="space-y-1 sm:space-y-2 pb-4">
+      <div className="pb-4">
         {recentTransactions.map((transaction) => {
           const account = allAccounts.find(a => a.id === transaction.account_id);
           const currency = account?.currency || 'USD';
@@ -49,7 +49,7 @@ export const RecentTransactions: React.FC = () => {
           return (
             <div
               key={transaction.id}
-              className="flex items-center justify-between p-2 sm:p-2.5 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="flex items-center justify-between p-2 sm:p-2.5 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors mt-0"
             >
               <div className="flex items-center space-x-2">
                 <div className={`p-1.5 rounded-full ${transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
