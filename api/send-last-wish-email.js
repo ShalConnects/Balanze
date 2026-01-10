@@ -1909,6 +1909,7 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       const doc = new PDFDocument({ 
         margin: 50,
         size: 'LETTER',
+        autoFirstPage: true,
         info: {
           Title: 'Last Wish Financial Records',
           Author: 'Balanze Last Wish System',
@@ -1924,21 +1925,28 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
       
+      // Ensure proper font encoding - use standard Helvetica fonts
+      doc.font('Helvetica');
+      
       // Helper functions for formatting
-      // Note: Using "BDT" text instead of ৳ symbol to avoid font compatibility issues in PDF
+      // Use ASCII-safe currency symbols to avoid encoding issues
       const formatCurrency = (amount, currency = 'USD') => {
         const symbols = { 
           USD: '$', 
           BDT: 'BDT ',  // Use text instead of ৳ to avoid Unicode font issues
-          EUR: '€', 
-          GBP: '£', 
-          JPY: '¥', 
-          INR: '₹', 
-          CAD: '$', 
-          AUD: '$' 
+          EUR: 'EUR ',  // Use text for better compatibility
+          GBP: 'GBP ',  // Use text for better compatibility
+          JPY: 'JPY ',  // Use text for better compatibility
+          INR: 'INR ',  // Use text for better compatibility
+          CAD: 'CAD ',  // Use text for better compatibility
+          AUD: 'AUD '   // Use text for better compatibility
         };
-        const symbol = symbols[currency] || currency;
-        return `${symbol}${Math.abs(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const symbol = symbols[currency] || currency + ' ';
+        const formattedAmount = Math.abs(amount || 0).toLocaleString('en-US', { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 2 
+        });
+        return `${symbol}${formattedAmount}`;
       };
       
       const formatDate = (date) => {
@@ -2022,6 +2030,12 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         return currentPageNum;
       };
       
+      // Helper to check remaining space before rendering
+      const checkSpace = (neededHeight) => {
+        const availableHeight = doc.page.height - doc.y - 80; // 80px for footer
+        return availableHeight >= neededHeight;
+      };
+      
       // Helper to draw table - Enhanced with better styling
       const drawTable = (headers, rows, startY, options = {}) => {
         const tableTop = startY || doc.y;
@@ -2044,15 +2058,20 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         
         let currentY = tableTop;
         const rowHeight = fontSize + (cellPadding * 2) + 6;
+        const headerHeight = rowHeight;
+        
+        // Check if we have space for header + at least one row
+        if (!checkSpace(headerHeight + rowHeight + 20)) {
+          currentPageNum = addPageWithHeader();
+          currentY = 80;
+          doc.y = currentY;
+        }
         
         // Draw header with border
         doc.save();
-        doc.rect(50, currentY, pageWidth, rowHeight)
+        doc.rect(50, currentY, pageWidth, headerHeight)
           .fillColor(headerColor)
-          .fill();
-        
-        // Header border
-        doc.rect(50, currentY, pageWidth, rowHeight)
+          .fill()
           .strokeColor('#000000')
           .lineWidth(1)
           .stroke();
@@ -2061,14 +2080,16 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         
         let xPos = 50;
         headers.forEach((header, i) => {
-          doc.text(header, xPos + cellPadding, currentY + cellPadding, {
+          // Ensure header text is properly encoded string
+          const headerText = String(header || '');
+          doc.text(headerText, xPos + cellPadding, currentY + cellPadding, {
             width: widths[i] - (cellPadding * 2),
             align: 'left'
           });
           // Vertical line between columns
           if (i < headers.length - 1) {
             doc.moveTo(xPos + widths[i], currentY)
-              .lineTo(xPos + widths[i], currentY + rowHeight)
+              .lineTo(xPos + widths[i], currentY + headerHeight)
               .strokeColor('#374151')
               .lineWidth(0.5)
               .stroke();
@@ -2076,35 +2097,47 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
           xPos += widths[i];
         });
         doc.restore();
-        currentY += rowHeight;
+        currentY += headerHeight;
+        doc.y = currentY;
         
-        // Draw rows
+        // Draw rows with intelligent pagination
         rows.forEach((row, rowIndex) => {
+          // Calculate row height based on content (for multi-line cells)
+          let maxCellHeight = rowHeight;
+          row.forEach((cell, cellIndex) => {
+            const cellText = String(cell || 'N/A');
+            const cellHeight = doc.heightOfString(cellText, {
+              width: widths[cellIndex] - (cellPadding * 2)
+            });
+            maxCellHeight = Math.max(maxCellHeight, cellHeight + (cellPadding * 2) + 6);
+          });
+          
           // Check if we need a new page (with better space checking)
-          const spaceNeeded = rowHeight + 10; // Row height plus some padding
-          if (currentY + spaceNeeded > doc.page.height - 80) {
+          if (!checkSpace(maxCellHeight + 10)) {
             currentPageNum = addPageWithHeader();
             currentY = 80;
+            doc.y = currentY;
             
             // Redraw header on new page
             doc.save();
-            doc.rect(50, currentY, pageWidth, rowHeight)
+            doc.rect(50, currentY, pageWidth, headerHeight)
               .fillColor(headerColor)
-              .fill();
-            doc.rect(50, currentY, pageWidth, rowHeight)
+              .fill()
               .strokeColor('#000000')
               .lineWidth(1)
               .stroke();
             doc.fillColor(headerTextColor).fontSize(fontSize + 1).font('Helvetica-Bold');
             xPos = 50;
             headers.forEach((header, i) => {
-              doc.text(header, xPos + cellPadding, currentY + cellPadding, {
+              // Ensure header text is properly encoded string
+              const headerText = String(header || '');
+              doc.text(headerText, xPos + cellPadding, currentY + cellPadding, {
                 width: widths[i] - (cellPadding * 2),
                 align: 'left'
               });
               if (i < headers.length - 1) {
                 doc.moveTo(xPos + widths[i], currentY)
-                  .lineTo(xPos + widths[i], currentY + rowHeight)
+                  .lineTo(xPos + widths[i], currentY + headerHeight)
                   .strokeColor('#374151')
                   .lineWidth(0.5)
                   .stroke();
@@ -2112,33 +2145,35 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
               xPos += widths[i];
             });
             doc.restore();
-            currentY += rowHeight;
+            currentY += headerHeight;
+            doc.y = currentY;
           }
           
+          // Draw row
           const bgColor = rowIndex % 2 === 0 ? rowColor : '#f9fafb';
           doc.save();
-          doc.rect(50, currentY, pageWidth, rowHeight)
+          doc.rect(50, currentY, pageWidth, maxCellHeight)
             .fillColor(bgColor)
-            .fill();
-          
-          // Row border
-          doc.rect(50, currentY, pageWidth, rowHeight)
+            .fill()
             .strokeColor('#e5e7eb')
             .lineWidth(0.5)
             .stroke();
           
           doc.fillColor(textColor).fontSize(fontSize).font('Helvetica');
-          
           xPos = 50;
           row.forEach((cell, i) => {
-            doc.text(String(cell || 'N/A'), xPos + cellPadding, currentY + cellPadding, {
+            // Ensure cell text is properly encoded string
+            const cellText = String(cell || 'N/A');
+            // Wrap text properly with explicit encoding
+            doc.text(cellText, xPos + cellPadding, currentY + cellPadding, {
               width: widths[i] - (cellPadding * 2),
-              align: 'left'
+              align: 'left',
+              lineGap: 2
             });
             // Vertical line between columns
             if (i < row.length - 1) {
               doc.moveTo(xPos + widths[i], currentY)
-                .lineTo(xPos + widths[i], currentY + rowHeight)
+                .lineTo(xPos + widths[i], currentY + maxCellHeight)
                 .strokeColor('#e5e7eb')
                 .lineWidth(0.5)
                 .stroke();
@@ -2146,7 +2181,8 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
             xPos += widths[i];
           });
           doc.restore();
-          currentY += rowHeight;
+          currentY += maxCellHeight;
+          doc.y = currentY;
         });
         
         doc.y = currentY + 15;
@@ -2157,18 +2193,29 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       addHeaderFooter(1);
       
       // Title Section with better spacing (adjusted to prevent cut off)
-      const pageCenterX = doc.page.width / 2;
+      const pageWidth = doc.page.width;
+      const pageHeight = doc.page.height;
+      const margin = 50;
+      const contentWidth = pageWidth - (margin * 2);
       const startY = 200;
       
+      // Title - Fixed width calculation
       doc.fillColor('#000000').fontSize(36).font('Helvetica-Bold')
-        .text('Last Wish Delivery', pageCenterX, startY, { align: 'center', width: doc.page.width - 100 });
+        .text('Last Wish Delivery', margin, startY, { 
+          align: 'center', 
+          width: contentWidth 
+        });
       
+      // Subtitle - Fixed width calculation
       doc.fillColor('#374151').fontSize(18).font('Helvetica')
-        .text('Important Financial Information', pageCenterX, startY + 45, { align: 'center', width: doc.page.width - 100 });
+        .text('Important Financial Information', margin, startY + 45, { 
+          align: 'center', 
+          width: contentWidth 
+        });
       
       // Divider line
-      doc.moveTo(100, startY + 80)
-        .lineTo(doc.page.width - 100, startY + 80)
+      doc.moveTo(margin, startY + 80)
+        .lineTo(pageWidth - margin, startY + 80)
         .strokeColor('#e5e7eb')
         .lineWidth(1)
         .stroke();
@@ -2177,42 +2224,64 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       
       // Recipient and Account Holder Info with better formatting
       doc.moveDown(2);
+      // Prepared for - Fixed width
       doc.fillColor('#111827').fontSize(13).font('Helvetica-Bold')
-        .text('Prepared for:', pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
+        .text('Prepared for:', margin, doc.y, { 
+          align: 'center', 
+          width: contentWidth 
+        });
       doc.moveDown(0.3);
       doc.fillColor('#374151').fontSize(14).font('Helvetica')
-        .text(recipientName, pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
+        .text(String(recipientName), margin, doc.y, { 
+          align: 'center', 
+          width: contentWidth 
+        });
       
       doc.moveDown(1.5);
+      // Account Holder - Fixed width
       doc.fillColor('#111827').fontSize(13).font('Helvetica-Bold')
-        .text('Account Holder:', pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
+        .text('Account Holder:', margin, doc.y, { 
+          align: 'center', 
+          width: contentWidth 
+        });
       doc.moveDown(0.3);
       doc.fillColor('#374151').fontSize(14).font('Helvetica')
-        .text(userName, pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
+        .text(String(userName), margin, doc.y, { 
+          align: 'center', 
+          width: contentWidth 
+        });
       
       doc.moveDown(2);
+      // Generated date - Fixed width
+      const generatedDate = formatDate(new Date());
       doc.fillColor('#6b7280').fontSize(11).font('Helvetica')
-        .text(`Generated: ${formatDate(new Date())}`, pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
+        .text(`Generated: ${generatedDate}`, margin, doc.y, { 
+          align: 'center', 
+          width: contentWidth 
+        });
       
       // Confidentiality Notice - Enhanced
-      doc.y = doc.page.height - 150;
-      doc.moveTo(100, doc.y)
-        .lineTo(doc.page.width - 100, doc.y)
+      doc.y = pageHeight - 150;
+      doc.moveTo(margin, doc.y)
+        .lineTo(pageWidth - margin, doc.y)
         .strokeColor('#e5e7eb')
         .lineWidth(1)
         .stroke();
       doc.moveDown(1);
       
       doc.fillColor('#dc2626').fontSize(10).font('Helvetica-Bold')
-        .text('CONFIDENTIAL - FOR AUTHORIZED RECIPIENT ONLY', pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
+        .text('CONFIDENTIAL - FOR AUTHORIZED RECIPIENT ONLY', margin, doc.y, { 
+          align: 'center', 
+          width: contentWidth 
+        });
       doc.moveDown(0.8);
       doc.fillColor('#6b7280').fontSize(9).font('Helvetica')
         .text('This document contains sensitive financial information. Handle with care and store securely.', 
-          pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100, lineGap: 2 });
+          margin, doc.y, { align: 'center', width: contentWidth, lineGap: 2 });
       doc.moveDown(0.5);
       doc.fillColor('#9ca3af').fontSize(8).font('Helvetica')
         .text('If you have any concerns about receiving this information, please contact our support team.', 
-          pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
+          margin, doc.y, { align: 'center', width: contentWidth });
       
       currentPageNum = 1;
       pageNumbers.set('cover', 1);
@@ -2369,17 +2438,19 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
             .lineWidth(1)
             .stroke();
           
-          // Currency label
+          // Currency label - ensure proper encoding
           doc.fillColor('#6b7280').fontSize(10).font('Helvetica')
-            .text(`Total Assets (${currency})`, 60, boxY + 8);
+            .text(String(`Total Assets (${currency})`), 60, boxY + 8);
           
-          // Amount (large)
+          // Amount (large) - ensure proper encoding
           doc.fillColor('#000000').fontSize(18).font('Helvetica-Bold')
-            .text(formatCurrency(amount, currency), 60, boxY + 20);
+            .text(String(formatCurrency(amount, currency)), 60, boxY + 20);
           
-          // Account count
+          // Account count - ensure proper encoding
+          const accountCount = accountsByCurrency[currency];
+          const accountText = `${accountCount} account${accountCount !== 1 ? 's' : ''}`;
           doc.fillColor('#6b7280').fontSize(9).font('Helvetica')
-            .text(`${accountsByCurrency[currency]} account${accountsByCurrency[currency] !== 1 ? 's' : ''}`, 60, boxY + 38);
+            .text(String(accountText), 60, boxY + 38);
           
           doc.y = boxY + boxHeight + 10;
         });
@@ -2409,13 +2480,15 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       
       doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
         .text('Total Accounts:', 60, summaryBoxY + 10);
+      const totalAccountsText = `${totalAccounts} account${totalAccounts !== 1 ? 's' : ''}`;
       doc.fillColor('#374151').fontSize(12).font('Helvetica')
-        .text(`${totalAccounts} account${totalAccounts !== 1 ? 's' : ''}`, 180, summaryBoxY + 10);
+        .text(String(totalAccountsText), 180, summaryBoxY + 10);
       
       doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
         .text('Currencies:', 60, summaryBoxY + 28);
+      const currenciesText = Object.keys(assetsByCurrency).length > 0 ? Object.keys(assetsByCurrency).join(', ') : 'N/A';
       doc.fillColor('#374151').fontSize(12).font('Helvetica')
-        .text(Object.keys(assetsByCurrency).length > 0 ? Object.keys(assetsByCurrency).join(', ') : 'N/A', 180, summaryBoxY + 28);
+        .text(String(currenciesText), 180, summaryBoxY + 28);
       
       doc.y = summaryBoxY + summaryBoxHeight + 15;
       
@@ -2444,15 +2517,16 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
           .text('Total Lent:', 60, currentLendBorrowY);
         Object.entries(lentByCurrency).forEach(([currency, amount]) => {
+          const lentText = `${formatCurrency(amount, currency)} (${currency})`;
           doc.fillColor('#059669').fontSize(11).font('Helvetica')
-            .text(`${formatCurrency(amount, currency)} (${currency})`, 180, currentLendBorrowY);
+            .text(String(lentText), 180, currentLendBorrowY);
           currentLendBorrowY += 16;
         });
       } else {
         doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
           .text('Total Lent:', 60, currentLendBorrowY);
         doc.fillColor('#9ca3af').fontSize(11).font('Helvetica')
-          .text(formatCurrency(0, 'USD'), 180, currentLendBorrowY);
+          .text(String(formatCurrency(0, 'USD')), 180, currentLendBorrowY);
         currentLendBorrowY += 16;
       }
       
@@ -2460,22 +2534,24 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
           .text('Total Borrowed:', 60, currentLendBorrowY);
         Object.entries(borrowedByCurrency).forEach(([currency, amount]) => {
+          const borrowedText = `${formatCurrency(amount, currency)} (${currency})`;
           doc.fillColor('#dc2626').fontSize(11).font('Helvetica')
-            .text(`${formatCurrency(amount, currency)} (${currency})`, 180, currentLendBorrowY);
+            .text(String(borrowedText), 180, currentLendBorrowY);
           currentLendBorrowY += 16;
         });
       } else {
         doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
           .text('Total Borrowed:', 60, currentLendBorrowY);
         doc.fillColor('#9ca3af').fontSize(11).font('Helvetica')
-          .text(formatCurrency(0, 'USD'), 180, currentLendBorrowY);
+          .text(String(formatCurrency(0, 'USD')), 180, currentLendBorrowY);
         currentLendBorrowY += 16;
       }
       
       doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
         .text('Active Records:', 60, currentLendBorrowY);
+      const activeRecordsText = `${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}`;
       doc.fillColor('#374151').fontSize(11).font('Helvetica')
-        .text(`${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}`, 180, currentLendBorrowY);
+        .text(String(activeRecordsText), 180, currentLendBorrowY);
       
       doc.y = lendBorrowBoxY + lendBorrowBoxHeight + 15;
       

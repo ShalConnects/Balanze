@@ -285,8 +285,8 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
           
           {/* Expanded Details */}
           {isExpanded && task.description && (
-            <div className="mt-1 sm:mt-1.5 pt-1 sm:pt-1.5 border-t border-gray-200 dark:border-gray-700 transition-all duration-200 ease-in-out">
-              <div className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap break-words max-h-[180px] sm:max-h-[220px] md:max-h-[250px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
+            <div className="mt-1 sm:mt-1.5 pt-1 sm:pt-1.5 border-t border-gray-200 dark:border-gray-700 transition-all duration-200 ease-in-out w-full max-w-full overflow-hidden">
+              <div className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap break-words max-h-[180px] sm:max-h-[220px] md:max-h-[250px] overflow-y-auto overflow-x-hidden pr-1 w-full max-w-full" style={{ scrollbarWidth: 'thin' }}>
                 {task.description}
               </div>
             </div>
