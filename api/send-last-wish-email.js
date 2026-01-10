@@ -1179,7 +1179,7 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
               <!-- Personal Message Card -->
               <div class="message-card">
                 <h3>Personal Message from ${userName}</h3>
-                <div>${settings.message.trim()}</div>
+                <p style="color: #d1d5db; margin: 0; line-height: 1.8; font-size: 15px; font-style: italic; letter-spacing: 0.1px;">${settings.message.trim()}</p>
               </div>
             ` : ''}
 
@@ -2149,9 +2149,9 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       // COVER PAGE - Enhanced Design
       addWatermark();
       
-      // Title Section with better spacing
+      // Title Section with better spacing (adjusted to prevent cut off)
       const pageCenterX = doc.page.width / 2;
-      const startY = 180;
+      const startY = 200;
       
       doc.fillColor('#000000').fontSize(36).font('Helvetica-Bold')
         .text('Last Wish Delivery', pageCenterX, startY, { align: 'center', width: doc.page.width - 100 });
@@ -2186,51 +2186,6 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       doc.moveDown(2);
       doc.fillColor('#6b7280').fontSize(11).font('Helvetica')
         .text(`Generated: ${formatDate(new Date())}`, pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
-      
-      // Personal Message Section (if exists)
-      if (settings.message && settings.message.trim() && 
-          settings.message.trim() !== 'This is the personal message' && 
-          settings.message.trim() !== 'Create documentation to accompany your financial data' &&
-          !settings.message.trim().toLowerCase().includes('create documentation') &&
-          !settings.message.trim().toLowerCase().includes('legacy documentation') &&
-          settings.message.trim().length > 10) {
-        doc.moveDown(2.5);
-        doc.moveTo(100, doc.y)
-          .lineTo(doc.page.width - 100, doc.y)
-          .strokeColor('#e5e7eb')
-          .lineWidth(1)
-          .stroke();
-        doc.moveDown(1);
-        
-        doc.fillColor('#111827').fontSize(12).font('Helvetica-Bold')
-          .text('Personal Message', pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
-        doc.moveDown(1);
-        
-        // Wrap long messages
-        const messageLines = doc.heightOfString(settings.message.trim(), {
-          width: doc.page.width - 200,
-          align: 'left'
-        });
-        const maxMessageHeight = doc.page.height - doc.y - 120;
-        
-        if (messageLines > maxMessageHeight) {
-          // Truncate if too long for cover page
-          const truncatedMessage = settings.message.trim().substring(0, 500) + '...';
-          doc.fillColor('#4b5563').fontSize(10).font('Helvetica')
-            .text(truncatedMessage, 100, doc.y, { 
-              align: 'left', 
-              width: doc.page.width - 200,
-              lineGap: 3
-            });
-        } else {
-          doc.fillColor('#4b5563').fontSize(10).font('Helvetica')
-            .text(settings.message.trim(), 100, doc.y, { 
-              align: 'left', 
-              width: doc.page.width - 200,
-              lineGap: 3
-            });
-        }
-      }
       
       // Confidentiality Notice - Enhanced
       doc.y = doc.page.height - 150;
@@ -2282,16 +2237,10 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       // Filter lend/borrow to active and overdue records
       const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active' || lb.status === 'overdue');
       
-      // Filter transactions (recent ones)
-      const recentTransactions = (data.transactions || []).slice(0, 50);
-      
       // Filter investment assets
       const investmentAssets = (data.investmentAssets || []).filter(asset => 
         parseFloat(asset.current_value || asset.total_value || 0) > 0
       );
-      
-      // Filter purchases
-      const purchases = (data.purchases || []).filter(p => p.status !== 'completed' || true);
       
       // Filter savings/donation records
       const savingsRecords = (data.donationSavings || []).filter(ds => 
@@ -2311,18 +2260,8 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         });
       }
       
-      if (recentTransactions.length > 0) {
-        tocItems.push({ title: 'Recent Transactions', page: tocPageNum });
-        tocPageNum++;
-      }
-      
       if (investmentAssets.length > 0) {
         tocItems.push({ title: 'Investment Assets', page: tocPageNum });
-        tocPageNum++;
-      }
-      
-      if (purchases.length > 0) {
-        tocItems.push({ title: 'Purchase Records', page: tocPageNum });
         tocPageNum++;
       }
       
@@ -2596,56 +2535,6 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         }
       }
 
-      // TRANSACTIONS SECTION
-      // Sort transactions by date (most recent first)
-      const sortedTransactions = [...recentTransactions].sort((a, b) => {
-        const dateA = new Date(a.date || a.created_at || 0);
-        const dateB = new Date(b.date || b.created_at || 0);
-        return dateB - dateA;
-      });
-      
-      if (sortedTransactions.length > 0) {
-        doc.addPage();
-        addWatermark();
-        currentPageNum = getCurrentPage();
-        addHeaderFooter(currentPageNum);
-        
-        doc.fillColor('#000000').fontSize(20).font('Helvetica-Bold')
-          .text('Recent Transactions', 50, 80);
-        doc.moveDown(0.5);
-        doc.fillColor('#6b7280').fontSize(10).font('Helvetica')
-          .text(`Showing most recent ${sortedTransactions.length} transaction${sortedTransactions.length !== 1 ? 's' : ''}`, 50, doc.y);
-        doc.moveDown(1);
-        
-        const transactionRows = sortedTransactions.map(tx => [
-          tx.date ? formatDate(tx.date) : (tx.created_at ? formatDate(tx.created_at) : 'N/A'),
-          (tx.description || 'N/A').substring(0, 40),
-          formatCurrency(parseFloat(tx.amount) || 0, tx.currency || 'USD'),
-          tx.currency || 'USD',
-          tx.category || 'N/A',
-          tx.account_name || 'N/A',
-          tx.type || 'N/A'
-        ]);
-        
-        drawTable(
-          ['Date', 'Description', 'Amount', 'Currency', 'Category', 'Account', 'Type'],
-          transactionRows,
-          doc.y,
-          {
-            columnWidths: [
-              (doc.page.width - 100) * 0.12,
-              (doc.page.width - 100) * 0.22,
-              (doc.page.width - 100) * 0.12,
-              (doc.page.width - 100) * 0.08,
-              (doc.page.width - 100) * 0.12,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.09
-            ],
-            fontSize: 8
-          }
-        );
-      }
-      
       // INVESTMENT ASSETS SECTION
       if (investmentAssets.length > 0) {
         doc.addPage();
@@ -2680,44 +2569,6 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
               (doc.page.width - 100) * 0.13,
               (doc.page.width - 100) * 0.10,
               (doc.page.width - 100) * 0.20
-            ],
-            fontSize: 8
-          }
-        );
-      }
-      
-      // PURCHASE RECORDS SECTION
-      if (purchases.length > 0) {
-        doc.addPage();
-        addWatermark();
-        currentPageNum = getCurrentPage();
-        addHeaderFooter(currentPageNum);
-        
-        doc.fillColor('#000000').fontSize(20).font('Helvetica-Bold')
-          .text('Purchase Records', 50, 80);
-        doc.moveDown(1);
-        
-        const purchaseRows = purchases.map(purchase => [
-          purchase.name || 'N/A',
-          formatCurrency(parseFloat(purchase.amount) || 0, purchase.currency || 'USD'),
-          purchase.status || 'N/A',
-          purchase.target_date ? formatDate(purchase.target_date) : 'N/A',
-          purchase.priority || 'N/A',
-          (purchase.notes || '').substring(0, 40) || 'N/A'
-        ]);
-        
-        drawTable(
-          ['Name', 'Amount', 'Status', 'Target Date', 'Priority', 'Notes'],
-          purchaseRows,
-          doc.y,
-          {
-            columnWidths: [
-              (doc.page.width - 100) * 0.22,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.12,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.10,
-              (doc.page.width - 100) * 0.26
             ],
             fontSize: 8
           }

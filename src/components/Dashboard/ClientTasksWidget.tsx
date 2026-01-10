@@ -27,11 +27,14 @@ export const ClientTasksWidget: React.FC = () => {
   const [optimisticTasks, setOptimisticTasks] = useState<Task[] | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchTasks();
     fetchClients();
+    // Detect touch device for drag activation distance
+    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -120,11 +123,11 @@ export const ClientTasksWidget: React.FC = () => {
 
   // Drag and drop sensors
   // Use activationConstraint to distinguish between click (edit) and drag (reorder)
-  // Drag only activates after moving 8px, preventing accidental drags on clicks
+  // Drag only activates after moving 8px (desktop) or 12px (touch), preventing accidental drags on clicks
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // Require 8px movement before drag activates
+        distance: isTouchDevice ? 12 : 8, // Require more movement on touch devices
       },
     }),
     useSensor(KeyboardSensor, {
@@ -373,31 +376,31 @@ export const ClientTasksWidget: React.FC = () => {
         
         {/* Collapsed State Indicators - Desktop (right side badges) */}
         {!isExpanded && (
-          <div className="hidden md:flex items-center gap-1 sm:gap-1.5 sm:gap-2 flex-wrap">
+          <div className="hidden md:flex items-center gap-1 sm:gap-2 flex-wrap">
             {stats.overdue > 0 && (
-              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs sm:text-xs sm:text-xs font-semibold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 shadow-sm">
-                <AlertCircle className="w-3 h-3 sm:w-3 sm:h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs sm:text-xs font-semibold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 shadow-sm">
+                <AlertCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 <span className="hidden lg:inline">{stats.overdue} Overdue</span>
                 <span className="lg:hidden">{stats.overdue}</span>
               </span>
             )}
             {stats.dueToday > 0 && (
-              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs sm:text-xs sm:text-xs font-semibold bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 shadow-sm">
-                <Calendar className="w-3 h-3 sm:w-3 sm:h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs sm:text-xs font-semibold bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 shadow-sm">
+                <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 <span className="hidden lg:inline">{stats.dueToday} Due Today</span>
                 <span className="lg:hidden">{stats.dueToday}</span>
               </span>
             )}
             {stats.urgent > 0 && (
-              <span className="inline-flex items-center gap-0.5 xs:gap-1 px-1.5 xs:px-2 sm:px-2.5 py-0.5 xs:py-1 rounded-full text-[9px] xs:text-[10px] sm:text-xs font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-sm">
-                <Flame className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs sm:text-xs font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-sm">
+                <Flame className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 <span className="hidden lg:inline">{stats.urgent} Urgent</span>
                 <span className="lg:hidden">{stats.urgent}</span>
               </span>
             )}
             {stats.dueThisWeek > 0 && (
-              <span className="inline-flex items-center gap-0.5 xs:gap-1 px-1.5 xs:px-2 sm:px-2.5 py-0.5 xs:py-1 rounded-full text-[9px] xs:text-[10px] sm:text-xs font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-sm">
-                <Calendar className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs sm:text-xs font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-sm">
+                <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 <span className="hidden lg:inline">{stats.dueThisWeek} Due This Week</span>
                 <span className="lg:hidden">{stats.dueThisWeek}</span>
               </span>
@@ -409,7 +412,7 @@ export const ClientTasksWidget: React.FC = () => {
       {/* Error Message */}
       {error && (
         <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-          <p className="text-[11px] sm:text-xs text-red-700 dark:text-red-300">
+          <p className="text-xs sm:text-sm text-red-700 dark:text-red-300">
             {error}
           </p>
         </div>
@@ -417,9 +420,9 @@ export const ClientTasksWidget: React.FC = () => {
 
       {/* Collapsed State Summary - Mobile (below title) */}
       {!isExpanded && (
-        <div className="sm:hidden mt-1 xs:mt-1.5 text-[10px] xs:text-[11px] text-gray-600 dark:text-gray-400">
+        <div className="sm:hidden mt-1 sm:mt-1.5 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
           {stats.overdue > 0 || stats.dueToday > 0 || stats.urgent > 0 || stats.dueThisWeek > 0 ? (
-            <div className="flex items-center gap-1 xs:gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
               {stats.overdue > 0 && (
                 <span className="text-red-600 dark:text-red-400 font-semibold">
                   {stats.overdue} overdue
@@ -454,7 +457,7 @@ export const ClientTasksWidget: React.FC = () => {
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
-          <div className="overflow-y-auto md:overflow-x-auto overflow-x-hidden pb-2 pt-2 sm:pt-3 lg:pt-[10px] -mx-2 sm:-mx-3 lg:mx-0 px-2 sm:px-3 lg:px-0 max-h-[60vh] md:max-h-none">
+          <div className="overflow-y-auto md:overflow-x-auto md:overflow-y-visible pb-2 pt-2 sm:pt-3 lg:pt-[10px] -mx-2 sm:-mx-3 lg:mx-0 px-2 sm:px-3 lg:px-0 max-h-[calc(100vh-250px)] md:max-h-none">
             <div className="flex flex-col md:flex-row gap-2 sm:gap-3 lg:gap-4 md:min-w-max">
             {/* In Progress Column */}
             <KanbanColumn

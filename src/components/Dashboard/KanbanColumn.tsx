@@ -46,10 +46,10 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
       {/* Column Header */}
       <div className={`mb-1.5 sm:mb-2 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md ${color} border border-gray-200 dark:border-gray-700`}>
         <div className="flex items-center justify-between">
-          <h3 className="text-[10px] sm:text-xs font-semibold text-gray-900 dark:text-white truncate pr-1">
+          <h3 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white truncate pr-1">
             {title}
           </h3>
-          <span className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 bg-white/50 dark:bg-gray-800/50 px-1 sm:px-1.5 py-0.5 rounded-full flex-shrink-0">
+          <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 bg-white/50 dark:bg-gray-800/50 px-1 sm:px-1.5 py-0.5 rounded-full flex-shrink-0">
             {tasks.length}
           </span>
         </div>
@@ -58,7 +58,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
       {/* Droppable Area */}
       <div
         ref={setNodeRef}
-        className={`flex-1 min-h-[100px] xs:min-h-[120px] sm:min-h-[150px] max-h-[400px] md:max-h-[300px] rounded-md p-1 sm:p-1.5 transition-colors overflow-y-auto ${
+        className={`flex-1 min-h-[120px] sm:min-h-[150px] max-h-[300px] md:max-h-[400px] rounded-md p-1 sm:p-1.5 transition-colors overflow-y-auto ${
           isOver
             ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-600 border-dashed'
             : 'bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700'
@@ -98,7 +98,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 );
               })
             ) : (
-              <div className="text-center py-4 text-gray-400 dark:text-gray-500 text-[10px]">
+              <div className="text-center py-4 text-gray-400 dark:text-gray-500 text-xs">
                 No tasks
               </div>
             )}
