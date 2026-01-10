@@ -179,9 +179,10 @@ export const ClientList: React.FC = () => {
         const parsed = JSON.parse(saved);
         return {
           search: parsed.search || '',
-          status: parsed.status || 'all',
+          status: parsed.status || 'active',
           currency: parsed.currency || '',
-          source: parsed.source || ''
+          source: parsed.source || '',
+          tag: parsed.tag || ''
         };
       } catch {
         // If parsing fails, use defaults
@@ -189,9 +190,10 @@ export const ClientList: React.FC = () => {
     }
     return {
       search: '',
-      status: 'all', // 'all', 'active', 'inactive', 'archived'
+      status: 'active', // 'all', 'active', 'inactive', 'archived'
       currency: '',
-      source: ''
+      source: '',
+      tag: ''
     };
   });
 
@@ -229,6 +231,7 @@ export const ClientList: React.FC = () => {
   // Menu states
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(false);
+  const [showTagMenu, setShowTagMenu] = useState(false);
   const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
 
   // Temporary filter state for mobile modal
@@ -237,6 +240,7 @@ export const ClientList: React.FC = () => {
   // Refs for dropdown menus
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const currencyMenuRef = useRef<HTMLDivElement>(null);
+  const tagMenuRef = useRef<HTMLDivElement>(null);
   const mobileFilterMenuRef = useRef<HTMLDivElement>(null);
 
   const [showForm, setShowForm] = useState(false);
@@ -343,6 +347,9 @@ export const ClientList: React.FC = () => {
       if (currencyMenuRef.current && !currencyMenuRef.current.contains(event.target as Node)) {
         setShowCurrencyMenu(false);
       }
+      if (tagMenuRef.current && !tagMenuRef.current.contains(event.target as Node)) {
+        setShowTagMenu(false);
+      }
       if (mobileFilterMenuRef.current && !mobileFilterMenuRef.current.contains(event.target as Node)) {
         setShowMobileFilterMenu(false);
       }
@@ -357,6 +364,15 @@ export const ClientList: React.FC = () => {
     return Array.from(currencies).sort();
   }, [clients]);
 
+  // Get unique tags from clients
+  const tagOptions = useMemo(() => {
+    const allTags = new Set<string>();
+    clients.forEach(client => {
+      client.tags?.forEach(tag => allTags.add(tag));
+    });
+    return Array.from(allTags).sort();
+  }, [clients]);
+
   // Filter clients based on tableFilters (using debounced search)
   const filteredClients = useMemo(() => {
     let filtered = clients.filter((client) => {
@@ -368,8 +384,9 @@ export const ClientList: React.FC = () => {
 
       const matchesStatus = tableFilters.status === 'all' || client.status === tableFilters.status;
       const matchesCurrency = !tableFilters.currency || client.default_currency === tableFilters.currency;
+      const matchesTag = !tableFilters.tag || client.tags?.includes(tableFilters.tag);
 
-      return matchesSearch && matchesStatus && matchesCurrency;
+      return matchesSearch && matchesStatus && matchesCurrency && matchesTag;
     });
 
     // Apply sorting
@@ -390,7 +407,7 @@ export const ClientList: React.FC = () => {
     }
 
     return filtered;
-  }, [clients, debouncedSearch, tableFilters.status, tableFilters.currency, sortConfig]);
+  }, [clients, debouncedSearch, tableFilters.status, tableFilters.currency, tableFilters.tag, sortConfig]);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => {
@@ -656,9 +673,9 @@ export const ClientList: React.FC = () => {
 
                  {/* Mobile Clear Filters Button */}
                  <div className="md:hidden">
-                   {(tableFilters.search || tableFilters.currency || tableFilters.status !== 'all' || tableFilters.source) && (
+                   {(tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag) && (
                      <button
-                       onClick={() => setTableFilters({ search: '', currency: '', status: 'all', source: '' })}
+                       onClick={() => setTableFilters({ search: '', currency: '', status: 'active', source: '', tag: '' })}
                        className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
                        title="Clear all filters"
                      >
@@ -715,13 +732,13 @@ export const ClientList: React.FC = () => {
                     <button
                       onClick={() => setShowStatusMenu(v => !v)}
                       className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
-                        tableFilters.status !== 'all' 
+                        tableFilters.status === 'active' 
                           ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700' 
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
                       }`}
-                      style={tableFilters.status !== 'all' ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+                      style={tableFilters.status === 'active' ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                     >
-                      <span>{tableFilters.status === 'all' ? 'All Status' : tableFilters.status.charAt(0).toUpperCase() + tableFilters.status.slice(1)}</span>
+                      <span>{tableFilters.status === 'active' ? 'Active' : tableFilters.status === 'all' ? 'All Status' : tableFilters.status.charAt(0).toUpperCase() + tableFilters.status.slice(1)}</span>
                       <svg className="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                       </svg>
@@ -756,10 +773,49 @@ export const ClientList: React.FC = () => {
                     )}
                   </div>
 
+                  {/* Tag Filter */}
+                  {tagOptions.length > 0 && (
+                    <div className="relative" ref={tagMenuRef}>
+                      <button
+                        onClick={() => setShowTagMenu(v => !v)}
+                        className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
+                          tableFilters.tag 
+                            ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700' 
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        }`}
+                        style={tableFilters.tag ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+                      >
+                        <span>{tableFilters.tag === '' ? 'All Tags' : tableFilters.tag}</span>
+                        <svg className="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {showTagMenu && (
+                        <div className="absolute left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                          <button
+                            onClick={() => { setTableFilters({ ...tableFilters, tag: '' }); setShowTagMenu(false); }}
+                            className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 ${tableFilters.tag === '' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200' : ''}`}
+                          >
+                            All Tags
+                          </button>
+                          {tagOptions.map(tag => (
+                            <button
+                              key={tag}
+                              onClick={() => { setTableFilters({ ...tableFilters, tag }); setShowTagMenu(false); }}
+                              className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 ${tableFilters.tag === tag ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200' : ''}`}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Clear Filters */}
-                  {(tableFilters.search || tableFilters.currency || tableFilters.status !== 'all') && (
+                  {(tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.tag) && (
                     <button
-                      onClick={() => setTableFilters({ search: '', currency: '', status: 'all', source: '' })}
+                      onClick={() => setTableFilters({ search: '', currency: '', status: 'active', source: '', tag: '' })}
                       className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
                       title="Clear all filters"
                     >
@@ -819,9 +875,9 @@ export const ClientList: React.FC = () => {
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 sm:py-2 px-1.5 sm:px-2">
                       <div className="flex items-center justify-between">
                         <div className="text-left min-w-0 flex-1">
-                          <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">{tableFilters.status === 'all' ? 'All Clients' : 'Active Clients'}</p>
+                          <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">{tableFilters.status === 'active' ? 'Active Clients' : tableFilters.status === 'all' ? 'All Clients' : tableFilters.status.charAt(0).toUpperCase() + tableFilters.status.slice(1) + ' Clients'}</p>
                           <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem]">
-                            {tableFilters.status === 'all' ? filteredClients.length : activeClients.length}
+                            {tableFilters.status === 'active' ? activeClients.length : tableFilters.status === 'all' ? filteredClients.length : filteredClients.filter(c => c.status === tableFilters.status).length}
                           </p>
                           <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">
                             {(() => {
@@ -834,8 +890,12 @@ export const ClientList: React.FC = () => {
                                 if (inactiveCount > 0) parts.push(`${inactiveCount} inactive`);
                                 if (archivedCount > 0) parts.push(`${archivedCount} archived`);
                                 return parts.join(', ') || 'No clients';
+                              } else if (tableFilters.status === 'active') {
+                                return `${activeClients.length} active clients`;
+                              } else {
+                                const statusClients = filteredClients.filter(c => c.status === tableFilters.status);
+                                return `${statusClients.length} ${tableFilters.status} client${statusClients.length !== 1 ? 's' : ''}`;
                               }
-                              return `${activeClients.length} active clients`;
                             })()}
                           </p>
                         </div>
@@ -2198,7 +2258,7 @@ export const ClientList: React.FC = () => {
                       e.stopPropagation();
                     }}
                     className={`p-2 transition-colors touch-manipulation ${
-                      (tempFilters.currency || tempFilters.status !== 'all' || tempFilters.source)
+                      (tempFilters.currency || tempFilters.status !== 'active' || tempFilters.source || tempFilters.tag)
                         ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 active:opacity-70'
                         : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 active:opacity-70'
                     }`}
@@ -2212,7 +2272,7 @@ export const ClientList: React.FC = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setTableFilters({ search: '', currency: '', status: 'all', source: '' });
+                      setTableFilters({ search: '', currency: '', status: 'active', source: '', tag: '' });
                       setShowMobileFilterMenu(false);
                     }}
                     onTouchStart={(e) => {
@@ -2326,6 +2386,44 @@ export const ClientList: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* Tag Filter */}
+              {tagOptions.length > 0 && (
+                <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700">
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Tags</div>
+                  <div className="flex flex-wrap gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTempFilters({ ...tempFilters, tag: '' });
+                      }}
+                      className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                        tempFilters.tag === '' 
+                          ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
+                          : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {tagOptions.map(tag => (
+                      <button
+                        key={tag}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTempFilters({ ...tempFilters, tag });
+                        }}
+                        className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                          tempFilters.tag === tag 
+                            ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
+                            : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

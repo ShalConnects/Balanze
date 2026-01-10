@@ -1457,20 +1457,54 @@ async function createPDFFromHTML(user, recipient, data, settings) {
     if (isVercel) {
       try {
         chromium = await import('@sparticuz/chromium').then(m => m.default).catch(() => null);
-        if (chromium) {
-          // Set executable path for Vercel
-          executablePath = await chromium.executablePath();
-          chromiumArgs = chromium.args || [];
-          console.log('[PDF] Using @sparticuz/chromium for Vercel:', {
-            executablePath: executablePath.substring(0, 50) + '...',
-            argsCount: chromiumArgs.length
-          });
-        } else {
-          throw new Error('@sparticuz/chromium not available');
+        if (!chromium) {
+          throw new Error('@sparticuz/chromium module not found');
+        }
+        
+        // For @sparticuz/chromium, we need to ensure it's properly set up
+        // The executablePath() method should return the path to the extracted binary
+        executablePath = await chromium.executablePath();
+        
+        // Get chromium args - these are optimized for serverless
+        chromiumArgs = [...(chromium.args || [])];
+        
+        // Ensure critical args are present
+        const requiredArgs = [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--single-process',
+          '--disable-gpu',
+          '--disable-software-rasterizer'
+        ];
+        
+        requiredArgs.forEach(arg => {
+          if (!chromiumArgs.includes(arg)) {
+            chromiumArgs.push(arg);
+          }
+        });
+        
+        console.log('[PDF] Using @sparticuz/chromium for Vercel:', {
+          executablePath: executablePath ? (executablePath.length > 100 ? '...' + executablePath.slice(-100) : executablePath) : 'NOT SET',
+          argsCount: chromiumArgs.length,
+          hasExecutable: !!executablePath,
+          chromiumType: typeof chromium
+        });
+        
+        if (!executablePath) {
+          throw new Error('Failed to get chromium executable path from @sparticuz/chromium');
+        }
+        
+        // Verify the executable path doesn't point to /tmp/chromium (which lacks libraries)
+        if (executablePath.includes('/tmp/chromium') && !executablePath.includes('@sparticuz')) {
+          console.warn('[PDF] Warning: Executable path points to /tmp/chromium, which may lack required libraries');
         }
       } catch (chromiumError) {
-        console.error('[PDF] Failed to load @sparticuz/chromium:', chromiumError.message);
-        throw new Error('Chromium not available for serverless environment. Install @sparticuz/chromium.');
+        console.error('[PDF] Failed to load/configure @sparticuz/chromium:', {
+          message: chromiumError.message,
+          stack: chromiumError.stack
+        });
+        throw new Error(`Chromium not available for serverless environment: ${chromiumError.message}`);
       }
     } else {
       // Local development: try to use system Chrome/Chromium
@@ -1842,11 +1876,22 @@ export async function createPDFBuffer(user, recipient, data, settings) {
     return pdfBuffer;
   } catch (error) {
     // Fallback to PDFKit if Puppeteer fails
+    // This is expected on Vercel if @sparticuz/chromium has library issues
+    const isChromiumError = error.message.includes('libnss3.so') || 
+                           error.message.includes('shared libraries') ||
+                           error.message.includes('Failed to launch the browser process');
+    
     console.error('[PDF] ❌ HTML-to-PDF failed, falling back to PDFKit:', {
       error: error.message,
-      stack: error.stack,
+      isChromiumError: isChromiumError,
       name: error.name
     });
+    
+    if (isChromiumError) {
+      console.warn('[PDF] Chromium library error detected - this is a known Vercel limitation');
+      console.warn('[PDF] Falling back to PDFKit which works reliably on all platforms');
+    }
+    
     console.log('[PDF] Attempting PDFKit (legacy) fallback...');
     const pdfBuffer = createPDFBufferLegacy(user, recipient, data, settings);
     console.log('[PDF] ✅ Generated PDF using PDFKit (legacy fallback)');
