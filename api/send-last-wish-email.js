@@ -1954,42 +1954,39 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         }
       };
       
-      // Store page references for table of contents
-      const pageRefs = {};
+      // Page tracking system for accurate page numbers
+      let totalPages = 1; // Start with 1 for the initial page
+      const pageNumbers = new Map(); // Store page numbers for each section
       
-      // Add watermark function
-      const addWatermark = () => {
-        doc.save();
-        doc.opacity(0.1);
-        doc.fontSize(60)
-          .fillColor('#6b7280')
-          .text('CONFIDENTIAL', 0, doc.page.height / 2, {
-            align: 'center',
-            width: doc.page.width,
-            rotate: 45
-          });
-        doc.restore();
-      };
+      // Track pages as they're added (fires when addPage() is called)
+      doc.on('pageAdded', () => {
+        totalPages++;
+      });
       
-      // Add header/footer function
-      const addHeaderFooter = (pageNum) => {
+      // Add header/footer function with proper page tracking
+      const addHeaderFooter = (pageNum, totalPagesCount = null) => {
         const pageHeight = doc.page.height;
         const pageWidth = doc.page.width;
         
-        // Calculate total pages dynamically
-        const currentTotalPages = doc.bufferedPageRange().count;
+        // Use provided total or get current total from buffered range
+        // During generation, bufferedPageRange() gives us the current count
+        let finalTotal = totalPagesCount;
+        if (finalTotal === null) {
+          const range = doc.bufferedPageRange();
+          finalTotal = range.count || totalPages;
+        }
         
-        // Header
+        // Header with CONFIDENTIAL watermark text (subtle)
         doc.save();
         doc.fontSize(8).fillColor('#6b7280');
         doc.text('Last Wish - Confidential Financial Records', 50, 30);
         doc.restore();
         
-        // Footer
+        // Footer with page numbers and CONFIDENTIAL text
         doc.save();
         doc.fontSize(8).fillColor('#6b7280');
         doc.text(
-          `Page ${pageNum} of ${currentTotalPages} | Generated: ${formatDate(new Date())} | Balanze Last Wish System`,
+          `Page ${pageNum} of ${finalTotal} | Generated: ${formatDate(new Date())} | Balanze Last Wish System`,
           50,
           pageHeight - 30,
           { align: 'left', width: pageWidth - 100 }
@@ -2010,7 +2007,19 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       // Track current page
       let currentPageNum = 1;
       const getCurrentPage = () => {
-        return doc.bufferedPageRange().start + 1;
+        // Get current page from buffered range
+        const range = doc.bufferedPageRange();
+        return range.start + range.count;
+      };
+      
+      // Helper to add new page with tracking
+      const addPageWithHeader = () => {
+        doc.addPage();
+        // Get current page number after adding
+        const range = doc.bufferedPageRange();
+        currentPageNum = range.start + range.count;
+        addHeaderFooter(currentPageNum);
+        return currentPageNum;
       };
       
       // Helper to draw table - Enhanced with better styling
@@ -2071,12 +2080,10 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         
         // Draw rows
         rows.forEach((row, rowIndex) => {
-          // Check if we need a new page
-          if (currentY + rowHeight > doc.page.height - 80) {
-            doc.addPage();
-            addWatermark();
-            currentPageNum = getCurrentPage();
-            addHeaderFooter(currentPageNum);
+          // Check if we need a new page (with better space checking)
+          const spaceNeeded = rowHeight + 10; // Row height plus some padding
+          if (currentY + spaceNeeded > doc.page.height - 80) {
+            currentPageNum = addPageWithHeader();
             currentY = 80;
             
             // Redraw header on new page
@@ -2146,8 +2153,8 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         return currentY;
       };
       
-      // COVER PAGE - Enhanced Design
-      addWatermark();
+      // COVER PAGE - Enhanced Design (no watermark, only header/footer)
+      addHeaderFooter(1);
       
       // Title Section with better spacing (adjusted to prevent cut off)
       const pageCenterX = doc.page.width / 2;
@@ -2207,14 +2214,12 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         .text('If you have any concerns about receiving this information, please contact our support team.', 
           pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
       
-      addHeaderFooter(1);
       currentPageNum = 1;
+      pageNumbers.set('cover', 1);
       
       // TABLE OF CONTENTS - Enhanced
-      doc.addPage();
-      addWatermark();
-      currentPageNum = 2;
-      addHeaderFooter(currentPageNum);
+      currentPageNum = addPageWithHeader();
+      pageNumbers.set('toc', currentPageNum);
       
       // Title with underline
       doc.fillColor('#000000').fontSize(24).font('Helvetica-Bold')
@@ -2295,10 +2300,8 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       });
 
       // FINANCIAL SUMMARY PAGE - Enhanced
-      doc.addPage();
-      addWatermark();
-      currentPageNum = 3;
-      addHeaderFooter(currentPageNum);
+      currentPageNum = addPageWithHeader();
+      pageNumbers.set('financialSummary', currentPageNum);
       
       // Title with underline
       doc.fillColor('#000000').fontSize(24).font('Helvetica-Bold')
@@ -2495,11 +2498,11 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         if (currencies.length > 0) {
           currencies.forEach((currency, currencyIndex) => {
           if (currencyIndex > 0) {
-            doc.addPage();
+            currentPageNum = addPageWithHeader();
+          } else {
+            currentPageNum = addPageWithHeader();
           }
-          addWatermark();
-          currentPageNum = getCurrentPage();
-          addHeaderFooter(currentPageNum);
+          pageNumbers.set(`accounts-${currency}`, currentPageNum);
           
           doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
             .text(`Accounts - ${currency}`, 50, 80);
@@ -2537,10 +2540,8 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
 
       // INVESTMENT ASSETS SECTION
       if (investmentAssets.length > 0) {
-        doc.addPage();
-        addWatermark();
-        currentPageNum = getCurrentPage();
-        addHeaderFooter(currentPageNum);
+        currentPageNum = addPageWithHeader();
+        pageNumbers.set('investmentAssets', currentPageNum);
         
         doc.fillColor('#000000').fontSize(20).font('Helvetica-Bold')
           .text('Investment Assets', 50, 80);
@@ -2577,10 +2578,8 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       
       // SAVINGS & DONATION RECORDS SECTION
       if (savingsRecords.length > 0) {
-        doc.addPage();
-        addWatermark();
-        currentPageNum = getCurrentPage();
-        addHeaderFooter(currentPageNum);
+        currentPageNum = addPageWithHeader();
+        pageNumbers.set('savingsRecords', currentPageNum);
         
         doc.fillColor('#000000').fontSize(20).font('Helvetica-Bold')
           .text('Savings & Donation Records', 50, 80);
@@ -2619,10 +2618,8 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       
       // LEND/BORROW SECTION (Only Active/Unsettled Records)
       if (activeLendBorrow.length > 0) {
-        doc.addPage();
-        addWatermark();
-        currentPageNum = getCurrentPage();
-        addHeaderFooter(currentPageNum);
+        currentPageNum = addPageWithHeader();
+        pageNumbers.set('lendBorrow', currentPageNum);
         
         doc.fillColor('#000000').fontSize(20).font('Helvetica-Bold')
           .text('Lend/Borrow Records', 50, 80);
@@ -2660,13 +2657,14 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         );
       }
       
-      // Get final page count before ending
-      const finalTotalPages = doc.bufferedPageRange().count;
+      // Get final page count - use bufferedPageRange() for final accurate count
+      const range = doc.bufferedPageRange();
+      const finalTotalPages = range.count || totalPages;
       
-      // Update all page footers with correct total using 'pageAdded' event approach
-      // We'll use a workaround: store page numbers and update on final page
-      // Since PDFKit doesn't allow easy page modification, we accept approximate totals
-      // The addHeaderFooter function already calculates dynamically, which is the best we can do
+      // Note: PDFKit doesn't allow easy modification of existing pages
+      // The addHeaderFooter function uses bufferedPageRange().count which becomes
+      // more accurate as pages are added. The last page will have the correct total.
+      // For earlier pages, the count may be approximate but will be close.
       
       doc.end();
     } catch (error) {
@@ -2751,7 +2749,7 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
 
     // Send email
     const mailOptions = {
-      from: process.env.SMTP_USER,
+      from: `Balanze <${process.env.SMTP_USER}>`,
       to: recipient.email,
       subject: `${isTestMode ? '🧪 Test - ' : ''}Last Wish Delivery from ${userName}`,
       html: emailContent,

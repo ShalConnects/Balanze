@@ -5,6 +5,9 @@ import { Task } from '../../types/client';
 import { StatCard } from './StatCard';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskForm } from '../Tasks/TaskForm';
+import { getTodayNormalized, normalizeTaskDate, isTaskOverdue, isTaskDueToday, isTaskDueThisWeek } from '../../utils/taskDateUtils';
+import { showToast } from '../../lib/toast';
+import { useTouchDevice } from '../../hooks/useTouchDevice';
 import {
   DndContext,
   closestCenter,
@@ -27,14 +30,12 @@ export const ClientTasksWidget: React.FC = () => {
   const [optimisticTasks, setOptimisticTasks] = useState<Task[] | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const isTouchDevice = useTouchDevice();
   const statusMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchTasks();
     fetchClients();
-    // Detect touch device for drag activation distance
-    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -57,39 +58,10 @@ export const ClientTasksWidget: React.FC = () => {
 
   // Calculate statistics
   const stats = useMemo(() => {
-    const now = new Date();
-    // Normalize to start of day to avoid timezone issues
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const nextWeek = new Date(today);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-
     const urgent = allActiveTasks.filter(t => t.priority === 'urgent').length;
-    const overdue = allActiveTasks.filter(t => {
-      if (!t.due_date) return false;
-      // Normalize due_date to start of day for accurate comparison
-      const dueDateStr = t.due_date.split('T')[0]; // Get YYYY-MM-DD part
-      const [year, month, day] = dueDateStr.split('-').map(Number);
-      const dueDate = new Date(year, month - 1, day);
-      return dueDate < today && t.status !== 'completed';
-    }).length;
-    const dueToday = allActiveTasks.filter(t => {
-      if (!t.due_date) return false;
-      // Normalize due_date to start of day for accurate comparison
-      const dueDateStr = t.due_date.split('T')[0]; // Get YYYY-MM-DD part
-      const [year, month, day] = dueDateStr.split('-').map(Number);
-      const dueDate = new Date(year, month - 1, day);
-      return dueDate.getTime() === today.getTime() && t.status !== 'completed';
-    }).length;
-    const dueThisWeek = allActiveTasks.filter(t => {
-      if (!t.due_date) return false;
-      // Normalize due_date to start of day for accurate comparison
-      const dueDateStr = t.due_date.split('T')[0]; // Get YYYY-MM-DD part
-      const [year, month, day] = dueDateStr.split('-').map(Number);
-      const dueDate = new Date(year, month - 1, day);
-      return dueDate >= tomorrow && dueDate <= nextWeek && t.status !== 'completed';
-    }).length;
+    const overdue = allActiveTasks.filter(t => isTaskOverdue(t.due_date, t.status)).length;
+    const dueToday = allActiveTasks.filter(t => isTaskDueToday(t.due_date, t.status)).length;
+    const dueThisWeek = allActiveTasks.filter(t => isTaskDueThisWeek(t.due_date, t.status)).length;
 
     return {
       total: allActiveTasks.length,
@@ -196,6 +168,7 @@ export const ClientTasksWidget: React.FC = () => {
         } catch (error) {
           console.error('Failed to update task positions:', error);
           setOptimisticTasks(null);
+          showToast.error('Failed to reorder tasks. Please try again.');
           fetchTasks(); // Refresh on error
         } finally {
           setIsDraggingTask(null);
@@ -219,6 +192,7 @@ export const ClientTasksWidget: React.FC = () => {
         } catch (error) {
           console.error('Failed to update task:', error);
           setOptimisticTasks(null);
+          showToast.error('Failed to move task. Please try again.');
         } finally {
           setIsDraggingTask(null);
         }
@@ -258,6 +232,7 @@ export const ClientTasksWidget: React.FC = () => {
     } catch (error) {
       console.error('Failed to update task status:', error);
       setOptimisticTasks(null);
+      showToast.error('Failed to move task. Please try again.');
     } finally {
       setIsDraggingTask(null);
     }
@@ -323,10 +298,12 @@ export const ClientTasksWidget: React.FC = () => {
   const handleTaskDelete = async (taskId: string) => {
     try {
       await deleteTask(taskId);
+      showToast.success('Task deleted successfully');
       // Refresh tasks after deletion
       fetchTasks();
     } catch (error) {
       console.error('Failed to delete task:', error);
+      showToast.error('Failed to delete task. Please try again.');
     }
   };
 
@@ -346,14 +323,14 @@ export const ClientTasksWidget: React.FC = () => {
   }
 
   return (
-    <div className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-lg sm:rounded-xl p-1.5 sm:p-2 sm:p-3 lg:p-[0.7rem_1rem] shadow-sm transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700">
+    <div className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-md sm:rounded-lg p-1 sm:p-1.5 md:p-2 lg:p-2.5 shadow-sm transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700">
       {/* Header */}
       <div 
-        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 cursor-pointer"
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-1.5 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center gap-1 sm:gap-1.5 sm:gap-2 flex-1 min-w-0">
-          <h2 className="text-sm sm:text-base sm:text-lg font-bold text-gray-900 dark:text-white truncate">
+        <div className="flex items-center gap-1 sm:gap-1.5 flex-1 min-w-0">
+          <h2 className="text-xs sm:text-sm md:text-base font-bold text-gray-900 dark:text-white truncate">
             Client Tasks ({allActiveTasks.length})
           </h2>
           
@@ -362,45 +339,45 @@ export const ClientTasksWidget: React.FC = () => {
               e.stopPropagation();
               setIsExpanded(!isExpanded);
             }}
-            className="p-1 sm:p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors text-gray-600 dark:text-gray-400 flex-shrink-0"
+            className="p-0.5 sm:p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors text-gray-600 dark:text-gray-400 flex-shrink-0"
             title={isExpanded ? 'Collapse' : 'Expand'}
             aria-label={isExpanded ? 'Collapse' : 'Expand'}
           >
             {isExpanded ? (
-              <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5" />
+              <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             ) : (
-              <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5" />
+              <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             )}
           </button>
         </div>
         
         {/* Collapsed State Indicators - Desktop (right side badges) */}
         {!isExpanded && (
-          <div className="hidden md:flex items-center gap-1 sm:gap-2 flex-wrap">
+          <div className="hidden md:flex items-center gap-1 flex-wrap">
             {stats.overdue > 0 && (
-              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs sm:text-xs font-semibold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 shadow-sm">
-                <AlertCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 shadow-sm">
+                <AlertCircle className="w-3 h-3" />
                 <span className="hidden lg:inline">{stats.overdue} Overdue</span>
                 <span className="lg:hidden">{stats.overdue}</span>
               </span>
             )}
             {stats.dueToday > 0 && (
-              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs sm:text-xs font-semibold bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 shadow-sm">
-                <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 shadow-sm">
+                <Calendar className="w-3 h-3" />
                 <span className="hidden lg:inline">{stats.dueToday} Due Today</span>
                 <span className="lg:hidden">{stats.dueToday}</span>
               </span>
             )}
             {stats.urgent > 0 && (
-              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs sm:text-xs font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-sm">
-                <Flame className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-sm">
+                <Flame className="w-3 h-3" />
                 <span className="hidden lg:inline">{stats.urgent} Urgent</span>
                 <span className="lg:hidden">{stats.urgent}</span>
               </span>
             )}
             {stats.dueThisWeek > 0 && (
-              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs sm:text-xs font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-sm">
-                <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-sm">
+                <Calendar className="w-3 h-3" />
                 <span className="hidden lg:inline">{stats.dueThisWeek} Due This Week</span>
                 <span className="lg:hidden">{stats.dueThisWeek}</span>
               </span>
@@ -411,8 +388,8 @@ export const ClientTasksWidget: React.FC = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-          <p className="text-xs sm:text-sm text-red-700 dark:text-red-300">
+        <div className="mt-1.5 p-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+          <p className="text-[10px] sm:text-xs text-red-700 dark:text-red-300">
             {error}
           </p>
         </div>
@@ -420,9 +397,9 @@ export const ClientTasksWidget: React.FC = () => {
 
       {/* Collapsed State Summary - Mobile (below title) */}
       {!isExpanded && (
-        <div className="sm:hidden mt-1 sm:mt-1.5 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+        <div className="sm:hidden mt-0.5 text-[10px] sm:text-xs text-gray-600 dark:text-gray-400">
           {stats.overdue > 0 || stats.dueToday > 0 || stats.urgent > 0 || stats.dueThisWeek > 0 ? (
-            <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1 flex-wrap">
               {stats.overdue > 0 && (
                 <span className="text-red-600 dark:text-red-400 font-semibold">
                   {stats.overdue} overdue
@@ -457,8 +434,8 @@ export const ClientTasksWidget: React.FC = () => {
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
-          <div className="overflow-y-auto md:overflow-x-auto md:overflow-y-visible pb-2 pt-2 sm:pt-3 lg:pt-[10px] -mx-2 sm:-mx-3 lg:mx-0 px-2 sm:px-3 lg:px-0 max-h-[calc(100vh-250px)] md:max-h-none">
-            <div className="flex flex-col md:flex-row gap-2 sm:gap-3 lg:gap-4 md:min-w-max">
+          <div className="overflow-y-auto md:overflow-x-auto md:overflow-y-visible pb-1.5 pt-1.5 sm:pt-2 -mx-1 sm:-mx-1.5 md:mx-0 px-1 sm:px-1.5 md:px-0 max-h-[calc(100vh-250px)] md:max-h-none">
+            <div className="flex flex-col md:flex-row gap-1.5 sm:gap-2 md:gap-2.5 md:min-w-max">
             {/* In Progress Column */}
             <KanbanColumn
               id="in_progress"
@@ -474,6 +451,7 @@ export const ClientTasksWidget: React.FC = () => {
               onTaskClick={handleTaskClick}
               onTaskDelete={handleTaskDelete}
               color="bg-blue-50 dark:bg-blue-900/20"
+              isDraggingTask={isDraggingTask}
             />
 
             {/* Waiting on Client Column */}
@@ -491,6 +469,7 @@ export const ClientTasksWidget: React.FC = () => {
               onTaskClick={handleTaskClick}
               onTaskDelete={handleTaskDelete}
               color="bg-yellow-50 dark:bg-yellow-900/20"
+              isDraggingTask={isDraggingTask}
             />
 
             {/* Waiting on Me Column */}
@@ -508,6 +487,7 @@ export const ClientTasksWidget: React.FC = () => {
               onTaskClick={handleTaskClick}
               onTaskDelete={handleTaskDelete}
               color="bg-purple-50 dark:bg-purple-900/20"
+              isDraggingTask={isDraggingTask}
             />
             </div>
           </div>
