@@ -42,7 +42,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   const taskIds = tasks.map(task => task.id);
 
   return (
-    <div className="flex flex-col w-full min-w-[180px] xs:min-w-[200px] sm:min-w-[220px] md:min-w-[240px] lg:min-w-[260px]">
+    <div className="flex flex-col w-full md:min-w-[240px] lg:min-w-[260px]">
       {/* Column Header */}
       <div className={`mb-1.5 sm:mb-2 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md ${color} border border-gray-200 dark:border-gray-700`}>
         <div className="flex items-center justify-between">
@@ -58,7 +58,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
       {/* Droppable Area */}
       <div
         ref={setNodeRef}
-        className={`flex-1 min-h-[100px] xs:min-h-[120px] sm:min-h-[150px] max-h-[200px] xs:max-h-[250px] sm:max-h-[300px] rounded-md p-1 sm:p-1.5 transition-colors overflow-y-auto ${
+        className={`flex-1 min-h-[100px] xs:min-h-[120px] sm:min-h-[150px] max-h-[400px] md:max-h-[300px] rounded-md p-1 sm:p-1.5 transition-colors overflow-y-auto ${
           isOver
             ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-600 border-dashed'
             : 'bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700'

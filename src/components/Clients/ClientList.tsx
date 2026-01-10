@@ -592,7 +592,7 @@ export const ClientList: React.FC = () => {
           <ClientTasksWidget />
           
           {/* Unified Filters and Table */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0" style={{ marginTop: '10px' }}>
             {/* Filters Section */}
             <div className="p-2 sm:p-3 border-b border-gray-200 dark:border-gray-700">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1" style={{ marginBottom: 0 }}>
@@ -630,11 +630,11 @@ export const ClientList: React.FC = () => {
                     <button
                       onClick={() => setShowMobileFilterMenu(v => !v)}
                       className={`px-2 py-1.5 text-[13px] h-8 w-8 rounded-md transition-colors flex items-center justify-center ${
-                        (tableFilters.currency || tableFilters.status !== 'all')
+                        (tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag)
                           ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700' 
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
                       }`}
-                      style={(tableFilters.currency || tableFilters.status !== 'all') ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+                      style={(tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag) ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                       title="Filters"
                     >
                       <Filter className="w-4 h-4" />
@@ -981,6 +981,7 @@ export const ClientList: React.FC = () => {
                           {getSortIcon('name')}
                         </div>
                       </th>
+                      <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-2.5 lg:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Tags</th>
                       <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-2.5 lg:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                       <th className="px-3 sm:px-4 lg:px-6 py-2 sm:py-2.5 lg:py-3 text-center text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
                       <th 
@@ -1007,13 +1008,13 @@ export const ClientList: React.FC = () => {
                   <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredClients.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-16 text-center">
+                        <td colSpan={7} className="py-16 text-center">
                           <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
                             <Building2 className="w-12 h-12 text-gray-400" />
                           </div>
                           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No client records found</h3>
                           <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
-                            {tableFilters.search || tableFilters.currency || tableFilters.status !== 'all' || tableFilters.source
+                            {tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag
                               ? 'No clients match your filters'
                               : 'Start managing your clients by adding your first client'}
                           </p>
@@ -1066,35 +1067,6 @@ export const ClientList: React.FC = () => {
                                       return null;
                                     })()}
                                   </div>
-                                  {client.tags && client.tags.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {client.tags.slice(0, 2).map((tag) => (
-                                        <span
-                                          key={tag}
-                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-[10px] group"
-                                        >
-                                          <Tag className="w-2.5 h-2.5" />
-                                          {tag}
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleRemoveTag(client.id, tag);
-                                            }}
-                                            className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:text-blue-900 dark:hover:text-blue-100 transition-opacity ml-0.5"
-                                            title="Remove tag"
-                                            aria-label={`Remove ${tag} tag`}
-                                          >
-                                            <X className="w-2.5 h-2.5" />
-                                          </button>
-                                        </span>
-                                      ))}
-                                      {client.tags.length > 2 && (
-                                        <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-[10px]">
-                                          +{client.tags.length - 2}
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
                                 </div>
                                 <div className="ml-1 sm:ml-2 flex-shrink-0">
                                   <svg 
@@ -1107,6 +1079,34 @@ export const ClientList: React.FC = () => {
                                   </svg>
                                 </div>
                               </div>
+                            </td>
+                            <td className="px-3 sm:px-4 lg:px-6 py-2 sm:py-[0.6rem] lg:py-[0.7rem]">
+                              {client.tags && client.tags.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {client.tags.map((tag) => (
+                                    <span
+                                      key={tag}
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-[10px] group"
+                                    >
+                                      <Tag className="w-2.5 h-2.5" />
+                                      {tag}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRemoveTag(client.id, tag);
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 hover:text-blue-900 dark:hover:text-blue-100 transition-opacity ml-0.5"
+                                        title="Remove tag"
+                                        aria-label={`Remove ${tag} tag`}
+                                      >
+                                        <X className="w-2.5 h-2.5" />
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-xs sm:text-sm text-gray-400 dark:text-gray-500">-</span>
+                              )}
                             </td>
                             <td className="px-3 sm:px-4 lg:px-6 py-2 sm:py-[0.6rem] lg:py-[0.7rem]">
                               <div className="text-xs sm:text-sm text-gray-900 dark:text-white truncate">
@@ -1186,7 +1186,7 @@ export const ClientList: React.FC = () => {
                           {/* Expanded Row Content */}
                           {isRowExpanded(client.id) && (
                           <tr className="bg-gray-50 dark:bg-gray-800">
-                            <td colSpan={6} className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5">
+                            <td colSpan={7} className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
                                   {/* Contact & Company */}
                                   <div className="space-y-2 sm:space-y-3">
@@ -1665,7 +1665,7 @@ export const ClientList: React.FC = () => {
               </div>
 
               {/* Mobile/Tablet Card View */}
-              <div className="lg:hidden">
+              <div className="lg:hidden max-h-[500px] overflow-y-auto">
                 {filteredClients.length === 0 ? (
                   <div className="text-center py-12 px-4">
                     <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1673,7 +1673,7 @@ export const ClientList: React.FC = () => {
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No clients yet</h3>
                     <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
-                      {tableFilters.search || tableFilters.currency || tableFilters.status !== 'all' || tableFilters.source
+                      {tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag
                         ? 'No clients match your filters'
                         : 'Start managing your clients by adding your first client'}
                     </p>
@@ -1735,6 +1735,20 @@ export const ClientList: React.FC = () => {
                                 </span>
                               )}
                             </div>
+                            {/* Tags */}
+                            {client.tags && client.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2 sm:mt-2.5">
+                                {client.tags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-[10px] sm:text-xs"
+                                  >
+                                    <Tag className="w-2.5 h-2.5" />
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           
                           {/* Card Footer - Created Date and Actions */}

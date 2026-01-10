@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ChevronDown, ChevronUp, AlertCircle, Flame, Calendar } from 'lucide-react';
 import { useClientStore } from '../../store/useClientStore';
 import { Task } from '../../types/client';
-import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { StatCard } from './StatCard';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskForm } from '../Tasks/TaskForm';
@@ -22,7 +21,6 @@ import {
 
 export const ClientTasksWidget: React.FC = () => {
   const { tasks, clients, fetchTasks, fetchClients, updateTask, updateTaskPositions, deleteTask, error, tasksLoading } = useClientStore();
-  const { isMobile } = useMobileDetection();
   const [statusMenuOpen, setStatusMenuOpen] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(true); // Default to expanded
   const [isDraggingTask, setIsDraggingTask] = useState<string | null>(null);
@@ -345,14 +343,14 @@ export const ClientTasksWidget: React.FC = () => {
   }
 
   return (
-    <div className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-lg xs:rounded-xl p-1.5 xs:p-2 sm:p-3 lg:p-[0.7rem_1rem] shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700">
+    <div className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-lg sm:rounded-xl p-1.5 sm:p-2 sm:p-3 lg:p-[0.7rem_1rem] shadow-sm transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700">
       {/* Header */}
       <div 
         className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-1 sm:gap-1.5 sm:gap-2 flex-1 min-w-0">
-          <h2 className="text-sm xs:text-base sm:text-lg font-bold text-gray-900 dark:text-white truncate">
+          <h2 className="text-sm sm:text-base sm:text-lg font-bold text-gray-900 dark:text-white truncate">
             Client Tasks ({allActiveTasks.length})
           </h2>
           
@@ -375,17 +373,17 @@ export const ClientTasksWidget: React.FC = () => {
         
         {/* Collapsed State Indicators - Desktop (right side badges) */}
         {!isExpanded && (
-          <div className="hidden md:flex items-center gap-1 xs:gap-1.5 sm:gap-2 flex-wrap">
+          <div className="hidden md:flex items-center gap-1 sm:gap-1.5 sm:gap-2 flex-wrap">
             {stats.overdue > 0 && (
-              <span className="inline-flex items-center gap-0.5 xs:gap-1 px-1.5 xs:px-2 sm:px-2.5 py-0.5 xs:py-1 rounded-full text-[9px] xs:text-[10px] sm:text-xs font-semibold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 shadow-sm">
-                <AlertCircle className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs sm:text-xs sm:text-xs font-semibold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 shadow-sm">
+                <AlertCircle className="w-3 h-3 sm:w-3 sm:h-3 sm:w-3.5 sm:h-3.5" />
                 <span className="hidden lg:inline">{stats.overdue} Overdue</span>
                 <span className="lg:hidden">{stats.overdue}</span>
               </span>
             )}
             {stats.dueToday > 0 && (
-              <span className="inline-flex items-center gap-0.5 xs:gap-1 px-1.5 xs:px-2 sm:px-2.5 py-0.5 xs:py-1 rounded-full text-[9px] xs:text-[10px] sm:text-xs font-semibold bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 shadow-sm">
-                <Calendar className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs sm:text-xs sm:text-xs font-semibold bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 shadow-sm">
+                <Calendar className="w-3 h-3 sm:w-3 sm:h-3 sm:w-3.5 sm:h-3.5" />
                 <span className="hidden lg:inline">{stats.dueToday} Due Today</span>
                 <span className="lg:hidden">{stats.dueToday}</span>
               </span>
@@ -456,8 +454,8 @@ export const ClientTasksWidget: React.FC = () => {
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
-          <div className="overflow-x-auto pb-2 pt-2 sm:pt-3 lg:pt-[10px] -mx-2 sm:-mx-3 lg:mx-0 px-2 sm:px-3 lg:px-0">
-            <div className="flex gap-2 sm:gap-3 lg:gap-4 min-w-max">
+          <div className="overflow-y-auto md:overflow-x-auto overflow-x-hidden pb-2 pt-2 sm:pt-3 lg:pt-[10px] -mx-2 sm:-mx-3 lg:mx-0 px-2 sm:px-3 lg:px-0 max-h-[60vh] md:max-h-none">
+            <div className="flex flex-col md:flex-row gap-2 sm:gap-3 lg:gap-4 md:min-w-max">
             {/* In Progress Column */}
             <KanbanColumn
               id="in_progress"

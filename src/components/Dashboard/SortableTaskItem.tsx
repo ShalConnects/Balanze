@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AlertCircle, ChevronDown, ChevronUp, GripVertical, Edit2, Trash2, CircleDot } from 'lucide-react';
@@ -35,6 +35,7 @@ export const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const taskItemRef = useRef<HTMLDivElement>(null);
 
   const {
     attributes,
@@ -46,6 +47,20 @@ export const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
   } = useSortable({ 
     id: task.id,
   });
+
+  // Scroll into view when task is expanded
+  useEffect(() => {
+    if (isExpanded && taskItemRef.current) {
+      // Use setTimeout to ensure DOM has updated with expanded content
+      setTimeout(() => {
+        taskItemRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'nearest'
+        });
+      }, 100);
+    }
+  }, [isExpanded]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -73,9 +88,15 @@ export const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
     onStatusClick(task.id);
   };
 
+  // Combine refs for sortable and scroll-into-view
+  const combinedRef = (node: HTMLDivElement | null) => {
+    setNodeRef(node);
+    taskItemRef.current = node;
+  };
+
   return (
     <div
-      ref={setNodeRef}
+      ref={combinedRef}
       style={style}
       className={`relative bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all group ${
         isDragging ? 'shadow-lg scale-105' : 'shadow-sm'

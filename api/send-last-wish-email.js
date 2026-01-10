@@ -2013,15 +2013,15 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         return doc.bufferedPageRange().start + 1;
       };
       
-      // Helper to draw table
+      // Helper to draw table - Enhanced with better styling
       const drawTable = (headers, rows, startY, options = {}) => {
         const tableTop = startY || doc.y;
-        const cellPadding = options.padding || 5;
+        const cellPadding = options.padding || 6;
         const fontSize = options.fontSize || 9;
         const headerColor = options.headerColor || '#1f2937';
-        const rowColor = options.rowColor || '#111827';
-        const textColor = options.textColor || '#e5e7eb';
-        const headerTextColor = options.headerTextColor || '#f9fafb';
+        const rowColor = options.rowColor || '#ffffff';
+        const textColor = options.textColor || '#111827';
+        const headerTextColor = options.headerTextColor || '#ffffff';
         const columnWidths = options.columnWidths || [];
         const pageWidth = doc.page.width - 100; // 50px margin on each side
         
@@ -2034,14 +2034,21 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         }
         
         let currentY = tableTop;
-        const rowHeight = fontSize + (cellPadding * 2) + 4;
+        const rowHeight = fontSize + (cellPadding * 2) + 6;
         
-        // Draw header
+        // Draw header with border
         doc.save();
         doc.rect(50, currentY, pageWidth, rowHeight)
           .fillColor(headerColor)
           .fill();
-        doc.fillColor(headerTextColor).fontSize(fontSize).font('Helvetica-Bold');
+        
+        // Header border
+        doc.rect(50, currentY, pageWidth, rowHeight)
+          .strokeColor('#000000')
+          .lineWidth(1)
+          .stroke();
+        
+        doc.fillColor(headerTextColor).fontSize(fontSize + 1).font('Helvetica-Bold');
         
         let xPos = 50;
         headers.forEach((header, i) => {
@@ -2049,6 +2056,14 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
             width: widths[i] - (cellPadding * 2),
             align: 'left'
           });
+          // Vertical line between columns
+          if (i < headers.length - 1) {
+            doc.moveTo(xPos + widths[i], currentY)
+              .lineTo(xPos + widths[i], currentY + rowHeight)
+              .strokeColor('#374151')
+              .lineWidth(0.5)
+              .stroke();
+          }
           xPos += widths[i];
         });
         doc.restore();
@@ -2063,13 +2078,48 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
             currentPageNum = getCurrentPage();
             addHeaderFooter(currentPageNum);
             currentY = 80;
+            
+            // Redraw header on new page
+            doc.save();
+            doc.rect(50, currentY, pageWidth, rowHeight)
+              .fillColor(headerColor)
+              .fill();
+            doc.rect(50, currentY, pageWidth, rowHeight)
+              .strokeColor('#000000')
+              .lineWidth(1)
+              .stroke();
+            doc.fillColor(headerTextColor).fontSize(fontSize + 1).font('Helvetica-Bold');
+            xPos = 50;
+            headers.forEach((header, i) => {
+              doc.text(header, xPos + cellPadding, currentY + cellPadding, {
+                width: widths[i] - (cellPadding * 2),
+                align: 'left'
+              });
+              if (i < headers.length - 1) {
+                doc.moveTo(xPos + widths[i], currentY)
+                  .lineTo(xPos + widths[i], currentY + rowHeight)
+                  .strokeColor('#374151')
+                  .lineWidth(0.5)
+                  .stroke();
+              }
+              xPos += widths[i];
+            });
+            doc.restore();
+            currentY += rowHeight;
           }
           
-          const bgColor = rowIndex % 2 === 0 ? rowColor : '#1a1f2e';
+          const bgColor = rowIndex % 2 === 0 ? rowColor : '#f9fafb';
           doc.save();
           doc.rect(50, currentY, pageWidth, rowHeight)
             .fillColor(bgColor)
             .fill();
+          
+          // Row border
+          doc.rect(50, currentY, pageWidth, rowHeight)
+            .strokeColor('#e5e7eb')
+            .lineWidth(0.5)
+            .stroke();
+          
           doc.fillColor(textColor).fontSize(fontSize).font('Helvetica');
           
           xPos = 50;
@@ -2078,54 +2128,150 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
               width: widths[i] - (cellPadding * 2),
               align: 'left'
             });
+            // Vertical line between columns
+            if (i < row.length - 1) {
+              doc.moveTo(xPos + widths[i], currentY)
+                .lineTo(xPos + widths[i], currentY + rowHeight)
+                .strokeColor('#e5e7eb')
+                .lineWidth(0.5)
+                .stroke();
+            }
             xPos += widths[i];
           });
           doc.restore();
           currentY += rowHeight;
         });
         
-        doc.y = currentY + 10;
+        doc.y = currentY + 15;
         return currentY;
       };
       
-      // COVER PAGE
+      // COVER PAGE - Enhanced Design
       addWatermark();
-      doc.fillColor('#f9fafb').fontSize(32).font('Helvetica-Bold')
-        .text('Last Wish Delivery', 50, 150, { align: 'center', width: doc.page.width - 100 });
-      doc.fillColor('#9ca3af').fontSize(16).font('Helvetica')
-        .text('Confidential Financial Records', 50, 190, { align: 'center', width: doc.page.width - 100 });
       
-      doc.moveDown(3);
-      doc.fillColor('#d1d5db').fontSize(14).font('Helvetica')
-        .text(`Prepared for: ${recipientName}`, 50, doc.y, { align: 'center', width: doc.page.width - 100 });
-      doc.moveDown(1);
-      doc.fillColor('#9ca3af').fontSize(12).font('Helvetica')
-        .text(`Account Holder: ${userName}`, 50, doc.y, { align: 'center', width: doc.page.width - 100 });
+      // Title Section with better spacing
+      const pageCenterX = doc.page.width / 2;
+      const startY = 180;
+      
+      doc.fillColor('#000000').fontSize(36).font('Helvetica-Bold')
+        .text('Last Wish Delivery', pageCenterX, startY, { align: 'center', width: doc.page.width - 100 });
+      
+      doc.fillColor('#374151').fontSize(18).font('Helvetica')
+        .text('Important Financial Information', pageCenterX, startY + 45, { align: 'center', width: doc.page.width - 100 });
+      
+      // Divider line
+      doc.moveTo(100, startY + 80)
+        .lineTo(doc.page.width - 100, startY + 80)
+        .strokeColor('#e5e7eb')
+        .lineWidth(1)
+        .stroke();
+      
+      doc.y = startY + 100;
+      
+      // Recipient and Account Holder Info with better formatting
       doc.moveDown(2);
-      doc.fillColor('#6b7280').fontSize(10).font('Helvetica')
-        .text(`Generated: ${formatDate(new Date())}`, 50, doc.y, { align: 'center', width: doc.page.width - 100 });
+      doc.fillColor('#111827').fontSize(13).font('Helvetica-Bold')
+        .text('Prepared for:', pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
+      doc.moveDown(0.3);
+      doc.fillColor('#374151').fontSize(14).font('Helvetica')
+        .text(recipientName, pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
       
-      // Confidentiality Notice
-      doc.moveDown(3);
-      doc.fillColor('#6b7280').fontSize(9).font('Helvetica')
-        .text('CONFIDENTIAL - FOR AUTHORIZED RECIPIENT ONLY', 50, doc.y, { align: 'center', width: doc.page.width - 100 });
+      doc.moveDown(1.5);
+      doc.fillColor('#111827').fontSize(13).font('Helvetica-Bold')
+        .text('Account Holder:', pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
+      doc.moveDown(0.3);
+      doc.fillColor('#374151').fontSize(14).font('Helvetica')
+        .text(userName, pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
+      
+      doc.moveDown(2);
+      doc.fillColor('#6b7280').fontSize(11).font('Helvetica')
+        .text(`Generated: ${formatDate(new Date())}`, pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
+      
+      // Personal Message Section (if exists)
+      if (settings.message && settings.message.trim() && 
+          settings.message.trim() !== 'This is the personal message' && 
+          settings.message.trim() !== 'Create documentation to accompany your financial data' &&
+          !settings.message.trim().toLowerCase().includes('create documentation') &&
+          !settings.message.trim().toLowerCase().includes('legacy documentation') &&
+          settings.message.trim().length > 10) {
+        doc.moveDown(2.5);
+        doc.moveTo(100, doc.y)
+          .lineTo(doc.page.width - 100, doc.y)
+          .strokeColor('#e5e7eb')
+          .lineWidth(1)
+          .stroke();
+        doc.moveDown(1);
+        
+        doc.fillColor('#111827').fontSize(12).font('Helvetica-Bold')
+          .text('Personal Message', pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
+        doc.moveDown(1);
+        
+        // Wrap long messages
+        const messageLines = doc.heightOfString(settings.message.trim(), {
+          width: doc.page.width - 200,
+          align: 'left'
+        });
+        const maxMessageHeight = doc.page.height - doc.y - 120;
+        
+        if (messageLines > maxMessageHeight) {
+          // Truncate if too long for cover page
+          const truncatedMessage = settings.message.trim().substring(0, 500) + '...';
+          doc.fillColor('#4b5563').fontSize(10).font('Helvetica')
+            .text(truncatedMessage, 100, doc.y, { 
+              align: 'left', 
+              width: doc.page.width - 200,
+              lineGap: 3
+            });
+        } else {
+          doc.fillColor('#4b5563').fontSize(10).font('Helvetica')
+            .text(settings.message.trim(), 100, doc.y, { 
+              align: 'left', 
+              width: doc.page.width - 200,
+              lineGap: 3
+            });
+        }
+      }
+      
+      // Confidentiality Notice - Enhanced
+      doc.y = doc.page.height - 150;
+      doc.moveTo(100, doc.y)
+        .lineTo(doc.page.width - 100, doc.y)
+        .strokeColor('#e5e7eb')
+        .lineWidth(1)
+        .stroke();
       doc.moveDown(1);
-      doc.fillColor('#9ca3af').fontSize(8).font('Helvetica')
+      
+      doc.fillColor('#dc2626').fontSize(10).font('Helvetica-Bold')
+        .text('CONFIDENTIAL - FOR AUTHORIZED RECIPIENT ONLY', pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
+      doc.moveDown(0.8);
+      doc.fillColor('#6b7280').fontSize(9).font('Helvetica')
         .text('This document contains sensitive financial information. Handle with care and store securely.', 
-          50, doc.y, { align: 'center', width: doc.page.width - 100 });
+          pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100, lineGap: 2 });
+      doc.moveDown(0.5);
+      doc.fillColor('#9ca3af').fontSize(8).font('Helvetica')
+        .text('If you have any concerns about receiving this information, please contact our support team.', 
+          pageCenterX, doc.y, { align: 'center', width: doc.page.width - 100 });
       
       addHeaderFooter(1);
       currentPageNum = 1;
       
-      // TABLE OF CONTENTS
+      // TABLE OF CONTENTS - Enhanced
       doc.addPage();
       addWatermark();
       currentPageNum = 2;
       addHeaderFooter(currentPageNum);
       
-      doc.fillColor('#f9fafb').fontSize(20).font('Helvetica-Bold')
+      // Title with underline
+      doc.fillColor('#000000').fontSize(24).font('Helvetica-Bold')
         .text('Table of Contents', 50, 80);
-      doc.moveDown(1);
+      doc.moveTo(50, 110)
+        .lineTo(200, 110)
+        .strokeColor('#000000')
+        .lineWidth(2)
+        .stroke();
+      
+      doc.y = 130;
+      doc.moveDown(0.5);
       
       let tocY = doc.y;
       const tocItems = [];
@@ -2133,16 +2279,31 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       // Filter accounts to exclude zero balances
       const accountsWithBalance = (data.accounts || []).filter(acc => parseFloat(acc.calculated_balance) !== 0);
       
-      // Filter lend/borrow to active and overdue records (used in TOC and Financial Summary)
+      // Filter lend/borrow to active and overdue records
       const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active' || lb.status === 'overdue');
       
-      // Calculate page numbers (Financial Summary is page 3, then accounts, then lend/borrow)
+      // Filter transactions (recent ones)
+      const recentTransactions = (data.transactions || []).slice(0, 50);
+      
+      // Filter investment assets
+      const investmentAssets = (data.investmentAssets || []).filter(asset => 
+        parseFloat(asset.current_value || asset.total_value || 0) > 0
+      );
+      
+      // Filter purchases
+      const purchases = (data.purchases || []).filter(p => p.status !== 'completed' || true);
+      
+      // Filter savings/donation records
+      const savingsRecords = (data.donationSavings || []).filter(ds => 
+        parseFloat(ds.current_amount || 0) > 0 || parseFloat(ds.target_amount || 0) > 0
+      );
+      
+      // Calculate page numbers
       let tocPageNum = 3; // Financial Summary page
       tocItems.push({ title: 'Financial Summary', page: tocPageNum });
       tocPageNum++;
       
       if (accountsWithBalance.length > 0) {
-        // Group by currency and add each currency group
         const currencies = [...new Set(accountsWithBalance.map(acc => acc.currency || 'USD'))];
         currencies.forEach((currency) => {
           tocItems.push({ title: `Accounts - ${currency}`, page: tocPageNum });
@@ -2150,26 +2311,67 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         });
       }
       
+      if (recentTransactions.length > 0) {
+        tocItems.push({ title: 'Recent Transactions', page: tocPageNum });
+        tocPageNum++;
+      }
+      
+      if (investmentAssets.length > 0) {
+        tocItems.push({ title: 'Investment Assets', page: tocPageNum });
+        tocPageNum++;
+      }
+      
+      if (purchases.length > 0) {
+        tocItems.push({ title: 'Purchase Records', page: tocPageNum });
+        tocPageNum++;
+      }
+      
+      if (savingsRecords.length > 0) {
+        tocItems.push({ title: 'Savings & Donation Records', page: tocPageNum });
+        tocPageNum++;
+      }
+      
       if (activeLendBorrow.length > 0) {
         tocItems.push({ title: 'Lend/Borrow Records', page: tocPageNum });
       }
       
+      // Draw TOC items with better formatting
       tocItems.forEach((item, index) => {
-        doc.fillColor('#d1d5db').fontSize(10).font('Helvetica')
-          .text(item.title, 50, tocY + (index * 20), { continued: true });
-        doc.fillColor('#6b7280').fontSize(9)
-          .text(`........ ${item.page}`, doc.page.width - 100, tocY + (index * 20), { align: 'right' });
+        const yPos = tocY + (index * 18);
+        doc.fillColor('#111827').fontSize(11).font('Helvetica')
+          .text(item.title, 50, yPos, { width: doc.page.width - 150 });
+        
+        // Dotted line
+        const dotStartX = doc.widthOfString(item.title, { width: doc.page.width - 150 }) + 60;
+        const dotEndX = doc.page.width - 80;
+        const dotY = yPos + 5;
+        
+        // Draw dots
+        for (let x = dotStartX; x < dotEndX; x += 3) {
+          doc.circle(x, dotY, 0.5).fillColor('#9ca3af').fill();
+        }
+        
+        doc.fillColor('#6b7280').fontSize(10).font('Helvetica')
+          .text(`${item.page}`, dotEndX + 5, yPos, { align: 'right' });
       });
 
-      // FINANCIAL SUMMARY PAGE
+      // FINANCIAL SUMMARY PAGE - Enhanced
       doc.addPage();
       addWatermark();
       currentPageNum = 3;
       addHeaderFooter(currentPageNum);
       
-      doc.fillColor('#f9fafb').fontSize(20).font('Helvetica-Bold')
+      // Title with underline
+      doc.fillColor('#000000').fontSize(24).font('Helvetica-Bold')
         .text('Financial Summary', 50, 80);
-      doc.moveDown(1.5);
+      doc.moveTo(50, 110)
+        .lineTo(250, 110)
+        .strokeColor('#000000')
+        .lineWidth(2)
+        .stroke();
+      
+      doc.y = 130;
+      doc.moveDown(1);
       
       // Calculate assets by currency
       const assetsByCurrency = {};
@@ -2185,7 +2387,7 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         accountsByCurrency[currency] += 1;
       });
       
-      // Calculate lend/borrow totals (activeLendBorrow already declared above)
+      // Calculate lend/borrow totals
       const activeLent = activeLendBorrow.filter(lb => lb.type === 'lend' || lb.type === 'lent');
       const activeBorrowed = activeLendBorrow.filter(lb => lb.type === 'borrow' || lb.type === 'borrowed');
       
@@ -2207,76 +2409,133 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         borrowedByCurrency[currency] += parseFloat(lb.amount) || 0;
       });
       
-      // Total Assets Section
-      doc.fillColor('#f3f4f6').fontSize(14).font('Helvetica-Bold')
+      // Total Assets Section - Enhanced with boxes
+      doc.fillColor('#000000').fontSize(16).font('Helvetica-Bold')
         .text('Total Assets', 50, doc.y);
-      doc.moveDown(0.5);
+      doc.moveDown(0.8);
       
       if (Object.keys(assetsByCurrency).length > 0) {
-        Object.entries(assetsByCurrency).forEach(([currency, amount]) => {
-          doc.fillColor('#d1d5db').fontSize(11).font('Helvetica')
-            .text(`${formatCurrency(amount, currency)} (${currency})`, 70, doc.y);
-          doc.fillColor('#9ca3af').fontSize(9)
-            .text(`${accountsByCurrency[currency]} account${accountsByCurrency[currency] !== 1 ? 's' : ''}`, 70, doc.y + 12);
-          doc.moveDown(1);
+        Object.entries(assetsByCurrency).forEach(([currency, amount], index) => {
+          const boxY = doc.y;
+          const boxHeight = 45;
+          
+          // Draw box
+          doc.rect(50, boxY, doc.page.width - 100, boxHeight)
+            .fillColor('#f9fafb')
+            .fill()
+            .strokeColor('#e5e7eb')
+            .lineWidth(1)
+            .stroke();
+          
+          // Currency label
+          doc.fillColor('#6b7280').fontSize(10).font('Helvetica')
+            .text(`Total Assets (${currency})`, 60, boxY + 8);
+          
+          // Amount (large)
+          doc.fillColor('#000000').fontSize(18).font('Helvetica-Bold')
+            .text(formatCurrency(amount, currency), 60, boxY + 20);
+          
+          // Account count
+          doc.fillColor('#6b7280').fontSize(9).font('Helvetica')
+            .text(`${accountsByCurrency[currency]} account${accountsByCurrency[currency] !== 1 ? 's' : ''}`, 60, boxY + 38);
+          
+          doc.y = boxY + boxHeight + 10;
         });
       } else {
-        doc.fillColor('#9ca3af').fontSize(10).font('Helvetica')
+        doc.fillColor('#9ca3af').fontSize(11).font('Helvetica')
           .text('No accounts with balance', 70, doc.y);
-        doc.moveDown(1);
+        doc.moveDown(1.5);
       }
       
       doc.moveDown(1);
       
-      // Account Summary
-      doc.fillColor('#f3f4f6').fontSize(14).font('Helvetica-Bold')
+      // Account Summary - Enhanced
+      doc.fillColor('#000000').fontSize(16).font('Helvetica-Bold')
         .text('Account Summary', 50, doc.y);
-      doc.moveDown(0.5);
+      doc.moveDown(0.8);
       
       const totalAccounts = (data.accounts || []).length;
-      doc.fillColor('#d1d5db').fontSize(11).font('Helvetica')
-        .text(`Total Accounts: ${totalAccounts}`, 70, doc.y);
-      doc.moveDown(0.7);
-      doc.fillColor('#d1d5db').fontSize(11).font('Helvetica')
-        .text(`Currencies: ${Object.keys(assetsByCurrency).length > 0 ? Object.keys(assetsByCurrency).join(', ') : 'N/A'}`, 70, doc.y);
+      const summaryBoxY = doc.y;
+      const summaryBoxHeight = 50;
       
-      doc.moveDown(1.5);
+      doc.rect(50, summaryBoxY, doc.page.width - 100, summaryBoxHeight)
+        .fillColor('#f9fafb')
+        .fill()
+        .strokeColor('#e5e7eb')
+        .lineWidth(1)
+        .stroke();
       
-      // Lend/Borrow Summary
-      doc.fillColor('#f3f4f6').fontSize(14).font('Helvetica-Bold')
+      doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
+        .text('Total Accounts:', 60, summaryBoxY + 10);
+      doc.fillColor('#374151').fontSize(12).font('Helvetica')
+        .text(`${totalAccounts} account${totalAccounts !== 1 ? 's' : ''}`, 180, summaryBoxY + 10);
+      
+      doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
+        .text('Currencies:', 60, summaryBoxY + 28);
+      doc.fillColor('#374151').fontSize(12).font('Helvetica')
+        .text(Object.keys(assetsByCurrency).length > 0 ? Object.keys(assetsByCurrency).join(', ') : 'N/A', 180, summaryBoxY + 28);
+      
+      doc.y = summaryBoxY + summaryBoxHeight + 15;
+      
+      // Lend/Borrow Summary - Enhanced
+      doc.fillColor('#000000').fontSize(16).font('Helvetica-Bold')
         .text('Lend/Borrow Summary', 50, doc.y);
-      doc.moveDown(0.5);
+      doc.moveDown(0.8);
+      
+      const lendBorrowBoxY = doc.y;
+      let lendBorrowBoxHeight = 80;
+      
+      if (Object.keys(lentByCurrency).length === 0 && Object.keys(borrowedByCurrency).length === 0) {
+        lendBorrowBoxHeight = 40;
+      }
+      
+      doc.rect(50, lendBorrowBoxY, doc.page.width - 100, lendBorrowBoxHeight)
+        .fillColor('#f9fafb')
+        .fill()
+        .strokeColor('#e5e7eb')
+        .lineWidth(1)
+        .stroke();
+      
+      let currentLendBorrowY = lendBorrowBoxY + 10;
       
       if (Object.keys(lentByCurrency).length > 0) {
-        doc.fillColor('#48bb78').fontSize(11).font('Helvetica')
-          .text('Total Lent:', 70, doc.y);
+        doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
+          .text('Total Lent:', 60, currentLendBorrowY);
         Object.entries(lentByCurrency).forEach(([currency, amount]) => {
-          doc.fillColor('#48bb78').fontSize(10)
-            .text(`  ${formatCurrency(amount, currency)} (${currency})`, 90, doc.y);
-          doc.moveDown(0.6);
+          doc.fillColor('#059669').fontSize(11).font('Helvetica')
+            .text(`${formatCurrency(amount, currency)} (${currency})`, 180, currentLendBorrowY);
+          currentLendBorrowY += 16;
         });
       } else {
-        doc.fillColor('#9ca3af').fontSize(10).font('Helvetica')
-          .text('Total Lent: $0.00', 70, doc.y);
-        doc.moveDown(0.6);
+        doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
+          .text('Total Lent:', 60, currentLendBorrowY);
+        doc.fillColor('#9ca3af').fontSize(11).font('Helvetica')
+          .text(formatCurrency(0, 'USD'), 180, currentLendBorrowY);
+        currentLendBorrowY += 16;
       }
       
       if (Object.keys(borrowedByCurrency).length > 0) {
-        doc.fillColor('#f56565').fontSize(11).font('Helvetica')
-          .text('Total Borrowed:', 70, doc.y);
+        doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
+          .text('Total Borrowed:', 60, currentLendBorrowY);
         Object.entries(borrowedByCurrency).forEach(([currency, amount]) => {
-          doc.fillColor('#f56565').fontSize(10)
-            .text(`  ${formatCurrency(amount, currency)} (${currency})`, 90, doc.y);
-          doc.moveDown(0.6);
+          doc.fillColor('#dc2626').fontSize(11).font('Helvetica')
+            .text(`${formatCurrency(amount, currency)} (${currency})`, 180, currentLendBorrowY);
+          currentLendBorrowY += 16;
         });
       } else {
-        doc.fillColor('#9ca3af').fontSize(10).font('Helvetica')
-          .text('Total Borrowed: $0.00', 70, doc.y);
-        doc.moveDown(0.6);
+        doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
+          .text('Total Borrowed:', 60, currentLendBorrowY);
+        doc.fillColor('#9ca3af').fontSize(11).font('Helvetica')
+          .text(formatCurrency(0, 'USD'), 180, currentLendBorrowY);
+        currentLendBorrowY += 16;
       }
       
-      doc.fillColor('#d1d5db').fontSize(11).font('Helvetica')
-        .text(`Active Records: ${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}`, 70, doc.y);
+      doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
+        .text('Active Records:', 60, currentLendBorrowY);
+      doc.fillColor('#374151').fontSize(11).font('Helvetica')
+        .text(`${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}`, 180, currentLendBorrowY);
+      
+      doc.y = lendBorrowBoxY + lendBorrowBoxHeight + 15;
       
       // BANK ACCOUNTS SECTION (Grouped by Currency, Excluding Zero Balances)
       // accountsWithBalance already declared above for TOC
@@ -2337,16 +2596,184 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         }
       }
 
-      // LEND/BORROW SECTION (Only Active/Unsettled Records)
-      // Filter to only show active records (activeLendBorrow already declared above for TOC)
+      // TRANSACTIONS SECTION
+      // Sort transactions by date (most recent first)
+      const sortedTransactions = [...recentTransactions].sort((a, b) => {
+        const dateA = new Date(a.date || a.created_at || 0);
+        const dateB = new Date(b.date || b.created_at || 0);
+        return dateB - dateA;
+      });
       
+      if (sortedTransactions.length > 0) {
+        doc.addPage();
+        addWatermark();
+        currentPageNum = getCurrentPage();
+        addHeaderFooter(currentPageNum);
+        
+        doc.fillColor('#000000').fontSize(20).font('Helvetica-Bold')
+          .text('Recent Transactions', 50, 80);
+        doc.moveDown(0.5);
+        doc.fillColor('#6b7280').fontSize(10).font('Helvetica')
+          .text(`Showing most recent ${sortedTransactions.length} transaction${sortedTransactions.length !== 1 ? 's' : ''}`, 50, doc.y);
+        doc.moveDown(1);
+        
+        const transactionRows = sortedTransactions.map(tx => [
+          tx.date ? formatDate(tx.date) : (tx.created_at ? formatDate(tx.created_at) : 'N/A'),
+          (tx.description || 'N/A').substring(0, 40),
+          formatCurrency(parseFloat(tx.amount) || 0, tx.currency || 'USD'),
+          tx.currency || 'USD',
+          tx.category || 'N/A',
+          tx.account_name || 'N/A',
+          tx.type || 'N/A'
+        ]);
+        
+        drawTable(
+          ['Date', 'Description', 'Amount', 'Currency', 'Category', 'Account', 'Type'],
+          transactionRows,
+          doc.y,
+          {
+            columnWidths: [
+              (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.22,
+              (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.08,
+              (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.09
+            ],
+            fontSize: 8
+          }
+        );
+      }
+      
+      // INVESTMENT ASSETS SECTION
+      if (investmentAssets.length > 0) {
+        doc.addPage();
+        addWatermark();
+        currentPageNum = getCurrentPage();
+        addHeaderFooter(currentPageNum);
+        
+        doc.fillColor('#000000').fontSize(20).font('Helvetica-Bold')
+          .text('Investment Assets', 50, 80);
+        doc.moveDown(1);
+        
+        const investmentRows = investmentAssets.map(asset => [
+          asset.name || 'N/A',
+          asset.type || 'N/A',
+          formatCurrency(parseFloat(asset.current_value || asset.total_value || 0), asset.currency || 'USD'),
+          asset.currency || 'USD',
+          asset.purchase_date ? formatDate(asset.purchase_date) : 'N/A',
+          asset.quantity ? String(asset.quantity) : 'N/A',
+          (asset.notes || '').substring(0, 35) || 'N/A'
+        ]);
+        
+        drawTable(
+          ['Name', 'Type', 'Current Value', 'Currency', 'Purchase Date', 'Quantity', 'Notes'],
+          investmentRows,
+          doc.y,
+          {
+            columnWidths: [
+              (doc.page.width - 100) * 0.20,
+              (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.10,
+              (doc.page.width - 100) * 0.13,
+              (doc.page.width - 100) * 0.10,
+              (doc.page.width - 100) * 0.20
+            ],
+            fontSize: 8
+          }
+        );
+      }
+      
+      // PURCHASE RECORDS SECTION
+      if (purchases.length > 0) {
+        doc.addPage();
+        addWatermark();
+        currentPageNum = getCurrentPage();
+        addHeaderFooter(currentPageNum);
+        
+        doc.fillColor('#000000').fontSize(20).font('Helvetica-Bold')
+          .text('Purchase Records', 50, 80);
+        doc.moveDown(1);
+        
+        const purchaseRows = purchases.map(purchase => [
+          purchase.name || 'N/A',
+          formatCurrency(parseFloat(purchase.amount) || 0, purchase.currency || 'USD'),
+          purchase.status || 'N/A',
+          purchase.target_date ? formatDate(purchase.target_date) : 'N/A',
+          purchase.priority || 'N/A',
+          (purchase.notes || '').substring(0, 40) || 'N/A'
+        ]);
+        
+        drawTable(
+          ['Name', 'Amount', 'Status', 'Target Date', 'Priority', 'Notes'],
+          purchaseRows,
+          doc.y,
+          {
+            columnWidths: [
+              (doc.page.width - 100) * 0.22,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.15,
+              (doc.page.width - 100) * 0.10,
+              (doc.page.width - 100) * 0.26
+            ],
+            fontSize: 8
+          }
+        );
+      }
+      
+      // SAVINGS & DONATION RECORDS SECTION
+      if (savingsRecords.length > 0) {
+        doc.addPage();
+        addWatermark();
+        currentPageNum = getCurrentPage();
+        addHeaderFooter(currentPageNum);
+        
+        doc.fillColor('#000000').fontSize(20).font('Helvetica-Bold')
+          .text('Savings & Donation Records', 50, 80);
+        doc.moveDown(1);
+        
+        const savingsRows = savingsRecords.map(ds => [
+          ds.type || 'N/A',
+          ds.name || 'N/A',
+          formatCurrency(parseFloat(ds.target_amount) || 0, ds.currency || 'USD'),
+          formatCurrency(parseFloat(ds.current_amount) || 0, ds.currency || 'USD'),
+          ds.currency || 'USD',
+          ds.status || 'N/A',
+          ds.target_date ? formatDate(ds.target_date) : 'N/A',
+          (ds.notes || '').substring(0, 30) || 'N/A'
+        ]);
+        
+        drawTable(
+          ['Type', 'Name', 'Target Amount', 'Current Amount', 'Currency', 'Status', 'Target Date', 'Notes'],
+          savingsRows,
+          doc.y,
+          {
+            columnWidths: [
+              (doc.page.width - 100) * 0.10,
+              (doc.page.width - 100) * 0.18,
+              (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.10,
+              (doc.page.width - 100) * 0.10,
+              (doc.page.width - 100) * 0.13,
+              (doc.page.width - 100) * 0.15
+            ],
+            fontSize: 7
+          }
+        );
+      }
+      
+      // LEND/BORROW SECTION (Only Active/Unsettled Records)
       if (activeLendBorrow.length > 0) {
         doc.addPage();
         addWatermark();
         currentPageNum = getCurrentPage();
         addHeaderFooter(currentPageNum);
         
-        doc.fillColor('#f9fafb').fontSize(18).font('Helvetica-Bold')
+        doc.fillColor('#000000').fontSize(20).font('Helvetica-Bold')
           .text('Lend/Borrow Records', 50, 80);
         doc.moveDown(1);
         
