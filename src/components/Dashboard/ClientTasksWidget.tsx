@@ -308,12 +308,7 @@ export const ClientTasksWidget: React.FC = () => {
   };
 
   // Early returns - must be after all hooks
-  // Show loading state while fetching
-  if (tasksLoading && tasks.length === 0) {
-    return null; // Don't show widget while loading initial data
-  }
-
-  // Show loading state while fetching initial data (but show error if there is one)
+  // Show loading state while fetching initial data
   if (tasksLoading && tasks.length === 0 && !error) {
     return null; // Don't show widget while loading initial data
   }
@@ -323,14 +318,14 @@ export const ClientTasksWidget: React.FC = () => {
   }
 
   return (
-    <div className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-md sm:rounded-lg p-1 sm:p-1.5 md:p-2 lg:p-2.5 shadow-sm transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700">
+    <div className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-md sm:rounded-lg p-1 sm:p-1.5 md:p-2 shadow-sm transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700">
       {/* Header */}
       <div 
-        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-1.5 cursor-pointer"
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-1 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center gap-1 sm:gap-1.5 flex-1 min-w-0">
-          <h2 className="text-xs sm:text-sm md:text-base font-bold text-gray-900 dark:text-white truncate">
+        <div className="flex items-center gap-0.5 sm:gap-1 flex-1 min-w-0">
+          <h2 className="text-[10px] sm:text-xs md:text-sm font-bold text-gray-900 dark:text-white truncate">
             Client Tasks ({allActiveTasks.length})
           </h2>
           
@@ -339,7 +334,7 @@ export const ClientTasksWidget: React.FC = () => {
               e.stopPropagation();
               setIsExpanded(!isExpanded);
             }}
-            className="p-0.5 sm:p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors text-gray-600 dark:text-gray-400 flex-shrink-0"
+            className="p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors text-gray-600 dark:text-gray-400 flex-shrink-0"
             title={isExpanded ? 'Collapse' : 'Expand'}
             aria-label={isExpanded ? 'Collapse' : 'Expand'}
           >
@@ -353,31 +348,31 @@ export const ClientTasksWidget: React.FC = () => {
         
         {/* Collapsed State Indicators - Desktop (right side badges) */}
         {!isExpanded && (
-          <div className="hidden md:flex items-center gap-1 flex-wrap">
+          <div className="hidden md:flex items-center gap-0.5 flex-wrap">
             {stats.overdue > 0 && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 shadow-sm">
-                <AlertCircle className="w-3 h-3" />
+              <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[9px] sm:text-[10px] font-semibold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 shadow-sm">
+                <AlertCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                 <span className="hidden lg:inline">{stats.overdue} Overdue</span>
                 <span className="lg:hidden">{stats.overdue}</span>
               </span>
             )}
             {stats.dueToday > 0 && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 shadow-sm">
-                <Calendar className="w-3 h-3" />
+              <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[9px] sm:text-[10px] font-semibold bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 shadow-sm">
+                <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                 <span className="hidden lg:inline">{stats.dueToday} Due Today</span>
                 <span className="lg:hidden">{stats.dueToday}</span>
               </span>
             )}
             {stats.urgent > 0 && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-sm">
-                <Flame className="w-3 h-3" />
+              <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[9px] sm:text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-sm">
+                <Flame className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                 <span className="hidden lg:inline">{stats.urgent} Urgent</span>
                 <span className="lg:hidden">{stats.urgent}</span>
               </span>
             )}
             {stats.dueThisWeek > 0 && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-sm">
-                <Calendar className="w-3 h-3" />
+              <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[9px] sm:text-[10px] font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-sm">
+                <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                 <span className="hidden lg:inline">{stats.dueThisWeek} Due This Week</span>
                 <span className="lg:hidden">{stats.dueThisWeek}</span>
               </span>
@@ -388,8 +383,8 @@ export const ClientTasksWidget: React.FC = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="mt-1.5 p-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-          <p className="text-[10px] sm:text-xs text-red-700 dark:text-red-300">
+        <div className="mt-1 p-1 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+          <p className="text-[9px] sm:text-[10px] text-red-700 dark:text-red-300">
             {error}
           </p>
         </div>
@@ -397,9 +392,9 @@ export const ClientTasksWidget: React.FC = () => {
 
       {/* Collapsed State Summary - Mobile (below title) */}
       {!isExpanded && (
-        <div className="sm:hidden mt-0.5 text-[10px] sm:text-xs text-gray-600 dark:text-gray-400">
+        <div className="sm:hidden mt-0.5 text-[9px] text-gray-600 dark:text-gray-400">
           {stats.overdue > 0 || stats.dueToday > 0 || stats.urgent > 0 || stats.dueThisWeek > 0 ? (
-            <div className="flex items-center gap-1 flex-wrap">
+            <div className="flex items-center gap-0.5 flex-wrap">
               {stats.overdue > 0 && (
                 <span className="text-red-600 dark:text-red-400 font-semibold">
                   {stats.overdue} overdue
@@ -434,8 +429,8 @@ export const ClientTasksWidget: React.FC = () => {
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
-          <div className="overflow-y-auto md:overflow-x-auto md:overflow-y-visible pb-1.5 pt-1.5 sm:pt-2 -mx-1 sm:-mx-1.5 md:mx-0 px-1 sm:px-1.5 md:px-0 max-h-[calc(100vh-250px)] md:max-h-none">
-            <div className="flex flex-col md:flex-row gap-1.5 sm:gap-2 md:gap-2.5 md:min-w-max">
+          <div className="overflow-x-auto overflow-y-auto md:overflow-x-auto md:overflow-y-visible pb-1 pt-1 sm:pt-1.5 -mx-1 sm:-mx-1.5 md:mx-0 px-1 sm:px-1.5 md:px-0 max-h-[calc(100vh-250px)] md:max-h-none snap-x snap-mandatory hide-scrollbar md:hide-scrollbar">
+            <div className="flex flex-row md:flex-row gap-1 sm:gap-1.5 md:gap-2 w-max md:w-full max-w-full">
             {/* In Progress Column */}
             <KanbanColumn
               id="in_progress"

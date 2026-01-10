@@ -1084,6 +1084,20 @@ main {
   }
 }
 
+/* Bottom Sheet Animation */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
 /* Mobile Modal Scroll Fixes */
 @media (max-width: 1024px) {
   /* Account info modal mobile optimizations */
