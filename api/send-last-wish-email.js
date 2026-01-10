@@ -1439,39 +1439,91 @@ async function createPDFFromHTML(user, recipient, data, settings) {
   let browser;
   let puppeteer;
   try {
-    // Dynamically import puppeteer (optional dependency)
-    puppeteer = await import('puppeteer').then(m => m.default).catch(() => null);
+    console.log('[PDF] Starting Puppeteer PDF generation...');
+    // Dynamically import puppeteer-core (lighter, no bundled Chromium)
+    puppeteer = await import('puppeteer-core').then(m => m.default).catch(() => null);
     if (!puppeteer) {
-      throw new Error('Puppeteer not installed. Run: npm install puppeteer');
+      throw new Error('puppeteer-core not installed. Run: npm install puppeteer-core');
     }
     
     // Vercel-compatible Puppeteer configuration
     const isVercel = process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME;
+    
+    // Always use @sparticuz/chromium for serverless environments
+    let chromium;
+    let executablePath;
+    let chromiumArgs = [];
+    
+    if (isVercel) {
+      try {
+        chromium = await import('@sparticuz/chromium').then(m => m.default).catch(() => null);
+        if (chromium) {
+          // Set executable path for Vercel
+          executablePath = await chromium.executablePath();
+          chromiumArgs = chromium.args || [];
+          console.log('[PDF] Using @sparticuz/chromium for Vercel:', {
+            executablePath: executablePath.substring(0, 50) + '...',
+            argsCount: chromiumArgs.length
+          });
+        } else {
+          throw new Error('@sparticuz/chromium not available');
+        }
+      } catch (chromiumError) {
+        console.error('[PDF] Failed to load @sparticuz/chromium:', chromiumError.message);
+        throw new Error('Chromium not available for serverless environment. Install @sparticuz/chromium.');
+      }
+    } else {
+      // Local development: try to use system Chrome/Chromium
+      // Check if CHROME_PATH is explicitly set
+      if (process.env.CHROME_PATH) {
+        executablePath = process.env.CHROME_PATH;
+        console.log('[PDF] Using Chrome from CHROME_PATH:', executablePath);
+      } else {
+        // Try common Chrome/Chromium locations
+        const { existsSync } = await import('fs');
+        const possiblePaths = [
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // Windows
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', // Windows 32-bit
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', // macOS
+          '/usr/bin/google-chrome', // Linux
+          '/usr/bin/chromium', // Linux
+          '/usr/bin/chromium-browser' // Linux
+        ];
+        
+        for (const path of possiblePaths) {
+          if (existsSync(path)) {
+            executablePath = path;
+            console.log('[PDF] Using system Chrome:', executablePath);
+            break;
+          }
+        }
+        
+        if (!executablePath) {
+          console.warn('[PDF] Chrome/Chromium not found. Please:');
+          console.warn('   1. Install Google Chrome, OR');
+          console.warn('   2. Set CHROME_PATH environment variable to Chrome executable path');
+          throw new Error('Chrome/Chromium not found. Install Chrome or set CHROME_PATH env variable.');
+        }
+      }
+    }
+    
     const launchOptions = {
       headless: true,
+      executablePath: executablePath,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
+        '--disable-gpu',
+        ...chromiumArgs
       ]
     };
     
-    // Try to use Chromium for Vercel if available
+    // Add single-process for Vercel (required for serverless)
     if (isVercel) {
-      try {
-        const chromium = await import('@sparticuz/chromium').then(m => m.default).catch(() => null);
-        if (chromium) {
-          launchOptions.executablePath = await chromium.executablePath();
-          launchOptions.args.push(...chromium.args);
-        }
-      } catch (chromiumError) {
-        console.warn('[PDF] Chromium package not available, using default Puppeteer');
-      }
+      launchOptions.args.push('--single-process', '--no-zygote');
     }
     
     browser = await puppeteer.launch(launchOptions);
@@ -1503,9 +1555,10 @@ async function createPDFFromHTML(user, recipient, data, settings) {
       printBackground: true,
       displayHeaderFooter: true,
       headerTemplate: '<div style="font-size: 8px; color: #6b7280; width: 100%; text-align: center; padding: 10px;">Last Wish - Confidential Financial Records</div>',
-      footerTemplate: '<div style="font-size: 8px; color: #6b7280; width: 100%; text-align: center; padding: 10px;"><span class="pageNumber"></span> of <span class="totalPages"></span> | Generated: ' + new Date().toLocaleDateString() + ' | Balanze Last Wish System</div>'
+      footerTemplate: '<div style="font-size: 8px; color: #6b7280; width: 100%; text-align: center; padding: 10px;"><span class="pageNumber"></span> of <span class="totalPages"></span> | Generated: ' + new Date().toLocaleDateString() + ' | Balanze Last Wish System | Method: HTML-to-PDF</div>'
     });
     
+    console.log('[PDF] PDF generated successfully, size:', pdfBuffer.length, 'bytes');
     await browser.close();
     return pdfBuffer;
   } catch (error) {
@@ -1599,12 +1652,12 @@ function createPDFHTMLContent(user, recipient, data, settings) {
     .cover-title {
       font-size: 32px;
       font-weight: bold;
-      color: #111827;
+      color: #000000;
       margin-bottom: 10px;
     }
     .cover-subtitle {
       font-size: 16px;
-      color: #6b7280;
+      color: #333333;
       margin-bottom: 40px;
     }
     .section {
@@ -1614,9 +1667,9 @@ function createPDFHTMLContent(user, recipient, data, settings) {
     .section-title {
       font-size: 20px;
       font-weight: bold;
-      color: #111827;
+      color: #000000;
       margin-bottom: 15px;
-      border-bottom: 2px solid #e5e7eb;
+      border-bottom: 2px solid #cccccc;
       padding-bottom: 5px;
     }
     table {
@@ -1640,25 +1693,32 @@ function createPDFHTMLContent(user, recipient, data, settings) {
       background-color: #f9fafb;
     }
     .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 15px;
+      display: table;
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 15px;
       margin-bottom: 20px;
     }
+    .summary-row {
+      display: table-row;
+    }
     .summary-item {
+      display: table-cell;
       background: #f9fafb;
       padding: 15px;
       border-radius: 6px;
+      width: 50%;
+      vertical-align: top;
     }
     .summary-label {
       font-size: 12px;
-      color: #6b7280;
+      color: #333333;
       margin-bottom: 5px;
     }
     .summary-value {
       font-size: 18px;
       font-weight: bold;
-      color: #111827;
+      color: #000000;
     }
   </style>
 </head>
@@ -1675,13 +1735,29 @@ function createPDFHTMLContent(user, recipient, data, settings) {
   <div style="page-break-before: always;" class="section">
     <div class="section-title">Financial Summary</div>
     <div class="summary-grid">
-      ${Object.entries(assetsByCurrency).map(([currency, amount]) => `
-        <div class="summary-item">
-          <div class="summary-label">Total Assets (${currency})</div>
-          <div class="summary-value">${formatCurrencyWithSymbol(amount, currency)}</div>
-          <div style="font-size: 11px; color: #6b7280;">${accountsByCurrency[currency]} account${accountsByCurrency[currency] !== 1 ? 's' : ''}</div>
-        </div>
-      `).join('')}
+      ${(() => {
+        const entries = Object.entries(assetsByCurrency);
+        let html = '';
+        for (let i = 0; i < entries.length; i += 2) {
+          html += '<div class="summary-row">';
+          html += `<div class="summary-item">
+            <div class="summary-label">Total Assets (${entries[i][0]})</div>
+            <div class="summary-value">${formatCurrencyWithSymbol(entries[i][1], entries[i][0])}</div>
+            <div style="font-size: 11px; color: #6b7280;">${accountsByCurrency[entries[i][0]]} account${accountsByCurrency[entries[i][0]] !== 1 ? 's' : ''}</div>
+          </div>`;
+          if (entries[i + 1]) {
+            html += `<div class="summary-item">
+              <div class="summary-label">Total Assets (${entries[i + 1][0]})</div>
+              <div class="summary-value">${formatCurrencyWithSymbol(entries[i + 1][1], entries[i + 1][0])}</div>
+              <div style="font-size: 11px; color: #6b7280;">${accountsByCurrency[entries[i + 1][0]]} account${accountsByCurrency[entries[i + 1][0]] !== 1 ? 's' : ''}</div>
+            </div>`;
+          } else {
+            html += '<div class="summary-item"></div>';
+          }
+          html += '</div>';
+        }
+        return html;
+      })()}
     </div>
     <p><strong>Total Accounts:</strong> ${accountsWithBalance.length}</p>
     <p><strong>Currencies:</strong> ${Object.keys(assetsByCurrency).join(', ') || 'N/A'}</p>
@@ -1719,7 +1795,7 @@ function createPDFHTMLContent(user, recipient, data, settings) {
   ` : ''}
   
   ${activeLendBorrow.length > 0 ? `
-    <div style="page-break-before: always;" class="section">
+    <div class="section" style="page-break-before: always; page-break-after: avoid;">
       <div class="section-title">Lend/Borrow Records</div>
       <table>
         <thead>
@@ -1759,15 +1835,22 @@ function createPDFHTMLContent(user, recipient, data, settings) {
 export async function createPDFBuffer(user, recipient, data, settings) {
   // Use HTML-to-PDF approach for better rendering
   try {
-    return await createPDFFromHTML(user, recipient, data, settings);
+    console.log('[PDF] Attempting HTML-to-PDF with Puppeteer...');
+    const pdfBuffer = await createPDFFromHTML(user, recipient, data, settings);
+    console.log('[PDF] ✅ Successfully generated PDF using Puppeteer (HTML-to-PDF)');
+    console.log('[PDF] PDF size:', pdfBuffer.length, 'bytes');
+    return pdfBuffer;
   } catch (error) {
     // Fallback to PDFKit if Puppeteer fails
-    console.error('[PDF] HTML-to-PDF failed, falling back to PDFKit:', {
+    console.error('[PDF] ❌ HTML-to-PDF failed, falling back to PDFKit:', {
       error: error.message,
       stack: error.stack,
       name: error.name
     });
-    return createPDFBufferLegacy(user, recipient, data, settings);
+    console.log('[PDF] Attempting PDFKit (legacy) fallback...');
+    const pdfBuffer = createPDFBufferLegacy(user, recipient, data, settings);
+    console.log('[PDF] ✅ Generated PDF using PDFKit (legacy fallback)');
+    return pdfBuffer;
   }
 }
 

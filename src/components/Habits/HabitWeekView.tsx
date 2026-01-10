@@ -52,12 +52,21 @@ const getColorClasses = (color: string, isCompleted: boolean) => {
 };
 
 export const HabitWeekView: React.FC<HabitWeekViewProps> = ({ habits, weekStart, onWeekChange, onEditHabit, onDeleteHabit, onAddHabit }) => {
-  const { toggleCompletion, isCompleted, fetchCompletions } = useHabitStore();
+  const { toggleCompletion, isCompleted, fetchCompletions, getStreak } = useHabitStore();
 
   // Calculate week dates - memoized to prevent recalculation on every render
   const weekDates = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   }, [weekStart]);
+
+  // Sort habits by streak (highest first)
+  const sortedHabits = useMemo(() => {
+    return [...habits].sort((a, b) => {
+      const streakA = getStreak(a.id);
+      const streakB = getStreak(b.id);
+      return streakB - streakA; // Descending order (highest streak first)
+    });
+  }, [habits, getStreak]);
 
   // Fetch completions for the week when component mounts or week changes
   React.useEffect(() => {
@@ -187,7 +196,7 @@ export const HabitWeekView: React.FC<HabitWeekViewProps> = ({ habits, weekStart,
               </div>
             )}
             
-            {habits.map((habit) => {
+            {sortedHabits.map((habit) => {
               const colorClasses = getColorClasses(habit.color, false);
               return (
                 <div

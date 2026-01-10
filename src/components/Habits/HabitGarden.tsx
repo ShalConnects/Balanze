@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Sprout } from 'lucide-react';
 import { useHabitStore } from '../../store/useHabitStore';
 import { Habit } from '../../types/habit';
@@ -26,6 +26,7 @@ export const HabitGarden: React.FC = () => {
     fetchGamification,
     fetchAchievements,
     unclaimedAchievements,
+    getStreak,
   } = useHabitStore();
 
   const [showForm, setShowForm] = useState(false);
@@ -219,11 +220,21 @@ export const HabitGarden: React.FC = () => {
                   <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4 md:mb-6">
                     Your Garden
                   </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
-                    {habits.map((habit) => (
-                      <GardenPlant key={habit.id} habit={habit} size="md" />
-                    ))}
-                  </div>
+                  {(() => {
+                    // Sort habits by streak (highest first)
+                    const sortedHabits = [...habits].sort((a, b) => {
+                      const streakA = getStreak(a.id);
+                      const streakB = getStreak(b.id);
+                      return streakB - streakA; // Descending order (highest streak first)
+                    });
+                    return (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
+                        {sortedHabits.map((habit) => (
+                          <GardenPlant key={habit.id} habit={habit} size="md" />
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

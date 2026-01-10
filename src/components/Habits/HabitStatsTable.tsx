@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Flame, TrendingUp } from 'lucide-react';
 import { Habit } from '../../types/habit';
 import { useHabitStore } from '../../store/useHabitStore';
@@ -9,7 +9,16 @@ interface HabitStatsTableProps {
 }
 
 export const HabitStatsTable: React.FC<HabitStatsTableProps> = ({ habits, weekStart }) => {
-  const { getHabitStats } = useHabitStore();
+  const { getHabitStats, getStreak } = useHabitStore();
+
+  // Sort habits by streak (highest first)
+  const sortedHabits = useMemo(() => {
+    return [...habits].sort((a, b) => {
+      const streakA = getStreak(a.id);
+      const streakB = getStreak(b.id);
+      return streakB - streakA; // Descending order (highest streak first)
+    });
+  }, [habits, getStreak]);
 
   if (habits.length === 0) {
     return (
@@ -40,7 +49,7 @@ export const HabitStatsTable: React.FC<HabitStatsTableProps> = ({ habits, weekSt
             </tr>
           </thead>
         <tbody>
-          {habits.map((habit) => {
+          {sortedHabits.map((habit) => {
             const stats = getHabitStats(habit.id, weekStart);
             return (
               <tr
