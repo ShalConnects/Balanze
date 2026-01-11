@@ -1396,9 +1396,8 @@ These memories are my gift to you.`
         {/* Check-in Frequency */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 shadow-sm">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">Check-in Frequency</h3>
-          <div className="grid grid-cols-3 sm:grid-cols-7 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
             {[
-              { value: 0.0417, label: '1', unit: 'hour' },
               { value: 1, label: '1', unit: 'day' },
               { value: 7, label: '7', unit: 'days' },
               { value: 14, label: '14', unit: 'days' },

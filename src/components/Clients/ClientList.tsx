@@ -20,6 +20,13 @@ import {
 } from './ClientSkeleton';
 import { ClientTasksWidget } from '../Dashboard/ClientTasksWidget';
 import { ClientNoteModal } from './ClientNoteModal';
+import { getCurrencySymbol } from '../../utils/currency';
+import { 
+  getInvoiceStatusColor, 
+  getPaymentStatusColor, 
+  getTaskPriorityColor, 
+  getTaskStatusColor 
+} from '../../utils/clientUtils';
 
 // Tag Management Component
 interface ClientTagManagerProps {
@@ -408,6 +415,38 @@ export const ClientList: React.FC = () => {
 
     return filtered;
   }, [clients, debouncedSearch, tableFilters.status, tableFilters.currency, tableFilters.tag, sortConfig]);
+
+  // Memoized client financial calculations
+  const clientFinancialData = useMemo(() => {
+    const dataMap = new Map<string, {
+      orders: ReturnType<typeof getOrdersByClient>;
+      invoices: ReturnType<typeof getInvoicesByClient>;
+      totalOrderValue: number;
+      totalInvoiceValue: number;
+      currency: string;
+      currencySymbol: string;
+    }>();
+
+    filteredClients.forEach(client => {
+      const clientOrders = getOrdersByClient(client.id);
+      const clientInvoices = getInvoicesByClient(client.id);
+      const totalOrderValue = clientOrders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
+      const totalInvoiceValue = clientInvoices.reduce((sum, invoice) => sum + (Number(invoice.total_amount) || 0), 0);
+      const currency = client.default_currency || 'USD';
+      const currencySymbol = getCurrencySymbol(currency);
+
+      dataMap.set(client.id, {
+        orders: clientOrders,
+        invoices: clientInvoices,
+        totalOrderValue,
+        totalInvoiceValue,
+        currency,
+        currencySymbol
+      });
+    });
+
+    return dataMap;
+  }, [filteredClients, getOrdersByClient, getInvoicesByClient]);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => {
@@ -1024,6 +1063,7 @@ export const ClientList: React.FC = () => {
                       filteredClients.map((client) => {
                         const isSelected = selectedId === client.id;
                         const isFromSearchSelection = isFromSearch && isSelected;
+                        const financialData = clientFinancialData.get(client.id);
                         
                         return (
                           <React.Fragment key={client.id}>
@@ -1319,18 +1359,17 @@ export const ClientList: React.FC = () => {
                                         <span className="font-medium">Created:</span> {new Date(client.created_at).toLocaleDateString()}
                                       </div>
                                       {(() => {
-                                        const clientOrders = getOrdersByClient(client.id);
-                                        const clientInvoices = getInvoicesByClient(client.id);
-                                        const totalOrderValue = clientOrders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
-                                        const totalInvoiceValue = clientInvoices.reduce((sum, invoice) => sum + (Number(invoice.total_amount) || 0), 0);
+                                        if (!financialData) {
+                                          return (
+                                            <div className="text-gray-400 italic">No financial activity yet</div>
+                                          );
+                                        }
+                                        
+                                        const { orders: clientOrders, invoices: clientInvoices, totalOrderValue, totalInvoiceValue, currencySymbol } = financialData;
                                         const paidInvoices = clientInvoices.filter(inv => inv.payment_status === 'paid');
                                         const unpaidInvoices = clientInvoices.filter(inv => inv.payment_status === 'unpaid' || inv.payment_status === 'partial');
                                         const paidInvoiceValue = paidInvoices.reduce((sum, inv) => sum + (Number(inv.total_amount) || 0), 0);
                                         const unpaidInvoiceValue = unpaidInvoices.reduce((sum, inv) => sum + (Number(inv.total_amount) || 0), 0);
-                                        const currency = client.default_currency || 'USD';
-                                        const currencySymbol = {
-                                          USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', INR: '₹', CAD: '$', AUD: '$'
-                                        }[currency] || currency;
                                         
                                         if (clientOrders.length === 0 && clientInvoices.length === 0) {
                                           return (
@@ -1436,20 +1475,6 @@ export const ClientList: React.FC = () => {
                                             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                                             .slice(0, 5)
                                             .map((invoice) => {
-                                              const statusColors = {
-                                                draft: 'text-gray-600 dark:text-gray-400',
-                                                sent: 'text-blue-600 dark:text-blue-400',
-                                                paid: 'text-green-600 dark:text-green-400',
-                                                overdue: 'text-red-600 dark:text-red-400',
-                                                cancelled: 'text-gray-400 dark:text-gray-500'
-                                              };
-                                              
-                                              const paymentStatusColors = {
-                                                unpaid: 'text-yellow-600 dark:text-yellow-400',
-                                                partial: 'text-orange-600 dark:text-orange-400',
-                                                paid: 'text-green-600 dark:text-green-400'
-                                              };
-                                              
                                               return (
                                                 <div key={invoice.id} className="p-1.5 bg-gray-50 dark:bg-gray-800/50 rounded text-xs">
                                                   <div className="flex items-center justify-between">
@@ -1466,7 +1491,7 @@ export const ClientList: React.FC = () => {
                                                             e.stopPropagation();
                                                             setInvoiceStatusMenuOpen(invoiceStatusMenuOpen === invoice.id ? null : invoice.id);
                                                           }}
-                                                          className={`text-xs font-medium px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${statusColors[invoice.status] || 'text-gray-600'}`}
+                                                          className={`text-xs font-medium px-2 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${getInvoiceStatusColor(invoice.status)}`}
                                                         >
                                                           {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                                                         </button>
@@ -1500,7 +1525,7 @@ export const ClientList: React.FC = () => {
                                                           </div>
                                                         )}
                                                       </div>
-                                                      <div className={`text-xs mt-0.5 ${paymentStatusColors[invoice.payment_status] || 'text-gray-400'}`}>
+                                                      <div className={`text-xs mt-0.5 ${getPaymentStatusColor(invoice.payment_status)}`}>
                                                         {invoice.payment_status.charAt(0).toUpperCase() + invoice.payment_status.slice(1)}
                                                       </div>
                                                     </div>
@@ -1549,21 +1574,6 @@ export const ClientList: React.FC = () => {
                                           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                                           .slice(0, 5)
                                           .map((task) => {
-                                            const priorityColors = {
-                                              low: 'text-gray-600 dark:text-gray-400',
-                                              medium: 'text-blue-600 dark:text-blue-400',
-                                              high: 'text-orange-600 dark:text-orange-400',
-                                              urgent: 'text-red-600 dark:text-red-400'
-                                            };
-                                            
-                                            const statusColors = {
-                                              in_progress: 'text-blue-600 dark:text-blue-400',
-                                              waiting_on_client: 'text-yellow-600 dark:text-yellow-400',
-                                              waiting_on_me: 'text-purple-600 dark:text-purple-400',
-                                              completed: 'text-green-600 dark:text-green-400',
-                                              cancelled: 'text-gray-400 dark:text-gray-500'
-                                            };
-                                            
                                             // Check if task is overdue
                                             const isOverdue = task.due_date && task.status !== 'completed' && task.status !== 'cancelled' 
                                               ? new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0))
@@ -1592,7 +1602,7 @@ export const ClientList: React.FC = () => {
                                                         Overdue
                                                       </span>
                                                     )}
-                                                    <span className={`text-xs lg:text-[10px] font-medium ${priorityColors[task.priority]}`}>
+                                                    <span className={`text-xs lg:text-[10px] font-medium ${getTaskPriorityColor(task.priority)}`}>
                                                       {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
                                                     </span>
                                                   </div>
@@ -1604,7 +1614,7 @@ export const ClientList: React.FC = () => {
                                                         e.stopPropagation();
                                                         setTaskStatusMenuOpen(taskStatusMenuOpen === task.id ? null : task.id);
                                                       }}
-                                                      className={`text-xs lg:text-[10px] font-medium px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${statusColors[task.status]}`}
+                                                      className={`text-xs lg:text-[10px] font-medium px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${getTaskStatusColor(task.status)}`}
                                                     >
                                                       {task.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                                     </button>
@@ -1681,32 +1691,30 @@ export const ClientList: React.FC = () => {
                 ) : (
                   <div className="space-y-3 sm:space-y-4 px-3 sm:px-4">
                     {filteredClients.map((client) => {
-                      const clientOrders = getOrdersByClient(client.id);
-                      const clientInvoices = getInvoicesByClient(client.id);
-                      const totalOrderValue = clientOrders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
-                      const totalInvoiceValue = clientInvoices.reduce((sum, invoice) => sum + (Number(invoice.total_amount) || 0), 0);
-                      const currency = client.default_currency || 'USD';
-                      const currencySymbol = {
-                        USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', INR: '₹', CAD: '$', AUD: '$'
-                      }[currency] || currency;
+                      const financialData = clientFinancialData.get(client.id);
+                      if (!financialData) return null;
+                      
+                      const { orders: clientOrders, invoices: clientInvoices, totalOrderValue, totalInvoiceValue, currencySymbol } = financialData;
                       
                       return (
                         <div
                           key={client.id}
                           className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-5 shadow-sm hover:shadow-md transition-all duration-200"
                         >
-                          {/* Card Header - Client Name and Total Value on same line */}
-                          <div className="flex items-center justify-between mb-3 sm:mb-4">
-                            <div className="text-sm sm:text-base font-medium text-gray-900 dark:text-white flex-1 min-w-0 pr-2">
-                              {client.name}
-                            </div>
-                            <div className="flex flex-col items-end flex-shrink-0">
-                              <div className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
-                                {currencySymbol}{(totalOrderValue + totalInvoiceValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {/* Card Header - Client Name */}
+                          <div className="mb-3 sm:mb-4">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <div className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">
+                                {client.name}
                               </div>
-                              <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                                {clientOrders.length} orders, {clientInvoices.length} invoices
-                              </div>
+                              {client.company_name && (
+                                <>
+                                  <span className="text-gray-400 dark:text-gray-500">•</span>
+                                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate max-w-[150px]">
+                                    {client.company_name}
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </div>
                           
@@ -1723,11 +1731,6 @@ export const ClientList: React.FC = () => {
                                 }`}>
                                   {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
                                 </span>
-                                {client.company_name && (
-                                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate max-w-[150px]">
-                                    {client.company_name}
-                                  </span>
-                                )}
                               </div>
                               {client.source && (
                                 <span className={`inline-flex items-center justify-center px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium flex-shrink-0 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300`}>
@@ -1908,14 +1911,11 @@ export const ClientList: React.FC = () => {
 
                                 {/* Financial Summary */}
                                 {(() => {
-                                  const clientOrders = getOrdersByClient(client.id);
-                                  const clientInvoices = getInvoicesByClient(client.id);
-                                  const totalOrderValue = clientOrders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
-                                  const totalInvoiceValue = clientInvoices.reduce((sum, invoice) => sum + (Number(invoice.total_amount) || 0), 0);
-                                  const currency = client.default_currency || 'USD';
-                                  const currencySymbol = {
-                                    USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', INR: '₹', CAD: '$', AUD: '$'
-                                  }[currency] || currency;
+                                  if (!financialData) {
+                                    return null;
+                                  }
+                                  
+                                  const { orders: clientOrders, invoices: clientInvoices, totalOrderValue, totalInvoiceValue, currencySymbol } = financialData;
                                   
                                   if (clientOrders.length === 0 && clientInvoices.length === 0) {
                                     return null;
@@ -1973,20 +1973,6 @@ export const ClientList: React.FC = () => {
                                         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                                         .slice(0, 5)
                                         .map((invoice) => {
-                                          const statusColors = {
-                                            draft: 'text-gray-600 dark:text-gray-400',
-                                            sent: 'text-blue-600 dark:text-blue-400',
-                                            paid: 'text-green-600 dark:text-green-400',
-                                            overdue: 'text-red-600 dark:text-red-400',
-                                            cancelled: 'text-gray-400 dark:text-gray-500'
-                                          };
-                                          
-                                          const paymentStatusColors = {
-                                            unpaid: 'text-yellow-600 dark:text-yellow-400',
-                                            partial: 'text-orange-600 dark:text-orange-400',
-                                            paid: 'text-green-600 dark:text-green-400'
-                                          };
-                                          
                                           return (
                                             <div key={invoice.id} className="p-1.5 bg-gray-50 dark:bg-gray-800/50 rounded text-xs">
                                               <div className="flex items-center justify-between">
@@ -2003,7 +1989,7 @@ export const ClientList: React.FC = () => {
                                                         e.stopPropagation();
                                                         setInvoiceStatusMenuOpen(invoiceStatusMenuOpen === invoice.id ? null : invoice.id);
                                                       }}
-                                                      className={`text-xs font-medium px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${statusColors[invoice.status] || 'text-gray-600'}`}
+                                                      className={`text-xs font-medium px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${getInvoiceStatusColor(invoice.status)}`}
                                                     >
                                                       {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                                                     </button>
@@ -2036,7 +2022,7 @@ export const ClientList: React.FC = () => {
                                                       </div>
                                                     )}
                                                   </div>
-                                                  <div className={`text-xs mt-0.5 ${paymentStatusColors[invoice.payment_status] || 'text-gray-400'}`}>
+                                                  <div className={`text-xs mt-0.5 ${getPaymentStatusColor(invoice.payment_status)}`}>
                                                     {invoice.payment_status.charAt(0).toUpperCase() + invoice.payment_status.slice(1)}
                                                   </div>
                                                 </div>
@@ -2113,21 +2099,6 @@ export const ClientList: React.FC = () => {
                                         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                                         .slice(0, 3)
                                         .map((task) => {
-                                          const priorityColors = {
-                                            low: 'text-gray-600 dark:text-gray-400',
-                                            medium: 'text-blue-600 dark:text-blue-400',
-                                            high: 'text-orange-600 dark:text-orange-400',
-                                            urgent: 'text-red-600 dark:text-red-400'
-                                          };
-                                          
-                                          const statusColors = {
-                                            in_progress: 'text-blue-600 dark:text-blue-400',
-                                            waiting_on_client: 'text-yellow-600 dark:text-yellow-400',
-                                            waiting_on_me: 'text-purple-600 dark:text-purple-400',
-                                            completed: 'text-green-600 dark:text-green-400',
-                                            cancelled: 'text-gray-400 dark:text-gray-500'
-                                          };
-                                          
                                           // Check if task is overdue
                                           const isOverdue = task.due_date && task.status !== 'completed' && task.status !== 'cancelled' 
                                             ? new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0))
@@ -2150,7 +2121,7 @@ export const ClientList: React.FC = () => {
                                                     Overdue
                                                   </span>
                                                 )}
-                                                <span className={`font-medium ${priorityColors[task.priority]}`}>
+                                                <span className={`font-medium ${getTaskPriorityColor(task.priority)}`}>
                                                   {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
                                                 </span>
                                                 <div className="relative">
@@ -2159,7 +2130,7 @@ export const ClientList: React.FC = () => {
                                                       e.stopPropagation();
                                                       setTaskStatusMenuOpen(taskStatusMenuOpen === task.id ? null : task.id);
                                                     }}
-                                                    className={`font-medium px-2 py-0.5 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${statusColors[task.status]}`}
+                                                    className={`font-medium px-2 py-0.5 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${getTaskStatusColor(task.status)}`}
                                                   >
                                                     {task.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                                   </button>

@@ -51,11 +51,11 @@ export const HabitGarden: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, weekStart]);
 
-  // Fetch wider date range for garden view to ensure accurate streak calculations
+  // Fetch wider date range for garden view and stats view to ensure accurate streak calculations
   useEffect(() => {
-    if (user && viewMode === 'garden') {
+    if (user && (viewMode === 'garden' || viewMode === 'stats')) {
       // Fetch last 60 days of completions for accurate streak calculation
-      // Streaks can span multiple weeks, so we need a wider range
+      // Streaks can span multiple weeks, and best streak needs full history
       const today = new Date();
       const sixtyDaysAgo = subDays(today, 60);
       fetchCompletions(
