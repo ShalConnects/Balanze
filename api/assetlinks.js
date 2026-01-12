@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
   // Asset links JSON content (without BOM - using Buffer to ensure no BOM)
   // Fingerprint must be WITHOUT colons (64 hex characters) - Google Play Console requirement
-  const fingerprint = 'D2159A1A3BB2D76DCC6D8F39A14BB7E8E67310757D9E0936C38331E913EFE3C7';
+  const fingerprint = 'd2159a1a3bb2d76dcc6d8f39a14bb7e8e67310757d9e0936c38331e913efe3c7';
   
   // Log the fingerprint for debugging
   console.log('SHA-256 fingerprint:', fingerprint);
