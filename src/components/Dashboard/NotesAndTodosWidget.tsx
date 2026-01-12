@@ -1362,7 +1362,6 @@ export const NotesAndTodosWidget: React.FC = () => {
       }, 200);
     } catch (error) {
       // Fallback: silent failure if audio context is not available
-      console.log('Audio notification not available');
     }
   };
 

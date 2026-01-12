@@ -148,7 +148,7 @@ export const AppInstallBanner: React.FC<AppInstallBannerProps> = ({
               className="flex items-center gap-1.5 bg-white text-blue-600 hover:bg-blue-50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-colors whitespace-nowrap"
             >
               <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span>Coming Soon</span>
+              <span>Download Now</span>
             </button>
             <button
               onClick={handleDismiss}

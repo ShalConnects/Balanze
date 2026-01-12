@@ -1867,36 +1867,13 @@ function createPDFHTMLContent(user, recipient, data, settings) {
 }
 
 export async function createPDFBuffer(user, recipient, data, settings) {
-  // Use HTML-to-PDF approach for better rendering
-  try {
-    console.log('[PDF] Attempting HTML-to-PDF with Puppeteer...');
-    const pdfBuffer = await createPDFFromHTML(user, recipient, data, settings);
-    console.log('[PDF] ✅ Successfully generated PDF using Puppeteer (HTML-to-PDF)');
-    console.log('[PDF] PDF size:', pdfBuffer.length, 'bytes');
-    return pdfBuffer;
-  } catch (error) {
-    // Fallback to PDFKit if Puppeteer fails
-    // This is expected on Vercel if @sparticuz/chromium has library issues
-    const isChromiumError = error.message.includes('libnss3.so') || 
-                           error.message.includes('shared libraries') ||
-                           error.message.includes('Failed to launch the browser process');
-    
-    console.error('[PDF] ❌ HTML-to-PDF failed, falling back to PDFKit:', {
-      error: error.message,
-      isChromiumError: isChromiumError,
-      name: error.name
-    });
-    
-    if (isChromiumError) {
-      console.warn('[PDF] Chromium library error detected - this is a known Vercel limitation');
-      console.warn('[PDF] Falling back to PDFKit which works reliably on all platforms');
-    }
-    
-    console.log('[PDF] Attempting PDFKit (legacy) fallback...');
-    const pdfBuffer = createPDFBufferLegacy(user, recipient, data, settings);
-    console.log('[PDF] ✅ Generated PDF using PDFKit (legacy fallback)');
-    return pdfBuffer;
-  }
+  // Use PDFKit directly for reliable PDF generation on all platforms (including Vercel)
+  // Puppeteer is disabled due to library dependency issues in serverless environments
+  console.log('[PDF] Generating PDF using PDFKit (reliable on all platforms)...');
+  const pdfBuffer = await createPDFBufferLegacy(user, recipient, data, settings);
+  console.log('[PDF] ✅ Successfully generated PDF using PDFKit');
+  console.log('[PDF] PDF size:', pdfBuffer.length, 'bytes');
+  return pdfBuffer;
 }
 
 function createPDFBufferLegacy(user, recipient, data, settings) {
@@ -1996,13 +1973,13 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         doc.text(
           `Page ${pageNum} of ${finalTotal} | Generated: ${formatDate(new Date())} | Balanze Last Wish System`,
           50,
-          pageHeight - 30,
+          pageHeight - 50,
           { align: 'left', width: pageWidth - 100 }
         );
         doc.text(
           'CONFIDENTIAL - For authorized recipient only',
           pageWidth - 50,
-          pageHeight - 30,
+          pageHeight - 50,
           { align: 'right' }
         );
         doc.restore();
@@ -2032,7 +2009,7 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       
       // Helper to check remaining space before rendering
       const checkSpace = (neededHeight) => {
-        const availableHeight = doc.page.height - doc.y - 80; // 80px for footer
+        const availableHeight = doc.page.height - doc.y - 100; // 100px for footer (increased from 80)
         return availableHeight >= neededHeight;
       };
       
@@ -2280,7 +2257,7 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
           margin, doc.y, { align: 'center', width: contentWidth, lineGap: 2 });
       doc.moveDown(0.5);
       doc.fillColor('#9ca3af').fontSize(8).font('Helvetica')
-        .text('If you have any concerns about receiving this information, please contact our support team.', 
+        .text('If you have any concerns about receiving this information, please contact our support team at hello@shalconnects.com.', 
           margin, doc.y, { align: 'center', width: contentWidth });
       
       currentPageNum = 1;
@@ -2588,25 +2565,22 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
             acc.name || 'Unnamed Account',
             acc.type || 'N/A',
             formatCurrency(parseFloat(acc.calculated_balance) || 0, currency),
-            acc.account_number || 'N/A',
-            acc.institution || 'N/A',
-            (acc.description || '').substring(0, 50) || 'N/A'
+            acc.description || 'N/A'
           ]);
           
           if (accountRows.length > 0) {
             drawTable(
-              ['Account Name', 'Type', 'Balance', 'Account Number', 'Institution', 'Description'],
+              ['Account Name', 'Type', 'Balance', 'Description'],
               accountRows,
               doc.y,
               {
                 columnWidths: [
-                  (doc.page.width - 100) * 0.22,
-                  (doc.page.width - 100) * 0.12,
+                  (doc.page.width - 100) * 0.25,
                   (doc.page.width - 100) * 0.15,
-                  (doc.page.width - 100) * 0.12,
-                  (doc.page.width - 100) * 0.15,
-                  (doc.page.width - 100) * 0.24
-                ]
+                  (doc.page.width - 100) * 0.20,
+                  (doc.page.width - 100) * 0.40
+                ],
+                textColor: '#000000' // Ensure black text for visibility
               }
             );
           }
@@ -2705,10 +2679,12 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
           const type = lb.type === 'lent' || lb.type === 'lend' ? 'Lent' : 
                        lb.type === 'borrowed' || lb.type === 'borrow' ? 'Borrowed' : 
                        lb.type || 'N/A';
+          const returnedAmount = parseFloat(lb.partial_return_amount) || 0;
           return [
             type,
             lb.person_name || lb.person || lb.entity || 'N/A',
             formatCurrency(parseFloat(lb.amount) || 0, lb.currency || 'USD'),
+            formatCurrency(returnedAmount, lb.currency || 'USD'),
             lb.currency || 'USD',
             lb.due_date ? formatDate(lb.due_date) : 'N/A',
             (lb.notes || '').substring(0, 40)
@@ -2716,19 +2692,21 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         });
         
         drawTable(
-          ['Type', 'Person/Entity', 'Amount', 'Currency', 'Due Date', 'Notes'],
+          ['Type', 'Person/Entity', 'Amount', 'Returned', 'Currency', 'Due Date', 'Notes'],
           lendBorrowRows,
           doc.y,
           {
             columnWidths: [
-              (doc.page.width - 100) * 0.12,
-              (doc.page.width - 100) * 0.22,
+              (doc.page.width - 100) * 0.10,
               (doc.page.width - 100) * 0.18,
+              (doc.page.width - 100) * 0.14,
+              (doc.page.width - 100) * 0.14,
+              (doc.page.width - 100) * 0.10,
               (doc.page.width - 100) * 0.12,
-              (doc.page.width - 100) * 0.15,
-              (doc.page.width - 100) * 0.21
+              (doc.page.width - 100) * 0.22
             ],
-            fontSize: 8
+            fontSize: 8,
+            textColor: '#000000' // Ensure black text for visibility
           }
         );
       }

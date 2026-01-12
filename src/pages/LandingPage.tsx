@@ -641,16 +641,16 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Android App Coming Soon Section */}
+      {/* Android App Available Section */}
       <section className="py-20 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 relative overflow-hidden">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left Side - Content */}
             <div className="text-center lg:text-left">
-              {/* Coming Soon Badge */}
+              {/* Available Now Badge */}
               <div className="inline-flex items-center gap-2 bg-gradient-to-r from-green-100 to-blue-100 dark:from-green-900/50 dark:to-blue-900/50 text-green-800 dark:text-green-300 px-6 py-3 rounded-full text-sm font-bold mb-6 shadow-lg">
-                <Clock className="w-4 h-4" />
-                <span>COMING SOON</span>
+                <Check className="w-4 h-4" />
+                <span>AVAILABLE NOW</span>
               </div>
               
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
@@ -661,8 +661,22 @@ const LandingPage: React.FC = () => {
               </h2>
               
               <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto lg:mx-0">
-                Our Android app is coming soon! Manage your finances, track spending, and stay on top of your goals wherever you are.
+                Our Android app is now available! Manage your finances, track spending, and stay on top of your goals wherever you are.
               </p>
+
+              {/* Play Store Download Button */}
+              <div className="mb-8">
+                <a
+                  href="https://play.google.com/store/apps/details?id=com.balanze.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                >
+                  <Download className="w-6 h-6" />
+                  <span>Download on Google Play</span>
+                  <ArrowRight className="w-5 h-5" />
+                </a>
+              </div>
 
               {/* Key Features */}
               <div className="space-y-4 mb-8">
@@ -759,7 +773,7 @@ const LandingPage: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">Android App</div>
-                      <div className="text-lg font-bold text-gray-900 dark:text-white">Coming Soon</div>
+                      <div className="text-lg font-bold text-gray-900 dark:text-white">Available Now</div>
                     </div>
                   </div>
                 </div>

@@ -43,7 +43,6 @@ export const LendBorrowSummaryCard: React.FC<LendBorrowSummaryCardProps> = ({
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'showLendBorrowWidget' && e.newValue !== null) {
-        console.log('Dashboard: Storage event received, new value:', e.newValue);
         setShowLendBorrowWidget(JSON.parse(e.newValue));
       }
     };
@@ -53,12 +52,9 @@ export const LendBorrowSummaryCard: React.FC<LendBorrowSummaryCardProps> = ({
 
     // Also listen for custom events (changes from same tab)
     const handleCustomStorageChange = () => {
-      console.log('Dashboard: Custom event received');
       const saved = localStorage.getItem('showLendBorrowWidget');
-      console.log('Dashboard: localStorage value:', saved);
       if (saved !== null) {
         setShowLendBorrowWidget(JSON.parse(saved));
-        console.log('Dashboard: Widget state updated to:', JSON.parse(saved));
       }
     };
 

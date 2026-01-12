@@ -130,7 +130,7 @@ export const AmountAdjustmentModal: React.FC<AmountAdjustmentModalProps> = ({
           </div>
 
           {/* Current and New Amount Display */}
-          <div className={`mb-3 grid gap-2 sm:gap-3 ${calculatedAmount !== null && isValid ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+          <div className={`mb-3 grid gap-2 sm:gap-3 ${calculatedAmount !== null && isValid ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {/* Current Amount */}
             <div className="p-2.5 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
               <div className="text-xs text-gray-600 dark:text-gray-400 mb-1 font-medium">Current {label}</div>
@@ -260,11 +260,11 @@ export const AmountAdjustmentModal: React.FC<AmountAdjustmentModalProps> = ({
           )}
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-2 justify-end">
+          <div className="flex flex-row gap-2 justify-end">
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200"
+              className="flex-1 sm:w-auto px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200"
             >
               Cancel
             </button>
@@ -272,7 +272,7 @@ export const AmountAdjustmentModal: React.FC<AmountAdjustmentModalProps> = ({
               type="button"
               onClick={handleConfirm}
               disabled={!isValid}
-              className="w-full sm:w-auto px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md disabled:hover:shadow-sm"
+              className="flex-1 sm:w-auto px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md disabled:hover:shadow-sm"
             >
               Confirm
             </button>

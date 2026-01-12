@@ -35,6 +35,10 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   // Tooltip state
   const [showTooltip, setShowTooltip] = useState(false);
   const [showMobileModal, setShowMobileModal] = useState(false);
+  const [showIncomeBadgeTooltip, setShowIncomeBadgeTooltip] = useState(false);
+  const [showExpenseBadgeTooltip, setShowExpenseBadgeTooltip] = useState(false);
+  const [showIncomeBadgeModal, setShowIncomeBadgeModal] = useState(false);
+  const [showExpenseBadgeModal, setShowExpenseBadgeModal] = useState(false);
   const { isMobile } = useMobileDetection();
   // Get all active accounts for this currency (exclude inactive/hidden accounts from totals)
   const currencyAccounts = accounts.filter(acc => acc.currency === currency && acc.isActive);
@@ -52,15 +56,30 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   });
   
   // Get DPS savings accounts (the linked accounts where DPS money is stored)
-  // Only show DPS savings accounts where the main account has DPS enabled
+  // Show DPS savings accounts where the main account has DPS enabled, regardless of main account active status
   const dpsSavingsAccounts = currencyAccounts.filter(acc => {
     return accounts.some(mainAccount => 
       mainAccount.dps_savings_account_id === acc.id && 
       mainAccount.has_dps === true &&
-      mainAccount.currency === currency &&
-      mainAccount.isActive
+      mainAccount.currency === currency
     );
   });
+
+  // Track which DPS savings accounts have inactive main accounts for styling
+  const dpsSavingsAccountsWithInactiveMain = useMemo(() => {
+    const inactiveMainSet = new Set<string>();
+    dpsSavingsAccounts.forEach(acc => {
+      const mainAccount = accounts.find(mainAccount => 
+        mainAccount.dps_savings_account_id === acc.id && 
+        mainAccount.has_dps === true &&
+        mainAccount.currency === currency
+      );
+      if (mainAccount && !mainAccount.isActive) {
+        inactiveMainSet.add(acc.id);
+      }
+    });
+    return inactiveMainSet;
+  }, [dpsSavingsAccounts, accounts, currency]);
   
   // Sort accounts: zero balance accounts at the end of their respective lists
   const sortedDpsSavingsAccounts = [...(dpsSavingsAccounts || [])].sort((a, b) => {
@@ -224,6 +243,58 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
       .reduce((sum, t) => sum + t.amount, 0);
   }, [filteredTransactions]);
 
+  // Calculate income per account
+  const incomeByAccount = useMemo(() => {
+    const accountIncome: Record<string, { account: any; amount: number }> = {};
+    
+    filteredTransactions
+      .filter(t => t.type === 'income' && 
+        !t.tags?.some((tag: string) => 
+          tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
+        ) &&
+        !isLendBorrowTransaction(t)
+      )
+      .forEach(t => {
+        const account = currencyAccounts.find(acc => acc.id === t.account_id);
+        if (account) {
+          if (!accountIncome[t.account_id]) {
+            accountIncome[t.account_id] = { account, amount: 0 };
+          }
+          accountIncome[t.account_id].amount += t.amount;
+        }
+      });
+    
+    return Object.values(accountIncome)
+      .filter(item => item.amount > 0)
+      .sort((a, b) => b.amount - a.amount);
+  }, [filteredTransactions, currencyAccounts]);
+
+  // Calculate expense per account
+  const expenseByAccount = useMemo(() => {
+    const accountExpense: Record<string, { account: any; amount: number }> = {};
+    
+    filteredTransactions
+      .filter(t => t.type === 'expense' && 
+        !t.tags?.some((tag: string) => 
+          tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
+        ) &&
+        !isLendBorrowTransaction(t)
+      )
+      .forEach(t => {
+        const account = currencyAccounts.find(acc => acc.id === t.account_id);
+        if (account) {
+          if (!accountExpense[t.account_id]) {
+            accountExpense[t.account_id] = { account, amount: 0 };
+          }
+          accountExpense[t.account_id].amount += t.amount;
+        }
+      });
+    
+    return Object.values(accountExpense)
+      .filter(item => item.amount > 0)
+      .sort((a, b) => b.amount - a.amount);
+  }, [filteredTransactions, currencyAccounts]);
+
   // Previous period transactions - memoized for performance
   const prevFilteredTransactions = useMemo(() => {
     return allTransactions.filter(t => {
@@ -330,41 +401,61 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
                  <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200 flex-shrink-0" />
                </button>
                {showTooltip && !isMobile && (
-                 <div className="absolute left-0 top-full z-50 mt-2 w-56 sm:w-64 max-w-[90vw] rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-2 sm:p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
-                   <div className="font-semibold mb-2">Total ({totalAccountCount}): {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
+                 <div className="absolute left-0 top-full z-50 mt-2 w-56 sm:w-64 max-w-[calc(100vw-2rem)] rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-2 sm:p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
+                   <div className="font-semibold mb-2 text-[11px] sm:text-xs">Total ({totalAccountCount}): {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
                    
-                   {/* All Accounts - Regular first, then DPS */}
-                   <ul className="space-y-1">
-                     {/* Regular Accounts (includes DPS main accounts) */}
-                     {sortedAllRegularAccounts.map(acc => {
-                       const balance = acc.calculated_balance || 0;
-                       const isNegative = balance < 0;
-                       const isZero = balance === 0;
-                       return (
-                         <li key={acc.id} className={`flex justify-between ${isZero ? 'opacity-50' : ''}`}>
-                           <span className={`truncate max-w-[100px] sm:max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
-                           <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
-                             {formatCurrency(balance, currency)}
-                           </span>
-                         </li>
-                       );
-                     })}
-                     
-                     {/* DPS Accounts */}
-                     {sortedDpsSavingsAccounts.map(acc => {
-                       const balance = acc.calculated_balance || 0;
-                       const isNegative = balance < 0;
-                       const isZero = balance === 0;
-                       return (
-                         <li key={acc.id} className={`flex justify-between ${isZero ? 'opacity-50' : ''}`}>
-                           <span className={`truncate max-w-[100px] sm:max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
-                           <span className={`ml-2 tabular-nums text-xs ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
-                             {formatCurrency(balance, currency)}
-                           </span>
-                         </li>
-                       );
-                     })}
-                   </ul>
+                   {/* Regular Accounts Section */}
+                   {sortedAllRegularAccounts.length > 0 && (
+                     <div className="mb-2">
+                       <div className="text-[10px] sm:text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Accounts</div>
+                       <ul className="space-y-1 max-h-48 overflow-y-auto">
+                         {sortedAllRegularAccounts.map(acc => {
+                           const balance = acc.calculated_balance || 0;
+                           const isNegative = balance < 0;
+                           const isZero = balance === 0;
+                           return (
+                             <li key={acc.id} className={`flex justify-between items-center ${isZero ? 'opacity-50' : ''}`}>
+                               <span className={`truncate max-w-[100px] sm:max-w-[140px] text-[10px] sm:text-xs ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
+                               <span className={`ml-2 tabular-nums text-[10px] sm:text-xs flex-shrink-0 ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
+                                 {formatCurrency(balance, currency)}
+                               </span>
+                             </li>
+                           );
+                         })}
+                       </ul>
+                     </div>
+                   )}
+                   
+                   {/* DPS Savings Section - Always shown if there are DPS savings accounts */}
+                   {sortedDpsSavingsAccounts.length > 0 && (
+                     <div className={sortedAllRegularAccounts.length > 0 ? 'mt-3 pt-2 border-t border-gray-200 dark:border-gray-700' : ''}>
+                       <div className="text-[10px] sm:text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
+                         DPS Savings
+                         {dpsSavingsAccountsWithInactiveMain.size > 0 && (
+                           <span className="ml-1 text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500 normal-case">(Some main accounts inactive)</span>
+                         )}
+                       </div>
+                       <ul className="space-y-1 max-h-48 overflow-y-auto">
+                         {sortedDpsSavingsAccounts.map(acc => {
+                           const balance = acc.calculated_balance || 0;
+                           const isNegative = balance < 0;
+                           const isZero = balance === 0;
+                           const hasInactiveMain = dpsSavingsAccountsWithInactiveMain.has(acc.id);
+                           return (
+                             <li key={acc.id} className={`flex justify-between items-center ${isZero ? 'opacity-50' : ''} ${hasInactiveMain ? 'opacity-75' : ''}`}>
+                               <span className={`truncate max-w-[100px] sm:max-w-[140px] text-[10px] sm:text-xs ${isZero ? 'text-gray-400 dark:text-gray-500' : hasInactiveMain ? 'text-gray-500 dark:text-gray-400 italic' : ''}`} title={hasInactiveMain ? `${acc.name} (Main account inactive)` : acc.name}>
+                                 {acc.name}
+                                 {hasInactiveMain && <span className="ml-1 text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500">(inactive)</span>}
+                               </span>
+                               <span className={`ml-2 tabular-nums text-[10px] sm:text-xs flex-shrink-0 ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : hasInactiveMain ? 'text-gray-500 dark:text-gray-400' : ''}`}>
+                                 {formatCurrency(balance, currency)}
+                               </span>
+                             </li>
+                           );
+                         })}
+                       </ul>
+                     </div>
+                   )}
                  </div>
                )}
              </div>
@@ -395,23 +486,93 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
       
       {/* Mobile-optimized stats grid */}
       <div className="grid grid-cols-2 gap-2 sm:gap-3 flex-1">
-        <div className="w-full min-w-0">
+        <div className="w-full min-w-0 relative">
           <StatCard
-            title={<span className="text-[11px] xs:text-[12px] sm:text-[13px]">{t('dashboard.monthlyIncome')}</span>}
+            title={
+              <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+                <span className="text-[11px] xs:text-[12px] sm:text-[13px]">{t('dashboard.monthlyIncome')}</span>
+                {incomeByAccount.length > 0 && (
+                  <span
+                    className="inline-flex items-center justify-center px-1.5 sm:px-2 py-0.5 sm:py-1 min-w-[20px] text-[9px] xs:text-[10px] font-medium rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 cursor-help touch-manipulation"
+                    onMouseEnter={() => !isMobile && setShowIncomeBadgeTooltip(true)}
+                    onMouseLeave={() => !isMobile && setShowIncomeBadgeTooltip(false)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isMobile) {
+                        setShowIncomeBadgeModal(true);
+                      }
+                    }}
+                    title={`${incomeByAccount.length} account${incomeByAccount.length !== 1 ? 's' : ''}`}
+                  >
+                    {incomeByAccount.length}
+                  </span>
+                )}
+              </div>
+            }
             value={formatCurrency(filteredIncome, currency)}
             color="green"
             gradient={false}
             animated={true}
           />
+          {showIncomeBadgeTooltip && !isMobile && incomeByAccount.length > 0 && (
+            <div className="absolute left-0 sm:left-auto sm:right-0 top-full z-50 mt-2 w-56 sm:w-64 max-w-[calc(100vw-2rem)] rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-2 sm:p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
+              <div className="font-semibold mb-2 text-[11px] sm:text-xs">Income by Account ({incomeByAccount.length})</div>
+              <ul className="space-y-1 max-h-48 overflow-y-auto">
+                {incomeByAccount.map(({ account, amount }) => (
+                  <li key={account.id} className="flex justify-between items-center">
+                    <span className="truncate max-w-[100px] sm:max-w-[140px] text-[10px] sm:text-xs" title={account.name}>{account.name}</span>
+                    <span className="ml-2 tabular-nums text-[10px] sm:text-xs text-green-600 dark:text-green-400 flex-shrink-0">
+                      {formatCurrency(amount, currency)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
-        <div className="w-full min-w-0">
+        <div className="w-full min-w-0 relative">
           <StatCard
-            title={<span className="text-[11px] xs:text-[12px] sm:text-[13px]">{t('dashboard.monthlyExpenses')}</span>}
+            title={
+              <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+                <span className="text-[11px] xs:text-[12px] sm:text-[13px]">{t('dashboard.monthlyExpenses')}</span>
+                {expenseByAccount.length > 0 && (
+                  <span
+                    className="inline-flex items-center justify-center px-1.5 sm:px-2 py-0.5 sm:py-1 min-w-[20px] text-[9px] xs:text-[10px] font-medium rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 cursor-help touch-manipulation"
+                    onMouseEnter={() => !isMobile && setShowExpenseBadgeTooltip(true)}
+                    onMouseLeave={() => !isMobile && setShowExpenseBadgeTooltip(false)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isMobile) {
+                        setShowExpenseBadgeModal(true);
+                      }
+                    }}
+                    title={`${expenseByAccount.length} account${expenseByAccount.length !== 1 ? 's' : ''}`}
+                  >
+                    {expenseByAccount.length}
+                  </span>
+                )}
+              </div>
+            }
             value={formatCurrency(filteredExpenses, currency)}
             color="red"
             gradient={false}
             animated={true}
           />
+          {showExpenseBadgeTooltip && !isMobile && expenseByAccount.length > 0 && (
+            <div className="absolute right-0 top-full z-50 mt-2 w-56 sm:w-64 max-w-[calc(100vw-2rem)] rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg p-2 sm:p-3 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
+              <div className="font-semibold mb-2 text-[11px] sm:text-xs">Expenses by Account ({expenseByAccount.length})</div>
+              <ul className="space-y-1 max-h-48 overflow-y-auto">
+                {expenseByAccount.map(({ account, amount }) => (
+                  <li key={account.id} className="flex justify-between items-center">
+                    <span className="truncate max-w-[100px] sm:max-w-[140px] text-[10px] sm:text-xs" title={account.name}>{account.name}</span>
+                    <span className="ml-2 tabular-nums text-[10px] sm:text-xs text-red-600 dark:text-red-400 flex-shrink-0">
+                      {formatCurrency(amount, currency)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 
@@ -425,51 +586,148 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
             e.stopPropagation();
             setShowMobileModal(false);
           }} />
-          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 w-64 animate-fadein" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="font-semibold text-gray-700 dark:text-gray-200">Total ({totalAccountCount}): {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
+          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 max-w-sm animate-fadein" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-semibold text-sm text-gray-700 dark:text-gray-200">Total ({totalAccountCount}): {formatCurrency(regularAccountsTotal + dpsTotal, currency)}</div>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowMobileModal(false);
+                }}
+                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
+              >
+                <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+            
+            {/* Account Sections */}
+            <div className="max-h-[60vh] sm:max-h-64 overflow-y-auto space-y-3">
+              {/* Regular Accounts Section */}
+              {sortedAllRegularAccounts.length > 0 && (
+                <div>
+                  <div className="text-[10px] sm:text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">Accounts</div>
+                  <ul className="space-y-1.5">
+                    {sortedAllRegularAccounts.map(acc => {
+                      const balance = acc.calculated_balance || 0;
+                      const isNegative = balance < 0;
+                      const isZero = balance === 0;
+                      return (
+                        <li key={acc.id} className={`flex justify-between items-center text-xs sm:text-sm ${isZero ? 'opacity-50 text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                          <span className={`truncate max-w-[60%] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
+                          <span className={`ml-2 tabular-nums flex-shrink-0 ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
+                            {formatCurrency(balance, currency)}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+              
+              {/* DPS Savings Section - Always shown if there are DPS savings accounts */}
+              {sortedDpsSavingsAccounts.length > 0 && (
+                <div className={sortedAllRegularAccounts.length > 0 ? 'pt-3 border-t border-gray-200 dark:border-gray-700' : ''}>
+                  <div className="text-[10px] sm:text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
+                    DPS Savings
+                    {dpsSavingsAccountsWithInactiveMain.size > 0 && (
+                      <span className="ml-1 text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500 normal-case">(Some main accounts inactive)</span>
+                    )}
+                  </div>
+                  <ul className="space-y-1.5">
+                    {sortedDpsSavingsAccounts.map(acc => {
+                      const balance = acc.calculated_balance || 0;
+                      const isNegative = balance < 0;
+                      const isZero = balance === 0;
+                      const hasInactiveMain = dpsSavingsAccountsWithInactiveMain.has(acc.id);
+                      return (
+                        <li key={acc.id} className={`flex justify-between items-center text-xs sm:text-sm ${isZero ? 'opacity-50 text-gray-400 dark:text-gray-500' : hasInactiveMain ? 'opacity-75 text-gray-500 dark:text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>
+                          <span className={`truncate max-w-[60%] ${isZero ? 'text-gray-400 dark:text-gray-500' : hasInactiveMain ? 'text-gray-500 dark:text-gray-400 italic' : ''}`} title={hasInactiveMain ? `${acc.name} (Main account inactive)` : acc.name}>
+                            {acc.name}
+                            {hasInactiveMain && <span className="ml-1 text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500">(inactive)</span>}
+                          </span>
+                          <span className={`ml-2 tabular-nums flex-shrink-0 ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : hasInactiveMain ? 'text-gray-500 dark:text-gray-400' : ''}`}>
+                            {formatCurrency(balance, currency)}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Modal for Income Badge */}
+      {showIncomeBadgeModal && isMobile && incomeByAccount.length > 0 && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" onClick={(e) => {
+          e.stopPropagation();
+          setShowIncomeBadgeModal(false);
+        }}>
+          <div className="fixed inset-0 bg-black/50" onClick={(e) => {
+            e.stopPropagation();
+            setShowIncomeBadgeModal(false);
+          }} />
+          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 max-w-sm animate-fadein" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-semibold text-sm text-gray-700 dark:text-gray-200">Income by Account ({incomeByAccount.length})</div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowIncomeBadgeModal(false);
                 }}
                 className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
-            
-            {/* All Accounts - Regular first, then DPS */}
-            <ul className="space-y-1 max-h-64 overflow-y-auto">
-              {/* Regular Accounts (includes DPS main accounts) */}
-              {sortedAllRegularAccounts.map(acc => {
-                const balance = acc.calculated_balance || 0;
-                const isNegative = balance < 0;
-                const isZero = balance === 0;
-                return (
-                  <li key={acc.id} className={`flex justify-between text-xs ${isZero ? 'opacity-50 text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
-                    <span className={`truncate max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
-                    <span className={`ml-2 tabular-nums ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
-                      {formatCurrency(balance, currency)}
-                    </span>
-                  </li>
-                );
-              })}
-              
-              {/* DPS Accounts */}
-              {sortedDpsSavingsAccounts.map(acc => {
-                const balance = acc.calculated_balance || 0;
-                const isNegative = balance < 0;
-                const isZero = balance === 0;
-                return (
-                  <li key={acc.id} className={`flex justify-between text-xs ${isZero ? 'opacity-50 text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
-                    <span className={`truncate max-w-[120px] ${isZero ? 'text-gray-400 dark:text-gray-500' : ''}`} title={acc.name}>{acc.name}</span>
-                    <span className={`ml-2 tabular-nums ${isNegative ? 'text-red-600 dark:text-red-400' : isZero ? 'text-gray-400 dark:text-gray-500' : ''}`}>
-                      {formatCurrency(balance, currency)}
-                    </span>
-                  </li>
-                );
-              })}
+            <ul className="space-y-2 max-h-64 overflow-y-auto">
+              {incomeByAccount.map(({ account, amount }) => (
+                <li key={account.id} className="flex justify-between items-center text-sm">
+                  <span className="truncate max-w-[60%] text-gray-700 dark:text-gray-300" title={account.name}>{account.name}</span>
+                  <span className="ml-2 tabular-nums text-sm text-green-600 dark:text-green-400 font-medium flex-shrink-0">
+                    {formatCurrency(amount, currency)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Modal for Expense Badge */}
+      {showExpenseBadgeModal && isMobile && expenseByAccount.length > 0 && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" onClick={(e) => {
+          e.stopPropagation();
+          setShowExpenseBadgeModal(false);
+        }}>
+          <div className="fixed inset-0 bg-black/50" onClick={(e) => {
+            e.stopPropagation();
+            setShowExpenseBadgeModal(false);
+          }} />
+          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 max-w-sm animate-fadein" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-semibold text-sm text-gray-700 dark:text-gray-200">Expenses by Account ({expenseByAccount.length})</div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowExpenseBadgeModal(false);
+                }}
+                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+            <ul className="space-y-2 max-h-64 overflow-y-auto">
+              {expenseByAccount.map(({ account, amount }) => (
+                <li key={account.id} className="flex justify-between items-center text-sm">
+                  <span className="truncate max-w-[60%] text-gray-700 dark:text-gray-300" title={account.name}>{account.name}</span>
+                  <span className="ml-2 tabular-nums text-sm text-red-600 dark:text-red-400 font-medium flex-shrink-0">
+                    {formatCurrency(amount, currency)}
+                  </span>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
