@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { AlertCircle, ChevronDown, ChevronUp, GripVertical, Edit2, Trash2, CircleDot } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronUp, Edit2, Trash2, CircleDot } from 'lucide-react';
 import { Task } from '../../types/client';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { useTouchDevice } from '../../hooks/useTouchDevice';
 
-interface SortableTaskItemProps {
+interface TaskItemProps {
   task: Task;
   clientName: string;
   isOverdue: boolean;
@@ -18,10 +16,9 @@ interface SortableTaskItemProps {
   onStatusChange: (taskId: string, newStatus: Task['status']) => void;
   onTaskClick: (task: Task) => void;
   onTaskDelete: (taskId: string) => void;
-  isUpdating?: boolean;
 }
 
-const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
+const TaskItemComponent: React.FC<TaskItemProps> = ({
   task,
   clientName,
   isOverdue,
@@ -33,7 +30,6 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
   onStatusChange,
   onTaskClick,
   onTaskDelete,
-  isUpdating = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showActions, setShowActions] = useState(false);
@@ -45,39 +41,23 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
   const taskItemRef = useRef<HTMLDivElement>(null);
   const lastToggleTimeRef = useRef<number>(0);
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ 
-    id: task.id,
-  });
-  
   // Scroll into view when task is expanded - only if not fully visible
   useEffect(() => {
     if (isExpanded && taskItemRef.current) {
-      // Use setTimeout to ensure DOM has updated with expanded content
       setTimeout(() => {
         const element = taskItemRef.current;
         if (!element) {
           return;
         }
         
-        // Check if element is significantly out of view
         const rect = element.getBoundingClientRect();
         const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
         
-        // Only scroll if element is significantly out of view
-        // Be very lenient to avoid moving the button under the cursor
         const isSignificantlyOutOfView = 
-          rect.bottom > viewportHeight + 100 || // Bottom is more than 100px below viewport
-          rect.top < -100; // Top is more than 100px above viewport
+          rect.bottom > viewportHeight + 100 ||
+          rect.top < -100;
         
         if (isSignificantlyOutOfView) {
-          // Use a gentle scroll
           element.scrollIntoView({
             behavior: 'smooth',
             block: 'nearest',
@@ -92,12 +72,10 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
   useEffect(() => {
     if (statusMenuOpen === task.id && taskItemRef.current) {
       let retryCount = 0;
-      const maxRetries = 5; // Prevent infinite loops
+      const maxRetries = 5;
       
-      // Use requestAnimationFrame to ensure menu is rendered and measured
       const calculatePosition = () => {
         if (!taskItemRef.current || !statusMenuRef.current) {
-          // Menu not ready yet, try again (with limit)
           if (retryCount < maxRetries) {
             retryCount++;
             requestAnimationFrame(calculatePosition);
@@ -110,44 +88,36 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
         const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
         const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
         
-        // Use actual menu dimensions if available, otherwise use estimates
         const menuHeight = menuRect.height > 0 ? menuRect.height : 50;
         const menuWidth = menuRect.width > 0 ? menuRect.width : 220;
         
         if (isTouchDevice) {
-          // Mobile: Use absolute positioning
           const spaceBelow = viewportHeight - taskRect.bottom;
           const spaceAbove = taskRect.top;
           setMenuPositionAbove(spaceBelow < menuHeight && spaceAbove > menuHeight);
           setMenuPositionLeft(false);
           setMenuPosition(null);
         } else {
-          // Desktop: Calculate fixed position to prevent viewport overflow
           const spaceBelow = viewportHeight - taskRect.bottom;
           const spaceAbove = taskRect.top;
           const spaceRight = viewportWidth - taskRect.right;
           const spaceLeft = taskRect.left;
           
-          // Determine vertical position
           const positionAbove = spaceBelow < menuHeight && spaceAbove > menuHeight;
           setMenuPositionAbove(positionAbove);
           
-          // Determine horizontal position
           let left: number | undefined;
           let right: number | undefined;
           
           if (spaceRight >= menuWidth) {
-            // Enough space on right - align to right edge of task
             right = viewportWidth - taskRect.right;
           } else if (spaceLeft >= menuWidth) {
-            // Not enough space on right, but enough on left - position on left
             left = taskRect.left;
           } else {
-            // Not enough space on either side - use whichever has more space
             if (spaceRight > spaceLeft) {
-              right = 8; // 8px from viewport edge
+              right = 8;
             } else {
-              left = 8; // 8px from viewport edge
+              left = 8;
             }
           }
           
@@ -168,10 +138,8 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
         }
       };
       
-      // Start calculation on next frame
       requestAnimationFrame(calculatePosition);
       
-      // Recalculate on window resize
       const handleResize = () => {
         if (statusMenuOpen === task.id && taskItemRef.current && statusMenuRef.current) {
           requestAnimationFrame(calculatePosition);
@@ -187,12 +155,6 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
       setMenuPosition(null);
     }
   }, [statusMenuOpen, task.id, isTouchDevice]);
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -220,61 +182,42 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
     }
   };
 
-  // Combine refs for sortable and scroll-into-view
-  const combinedRef = (node: HTMLDivElement | null) => {
-    setNodeRef(node);
-    taskItemRef.current = node;
-  };
-
   return (
     <div
-      ref={combinedRef}
-      style={style}
-      className={`relative bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all group w-full max-w-full ${
-        isDragging ? 'shadow-lg scale-105' : 'shadow-sm'
-      } ${isUpdating ? 'opacity-75' : ''}`}
+      ref={taskItemRef}
+      className="relative bg-white dark:bg-gray-800 rounded-md sm:rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all group w-full max-w-full shadow-sm"
       onMouseEnter={() => !isTouchDevice && setShowActions(true)}
       onMouseLeave={() => !isTouchDevice && setShowActions(false)}
       onTouchStart={handleTouchStart}
     >
-      <div className="flex items-start gap-0.5 sm:gap-1 p-0.5 sm:p-1">
-        {/* Drag Handle - Only this area is draggable */}
-        <div
-          {...attributes}
-          {...listeners}
-          className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors pt-0.5 min-w-[40px] min-h-[40px] md:min-w-0 md:min-h-0 flex items-center justify-center touch-manipulation"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <GripVertical className="w-5 h-5 sm:w-3.5 sm:h-3.5" />
-        </div>
-
+      <div className="flex items-start gap-1 sm:gap-1 p-1.5 sm:p-1">
         {/* Task Content */}
         <div 
           className="flex-1 min-w-0"
         >
-          <div className="flex items-center justify-between gap-1 mb-0.5">
-            <div className="font-medium text-[9px] sm:text-[10px] md:text-xs text-gray-900 dark:text-white truncate flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-1.5 sm:gap-1 mb-1 sm:mb-0.5">
+            <div className="font-medium text-xs sm:text-[10px] md:text-xs text-gray-900 dark:text-white truncate flex-1 min-w-0">
               {task.title}
             </div>
-            <div className="flex items-center gap-0.5 flex-shrink-0">
-            <span className={`px-0.5 sm:px-1 py-0.5 rounded-full text-[8px] sm:text-[9px] font-medium ${getPriorityColor(task.priority)}`}>
+            <div className="flex items-center gap-1 sm:gap-0.5 flex-shrink-0">
+            <span className={`px-1.5 sm:px-1 py-0.5 sm:py-0.5 rounded-full text-[9px] sm:text-[9px] font-medium ${getPriorityColor(task.priority)}`}>
               {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
             </span>
             {isOverdue && (
-              <span className="text-[8px] sm:text-[9px] text-red-600 dark:text-red-400 flex items-center gap-0.5">
-                <AlertCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <span className="text-[9px] sm:text-[9px] text-red-600 dark:text-red-400 flex items-center gap-0.5">
+                <AlertCircle className="w-3 h-3 sm:w-3 sm:h-3" />
                 <span className="hidden sm:inline">Overdue</span>
                 <span className="sm:hidden">!</span>
               </span>
             )}
           </div>
           </div>
-          <div className="flex items-center justify-between gap-1 mb-0.5">
-            <div className="text-[8px] sm:text-[9px] md:text-[10px] text-gray-500 dark:text-gray-400 truncate flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-1.5 sm:gap-1 mb-1 sm:mb-0.5">
+            <div className="text-[10px] sm:text-[9px] md:text-[10px] text-gray-500 dark:text-gray-400 truncate flex-1 min-w-0">
             {clientName}
           </div>
           {task.due_date && (
-              <div className="text-[8px] sm:text-[9px] md:text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap flex-shrink-0">
+              <div className="text-[10px] sm:text-[9px] md:text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap flex-shrink-0">
                 {isTouchDevice 
                   ? new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                   : new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -299,7 +242,6 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
                 const now = Date.now();
                 const timeSinceLastToggle = now - lastToggleTimeRef.current;
                 
-                // Prevent rapid clicks (cooldown period)
                 if (timeSinceLastToggle < 300) {
                   e.stopPropagation();
                   e.preventDefault();
@@ -315,7 +257,6 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
                 const now = Date.now();
                 const timeSinceLastToggle = now - lastToggleTimeRef.current;
                 
-                // Prevent rapid touches (cooldown period)
                 if (timeSinceLastToggle < 300) {
                   e.stopPropagation();
                   e.preventDefault();
@@ -347,7 +288,7 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
         </div>
       </div>
 
-      {/* Quick Action Buttons - Absolutely positioned overlay, show on hover or touch */}
+      {/* Quick Action Buttons */}
       {showActions && (
         <div 
           className={`absolute top-0.5 right-0.5 sm:top-1 sm:right-1 flex items-center gap-0.5 transition-opacity z-10 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-md p-0.5 shadow-sm max-w-[calc(100%-0.5rem)] ${
@@ -379,10 +320,9 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
         </div>
       )}
 
-      {/* Status Menu - Bottom sheet on mobile, inline on desktop */}
+      {/* Status Menu */}
       {statusMenuOpen === task.id && (
         <>
-          {/* Mobile: Bottom Sheet Overlay */}
           {isTouchDevice && (
             <div 
               className="fixed inset-0 bg-black/50 z-40"
@@ -393,7 +333,6 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
             />
           )}
           
-          {/* Status Menu */}
           <div 
             ref={statusMenuRef}
             className={`${isTouchDevice ? 'fixed bottom-0 left-0 right-0 z-50 rounded-t-xl shadow-2xl' : 'fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-0.5 px-0.5'} flex items-center gap-0.5 flex-wrap ${
@@ -478,21 +417,18 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
   );
 };
 
-export const SortableTaskItem = React.memo(SortableTaskItemComponent, (prevProps, nextProps) => {
-  // Custom comparison function for memo
+export const TaskItem = React.memo(TaskItemComponent, (prevProps, nextProps) => {
   return (
     prevProps.task.id === nextProps.task.id &&
     prevProps.task.status === nextProps.task.status &&
-    prevProps.task.position === nextProps.task.position &&
     prevProps.task.title === nextProps.task.title &&
     prevProps.task.description === nextProps.task.description &&
     prevProps.task.due_date === nextProps.task.due_date &&
     prevProps.task.priority === nextProps.task.priority &&
     prevProps.clientName === nextProps.clientName &&
     prevProps.isOverdue === nextProps.isOverdue &&
-    prevProps.statusMenuOpen === nextProps.statusMenuOpen &&
-    prevProps.isUpdating === nextProps.isUpdating
+    prevProps.statusMenuOpen === nextProps.statusMenuOpen
   );
 });
 
-SortableTaskItem.displayName = 'SortableTaskItem';
+TaskItem.displayName = 'TaskItem';

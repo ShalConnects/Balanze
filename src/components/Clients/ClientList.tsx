@@ -262,6 +262,12 @@ export const ClientList: React.FC = () => {
   const [noteModalClient, setNoteModalClient] = useState<Client | null>(null);
   const isSavingNoteRef = useRef(false);
 
+  // Tag editing state for inline tag addition in table
+  const [addingTagClientId, setAddingTagClientId] = useState<string | null>(null);
+  const [tagInputValue, setTagInputValue] = useState<string>('');
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const inlineTagSuggestionsRef = useRef<HTMLDivElement>(null);
+
   // Sorting state
   const [sortConfig, setSortConfig] = useState<{
     key: string;
@@ -283,6 +289,19 @@ export const ClientList: React.FC = () => {
       setTempFilters(tableFilters);
     }
   }, [showMobileFilterMenu, tableFilters]);
+
+  // Handle click outside for inline tag suggestions
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (inlineTagSuggestionsRef.current && !inlineTagSuggestionsRef.current.contains(event.target as Node)) {
+        setShowTagSuggestions(false);
+      }
+    }
+    if (showTagSuggestions) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showTagSuggestions]);
 
   // Initial load - only fetch clients (orders are optional and loaded on demand)
   useEffect(() => {
@@ -503,6 +522,51 @@ export const ClientList: React.FC = () => {
       toast.success('Tag removed successfully');
     } catch (error) {
       toast.error('Failed to remove tag');
+    }
+  };
+
+  const commonTags = [
+    'Fiverr', 'Upwork', 'Freelancer', 'Premium', 'Long-term',
+    'One-time', 'Referral', 'Website', 'Social Media', 'Repeat Client', 'VIP', 'Corporate'
+  ];
+
+  const getFilteredTagSuggestions = (clientId: string) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return { existing: [], new: [] };
+    
+    const inputLower = tagInputValue.toLowerCase();
+    const existingTags = (client.tags || []).filter(tag => 
+      tag.toLowerCase().includes(inputLower)
+    );
+    const newTags = commonTags.filter(tag => 
+      !client.tags?.includes(tag) &&
+      tag.toLowerCase().includes(inputLower)
+    );
+    
+    return { existing: existingTags, new: newTags };
+  };
+
+  const handleAddTagInline = async (clientId: string, tag?: string) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+    
+    const tagToAdd = tag || tagInputValue.trim();
+    if (!tagToAdd) return;
+    
+    if (client.tags?.includes(tagToAdd)) {
+      toast.error('Tag already exists');
+      return;
+    }
+    
+    const updatedTags = [...(client.tags || []), tagToAdd];
+    try {
+      await updateClient(clientId, { tags: updatedTags });
+      setTagInputValue('');
+      setAddingTagClientId(null);
+      setShowTagSuggestions(false);
+      toast.success('Tag added successfully');
+    } catch (error) {
+      toast.error('Failed to add tag');
     }
   };
 
@@ -771,11 +835,11 @@ export const ClientList: React.FC = () => {
                     <button
                       onClick={() => setShowStatusMenu(v => !v)}
                       className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
-                        tableFilters.status === 'active' 
+                        tableFilters.status === 'active' || tableFilters.status === 'inactive' || tableFilters.status === 'archived' || tableFilters.status === 'all'
                           ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700' 
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
                       }`}
-                      style={tableFilters.status === 'active' ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+                      style={(tableFilters.status === 'active' || tableFilters.status === 'inactive' || tableFilters.status === 'archived' || tableFilters.status === 'all') ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                     >
                       <span>{tableFilters.status === 'active' ? 'Active' : tableFilters.status === 'all' ? 'All Status' : tableFilters.status.charAt(0).toUpperCase() + tableFilters.status.slice(1)}</span>
                       <svg className="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -901,10 +965,8 @@ export const ClientList: React.FC = () => {
               {(() => {
                 const activeClients = filteredClients.filter(c => c.status === 'active');
                 const inactiveClients = filteredClients.filter(c => c.status === 'inactive');
+                const allInactiveClients = clients.filter(c => c.status === 'inactive');
                 const archivedClients = filteredClients.filter(c => c.status === 'archived');
-                const totalOrders = filteredClients.reduce((sum, client) => {
-                  return sum + getOrdersByClient(client.id).length;
-                }, 0);
                 const totalInvoices = filteredClients.reduce((sum, client) => {
                   return sum + getInvoicesByClient(client.id).length;
                 }, 0);
@@ -944,18 +1006,6 @@ export const ClientList: React.FC = () => {
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 sm:py-2 px-1.5 sm:px-2">
                       <div className="flex items-center justify-between">
                         <div className="text-left min-w-0 flex-1">
-                          <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Total Orders</p>
-                          <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem]">{totalOrders}</p>
-                          <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">
-                            {totalOrders > 0 ? `${totalOrders} orders` : 'No orders'}
-                          </p>
-                        </div>
-                        <span className="text-blue-600 text-lg sm:text-xl lg:text-[1.2rem] flex-shrink-0">#</span>
-                      </div>
-                    </div>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 sm:py-2 px-1.5 sm:px-2">
-                      <div className="flex items-center justify-between">
-                        <div className="text-left min-w-0 flex-1">
                           <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Total Invoices</p>
                           <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem]">{totalInvoices}</p>
                           <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">
@@ -985,15 +1035,26 @@ export const ClientList: React.FC = () => {
                         <svg className="text-blue-600 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" /></svg>
                       </div>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 sm:py-2 px-1.5 sm:px-2">
+                    <div 
+                      className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 sm:py-2 px-1.5 sm:px-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      onClick={() => {
+                        setTableFilters({
+                          search: '',
+                          status: 'inactive',
+                          currency: '',
+                          source: '',
+                          tag: ''
+                        });
+                      }}
+                    >
                       <div className="flex items-center justify-between">
                         <div className="text-left min-w-0 flex-1">
                           <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Inactive</p>
                           <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem]">
-                            {inactiveClients.length}
+                            {allInactiveClients.length}
                           </p>
                           <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">
-                            {inactiveClients.length > 0 ? `${inactiveClients.length} inactive` : 'No inactive clients'}
+                            {allInactiveClients.length > 0 ? `${allInactiveClients.length} inactive` : 'No inactive clients'}
                           </p>
                         </div>
                         <span className="text-yellow-600 text-lg sm:text-xl lg:text-[1.2rem] flex-shrink-0">⚠</span>
@@ -1088,23 +1149,33 @@ export const ClientList: React.FC = () => {
                                     </div>
                                     {(() => {
                                       const clientTasks = getTasksByClient(client.id);
+                                      const activeTasks = clientTasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled');
                                       const overdueTasks = clientTasks.filter(task => {
                                         if (!task.due_date || task.status === 'completed' || task.status === 'cancelled') {
                                           return false;
                                         }
                                         return new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0));
                                       });
-                                      if (overdueTasks.length > 0) {
-                                        return (
-                                          <span 
-                                            className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
-                                            title={`${overdueTasks.length} overdue task${overdueTasks.length !== 1 ? 's' : ''}`}
-                                          >
-                                            ⚠️ {overdueTasks.length}
-                                          </span>
-                                        );
-                                      }
-                                      return null;
+                                      return (
+                                        <>
+                                          {overdueTasks.length > 0 && (
+                                            <span 
+                                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
+                                              title={`${overdueTasks.length} overdue task${overdueTasks.length !== 1 ? 's' : ''}`}
+                                            >
+                                              ⚠️ {overdueTasks.length}
+                                            </span>
+                                          )}
+                                          {activeTasks.length > 0 && (
+                                            <span 
+                                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
+                                              title={`${activeTasks.length} active task${activeTasks.length !== 1 ? 's' : ''}`}
+                                            >
+                                              {activeTasks.length}
+                                            </span>
+                                          )}
+                                        </>
+                                      );
                                     })()}
                                   </div>
                                 </div>
@@ -1121,32 +1192,168 @@ export const ClientList: React.FC = () => {
                               </div>
                             </td>
                             <td className="px-3 sm:px-4 lg:px-6 py-2 sm:py-[0.6rem] lg:py-[0.7rem]">
-                              {client.tags && client.tags.length > 0 ? (
-                                <div className="flex flex-wrap gap-1">
-                                  {client.tags.map((tag) => (
-                                    <span
-                                      key={tag}
-                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-[10px] group"
-                                    >
-                                      <Tag className="w-2.5 h-2.5" />
-                                      {tag}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleRemoveTag(client.id, tag);
+                              <div className="group/tags relative" ref={inlineTagSuggestionsRef}>
+                                {addingTagClientId === client.id ? (
+                                  <div className="flex items-center gap-1 sm:gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex-1 relative">
+                                      <input
+                                        type="text"
+                                        value={tagInputValue}
+                                        onChange={(e) => {
+                                          setTagInputValue(e.target.value);
+                                          setShowTagSuggestions(true);
                                         }}
-                                        className="opacity-0 group-hover:opacity-100 hover:text-blue-900 dark:hover:text-blue-100 transition-opacity ml-0.5"
-                                        title="Remove tag"
-                                        aria-label={`Remove ${tag} tag`}
-                                      >
-                                        <X className="w-2.5 h-2.5" />
-                                      </button>
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className="text-xs sm:text-sm text-gray-400 dark:text-gray-500">-</span>
-                              )}
+                                        onFocus={() => setShowTagSuggestions(true)}
+                                        onKeyPress={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleAddTagInline(client.id);
+                                          } else if (e.key === 'Escape') {
+                                            setAddingTagClientId(null);
+                                            setTagInputValue('');
+                                            setShowTagSuggestions(false);
+                                          }
+                                        }}
+                                        onBlur={(e) => {
+                                          // Don't close if clicking on a suggestion
+                                          if (inlineTagSuggestionsRef.current?.contains(e.relatedTarget as Node)) {
+                                            return;
+                                          }
+                                          if (tagInputValue.trim()) {
+                                            handleAddTagInline(client.id);
+                                          } else {
+                                            setAddingTagClientId(null);
+                                            setTagInputValue('');
+                                            setShowTagSuggestions(false);
+                                          }
+                                        }}
+                                        autoFocus
+                                        className="w-full px-2 py-1 sm:px-1.5 sm:py-0.5 text-[11px] sm:text-[10px] rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[80px] sm:min-w-[70px]"
+                                        placeholder="Add tag..."
+                                      />
+                                      {/* Tag Suggestions */}
+                                      {showTagSuggestions && (() => {
+                                        const suggestions = getFilteredTagSuggestions(client.id);
+                                        const hasSuggestions = suggestions.existing.length > 0 || suggestions.new.length > 0;
+                                        return hasSuggestions && (
+                                          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 sm:max-h-40 overflow-y-auto">
+                                            <div className="p-2.5 sm:p-2 space-y-2.5 sm:space-y-2">
+                                              {suggestions.existing.length > 0 && (
+                                                <div>
+                                                  <div className="text-[11px] sm:text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-1 px-1">Existing Tags:</div>
+                                                  <div className="flex flex-wrap gap-1.5 sm:gap-1">
+                                                    {suggestions.existing.map((tag) => (
+                                                      <button
+                                                        key={tag}
+                                                        type="button"
+                                                        onMouseDown={(e) => {
+                                                          e.preventDefault();
+                                                          toast.info('Tag already exists');
+                                                        }}
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1 sm:px-2 sm:py-0.5 text-[11px] sm:text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 active:bg-gray-400 dark:active:bg-gray-500 transition-colors touch-manipulation cursor-pointer"
+                                                        title="Tag already added"
+                                                      >
+                                                        <Tag className="w-3 h-3 sm:w-2.5 sm:h-2.5" />
+                                                        {tag}
+                                                      </button>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
+                                              {suggestions.new.length > 0 && (
+                                                <div>
+                                                  <div className="text-[11px] sm:text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-1 px-1">Suggestions:</div>
+                                                  <div className="flex flex-wrap gap-1.5 sm:gap-1">
+                                                    {suggestions.new.map((tag) => (
+                                                      <button
+                                                        key={tag}
+                                                        type="button"
+                                                        onMouseDown={(e) => {
+                                                          e.preventDefault();
+                                                          handleAddTagInline(client.id, tag);
+                                                        }}
+                                                        className="px-2.5 py-1 sm:px-2 sm:py-0.5 text-[11px] sm:text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-700 dark:hover:text-blue-300 active:bg-blue-200 dark:active:bg-blue-800 transition-colors touch-manipulation"
+                                                      >
+                                                        {tag}
+                                                      </button>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddTagInline(client.id);
+                                      }}
+                                      className="px-2 py-1 sm:px-1.5 sm:py-0.5 text-[11px] sm:text-[10px] bg-blue-600 text-white rounded hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                                      disabled={!tagInputValue.trim()}
+                                      title="Add tag"
+                                      aria-label="Add tag"
+                                    >
+                                      <Plus className="w-3 h-3 sm:w-2.5 sm:h-2.5" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setAddingTagClientId(null);
+                                        setTagInputValue('');
+                                        setShowTagSuggestions(false);
+                                      }}
+                                      className="px-2 py-1 sm:px-1.5 sm:py-0.5 text-[11px] sm:text-[10px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 active:text-gray-900 dark:active:text-gray-100 transition-colors touch-manipulation"
+                                      title="Cancel"
+                                      aria-label="Cancel"
+                                    >
+                                      <X className="w-3 h-3 sm:w-2.5 sm:h-2.5" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-wrap items-center gap-1 sm:gap-1">
+                                    {client.tags && client.tags.length > 0 ? (
+                                      <>
+                                        {client.tags.map((tag) => (
+                                          <span
+                                            key={tag}
+                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-[10px] group/tag"
+                                          >
+                                            <Tag className="w-2.5 h-2.5" />
+                                            {tag}
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRemoveTag(client.id, tag);
+                                              }}
+                                              className="text-blue-800 dark:text-blue-200 hover:text-blue-900 dark:hover:text-blue-100 active:text-blue-950 dark:active:text-blue-50 transition-colors ml-0.5 touch-manipulation"
+                                              title="Remove tag"
+                                              aria-label={`Remove ${tag} tag`}
+                                            >
+                                              <X className="w-2.5 h-2.5 sm:w-2.5 sm:h-2.5" />
+                                            </button>
+                                          </span>
+                                        ))}
+                                      </>
+                                    ) : (
+                                      <span className="text-xs sm:text-sm text-gray-400 dark:text-gray-500">-</span>
+                                    )}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setAddingTagClientId(client.id);
+                                        setTagInputValue('');
+                                      }}
+                                      className="inline-flex items-center justify-center w-5 h-5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 active:bg-blue-100 dark:active:bg-blue-900/50 rounded transition-all ml-1 touch-manipulation"
+                                      title="Add tag"
+                                      aria-label="Add tag"
+                                    >
+                                      <Plus className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </td>
                             <td className="px-3 sm:px-4 lg:px-6 py-2 sm:py-[0.6rem] lg:py-[0.7rem]">
                               <div className="text-xs sm:text-sm text-gray-900 dark:text-white truncate">
@@ -1704,8 +1911,25 @@ export const ClientList: React.FC = () => {
                           {/* Card Header - Client Name */}
                           <div className="mb-3 sm:mb-4">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <div className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">
-                                {client.name}
+                              <div className="flex items-center gap-1.5">
+                                <div className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">
+                                  {client.name}
+                                </div>
+                                {(() => {
+                                  const clientTasks = getTasksByClient(client.id);
+                                  const activeTasks = clientTasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled');
+                                  if (activeTasks.length > 0) {
+                                    return (
+                                      <span 
+                                        className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
+                                        title={`${activeTasks.length} active task${activeTasks.length !== 1 ? 's' : ''}`}
+                                      >
+                                        {activeTasks.length}
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                               </div>
                               {client.company_name && (
                                 <>
@@ -2451,8 +2675,8 @@ export const ClientList: React.FC = () => {
                         ⚠️ This will also delete {totalRelated} related record{totalRelated !== 1 ? 's' : ''}:
                       </p>
                       <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1 list-disc list-inside">
-                        {clientTasks.length > 0 && (
-                          <li>{clientTasks.length} task{clientTasks.length !== 1 ? 's' : ''}</li>
+                        {activeTasks.length > 0 && (
+                          <li>{activeTasks.length} task{clientTasks.length !== 1 ? 's' : ''}</li>
                         )}
                         {clientInvoices.length > 0 && (
                           <li>{clientInvoices.length} invoice{clientInvoices.length !== 1 ? 's' : ''}</li>

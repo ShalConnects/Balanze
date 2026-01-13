@@ -44,15 +44,34 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
 
   const taskIds = tasks.map(task => task.id);
 
+  console.log(`🔍 KanbanColumn rendered - ${title}:`, {
+    id,
+    taskCount: tasks.length,
+    taskIds: taskIds
+  });
+
   return (
-    <div className="flex flex-col w-[85vw] sm:w-[75vw] md:w-full md:min-w-[180px] lg:min-w-[200px] xl:min-w-[220px] max-w-full snap-start flex-shrink-0">
+    <div 
+      className="flex flex-col w-full sm:w-[280px] sm:min-w-[280px] md:w-auto md:flex-1 md:min-w-[220px] lg:min-w-[240px] xl:min-w-[260px] 2xl:min-w-[280px] max-w-full snap-start flex-shrink-0"
+      ref={(el) => {
+        if (el) {
+          console.log(`🔍 KanbanColumn ${title} dimensions:`, {
+            id,
+            offsetWidth: el.offsetWidth,
+            offsetHeight: el.offsetHeight,
+            computedStyle: window.getComputedStyle(el).width,
+            flexBasis: window.getComputedStyle(el).flexBasis
+          });
+        }
+      }}
+    >
       {/* Column Header */}
-      <div className={`mb-0.5 sm:mb-1 px-1 sm:px-1.5 py-0.5 rounded-md ${color} border border-gray-200 dark:border-gray-700 sticky top-0 z-10 md:relative md:z-auto`}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-[9px] sm:text-[10px] md:text-xs font-semibold text-gray-900 dark:text-white truncate pr-0.5">
+      <div className={`mb-1 sm:mb-1.5 md:mb-2 px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-2 rounded-md sm:rounded-lg ${color} border border-gray-200 dark:border-gray-700 sticky top-0 z-10 md:relative md:z-auto shadow-sm`}>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-[10px] sm:text-xs md:text-sm font-semibold text-gray-900 dark:text-white truncate flex-1 min-w-0">
             {title}
           </h3>
-          <span className="text-[9px] sm:text-[10px] font-medium text-gray-600 dark:text-gray-400 bg-white/50 dark:bg-gray-800/50 px-0.5 py-0.5 rounded-full flex-shrink-0">
+          <span className="text-[9px] sm:text-[10px] md:text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white/70 dark:bg-gray-800/70 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full flex-shrink-0 min-w-[24px] sm:min-w-[28px] text-center">
             {tasks.length}
           </span>
         </div>
@@ -61,14 +80,15 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
       {/* Droppable Area */}
       <div
         ref={setNodeRef}
-        className={`flex-1 min-h-[100px] sm:min-h-[120px] max-h-[280px] md:max-h-[350px] lg:max-h-[400px] rounded-md p-0.5 transition-colors overflow-y-auto ${
+        className={`flex-1 min-h-[180px] sm:min-h-[180px] md:min-h-[180px] max-h-[300px] sm:max-h-[350px] md:max-h-[400px] lg:max-h-[450px] xl:max-h-[500px] rounded-md sm:rounded-lg p-1 sm:p-1.5 md:p-2 transition-colors overflow-y-auto ${
           isOver
             ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-600 border-dashed'
             : 'bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700'
         }`}
+        style={{ scrollbarWidth: 'thin' }}
       >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-          <div className="space-y-0.5 sm:space-y-1">
+          <div className="space-y-1 sm:space-y-1.5 md:space-y-2">
             {tasks.length > 0 ? (
               tasks.map((task) => {
                 const clientName = getClientName(task.client_id);
@@ -93,7 +113,7 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
                 );
               })
             ) : (
-              <div className="text-center py-2 text-gray-400 dark:text-gray-500 text-[9px] sm:text-[10px]">
+              <div className="text-center py-4 sm:py-6 md:py-8 text-gray-400 dark:text-gray-500 text-[10px] sm:text-xs md:text-sm">
                 No tasks
               </div>
             )}
