@@ -283,6 +283,43 @@ export async function gatherUserData(userId) {
         await logError('gatherUserData', lendBorrowError, { ...metadata, table: 'lend_borrow' });
       }
   data.lendBorrow = lendBorrow || [];
+      
+      // Fetch returns from lend_borrow_returns table and aggregate by lend_borrow_id
+      if (data.lendBorrow && data.lendBorrow.length > 0) {
+        const lendBorrowIds = data.lendBorrow.map(lb => lb.id);
+        try {
+          const { data: returns, error: returnsError } = await supabase
+            .from('lend_borrow_returns')
+            .select('lend_borrow_id, amount')
+            .in('lend_borrow_id', lendBorrowIds);
+          
+          if (returnsError) {
+            await logError('gatherUserData', returnsError, { ...metadata, table: 'lend_borrow_returns' });
+          }
+          
+          // Aggregate returns by lend_borrow_id
+          const returnsByLendBorrowId = {};
+          (returns || []).forEach(ret => {
+            if (!returnsByLendBorrowId[ret.lend_borrow_id]) {
+              returnsByLendBorrowId[ret.lend_borrow_id] = 0;
+            }
+            returnsByLendBorrowId[ret.lend_borrow_id] += parseFloat(ret.amount) || 0;
+          });
+          
+          // Attach total returned amount to each lend/borrow record
+          data.lendBorrow = data.lendBorrow.map(lb => ({
+            ...lb,
+            total_returned_amount: (parseFloat(lb.partial_return_amount) || 0) + (returnsByLendBorrowId[lb.id] || 0)
+          }));
+        } catch (error) {
+          await logError('gatherUserData', error, { ...metadata, table: 'lend_borrow_returns' });
+          // If returns fetch fails, just use partial_return_amount
+          data.lendBorrow = data.lendBorrow.map(lb => ({
+            ...lb,
+            total_returned_amount: parseFloat(lb.partial_return_amount) || 0
+          }));
+        }
+      }
     } catch (error) {
       await logError('gatherUserData', error, { ...metadata, table: 'lend_borrow' });
       data.lendBorrow = [];
@@ -2679,7 +2716,9 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
           const type = lb.type === 'lent' || lb.type === 'lend' ? 'Lent' : 
                        lb.type === 'borrowed' || lb.type === 'borrow' ? 'Borrowed' : 
                        lb.type || 'N/A';
-          const returnedAmount = parseFloat(lb.partial_return_amount) || 0;
+          // Use total_returned_amount if available (includes partial_return_amount + returns from lend_borrow_returns)
+          // Otherwise fall back to partial_return_amount for backward compatibility
+          const returnedAmount = parseFloat(lb.total_returned_amount) || parseFloat(lb.partial_return_amount) || 0;
           return [
             type,
             lb.person_name || lb.person || lb.entity || 'N/A',
