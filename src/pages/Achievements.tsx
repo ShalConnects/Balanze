@@ -76,8 +76,8 @@ const Achievements: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 dark:from-gray-900 dark:via-blue-900/20 dark:to-purple-900/20">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen">
+      <div className="container mx-auto">
         {/* Unified Achievement Section */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 lg:p-8 border border-gray-200 dark:border-gray-700/50 mb-6 sm:mb-8">
           {/* Stats & Progress Section */}

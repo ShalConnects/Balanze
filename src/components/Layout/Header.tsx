@@ -689,15 +689,14 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
 
                   <button
                     onClick={() => {
-                      navigate('/achievements');
+                      navigate('/personal-growth');
                       setShowUserMenu(false);
                     }}
                     className="w-full px-3 sm:px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
                   >
-                    <Trophy className="w-4 h-4 mr-2 flex-shrink-0" />
-                    <span className="truncate">Achievements</span>
+                    <Sparkles className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="truncate">Personal Growth</span>
                   </button>
-
                   <button
                     onClick={() => {
                       navigate('/history');
@@ -727,16 +726,6 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
                   >
                     <Heart className="w-4 h-4 mr-2 flex-shrink-0" />
                     <span className="truncate">Donations</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      navigate('/favorite-quotes');
-                      setShowUserMenu(false);
-                    }}
-                    className="w-full px-3 sm:px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                  >
-                    <Quote className="w-4 h-4 mr-2 flex-shrink-0" />
-                    <span className="truncate">Favorite Quotes</span>
                   </button>
                   <button
                     onClick={handleLogout}

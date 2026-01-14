@@ -139,7 +139,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
     
     // Handle achievement notifications (success type with trophy title)
     if (notification.type === 'success' && notification.title?.includes('Achievement')) {
-      navigate('/achievements');
+      navigate('/personal-growth?tab=achievements');
       onClose();
       return;
     }

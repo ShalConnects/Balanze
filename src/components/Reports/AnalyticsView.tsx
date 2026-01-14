@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { 
   PieChart, 
   Pie, 
@@ -28,7 +28,12 @@ import {
   Award,
   Star,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  ChevronDown,
+  Check,
+  DollarSign,
+  Wallet,
+  Coins
 } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
@@ -39,6 +44,7 @@ import { HumorEngine } from '../../utils/humorEngine';
 import BudgetChart from '../charts/BudgetChart';
 import { supabase } from '../../lib/supabase';
 import { EarningsSpendingSummary } from '../Dashboard/EarningsSpendingSummary';
+import { useSearchParams } from 'react-router-dom';
 
 export const AnalyticsView: React.FC = () => {
   const { getActiveTransactions, getDashboardStats, getActiveAccounts, purchases, lendBorrowRecords, getCategories } = useFinanceStore();
@@ -63,13 +69,26 @@ export const AnalyticsView: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<'current' | 'last3' | 'last6' | 'last12'>('current');
   const [selectedCurrency, setSelectedCurrency] = useState(stats.byCurrency[0]?.currency || 'USD');
   const [showTrends, setShowTrends] = useState(true);
-  const [expandedAccordions, setExpandedAccordions] = useState({
-    total: true,
-    budget: false,
-    purchase: false,
-    lendBorrow: false,
-    currency: false
-  });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Initialize activeTab from URL parameter or default to total
+  const getInitialTab = () => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['total', 'budget', 'purchase', 'currency'].includes(tabParam)) {
+      return tabParam;
+    }
+    return 'total';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+  
+  // Touch gesture handling for mobile swipe navigation
+  const touchStartX = useRef<number>(0);
+  const touchEndX = useRef<number>(0);
+  const touchStartY = useRef<number>(0);
+  const touchEndY = useRef<number>(0);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [currencyPeriod, setCurrencyPeriod] = useState<'1m' | '3m' | '6m' | '1y'>('1m');
   
   // Helper: Map account_id to currency (moved early for use in functions)
@@ -304,24 +323,72 @@ ${accounts.map(a =>
     return `${value.toFixed(1)}%`;
   };
 
-  // Accordion toggle function - only one section can be open at a time
-  const toggleAccordion = (accordion: 'total' | 'budget' | 'purchase' | 'lendBorrow' | 'currency') => {
-    setExpandedAccordions(prev => {
-      // If clicking the same section, keep it open (no toggle behavior)
-      if (prev[accordion]) {
-        return prev; // Keep current state unchanged
-      }
-      // If clicking a different section, close all others and open the clicked one
-      const newState = {
-        total: accordion === 'total',
-        budget: accordion === 'budget',
-        purchase: accordion === 'purchase',
-        lendBorrow: accordion === 'lendBorrow',
-        currency: accordion === 'currency'
-      };
-      return newState;
-    });
+  // Tab definitions
+  interface TabItem {
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }
+
+  const tabs: TabItem[] = [
+    { id: 'total', label: 'Total Analytics', icon: BarChart3 },
+    { id: 'budget', label: 'Budget Analytics', icon: Wallet },
+    { id: 'purchase', label: 'Purchase Analytics', icon: ShoppingBag },
+    { id: 'currency', label: 'Currency Analytics', icon: Coins }
+  ];
+
+  // Handle URL parameters for tab selection
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['total', 'budget', 'purchase', 'currency'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setSearchParams({ tab }, { replace: true });
+    // Close mobile menu when tab is selected
+    setIsMobileMenuOpen(false);
   };
+
+  const getActiveTabLabel = () => {
+    return tabs.find(tab => tab.id === activeTab)?.label || 'Total Analytics';
+  };
+
+  // Handle swipe gestures for mobile navigation
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.changedTouches[0].screenX;
+    touchStartY.current = e.changedTouches[0].screenY;
+  }, []);
+
+  const handleSwipe = useCallback(() => {
+    const swipeThreshold = 80;
+    const horizontalDistance = touchStartX.current - touchEndX.current;
+    const verticalDistance = Math.abs(touchStartY.current - touchEndY.current);
+    
+    // Only trigger swipe if horizontal movement is significantly greater than vertical
+    const isHorizontalSwipe = Math.abs(horizontalDistance) > verticalDistance * 2;
+    const isSignificantSwipe = Math.abs(horizontalDistance) > swipeThreshold;
+    
+    if (isHorizontalSwipe && isSignificantSwipe) {
+      const currentIndex = tabs.findIndex(tab => tab.id === activeTab);
+      
+      if (horizontalDistance > 0 && currentIndex < tabs.length - 1) {
+        // Swipe left - next tab
+        handleTabChange(tabs[currentIndex + 1].id);
+      } else if (horizontalDistance < 0 && currentIndex > 0) {
+        // Swipe right - previous tab
+        handleTabChange(tabs[currentIndex - 1].id);
+      }
+    }
+  }, [activeTab, tabs]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    touchEndX.current = e.changedTouches[0].screenX;
+    touchEndY.current = e.changedTouches[0].screenY;
+    handleSwipe();
+  }, [handleSwipe]);
 
   // Purchase Analytics Functions
   const getCurrencyPurchases = (currency: string) => {
@@ -1519,9 +1586,14 @@ ${accounts.map(a =>
 
     if (periodData.income === 0 && periodData.expenses === 0) {
       return (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Cash Flow Health</h3>
-          <div className="text-center text-gray-500 dark:text-gray-400">No data available for {selectedCurrency}</div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200/60 dark:border-gray-700/60 p-4 sm:p-6 shadow-md hover:shadow-lg transition-shadow duration-300">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
+              <TrendingUp className="w-4 h-4 text-white" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Cash Flow Health</h3>
+          </div>
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">No data available for {selectedCurrency}</div>
         </div>
       );
     }
@@ -1543,11 +1615,16 @@ ${accounts.map(a =>
     };
     
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200/60 dark:border-gray-700/60 p-4 sm:p-6 shadow-md hover:shadow-lg transition-shadow duration-300">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Cash Flow Health</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{selectedCurrency} • {getPeriodLabel()}</p>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
+              <TrendingUp className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Cash Flow Health</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{selectedCurrency} • {getPeriodLabel()}</p>
+            </div>
           </div>
           <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
             healthScore >= 70 ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300' :
@@ -1660,68 +1737,80 @@ ${accounts.map(a =>
 
     if (monthlyTrendsData.length === 0) {
       return (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Cash Flow ({selectedCurrency} - {getPeriodLabel()})</h3>
-          <div className="text-center text-gray-500 dark:text-gray-400">No trend data available</div>
+        <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200/60 dark:border-gray-700/60 p-3 sm:p-4 md:p-6 shadow-md">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <div className="p-1.5 sm:p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex-shrink-0">
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+            </div>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-tight">Cash Flow ({selectedCurrency} - {getPeriodLabel()})</h3>
+          </div>
+          <div className="text-center py-6 sm:py-8 text-sm sm:text-base text-gray-500 dark:text-gray-400">No trend data available</div>
         </div>
       );
     }
 
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Cash Flow ({selectedCurrency} - {getPeriodLabel()})</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <ComposedChart data={monthlyTrendsData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-            <XAxis 
-              dataKey="month" 
-              stroke="#6B7280"
-              fontSize={12}
-            />
-            <YAxis 
-              stroke="#6B7280"
-              fontSize={12}
-              tickFormatter={(value) => formatCurrency(value, selectedCurrency)}
-            />
-            <Tooltip 
-              formatter={(value: number) => [formatCurrency(value, selectedCurrency), '']}
-              labelFormatter={(label) => `${label} 2024`}
-              contentStyle={{
-                backgroundColor: '#1F2937',
-                border: '1px solid #374151',
-                borderRadius: '8px',
-                color: '#F9FAFB'
-              }}
-            />
-            <Legend />
-            <Area 
-              type="monotone" 
-              dataKey="income" 
-              stackId="1"
-              stroke="#10B981" 
-              fill="#10B981" 
-              fillOpacity={0.3}
-              name="Income"
-            />
-            <Area 
-              type="monotone" 
-              dataKey="expenses" 
-              stackId="1"
-              stroke="#EF4444" 
-              fill="#EF4444" 
-              fillOpacity={0.3}
-              name="Expenses"
-            />
-            <Line 
-              type="monotone" 
-              dataKey="net" 
-              stroke="#3B82F6" 
-              strokeWidth={3}
-              dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
-              name="Net"
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+      <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200/60 dark:border-gray-700/60 p-3 sm:p-4 md:p-6 shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+          <div className="p-1.5 sm:p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex-shrink-0">
+            <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+          </div>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-tight">Cash Flow ({selectedCurrency} - {getPeriodLabel()})</h3>
+        </div>
+        <div className="w-full overflow-x-auto -mx-3 sm:-mx-4 md:-mx-6 px-3 sm:px-4 md:px-6">
+          <ResponsiveContainer width="100%" height={250} className="sm:h-[280px] md:h-[300px]">
+            <ComposedChart data={monthlyTrendsData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <XAxis 
+                dataKey="month" 
+                stroke="#6B7280"
+                fontSize={12}
+              />
+              <YAxis 
+                stroke="#6B7280"
+                fontSize={12}
+                tickFormatter={(value) => formatCurrency(value, selectedCurrency)}
+              />
+              <Tooltip 
+                formatter={(value: number) => [formatCurrency(value, selectedCurrency), '']}
+                labelFormatter={(label) => `${label} 2024`}
+                contentStyle={{
+                  backgroundColor: '#1F2937',
+                  border: '1px solid #374151',
+                  borderRadius: '8px',
+                  color: '#F9FAFB'
+                }}
+              />
+              <Legend />
+              <Area 
+                type="monotone" 
+                dataKey="income" 
+                stackId="1"
+                stroke="#10B981" 
+                fill="#10B981" 
+                fillOpacity={0.3}
+                name="Income"
+              />
+              <Area 
+                type="monotone" 
+                dataKey="expenses" 
+                stackId="1"
+                stroke="#EF4444" 
+                fill="#EF4444" 
+                fillOpacity={0.3}
+                name="Expenses"
+              />
+              <Line 
+                type="monotone" 
+                dataKey="net" 
+                stroke="#3B82F6" 
+                strokeWidth={3}
+                dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
+                name="Net"
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     );
   };
@@ -1799,7 +1888,7 @@ ${accounts.map(a =>
 
     if (data.length === 0) {
       return (
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200/60 dark:border-gray-700/60 p-4 sm:p-6 shadow-md hover:shadow-lg transition-shadow duration-300">
           <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Spending Breakdown</h3>
           <div className="text-center text-gray-500 dark:text-gray-400">No spending data available</div>
         </div>
@@ -1819,11 +1908,16 @@ ${accounts.map(a =>
     };
     
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200/60 dark:border-gray-700/60 p-4 sm:p-6 shadow-md hover:shadow-lg transition-shadow duration-300">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Spending Breakdown</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{selectedCurrency} • {getPeriodLabel()}</p>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
+              <ShoppingBag className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Spending Breakdown</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{selectedCurrency} • {getPeriodLabel()}</p>
+            </div>
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-300">
             Total: <span className="font-semibold">{selectedCurrency === 'BDT' ? `৳${totalSpending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : formatCurrency(totalSpending, selectedCurrency)}</span>
@@ -2260,70 +2354,146 @@ ${accounts.map(a =>
   };
 
   return (
-    <div data-tour="analytics-overview" className="space-y-3 sm:space-y-4 md:space-y-6 px-2 sm:px-4 md:px-6 lg:px-0">
+    <div data-tour="analytics-overview" className="bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-lg dark:shadow-gray-800/50 border border-gray-100 dark:border-gray-800 p-0 pt-0 pb-4 sm:pb-6 px-2 sm:px-4 md:px-6 lg:px-8 w-full mt-0 max-w-full overflow-hidden">
+      {/* Mobile Tab Selector - Enhanced with better mobile UX */}
+      <div className="block sm:hidden mb-3 sm:mb-4 md:mb-6 pt-2 sm:pt-3 md:pt-4 px-2">
+        <div className="relative">
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="w-full flex items-center justify-between p-3 sm:p-3.5 bg-gradient-to-r from-blue-50 via-purple-50 to-blue-50 dark:from-gray-800 dark:via-gray-750 dark:to-gray-800 text-gray-700 dark:text-gray-100 rounded-xl sm:rounded-2xl border border-blue-200/50 dark:border-gray-600 shadow-md hover:shadow-lg hover:from-blue-100 hover:via-purple-100 hover:to-blue-100 dark:hover:from-gray-700 dark:hover:to-gray-700 transition-all duration-300 text-left"
+          >
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+              {(() => {
+                const activeTabData = tabs.find(tab => tab.id === activeTab);
+                const ActiveIcon = activeTabData?.icon;
+                return (
+                  <div className="p-1.5 sm:p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg sm:rounded-xl shadow-sm flex-shrink-0">
+                    {ActiveIcon ? (
+                      <ActiveIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+                    ) : (
+                      <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+                    )}
+                  </div>
+                );
+              })()}
+              <div className="min-w-0 flex-1">
+                <span className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate block">
+                  {getActiveTabLabel()}
+                </span>
+                <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Tap to switch sections
+                </div>
+              </div>
+            </div>
+            <ChevronDown 
+              className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-gray-400 transition-transform duration-300 flex-shrink-0 ml-2 ${
+                isMobileMenuOpen ? 'rotate-180' : ''
+              }`} 
+            />
+          </button>
+          
+          {/* Enhanced Mobile Dropdown Menu */}
+          {isMobileMenuOpen && (
+            <div className="absolute z-50 mt-2 sm:mt-3 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 shadow-2xl rounded-xl sm:rounded-2xl max-h-[70vh] sm:max-h-80 overflow-y-auto backdrop-blur-sm">
+              <div className="p-2 sm:p-2.5">
+                {tabs.map((tab) => {
+                  const IconComponent = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      className={`w-full flex items-center justify-between text-left px-2.5 sm:px-3 py-2.5 sm:py-3 mb-1 sm:mb-1.5 rounded-lg sm:rounded-xl transition-all duration-200 ${
+                        isActive 
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg transform scale-[0.98]' 
+                          : 'text-gray-700 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 hover:scale-[0.99]'
+                      }`}
+                      onClick={() => handleTabChange(tab.id)}
+                    >
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                        {IconComponent && (
+                          <div className={`p-1 sm:p-1.5 rounded-md sm:rounded-lg flex-shrink-0 ${
+                            isActive 
+                              ? 'bg-white/20' 
+                              : 'bg-gray-100 dark:bg-gray-700'
+                          }`}>
+                            <IconComponent className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
+                              isActive 
+                                ? 'text-white' 
+                                : 'text-gray-600 dark:text-gray-300'
+                            }`} />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <span className="text-xs sm:text-sm font-medium truncate">{tab.label}</span>
+                          </div>
+                          {isActive && (
+                            <div className="text-[10px] sm:text-xs opacity-90 mt-0.5">Currently viewing</div>
+                          )}
+                        </div>
+                      </div>
+                      {isActive && (
+                        <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 ml-2" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
-      {/* Accordion Structure */}
-      <div className="space-y-3 sm:space-y-4">
-        {/* Tab-Style Navigation */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-            <button 
-              onClick={() => toggleAccordion('total')}
-              className={`flex-1 min-w-[80px] px-2 sm:px-3 md:px-6 py-2 sm:py-3 md:py-4 text-center font-medium transition-colors text-xs sm:text-sm md:text-base whitespace-nowrap ${
-                expandedAccordions.total 
-                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-            >
-              <span className="hidden md:inline">Total Analytics</span>
-              <span className="hidden sm:inline md:hidden">Total</span>
-              <span className="sm:hidden">Total</span>
-            </button>
-            <button 
-              onClick={() => toggleAccordion('budget')}
-              className={`flex-1 min-w-[80px] px-2 sm:px-3 md:px-6 py-2 sm:py-3 md:py-4 text-center font-medium transition-colors text-xs sm:text-sm md:text-base whitespace-nowrap ${
-                expandedAccordions.budget 
-                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-            >
-              <span className="hidden md:inline">Budget Analytics</span>
-              <span className="hidden sm:inline md:hidden">Budget</span>
-              <span className="sm:hidden">Budget</span>
-            </button>
-            <button 
-              onClick={() => toggleAccordion('purchase')}
-              className={`flex-1 min-w-[80px] px-2 sm:px-3 md:px-6 py-2 sm:py-3 md:py-4 text-center font-medium transition-colors text-xs sm:text-sm md:text-base whitespace-nowrap ${
-                expandedAccordions.purchase 
-                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-            >
-              <span className="hidden md:inline">Purchase Analytics</span>
-              <span className="hidden sm:inline md:hidden">Purchase</span>
-              <span className="sm:hidden">Purchase</span>
-            </button>
-            <button 
-              onClick={() => toggleAccordion('currency')}
-              className={`flex-1 min-w-[80px] px-2 sm:px-3 md:px-6 py-2 sm:py-3 md:py-4 text-center font-medium transition-colors text-xs sm:text-sm md:text-base whitespace-nowrap ${
-                expandedAccordions.currency 
-                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' 
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-            >
-              <span className="hidden md:inline">Currency Analytics</span>
-              <span className="hidden sm:inline md:hidden">Currency</span>
-              <span className="sm:hidden">Currency</span>
-            </button>
+      {/* Desktop Tab Navigation */}
+      <div className="hidden sm:block">
+        <nav className="flex space-x-1 sm:space-x-2 mb-4 sm:mb-6 md:mb-8 border-b border-gray-200 dark:border-gray-700 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-2 sm:px-4 md:px-0" style={{ paddingTop: '0.75rem' }}>
+          <div className="flex min-w-max">
+            {tabs.map((tab) => {
+              const IconComponent = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  className={`group relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm font-medium rounded-t-lg sm:rounded-t-xl transition-all duration-200 whitespace-nowrap min-h-[44px] touch-manipulation ${
+                    isActive
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                  onClick={() => handleTabChange(tab.id)}
+                >
+                  {IconComponent && (
+                    <IconComponent className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-all duration-200 flex-shrink-0 ${
+                      isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'
+                    }`} />
+                  )}
+                  <span className="hidden md:inline">{tab.label}</span>
+                  <span className="md:hidden">{tab.label.replace(' Analytics', '')}</span>
+                  {isActive && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full" />
+                  )}
+                </button>
+              );
+            })}
           </div>
+        </nav>
+      </div>
+
+      {/* Tab Content - Optimized for Mobile with Swipe Support */}
+      <div 
+        ref={contentRef}
+        className="min-h-[300px] sm:min-h-[400px] px-2 sm:px-4 md:px-6 lg:px-0 touch-pan-y transition-all duration-300"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="space-y-3 sm:space-y-4 md:space-y-5">
 
           {/* Shared Filter Bar - Hidden for Budget and Currency Analytics */}
-          {!expandedAccordions.budget && !expandedAccordions.currency && (
-            <div className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50/30 to-purple-50/30 dark:from-blue-900/10 dark:to-purple-900/10">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-4">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+          {activeTab !== 'budget' && activeTab !== 'currency' && (
+            <div className="mb-3 sm:mb-4 md:mb-6 px-3 sm:px-4 md:px-5 lg:px-6 py-2.5 sm:py-3 md:py-4 rounded-lg sm:rounded-xl border border-gray-200/60 dark:border-gray-700/60 bg-gradient-to-r from-blue-50/50 via-purple-50/50 to-blue-50/50 dark:from-blue-900/15 dark:via-purple-900/15 dark:to-blue-900/15 shadow-sm backdrop-blur-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3 md:gap-4">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 md:gap-4 w-full sm:w-auto">
                   {/* Currency Filter */}
-                  <div className="flex-1 sm:flex-none">
+                  <div className="flex-1 sm:flex-none min-w-0">
                     <CustomDropdown
                       value={selectedCurrency}
                       onChange={setSelectedCurrency}
@@ -2337,7 +2507,7 @@ ${accounts.map(a =>
                   </div>
 
                   {/* Period Filter */}
-                  <div className="flex-1 sm:flex-none">
+                  <div className="flex-1 sm:flex-none min-w-0">
                     <CustomDropdown
                       value={selectedPeriod}
                       onChange={(value) => setSelectedPeriod(value as 'current' | 'last3' | 'last6' | 'last12')}
@@ -2354,13 +2524,13 @@ ${accounts.map(a =>
                 </div>
 
                 {/* Hide Trends Toggle - Hidden for Purchase Analytics */}
-                {!expandedAccordions.purchase && (
+                {activeTab !== 'purchase' && (
                   <button
                     onClick={() => setShowTrends(!showTrends)}
-                    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors w-full sm:w-auto ${
+                    className={`px-3 sm:px-4 md:px-5 py-2.5 sm:py-3 min-h-[44px] rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 w-full sm:w-auto shadow-sm hover:shadow-md touch-manipulation ${
                       showTrends 
-                        ? 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-700 dark:text-blue-300' 
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-blue-200/50 dark:shadow-blue-900/30 hover:from-blue-600 hover:to-purple-600' 
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                   >
                     <span className="hidden sm:inline">{showTrends ? 'Hide Trends' : 'Show Trends'}</span>
@@ -2372,12 +2542,12 @@ ${accounts.map(a =>
           )}
 
           {/* Budget Analytics Filter Bar - Only Currency Filter */}
-          {expandedAccordions.budget && (
-            <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50/30 to-purple-50/30 dark:from-blue-900/10 dark:to-purple-900/10">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+          {activeTab === 'budget' && (
+            <div className="mb-3 sm:mb-4 md:mb-6 px-3 sm:px-4 md:px-5 lg:px-6 py-2.5 sm:py-3 md:py-4 rounded-lg sm:rounded-xl border border-gray-200/60 dark:border-gray-700/60 bg-gradient-to-r from-blue-50/50 via-purple-50/50 to-blue-50/50 dark:from-blue-900/15 dark:via-purple-900/15 dark:to-blue-900/15 shadow-sm backdrop-blur-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3 md:gap-4">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 md:gap-4 w-full sm:w-auto">
                   {/* Currency Filter Only */}
-                  <div className="flex-1 sm:flex-none">
+                  <div className="flex-1 sm:flex-none min-w-0">
                     <CustomDropdown
                       value={selectedCurrency}
                       onChange={setSelectedCurrency}
@@ -2395,12 +2565,12 @@ ${accounts.map(a =>
           )}
 
           {/* Currency Analytics Filter Bar - Period Filter */}
-          {expandedAccordions.currency && (
-            <div className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50/30 to-purple-50/30 dark:from-blue-900/10 dark:to-purple-900/10">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-4">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+          {activeTab === 'currency' && (
+            <div className="mb-3 sm:mb-4 md:mb-6 px-3 sm:px-4 md:px-5 lg:px-6 py-2.5 sm:py-3 md:py-4 rounded-lg sm:rounded-xl border border-gray-200/60 dark:border-gray-700/60 bg-gradient-to-r from-blue-50/50 via-purple-50/50 to-blue-50/50 dark:from-blue-900/15 dark:via-purple-900/15 dark:to-blue-900/15 shadow-sm backdrop-blur-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3 md:gap-4">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 md:gap-4 w-full sm:w-auto">
                   {/* Period Filter */}
-                  <div className="flex-1 sm:flex-none">
+                  <div className="flex-1 sm:flex-none min-w-0">
                     <CustomDropdown
                       value={currencyPeriod}
                       onChange={(value) => setCurrencyPeriod(value as '1m' | '3m' | '6m' | '1y')}
@@ -2419,31 +2589,31 @@ ${accounts.map(a =>
             </div>
           )}
 
-          {expandedAccordions.total && (
-            <div className="px-3 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6 space-y-3 sm:space-y-4 md:space-y-6" style={{ marginTop: '10px' }}>
-      {/* Monthly Trends Chart - Full Width */}
-      {showTrends && <div data-tour="balance-trend" style={{ marginTop: '10px' }}><MonthlyTrendsChart /></div>}
+          {activeTab === 'total' && (
+            <div className="pb-3 sm:pb-4 md:pb-6 space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6">
+              {/* Monthly Trends Chart - Full Width */}
+              {showTrends && <div data-tour="balance-trend"><MonthlyTrendsChart /></div>}
 
-      {/* Main Analytics Grid - Enhanced Mobile Layout */}
-      <div data-tour="spending-chart" className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <NetCashFlowGauge />
-        <SpendingByCategoryDonut />
-      </div>
+              {/* Main Analytics Grid - Enhanced Mobile Layout */}
+              <div data-tour="spending-chart" className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
+                <NetCashFlowGauge />
+                <SpendingByCategoryDonut />
+              </div>
 
-      {/* Positive Reinforcement Alerts */}
-      <PositiveReinforcementAlerts />
+              {/* Positive Reinforcement Alerts */}
+              <PositiveReinforcementAlerts />
             </div>
           )}
 
-          {expandedAccordions.budget && (
-            <div className="px-2 sm:px-3 md:px-4 pb-3 sm:pb-4 md:pb-6">
+          {activeTab === 'budget' && (
+            <div className="pb-3 sm:pb-4 md:pb-6">
               {/* Budget Chart */}
               <BudgetChart data={budgetData} currency={selectedCurrency} />
             </div>
           )}
 
-          {expandedAccordions.purchase && (
-            <div className="px-3 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6 space-y-3 sm:space-y-4 md:space-y-6" style={{ marginTop: '10px' }}>
+          {activeTab === 'purchase' && (
+            <div className="pb-3 sm:pb-4 md:pb-6 space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6">
               {/* KPI Cards */}
               <PurchaseKPICards />
 
@@ -2454,19 +2624,21 @@ ${accounts.map(a =>
             </div>
           )}
 
-          {expandedAccordions.currency && (
-            <div className="px-3 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6 space-y-4 sm:space-y-5 md:space-y-6" style={{ marginTop: '10px' }}>
+          {activeTab === 'currency' && (
+            <div className="pb-3 sm:pb-4 md:pb-6 space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6">
               {hasNoAccounts ? (
-                <div className="text-center py-8 sm:py-10 md:py-12">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                    <BarChart3 className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-gray-400 dark:text-gray-500" />
+                <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200/60 dark:border-gray-700/60 p-8 sm:p-10 md:p-12 shadow-md">
+                  <div className="text-center">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                      <BarChart3 className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">
+                      No Currency Data Available
+                    </h3>
+                    <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 px-4 max-w-md mx-auto">
+                      Add accounts with different currencies to see currency analytics.
+                    </p>
                   </div>
-                  <h3 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                    No Currency Data Available
-                  </h3>
-                  <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 px-4">
-                    Add accounts with different currencies to see currency analytics.
-                  </p>
                 </div>
               ) : (
                 <>

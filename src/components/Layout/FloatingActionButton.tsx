@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Wallet, CreditCard, ArrowLeftRight, ShoppingCart, Handshake, MessageCircle, Users } from 'lucide-react';
+import { Plus, Wallet, CreditCard, ArrowLeftRight, ShoppingCart, Handshake, MessageCircle, Users, Sprout, BookOpen, Sparkles } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Dialog, Transition } from '@headlessui/react';
 import { TransferModal } from '../Transfers/TransferModal';
@@ -9,6 +9,8 @@ import { TransactionForm } from '../Transactions/TransactionForm';
 import { BulkTransactionForm } from '../Transactions/BulkTransactionForm';
 import { ClientForm } from '../Clients/ClientForm';
 import { LendBorrowForm } from '../LendBorrow/LendBorrowForm';
+import { HabitForm } from '../Habits/HabitForm';
+import { CourseForm } from '../Learning/CourseForm';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { PurchaseForm } from '../Purchases/PurchaseForm';
@@ -38,11 +40,11 @@ const ActionButton: React.FC<ActionButtonProps> = ({ icon: Icon, label, onClick,
       style={{ transitionDelay: delay }}
       title={label}
     >
-      <span className={`${color} text-white p-2.5 rounded-full shadow-md flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-200`}>
-        <Icon className="w-5 h-5" />
+      <span className={`${color} text-white p-2 sm:p-2.5 rounded-full shadow-md flex items-center justify-center mr-2 sm:mr-3 group-hover:scale-110 transition-transform duration-200 flex-shrink-0`}>
+        <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
       </span>
       <span
-        className="px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-gray-700 transition-colors w-44 min-w-44 text-left flex-shrink-0 group-hover:bg-white/10 dark:group-hover:bg-gray-100/10 duration-150"
+        className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium shadow-sm border border-gray-700 transition-colors flex-1 min-w-0 text-left group-hover:bg-white/10 dark:group-hover:bg-gray-100/10 duration-150 truncate"
         style={{ background: '#4c54618f', color: 'white' }}
       >
         {label}
@@ -63,6 +65,8 @@ export const FloatingActionButton: React.FC = () => {
   const [showTip, setShowTip] = useState(true);
   const [showBulkTransactionForm, setShowBulkTransactionForm] = useState(false);
   const [showClientForm, setShowClientForm] = useState(false);
+  const [showHabitForm, setShowHabitForm] = useState(false);
+  const [showCourseForm, setShowCourseForm] = useState(false);
   const { isMobile, isBrowser } = useMobileDetection();
   const { isMobileSidebarOpen } = useMobileSidebar();
   // Detect Android for proper bottom offset
@@ -180,18 +184,45 @@ export const FloatingActionButton: React.FC = () => {
     setIsOpen(false);
   }, []);
 
-  const actions = React.useMemo(() => [
-    // AI Chat temporarily hidden - will be enabled later
-    // { label: 'AI Chat', icon: MessageCircle, color: 'bg-gradient-to-r from-blue-600 to-purple-600', onClick: () => handleAction(handleAIChat), delay: '250ms' },
-    { label: t('dashboard.addTransaction'), icon: CreditCard, color: 'bg-blue-600', onClick: () => handleAction(handleAddTransaction), delay: '200ms' },
-    // Bulk Add Transactions temporarily hidden - will be enabled later
-    // { label: 'Bulk Add Transactions', icon: CreditCard, color: 'bg-blue-500', onClick: () => handleAction(handleAddBulkTransactions), delay: '190ms' },
-    { label: 'Add Purchase', icon: ShoppingCart, color: 'bg-orange-600', onClick: () => handleAction(handleAddPurchase), delay: '150ms' },
-    { label: 'Lent & Borrow', icon: Handshake, color: 'bg-indigo-600', onClick: () => handleAction(() => setShowLendBorrowForm(true)), delay: '100ms' },
-    { label: 'Add Client', icon: Users, color: 'bg-teal-600', onClick: () => handleAction(() => setShowClientForm(true)), delay: '75ms' },
-    { label: t('dashboard.addAccount'), icon: Wallet, color: 'bg-green-600', onClick: () => handleAction(() => setShowAccountFormLocal(true)), delay: '50ms' },
-    { label: t('dashboard.transfer'), icon: ArrowLeftRight, color: 'bg-purple-600', onClick: handleTransfer, delay: '0ms' },
-  ], [t, handleAction, handleAddTransaction, handleAddPurchase, setShowLendBorrowForm, setShowAccountFormLocal, handleTransfer]);
+  const handleAddHabit = React.useCallback(() => {
+    setShowHabitForm(true);
+  }, []);
+
+  const handleAddCourse = React.useCallback(() => {
+    setShowCourseForm(true);
+  }, []);
+
+  const handleCourseSuccess = React.useCallback(() => {
+    setShowCourseForm(false);
+  }, []);
+
+  const handleViewPersonalGrowth = React.useCallback(() => {
+    navigate('/personal-growth');
+    setIsOpen(false);
+  }, [navigate]);
+
+  // Group actions by category
+  const actionsByCategory = React.useMemo(() => {
+    const financial = [
+      { label: t('dashboard.addTransaction'), icon: CreditCard, color: 'bg-blue-600', onClick: () => handleAction(handleAddTransaction), delay: '200ms' },
+      { label: 'Add Purchase', icon: ShoppingCart, color: 'bg-orange-600', onClick: () => handleAction(handleAddPurchase), delay: '150ms' },
+      { label: t('dashboard.transfer'), icon: ArrowLeftRight, color: 'bg-purple-600', onClick: handleTransfer, delay: '0ms' },
+      { label: t('dashboard.addAccount'), icon: Wallet, color: 'bg-green-600', onClick: () => handleAction(() => setShowAccountFormLocal(true)), delay: '50ms' },
+      { label: 'Lent & Borrow', icon: Handshake, color: 'bg-indigo-600', onClick: () => handleAction(() => setShowLendBorrowForm(true)), delay: '100ms' },
+      { label: 'Add Client', icon: Users, color: 'bg-teal-600', onClick: () => handleAction(() => setShowClientForm(true)), delay: '75ms' },
+    ];
+    
+    const personalGrowth = [
+      { label: 'Add Habit', icon: Sprout, color: 'bg-emerald-600', onClick: () => handleAction(handleAddHabit), delay: '140ms' },
+      { label: 'Add Course', icon: BookOpen, color: 'bg-cyan-600', onClick: () => handleAction(handleAddCourse), delay: '130ms' },
+      { label: 'View Personal Growth', icon: Sparkles, color: 'bg-gradient-to-r from-purple-600 to-pink-600', onClick: () => handleAction(handleViewPersonalGrowth), delay: '160ms' },
+    ];
+    
+    return [
+      { category: 'Financial', actions: financial },
+      { category: 'Personal Growth', actions: personalGrowth },
+    ];
+  }, [t, handleAction, handleAddTransaction, handleAddPurchase, handleAddHabit, handleAddCourse, setShowLendBorrowForm, setShowAccountFormLocal, handleTransfer, setShowClientForm, handleViewPersonalGrowth]);
 
 
 
@@ -225,13 +256,13 @@ export const FloatingActionButton: React.FC = () => {
   return (
     <>
       <div 
-        className={`fixed right-6 z-50 flex flex-col items-end ${isMobile && isMobileSidebarOpen ? 'hidden' : ''} ${isBrowser && isMobile ? 'browser-fab-positioning' : ''}`}
+        className={`fixed right-3 sm:right-4 md:right-6 z-50 flex flex-col items-end ${isMobile && isMobileSidebarOpen ? 'hidden' : ''} ${isBrowser && isMobile ? 'browser-fab-positioning' : ''}`}
         style={{ 
           bottom: isBrowser && isMobile 
             ? undefined 
             : isAndroid && !isBrowser
               ? `max(3.5rem, calc(3.5rem + env(safe-area-inset-bottom, 0px)))`
-              : `max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)))`
+              : `max(1rem, calc(1rem + env(safe-area-inset-bottom, 0px)))`
         }}
       >
         <div className="relative flex flex-col items-end">
@@ -245,10 +276,35 @@ export const FloatingActionButton: React.FC = () => {
             leaveFrom="opacity-100 translate-y-0"
             leaveTo="opacity-0 translate-y-4"
           >
-            <div className="absolute bottom-full right-0 mb-4 p-4 rounded-2xl shadow-2xl flex flex-col gap-2 min-w-[220px] z-50 bg-gradient-primary">
-              {actions.map((action) => (
-                <ActionButton key={action.label} {...action} />
-              ))}
+            <div className="absolute bottom-full right-0 mb-2 sm:mb-4 rounded-xl sm:rounded-2xl shadow-2xl z-50 bg-gradient-primary overflow-hidden w-[calc(100vw-3rem)] max-w-[280px] sm:max-w-[440px] sm:min-w-[280px] md:min-w-[360px] lg:min-w-[440px]">
+              <div className="max-h-[60vh] sm:max-h-[400px] overflow-y-auto p-3 sm:p-4 flex flex-col gap-2 sm:gap-3 custom-scrollbar">
+                {actionsByCategory.map((categoryGroup) => {
+                  const viewPersonalGrowthAction = categoryGroup.category === 'Personal Growth' 
+                    ? categoryGroup.actions.find(action => action.label === 'View Personal Growth')
+                    : null;
+                  const regularActions = categoryGroup.category === 'Personal Growth'
+                    ? categoryGroup.actions.filter(action => action.label !== 'View Personal Growth')
+                    : categoryGroup.actions;
+
+                  return (
+                    <div key={categoryGroup.category} className="flex flex-col gap-1.5 sm:gap-2">
+                      <div className="text-[10px] sm:text-xs font-semibold text-white/80 uppercase tracking-wider px-1 mb-0.5 sm:mb-1">
+                        {categoryGroup.category}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
+                        {regularActions.map((action) => (
+                          <ActionButton key={action.label} {...action} />
+                        ))}
+                      </div>
+                      {viewPersonalGrowthAction && (
+                        <div className="w-full mt-1 sm:mt-1.5">
+                          <ActionButton {...viewPersonalGrowthAction} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </Transition>
           {/* Helper Tip - now left of the button, no background - only show on desktop */}
@@ -263,10 +319,10 @@ export const FloatingActionButton: React.FC = () => {
             <button
               data-tour="quick-actions"
               onClick={() => setIsOpen(!isOpen)}
-              className="text-white p-3.5 rounded-full shadow-lg bg-gradient-primary hover:bg-gradient-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus-ring-gradient"
+              className="text-white p-3 sm:p-3.5 rounded-full shadow-lg bg-gradient-primary hover:bg-gradient-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus-ring-gradient transition-all"
               aria-label={isOpen ? 'Close actions' : 'Open actions'}
             >
-              <Plus className={`w-5 h-5 transition-transform duration-200 ${isOpen ? 'rotate-45' : 'rotate-0'}`} />
+              <Plus className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-200 ${isOpen ? 'rotate-45' : 'rotate-0'}`} />
             </button>
           </div>
         </div>
@@ -326,6 +382,22 @@ export const FloatingActionButton: React.FC = () => {
         <ClientForm 
           isOpen={showClientForm} 
           onClose={() => setShowClientForm(false)} 
+        />
+      )}
+
+      {showHabitForm && (
+        <HabitForm 
+          isOpen={showHabitForm} 
+          onClose={() => setShowHabitForm(false)} 
+          habit={null}
+        />
+      )}
+
+      {showCourseForm && (
+        <CourseForm 
+          course={null}
+          onClose={() => setShowCourseForm(false)} 
+          onSuccess={handleCourseSuccess}
         />
       )}
 

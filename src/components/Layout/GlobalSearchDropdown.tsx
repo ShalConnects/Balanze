@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, DollarSign, Users, CheckSquare, FileText } from 'lucide-react';
+import { Search, DollarSign, Users, CheckSquare, FileText, Sprout, BookOpen } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useClientStore } from '../../store/useClientStore';
+import { useHabitStore } from '../../store/useHabitStore';
+import { useCourseStore } from '../../store/useCourseStore';
 import { supabase } from '../../lib/supabase';
 import Fuse from 'fuse.js';
 import { useNavigate } from 'react-router-dom';
@@ -105,6 +107,11 @@ const SYNONYMS: Record<string, string[]> = {
   bill: ['invoice', 'receipt', 'statement', 'charge', 'payment'],
   receipt: ['invoice', 'bill', 'statement', 'proof of payment'],
   
+  // Habit/Routine synonyms
+  habit: ['routine', 'tracker', 'daily', 'practice', 'custom', 'behavior', 'activity'],
+  routine: ['habit', 'tracker', 'daily', 'practice', 'custom', 'schedule'],
+  tracker: ['habit', 'routine', 'tracking', 'monitor', 'log'],
+  
   // Categories
   food: ['dining', 'restaurant', 'groceries', 'meals', 'eating'],
   transport: ['travel', 'commute', 'gas', 'fuel', 'transportation'],
@@ -166,6 +173,8 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 }) => {
   const { globalSearchTerm, transactions, accounts, setGlobalSearchTerm, purchases, lendBorrowRecords, donationSavingRecords } = useFinanceStore();
   const { clients, tasks, invoices } = useClientStore();
+  const { habits } = useHabitStore();
+  const { courses } = useCourseStore();
   const navigate = useNavigate();
   const [transfers, setTransfers] = useState<any[]>([]);
   const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
@@ -191,6 +200,8 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   const [showAllClients, setShowAllClients] = useState(false);
   const [showAllTasks, setShowAllTasks] = useState(false);
   const [showAllInvoices, setShowAllInvoices] = useState(false);
+  const [showAllHabits, setShowAllHabits] = useState(false);
+  const [showAllCourses, setShowAllCourses] = useState(false);
 
   // Handle result click navigation
   const handleResultClick = (type: string, item: any) => {
@@ -253,6 +264,12 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         } else {
           navigate(`/clients?from=search`);
         }
+        break;
+      case 'habit':
+        navigate(`/personal-growth?tab=habits&from=search`);
+        break;
+      case 'course':
+        navigate(`/personal-growth?tab=learning&from=search`);
         break;
       default:
 
@@ -350,9 +367,16 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       }
     });
     
+    // Get suggestions from habits
+    (habits || []).forEach(habit => {
+      if (habit.title?.toLowerCase().includes(queryLower)) {
+        suggestions.push(habit.title);
+      }
+    });
+    
     // Remove duplicates and limit to 3 suggestions
     return [...new Set(suggestions)].slice(0, 3);
-  }, [transactions, accounts, purchases, lendBorrowRecords, clients, tasks, invoices]);
+  }, [transactions, accounts, purchases, lendBorrowRecords, clients, tasks, invoices, habits]);
 
   // Debounce search input for performance
   useEffect(() => {
@@ -562,6 +586,30 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     ignoreLocation: true,
     useExtendedSearch: true,
   });
+  const fuseHabits = new Fuse(habits || [], {
+    threshold: 0.3,
+    keys: [
+      { name: 'title', weight: 0.5 },
+      { name: 'description', weight: 0.3 },
+    ],
+    includeMatches: true,
+    minMatchCharLength: 1,
+    findAllMatches: true,
+    ignoreLocation: true,
+    useExtendedSearch: true,
+  });
+  const fuseCourses = new Fuse(courses || [], {
+    threshold: 0.3,
+    keys: [
+      { name: 'name', weight: 0.5 },
+      { name: 'description', weight: 0.3 },
+    ],
+    includeMatches: true,
+    minMatchCharLength: 1,
+    findAllMatches: true,
+    ignoreLocation: true,
+    useExtendedSearch: true,
+  });
 
   // Memoized search results with caching
   const searchResults = useMemo(() => {
@@ -575,7 +623,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         fuzzyDonations: [],
         fuzzyClients: [],
         fuzzyTasks: [],
-        fuzzyInvoices: []
+        fuzzyInvoices: [],
+        fuzzyHabits: [],
+        fuzzyCourses: []
       };
     }
 
@@ -598,7 +648,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       fuzzyDonations: fuseDonations.search(expandedQuery),
       fuzzyClients: fuseClients.search(expandedQuery),
       fuzzyTasks: fuseTasks.search(expandedQuery),
-      fuzzyInvoices: fuseInvoices.search(expandedQuery)
+      fuzzyInvoices: fuseInvoices.search(expandedQuery),
+      fuzzyHabits: fuseHabits.search(expandedQuery),
+      fuzzyCourses: fuseCourses.search(expandedQuery)
     };
 
     // Cache results (limit cache size to prevent memory issues)
@@ -611,9 +663,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     searchCache.set(cacheKey, results);
 
     return results;
-  }, [debouncedSearch, fuseTransactions, fuseAccounts, fuseTransfers, fusePurchases, fuseLendBorrow, fuseDonations, fuseClients, fuseTasks, fuseInvoices, searchCache]);
+  }, [debouncedSearch, fuseTransactions, fuseAccounts, fuseTransfers, fusePurchases, fuseLendBorrow, fuseDonations, fuseClients, fuseTasks, fuseInvoices, fuseHabits, fuseCourses, searchCache]);
 
-  const { fuzzyTransactions, fuzzyAccounts, fuzzyTransfers, fuzzyPurchases, fuzzyLendBorrow, fuzzyDonations, fuzzyClients, fuzzyTasks, fuzzyInvoices } = searchResults;
+  const { fuzzyTransactions, fuzzyAccounts, fuzzyTransfers, fuzzyPurchases, fuzzyLendBorrow, fuzzyDonations, fuzzyClients, fuzzyTasks, fuzzyInvoices, fuzzyHabits, fuzzyCourses } = searchResults;
 
   // Simple date-based sorting function - latest first within each category
   const sortByLatest = (results: any[]) => {
@@ -637,12 +689,14 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   const rankedClients = search ? sortByLatest(fuzzyClients) : [];
   const rankedTasks = search ? sortByLatest(fuzzyTasks) : [];
   const rankedInvoices = search ? sortByLatest(fuzzyInvoices) : [];
+  const rankedHabits = search ? sortByLatest(fuzzyHabits) : [];
+  const rankedCourses = search ? sortByLatest(fuzzyCourses) : [];
 
 
   // Debug logging - REMOVED to prevent console flooding
 
   // Calculate total results for keyboard navigation
-  const totalResults = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length + rankedClients.length + rankedTasks.length + rankedInvoices.length;
+  const totalResults = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length + rankedClients.length + rankedTasks.length + rankedInvoices.length + rankedHabits.length + rankedCourses.length;
 
   // Highlight helper
   function highlight(text: string, matches: any[]): React.ReactNode {
@@ -701,32 +755,71 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       }
       if (e.key === 'Enter') {
         let item;
+        let itemType = '';
         if (search) {
-          if (rankedTransactions.length > 0 && highlightedIdx < rankedTransactions.length) {
+          const txLen = rankedTransactions.length;
+          const purLen = rankedPurchases.length;
+          const trfLen = rankedTransfers.length;
+          const accLen = rankedAccounts.length;
+          const lbLen = rankedLendBorrow.length;
+          const donLen = rankedDonations.length;
+          const cliLen = rankedClients.length;
+          const tasLen = rankedTasks.length;
+          const invLen = rankedInvoices.length;
+          const habLen = rankedHabits.length;
+          const couLen = rankedCourses.length;
+          
+          if (txLen > 0 && highlightedIdx < txLen) {
             item = rankedTransactions[highlightedIdx]?.item;
-          } else if (rankedPurchases.length > 0 && highlightedIdx >= rankedTransactions.length && highlightedIdx < rankedTransactions.length + rankedPurchases.length) {
-            item = rankedPurchases[highlightedIdx - rankedTransactions.length]?.item;
-          } else if (rankedTransfers.length > 0 && highlightedIdx >= rankedTransactions.length + rankedPurchases.length && highlightedIdx < rankedTransactions.length + rankedPurchases.length + rankedTransfers.length) {
-            item = rankedTransfers[highlightedIdx - rankedTransactions.length - rankedPurchases.length]?.item;
-          } else if (rankedAccounts.length > 0 && highlightedIdx >= rankedTransactions.length + rankedPurchases.length + rankedTransfers.length && highlightedIdx < rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length) {
-            item = rankedAccounts[highlightedIdx - rankedTransactions.length - rankedPurchases.length - rankedTransfers.length]?.item;
-          } else if (rankedLendBorrow.length > 0 && highlightedIdx >= rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length) {
-            item = rankedLendBorrow[highlightedIdx - rankedTransactions.length - rankedPurchases.length - rankedTransfers.length - rankedAccounts.length]?.item;
+            itemType = 'transaction';
+          } else if (purLen > 0 && highlightedIdx >= txLen && highlightedIdx < txLen + purLen) {
+            item = rankedPurchases[highlightedIdx - txLen]?.item;
+            itemType = 'purchase';
+          } else if (trfLen > 0 && highlightedIdx >= txLen + purLen && highlightedIdx < txLen + purLen + trfLen) {
+            item = rankedTransfers[highlightedIdx - txLen - purLen]?.item;
+            itemType = 'transfer';
+          } else if (accLen > 0 && highlightedIdx >= txLen + purLen + trfLen && highlightedIdx < txLen + purLen + trfLen + accLen) {
+            item = rankedAccounts[highlightedIdx - txLen - purLen - trfLen]?.item;
+            itemType = 'account';
+          } else if (lbLen > 0 && highlightedIdx >= txLen + purLen + trfLen + accLen && highlightedIdx < txLen + purLen + trfLen + accLen + lbLen) {
+            item = rankedLendBorrow[highlightedIdx - txLen - purLen - trfLen - accLen]?.item;
+            itemType = 'lendborrow';
+          } else if (donLen > 0 && highlightedIdx >= txLen + purLen + trfLen + accLen + lbLen && highlightedIdx < txLen + purLen + trfLen + accLen + lbLen + donLen) {
+            item = rankedDonations[highlightedIdx - txLen - purLen - trfLen - accLen - lbLen]?.item;
+            itemType = 'donation';
+          } else if (cliLen > 0 && highlightedIdx >= txLen + purLen + trfLen + accLen + lbLen + donLen && highlightedIdx < txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen) {
+            item = rankedClients[highlightedIdx - txLen - purLen - trfLen - accLen - lbLen - donLen]?.item;
+            itemType = 'client';
+          } else if (tasLen > 0 && highlightedIdx >= txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen && highlightedIdx < txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen + tasLen) {
+            item = rankedTasks[highlightedIdx - txLen - purLen - trfLen - accLen - lbLen - donLen - cliLen]?.item;
+            itemType = 'task';
+          } else if (invLen > 0 && highlightedIdx >= txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen + tasLen && highlightedIdx < txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen + tasLen + invLen) {
+            item = rankedInvoices[highlightedIdx - txLen - purLen - trfLen - accLen - lbLen - donLen - cliLen - tasLen]?.item;
+            itemType = 'invoice';
+          } else if (habLen > 0 && highlightedIdx >= txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen + tasLen + invLen && highlightedIdx < txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen + tasLen + invLen + habLen) {
+            item = rankedHabits[highlightedIdx - txLen - purLen - trfLen - accLen - lbLen - donLen - cliLen - tasLen - invLen]?.item;
+            itemType = 'habit';
+          } else if (couLen > 0 && highlightedIdx >= txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen + tasLen + invLen + habLen && highlightedIdx < txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen + tasLen + invLen + habLen + couLen) {
+            item = rankedCourses[highlightedIdx - txLen - purLen - trfLen - accLen - lbLen - donLen - cliLen - tasLen - invLen - habLen]?.item;
+            itemType = 'course';
           }
         } else {
           item = recentSearches[highlightedIdx];
         }
         if (item) {
-          addRecentSearch(search);
-          setRecentSearches(getRecentSearches());
-          // TODO: handle selection (navigate, open, etc.)
-          setGlobalSearchTerm('');
+          if (itemType) {
+            handleResultClick(itemType, item);
+          } else {
+            addRecentSearch(search);
+            setRecentSearches(getRecentSearches());
+            setGlobalSearchTerm('');
+          }
         }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isFocused, search, highlightedIdx, rankedTransactions, rankedPurchases, rankedTransfers, rankedAccounts, rankedLendBorrow, recentSearches, setGlobalSearchTerm]);
+  }, [isFocused, search, highlightedIdx, rankedTransactions, rankedPurchases, rankedTransfers, rankedAccounts, rankedLendBorrow, rankedDonations, rankedClients, rankedTasks, rankedInvoices, rankedHabits, rankedCourses, recentSearches, setGlobalSearchTerm]);
 
   // Show recent searches if input is focused and empty
   
@@ -1342,8 +1435,104 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
           </div>
         )}
 
+        {/* Habits Section */}
+        {rankedHabits.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              Habits ({rankedHabits.length})
+            </h3>
+            <div className="space-y-2">
+              {(showAllHabits ? rankedHabits : rankedHabits.slice(0, 3)).map((res, index) => {
+                const habitOffset = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length + rankedClients.length + rankedTasks.length + rankedInvoices.length;
+                return (
+                  <button
+                    key={`habit-${index}`}
+                    onClick={() => handleResultClick('habit', res.item)}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                      highlightedIdx === habitOffset + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                        <Sprout className="w-4 h-4 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {highlight(res.item.title || '', (res.matches?.filter((m: any) => m.key === 'title') ?? []) as any[])}
+                        </div>
+                        {res.item.description && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {highlight(res.item.description, (res.matches?.filter((m: any) => m.key === 'description') ?? []) as any[])}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+              {rankedHabits.length > 3 && (
+                <button
+                  className="w-full text-center text-xs text-blue-600 dark:text-blue-400 mt-2"
+                  onClick={() => setShowAllHabits(v => !v)}
+                >
+                  {showAllHabits ? 'Show less' : `Show more (${rankedHabits.length - 3})`}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Courses Section */}
+        {rankedCourses.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+              Courses ({rankedCourses.length})
+            </h3>
+            <div className="space-y-2">
+              {(showAllCourses ? rankedCourses : rankedCourses.slice(0, 3)).map((res, index) => {
+                const courseOffset = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length + rankedClients.length + rankedTasks.length + rankedInvoices.length + rankedHabits.length;
+                return (
+                  <button
+                    key={`course-${index}`}
+                    onClick={() => handleResultClick('course', res.item)}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                      highlightedIdx === courseOffset + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                        <BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {highlight(res.item.name || '', (res.matches?.filter((m: any) => m.key === 'name') ?? []) as any[])}
+                        </div>
+                        {res.item.description && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {highlight(res.item.description, (res.matches?.filter((m: any) => m.key === 'description') ?? []) as any[])}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+              {rankedCourses.length > 3 && (
+                <button
+                  className="w-full text-center text-xs text-blue-600 dark:text-blue-400 mt-2"
+                  onClick={() => setShowAllCourses(v => !v)}
+                >
+                  {showAllCourses ? 'Show less' : `Show more (${rankedCourses.length - 3})`}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* No Results */}
-        {search && rankedTransactions.length === 0 && rankedPurchases.length === 0 && rankedTransfers.length === 0 && rankedAccounts.length === 0 && rankedLendBorrow.length === 0 && rankedDonations.length === 0 && rankedClients.length === 0 && rankedTasks.length === 0 && rankedInvoices.length === 0 && (
+        {search && rankedTransactions.length === 0 && rankedPurchases.length === 0 && rankedTransfers.length === 0 && rankedAccounts.length === 0 && rankedLendBorrow.length === 0 && rankedDonations.length === 0 && rankedClients.length === 0 && rankedTasks.length === 0 && rankedInvoices.length === 0 && rankedHabits.length === 0 && rankedCourses.length === 0 && (
           <div className="text-center py-8">
             <div className="text-gray-400 dark:text-gray-500 mb-2">
               <Search className="w-8 h-8 mx-auto" />

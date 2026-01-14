@@ -68,6 +68,8 @@ const DonationsSavingsPage = lazy(() => import('./pages/DonationsSavingsPage'));
 const FavoriteQuotes = lazy(() => import('./pages/FavoriteQuotes').then(m => ({ default: m.FavoriteQuotes })));
 const Achievements = lazy(() => import('./pages/Achievements'));
 const HabitGarden = lazy(() => import('./components/Habits/HabitGarden').then(m => ({ default: m.HabitGarden })));
+const CoursesList = lazy(() => import('./components/Learning/CoursesList').then(m => ({ default: m.CoursesList })));
+const PersonalGrowth = lazy(() => import('./components/Dashboard/PersonalGrowth').then(m => ({ default: m.PersonalGrowth })));
 const KBArticlePage = lazy(() => import('./pages/KBArticlePage'));
 const KBSitemapPage = lazy(() => import('./pages/KBSitemapPage'));
 const KBRobotsPage = lazy(() => import('./pages/KBRobotsPage'));
@@ -815,7 +817,7 @@ function AppContent() {
         <Route path="/analytics" element={user ? <MainLayout><AnalyticsView /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/currency-analytics" element={user ? <Navigate to="/analytics" replace /> : <Navigate to="/login" />} />
         <Route path="/clients" element={user ? <MainLayout><ClientList /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/habits" element={user ? <MainLayout><HabitGarden /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/personal-growth" element={user ? <MainLayout><PersonalGrowth /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/settings" element={user ? <MainLayout><Settings /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/payment-history" element={user ? <PaymentHistoryPage /> : <Navigate to="/login" />} />
         <Route path="/help" element={user ? <HelpLayout><HelpAndSupport /></HelpLayout> : <Navigate to="/login" />} />
@@ -826,8 +828,6 @@ function AppContent() {
         <Route path="/admin/file-rename" element={user ? <FileRenameAdmin /> : <Navigate to="/login" />} />
         <Route path="/history" element={user ? <MainLayout><History /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/donations" element={user ? <MainLayout><DonationsSavingsPage /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/favorite-quotes" element={user ? <MainLayout><FavoriteQuotes /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/achievements" element={user ? <MainLayout><Achievements /></MainLayout> : <Navigate to="/login" />} />
         
         {/* Demo routes - public */}
         <Route path="/dashboard-demo" element={<DashboardDemo />} />

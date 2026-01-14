@@ -109,6 +109,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'donations': return 'Donations';
       case 'favorite-quotes': return 'Favorite Quotes';
       case 'history': return 'Activity History';
+      case 'learning': return 'Learning Courses';
+      case 'personal-growth': return 'Personal Growth';
       default: return 'Dashboard';
     }
   };
@@ -181,7 +183,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                                   ? 'Manage your favorite motivational quotes and inspiration'
                                   : currentView === 'achievements'
                                     ? 'Unlock badges and track your financial journey progress'
-                                    : undefined
+                                    : currentView === 'learning'
+                                      ? 'Track your learning progress by organizing courses into modules'
+                                      : currentView === 'personal-growth'
+                                        ? 'Grow personally through habits, learning, quotes, and achievements'
+                                        : currentView === 'analytics'
+                                          ? 'Analyze your financial data with insights and trends'
+                                          : currentView === 'settings'
+                                            ? 'Manage your account preferences and application settings'
+                                            : undefined
             )}
           />
           <main className={`flex-1 p-1 sm:p-2 lg:p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 max-w-full pb-safe-bottom ${isBrowser && isMobile ? 'browser-bottom-nav-spacing' : ''}`}>

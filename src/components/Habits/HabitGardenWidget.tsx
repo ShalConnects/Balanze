@@ -38,7 +38,7 @@ export const HabitGardenWidget: React.FC = () => {
   };
 
   const handleViewAll = () => {
-    navigate('/habits');
+    navigate('/personal-growth?tab=habits');
   };
 
   // Show only first 3-4 habits in widget

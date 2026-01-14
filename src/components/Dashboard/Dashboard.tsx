@@ -22,10 +22,12 @@ import { TransferSummaryCard } from './TransferSummaryCard';
 import { CurrencyOverviewCard } from './CurrencyOverviewCard';
 import { DonationSavingsOverviewCard } from './DonationSavingsOverviewCard';
 import { ClientsOverviewCard } from './ClientsOverviewCard';
+import { LearningSummaryCard } from './LearningSummaryCard';
 import { ClientTasksWidget } from './ClientTasksWidget';
 import { ClientsSummaryWidget } from './ClientsSummaryWidget';
 import { TaskRemindersWidget } from './TaskRemindersWidget';
 import { useClientStore } from '../../store/useClientStore';
+import { useCourseStore } from '../../store/useCourseStore';
 import { StickyNote } from '../StickyNote';
 // NotesAndTodosWidget loaded dynamically to reduce initial bundle size
 // import { NotesAndTodosWidget } from './NotesAndTodosWidget';
@@ -38,12 +40,13 @@ import { LastWishCountdownWidget } from './LastWishCountdownWidget';
 import { MotivationalQuote } from './MotivationalQuote';
 import { MobileAccordionWidget } from './MobileAccordionWidget';
 import { HabitGardenWidget } from '../Habits/HabitGardenWidget';
+import { LearningWidget } from '../Learning/LearningWidget';
 import { WidgetSection } from './WidgetSection';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { DraggableWidget } from './DraggableWidget';
-import { WidgetSettingsPanel, WidgetConfig } from './WidgetSettingsPanel';
+import { WidgetSettingsPanel, WidgetConfig, MainDashboardWidget } from './WidgetSettingsPanel';
 import { Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
@@ -60,7 +63,8 @@ const getDefaultWidgets = (): WidgetConfig[] => [
   { id: 'task-reminders', name: 'Task Reminders', visible: true, order: 0 },
   { id: 'last-wish', name: 'Last Wish', visible: true, order: 1 },
   { id: 'habit-garden', name: 'Habit Garden', visible: true, order: 2 },
-  { id: 'notes-todos', name: 'Notes & Todos', visible: true, order: 3 },
+  { id: 'learning', name: 'Learning', visible: true, order: 3 },
+  { id: 'notes-todos', name: 'Notes & Todos', visible: true, order: 4 },
 ];
 
 // Validate widget config structure - moved outside component for better performance
@@ -74,6 +78,33 @@ const isValidWidgetConfig = (config: unknown): config is WidgetConfig[] => {
     typeof (widget as WidgetConfig).visible === 'boolean' &&
     typeof (widget as WidgetConfig).order === 'number'
   );
+};
+
+// Migrate widget config to include new widgets
+const migrateWidgetConfig = (config: WidgetConfig[]): WidgetConfig[] => {
+  const defaultWidgets = getDefaultWidgets();
+  const configMap = new Map(config.map(w => [w.id, w]));
+  const migrated: WidgetConfig[] = [];
+  
+  // Add all default widgets, preserving existing configs or adding new ones
+  defaultWidgets.forEach(defaultWidget => {
+    if (configMap.has(defaultWidget.id)) {
+      // Keep existing widget config
+      migrated.push(configMap.get(defaultWidget.id)!);
+    } else {
+      // Add new widget with default settings
+      migrated.push(defaultWidget);
+    }
+  });
+  
+  // Sort by order
+  migrated.sort((a, b) => a.order - b.order);
+  
+  // Reassign order numbers to ensure they're sequential
+  return migrated.map((widget, index) => ({
+    ...widget,
+    order: index,
+  }));
 };
 
 interface DashboardProps {
@@ -122,7 +153,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       try {
         const parsed = JSON.parse(saved);
         if (isValidWidgetConfig(parsed)) {
-          return parsed;
+          // Migrate to include any new widgets
+          return migrateWidgetConfig(parsed);
         } else {
           console.warn('Invalid widget config structure, using defaults');
           return getDefaultWidgets();
@@ -137,11 +169,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
 
   const [widgetConfig, setWidgetConfig] = useState<WidgetConfig[]>(() => loadWidgetConfig());
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  
+  // Main dashboard widget order
+  const [mainDashboardWidgetOrder, setMainDashboardWidgetOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem('mainDashboardWidgetOrder');
+    return saved ? JSON.parse(saved) : ['donations', 'purchases', 'lend-borrow', 'transfers', 'clients', 'learning'];
+  });
 
   // Save widget config to localStorage
   useEffect(() => {
     localStorage.setItem('dashboard-widget-config', JSON.stringify(widgetConfig));
   }, [widgetConfig]);
+
+  // Save main dashboard widget order to localStorage
+  useEffect(() => {
+    localStorage.setItem('mainDashboardWidgetOrder', JSON.stringify(mainDashboardWidgetOrder));
+  }, [mainDashboardWidgetOrder]);
 
   // Drag and drop sensors - optimized for both touch and mouse
   const sensors = useSensors(
@@ -177,6 +220,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
 
   const handleResetWidgets = useCallback(() => {
     setWidgetConfig(getDefaultWidgets());
+  }, []);
+
+  // Handle main dashboard widget order update
+  const handleMainDashboardWidgetUpdate = useCallback((updatedWidgets: MainDashboardWidget[]) => {
+    const newOrder = updatedWidgets.map(w => w.id);
+    setMainDashboardWidgetOrder(newOrder);
   }, []);
 
   // Get visible widgets sorted by order - memoized for performance
@@ -417,9 +466,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     return saved !== null ? JSON.parse(saved) : true;
   });
   
+  const [showLearningWidget, setShowLearningWidget] = useState(() => {
+    const saved = localStorage.getItem('showLearningWidget');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  
   // Get clients from store
   const clients = useClientStore((state) => state.clients);
   const fetchClients = useClientStore((state) => state.fetchClients);
+  
+  // Get courses from store
+  const courses = useCourseStore((state) => state.courses);
   
   // Listen to localStorage changes for widget visibility - with error handling
   useEffect(() => {
@@ -437,6 +494,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
           setShowDonationsSavingsWidget(JSON.parse(e.newValue));
         } else if (e.key === 'showClientsWidget') {
           setShowClientsWidget(JSON.parse(e.newValue));
+        } else if (e.key === 'showLearningWidget') {
+          setShowLearningWidget(JSON.parse(e.newValue));
         }
       } catch (error) {
         console.error(`Error parsing localStorage value for ${e.key}:`, error);
@@ -489,6 +548,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       } catch (error) {
         console.error('Error parsing showClientsWidget from localStorage:', error);
       }
+      
+      try {
+        const savedLearning = localStorage.getItem('showLearningWidget');
+        if (savedLearning !== null) {
+          setShowLearningWidget(JSON.parse(savedLearning));
+        }
+      } catch (error) {
+        console.error('Error parsing showLearningWidget from localStorage:', error);
+      }
     };
     
     window.addEventListener('storage', handleStorageChange);
@@ -497,6 +565,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     window.addEventListener('showTransferWidgetChanged', handleCustomStorageChange);
     window.addEventListener('showDonationsSavingsWidgetChanged', handleCustomStorageChange);
     window.addEventListener('showClientsWidgetChanged', handleCustomStorageChange);
+    window.addEventListener('showLearningWidgetChanged', handleCustomStorageChange);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -505,6 +574,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       window.removeEventListener('showTransferWidgetChanged', handleCustomStorageChange);
       window.removeEventListener('showDonationsSavingsWidgetChanged', handleCustomStorageChange);
       window.removeEventListener('showClientsWidgetChanged', handleCustomStorageChange);
+      window.removeEventListener('showLearningWidgetChanged', handleCustomStorageChange);
     };
   }, []);
   
@@ -570,10 +640,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
   const [isPurchaseWidgetHovered, setIsPurchaseWidgetHovered] = useState(false);
   const [showPurchaseCrossTooltip, setShowPurchaseCrossTooltip] = useState(false);
   const [showPurchaseInfoTooltip, setShowPurchaseInfoTooltip] = useState(false);
-  
-  // Widget visibility dropdown state
-  const [showWidgetsDropdown, setShowWidgetsDropdown] = useState(false);
-  const widgetsDropdownRef = useRef<HTMLDivElement>(null);
   const [showPurchaseInfoMobileModal, setShowPurchaseInfoMobileModal] = useState(false);
   const [dashboardCurrencyFilter, setDashboardCurrencyFilter] = useState('');
   const purchaseTooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -681,21 +747,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     };
   }, []);
 
-  // Handle click outside widgets dropdown
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (widgetsDropdownRef.current && !widgetsDropdownRef.current.contains(event.target as Node)) {
-        setShowWidgetsDropdown(false);
-      }
-    }
-    if (showWidgetsDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showWidgetsDropdown]);
-
   // Save Purchases widget visibility preference to database
   const handlePurchasesWidgetToggle = async (show: boolean) => {
     // Immediate UI update (optimistic update)
@@ -767,6 +818,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     }
   };
 
+  // Handle Learning widget toggle
+  const handleLearningWidgetToggle = async (show: boolean) => {
+    setShowLearningWidget(show);
+    localStorage.setItem('showLearningWidget', JSON.stringify(show));
+    window.dispatchEvent(new CustomEvent('showLearningWidgetChanged'));
+    
+    if (user?.id) {
+      setPreference(user.id, 'showLearningWidget', show).catch(() => {
+        // Silent fail - already saved locally
+      });
+    }
+  };
+
+  // Handle main dashboard widget toggle from modal
+  const handleMainDashboardWidgetToggle = (id: string, visible: boolean) => {
+    switch (id) {
+      case 'donations':
+        handleDonationsWidgetToggle(visible);
+        break;
+      case 'purchases':
+        handlePurchasesWidgetToggle(visible);
+        break;
+      case 'lend-borrow':
+        handleLendBorrowWidgetToggle(visible);
+        break;
+      case 'transfers':
+        handleTransferWidgetToggle(visible);
+        break;
+      case 'clients':
+        handleClientsWidgetToggle(visible);
+        break;
+      case 'learning':
+        handleLearningWidgetToggle(visible);
+        break;
+      default:
+        break;
+    }
+  };
+
   // Fetch clients on mount - with error handling
   useEffect(() => {
     let isMounted = true;
@@ -826,6 +916,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     if (!dashboardCurrencyFilter) return purchases;
     return purchases.filter(p => (p.currency || 'USD') === dashboardCurrencyFilter);
   }, [purchases, dashboardCurrencyFilter]);
+  
+  // Calculate widget availability
+  const widgetAvailability = useMemo(() => {
+    const hasDpsAccounts = storeAccounts.some(a => a.has_dps && a.currency === dashboardCurrencyFilter);
+    const hasDonationRecords = donationSavingRecords?.some(record => {
+      if (!record.transaction_id) {
+        const currencyMatch = record.note?.match(/\(?Currency:\s*([A-Z]{3})\)?/);
+        const manualCurrency = currencyMatch ? currencyMatch[1] : 'USD';
+        return manualCurrency === dashboardCurrencyFilter;
+      }
+      const transaction = storeTransactions.find(t => t.id === record.transaction_id);
+      const account = transaction ? storeAccounts.find(a => a.id === transaction.account_id) : undefined;
+      return account && account.currency === dashboardCurrencyFilter;
+    });
+    return {
+      hasDonations: hasDpsAccounts || hasDonationRecords,
+      hasPurchases: purchases.length > 0,
+      hasLendBorrow: isPremium && hasLendBorrowRecords,
+      hasTransfersCard: hasTransfers,
+      hasClientsCard: clients.length > 0,
+      hasLearning: courses.length > 0,
+    };
+  }, [storeAccounts, donationSavingRecords, dashboardCurrencyFilter, storeTransactions, purchases, isPremium, hasLendBorrowRecords, hasTransfers, clients.length, courses.length]);
   
   // Check if any widget in the Purchase/LendBorrow/Transfer row will be visible
   const hasAnyWidgetVisible = useMemo(() => {
@@ -1191,28 +1304,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
 
           {/* Shared Currency Filter & Card Visibility - After Currency Cards */}
           {(() => {
-            // Check which cards are available
-            const hasDpsAccounts = storeAccounts.some(a => a.has_dps && a.currency === dashboardCurrencyFilter);
-            const hasDonationRecords = donationSavingRecords?.some(record => {
-              if (!record.transaction_id) {
-                const currencyMatch = record.note?.match(/\(?Currency:\s*([A-Z]{3})\)?/);
-                const manualCurrency = currencyMatch ? currencyMatch[1] : 'USD';
-                return manualCurrency === dashboardCurrencyFilter;
-              }
-              const transaction = storeTransactions.find(t => t.id === record.transaction_id);
-              const account = transaction ? storeAccounts.find(a => a.id === transaction.account_id) : undefined;
-              return account && account.currency === dashboardCurrencyFilter;
-            });
-            const hasDonations = hasDpsAccounts || hasDonationRecords;
-            const hasPurchases = purchases.length > 0;
-            const hasLendBorrow = isPremium && hasLendBorrowRecords;
-            const hasTransfersCard = hasTransfers;
-            const hasClientsCard = clients.length > 0;
-            const hasAnyCards = hasDonations || hasPurchases || hasLendBorrow || hasTransfersCard || hasClientsCard;
+            const { hasDonations, hasPurchases, hasLendBorrow, hasTransfersCard, hasClientsCard, hasLearning } = widgetAvailability;
+            const hasAnyCards = hasDonations || hasPurchases || hasLendBorrow || hasTransfersCard || hasClientsCard || hasLearning;
             const hasMultipleCurrencies = filteredDashboardCurrencies.length > 1;
             
-            // Show section if there are multiple currencies OR if there are cards to toggle
-            if (!hasMultipleCurrencies && !hasAnyCards) return null;
+            // Always show section for widgets button (and currency filter if needed)
             
             return (
               <div className="flex flex-row items-center justify-between gap-2 sm:gap-3 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-lg p-2 sm:p-2.5 border border-blue-200/50 dark:border-blue-800/50 shadow-sm mt-4 sm:mt-6">
@@ -1231,103 +1327,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
                   </div>
                 )}
                 
-                {/* Right side: Widget Visibility Dropdown and Right Sidebar Customize */}
+                {/* Right side: Widgets Button */}
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 ml-auto">
-                  {/* Right Sidebar Customize Button - Hidden on mobile since sidebar is hidden */}
+                  {/* Widgets Button - Opens modal with all widgets */}
                   <button
                     type="button"
                     onClick={() => setShowSettingsPanel(true)}
-                    className="hidden lg:flex bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm h-8 min-h-0 hover:bg-blue-50 dark:hover:bg-blue-900/30 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-md px-2 sm:px-3 py-1 items-center gap-1.5 sm:gap-2"
-                    title="Customize right sidebar widgets"
+                    className="bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm h-8 min-h-0 hover:bg-blue-50 dark:hover:bg-blue-900/30 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-md px-2 sm:px-3 py-1 items-center gap-1.5 sm:gap-2 flex"
+                    title="Customize widgets"
                   >
                     <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                    <span className="text-xs font-medium text-gray-900 dark:text-white whitespace-nowrap">Right Sidebar</span>
+                    <span className="text-xs font-medium text-gray-900 dark:text-white whitespace-nowrap">Widgets</span>
                   </button>
-                  
-                  {/* Widget Visibility Dropdown */}
-                  {hasAnyCards && (
-                    <div className="relative" ref={widgetsDropdownRef}>
-                      <button
-                        type="button"
-                        onClick={() => setShowWidgetsDropdown(!showWidgetsDropdown)}
-                        className="bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm h-8 min-h-0 hover:bg-blue-50 dark:hover:bg-blue-900/30 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-md px-2 sm:px-3 py-1 w-auto min-w-[100px] sm:min-w-[120px] flex items-center justify-between"
-                        aria-label="Toggle widget visibility"
-                      >
-                        <span>Widgets</span>
-                        <svg className={`w-4 h-4 ml-2 transition-transform ${showWidgetsDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                      {showWidgetsDropdown && (
-                        <div className="absolute right-0 top-full z-50 mt-1 w-48 bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700 rounded-lg shadow-lg p-2">
-                          {/* Donations Checkbox */}
-                          {hasDonations && (
-                            <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={showDonationsSavingsWidget}
-                                onChange={(e) => handleDonationsWidgetToggle(e.target.checked)}
-                                className="w-4 h-4 accent-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600"
-                              />
-                              <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Donations</span>
-                            </label>
-                          )}
-                          
-                          {/* Purchases Checkbox */}
-                          {hasPurchases && (
-                            <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={showPurchasesWidget}
-                                onChange={(e) => handlePurchasesWidgetToggle(e.target.checked)}
-                                className="w-4 h-4 accent-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600"
-                              />
-                              <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Purchases</span>
-                            </label>
-                          )}
-                          
-                          {/* L&B Checkbox */}
-                          {hasLendBorrow && (
-                            <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={showLendBorrowWidget}
-                                onChange={(e) => handleLendBorrowWidgetToggle(e.target.checked)}
-                                className="w-4 h-4 accent-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600"
-                              />
-                              <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">L&B</span>
-                            </label>
-                          )}
-                          
-                          {/* Transfers Checkbox */}
-                          {hasTransfersCard && (
-                            <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={showTransferWidget}
-                                onChange={(e) => handleTransferWidgetToggle(e.target.checked)}
-                                className="w-4 h-4 accent-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600"
-                              />
-                              <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Transfers</span>
-                            </label>
-                          )}
-                          
-                          {/* Clients Checkbox */}
-                          {hasClientsCard && (
-                            <label className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={showClientsWidget}
-                                onChange={(e) => handleClientsWidgetToggle(e.target.checked)}
-                                className="w-4 h-4 accent-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-1 dark:bg-gray-700 dark:border-gray-600"
-                              />
-                              <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Clients</span>
-                            </label>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             );
@@ -1567,6 +1578,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
               </div>
             )}
             
+            {/* Learning Summary Card */}
+            <div className="w-full h-full animate-fadeIn">
+              <LearningSummaryCard />
+            </div>
+            
           </div>
 
           {/* Motivational Quote - Hidden on mobile, shown on desktop */}
@@ -1625,6 +1641,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
                     </DraggableWidget>
                   );
                 }
+                if (config.id === 'learning') {
+                  return (
+                    <DraggableWidget key={config.id} id={config.id}>
+                      <LearningWidget />
+                    </DraggableWidget>
+                  );
+                }
                 if (config.id === 'notes-todos' && NotesAndTodosWidget) {
                   return (
                     <DraggableWidget key={config.id} id={config.id}>
@@ -1645,6 +1668,94 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
             widgets={widgetConfig}
             onUpdate={handleWidgetUpdate}
             onReset={handleResetWidgets}
+            mainDashboardWidgets={(() => {
+              const { hasDonations, hasPurchases, hasLendBorrow, hasTransfersCard, hasClientsCard, hasLearning } = widgetAvailability;
+              const widgetsMap: Record<string, MainDashboardWidget> = {};
+              
+              if (hasDonations) {
+                widgetsMap['donations'] = {
+                  id: 'donations',
+                  name: 'Donations',
+                  visible: showDonationsSavingsWidget,
+                  available: true,
+                  order: 0,
+                };
+              }
+              if (hasPurchases) {
+                widgetsMap['purchases'] = {
+                  id: 'purchases',
+                  name: 'Purchases',
+                  visible: showPurchasesWidget,
+                  available: true,
+                  order: 0,
+                };
+              }
+              if (hasLendBorrow) {
+                widgetsMap['lend-borrow'] = {
+                  id: 'lend-borrow',
+                  name: 'L&B',
+                  visible: showLendBorrowWidget,
+                  available: true,
+                  order: 0,
+                };
+              }
+              if (hasTransfersCard) {
+                widgetsMap['transfers'] = {
+                  id: 'transfers',
+                  name: 'Transfers',
+                  visible: showTransferWidget,
+                  available: true,
+                  order: 0,
+                };
+              }
+              if (hasClientsCard) {
+                widgetsMap['clients'] = {
+                  id: 'clients',
+                  name: 'Clients',
+                  visible: showClientsWidget,
+                  available: true,
+                  order: 0,
+                };
+              }
+              if (hasLearning) {
+                widgetsMap['learning'] = {
+                  id: 'learning',
+                  name: 'Learning',
+                  visible: showLearningWidget,
+                  available: true,
+                  order: 0,
+                };
+              }
+              
+              // Apply saved order
+              const widgets: MainDashboardWidget[] = [];
+              const usedIds = new Set<string>();
+              
+              // First, add widgets in saved order
+              mainDashboardWidgetOrder.forEach((id, index) => {
+                if (widgetsMap[id] && !usedIds.has(id)) {
+                  widgets.push({
+                    ...widgetsMap[id],
+                    order: index,
+                  });
+                  usedIds.add(id);
+                }
+              });
+              
+              // Then add any new widgets that aren't in the saved order
+              Object.values(widgetsMap).forEach((widget) => {
+                if (!usedIds.has(widget.id)) {
+                  widgets.push({
+                    ...widget,
+                    order: widgets.length,
+                  });
+                }
+              });
+              
+              return widgets.sort((a, b) => a.order - b.order);
+            })()}
+            onMainDashboardWidgetToggle={handleMainDashboardWidgetToggle}
+            onMainDashboardWidgetUpdate={handleMainDashboardWidgetUpdate}
           />
         </div>
 

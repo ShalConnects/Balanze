@@ -356,6 +356,45 @@ export * from './investment';
 export * from './simple-investment';
 
 // =====================================================
+// LEARNING TRACKING TYPES
+// =====================================================
+export interface Course {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CourseModule {
+  id: string;
+  course_id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  completed: boolean;
+  notes?: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CourseInput {
+  name: string;
+  description?: string;
+}
+
+export interface CourseModuleInput {
+  course_id: string;
+  title: string;
+  description?: string;
+  completed?: boolean;
+  notes?: string;
+  position?: number;
+}
+
+// =====================================================
 // CLIENT MANAGEMENT EXPORTS
 // =====================================================
 export * from './client';

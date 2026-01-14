@@ -103,7 +103,7 @@ export const HabitGarden: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen">
       <Loader isLoading={loading} message="Loading habits..." />
 
       {/* Main Content */}
@@ -126,21 +126,20 @@ export const HabitGarden: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Stats Sidebar - Hidden on mobile, shown on desktop */}
-          <div className="hidden lg:block">
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 pt-4 pb-4 px-4 space-y-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            {/* Stats Sidebar - Hidden on mobile, shown on desktop */}
+            <div className="hidden lg:block">
               <HabitStatsDashboard onShowAchievements={() => setShowAchievements(true)} />
             </div>
-          </div>
 
-          {/* Main Content */}
-          <div className="lg:col-span-2">
+            {/* Main Content */}
+            <div className="lg:col-span-2 border border-gray-200 dark:border-gray-700 rounded-xl">
             {/* Tab System */}
             {habits.length > 0 && (
-              <div className="mb-0">
+              <div>
                 {/* Tab Navigation */}
-                <div className="bg-white dark:bg-gray-800 rounded-t-xl border border-gray-200 dark:border-gray-700 border-b-0 shadow-sm overflow-x-auto">
+                <div className="rounded-t-xl overflow-x-auto">
                   <div className="border-b border-gray-200 dark:border-gray-700">
                     <div className="flex items-center gap-0.5 sm:gap-1 min-w-max">
                       <button
@@ -185,8 +184,6 @@ export const HabitGarden: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
 
             {/* Week View Tab Panel */}
             <div
@@ -194,7 +191,7 @@ export const HabitGarden: React.FC = () => {
                 viewMode === 'week' ? 'block' : 'hidden'
               }`}
             >
-              <div className="bg-white dark:bg-gray-800 rounded-b-xl border border-gray-200 dark:border-gray-700 border-t-0 shadow-sm">
+              <div className="rounded-b-xl">
                 <div className="p-2 sm:p-4 md:p-6">
                   {/* Week View */}
                   <HabitWeekView
@@ -215,7 +212,7 @@ export const HabitGarden: React.FC = () => {
                 viewMode === 'garden' ? 'block' : 'hidden'
               }`}
             >
-              <div className="bg-white dark:bg-gray-800 rounded-b-xl border border-gray-200 dark:border-gray-700 border-t-0 shadow-sm">
+              <div className="rounded-b-xl">
                 <div className="p-2 sm:p-4 md:p-6">
                   <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4 md:mb-6">
                     Your Garden
@@ -245,7 +242,7 @@ export const HabitGarden: React.FC = () => {
                 viewMode === 'stats' ? 'block' : 'hidden'
               }`}
             >
-              <div className="bg-white dark:bg-gray-800 rounded-b-xl border border-gray-200 dark:border-gray-700 border-t-0 shadow-sm">
+              <div className="rounded-b-xl">
                 <div className="p-2 sm:p-4 md:p-6">
                   <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4 md:mb-6">
                     Habit Statistics
@@ -254,11 +251,14 @@ export const HabitGarden: React.FC = () => {
                 </div>
               </div>
             </div>
+              </div>
+            )}
 
             {/* Mobile Stats - Shown only on mobile */}
             <div className="lg:hidden mt-4 sm:mt-6 space-y-4">
               <HabitStatsDashboard onShowAchievements={() => setShowAchievements(true)} />
             </div>
+          </div>
           </div>
         </div>
       )}

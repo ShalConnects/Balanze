@@ -19,7 +19,9 @@ import {
   ChevronDown,
   ChevronRight,
   Sprout,
-  Sparkles
+  Sparkles,
+  BookOpen,
+  Heart
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
@@ -49,7 +51,6 @@ const navigation = [
     icon: Users,
     isNew: true
   },
-  { name: 'navigation.habits', id: 'habits', icon: Sprout, isNew: true },
   { name: 'navigation.analytics', id: 'analytics', icon: PieChart },
   { name: 'navigation.settings', id: 'settings', icon: Settings },
 ];

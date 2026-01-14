@@ -322,7 +322,7 @@ export const MotivationalQuote: React.FC<MotivationalQuoteProps> = ({ hideHeader
                   <button
                     onClick={() => {
                       // Navigate to favorite quotes page
-                      navigate('/favorite-quotes');
+                      navigate('/personal-growth?tab=favorite-quotes');
                     }}
                     className="p-1 rounded-full hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors group"
                     title="View favorite quotes"
