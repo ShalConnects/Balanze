@@ -75,6 +75,7 @@ const KBSitemapPage = lazy(() => import('./pages/KBSitemapPage'));
 const KBRobotsPage = lazy(() => import('./pages/KBRobotsPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const FileRenameAdmin = lazy(() => import('./pages/FileRenameAdmin').then(m => ({ default: m.FileRenameAdmin })));
+const TestTaskablePanel = lazy(() => import('./components/TestTaskablePanel').then(m => ({ default: m.TestTaskablePanel })));
 const DashboardDemo = lazy(() => import('./pages/DashboardDemo'));
 const DashboardDemoOnly = lazy(() => import('./pages/DashboardDemoOnly'));
 const ShortUrlRedirect = lazy(() => import('./pages/ShortUrlRedirect'));
@@ -826,6 +827,7 @@ function AppContent() {
         <Route path="/kb-robots.txt" element={user ? <KBRobotsPage /> : <Navigate to="/login" />} />
         <Route path="/admin" element={user ? <AdminPage /> : <Navigate to="/login" />} />
         <Route path="/admin/file-rename" element={user ? <FileRenameAdmin /> : <Navigate to="/login" />} />
+        <Route path="/test-taskable" element={user ? <MainLayout><TestTaskablePanel /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/history" element={user ? <MainLayout><History /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/donations" element={user ? <MainLayout><DonationsSavingsPage /></MainLayout> : <Navigate to="/login" />} />
         

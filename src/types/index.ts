@@ -132,6 +132,12 @@ export interface Task {
   created_at: string;
   position?: number;
   section_override?: 'today' | 'this_week' | 'this_month' | null;
+  parent_id?: string | null;
+  // Computed/derived fields (not in database, populated in UI)
+  subtasks?: Task[];
+  has_subtasks?: boolean;
+  completed_subtasks_count?: number;
+  total_subtasks_count?: number;
 }
 
 // Purchase Management Types

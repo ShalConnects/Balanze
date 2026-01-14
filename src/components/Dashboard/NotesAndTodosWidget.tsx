@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { Star, StickyNote as StickyNoteIcon, Plus, AlertTriangle, Timer, Play, Pause, RotateCcw, Settings, GripVertical, X, ChevronDown, RefreshCw } from 'lucide-react';
+import { Star, StickyNote as StickyNoteIcon, Plus, AlertTriangle, Timer, Play, Pause, RotateCcw, Settings, GripVertical, X, ChevronDown, RefreshCw, ChevronRight } from 'lucide-react';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import Modal from 'react-modal';
 
@@ -54,6 +54,28 @@ export const NotesAndTodosWidget: React.FC = () => {
     thisWeek: false,
     thisMonth: false,
   });
+  
+  // Task filter state: 'all' | 'parent-only' | 'standalone-only'
+  const [taskFilter, setTaskFilter] = useState<'all' | 'parent-only' | 'standalone-only'>(() => {
+    const saved = localStorage.getItem('taskFilter');
+    return (saved === 'parent-only' || saved === 'standalone-only') ? saved : 'all';
+  });
+  
+  // View mode state: 'time-based' | 'parent-based'
+  const [viewMode, setViewMode] = useState<'time-based' | 'parent-based'>(() => {
+    const saved = localStorage.getItem('taskViewMode');
+    return (saved === 'parent-based') ? 'parent-based' : 'time-based';
+  });
+  
+  // Persist filter to localStorage
+  useEffect(() => {
+    localStorage.setItem('taskFilter', taskFilter);
+  }, [taskFilter]);
+  
+  // Persist view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem('taskViewMode', viewMode);
+  }, [viewMode]);
   const [lastWishCountdown, setLastWishCountdown] = useState<null | { daysLeft: number, nextCheckIn: string }>(null);
   
   // Pomodoro state - with localStorage persistence
@@ -116,6 +138,16 @@ export const NotesAndTodosWidget: React.FC = () => {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
   const [dragOverSection, setDragOverSection] = useState<'today' | 'this_week' | 'this_month' | null>(null);
+  
+  // Expanded tasks state (for showing/hiding subtasks)
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('expandedTasks');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
+  
+  // State for adding subtasks
+  const [addingSubtaskTo, setAddingSubtaskTo] = useState<string | null>(null);
+  const [subtaskInput, setSubtaskInput] = useState('');
   
   // Guard to prevent double counting on completion
   const completionProcessedRef = useRef<{ taskId: string | null; processed: boolean }>({ taskId: null, processed: false });
@@ -287,7 +319,12 @@ export const NotesAndTodosWidget: React.FC = () => {
           .eq('user_id', user.id)
           .order('position', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: false });
-        if (!error && data && isMounted) setTasks(data);
+        if (!error && data && isMounted) {
+          // Organize tasks into hierarchy with subtasks
+          const { organizeTasksWithSubtasks } = await import('../../utils/taskUtils');
+          const organizedTasks = organizeTasksWithSubtasks(data);
+          setTasks(organizedTasks);
+        }
       } catch (error) {
 
       }
@@ -320,7 +357,19 @@ export const NotesAndTodosWidget: React.FC = () => {
       .select();
     setSaving(false);
     if (!error && data && data[0]) {
-      setTasks([data[0], ...tasks]);
+      // Refresh all tasks to get organized hierarchy
+      const { data: allTasks, error: fetchError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('position', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: false });
+      
+      if (!fetchError && allTasks) {
+        const { organizeTasksWithSubtasks } = await import('../../utils/taskUtils');
+        const organizedTasks = organizeTasksWithSubtasks(allTasks);
+        setTasks(organizedTasks);
+      }
       setTodoInput('');
       // Keep focus on input field after adding task
       setTimeout(() => {
@@ -348,22 +397,240 @@ export const NotesAndTodosWidget: React.FC = () => {
     }, 1000); // Save after 1 second of no typing
   };
 
+  // Helper function to find a task by ID (searches both parent tasks and subtasks)
+  const findTaskById = (taskId: string): Task | undefined => {
+    // First check parent tasks
+    const parentTask = tasks.find(t => t.id === taskId);
+    if (parentTask) return parentTask;
+    
+    // Then check all subtasks
+    for (const parent of tasks) {
+      if (parent.subtasks) {
+        const subtask = parent.subtasks.find(st => st.id === taskId);
+        if (subtask) return subtask;
+      }
+    }
+    
+    return undefined;
+  };
+
   // Toggle task completed
   const toggleTask = async (id: string, completed: boolean) => {
     setSaving(true);
+    
+    // Find the task being toggled (searches both parent tasks and subtasks)
+    const task = findTaskById(id);
+    
+    if (!task) {
+      setSaving(false);
+      return;
+    }
+    
+    const isParentTask = task && !task.parent_id && task.has_subtasks && task.subtasks && task.subtasks.length > 0;
+    const newCompletedState = !completed;
+    
+    // Update the task in database
     const { data: updated, error } = await supabase
       .from('tasks')
-      .update({ completed: !completed })
+      .update({ completed: newCompletedState })
       .eq('id', id)
       .select();
+    
+    // If it's a parent task, update all subtasks
+    if (!error && updated && updated[0] && isParentTask && task.subtasks) {
+      const subtaskIds = task.subtasks.map(st => st.id);
+      
+      if (subtaskIds.length > 0) {
+        await supabase
+          .from('tasks')
+          .update({ completed: newCompletedState })
+          .in('id', subtaskIds);
+      }
+    }
+    
     setSaving(false);
     if (!error && updated && updated[0]) {
-      setTasks(tasks.map(t => t.id === id ? { ...t, completed: !completed } : t));
+      const updatedTask = updated[0];
+      console.log('🔄 Updating local state...');
+      
+      // Update task in state
+      const updatedTasks = tasks.map(t => {
+        if (t.id === id) {
+          // If it's a parent task with subtasks, also update all subtasks in the array
+          if (isParentTask && t.subtasks && t.subtasks.length > 0) {
+            const updatedSubtasks = t.subtasks.map(st => ({ ...st, completed: newCompletedState }));
+            const completedCount = updatedSubtasks.filter(st => st.completed).length;
+            return {
+              ...t,
+              completed: newCompletedState,
+              subtasks: updatedSubtasks,
+              completed_subtasks_count: completedCount,
+            };
+          }
+          return { ...t, completed: newCompletedState };
+        }
+        // If this is a subtask of the toggled parent, update it (for standalone subtasks in top-level array - shouldn't happen but just in case)
+        if (isParentTask && task.subtasks && task.subtasks.some(st => st.id === t.id)) {
+          return { ...t, completed: newCompletedState };
+        }
+        // If this parent has the toggled subtask, update the subtask in the parent's subtasks array
+        if (task && task.parent_id && t.id === task.parent_id && t.subtasks) {
+          const updatedSubtasks = t.subtasks.map(st => 
+            st.id === id ? { ...st, completed: newCompletedState } : st
+          );
+          const completedCount = updatedSubtasks.filter(st => st.completed).length;
+          const allSubtasksCompleted = completedCount === updatedSubtasks.length && updatedSubtasks.length > 0;
+          
+          // Auto-complete parent if all subtasks are completed
+          if (allSubtasksCompleted && !t.completed) {
+            supabase
+              .from('tasks')
+              .update({ completed: true })
+              .eq('id', t.id);
+            return {
+              ...t,
+              subtasks: updatedSubtasks,
+              completed_subtasks_count: completedCount,
+              completed: true,
+            };
+          }
+          
+          return {
+            ...t,
+            subtasks: updatedSubtasks,
+            completed_subtasks_count: completedCount,
+          };
+        }
+        return t;
+      });
+      
+      setTasks(updatedTasks);
+      
+      // For subtasks, refresh from database to ensure UI is fully in sync
+      if (!isParentTask && task && task.parent_id) {
+        // Refresh all tasks to get updated hierarchy
+        const { data: allTasks, error: fetchError } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('user_id', user?.id)
+          .order('position', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: false });
+        
+        if (!fetchError && allTasks) {
+          const { organizeTasksWithSubtasks } = await import('../../utils/taskUtils');
+          const organizedTasks = organizeTasksWithSubtasks(allTasks);
+          setTasks(organizedTasks);
+        }
+      }
+      
+      // Check if we need to auto-complete parent (for subtasks only, not parent tasks)
+      if (!isParentTask && task && task.parent_id && !completed && newCompletedState) {
+        // Subtask was just completed, check if all siblings are done
+        const parent = updatedTasks.find(t => t.id === task.parent_id);
+        
+        if (parent && parent.subtasks) {
+          const allDone = parent.subtasks.every(st => st.completed);
+          
+          if (allDone && parent.subtasks.length > 0 && !parent.completed) {
+            // Auto-complete parent
+            setSaving(true);
+            await supabase
+              .from('tasks')
+              .update({ completed: true })
+              .eq('id', parent.id);
+            setSaving(false);
+            
+            // Refresh tasks to ensure UI is in sync
+            const { data: allTasks, error: fetchError } = await supabase
+              .from('tasks')
+              .select('*')
+              .eq('user_id', user?.id)
+              .order('position', { ascending: true, nullsFirst: false })
+              .order('created_at', { ascending: false });
+            
+            if (!fetchError && allTasks) {
+              const { organizeTasksWithSubtasks } = await import('../../utils/taskUtils');
+              const organizedTasks = organizeTasksWithSubtasks(allTasks);
+              setTasks(organizedTasks);
+            }
+          }
+        }
+      }
+    } else {
+      setSaving(false);
     }
   };
 
-  // Delete task
+  // Add subtask to a parent task
+  const addSubtask = async (parentId: string, text: string) => {
+    if (!text.trim() || !user) return;
+    setSaving(true);
+    
+    // Get parent task to find max position of its subtasks
+    const parent = tasks.find(t => t.id === parentId);
+    const parentSubtasks = parent?.subtasks || [];
+    const maxPosition = parentSubtasks.length > 0
+      ? Math.max(...parentSubtasks.map(st => st.position || 0))
+      : 0;
+    
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert({
+        user_id: user.id,
+        text: text.trim(),
+        completed: false,
+        parent_id: parentId,
+        position: maxPosition + 1,
+      })
+      .select();
+    setSaving(false);
+    
+    if (!error && data && data[0]) {
+      const newSubtask = data[0];
+      // Refresh tasks to get organized hierarchy
+      const { data: allTasks, error: fetchError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('position', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: false });
+      
+      if (!fetchError && allTasks) {
+        const { organizeTasksWithSubtasks } = await import('../../utils/taskUtils');
+        const organizedTasks = organizeTasksWithSubtasks(allTasks);
+        setTasks(organizedTasks);
+        // Auto-expand parent if not already expanded
+        if (!expandedTasks.has(parentId)) {
+          setExpandedTasks(prev => {
+            const newSet = new Set(prev);
+            newSet.add(parentId);
+            localStorage.setItem('expandedTasks', JSON.stringify(Array.from(newSet)));
+            return newSet;
+          });
+        }
+      }
+      setSubtaskInput('');
+      setAddingSubtaskTo(null);
+    }
+  };
+
+  // Toggle expand/collapse for tasks with subtasks
+  const toggleExpand = (taskId: string) => {
+    setExpandedTasks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      localStorage.setItem('expandedTasks', JSON.stringify(Array.from(newSet)));
+      return newSet;
+    });
+  };
+
+  // Delete task (cascades to subtasks via database)
   const deleteTask = async (id: string) => {
+    if (!user) return;
     setSaving(true);
     const { error } = await supabase
       .from('tasks')
@@ -371,7 +638,19 @@ export const NotesAndTodosWidget: React.FC = () => {
       .eq('id', id);
     setSaving(false);
     if (!error) {
-      setTasks(tasks.filter(t => t.id !== id));
+      // Refresh all tasks to get organized hierarchy (subtasks will be deleted by cascade)
+      const { data: allTasks, error: fetchError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('position', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: false });
+      
+      if (!fetchError && allTasks) {
+        const { organizeTasksWithSubtasks } = await import('../../utils/taskUtils');
+        const organizedTasks = organizeTasksWithSubtasks(allTasks);
+        setTasks(organizedTasks);
+      }
       setConfirmDeleteTaskId(null);
     }
   };
@@ -623,7 +902,7 @@ export const NotesAndTodosWidget: React.FC = () => {
     }
   };
 
-  // Group tasks by section
+  // Group tasks by section (only parent tasks, subtasks are shown under their parents)
   const groupTasksBySection = (tasks: Task[]) => {
     const grouped = {
       today: [] as Task[],
@@ -631,7 +910,21 @@ export const NotesAndTodosWidget: React.FC = () => {
       this_month: [] as Task[],
     };
     
-    tasks.forEach(task => {
+    // Filter tasks based on selected filter
+    let filteredTasks = tasks;
+    if (taskFilter === 'parent-only') {
+      // Only show tasks that have subtasks
+      filteredTasks = tasks.filter(task => !task.parent_id && task.has_subtasks && task.subtasks && task.subtasks.length > 0);
+    } else if (taskFilter === 'standalone-only') {
+      // Only show tasks without subtasks
+      filteredTasks = tasks.filter(task => !task.parent_id && (!task.has_subtasks || !task.subtasks || task.subtasks.length === 0));
+    } else {
+      // 'all' - show all parent tasks (default behavior)
+      filteredTasks = tasks.filter(task => !task.parent_id);
+    }
+    
+    // Group filtered parent tasks
+    filteredTasks.forEach(task => {
       const section = getTaskSection(task);
       grouped[section].push(task);
     });
@@ -659,6 +952,39 @@ export const NotesAndTodosWidget: React.FC = () => {
       this_week: sortTasks(grouped.this_week),
       this_month: sortTasks(grouped.this_month),
     };
+  };
+
+  // Group tasks by parent (for parent-based view)
+  const groupTasksByParent = (tasks: Task[]) => {
+    // Filter tasks based on selected filter
+    let filteredTasks = tasks;
+    if (taskFilter === 'parent-only') {
+      filteredTasks = tasks.filter(task => !task.parent_id && task.has_subtasks && task.subtasks && task.subtasks.length > 0);
+    } else if (taskFilter === 'standalone-only') {
+      filteredTasks = tasks.filter(task => !task.parent_id && (!task.has_subtasks || !task.subtasks || task.subtasks.length === 0));
+    } else {
+      filteredTasks = tasks.filter(task => !task.parent_id);
+    }
+    
+    // Sort tasks
+    const sortTasks = (taskList: Task[]) => {
+      return taskList.sort((a, b) => {
+        // Sort by unfinished first
+        if (a.completed !== b.completed) {
+          return a.completed ? 1 : -1;
+        }
+        // Within same completion status, sort by position
+        const aPos = a.position || 0;
+        const bPos = b.position || 0;
+        if (aPos !== bPos) {
+          return aPos - bPos;
+        }
+        // Fallback to created_at
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    };
+    
+    return sortTasks(filteredTasks);
   };
 
   // Reset section override (return to date-based grouping)
@@ -711,56 +1037,83 @@ export const NotesAndTodosWidget: React.FC = () => {
   };
 
   // Helper to render a single task item
-  const renderTaskItem = (task: Task) => (
-    <div 
-      key={task.id}
-      onDragOver={(e) => handleDragOver(e, task.id)}
-      onDragLeave={handleDragLeave}
-      onDrop={(e) => handleDrop(e, task.id)}
-      onDragEnd={handleDragEnd}
-      className={`bg-blue-50 dark:bg-blue-900/20 rounded p-2 flex items-center gap-2 transition-all duration-500 ${
-        completedTaskId === task.id 
-          ? 'ring-2 ring-green-400 dark:ring-green-500 bg-green-100 dark:bg-green-900/40 shadow-lg' 
-          : ''
-      } ${
-        draggedTaskId === task.id ? 'opacity-50' : ''
-      } ${
-        dragOverTaskId === task.id ? 'ring-2 ring-blue-400 dark:ring-blue-500 bg-blue-100 dark:bg-blue-900/40' : ''
-      }`}
-    >
-      {confirmDeleteTaskId === task.id ? (
-        <div className="flex-1 flex items-center gap-2">
-          <span className="text-sm text-red-600">Delete this task?</span>
-          <button className="px-2 py-1 text-xs bg-red-500 text-white rounded" onClick={() => deleteTask(task.id)} disabled={saving}>Delete</button>
-          <button className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded" onClick={() => setConfirmDeleteTaskId(null)} disabled={saving}>Cancel</button>
-        </div>
-      ) : <>
-      {/* Drag Handle */}
-      <div 
-        className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0"
-        draggable
-        onDragStart={(e) => {
-          e.stopPropagation();
-          handleDragStart(e, task.id);
-        }}
-      >
-        <GripVertical className="w-4 h-4" />
-      </div>
-      <input
-        type="checkbox"
-        checked={task.completed}
-        onChange={() => toggleTask(task.id, task.completed)}
-        className="mr-2 flex-shrink-0"
-        disabled={saving}
-        draggable={false}
-      />
-      <input
-        className={`flex-1 bg-transparent border-none focus:outline-none text-sm ${task.completed ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}
-        value={task.text}
-        onChange={e => editTask(task.id, e.target.value)}
-        disabled={saving}
-        draggable={false}
-      />
+  const renderTaskItem = (task: Task, isSubtask: boolean = false) => {
+    const hasSubtasks = task.has_subtasks && task.subtasks && task.subtasks.length > 0;
+    const isExpanded = expandedTasks.has(task.id);
+    const isAddingSubtask = addingSubtaskTo === task.id;
+    
+    return (
+      <div key={task.id} className={isSubtask ? 'ml-3 sm:ml-4 md:ml-6' : ''}>
+        <div 
+          onDragOver={(e) => !isSubtask && handleDragOver(e, task.id)}
+          onDragLeave={!isSubtask ? handleDragLeave : undefined}
+          onDrop={(e) => !isSubtask && handleDrop(e, task.id)}
+          onDragEnd={!isSubtask ? handleDragEnd : undefined}
+          className={`bg-blue-50 dark:bg-blue-900/20 rounded p-1.5 sm:p-2 flex items-center gap-1 sm:gap-2 transition-all duration-500 ${
+            completedTaskId === task.id 
+              ? 'ring-2 ring-green-400 dark:ring-green-500 bg-green-100 dark:bg-green-900/40 shadow-lg' 
+              : ''
+          } ${
+            draggedTaskId === task.id ? 'opacity-50' : ''
+          } ${
+            dragOverTaskId === task.id ? 'ring-2 ring-blue-400 dark:ring-blue-500 bg-blue-100 dark:bg-blue-900/40' : ''
+          } ${isSubtask ? 'border-l-2 border-blue-300 dark:border-blue-700 pl-2 sm:pl-3' : ''}`}
+        >
+          {confirmDeleteTaskId === task.id ? (
+            <div className="flex-1 flex items-center gap-2">
+              <span className="text-sm text-red-600">Delete this task?</span>
+              <button className="px-2 py-1 text-xs bg-red-500 text-white rounded" onClick={() => deleteTask(task.id)} disabled={saving}>Delete</button>
+              <button className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded" onClick={() => setConfirmDeleteTaskId(null)} disabled={saving}>Cancel</button>
+            </div>
+          ) : <>
+          {/* Expand/Collapse Button - show for ALL parent tasks (not just ones with subtasks) */}
+          {!isSubtask ? (
+            <button
+              onClick={() => toggleExpand(task.id)}
+              className="flex-shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-transform p-0.5 sm:p-1"
+              title={isExpanded ? 'Collapse subtasks' : 'Expand to add subtasks'}
+            >
+              {isExpanded ? (
+                <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              )}
+            </button>
+          ) : null}
+          {/* Drag Handle - only for parent tasks */}
+          {!isSubtask && (
+            <div 
+              className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0 p-0.5 sm:p-1"
+              draggable
+              onDragStart={(e) => {
+                e.stopPropagation();
+                handleDragStart(e, task.id);
+              }}
+            >
+              <GripVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </div>
+          )}
+          <input
+            type="checkbox"
+            checked={task.completed}
+            onChange={() => toggleTask(task.id, task.completed)}
+            className="mr-2 flex-shrink-0"
+            disabled={saving}
+            draggable={false}
+          />
+          <input
+            className={`flex-1 bg-transparent border-none focus:outline-none text-xs sm:text-sm ${task.completed ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}
+            value={task.text}
+            onChange={e => editTask(task.id, e.target.value)}
+            disabled={saving}
+            draggable={false}
+          />
+          {/* Progress Badge for tasks with subtasks */}
+          {hasSubtasks && !isSubtask && (
+            <span className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0.5 rounded bg-blue-200 dark:bg-blue-800 text-blue-700 dark:text-blue-300 flex-shrink-0">
+              {task.completed_subtasks_count || 0}/{task.total_subtasks_count || 0}
+            </span>
+          )}
       {/* Pomodoro Controls */}
       <div className="flex items-center gap-1" draggable={false}>
         {/* Duration Badge - Hidden when timer is active for this task */}
@@ -935,8 +1288,75 @@ export const NotesAndTodosWidget: React.FC = () => {
       </div>
       <button className="ml-1 text-gray-400 hover:text-red-500 flex-shrink-0" onClick={() => setConfirmDeleteTaskId(task.id)} disabled={saving}>&times;</button>
       </>}
-    </div>
-  );
+        </div>
+        {/* Subtasks section - shown when expanded */}
+        {!isSubtask && isExpanded && (
+          <div className="mt-1 sm:mt-1.5 space-y-1">
+            {/* Show existing subtasks */}
+            {hasSubtasks && task.subtasks?.map(subtask => renderTaskItem(subtask, true))}
+            {/* Add Subtask Input - show when adding or when no subtasks exist */}
+            {isAddingSubtask ? (
+              <div className="ml-3 sm:ml-4 md:ml-6 pl-2 sm:pl-3 border-l-2 border-blue-300 dark:border-blue-700 flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 bg-blue-100/50 dark:bg-blue-900/10 rounded">
+                <input
+                  type="text"
+                  value={subtaskInput}
+                  onChange={e => setSubtaskInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && subtaskInput.trim()) {
+                      addSubtask(task.id, subtaskInput);
+                    } else if (e.key === 'Escape') {
+                      setAddingSubtaskTo(null);
+                      setSubtaskInput('');
+                    }
+                  }}
+                  className="flex-1 bg-transparent border-none focus:outline-none text-xs sm:text-sm text-gray-900 dark:text-white"
+                  placeholder="Add subtask..."
+                  autoFocus
+                  disabled={saving}
+                />
+                <button
+                  onClick={() => {
+                    if (subtaskInput.trim()) {
+                      addSubtask(task.id, subtaskInput);
+                    } else {
+                      setAddingSubtaskTo(null);
+                      setSubtaskInput('');
+                    }
+                  }}
+                  className="p-0.5 sm:p-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 flex-shrink-0"
+                  disabled={saving}
+                >
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    setAddingSubtaskTo(null);
+                    setSubtaskInput('');
+                  }}
+                  className="p-0.5 sm:p-1 text-gray-400 hover:text-gray-600 flex-shrink-0"
+                  disabled={saving}
+                >
+                  <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setAddingSubtaskTo(task.id);
+                  setSubtaskInput('');
+                }}
+                className="ml-3 sm:ml-4 md:ml-6 pl-2 sm:pl-3 text-[10px] sm:text-xs text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1 p-0.5 sm:p-1"
+                disabled={saving}
+              >
+                <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span>Add subtask</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Helper to save timer state to localStorage
   const saveTimerState = (timer: typeof pomodoroTimer) => {
@@ -1389,8 +1809,18 @@ export const NotesAndTodosWidget: React.FC = () => {
 
   // In the notes tab, only show first 3 notes, and a 'View All Notes' link if more
   const notesToShow = notes.slice(0, 3);
-  // In the tasks tab, only show first 3 tasks, and a 'View All Tasks' link if more
-  const tasksToShow = tasks.slice(0, 3);
+  // In the tasks tab, only show first 3 parent tasks (subtasks are shown under their parents), and a 'View All Tasks' link if more
+  // Apply filter if set
+  const filteredTasksForPreview = (() => {
+    let filtered = tasks.filter(t => !t.parent_id);
+    if (taskFilter === 'parent-only') {
+      filtered = filtered.filter(task => task.has_subtasks && task.subtasks && task.subtasks.length > 0);
+    } else if (taskFilter === 'standalone-only') {
+      filtered = filtered.filter(task => !task.has_subtasks || !task.subtasks || task.subtasks.length === 0);
+    }
+    return filtered;
+  })();
+  const tasksToShow = filteredTasksForPreview.slice(0, 3);
 
   return (
     <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-blue-100 dark:from-blue-900/40 dark:via-purple-900/40 dark:to-blue-900/40 rounded-xl p-4 mb-4 shadow-sm flex flex-col transition-all duration-300">
@@ -1615,7 +2045,32 @@ export const NotesAndTodosWidget: React.FC = () => {
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto shadow-lg relative">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">All Tasks</h2>
-                <div className="flex items-center gap-0">
+                <div className="flex items-center gap-1">
+                  {/* View Mode Toggle */}
+                  <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded p-0.5">
+                    <button
+                      onClick={() => setViewMode('time-based')}
+                      className={`px-2 py-1 text-xs rounded transition-colors ${
+                        viewMode === 'time-based'
+                          ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                      title="Time-based view"
+                    >
+                      Time
+                    </button>
+                    <button
+                      onClick={() => setViewMode('parent-based')}
+                      className={`px-2 py-1 text-xs rounded transition-colors ${
+                        viewMode === 'parent-based'
+                          ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                      title="Parent-based view"
+                    >
+                      Parent
+                    </button>
+                  </div>
                   <button
                     onClick={() => setShowAddTaskInput(!showAddTaskInput)}
                     className={`p-1.5 transition-colors ${
@@ -1753,14 +2208,15 @@ export const NotesAndTodosWidget: React.FC = () => {
                   </button>
                 </div>
               </div>
-              {/* Accordion Sections */}
-              {(() => {
-                const groupedTasks = groupTasksBySection(tasks);
-                const sections = [
-                  { key: 'today' as const, label: 'Today', tasks: groupedTasks.today },
-                  { key: 'thisWeek' as const, label: 'This Week', tasks: groupedTasks.this_week },
-                  { key: 'thisMonth' as const, label: 'This Month', tasks: groupedTasks.this_month },
-                ];
+              {/* Accordion Sections or Parent-based View */}
+              {viewMode === 'time-based' ? (
+                (() => {
+                  const groupedTasks = groupTasksBySection(tasks);
+                  const sections = [
+                    { key: 'today' as const, label: 'Today', tasks: groupedTasks.today },
+                    { key: 'thisWeek' as const, label: 'This Week', tasks: groupedTasks.this_week },
+                    { key: 'thisMonth' as const, label: 'This Month', tasks: groupedTasks.this_month },
+                  ];
                 
                 return (
                   <div className="space-y-3">
@@ -1824,7 +2280,19 @@ export const NotesAndTodosWidget: React.FC = () => {
                     })}
                   </div>
                 );
-              })()}
+                })()
+              ) : (
+                // Parent-based view
+                <div className="space-y-2">
+                  {(() => {
+                    const parentTasks = groupTasksByParent(tasks);
+                    if (parentTasks.length === 0) {
+                      return <div className="text-gray-400 text-sm text-center py-4">No tasks found.</div>;
+                    }
+                    return parentTasks.map(task => renderTaskItem(task));
+                  })()}
+                </div>
+              )}
             </div>
           </Modal>
         </div>

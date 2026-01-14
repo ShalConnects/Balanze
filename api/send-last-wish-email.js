@@ -224,19 +224,23 @@ export async function gatherUserData(userId) {
   const metadata = { userId, operation: 'gatherUserData' };
 
   try {
-  // Gather accounts
+  // Gather accounts (using account_balances view to get accurate calculated_balance)
     try {
       const { data: accounts, error: accountsError } = await supabase
-    .from('accounts')
+    .from('account_balances')
     .select('*')
     .eq('user_id', userId);
       
       if (accountsError) {
-        await logError('gatherUserData', accountsError, { ...metadata, table: 'accounts' });
+        await logError('gatherUserData', accountsError, { ...metadata, table: 'account_balances' });
       }
-  data.accounts = accounts || [];
+      // Map account_id to id for compatibility with existing code
+      data.accounts = (accounts || []).map(acc => ({
+        ...acc,
+        id: acc.account_id
+      }));
     } catch (error) {
-      await logError('gatherUserData', error, { ...metadata, table: 'accounts' });
+      await logError('gatherUserData', error, { ...metadata, table: 'account_balances' });
       data.accounts = [];
     }
 

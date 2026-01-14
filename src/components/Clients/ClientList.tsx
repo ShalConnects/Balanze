@@ -20,6 +20,7 @@ import {
 } from './ClientSkeleton';
 import { ClientTasksWidget } from '../Dashboard/ClientTasksWidget';
 import { ClientNoteModal } from './ClientNoteModal';
+import { ClientEmailSuggestions } from './ClientEmailSuggestions';
 import { getCurrencySymbol } from '../../utils/currency';
 import { 
   getInvoiceStatusColor, 
@@ -675,17 +676,17 @@ export const ClientList: React.FC = () => {
 
   return (
     <>
-      <div>
+      <div className="w-full">
         {/* Unified Table View - matching AccountsView structure */}
-        <div className="space-y-6">
+        <div className="space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6">
           {/* Error Banner */}
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-              <div className="flex items-center gap-2">
-                <span className="text-red-600 dark:text-red-400 font-medium">⚠️ Error loading clients:</span>
-                <span className="text-red-700 dark:text-red-300 text-sm">{error}</span>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <span className="text-red-600 dark:text-red-400 font-medium text-xs sm:text-sm">⚠️ Error loading clients:</span>
+                <span className="text-red-700 dark:text-red-300 text-xs sm:text-sm">{error}</span>
               </div>
-              <p className="text-red-600 dark:text-red-400 text-sm mt-2">
+              <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm mt-2">
                 The page will still work, but client data may be incomplete. Please check your database connection or run the migration.
               </p>
             </div>
@@ -695,12 +696,12 @@ export const ClientList: React.FC = () => {
           <ClientTasksWidget />
           
           {/* Unified Filters and Table */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 pb-[13px] lg:pb-0" style={{ marginTop: '10px' }}>
+          <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 pb-2 sm:pb-3 lg:pb-0 mt-2 sm:mt-3 md:mt-4 lg:mt-6">
             {/* Filters Section */}
-            <div className="p-2 sm:p-3 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1" style={{ marginBottom: 0 }}>
+            <div className="p-2 sm:p-3 md:p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex flex-wrap items-center gap-x-1.5 sm:gap-x-2 gap-y-1.5 sm:gap-y-2" style={{ marginBottom: 0 }}>
                 {/* Search */}
-                <div>
+                <div className="flex-1 min-w-[150px] sm:min-w-[200px] md:min-w-[250px]">
                   <div className="relative">
                     <Search className={`absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 ${isSearching ? 'animate-pulse text-blue-500' : tableFilters.search ? 'text-blue-500' : 'text-gray-400'}`} />
                     <input
@@ -931,7 +932,7 @@ export const ClientList: React.FC = () => {
                 
                 <div className="flex-grow" />
                 {/* Action Buttons in filter row */}
-                <div className="hidden md:flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   <button
                     onClick={() => {
                       if (!canCreateClient()) {
@@ -947,14 +948,15 @@ export const ClientList: React.FC = () => {
                       setShowForm(true);
                     }}
                     disabled={!canCreateClient()}
-                    className={`px-3 py-1.5 h-8 rounded-md transition-colors flex items-center space-x-1.5 text-[13px] ${
+                    className={`px-2 sm:px-3 py-1.5 h-8 rounded-md transition-colors flex items-center space-x-1 sm:space-x-1.5 text-xs sm:text-[13px] ${
                       canCreateClient()
                         ? 'bg-gradient-primary text-white hover:bg-gradient-primary-hover'
                         : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                     }`}
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Client</span>
+                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Add Client</span>
+                    <span className="sm:hidden">Add</span>
                   </button>
                 </div>
               </div>
@@ -1068,7 +1070,7 @@ export const ClientList: React.FC = () => {
             {/* Table Section */}
             <div className="overflow-x-auto lg:rounded-b-xl" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
               {/* Desktop Table View */}
-              <div className="hidden lg:block max-h-[500px] overflow-y-auto">
+              <div className="hidden lg:block max-h-[400px] xl:max-h-[500px] overflow-y-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900 text-sm lg:text-[14px]">
                   <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
                     <tr>
@@ -1869,6 +1871,14 @@ export const ClientList: React.FC = () => {
                                     </>
                                     )}
                                   </div>
+                                  
+                                  {/* AI Email Suggestions */}
+                                  <ClientEmailSuggestions
+                                    client={client}
+                                    orders={getOrdersByClient(client.id)}
+                                    invoices={getInvoicesByClient(client.id)}
+                                    tasks={getTasksByClient(client.id)}
+                                  />
                                 </div>
                             </td>
                             </tr>
@@ -1882,14 +1892,14 @@ export const ClientList: React.FC = () => {
               </div>
 
               {/* Mobile/Tablet Card View */}
-              <div className="lg:hidden max-h-[500px] overflow-y-auto">
+              <div className="lg:hidden max-h-[400px] sm:max-h-[450px] md:max-h-[500px] overflow-y-auto">
                 {filteredClients.length === 0 ? (
                   <div className="text-center py-12 px-4">
                     <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Building2 className="w-12 h-12 text-gray-400" />
+                      <Building2 className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No clients yet</h3>
-                    <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">No clients yet</h3>
+                    <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mb-4 sm:mb-6 max-w-sm mx-auto px-4">
                       {tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag
                         ? 'No clients match your filters'
                         : 'Start managing your clients by adding your first client'}
@@ -2394,6 +2404,14 @@ export const ClientList: React.FC = () => {
                                     })()}
                                   </div>
                                 </div>
+
+                                {/* AI Email Suggestions */}
+                                <ClientEmailSuggestions
+                                  client={client}
+                                  orders={getOrdersByClient(client.id)}
+                                  invoices={getInvoicesByClient(client.id)}
+                                  tasks={getTasksByClient(client.id)}
+                                />
                               </div>
                             </div>
                           )}
@@ -2675,8 +2693,8 @@ export const ClientList: React.FC = () => {
                         ⚠️ This will also delete {totalRelated} related record{totalRelated !== 1 ? 's' : ''}:
                       </p>
                       <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1 list-disc list-inside">
-                        {activeTasks.length > 0 && (
-                          <li>{activeTasks.length} task{clientTasks.length !== 1 ? 's' : ''}</li>
+                        {clientTasks.length > 0 && (
+                          <li>{clientTasks.length} task{clientTasks.length !== 1 ? 's' : ''}</li>
                         )}
                         {clientInvoices.length > 0 && (
                           <li>{clientInvoices.length} invoice{clientInvoices.length !== 1 ? 's' : ''}</li>
