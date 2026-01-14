@@ -104,11 +104,18 @@ export default async function handler(req, res) {
           
           return isOverdue;
         })
-        .map(record => ({
-          user_id: record.user_id,
-          email: 'unknown@example.com',
-          days_overdue: Math.floor((new Date() - new Date(record.last_check_in + (record.check_in_frequency * 24 * 60 * 60 * 1000))) / (1000 * 60 * 60 * 24))
-        }));
+        .map(record => {
+          const lastCheckInTime = new Date(record.last_check_in).getTime();
+          const frequencyMs = record.check_in_frequency * 24 * 60 * 60 * 1000;
+          const expectedCheckInTime = lastCheckInTime + frequencyMs;
+          const now = new Date().getTime();
+          const diffTime = now - expectedCheckInTime;
+          return {
+            user_id: record.user_id,
+            email: 'unknown@example.com',
+            days_overdue: diffTime > 0 ? Math.floor(diffTime / (1000 * 60 * 60 * 24)) : 0
+          };
+        });
       
       console.log(`[LAST-WISH-PUBLIC] After filtering, ${overdueUsers.length} overdue users found`);
     }

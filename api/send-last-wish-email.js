@@ -524,11 +524,13 @@ function calculateDateInfo(settings, data) {
   const lastCheckIn = settings.last_check_in ? new Date(settings.last_check_in) : null;
   const checkInFrequency = settings.check_in_frequency || 30;
   
-  // Calculate days overdue
+  // Calculate days overdue (handle fractional days like 1 hour = 1/24 days)
   let daysOverdue = null;
   if (lastCheckIn) {
-    const expectedCheckIn = new Date(lastCheckIn);
-    expectedCheckIn.setDate(expectedCheckIn.getDate() + checkInFrequency);
+    const lastCheckInTime = new Date(lastCheckIn).getTime();
+    // Convert checkInFrequency (in days) to milliseconds
+    const frequencyMs = checkInFrequency * 24 * 60 * 60 * 1000;
+    const expectedCheckIn = new Date(lastCheckInTime + frequencyMs);
     const diffTime = now - expectedCheckIn;
     if (diffTime > 0) {
       daysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
