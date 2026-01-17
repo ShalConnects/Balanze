@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { Star, Plus } from 'lucide-react';
@@ -36,6 +36,7 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({
   const [saving, setSaving] = useState(false);
   const [confirmDeleteNoteId, setConfirmDeleteNoteId] = useState<string | null>(null);
   const [showAllNotes, setShowAllNotes] = useState(false);
+  const addNoteInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch notes from Supabase - Fixed to prevent infinite calls
   useEffect(() => {
@@ -91,20 +92,36 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({
   const addNote = async () => {
     if (!noteInput.trim() || !user) return;
     setSaving(true);
-    const { data, error } = await supabase
-      .from('notes')
-      .insert({
-        user_id: user.id,
-        text: noteInput.trim(),
-        color: noteColor,
-        pinned: false,
-      })
-      .select();
-    setSaving(false);
-    if (!error && data && data[0]) {
-      setNotes([data[0], ...notes]);
-      setNoteInput('');
-      setNoteColor('yellow');
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .insert({
+          user_id: user.id,
+          text: noteInput.trim(),
+          color: noteColor,
+          pinned: false,
+        })
+        .select();
+      
+      if (error) {
+        console.error('Error adding note:', error);
+        setSaving(false);
+        return;
+      }
+      
+      if (data && data[0]) {
+        setNotes([data[0], ...notes]);
+        setNoteInput('');
+        setNoteColor('yellow');
+        // Keep focus on input field after adding note
+        setTimeout(() => {
+          addNoteInputRef.current?.focus();
+        }, 0);
+      }
+    } catch (error) {
+      console.error('Unexpected error adding note:', error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -184,28 +201,45 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({
 
   return (
     <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-blue-100 dark:from-blue-900/40 dark:via-purple-900/40 dark:to-blue-900/40 rounded-xl p-4 shadow-sm flex flex-col transition-all duration-300">
-      {/* Add Note */}
-      <div className="flex mb-2">
-        <input
-          className="flex-1 rounded-l px-3 py-2 border border-gray-200 dark:border-gray-700 focus:outline-none bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-          placeholder="Add a note..."
-          value={noteInput}
-          onChange={e => setNoteInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && addNote()}
-          disabled={saving}
-        />
-        <button
-          className="rounded-r bg-gradient-primary text-white px-3 py-2 font-bold flex items-center justify-center hover:bg-gradient-primary-hover transition-colors"
-          onClick={addNote}
-          disabled={saving}
-          style={{ minWidth: 40 }}
-        >
-          <Plus className="w-5 h-5" />
-        </button>
+      {/* Widget Header */}
+      <div className="mb-3">
+        <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">Notes</h3>
+      </div>
+      {/* Quick Add Note Input - Always visible in collapsed view */}
+      <div className="mb-3">
+        <div className="bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 rounded-lg p-2 flex items-center gap-2 shadow-sm">
+          <input
+            ref={addNoteInputRef}
+            className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+            placeholder="Add a note..."
+            value={noteInput}
+            onChange={e => setNoteInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && noteInput.trim()) {
+                e.preventDefault();
+                addNote();
+              }
+            }}
+            disabled={saving}
+          />
+          <button
+            className="p-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex-shrink-0 disabled:opacity-50"
+            onClick={(e) => {
+              e.preventDefault();
+              if (noteInput.trim()) {
+                addNote();
+              }
+            }}
+            disabled={saving || !noteInput.trim()}
+            title="Add note"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
       </div>
       {/* Notes List (show only first 3) */}
       <div className="space-y-2">
-        {notesToShow.length === 0 && <div className="text-gray-400 text-sm">No notes yet.</div>}
+        {notesToShow.length === 0 && <div className="text-gray-400 text-sm text-center">No notes yet.</div>}
         {notesToShow.map(note => {
           const colorObj = NOTE_COLORS.find(c => c.value === note.color) || NOTE_COLORS[0];
           return (

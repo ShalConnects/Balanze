@@ -216,41 +216,59 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
   const addTask = async () => {
     if (!todoInput.trim() || !user) return;
     setSaving(true);
-    // Calculate position for new task (should be at the top)
-    const minPosition = tasks.length > 0 
-      ? Math.min(...tasks.map(t => t.position || 0))
-      : 0;
-    const newPosition = minPosition - 1;
-    
-    const { data, error } = await supabase
-      .from('tasks')
-      .insert({
-        user_id: user.id,
-        text: todoInput.trim(),
-        completed: false,
-        position: newPosition,
-      })
-      .select();
-    setSaving(false);
-    if (!error && data && data[0]) {
-      // Refresh all tasks to get organized hierarchy
-      const { data: allTasks, error: fetchError } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('position', { ascending: true, nullsFirst: false })
-        .order('created_at', { ascending: false });
+    try {
+      // Calculate position for new task (should be at the top)
+      const minPosition = tasks.length > 0 
+        ? Math.min(...tasks.map(t => t.position || 0))
+        : 0;
+      const newPosition = minPosition - 1;
       
-      if (!fetchError && allTasks) {
-        const { organizeTasksWithSubtasks } = await import('../../utils/taskUtils');
-        const organizedTasks = organizeTasksWithSubtasks(allTasks);
-        setTasks(organizedTasks);
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert({
+          user_id: user.id,
+          text: todoInput.trim(),
+          completed: false,
+          position: newPosition,
+        })
+        .select();
+      
+      if (error) {
+        console.error('Error adding task:', error);
+        setSaving(false);
+        return;
       }
-      setTodoInput('');
-      // Keep focus on input field after adding task
-      setTimeout(() => {
-        addTaskInputRef.current?.focus();
-      }, 0);
+      
+      if (data && data[0]) {
+        // Refresh all tasks to get organized hierarchy
+        const { data: allTasks, error: fetchError } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('position', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: false });
+        
+        if (fetchError) {
+          console.error('Error fetching tasks after add:', fetchError);
+        } else if (allTasks) {
+          const { organizeTasksWithSubtasks } = await import('../../utils/taskUtils');
+          const organizedTasks = organizeTasksWithSubtasks(allTasks);
+          setTasks(organizedTasks);
+        }
+        setTodoInput('');
+        // Reset filter to 'all' so the newly added task is visible
+        if (taskFilter !== 'all') {
+          setTaskFilter('all');
+        }
+        // Keep focus on input field after adding task
+        setTimeout(() => {
+          addTaskInputRef.current?.focus();
+        }, 0);
+      }
+    } catch (error) {
+      console.error('Unexpected error adding task:', error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1212,7 +1230,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
             playCompletionSound();
             
             // Show browser notification
-            const task = tasks.find(t => t.id === taskId);
+            const task = findTaskById(taskId);
             const taskName = task?.text || 'Task';
             if ('Notification' in window && Notification.permission === 'granted') {
               new Notification('Pomodoro Complete! 🍅', {
@@ -1662,9 +1680,45 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
 
   return (
     <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-blue-100 dark:from-blue-900/40 dark:via-purple-900/40 dark:to-blue-900/40 rounded-xl p-4 shadow-sm flex flex-col transition-all duration-300">
+      {/* Widget Header */}
+      <div className="mb-3">
+        <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">Tasks</h3>
+      </div>
+      {/* Quick Add Task Input - Always visible in collapsed view */}
+      <div className="mb-3">
+        <div className="bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 rounded-lg p-2 flex items-center gap-2 shadow-sm">
+          <input
+            ref={addTaskInputRef}
+            className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+            placeholder="Add a task..."
+            value={todoInput}
+            onChange={e => setTodoInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && todoInput.trim()) {
+                e.preventDefault();
+                addTask();
+              }
+            }}
+            disabled={saving}
+          />
+          <button
+            className="p-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex-shrink-0 disabled:opacity-50"
+            onClick={(e) => {
+              e.preventDefault();
+              if (todoInput.trim()) {
+                addTask();
+              }
+            }}
+            disabled={saving || !todoInput.trim()}
+            title="Add task"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
       {/* Tasks List (show only first 3) */}
       <div className="space-y-2">
-        {tasksToShow.length === 0 && <div className="text-gray-400 text-sm">No tasks yet.</div>}
+        {tasksToShow.length === 0 && <div className="text-gray-400 text-sm text-center">No tasks yet.</div>}
         {tasksToShow.map(task => (
           <div key={task.id} className="bg-blue-50 dark:bg-blue-900/20 rounded p-2 flex items-center">
             {confirmDeleteTaskId === task.id ? (

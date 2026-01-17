@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, Heart, Zap, Download, BarChart3, Users, Globe, MessageSquare, Settings, CreditCard, Loader2, AlertTriangle, Repeat } from 'lucide-react';
+import { Check, Heart, Zap, Download, BarChart3, Users, Globe, MessageSquare, Settings, CreditCard, Loader2, AlertTriangle, Repeat, Building2, Target } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { initializePaddle, Paddle } from '@paddle/paddle-js';
 import { toast } from 'react-hot-toast';
@@ -38,6 +38,8 @@ const plans: Plan[] = [
       { text: '1 currency only', included: true, icon: Globe },
       { text: '25 transactions per month', included: true, icon: CreditCard },
       { text: '50 purchases (lifetime)', included: true, icon: Download },
+      { text: '5 clients limit', included: true, icon: Building2 },
+      { text: 'Personal Growth (Habits & Learning)', included: true, icon: Target },
       { text: 'Basic reports', included: true, icon: BarChart3 },
       { text: 'Email support (24-48h response)', included: true, icon: MessageSquare },
       { text: 'Basic analytics', included: true, icon: BarChart3 },
@@ -63,6 +65,8 @@ const plans: Plan[] = [
       { text: 'Unlimited currencies', included: true, icon: Globe },
       { text: 'Unlimited transactions', included: true, icon: CreditCard },
       { text: 'Unlimited purchases', included: true, icon: Download },
+      { text: 'Unlimited clients', included: true, icon: Building2 },
+      { text: 'Personal Growth (Habits & Learning)', included: true, icon: Target },
       { text: 'Advanced analytics', included: true, icon: BarChart3 },
       { text: 'Priority email support (4-8h response)', included: true, icon: MessageSquare },
       { text: 'Custom categories', included: true, icon: Settings },

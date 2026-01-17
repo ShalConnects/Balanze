@@ -163,7 +163,7 @@ export const ClientList: React.FC = () => {
   } = useClientStore();
 
   const { isMobile } = useMobileDetection();
-  const { canCreateClient, usageStats, isAtLimit } = usePlanFeatures();
+  const { canCreateClient, usageStats, isAtLimit, isPremiumPlan, loadUsageStats } = usePlanFeatures();
   
   // Record selection functionality
   const {
@@ -436,6 +436,12 @@ export const ClientList: React.FC = () => {
     return filtered;
   }, [clients, debouncedSearch, tableFilters.status, tableFilters.currency, tableFilters.tag, sortConfig]);
 
+  // Check if there are active tasks (same logic as ClientTasksWidget)
+  const hasActiveTasks = useMemo(() => {
+    const allActiveTasks = tasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled');
+    return allActiveTasks.length > 0;
+  }, [tasks]);
+
   // Memoized client financial calculations
   const clientFinancialData = useMemo(() => {
     const dataMap = new Map<string, {
@@ -598,10 +604,11 @@ export const ClientList: React.FC = () => {
     }
   };
 
-  const handleCloseForm = () => {
+  const handleCloseForm = async () => {
     setShowForm(false);
     setEditingClient(null);
     fetchClients(); // Refresh list after form closes
+    await loadUsageStats(); // Refresh usage stats to update limit display
   };
 
   const getStatusBadge = (status: Client['status']) => {
@@ -696,7 +703,7 @@ export const ClientList: React.FC = () => {
           <ClientTasksWidget />
           
           {/* Unified Filters and Table */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 pb-2 sm:pb-3 lg:pb-0 mt-2 sm:mt-3 md:mt-4 lg:mt-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 pb-2 sm:pb-3 lg:pb-0" style={hasActiveTasks ? { marginTop: '15px' } : undefined}>
             {/* Filters Section */}
             <div className="p-2 sm:p-3 md:p-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex flex-wrap items-center gap-x-1.5 sm:gap-x-2 gap-y-1.5 sm:gap-y-2" style={{ marginBottom: 0 }}>
@@ -1062,6 +1069,35 @@ export const ClientList: React.FC = () => {
                         <span className="text-yellow-600 text-lg sm:text-xl lg:text-[1.2rem] flex-shrink-0">⚠</span>
                       </div>
                     </div>
+                    {!isPremiumPlan && (
+                      <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 sm:py-2 px-1.5 sm:px-2">
+                        <div className="flex items-center justify-between">
+                          <div className="text-left min-w-0 flex-1">
+                            <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Client Limit</p>
+                            <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem]">
+                              {(() => {
+                                if (isPremiumPlan) return '∞';
+                                if (usageStats && usageStats.clients) {
+                                  const current = usageStats.clients.current || 0;
+                                  let limit = usageStats.clients.limit;
+                                  // If limit is -1 (unlimited) or invalid, default to 5 for free users
+                                  if (!limit || limit === -1 || limit < 0) {
+                                    limit = 5;
+                                  }
+                                  return `${current}/${limit}`;
+                                }
+                                // Fallback for free users
+                                return `${clients.length}/5`;
+                              })()}
+                            </p>
+                            <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">
+                              {isPremiumPlan ? 'Unlimited clients' : 'Free plan limit'}
+                            </p>
+                          </div>
+                          <svg className="text-blue-600 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2l4 -4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </div>
+                      </div>
+                    )}
                   </>
                 );
               })()}

@@ -208,6 +208,12 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       showToast.success('Client added successfully');
       return data;
     } catch (error: any) {
+      // Check for CLIENT_LIMIT_EXCEEDED error first - re-throw it so ClientForm can handle it
+      if (error?.message && error.message.includes('CLIENT_LIMIT_EXCEEDED')) {
+        set({ loading: false });
+        throw error; // Re-throw so ClientForm can catch and handle it
+      }
+      
       let errorMessage = 'Failed to add client';
       if (error?.message) {
         if (error.message.includes('duplicate') || error.message.includes('unique')) {

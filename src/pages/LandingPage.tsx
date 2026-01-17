@@ -3,7 +3,7 @@ import {
   TrendingUp, Wallet, Target, Handshake, PiggyBank, Bell, Shield, Heart,
   Check, ChevronDown, ChevronUp, Star, ArrowRight, BarChart3, PieChart,
   Users, Globe, Mail, Phone, Facebook, Twitter, Instagram, Linkedin, Github, ArrowUp, Moon, Sun, LogOut, Menu, X,
-  Zap, MessageSquare, Download, Settings, CreditCard, Smartphone, Clock, AlertCircle, Repeat
+  Zap, MessageSquare, Download, Settings, CreditCard, Smartphone, Clock, AlertCircle, Repeat, Building2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
@@ -1534,6 +1534,18 @@ const LandingPage: React.FC = () => {
                 </li>
                 <li className="flex items-start">
                   <div className="flex items-center flex-1">
+                    <Building2 className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">5 clients limit</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Target className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Personal Growth (Habits & Learning)</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
                     <BarChart3 className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">Basic reports</span>
                   </div>
@@ -1668,6 +1680,18 @@ const LandingPage: React.FC = () => {
                   <div className="flex items-center flex-1">
                     <Download className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
                     <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Unlimited purchases</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Building2 className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Unlimited clients</span>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <div className="flex items-center flex-1">
+                    <Target className="w-4 h-4 mr-2 flex-shrink-0 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Personal Growth (Habits & Learning)</span>
                   </div>
                 </li>
                 <li className="flex items-start">

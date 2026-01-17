@@ -287,14 +287,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     setMainDashboardWidgetOrder(newOrder);
   }, []);
 
-  // Get visible widgets sorted by order - memoized for performance
-  const visibleWidgets = useMemo(() => 
-    widgetConfig
-      .filter(w => w.visible)
-      .sort((a, b) => a.order - b.order),
-    [widgetConfig]
-  );
-
   // Lazy load NotesWidget and TodosWidget after initial render - with improved error handling
   useEffect(() => {
     if (!NotesWidget) {
@@ -469,6 +461,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
   const isPremium = useMemo(() => {
     return profile?.subscription?.plan !== 'free';
   }, [profile?.subscription?.plan]);
+
+  // Get visible widgets sorted by order - memoized for performance
+  // Filter out premium-only widgets for free users and unloaded widgets
+  const visibleWidgets = useMemo(() => 
+    widgetConfig
+      .filter(w => {
+        // Filter by visibility
+        if (!w.visible) return false;
+        
+        // Filter out last-wish widget for free users
+        if (w.id === 'last-wish' && !isPremium) return false;
+        
+        // Filter out notes/todos widgets if not loaded
+        if (w.id === 'notes' && !NotesWidget) return false;
+        if (w.id === 'todos' && !TodosWidget) return false;
+        
+        return true;
+      })
+      .sort((a, b) => a.order - b.order),
+    [widgetConfig, isPremium, NotesWidget, TodosWidget]
+  );
   
   // Check if there are any transfers in transactions
   const hasTransfersInTransactions = useMemo(() => {

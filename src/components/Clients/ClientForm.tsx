@@ -17,7 +17,7 @@ interface ClientFormProps {
 export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client }) => {
   const { addClient, updateClient, loading, error, clients } = useClientStore();
   const { isMobile } = useMobileDetection();
-  const { canCreateClient, usageStats, getUpgradeMessage } = usePlanFeatures();
+  const { canCreateClient, usageStats, getUpgradeMessage, loadUsageStats } = usePlanFeatures();
   const [formData, setFormData] = useState<ClientInput>({
     name: '',
     email: '',
@@ -311,6 +311,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
         await updateClient(client.id, formData);
       } else {
         await addClient(formData);
+        // Refresh usage stats after adding a client to update the limit display
+        await loadUsageStats();
       }
       onClose();
     } catch (error) {
