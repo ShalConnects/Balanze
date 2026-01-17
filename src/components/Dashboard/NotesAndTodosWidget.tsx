@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { Star, StickyNote as StickyNoteIcon, Plus, AlertTriangle, Timer, Play, Pause, RotateCcw, Settings, GripVertical, X, ChevronDown, RefreshCw, ChevronRight } from 'lucide-react';
+import { Star, StickyNote as StickyNoteIcon, Plus, AlertTriangle, Timer, Play, Pause, RotateCcw, Settings, GripVertical, X, ChevronDown, RefreshCw, ChevronRight, ChevronUp } from 'lucide-react';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import Modal from 'react-modal';
 
@@ -30,7 +30,15 @@ interface Task {
   section_override?: 'today' | 'this_week' | 'this_month' | null;
 }
 
-export const NotesAndTodosWidget: React.FC = () => {
+interface NotesAndTodosWidgetProps {
+  isAccordionExpanded?: boolean;
+  onAccordionToggle?: () => void;
+}
+
+export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
+  isAccordionExpanded = true,
+  onAccordionToggle
+}) => {
   const { user } = useAuthStore();
   const [tab, setTab] = useState<'notes' | 'todos'>('notes');
   const [notes, setNotes] = useState<Note[]>([]);
@@ -1823,7 +1831,8 @@ export const NotesAndTodosWidget: React.FC = () => {
   const tasksToShow = filteredTasksForPreview.slice(0, 3);
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-blue-100 dark:from-blue-900/40 dark:via-purple-900/40 dark:to-blue-900/40 rounded-xl p-4 mb-4 shadow-sm flex flex-col transition-all duration-300">
+    <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-blue-100 dark:from-blue-900/40 dark:via-purple-900/40 dark:to-blue-900/40 rounded-xl p-4 shadow-sm flex flex-col transition-all duration-300">
+      {/* Content */}
       {/* Last Wish Countdown Widget */}
       {lastWishCountdown && (
         <div className="mb-4 p-3 rounded-lg bg-purple-50 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700 flex items-center gap-3">

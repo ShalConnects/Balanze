@@ -593,25 +593,25 @@ export const CoursesList: React.FC = () => {
                           {isRowExpanded(course.id) && (
                             <tr className="bg-gray-50 dark:bg-gray-800">
                               <td colSpan={4} className="px-4 sm:px-6 py-4 sm:py-6">
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:h-[350px]">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 h-[400px] sm:h-[450px] md:h-[500px] lg:h-[350px] overflow-hidden">
                                   {/* Left Side - Modules List */}
-                                  <div className="space-y-2 lg:h-full lg:flex lg:flex-col">
-                                    <div className="flex items-center justify-between mb-2 flex-shrink-0">
-                                      <h4 className="text-xs font-semibold text-gray-900 dark:text-white">Modules</h4>
+                                  <div className="space-y-2 h-full flex flex-col min-h-0">
+                                    <div className="flex items-center justify-between mb-2 flex-shrink-0 sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 pb-2 -mt-2 pt-2 -mx-2 px-2 border-b border-gray-200 dark:border-gray-700">
+                                      <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">Modules</h4>
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           setEditingModule(null);
                                           setShowModuleForm(true);
                                         }}
-                                        className="flex items-center gap-1 px-2 py-1 text-xs bg-gradient-primary text-white rounded-md hover:bg-gradient-primary-hover transition-colors"
+                                        className="flex items-center gap-1 px-2 py-1 text-xs sm:text-sm bg-gradient-primary text-white rounded-md hover:bg-gradient-primary-hover transition-colors touch-manipulation"
                                       >
-                                        <Plus className="w-3 h-3" />
+                                        <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                                         <span className="hidden sm:inline">Add Module</span>
                                         <span className="sm:hidden">Add</span>
                                       </button>
                                     </div>
-                                    <div className="space-y-1.5 max-h-[400px] sm:max-h-[500px] lg:max-h-none lg:flex-1 lg:overflow-y-auto pr-1">
+                                    <div className="space-y-1.5 flex-1 overflow-y-auto min-h-0 pr-1">
                                       {(() => {
                                         const courseModules = modules.filter((m) => m.course_id === course.id);
                                         if (courseModules.length === 0) {
@@ -631,24 +631,25 @@ export const CoursesList: React.FC = () => {
                                               e.stopPropagation();
                                               setSelectedModuleId(module.id === selectedModuleId ? null : module.id);
                                             }}
-                                            className={`p-2 sm:p-2.5 rounded-md border cursor-pointer transition-all duration-200 ${
+                                            className={`p-2.5 sm:p-3 rounded-md border cursor-pointer transition-all duration-200 touch-manipulation ${
                                               selectedModuleId === module.id
                                                 ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-300 dark:border-blue-600 shadow-sm'
-                                                : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-sm'
+                                                : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-sm active:bg-gray-50 dark:active:bg-gray-800'
                                             }`}
                                           >
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 sm:gap-3">
                                               <button
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   toggleModuleCompletion(module.id, !module.completed);
                                                 }}
-                                                className="flex-shrink-0"
+                                                className="flex-shrink-0 p-1 touch-manipulation"
+                                                aria-label={module.completed ? 'Mark as incomplete' : 'Mark as complete'}
                                               >
                                                 {module.completed ? (
-                                                  <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                                  <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 dark:text-green-400" />
                                                 ) : (
-                                                  <Circle className="w-4 h-4 text-gray-400 dark:text-gray-500 hover:text-green-600 dark:hover:text-green-400" />
+                                                  <Circle className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 dark:text-gray-500 hover:text-green-600 dark:hover:text-green-400" />
                                                 )}
                                               </button>
                                               <div className="flex-1 min-w-0">
@@ -660,27 +661,29 @@ export const CoursesList: React.FC = () => {
                                                   {module.title}
                                                 </div>
                                               </div>
-                                              <div className="flex items-center gap-0.5 flex-shrink-0">
+                                              <div className="flex items-center gap-1 sm:gap-0.5 flex-shrink-0">
                                                 <button
                                                   onClick={(e) => {
                                                     e.stopPropagation();
                                                     setEditingModule(module);
                                                     setShowModuleForm(true);
                                                   }}
-                                                  className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                                                  className="p-1.5 sm:p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors touch-manipulation active:scale-95"
                                                   title="Edit module"
+                                                  aria-label="Edit module"
                                                 >
-                                                  <Edit2 className="w-3.5 h-3.5" />
+                                                  <Edit2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                                                 </button>
                                                 <button
                                                   onClick={(e) => {
                                                     e.stopPropagation();
                                                     setModuleToDelete(module);
                                                   }}
-                                                  className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                                                  className="p-1.5 sm:p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors touch-manipulation active:scale-95"
                                                   title="Delete module"
+                                                  aria-label="Delete module"
                                                 >
-                                                  <Trash2 className="w-3.5 h-3.5" />
+                                                  <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                                                 </button>
                                               </div>
                                             </div>
@@ -691,18 +694,18 @@ export const CoursesList: React.FC = () => {
                                   </div>
 
                                   {/* Right Side - Notes Editor */}
-                                  <div className="space-y-3 lg:h-full lg:flex lg:flex-col">
+                                  <div className="space-y-3 h-full flex flex-col min-h-0 mt-4 lg:mt-0">
                                     {selectedModuleId ? (
                                       <>
                                         <div className="flex items-center justify-between flex-shrink-0">
-                                          <h4 className="text-xs font-semibold text-gray-900 dark:text-white">Notes</h4>
+                                          <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">Notes</h4>
                                           <ModuleNotesEditor
                                             moduleId={selectedModuleId}
                                             courseId={course.id}
                                             showStatusOnly={true}
                                           />
                                         </div>
-                                        <div className="lg:flex-1 lg:overflow-hidden lg:min-h-0">
+                                        <div className="flex-1 overflow-hidden min-h-0">
                                           <ModuleNotesEditor
                                             moduleId={selectedModuleId}
                                             courseId={course.id}
@@ -711,12 +714,12 @@ export const CoursesList: React.FC = () => {
                                         </div>
                                       </>
                                     ) : (
-                                      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8 text-center">
+                                      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 md:p-8 text-center h-full flex items-center justify-center">
                                         <div className="flex flex-col items-center">
-                                          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3">
-                                            <BookOpen className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+                                          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3">
+                                            <BookOpen className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 dark:text-gray-500" />
                                           </div>
-                                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                                          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                                             Select a module to add or edit notes
                                           </p>
                                         </div>
@@ -851,25 +854,25 @@ export const CoursesList: React.FC = () => {
                           {/* Expanded Content */}
                           {isRowExpanded(course.id) && (
                             <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 sm:p-4">
-                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 h-[400px] sm:h-[450px] md:h-[500px] lg:h-[350px] overflow-hidden">
                                 {/* Modules List */}
-                                <div className="space-y-2 lg:h-full lg:flex lg:flex-col">
-                                  <div className="flex items-center justify-between mb-2 flex-shrink-0">
-                                    <h4 className="text-xs font-semibold text-gray-900 dark:text-white">Modules</h4>
+                                <div className="space-y-2 h-full flex flex-col min-h-0">
+                                  <div className="flex items-center justify-between mb-2 flex-shrink-0 sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 pb-2 -mt-2 pt-2 -mx-2 px-2 border-b border-gray-200 dark:border-gray-700">
+                                    <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">Modules</h4>
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setEditingModule(null);
                                         setShowModuleForm(true);
                                       }}
-                                      className="flex items-center gap-1 px-2 py-1 text-xs bg-gradient-primary text-white rounded-md hover:bg-gradient-primary-hover transition-colors"
+                                      className="flex items-center gap-1 px-2 py-1 text-xs sm:text-sm bg-gradient-primary text-white rounded-md hover:bg-gradient-primary-hover transition-colors touch-manipulation"
                                     >
-                                      <Plus className="w-3 h-3" />
+                                      <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                                       <span className="hidden sm:inline">Add Module</span>
                                       <span className="sm:hidden">Add</span>
                                     </button>
                                   </div>
-                                  <div className="space-y-1.5 max-h-[300px] sm:max-h-[400px] lg:max-h-none lg:flex-1 lg:overflow-y-auto pr-1">
+                                  <div className="space-y-1.5 flex-1 overflow-y-auto min-h-0 pr-1">
                                     {(() => {
                                       const courseModules = modules.filter((m) => m.course_id === course.id);
                                       if (courseModules.length === 0) {
@@ -889,24 +892,25 @@ export const CoursesList: React.FC = () => {
                                             e.stopPropagation();
                                             setSelectedModuleId(module.id === selectedModuleId ? null : module.id);
                                           }}
-                                          className={`p-2 rounded-md border cursor-pointer transition-all duration-200 ${
+                                          className={`p-2.5 sm:p-3 rounded-md border cursor-pointer transition-all duration-200 touch-manipulation ${
                                             selectedModuleId === module.id
                                               ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-300 dark:border-blue-600 shadow-sm'
-                                              : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-sm'
+                                              : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-sm active:bg-gray-50 dark:active:bg-gray-800'
                                           }`}
                                         >
-                                          <div className="flex items-center gap-2">
+                                          <div className="flex items-center gap-2 sm:gap-3">
                                             <button
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 toggleModuleCompletion(module.id, !module.completed);
                                               }}
-                                              className="flex-shrink-0"
+                                              className="flex-shrink-0 p-1 touch-manipulation"
+                                              aria-label={module.completed ? 'Mark as incomplete' : 'Mark as complete'}
                                             >
                                               {module.completed ? (
-                                                <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 dark:text-green-400" />
                                               ) : (
-                                                <Circle className="w-4 h-4 text-gray-400 dark:text-gray-500 hover:text-green-600 dark:hover:text-green-400" />
+                                                <Circle className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 dark:text-gray-500 hover:text-green-600 dark:hover:text-green-400" />
                                               )}
                                             </button>
                                             <div className="flex-1 min-w-0">
@@ -918,27 +922,29 @@ export const CoursesList: React.FC = () => {
                                                 {module.title}
                                               </div>
                                             </div>
-                                            <div className="flex items-center gap-0.5 flex-shrink-0">
+                                            <div className="flex items-center gap-1 sm:gap-0.5 flex-shrink-0">
                                               <button
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   setEditingModule(module);
                                                   setShowModuleForm(true);
                                                 }}
-                                                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                                                className="p-1.5 sm:p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors touch-manipulation active:scale-95"
                                                 title="Edit module"
+                                                aria-label="Edit module"
                                               >
-                                                <Edit2 className="w-3.5 h-3.5" />
+                                                <Edit2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                                               </button>
                                               <button
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   setModuleToDelete(module);
                                                 }}
-                                                className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                                                className="p-1.5 sm:p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors touch-manipulation active:scale-95"
                                                 title="Delete module"
+                                                aria-label="Delete module"
                                               >
-                                                <Trash2 className="w-3.5 h-3.5" />
+                                                <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                                               </button>
                                             </div>
                                           </div>
@@ -949,18 +955,18 @@ export const CoursesList: React.FC = () => {
                                 </div>
 
                                 {/* Notes Editor */}
-                                <div className="space-y-3 lg:h-full lg:flex lg:flex-col">
+                                <div className="space-y-3 h-full flex flex-col min-h-0 mt-4 lg:mt-0">
                                   {selectedModuleId ? (
                                     <>
                                       <div className="flex items-center justify-between flex-shrink-0">
-                                        <h4 className="text-xs font-semibold text-gray-900 dark:text-white">Notes</h4>
+                                        <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">Notes</h4>
                                         <ModuleNotesEditor
                                           moduleId={selectedModuleId}
                                           courseId={course.id}
                                           showStatusOnly={true}
                                         />
                                       </div>
-                                      <div className="lg:flex-1 lg:overflow-hidden lg:min-h-0">
+                                      <div className="flex-1 overflow-hidden min-h-0">
                                         <ModuleNotesEditor
                                           moduleId={selectedModuleId}
                                           courseId={course.id}
@@ -969,7 +975,7 @@ export const CoursesList: React.FC = () => {
                                       </div>
                                     </>
                                   ) : (
-                                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8 text-center">
+                                    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 md:p-8 text-center h-full flex items-center justify-center">
                                       <div className="flex flex-col items-center">
                                         <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3">
                                           <BookOpen className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 dark:text-gray-500" />
@@ -1208,20 +1214,23 @@ const ModuleNotesEditor: React.FC<ModuleNotesEditorProps> = ({ moduleId, courseI
       <style>{`
         .notes-editor-bottom-toolbar {
           display: flex;
-          flex-direction: column-reverse;
+          flex-direction: column;
           height: 100% !important;
         }
         .notes-editor-bottom-toolbar .ql-container {
           border: 0 !important;
-          border-radius: 0.5rem 0.5rem 0 0;
+          border-radius: 0 0 0.5rem 0.5rem;
           flex: 1 !important;
           overflow-y: auto !important;
         }
         .notes-editor-bottom-toolbar .ql-toolbar {
           border: 0 !important;
-          border-radius: 0 0 0.5rem 0.5rem;
+          border-radius: 0.5rem 0.5rem 0 0;
           padding: 0.5rem 0.75rem !important;
           background: #f9fafb !important;
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 10 !important;
         }
         .dark .notes-editor-bottom-toolbar .ql-toolbar {
           background: #1f2937 !important;
@@ -1320,7 +1329,7 @@ const ModuleNotesEditor: React.FC<ModuleNotesEditorProps> = ({ moduleId, courseI
               ['clean']
             ],
           }}
-          className="notes-editor-bottom-toolbar [&_.ql-container]:min-h-[200px] sm:[&_.ql-container]:min-h-[300px] lg:[&_.ql-container]:min-h-0 [&_.ql-container]:bg-white [&_.ql-container]:dark:bg-gray-900 [&_.ql-editor]:bg-white [&_.ql-editor]:dark:bg-gray-900 [&_.ql-editor]:text-gray-900 [&_.ql-editor]:dark:text-white [&_.ql-editor]:text-sm [&_.ql-editor]:px-3 [&_.ql-editor]:sm:px-4 [&_.ql-editor]:py-3 [&_.ql-editor]:sm:py-4 [&_.ql-editor]:min-h-[200px] [&_.ql-editor]:sm:min-h-[300px] lg:[&_.ql-editor]:min-h-0"
+          className="notes-editor-bottom-toolbar [&_.ql-container]:min-h-[200px] sm:[&_.ql-container]:min-h-[250px] md:[&_.ql-container]:min-h-[300px] lg:[&_.ql-container]:min-h-0 [&_.ql-container]:bg-white [&_.ql-container]:dark:bg-gray-900 [&_.ql-editor]:bg-white [&_.ql-editor]:dark:bg-gray-900 [&_.ql-editor]:text-gray-900 [&_.ql-editor]:dark:text-white [&_.ql-editor]:text-xs [&_.ql-editor]:sm:text-sm [&_.ql-editor]:px-3 [&_.ql-editor]:sm:px-4 [&_.ql-editor]:py-3 [&_.ql-editor]:sm:py-4 [&_.ql-editor]:min-h-[200px] [&_.ql-editor]:sm:min-h-[250px] [&_.ql-editor]:md:min-h-[300px] lg:[&_.ql-editor]:min-h-0"
         />
       </div>
     </>

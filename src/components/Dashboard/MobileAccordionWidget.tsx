@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Calendar, FileText, TrendingUp, Sparkles } from 'lucide-react';
 import { LastWishCountdownWidget } from './LastWishCountdownWidget';
-// NotesAndTodosWidget loaded dynamically to reduce initial bundle size
-// import { NotesAndTodosWidget } from './NotesAndTodosWidget';
+// NotesWidget and TodosWidget loaded dynamically to reduce initial bundle size
+// import { NotesWidget } from './NotesWidget';
+// import { TodosWidget } from './TodosWidget';
 import { MotivationalQuote } from './MotivationalQuote';
 import { RecentTransactions } from './RecentTransactions';
 import { Link } from 'react-router-dom';
@@ -23,18 +24,29 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { profile } = useAuthStore();
-  const [NotesAndTodosWidget, setNotesAndTodosWidget] = useState<React.ComponentType | null>(null);
+  const [NotesWidget, setNotesWidget] = useState<React.ComponentType | null>(null);
+  const [TodosWidget, setTodosWidget] = useState<React.ComponentType | null>(null);
 
-  // Lazy load NotesAndTodosWidget when accordion is expanded
+  // Lazy load NotesWidget and TodosWidget when accordion is expanded
   useEffect(() => {
-    if (isExpanded && !NotesAndTodosWidget) {
-      import('./NotesAndTodosWidget').then((module) => {
-        setNotesAndTodosWidget(() => module.NotesAndTodosWidget);
+    if (isExpanded && !NotesWidget) {
+      import('./NotesWidget').then((module) => {
+        setNotesWidget(() => module.NotesWidget);
       }).catch(() => {
         // Silently fail if widget can't be loaded
       });
     }
-  }, [isExpanded, NotesAndTodosWidget]);
+  }, [isExpanded, NotesWidget]);
+
+  useEffect(() => {
+    if (isExpanded && !TodosWidget) {
+      import('./TodosWidget').then((module) => {
+        setTodosWidget(() => module.TodosWidget);
+      }).catch(() => {
+        // Silently fail if widget can't be loaded
+      });
+    }
+  }, [isExpanded, TodosWidget]);
   
   // Check if user has Premium plan for Last Wish
   const isPremium = profile?.subscription?.plan === 'premium';
@@ -141,10 +153,17 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
               </div>
             )}
 
-            {/* Notes & Tasks Section */}
+            {/* Notes Section */}
             <div className="border-b border-gray-200 dark:border-gray-700">
               <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
-                {NotesAndTodosWidget ? <NotesAndTodosWidget /> : null}
+                {NotesWidget ? <NotesWidget /> : null}
+              </div>
+            </div>
+
+            {/* Todos Section */}
+            <div className="border-b border-gray-200 dark:border-gray-700">
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+                {TodosWidget ? <TodosWidget /> : null}
               </div>
             </div>
 

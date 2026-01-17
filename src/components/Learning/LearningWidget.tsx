@@ -4,7 +4,15 @@ import { useCourseStore } from '../../store/useCourseStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
 
-export const LearningWidget: React.FC = () => {
+interface LearningWidgetProps {
+  isAccordionExpanded?: boolean;
+  onAccordionToggle?: () => void;
+}
+
+export const LearningWidget: React.FC<LearningWidgetProps> = ({
+  isAccordionExpanded = true,
+  onAccordionToggle
+}) => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const {
@@ -56,9 +64,11 @@ export const LearningWidget: React.FC = () => {
   if (loading) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <BookOpen className="w-5 h-5 text-blue-500" />
-          <h3 className="font-semibold text-gray-900 dark:text-white">Learning</h3>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-blue-500" />
+            <h3 className="font-semibold text-gray-900 dark:text-white">Learning</h3>
+          </div>
         </div>
         <div className="text-center py-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Loading...</p>
@@ -108,6 +118,7 @@ export const LearningWidget: React.FC = () => {
         </button>
       </div>
 
+      {/* Content */}
       {/* Overall Stats */}
       <div className="mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
         <div className="grid grid-cols-2 gap-2 text-xs">

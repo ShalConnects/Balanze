@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Sprout, Plus, Check, ArrowRight, Flame } from 'lucide-react';
+import { Sprout, Plus, Check, ArrowRight, Flame, ChevronUp, ChevronDown } from 'lucide-react';
 import { useHabitStore } from '../../store/useHabitStore';
 import { useAuthStore } from '../../store/authStore';
 import { HabitForm } from './HabitForm';
 import { useNavigate } from 'react-router-dom';
 import { format, isToday, startOfWeek } from 'date-fns';
 
-export const HabitGardenWidget: React.FC = () => {
+interface HabitGardenWidgetProps {
+  isAccordionExpanded?: boolean;
+  onAccordionToggle?: () => void;
+}
+
+export const HabitGardenWidget: React.FC<HabitGardenWidgetProps> = ({
+  isAccordionExpanded = true,
+  onAccordionToggle
+}) => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const {
@@ -46,25 +54,46 @@ export const HabitGardenWidget: React.FC = () => {
 
   if (habits.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex items-center justify-between mb-3">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 relative group">
+        {/* Toggle Button - positioned like drag handle on left side */}
+        {onAccordionToggle && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAccordionToggle();
+            }}
+            className="absolute top-2 left-2 z-10 p-1.5 rounded-lg bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-sm opacity-100 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation transition-opacity"
+            title={isAccordionExpanded ? 'Collapse' : 'Expand'}
+            aria-label={isAccordionExpanded ? 'Collapse widget' : 'Expand widget'}
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            {isAccordionExpanded ? (
+              <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+            )}
+          </button>
+        )}
+        <div className={`flex items-center justify-between ${isAccordionExpanded ? 'mb-3' : ''}`}>
           <div className="flex items-center gap-2">
             <Sprout className="w-5 h-5 text-green-500" />
             <h3 className="font-semibold text-gray-900 dark:text-white">Habit Garden</h3>
           </div>
         </div>
-        <div className="text-center py-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-            Start building your daily habits
-          </p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="px-4 py-2 bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded-lg text-sm font-medium flex items-center gap-2 mx-auto transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Habit
-          </button>
-        </div>
+        {isAccordionExpanded && (
+          <div className="text-center py-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Start building your daily habits
+            </p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-4 py-2 bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded-lg text-sm font-medium flex items-center gap-2 mx-auto transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Habit
+            </button>
+          </div>
+        )}
 
         {showForm && (
           <HabitForm isOpen={showForm} onClose={() => setShowForm(false)} />
@@ -74,8 +103,27 @@ export const HabitGardenWidget: React.FC = () => {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 relative group">
+      {/* Toggle Button - positioned like drag handle on left side */}
+      {onAccordionToggle && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onAccordionToggle();
+          }}
+          className="absolute top-2 left-2 z-10 p-1.5 rounded-lg bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-sm opacity-100 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation transition-opacity"
+          title={isAccordionExpanded ? 'Collapse' : 'Expand'}
+          aria-label={isAccordionExpanded ? 'Collapse widget' : 'Expand widget'}
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+        >
+          {isAccordionExpanded ? (
+            <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+          )}
+        </button>
+      )}
+      <div className={`flex items-center justify-between ${isAccordionExpanded ? 'mb-3' : ''}`}>
         <div className="flex items-center gap-2">
           <Sprout className="w-5 h-5 text-green-500" />
           <h3 className="font-semibold text-gray-900 dark:text-white">Habit Garden</h3>
@@ -89,6 +137,9 @@ export const HabitGardenWidget: React.FC = () => {
         </button>
       </div>
 
+      {/* Content - Only show when expanded */}
+      {isAccordionExpanded && (
+        <>
       <div className="space-y-2">
         {displayHabits.map((habit) => {
           const completed = isCompleted(habit.id, todayStr);
@@ -142,6 +193,8 @@ export const HabitGardenWidget: React.FC = () => {
         >
           +{habits.length - 4} more habits
         </button>
+      )}
+        </>
       )}
 
       {showForm && (

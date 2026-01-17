@@ -39,7 +39,15 @@ interface DeliveryData {
   deliveryCount: number;
 }
 
-export const LastWishCountdownWidget: React.FC = () => {
+interface LastWishCountdownWidgetProps {
+  isAccordionExpanded?: boolean;
+  onAccordionToggle?: () => void;
+}
+
+export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = ({
+  isAccordionExpanded = true,
+  onAccordionToggle
+}) => {
   const { user, profile } = useAuthStore();
   const navigate = useNavigate();
   
@@ -383,7 +391,7 @@ export const LastWishCountdownWidget: React.FC = () => {
   // If delivered, show delivery status
   if (isDelivered && deliveryData) {
     return (
-      <div className="bg-gradient-to-br from-green-50 via-white to-blue-100 dark:from-green-900/40 dark:via-gray-900 dark:to-blue-900/20 rounded-2xl p-4 sm:p-5 border-2 border-green-400 dark:border-green-600 shadow-xl transition-all duration-300 hover:shadow-2xl">
+      <div className="bg-gradient-to-br from-green-50 via-white to-blue-100 dark:from-green-900/40 dark:via-gray-900 dark:to-blue-900/20 rounded-2xl p-4 sm:p-5 border-2 border-green-400 dark:border-green-600">
         {/* Icon at the top */}
         <div className="flex justify-center mb-4">
           <div className="w-12 h-12 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
@@ -420,7 +428,7 @@ export const LastWishCountdownWidget: React.FC = () => {
   // If not enabled, show a minimal setup prompt
   if (!enabled || !countdown) {
     return (
-      <div className="mb-5 bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 rounded-2xl p-5 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 transition-all duration-200">
+      <div className="bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 rounded-2xl p-5 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 transition-all duration-200">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
             <FileText className="w-6 h-6 text-gray-500" />
@@ -446,7 +454,7 @@ export const LastWishCountdownWidget: React.FC = () => {
   const colors = getUrgencyColors(countdown.urgencyLevel);
 
       return (
-      <div className={`mb-5 ${colors.bg} rounded-2xl shadow-xl p-5 border-2 ${colors.border} transition-all duration-300 hover:shadow-2xl hover:scale-[1.01] animate-slide-in ${
+      <div className={`${colors.bg} rounded-2xl p-5 border-2 ${colors.border} animate-slide-in ${
         countdown.urgencyLevel === 'overdue' ? 'animate-pulse-urgent' : ''
       }`}>
              {/* Header */}
@@ -506,6 +514,7 @@ export const LastWishCountdownWidget: React.FC = () => {
          </div>
        </div>
 
+      {/* Content */}
       {/* Progress Bar */}
       <div className="mb-4">
         <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-2">

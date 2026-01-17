@@ -127,13 +127,13 @@ export const HabitGarden: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-            {/* Stats Sidebar - Hidden on mobile, shown on desktop */}
-            <div className="hidden lg:block">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Stats Sidebar - Hidden on mobile, shown on desktop */}
+          <div className="hidden lg:block">
               <HabitStatsDashboard onShowAchievements={() => setShowAchievements(true)} />
-            </div>
+          </div>
 
-            {/* Main Content */}
+          {/* Main Content */}
             <div className="lg:col-span-2 border border-gray-200 dark:border-gray-700 rounded-xl">
             {/* Tab System */}
             {habits.length > 0 && (
@@ -258,7 +258,7 @@ export const HabitGarden: React.FC = () => {
             <div className="lg:hidden mt-4 sm:mt-6 space-y-4">
               <HabitStatsDashboard onShowAchievements={() => setShowAchievements(true)} />
             </div>
-          </div>
+            </div>
           </div>
         </div>
       )}

@@ -29,8 +29,9 @@ import { TaskRemindersWidget } from './TaskRemindersWidget';
 import { useClientStore } from '../../store/useClientStore';
 import { useCourseStore } from '../../store/useCourseStore';
 import { StickyNote } from '../StickyNote';
-// NotesAndTodosWidget loaded dynamically to reduce initial bundle size
-// import { NotesAndTodosWidget } from './NotesAndTodosWidget';
+// NotesWidget and TodosWidget loaded dynamically to reduce initial bundle size
+// import { NotesWidget } from './NotesWidget';
+// import { TodosWidget } from './TodosWidget';
 import { PurchaseForm } from '../Purchases/PurchaseForm';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useLoadingContext } from '../../context/LoadingContext';
@@ -46,6 +47,7 @@ import { getPreference, setPreference } from '../../lib/userPreferences';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { DraggableWidget } from './DraggableWidget';
+import { AccordionWidget } from './AccordionWidget';
 import { WidgetSettingsPanel, WidgetConfig, MainDashboardWidget } from './WidgetSettingsPanel';
 import { Settings } from 'lucide-react';
 import { toast } from 'sonner';
@@ -64,7 +66,8 @@ const getDefaultWidgets = (): WidgetConfig[] => [
   { id: 'last-wish', name: 'Last Wish', visible: true, order: 1 },
   { id: 'habit-garden', name: 'Habit Garden', visible: true, order: 2 },
   { id: 'learning', name: 'Learning', visible: true, order: 3 },
-  { id: 'notes-todos', name: 'Notes & Todos', visible: true, order: 4 },
+  { id: 'notes', name: 'Notes', visible: true, order: 4 },
+  { id: 'todos', name: 'Todos', visible: true, order: 5 },
 ];
 
 // Validate widget config structure - moved outside component for better performance
@@ -85,6 +88,21 @@ const migrateWidgetConfig = (config: WidgetConfig[]): WidgetConfig[] => {
   const defaultWidgets = getDefaultWidgets();
   const configMap = new Map(config.map(w => [w.id, w]));
   const migrated: WidgetConfig[] = [];
+  
+  // Handle migration from 'notes-todos' to separate 'notes' and 'todos' widgets
+  const hasOldNotesTodos = configMap.has('notes-todos');
+  if (hasOldNotesTodos) {
+    const oldWidget = configMap.get('notes-todos')!;
+    // Migrate visibility and order from old combined widget to new separate widgets
+    if (!configMap.has('notes')) {
+      configMap.set('notes', { id: 'notes', name: 'Notes', visible: oldWidget.visible, order: oldWidget.order });
+    }
+    if (!configMap.has('todos')) {
+      configMap.set('todos', { id: 'todos', name: 'Todos', visible: oldWidget.visible, order: oldWidget.order + 0.5 });
+    }
+    // Remove old combined widget
+    configMap.delete('notes-todos');
+  }
   
   // Add all default widgets, preserving existing configs or adding new ones
   defaultWidgets.forEach(defaultWidget => {
@@ -143,8 +161,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
   const [hasLoadError, setHasLoadError] = useState(false);
   // Track retry attempts
   const [retryCount, setRetryCount] = useState(0);
-  // Lazy load NotesAndTodosWidget to reduce initial bundle size
-  const [NotesAndTodosWidget, setNotesAndTodosWidget] = useState<React.ComponentType | null>(null);
+  // Lazy load NotesWidget and TodosWidget to reduce initial bundle size
+  const [NotesWidget, setNotesWidget] = useState<React.ComponentType | null>(null);
+  const [TodosWidget, setTodosWidget] = useState<React.ComponentType | null>(null);
 
   // Memoize widget config loading to prevent unnecessary localStorage reads with validation
   const loadWidgetConfig = useCallback((): WidgetConfig[] => {
@@ -175,6 +194,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     const saved = localStorage.getItem('mainDashboardWidgetOrder');
     return saved ? JSON.parse(saved) : ['donations', 'purchases', 'lend-borrow', 'transfers', 'clients', 'learning'];
   });
+
+  // Accordion state for right sidebar widgets
+  const [accordionState, setAccordionState] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('rightSidebarAccordionState');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return {};
+      }
+    }
+    // Default: all expanded
+    return {
+      'task-reminders': true,
+      'last-wish': true,
+      'habit-garden': true,
+      'learning': true,
+      'notes-todos': true,
+    };
+  });
+
+  // Save accordion state to localStorage
+  useEffect(() => {
+    localStorage.setItem('rightSidebarAccordionState', JSON.stringify(accordionState));
+  }, [accordionState]);
+
+  // Toggle accordion for a specific widget
+  const handleAccordionToggle = useCallback((widgetId: string) => {
+    setAccordionState(prev => ({
+      ...prev,
+      [widgetId]: !prev[widgetId],
+    }));
+  }, []);
 
   // Save widget config to localStorage
   useEffect(() => {
@@ -218,6 +270,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     setWidgetConfig(updatedWidgets);
   }, []);
 
+  // Handle Task Reminders widget toggle
+  const handleTaskRemindersWidgetToggle = useCallback((show: boolean) => {
+    setWidgetConfig(prev => 
+      prev.map(w => w.id === 'task-reminders' ? { ...w, visible: show } : w)
+    );
+  }, []);
+
   const handleResetWidgets = useCallback(() => {
     setWidgetConfig(getDefaultWidgets());
   }, []);
@@ -236,21 +295,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     [widgetConfig]
   );
 
-  // Lazy load NotesAndTodosWidget after initial render - with improved error handling
+  // Lazy load NotesWidget and TodosWidget after initial render - with improved error handling
   useEffect(() => {
-    if (!NotesAndTodosWidget) {
+    if (!NotesWidget) {
       let isMounted = true;
       // Load after a short delay to prioritize critical content
       const timer = setTimeout(() => {
-        import('./NotesAndTodosWidget')
+        import('./NotesWidget')
           .then((module) => {
-            if (isMounted && module?.NotesAndTodosWidget) {
-              setNotesAndTodosWidget(() => module.NotesAndTodosWidget);
+            if (isMounted && module?.NotesWidget) {
+              setNotesWidget(() => module.NotesWidget);
             }
           })
           .catch((error) => {
             if (isMounted) {
-              console.error('Failed to load NotesAndTodosWidget:', error);
+              console.error('Failed to load NotesWidget:', error);
               // Widget will remain null, which is handled gracefully in render
             }
           });
@@ -260,7 +319,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
         clearTimeout(timer);
       };
     }
-  }, [NotesAndTodosWidget]);
+  }, [NotesWidget]);
+
+  useEffect(() => {
+    if (!TodosWidget) {
+      let isMounted = true;
+      // Load after a short delay to prioritize critical content
+      const timer = setTimeout(() => {
+        import('./TodosWidget')
+          .then((module) => {
+            if (isMounted && module?.TodosWidget) {
+              setTodosWidget(() => module.TodosWidget);
+            }
+          })
+          .catch((error) => {
+            if (isMounted) {
+              console.error('Failed to load TodosWidget:', error);
+              // Widget will remain null, which is handled gracefully in render
+            }
+          });
+      }, 500);
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+      };
+    }
+  }, [TodosWidget]);
 
   // Memoize store functions to prevent infinite loops
   const fetchTransactions = useCallback(() => {
@@ -1623,35 +1707,91 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
                 if (config.id === 'task-reminders') {
                   return (
                     <DraggableWidget key={config.id} id={config.id}>
-                      <TaskRemindersWidget />
+                      <AccordionWidget
+                        id={config.id}
+                        isExpanded={accordionState[config.id] ?? true}
+                      >
+                        <TaskRemindersWidget 
+                          onHide={() => handleTaskRemindersWidgetToggle(false)}
+                          isAccordionExpanded={accordionState[config.id] ?? true}
+                          onAccordionToggle={() => handleAccordionToggle(config.id)}
+                        />
+                      </AccordionWidget>
                     </DraggableWidget>
                   );
                 }
                 if (config.id === 'last-wish') {
                   return (
                     <DraggableWidget key={config.id} id={config.id}>
-                      <LastWishCountdownWidget />
+                      <AccordionWidget
+                        id={config.id}
+                        isExpanded={accordionState[config.id] ?? true}
+                      >
+                        <LastWishCountdownWidget 
+                          isAccordionExpanded={accordionState[config.id] ?? true}
+                          onAccordionToggle={() => handleAccordionToggle(config.id)}
+                        />
+                      </AccordionWidget>
                     </DraggableWidget>
                   );
                 }
                 if (config.id === 'habit-garden') {
                   return (
                     <DraggableWidget key={config.id} id={config.id}>
-                      <HabitGardenWidget />
+                      <AccordionWidget
+                        id={config.id}
+                        isExpanded={accordionState[config.id] ?? true}
+                      >
+                        <HabitGardenWidget 
+                          isAccordionExpanded={accordionState[config.id] ?? true}
+                          onAccordionToggle={() => handleAccordionToggle(config.id)}
+                        />
+                      </AccordionWidget>
                     </DraggableWidget>
                   );
                 }
                 if (config.id === 'learning') {
                   return (
                     <DraggableWidget key={config.id} id={config.id}>
-                      <LearningWidget />
+                      <AccordionWidget
+                        id={config.id}
+                        isExpanded={accordionState[config.id] ?? true}
+                      >
+                        <LearningWidget 
+                          isAccordionExpanded={accordionState[config.id] ?? true}
+                          onAccordionToggle={() => handleAccordionToggle(config.id)}
+                        />
+                      </AccordionWidget>
                     </DraggableWidget>
                   );
                 }
-                if (config.id === 'notes-todos' && NotesAndTodosWidget) {
+                if (config.id === 'notes' && NotesWidget) {
                   return (
                     <DraggableWidget key={config.id} id={config.id}>
-                      <NotesAndTodosWidget />
+                      <AccordionWidget
+                        id={config.id}
+                        isExpanded={accordionState[config.id] ?? true}
+                      >
+                        <NotesWidget 
+                          isAccordionExpanded={accordionState[config.id] ?? true}
+                          onAccordionToggle={() => handleAccordionToggle(config.id)}
+                        />
+                      </AccordionWidget>
+                    </DraggableWidget>
+                  );
+                }
+                if (config.id === 'todos' && TodosWidget) {
+                  return (
+                    <DraggableWidget key={config.id} id={config.id}>
+                      <AccordionWidget
+                        id={config.id}
+                        isExpanded={accordionState[config.id] ?? true}
+                      >
+                        <TodosWidget 
+                          isAccordionExpanded={accordionState[config.id] ?? true}
+                          onAccordionToggle={() => handleAccordionToggle(config.id)}
+                        />
+                      </AccordionWidget>
                     </DraggableWidget>
                   );
                 }

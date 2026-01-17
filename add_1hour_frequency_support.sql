@@ -24,7 +24,8 @@ BEGIN
                 EXTRACT(epoch FROM (NOW() - (lws.last_check_in + INTERVAL '1 second' * (lws.check_in_frequency * 24 * 60 * 60))))::INTEGER / 60 -- minutes overdue
             ELSE
                 -- For normal day frequencies (1, 7, 14, 30, 60, 90 days)
-                GREATEST(0, DATE_PART('day', NOW() - (lws.last_check_in + INTERVAL '1 day' * lws.check_in_frequency)))::INTEGER
+                -- Use EXTRACT(EPOCH) for accurate day calculation instead of DATE_PART
+                GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - (lws.last_check_in + INTERVAL '1 day' * lws.check_in_frequency))) / 86400))::INTEGER
         END as days_overdue
     FROM last_wish_settings lws
     LEFT JOIN auth.users au ON lws.user_id = au.id
