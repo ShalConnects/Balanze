@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check, EyeOff, FileText } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check, EyeOff, FileText, X } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -100,7 +100,11 @@ const TransactionListComponent: React.FC<{
     dateRange: { start: '', end: '' },
     showModifiedOnly: false,
     recentlyModifiedDays: 7,
-    showRecurringOnly: false
+    showRecurringOnly: false,
+    pagination: {
+      currentPage: 1,
+      itemsPerPage: 50
+    }
   });
 
   // Enhanced search state
@@ -421,7 +425,16 @@ const TransactionListComponent: React.FC<{
             : getThisMonthDateRange(),
           showModifiedOnly: parsed.showModifiedOnly !== undefined ? parsed.showModifiedOnly : false,
           recentlyModifiedDays: parsed.recentlyModifiedDays || 7,
-          showRecurringOnly: parsed.showRecurringOnly !== undefined ? parsed.showRecurringOnly : false
+          showRecurringOnly: parsed.showRecurringOnly !== undefined ? parsed.showRecurringOnly : false,
+          pagination: parsed.pagination && parsed.pagination.itemsPerPage ? {
+            currentPage: parsed.pagination.currentPage || 1,
+            itemsPerPage: parsed.pagination.itemsPerPage === 20 || parsed.pagination.itemsPerPage === 50 || parsed.pagination.itemsPerPage === 100
+              ? parsed.pagination.itemsPerPage
+              : 50
+          } : {
+            currentPage: 1,
+            itemsPerPage: 50
+          }
         };
       } catch {
         // If parsing fails, use defaults
@@ -435,7 +448,11 @@ const TransactionListComponent: React.FC<{
       dateRange: getThisMonthDateRange(),
       showModifiedOnly: false, // New: Show only recently modified transactions
       recentlyModifiedDays: 7, // New: Number of days for "recently modified"
-      showRecurringOnly: false // New: Show only recurring transactions
+      showRecurringOnly: false, // New: Show only recurring transactions
+      pagination: {
+        currentPage: 1,
+        itemsPerPage: 50
+      }
     };
   });
 
@@ -449,15 +466,48 @@ const TransactionListComponent: React.FC<{
     key: string;
     direction: 'asc' | 'desc';
   } | null>({ key: 'date', direction: 'desc' });
+
+  // Reset to page 1 when filters, search, or sort changes (but not when pagination changes)
+  const prevFiltersRef = useRef(filters);
+  const prevSortConfigRef = useRef(sortConfig);
+  useEffect(() => {
+    const filtersChanged = 
+      prevFiltersRef.current.search !== filters.search ||
+      prevFiltersRef.current.type !== filters.type ||
+      prevFiltersRef.current.account !== filters.account ||
+      prevFiltersRef.current.currency !== filters.currency ||
+      JSON.stringify(prevFiltersRef.current.dateRange) !== JSON.stringify(filters.dateRange) ||
+      prevFiltersRef.current.showModifiedOnly !== filters.showModifiedOnly ||
+      prevFiltersRef.current.showRecurringOnly !== filters.showRecurringOnly;
+    
+    const sortChanged = 
+      prevSortConfigRef.current?.key !== sortConfig?.key ||
+      prevSortConfigRef.current?.direction !== sortConfig?.direction;
+
+    if ((filtersChanged || sortChanged) && filters.pagination?.currentPage !== 1) {
+      setFilters(prev => ({
+        ...prev,
+        pagination: {
+          ...prev.pagination,
+          currentPage: 1
+        }
+      }));
+    }
+
+    prevFiltersRef.current = filters;
+    prevSortConfigRef.current = sortConfig;
+  }, [filters, sortConfig]);
   
   const [showTypeMenu, setShowTypeMenu] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showDateMenu, setShowDateMenu] = useState(false);
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(false); // <-- add state for currency menu
   const [showModifiedMenu, setShowModifiedMenu] = useState(false); // New: state for recently modified menu
+  const [showItemsPerPageMenu, setShowItemsPerPageMenu] = useState(false);
   const currencyMenuRef = useRef<HTMLDivElement>(null); // <-- add ref for click outside
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const modifiedMenuRef = useRef<HTMLDivElement>(null); // New: ref for recently modified menu
+  const itemsPerPageMenuRef = useRef<HTMLDivElement>(null);
   const lastLoggedValuesRef = useRef<string>(''); // Track last logged values to reduce log frequency
   
   // State for delete confirmation modal
@@ -756,6 +806,17 @@ const TransactionListComponent: React.FC<{
     function handleClickOutside(event: MouseEvent) {
       if (currencyMenuRef.current && !currencyMenuRef.current.contains(event.target as Node)) {
         setShowCurrencyMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Click outside handler for transaction per page menu
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (itemsPerPageMenuRef.current && !itemsPerPageMenuRef.current.contains(event.target as Node)) {
+        setShowItemsPerPageMenu(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -1091,6 +1152,29 @@ const TransactionListComponent: React.FC<{
     return sortData(filtered);
   }, [transactions, filters, sortConfig, accounts, allAccountsForLookup, hasSelection, isFromSearch, selectedRecord]);
 
+  // Pagination logic
+  const paginationInfo = useMemo(() => {
+    const itemsPerPage = filters.pagination?.itemsPerPage || 50;
+    const currentPage = filters.pagination?.currentPage || 1;
+    const totalItems = filteredTransactions.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    
+    return {
+      itemsPerPage,
+      currentPage: Math.min(currentPage, Math.max(1, totalPages || 1)),
+      totalItems,
+      totalPages: Math.max(1, totalPages),
+      startIndex,
+      endIndex
+    };
+  }, [filteredTransactions.length, filters.pagination]);
+
+  const paginatedTransactions = useMemo(() => {
+    return filteredTransactions.slice(paginationInfo.startIndex, paginationInfo.endIndex);
+  }, [filteredTransactions, paginationInfo.startIndex, paginationInfo.endIndex]);
+
   // Export functionality using shared hook
   const { isExporting, exportFormat, exportToCSV, exportToPDF, exportToHTML } = useExport({
     transactions: filteredTransactions,
@@ -1393,7 +1477,7 @@ const TransactionListComponent: React.FC<{
                     {currencyOptions.map(currency => (
                       <button
                         key={currency}
-                        onClick={() => { setFilters({ ...filters, currency }); setShowCurrencyMenu(false); }}
+                        onClick={() => { setFilters({ ...filters, currency, pagination: { ...filters.pagination, currentPage: 1 } }); setShowCurrencyMenu(false); }}
                         className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 ${filters.currency === currency ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : ''}`}
                       >
                         {currency}
@@ -1691,7 +1775,7 @@ const TransactionListComponent: React.FC<{
             )}
             {(filters.search || filters.type !== 'all' || filters.account !== 'all' || (filters.currency && filters.currency !== (profile?.local_currency || 'USD')) || getDateRangeLabel() !== 'This Month' || filters.showModifiedOnly || filters.showRecurringOnly) && (
               <button
-                onClick={() => setFilters({ search: '', type: 'all', account: 'all', currency: '', dateRange: getThisMonthDateRange(), showModifiedOnly: false, recentlyModifiedDays: 7, showRecurringOnly: false })}
+                onClick={() => setFilters({ search: '', type: 'all', account: 'all', currency: '', dateRange: getThisMonthDateRange(), showModifiedOnly: false, recentlyModifiedDays: 7, showRecurringOnly: false, pagination: { ...filters.pagination, currentPage: 1 } })}
                 className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
                 title="Clear all filters"
               >
@@ -2177,7 +2261,7 @@ const TransactionListComponent: React.FC<{
                     </td>
                   </tr>
                 ) : (
-              filteredTransactions.map((transaction) => {
+              paginatedTransactions.map((transaction) => {
                 const account = allAccountsForLookup.find(a => a.id === transaction.account_id);
                 const currency = account?.currency || 'USD';
                 const isSelected = selectedId === transaction.id;
@@ -2676,7 +2760,7 @@ const TransactionListComponent: React.FC<{
                 </p>
               </div>
             ) : (
-              filteredTransactions.map((transaction) => {
+              paginatedTransactions.map((transaction) => {
                 const account = allAccountsForLookup.find(a => a.id === transaction.account_id);
                 const currency = account?.currency || 'USD';
                 const isSelected = selectedId === transaction.transaction_id;
@@ -3155,7 +3239,7 @@ const TransactionListComponent: React.FC<{
                 </p>
               </div>
             ) : (
-              filteredTransactions.map((transaction) => {
+              paginatedTransactions.map((transaction) => {
                 const account = allAccountsForLookup.find(a => a.id === transaction.account_id);
                 const currency = account?.currency || 'USD';
                 const isSelected = selectedId === transaction.transaction_id;
@@ -3478,6 +3562,226 @@ const TransactionListComponent: React.FC<{
             )}
           </div>
         </div>
+
+        {/* Pagination Controls */}
+        {filteredTransactions.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 bg-white dark:bg-gray-900">
+            {/* Items info */}
+            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 text-center sm:text-left w-full sm:w-auto">
+              Showing {paginationInfo.startIndex + 1} to {Math.min(paginationInfo.endIndex, paginationInfo.totalItems)} of {paginationInfo.totalItems} transactions
+            </div>
+
+            {/* Pagination buttons */}
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-center sm:justify-end w-full sm:w-auto">
+              {/* Transaction Per Page Selector */}
+              <div className="relative" ref={itemsPerPageMenuRef}>
+                <button
+                  onClick={() => {
+                    setShowItemsPerPageMenu(v => !v);
+                  }}
+                  className="px-2 sm:px-3 py-1.5 pr-1.5 sm:pr-2 text-[12px] sm:text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 touch-manipulation"
+                  title="Transaction per page"
+                >
+                  <span className="hidden sm:inline">{filters.pagination?.itemsPerPage || 50} per page</span>
+                  <span className="sm:hidden">{filters.pagination?.itemsPerPage || 50}</span>
+                  <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-0.5 sm:ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {showItemsPerPageMenu && (
+                  <>
+                    {/* Desktop: Dropdown */}
+                    <div className="hidden sm:block absolute right-0 bottom-full mb-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 min-w-[120px]">
+                      {[20, 50, 100].map(items => (
+                        <button
+                          key={items}
+                          onClick={() => {
+                            setFilters({
+                              ...filters,
+                              pagination: {
+                                ...filters.pagination,
+                                itemsPerPage: items,
+                                currentPage: 1
+                              }
+                            });
+                            setShowItemsPerPageMenu(false);
+                          }}
+                          className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                            (filters.pagination?.itemsPerPage || 50) === items 
+                              ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' 
+                              : ''
+                          }`}
+                        >
+                          {items} per page
+                        </button>
+                      ))}
+                    </div>
+                    {/* Mobile: Modal-style dropdown */}
+                    <div className="sm:hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+                      <div className="fixed inset-0 bg-black/50" onClick={() => setShowItemsPerPageMenu(false)} />
+                      <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 md:w-96 max-w-md animate-fadein">
+                        <div className="flex items-center justify-between mb-3 sm:mb-4">
+                          <h3 className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-white">Transaction per page</h3>
+                          <button
+                            onClick={() => setShowItemsPerPageMenu(false)}
+                            className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
+                          >
+                            <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {[20, 50, 100].map(items => (
+                            <button
+                              key={items}
+                              onClick={() => {
+                                setFilters({
+                                  ...filters,
+                                  pagination: {
+                                    ...filters.pagination,
+                                    itemsPerPage: items,
+                                    currentPage: 1
+                                  }
+                                });
+                                setShowItemsPerPageMenu(false);
+                              }}
+                              className={`w-full px-4 py-2.5 text-left text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 touch-manipulation transition-colors ${
+                                (filters.pagination?.itemsPerPage || 50) === items 
+                                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' 
+                                  : ''
+                              }`}
+                            >
+                              {items} per page
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+              {/* Previous button */}
+              <button
+                onClick={() => {
+                  if (paginationInfo.currentPage > 1) {
+                    setFilters(prev => ({
+                      ...prev,
+                      pagination: {
+                        ...prev.pagination,
+                        currentPage: paginationInfo.currentPage - 1
+                      }
+                    }));
+                  }
+                }}
+                disabled={paginationInfo.currentPage === 1}
+                className={`px-2.5 sm:px-3 py-1.5 text-[12px] sm:text-[13px] h-8 rounded-md transition-colors flex items-center space-x-0.5 sm:space-x-1 touch-manipulation ${
+                  paginationInfo.currentPage === 1
+                    ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600'
+                }`}
+              >
+                <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Previous</span>
+              </button>
+
+              {/* Page numbers */}
+              <div className="flex items-center gap-1">
+                {(() => {
+                  const pages: (number | string)[] = [];
+                  const totalPages = paginationInfo.totalPages;
+                  const currentPage = paginationInfo.currentPage;
+
+                  if (totalPages <= 7) {
+                    // Show all pages if 7 or fewer
+                    for (let i = 1; i <= totalPages; i++) {
+                      pages.push(i);
+                    }
+                  } else {
+                    // Show first page
+                    pages.push(1);
+
+                    if (currentPage > 3) {
+                      pages.push('...');
+                    }
+
+                    // Show pages around current page
+                    const start = Math.max(2, currentPage - 1);
+                    const end = Math.min(totalPages - 1, currentPage + 1);
+
+                    for (let i = start; i <= end; i++) {
+                      pages.push(i);
+                    }
+
+                    if (currentPage < totalPages - 2) {
+                      pages.push('...');
+                    }
+
+                    // Show last page
+                    pages.push(totalPages);
+                  }
+
+                  return pages.map((page, index) => {
+                    if (page === '...') {
+                      return (
+                        <span key={`ellipsis-${index}`} className="px-2 text-gray-400 dark:text-gray-600">
+                          ...
+                        </span>
+                      );
+                    }
+
+                    const pageNum = page as number;
+                    const isActive = pageNum === currentPage;
+
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => {
+                          setFilters(prev => ({
+                            ...prev,
+                            pagination: {
+                              ...prev.pagination,
+                              currentPage: pageNum
+                            }
+                          }));
+                        }}
+                        className={`px-2.5 sm:px-3 py-1.5 text-[12px] sm:text-[13px] h-8 min-w-[2rem] rounded-md transition-colors touch-manipulation ${
+                          isActive
+                            ? 'bg-blue-100 border border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Next button */}
+              <button
+                onClick={() => {
+                  if (paginationInfo.currentPage < paginationInfo.totalPages) {
+                    setFilters(prev => ({
+                      ...prev,
+                      pagination: {
+                        ...prev.pagination,
+                        currentPage: paginationInfo.currentPage + 1
+                      }
+                    }));
+                  }
+                }}
+                disabled={paginationInfo.currentPage >= paginationInfo.totalPages}
+                className={`px-2.5 sm:px-3 py-1.5 text-[12px] sm:text-[13px] h-8 rounded-md transition-colors flex items-center space-x-0.5 sm:space-x-1 touch-manipulation ${
+                  paginationInfo.currentPage >= paginationInfo.totalPages
+                    ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600'
+                }`}
+              >
+                <span className="hidden sm:inline">Next</span>
+                <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+            </div>
+          </div>
+        )}
         
         {/* Summary Bar - Integrated with table */}
         <div className="lg:block hidden bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-3" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
@@ -3629,7 +3933,7 @@ const TransactionListComponent: React.FC<{
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setFilters(tempFilters);
+                      setFilters({ ...tempFilters, pagination: { ...filters.pagination, currentPage: 1 } });
                       setShowMobileFilterMenu(false);
                     }}
                     onTouchStart={(e) => {
@@ -3658,7 +3962,8 @@ const TransactionListComponent: React.FC<{
                         dateRange: { start: '', end: '' },
                         showModifiedOnly: false,
                         recentlyModifiedDays: 7,
-                        showRecurringOnly: false
+                        showRecurringOnly: false,
+                        pagination: { ...filters.pagination, currentPage: 1 }
                       });
                       setShowMobileFilterMenu(false);
                     }}

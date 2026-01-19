@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Search, Edit2, Trash2, Building2, Mail, Phone, MapPin, Tag, X, Filter, FileText, ShoppingCart, ChevronUp, ChevronDown, Info, ChevronRight, Copy } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Building2, Mail, Phone, MapPin, Tag, X, Filter, Eye, ShoppingCart, ChevronUp, ChevronDown, Info, ChevronRight, Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useClientStore } from '../../store/useClientStore';
 import { Client } from '../../types/client';
@@ -22,11 +22,13 @@ import { ClientTasksWidget } from '../Dashboard/ClientTasksWidget';
 import { ClientNoteModal } from './ClientNoteModal';
 import { ClientEmailSuggestions } from './ClientEmailSuggestions';
 import { getCurrencySymbol } from '../../utils/currency';
+import { Tooltip } from '../common/Tooltip';
 import { 
   getInvoiceStatusColor, 
   getPaymentStatusColor, 
   getTaskPriorityColor, 
-  getTaskStatusColor 
+  getTaskStatusColor,
+  formatKnownSinceDate
 } from '../../utils/clientUtils';
 
 // Tag Management Component
@@ -1413,57 +1415,61 @@ export const ClientList: React.FC = () => {
                             </td>
                             <td className="px-3 sm:px-4 lg:px-6 py-2 sm:py-[0.6rem] lg:py-[0.7rem] text-center">
                               <div className="flex items-center justify-center gap-2">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEdit(client);
-                                  }}
-                                  className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-                                  aria-label="Edit client"
-                                  title="Edit"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setTaskClientId(client.id);
-                                    setShowTaskForm(true);
-                                  }}
-                                  className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-                                  aria-label="Create task"
-                                  title="Create Task"
-                                >
-                                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // Prevent if modal is already open for this client
-                                    if (noteModalClient?.id === client.id || isSavingNoteRef.current) {
-                                      return;
-                                    }
-                                    setNoteModalClient(client);
-                                  }}
-                                  className={client.notes && client.notes.trim().length > 0 
-                                    ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300" 
-                                    : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"}
-                                  title={client.notes && client.notes.trim().length > 0 ? "View/Edit note" : "Add note"}
-                                  aria-label={client.notes && client.notes.trim().length > 0 ? "View/Edit note" : "Add note"}
-                                >
-                                  <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDeletingClient(client);
-                                  }}
-                                  className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                                  aria-label="Delete client"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                </button>
+                                <Tooltip content="Edit" placement="top">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEdit(client);
+                                    }}
+                                    className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                    aria-label={`Edit ${client.name} client`}
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                  </button>
+                                </Tooltip>
+                                <Tooltip content="Create Task" placement="top">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setTaskClientId(client.id);
+                                      setShowTaskForm(true);
+                                    }}
+                                    className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                    aria-label={`Create task for ${client.name}`}
+                                  >
+                                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                  </button>
+                                </Tooltip>
+                                <Tooltip content={client.notes && client.notes.trim().length > 0 ? "View Note" : "Add Note"} placement="top">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // Prevent if modal is already open for this client
+                                      if (noteModalClient?.id === client.id || isSavingNoteRef.current) {
+                                        return;
+                                      }
+                                      setNoteModalClient(client);
+                                    }}
+                                    className={client.notes && client.notes.trim().length > 0 
+                                      ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300" 
+                                      : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"}
+                                    aria-label={client.notes && client.notes.trim().length > 0 ? `View note for ${client.name}` : `Add note for ${client.name}`}
+                                  >
+                                    <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                  </button>
+                                </Tooltip>
+                                <Tooltip content="Delete" placement="top">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeletingClient(client);
+                                    }}
+                                    className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                    aria-label={`Delete ${client.name} client`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                  </button>
+                                </Tooltip>
                               </div>
                             </td>
                           </tr>
@@ -1477,6 +1483,12 @@ export const ClientList: React.FC = () => {
                                   <div className="space-y-2 sm:space-y-3">
                                     <h4 className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">Contact & Company</h4>
                                     <div className="text-[11px] sm:text-xs text-gray-600 dark:text-gray-300 space-y-1.5 sm:space-y-2">
+                                      {/* Known Since / Created Date */}
+                                      <div className="font-medium">
+                                        <span>{client.known_since ? 'Known Since:' : 'Created:'}</span>{' '}
+                                        {formatKnownSinceDate(client.known_since || client.created_at)}
+                                      </div>
+                                      
                                       {/* Contact Information */}
                                       {(client.email || client.phone) && (
                                         <div className="space-y-1">
@@ -1600,9 +1612,6 @@ export const ClientList: React.FC = () => {
                                   <div className="space-y-2 sm:space-y-3">
                                     <h4 className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">Financial Summary</h4>
                                     <div className="text-[11px] sm:text-xs text-gray-600 dark:text-gray-300 space-y-2 sm:space-y-2.5">
-                                      <div>
-                                        <span className="font-medium">Created:</span> {new Date(client.created_at).toLocaleDateString()}
-                                      </div>
                                       {(() => {
                                         if (!financialData) {
                                           return (
@@ -2027,20 +2036,32 @@ export const ClientList: React.FC = () => {
                           {/* Card Footer - Created Date and Actions */}
                           <div className="flex items-center justify-between pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-gray-200 dark:border-gray-700">
                             <div className="text-xs sm:text-sm">
-                              <div className="text-gray-600 dark:text-gray-400">
-                                Created: {new Date(client.created_at).toLocaleDateString()}
+                              <div className="text-gray-600 dark:text-gray-400 font-medium">
+                                <span>{client.known_since ? 'Known Since:' : 'Created:'}</span>{' '}
+                                {formatKnownSinceDate(client.known_since || client.created_at)}
                               </div>
                             </div>
-                            <div className="flex gap-1.5 sm:gap-2">
+                            <div className="flex items-center space-x-2">
                               <button
                                 onClick={() => handleEdit(client)}
-                                className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 rounded-lg transition-colors hover:text-green-600 dark:hover:text-green-400 active:text-green-600 hover:bg-gray-100 dark:hover:bg-gray-700 touch-manipulation"
-                                title="Edit"
+                                className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                title="Edit client"
                                 aria-label={`Edit ${client.name} client`}
                               >
-                                <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                <Edit2 className="w-4 h-4" />
                               </button>
-                              
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setTaskClientId(client.id);
+                                  setShowTaskForm(true);
+                                }}
+                                className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                title="Create task"
+                                aria-label={`Create task for ${client.name}`}
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -2049,34 +2070,32 @@ export const ClientList: React.FC = () => {
                                   }
                                   setNoteModalClient(client);
                                 }}
-                                className={`p-2 sm:p-2.5 rounded-lg transition-colors touch-manipulation ${
+                                className={`p-2 rounded-lg transition-colors ${
                                   client.notes && client.notes.trim().length > 0
                                     ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-                                    : 'text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                    : 'text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
                                 }`}
-                                title={client.notes && client.notes.trim().length > 0 ? "View/Edit note" : "Add note"}
-                                aria-label={client.notes && client.notes.trim().length > 0 ? "View/Edit note" : "Add note"}
+                                title={client.notes && client.notes.trim().length > 0 ? "View note" : "Add note"}
+                                aria-label={client.notes && client.notes.trim().length > 0 ? `View note for ${client.name}` : `Add note for ${client.name}`}
                               >
-                                <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
+                                <Eye className="w-4 h-4" />
                               </button>
-                              
                               <button
                                 onClick={() => setDeletingClient(client)}
-                                className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 rounded-lg transition-colors hover:text-red-600 dark:hover:text-red-400 active:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 touch-manipulation"
-                                title="Delete"
+                                className="p-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                title="Delete client"
                                 aria-label={`Delete ${client.name} client`}
                               >
-                                <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                <Trash2 className="w-4 h-4" />
                               </button>
-                              
                               <button
                                 onClick={() => toggleRowExpansion(client.id)}
-                                className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 rounded-lg transition-colors hover:text-blue-600 dark:hover:text-blue-400 active:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 touch-manipulation"
-                                title="View details"
-                                aria-label="View details"
+                                className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                title={isRowExpanded(client.id) ? "Hide details" : "View details"}
+                                aria-label={isRowExpanded(client.id) ? `Hide details for ${client.name}` : `View details for ${client.name}`}
                               >
                                 <svg 
-                                  className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${isRowExpanded(client.id) ? 'rotate-90' : ''}`} 
+                                  className={`w-4 h-4 transition-transform ${isRowExpanded(client.id) ? 'rotate-90' : ''}`} 
                                   fill="none" 
                                   stroke="currentColor" 
                                   viewBox="0 0 24 24"

@@ -21,6 +21,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
   const [confirmDeleteTaskId, setConfirmDeleteTaskId] = useState<string | null>(null);
   const [showAllTasks, setShowAllTasks] = useState(false);
   const [showAddTaskInput, setShowAddTaskInput] = useState(false);
+  const [showRoadmap, setShowRoadmap] = useState(false);
   
   // Force re-render every second to sync timer display with PomodoroTimerBar
   const [, setTick] = useState(0);
@@ -1356,7 +1357,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
           onDragLeave={!isSubtask ? handleDragLeave : undefined}
           onDrop={(e) => !isSubtask && handleDrop(e, task.id)}
           onDragEnd={!isSubtask ? handleDragEnd : undefined}
-          className={`bg-blue-50 dark:bg-blue-900/20 rounded p-1.5 sm:p-2 flex items-center gap-1 sm:gap-2 transition-all duration-500 ${
+          className={`bg-blue-50 dark:bg-blue-900/20 rounded p-1.5 sm:p-2 flex items-center gap-1 sm:gap-2 transition-all duration-500 min-w-0 ${
             completedTaskId === task.id 
               ? 'ring-2 ring-green-400 dark:ring-green-500 bg-green-100 dark:bg-green-900/40 shadow-lg' 
               : ''
@@ -1373,6 +1374,19 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
               <button className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded" onClick={() => setConfirmDeleteTaskId(null)} disabled={saving}>Cancel</button>
             </div>
           ) : <>
+          {/* Drag Handle - only for parent tasks */}
+          {!isSubtask && (
+            <div 
+              className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0 p-0.5 sm:p-1"
+              draggable
+              onDragStart={(e) => {
+                e.stopPropagation();
+                handleDragStart(e, task.id);
+              }}
+            >
+              <GripVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </div>
+          )}
           {/* Expand/Collapse Button - show for ALL parent tasks (not just ones with subtasks) */}
           {!isSubtask ? (
             <button
@@ -1387,19 +1401,6 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
               )}
             </button>
           ) : null}
-          {/* Drag Handle - only for parent tasks */}
-          {!isSubtask && (
-            <div 
-              className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0 p-0.5 sm:p-1"
-              draggable
-              onDragStart={(e) => {
-                e.stopPropagation();
-                handleDragStart(e, task.id);
-              }}
-            >
-              <GripVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </div>
-          )}
           <input
             type="checkbox"
             checked={task.completed}
@@ -1409,7 +1410,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
             draggable={false}
           />
           <input
-            className={`flex-1 bg-transparent border-none focus:outline-none text-xs sm:text-sm ${task.completed ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}
+            className={`flex-1 min-w-0 bg-transparent border-none focus:outline-none text-xs sm:text-sm ${task.completed ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}
             value={task.text}
             onChange={e => editTask(task.id, e.target.value)}
             disabled={saving}
@@ -1422,7 +1423,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
             </span>
           )}
       {/* Pomodoro Controls */}
-      <div className="flex items-center gap-1" draggable={false}>
+      <div className="flex items-center gap-1 flex-shrink-0" draggable={false}>
         {/* Duration Badge - Hidden when timer is active for this task */}
         {!(pomodoroTimer?.taskId === task.id && (pomodoroTimer.timeRemaining > 0 || pomodoroTimer.isRunning)) && (
           <div className="relative task-duration-container">
@@ -1504,8 +1505,8 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
         )}
         {/* Timer Display or Start Button */}
         {pomodoroTimer?.taskId === task.id && (pomodoroTimer.timeRemaining > 0 || pomodoroTimer.isRunning) ? (
-          <div className="flex items-center gap-1">
-            <span className="text-xs font-mono text-gray-600 dark:text-gray-300">
+          <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+            <span className="text-[10px] sm:text-xs font-mono text-gray-600 dark:text-gray-300 whitespace-nowrap">
               {(() => {
                 // Read from localStorage to ensure sync with PomodoroTimerBar
                 const saved = localStorage.getItem('pomodoroTimerState');
@@ -1551,49 +1552,51 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
               // Fallback to React state
               return pomodoroTimer.isRunning;
             })() ? (
-              <button
-                onClick={pausePomodoro}
-                className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                title="Pause"
-              >
-                <Pause className="w-3.5 h-3.5" />
-              </button>
+            <button
+              onClick={pausePomodoro}
+              className="p-0.5 sm:p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex-shrink-0"
+              title="Pause"
+            >
+              <Pause className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            </button>
             ) : (
               <button
                 onClick={resumePomodoro}
-                className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                className="p-0.5 sm:p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex-shrink-0"
                 title="Resume"
               >
-                <Play className="w-3.5 h-3.5" />
+                <Play className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               </button>
             )}
             <button
               onClick={resetPomodoro}
-              className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              className="p-0.5 sm:p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex-shrink-0"
               title="Reset"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             </button>
             <button
               onClick={stopPomodoro}
-              className="p-1 text-gray-500 hover:text-red-500"
+              className="p-0.5 sm:p-1 text-gray-500 hover:text-red-500 flex-shrink-0"
               title="Stop"
             >
-              <span className="text-xs">×</span>
+              <span className="text-[10px] sm:text-xs">×</span>
             </button>
           </div>
         ) : (
           <button
             onClick={() => startPomodoro(task.id)}
-            className="p-1 text-gray-500 hover:text-red-500 dark:hover:text-red-400"
+            className="p-0.5 sm:p-1 text-gray-500 hover:text-red-500 dark:hover:text-red-400 flex-shrink-0"
             title="Start Pomodoro"
             disabled={task.completed}
           >
-            <Timer className="w-4 h-4" />
+            <Timer className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         )}
       </div>
-      <button className="ml-1 text-gray-400 hover:text-red-500 flex-shrink-0" onClick={() => setConfirmDeleteTaskId(task.id)} disabled={saving}>&times;</button>
+      <button className="ml-0.5 sm:ml-1 text-gray-400 hover:text-red-500 flex-shrink-0 p-0.5 sm:p-1" onClick={() => setConfirmDeleteTaskId(task.id)} disabled={saving} title="Delete task">
+        <span className="text-sm sm:text-base">×</span>
+      </button>
       </>}
         </div>
         {/* Subtasks section - shown when expanded */}
@@ -1601,7 +1604,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
           <div className="mt-1 sm:mt-1.5 space-y-1">
             {/* Show existing subtasks */}
             {hasSubtasks && task.subtasks?.map(subtask => renderTaskItem(subtask, true))}
-            {/* Add Subtask Input - show when adding or when no subtasks exist */}
+            {/* Add Subtask Input - only shown when task is expanded via arrow click */}
             {isAddingSubtask ? (
               <div className="ml-3 sm:ml-4 md:ml-6 pl-2 sm:pl-3 border-l-2 border-blue-300 dark:border-blue-700 flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 bg-blue-100/50 dark:bg-blue-900/10 rounded">
                 <input
@@ -1762,7 +1765,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
         overlayClassName="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-md z-40"
         ariaHideApp={false}
       >
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto shadow-lg relative">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 md:p-6 w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto shadow-lg relative">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white">All Tasks</h2>
             <div className="flex items-center gap-1">
@@ -1898,7 +1901,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
           <div className={`mb-2 overflow-hidden transition-all duration-300 ease-in-out ${
             showAddTaskInput ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'
           }`}>
-            <div className={`bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded p-2 flex items-center gap-2 shadow-sm transform transition-all duration-300 ${
+              <div className={`bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded p-2 flex items-center gap-2 shadow-sm transform transition-all duration-300 ${
               showAddTaskInput ? 'translate-y-0' : '-translate-y-2'
             }`}>
               <input

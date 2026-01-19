@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronDown, Calendar, FileText, TrendingUp, Sparkles } from 'lucide-react';
 import { LastWishCountdownWidget } from './LastWishCountdownWidget';
 // NotesWidget and TodosWidget loaded dynamically to reduce initial bundle size
@@ -10,46 +10,107 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { HabitGardenWidget } from '../Habits/HabitGardenWidget';
+import { WidgetConfig } from './WidgetSettingsPanel';
 
 interface MobileAccordionWidgetProps {
   isDemo?: boolean;
   MockLastWishCountdownWidget?: React.ComponentType;
   MockRecentTransactions?: React.ComponentType;
+  widgetConfig?: WidgetConfig[];
 }
 
 export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({ 
   isDemo = false, 
   MockLastWishCountdownWidget,
-  MockRecentTransactions 
+  MockRecentTransactions,
+  widgetConfig = []
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { profile } = useAuthStore();
   const [NotesWidget, setNotesWidget] = useState<React.ComponentType | null>(null);
   const [TodosWidget, setTodosWidget] = useState<React.ComponentType | null>(null);
 
-  // Lazy load NotesWidget and TodosWidget when accordion is expanded
+  // Lazy load NotesWidget and TodosWidget when accordion is expanded and widget is visible
   useEffect(() => {
-    if (isExpanded && !NotesWidget) {
+    const notesVisible = widgetConfig.length === 0 || (widgetConfig.find(w => w.id === 'notes')?.visible ?? true);
+    if (isExpanded && !NotesWidget && notesVisible) {
       import('./NotesWidget').then((module) => {
         setNotesWidget(() => module.NotesWidget);
       }).catch(() => {
         // Silently fail if widget can't be loaded
       });
     }
-  }, [isExpanded, NotesWidget]);
+  }, [isExpanded, NotesWidget, widgetConfig]);
 
   useEffect(() => {
-    if (isExpanded && !TodosWidget) {
+    const todosVisible = widgetConfig.length === 0 || (widgetConfig.find(w => w.id === 'todos')?.visible ?? true);
+    if (isExpanded && !TodosWidget && todosVisible) {
       import('./TodosWidget').then((module) => {
         setTodosWidget(() => module.TodosWidget);
       }).catch(() => {
         // Silently fail if widget can't be loaded
       });
     }
-  }, [isExpanded, TodosWidget]);
+  }, [isExpanded, TodosWidget, widgetConfig]);
   
   // Check if user has Premium plan for Last Wish
   const isPremium = profile?.subscription?.plan === 'premium';
+
+  // Helper function to check if a widget is visible
+  const isWidgetVisible = (widgetId: string): boolean => {
+    if (widgetConfig.length === 0) return true; // Default to visible if no config
+    const widget = widgetConfig.find(w => w.id === widgetId);
+    return widget ? widget.visible : true; // Default to visible if not found
+  };
+
+  // Get visible widgets sorted by order
+  const visibleWidgets = useMemo(() => {
+    const widgets = [];
+    
+    // Only include last-wish if user is premium/demo AND widget is visible
+    if ((isDemo || isPremium) && isWidgetVisible('last-wish')) {
+      widgets.push({ id: 'last-wish', visible: true, order: widgetConfig.find(w => w.id === 'last-wish')?.order ?? 0 });
+    }
+    
+    if (isWidgetVisible('habit-garden')) {
+      widgets.push({ id: 'habit-garden', visible: true, order: widgetConfig.find(w => w.id === 'habit-garden')?.order ?? 2 });
+    }
+    
+    if (isWidgetVisible('notes')) {
+      widgets.push({ id: 'notes', visible: true, order: widgetConfig.find(w => w.id === 'notes')?.order ?? 4 });
+    }
+    
+    if (isWidgetVisible('todos')) {
+      widgets.push({ id: 'todos', visible: true, order: widgetConfig.find(w => w.id === 'todos')?.order ?? 5 });
+    }
+    
+    return widgets.sort((a, b) => a.order - b.order);
+  }, [widgetConfig, isDemo, isPremium]);
+
+  // Generate description text based on visible widgets
+  const getAccordionDescription = (): string => {
+    const parts: string[] = [];
+    
+    if ((isDemo || isPremium) && isWidgetVisible('last-wish')) {
+      parts.push('Last Wish');
+    }
+    
+    parts.push('Daily Inspiration');
+    
+    if (isWidgetVisible('notes')) {
+      parts.push('Notes');
+    }
+    
+    if (isWidgetVisible('todos')) {
+      parts.push('Todos');
+    }
+    
+    if (isWidgetVisible('habit-garden')) {
+      parts.push('Habits');
+    }
+    
+    return parts.join(' • ');
+  };
 
   const toggleAccordion = () => {
     setIsExpanded(!isExpanded);
@@ -97,7 +158,7 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
                 Extras
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {isDemo || isPremium ? 'Last Wish • ' : ''}Daily Inspiration • Notes • Habits
+                {getAccordionDescription()}
               </p>
             </div>
           </div>
@@ -111,29 +172,69 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
         {/* Accordion Content */}
         <div className={`mobile-accordion-content ${isExpanded ? 'expanded' : 'collapsed'}`}>
           <div className="space-y-0">
-            {/* Last Wish Section - Only for Premium users or Demo */}
-            {(isDemo || isPremium) && (
-              <div className="border-b border-gray-200 dark:border-gray-700">
-                <div className="p-4 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20">
-                  {isDemo && MockLastWishCountdownWidget ? (
-                    <MockLastWishCountdownWidget />
-                  ) : (
-                    <LastWishCountdownWidget />
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Render widgets in order based on widgetConfig */}
+            {visibleWidgets.map((widget, index) => {
+              // Check if this is the last widget before Motivational Quote
+              const isLastWidget = index === visibleWidgets.length - 1;
+              const borderClass = isLastWidget ? '' : 'border-b border-gray-200 dark:border-gray-700';
+              
+              if (widget.id === 'last-wish') {
+                return (
+                  <div key={widget.id} className={borderClass}>
+                    <div className="p-4 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20">
+                      {isDemo && MockLastWishCountdownWidget ? (
+                        <MockLastWishCountdownWidget />
+                      ) : (
+                        <LastWishCountdownWidget />
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+              
+              if (widget.id === 'habit-garden') {
+                return (
+                  <div key={widget.id} className={borderClass}>
+                    <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
+                      <HabitGardenWidget />
+                    </div>
+                  </div>
+                );
+              }
+              
+              if (widget.id === 'notes') {
+                return (
+                  <div key={widget.id} className={borderClass}>
+                    <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+                      {NotesWidget ? <NotesWidget /> : null}
+                    </div>
+                  </div>
+                );
+              }
+              
+              if (widget.id === 'todos') {
+                return (
+                  <div key={widget.id} className={borderClass}>
+                    <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+                      {TodosWidget ? <TodosWidget /> : null}
+                    </div>
+                  </div>
+                );
+              }
+              
+              return null;
+            })}
 
-            {/* Daily Inspiration Section */}
-            <div className="border-b border-gray-200 dark:border-gray-700">
+            {/* Daily Inspiration Section - Always visible */}
+            <div>
               <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
                 <MotivationalQuote />
               </div>
             </div>
 
-            {/* Premium Upgrade Prompt for Free Users */}
-            {!isDemo && !isPremium && (
-              <div className="border-b border-gray-200 dark:border-gray-700">
+            {/* Premium Upgrade Prompt for Free Users - Only show if Last Wish is not visible */}
+            {!isDemo && !isPremium && !isWidgetVisible('last-wish') && (
+              <div>
                 <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20">
                   <div className="flex items-center gap-2 mb-3">
                     <Calendar className="w-4 h-4 text-yellow-600" />
@@ -152,27 +253,6 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
                 </div>
               </div>
             )}
-
-            {/* Notes Section */}
-            <div className="border-b border-gray-200 dark:border-gray-700">
-              <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
-                {NotesWidget ? <NotesWidget /> : null}
-              </div>
-            </div>
-
-            {/* Todos Section */}
-            <div className="border-b border-gray-200 dark:border-gray-700">
-              <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
-                {TodosWidget ? <TodosWidget /> : null}
-              </div>
-            </div>
-
-            {/* Habits Section */}
-            <div>
-              <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
-                <HabitGardenWidget />
-              </div>
-            </div>
           </div>
         </div>
       </div>

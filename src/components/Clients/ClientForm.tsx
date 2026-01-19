@@ -7,6 +7,9 @@ import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { toast } from 'sonner';
+import DatePicker from 'react-datepicker';
+import { format, parseISO } from 'date-fns';
+import 'react-datepicker/dist/react-datepicker.css';
 
 interface ClientFormProps {
   isOpen: boolean;
@@ -31,6 +34,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
     tax_id: '',
     website: '',
     source: '',
+    known_since: '',
     status: 'active',
     default_currency: 'USD',
     tags: [],
@@ -202,6 +206,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
         tax_id: client.tax_id || '',
         website: client.website || '',
         source: client.source || '',
+        known_since: client.known_since || '',
         status: client.status,
         default_currency: client.default_currency || 'USD',
         tags: client.tags || [],
@@ -223,6 +228,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
         tax_id: '',
         website: '',
         source: '',
+        known_since: '',
         status: 'active',
         default_currency: 'USD',
         tags: [],
@@ -572,6 +578,44 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
                   disabled={loading}
                   fullWidth={true}
                 />
+              </div>
+
+              {/* Known Since */}
+              <div className="relative">
+                <div className={`${getInputClasses('known_since')} flex items-center px-4 pr-[10px]`}>
+                  <svg className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <DatePicker
+                    selected={formData.known_since ? parseISO(formData.known_since) : null}
+                    onChange={(date) => {
+                      handleFieldChange('known_since', date ? format(date, 'yyyy-MM-dd') : '');
+                    }}
+                    onBlur={() => handleBlur('known_since')}
+                    placeholderText="Known Since"
+                    dateFormat="yyyy-MM-dd"
+                    className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-700 dark:text-white placeholder-gray-400 dark:placeholder-gray-400"
+                    calendarClassName="z-[60] shadow-lg border border-gray-200 dark:border-gray-700 rounded-lg !font-sans bg-white dark:bg-gray-800"
+                    popperPlacement="bottom-start"
+                    showPopperArrow={false}
+                    wrapperClassName="w-full"
+                    todayButton="Today"
+                    highlightDates={[new Date()]}
+                    isClearable
+                    autoComplete="off"
+                    disabled={loading}
+                  />
+                  {formData.known_since && (
+                    <button
+                      type="button"
+                      onClick={() => handleFieldChange('known_since', '')}
+                      className="ml-2 text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                      tabIndex={-1}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Status */}

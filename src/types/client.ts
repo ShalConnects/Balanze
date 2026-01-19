@@ -17,6 +17,7 @@ export interface Client {
   tax_id?: string;
   website?: string;
   source?: string;
+  known_since?: string;
   status: 'active' | 'inactive' | 'archived';
   default_currency: string;
   tags: string[];
@@ -41,6 +42,7 @@ export interface ClientInput {
   tax_id?: string;
   website?: string;
   source?: string;
+  known_since?: string;
   status?: 'active' | 'inactive' | 'archived';
   default_currency?: string;
   tags?: string[];

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, ArrowRight } from 'lucide-react';
+import { BookOpen, ArrowRight, Plus } from 'lucide-react';
 import { useCourseStore } from '../../store/useCourseStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
+import { CourseForm } from './CourseForm';
 
 interface LearningWidgetProps {
   isAccordionExpanded?: boolean;
@@ -22,6 +23,7 @@ export const LearningWidget: React.FC<LearningWidgetProps> = ({
     fetchCourses,
     fetchModules,
   } = useCourseStore();
+  const [showCourseForm, setShowCourseForm] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -79,26 +81,38 @@ export const LearningWidget: React.FC<LearningWidgetProps> = ({
 
   if (courses.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-blue-500" />
-            <h3 className="font-semibold text-gray-900 dark:text-white">Learning</h3>
+      <>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-blue-500" />
+              <h3 className="font-semibold text-gray-900 dark:text-white">Learning</h3>
+            </div>
+          </div>
+          <div className="text-center py-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Start tracking your learning progress
+            </p>
+            <button
+              onClick={() => setShowCourseForm(true)}
+              className="px-4 py-2 bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded-lg text-sm font-medium flex items-center gap-2 mx-auto transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Course
+            </button>
           </div>
         </div>
-        <div className="text-center py-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-            Start tracking your learning progress
-          </p>
-          <button
-            onClick={handleViewAll}
-            className="px-4 py-2 bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded-lg text-sm font-medium flex items-center gap-2 mx-auto transition-colors"
-          >
-            <BookOpen className="w-4 h-4" />
-            Add Course
-          </button>
-        </div>
-      </div>
+        {showCourseForm && (
+          <CourseForm
+            course={null}
+            onClose={() => setShowCourseForm(false)}
+            onSuccess={() => {
+              setShowCourseForm(false);
+              fetchCourses();
+            }}
+          />
+        )}
+      </>
     );
   }
 
@@ -173,6 +187,16 @@ export const LearningWidget: React.FC<LearningWidgetProps> = ({
         >
           +{courses.length - 3} more courses
         </button>
+      )}
+      {showCourseForm && (
+        <CourseForm
+          course={null}
+          onClose={() => setShowCourseForm(false)}
+          onSuccess={() => {
+            setShowCourseForm(false);
+            fetchCourses();
+          }}
+        />
       )}
     </div>
   );

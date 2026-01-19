@@ -133,6 +133,7 @@ export interface Task {
   position?: number;
   section_override?: 'today' | 'this_week' | 'this_month' | null;
   parent_id?: string | null;
+  due_date?: string | null;
   // Computed/derived fields (not in database, populated in UI)
   subtasks?: Task[];
   has_subtasks?: boolean;
