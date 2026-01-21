@@ -418,7 +418,7 @@ export const LearningSummaryCard: React.FC<LearningSummaryCardProps> = () => {
 
       {/* Mobile Modal for Learning Info */}
       {showMobileModal && isMobile && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowMobileModal(false)} />
           <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 md:w-96 max-w-md animate-fadein">
             <div className="flex items-center justify-between mb-3 sm:mb-4">

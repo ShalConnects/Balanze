@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Search, Edit2, Trash2, Building2, Mail, Phone, MapPin, Tag, X, Filter, Eye, ShoppingCart, ChevronUp, ChevronDown, Info, ChevronRight, Copy } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Building2, Mail, Phone, MapPin, Tag, X, Filter, Eye, ShoppingCart, ChevronUp, ChevronDown, Info, ChevronRight, Copy, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useClientStore } from '../../store/useClientStore';
 import { Client } from '../../types/client';
@@ -1196,26 +1196,26 @@ export const ClientList: React.FC = () => {
                                         }
                                         return new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0));
                                       });
-                                      return (
-                                        <>
-                                          {overdueTasks.length > 0 && (
-                                            <span 
-                                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
-                                              title={`${overdueTasks.length} overdue task${overdueTasks.length !== 1 ? 's' : ''}`}
-                                            >
-                                              ⚠️ {overdueTasks.length}
-                                            </span>
-                                          )}
-                                          {activeTasks.length > 0 && (
-                                            <span 
-                                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
-                                              title={`${activeTasks.length} active task${activeTasks.length !== 1 ? 's' : ''}`}
-                                            >
-                                              {activeTasks.length}
-                                            </span>
-                                          )}
-                                        </>
-                                      );
+                                      const hasOverdue = overdueTasks.length > 0;
+                                      if (activeTasks.length > 0) {
+                                        return (
+                                          <span 
+                                            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium border ${
+                                              hasOverdue
+                                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
+                                                : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800'
+                                            }`}
+                                            title={hasOverdue 
+                                              ? `${overdueTasks.length} overdue task${overdueTasks.length !== 1 ? 's' : ''}, ${activeTasks.length} active task${activeTasks.length !== 1 ? 's' : ''}`
+                                              : `${activeTasks.length} active task${activeTasks.length !== 1 ? 's' : ''}`
+                                            }
+                                          >
+                                            {hasOverdue && <AlertCircle className="w-2.5 h-2.5" />}
+                                            {activeTasks.length}
+                                          </span>
+                                        );
+                                      }
+                                      return null;
                                     })()}
                                   </div>
                                 </div>
@@ -1973,12 +1973,27 @@ export const ClientList: React.FC = () => {
                                 {(() => {
                                   const clientTasks = getTasksByClient(client.id);
                                   const activeTasks = clientTasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled');
+                                  const overdueTasks = clientTasks.filter(task => {
+                                    if (!task.due_date || task.status === 'completed' || task.status === 'cancelled') {
+                                      return false;
+                                    }
+                                    return new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0));
+                                  });
+                                  const hasOverdue = overdueTasks.length > 0;
                                   if (activeTasks.length > 0) {
                                     return (
                                       <span 
-                                        className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
-                                        title={`${activeTasks.length} active task${activeTasks.length !== 1 ? 's' : ''}`}
+                                        className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium border ${
+                                          hasOverdue
+                                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
+                                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800'
+                                        }`}
+                                        title={hasOverdue 
+                                          ? `${overdueTasks.length} overdue task${overdueTasks.length !== 1 ? 's' : ''}, ${activeTasks.length} active task${activeTasks.length !== 1 ? 's' : ''}`
+                                          : `${activeTasks.length} active task${activeTasks.length !== 1 ? 's' : ''}`
+                                        }
                                       >
+                                        {hasOverdue && <AlertCircle className="w-2.5 h-2.5" />}
                                         {activeTasks.length}
                                       </span>
                                     );

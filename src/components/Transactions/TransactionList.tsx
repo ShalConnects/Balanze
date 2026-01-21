@@ -2433,6 +2433,23 @@ const TransactionListComponent: React.FC<{
                                </Tooltip>
                              ) : (
                                <>
+                                 {(transaction.is_recurring || transaction.parent_recurring_id) && (
+                                   <Tooltip content={expandedRecurringIds.has(transaction.id) ? 'Collapse recurring details' : 'Expand recurring details'} placement="top">
+                                     <button
+                                       onClick={(e) => {
+                                         e.stopPropagation();
+                                         toggleRecurringExpand(transaction.id);
+                                       }}
+                                       className="text-gray-500 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
+                                     >
+                                       {expandedRecurringIds.has(transaction.id) ? (
+                                         <ChevronUp className="w-4 h-4" />
+                                       ) : (
+                                         <ChevronDown className="w-4 h-4" />
+                                       )}
+                                     </button>
+                                   </Tooltip>
+                                 )}
                                  <Tooltip content={transaction.note && transaction.note.trim().length > 0 ? "View/Edit note" : "Add note"} placement="top">
                                    <button
                                      type="button"
@@ -2531,23 +2548,6 @@ const TransactionListComponent: React.FC<{
                                      <FileText className="w-4 h-4" />
                                    </button>
                                  </Tooltip>
-                                 {(transaction.is_recurring || transaction.parent_recurring_id) && (
-                                   <Tooltip content={expandedRecurringIds.has(transaction.id) ? 'Collapse recurring details' : 'Expand recurring details'} placement="top">
-                                     <button
-                                       onClick={(e) => {
-                                         e.stopPropagation();
-                                         toggleRecurringExpand(transaction.id);
-                                       }}
-                                       className="text-gray-500 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
-                                     >
-                                       {expandedRecurringIds.has(transaction.id) ? (
-                                         <ChevronUp className="w-4 h-4" />
-                                       ) : (
-                                         <ChevronDown className="w-4 h-4" />
-                                       )}
-                                     </button>
-                                   </Tooltip>
-                                 )}
                                  {transaction.is_recurring && (
                                    <Tooltip content={transaction.is_paused ? 'Resume recurring transaction' : 'Pause recurring transaction'} placement="top">
                                    <button
@@ -2963,6 +2963,23 @@ const TransactionListComponent: React.FC<{
                            </Tooltip>
                          ) : (
                            <>
+                               {(transaction.is_recurring || transaction.parent_recurring_id) && (
+                                 <Tooltip content={expandedRecurringIds.has(transaction.id) ? 'Collapse recurring details' : 'Expand recurring details'} placement="top">
+                                   <button
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       toggleRecurringExpand(transaction.id);
+                                     }}
+                                     className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                                   >
+                                     {expandedRecurringIds.has(transaction.id) ? (
+                                       <ChevronUp className="w-3.5 h-3.5" />
+                                     ) : (
+                                       <ChevronDown className="w-3.5 h-3.5" />
+                                     )}
+                                   </button>
+                                 </Tooltip>
+                               )}
                                <Tooltip content={transaction.note && transaction.note.trim().length > 0 ? "View/Edit note" : "Add note"} placement="top">
                                  <button
                                    type="button"
@@ -3020,23 +3037,6 @@ const TransactionListComponent: React.FC<{
                                    <FileText className="w-3.5 h-3.5" />
                                  </button>
                                </Tooltip>
-                               {(transaction.is_recurring || transaction.parent_recurring_id) && (
-                                 <Tooltip content={expandedRecurringIds.has(transaction.id) ? 'Collapse recurring details' : 'Expand recurring details'} placement="top">
-                                   <button
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       toggleRecurringExpand(transaction.id);
-                                     }}
-                                     className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
-                                   >
-                                     {expandedRecurringIds.has(transaction.id) ? (
-                                       <ChevronUp className="w-3.5 h-3.5" />
-                                     ) : (
-                                       <ChevronDown className="w-3.5 h-3.5" />
-                                     )}
-                                   </button>
-                                 </Tooltip>
-                               )}
                                {transaction.is_recurring && (
                                  <Tooltip content={transaction.is_paused ? 'Resume recurring transaction' : 'Pause recurring transaction'} placement="top">
                                    <button

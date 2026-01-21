@@ -175,16 +175,12 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
 
   // Calculate client statistics
   const clientStats = useMemo(() => {
-    const filteredClients = filterCurrency 
-      ? clients.filter(c => c.default_currency === filterCurrency)
-      : clients;
-
-    const activeClients = filteredClients.filter(c => c.status === 'active');
-    const inactiveClients = filteredClients.filter(c => c.status === 'inactive');
+    const activeClients = clients.filter(c => c.status === 'active');
+    const inactiveClients = clients.filter(c => c.status === 'inactive');
     
     // Calculate total value (orders + invoices)
     let totalValue = 0;
-    filteredClients.forEach(client => {
+    clients.forEach(client => {
       const clientOrders = getOrdersByClient(client.id);
       const clientInvoices = getInvoicesByClient(client.id);
       const orderValue = clientOrders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
@@ -193,23 +189,19 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
     });
 
     return {
-      total: filteredClients.length,
+      total: clients.length,
       active: activeClients.length,
       inactive: inactiveClients.length,
       totalValue
     };
-  }, [clients, filterCurrency, getOrdersByClient, getInvoicesByClient]);
+  }, [clients, getOrdersByClient, getInvoicesByClient]);
 
   // Get recent clients for tooltip
   const recentClients = useMemo(() => {
-    const filteredClients = filterCurrency 
-      ? clients.filter(c => c.default_currency === filterCurrency)
-      : clients;
-    
-    return filteredClients
+    return clients
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 3);
-  }, [clients, filterCurrency]);
+  }, [clients]);
 
   if (loading) {
     return (
@@ -319,7 +311,7 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
                   <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
                     <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5">Total Value:</div>
                     <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                      {formatCurrency(clientStats.totalValue, filterCurrency || 'USD')}
+                      {formatCurrency(clientStats.totalValue, 'USD')}
                     </div>
                   </div>
 
@@ -382,7 +374,7 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
         <div className="w-full">
           <StatCard
             title="Total Value"
-            value={formatCurrency(clientStats.totalValue, filterCurrency || 'USD')}
+            value={formatCurrency(clientStats.totalValue, 'USD')}
             color="purple"
           />
         </div>
@@ -390,7 +382,7 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
 
       {/* Mobile Modal for Client Info */}
       {showMobileModal && isMobile && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowMobileModal(false)} />
           <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 md:w-96 max-w-md animate-fadein">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
@@ -422,7 +414,7 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
               <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
                 <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-1">Total Value:</div>
                 <div className="font-medium text-sm sm:text-base text-blue-600 dark:text-blue-400">
-                  {formatCurrency(clientStats.totalValue, filterCurrency || 'USD')}
+                  {formatCurrency(clientStats.totalValue, 'USD')}
                 </div>
               </div>
             </div>

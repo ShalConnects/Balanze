@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { Timer, Play, Pause, RotateCcw, Settings, GripVertical, X, ChevronDown, RefreshCw, ChevronRight, Plus } from 'lucide-react';
+import { Timer, Play, Pause, RotateCcw, Settings, GripVertical, X, ChevronDown, RefreshCw, ChevronRight, Plus, ChevronUp } from 'lucide-react';
 import Modal from 'react-modal';
 import type { Task } from '../../types/index';
 
@@ -1682,12 +1682,31 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
   const tasksToShow = filteredTasksForPreview.slice(0, 3);
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-blue-100 dark:from-blue-900/40 dark:via-purple-900/40 dark:to-blue-900/40 rounded-xl p-4 shadow-sm flex flex-col transition-all duration-300">
+    <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-blue-100 dark:from-blue-900/40 dark:via-purple-900/40 dark:to-blue-900/40 rounded-xl p-4 shadow-sm flex flex-col transition-all duration-300 relative group">
+      {/* Toggle Button - positioned like drag handle on left side, only when tasks exist */}
+      {tasks.length > 0 && onAccordionToggle && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onAccordionToggle();
+          }}
+          className="absolute top-2 left-2 z-10 p-1.5 rounded-lg bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-sm opacity-100 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation transition-opacity"
+          title={isAccordionExpanded ? 'Collapse' : 'Expand'}
+          aria-label={isAccordionExpanded ? 'Collapse widget' : 'Expand widget'}
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+        >
+          {isAccordionExpanded ? (
+            <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+          )}
+        </button>
+      )}
       {/* Widget Header */}
-      <div className="mb-3">
+      <div className={`mb-3 ${isAccordionExpanded ? '' : ''}`}>
         <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">Tasks</h3>
       </div>
-      {/* Quick Add Task Input - Always visible in collapsed view */}
+      {/* Quick Add Task Input - Always visible */}
       <div className="mb-3">
         <div className="bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 rounded-lg p-2 flex items-center gap-2 shadow-sm">
           <input
@@ -1719,39 +1738,41 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
           </button>
         </div>
       </div>
-      {/* Tasks List (show only first 3) */}
-      <div className="space-y-2">
-        {tasksToShow.length === 0 && <div className="text-gray-400 text-sm text-center">No tasks yet.</div>}
-        {tasksToShow.map(task => (
-          <div key={task.id} className="bg-blue-50 dark:bg-blue-900/20 rounded p-2 flex items-center">
-            {confirmDeleteTaskId === task.id ? (
-              <div className="flex-1 flex items-center gap-2">
-                <span className="text-sm text-red-600">Delete this task?</span>
-                <button className="px-2 py-1 text-xs bg-red-500 text-white rounded" onClick={() => deleteTask(task.id)} disabled={saving}>Delete</button>
-                <button className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded" onClick={() => setConfirmDeleteTaskId(null)} disabled={saving}>Cancel</button>
-              </div>
-            ) : <>
-            <input
-              type="checkbox"
-              checked={task.completed}
-              onChange={() => toggleTask(task.id, task.completed)}
-              className="mr-2"
-              disabled={saving}
-            />
-            <input
-              className={`flex-1 bg-transparent border-none focus:outline-none text-sm ${task.completed ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}
-              value={task.text}
-              onChange={e => editTask(task.id, e.target.value)}
-              disabled={saving}
-            />
-            <button className="ml-2 text-gray-400 hover:text-red-500 flex-shrink-0" onClick={() => setConfirmDeleteTaskId(task.id)} disabled={saving}>&times;</button>
-            </>}
-          </div>
-        ))}
-        {tasks.length > 0 && (
-          <button className="w-full text-gradient-primary hover:underline text-xs mt-2" onClick={() => setShowAllTasks(true)}>View All Tasks</button>
-        )}
-      </div>
+      {/* Tasks List (show only first 3) - Only show when expanded */}
+      {isAccordionExpanded && (
+        <div className="space-y-2">
+          {tasksToShow.length === 0 && <div className="text-gray-400 text-sm text-center">No tasks yet.</div>}
+          {tasksToShow.map(task => (
+            <div key={task.id} className="bg-blue-50 dark:bg-blue-900/20 rounded p-2 flex items-center">
+              {confirmDeleteTaskId === task.id ? (
+                <div className="flex-1 flex items-center gap-2">
+                  <span className="text-sm text-red-600">Delete this task?</span>
+                  <button className="px-2 py-1 text-xs bg-red-500 text-white rounded" onClick={() => deleteTask(task.id)} disabled={saving}>Delete</button>
+                  <button className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded" onClick={() => setConfirmDeleteTaskId(null)} disabled={saving}>Cancel</button>
+                </div>
+              ) : <>
+              <input
+                type="checkbox"
+                checked={task.completed}
+                onChange={() => toggleTask(task.id, task.completed)}
+                className="mr-2"
+                disabled={saving}
+              />
+              <input
+                className={`flex-1 bg-transparent border-none focus:outline-none text-sm ${task.completed ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}
+                value={task.text}
+                onChange={e => editTask(task.id, e.target.value)}
+                disabled={saving}
+              />
+              <button className="ml-2 text-gray-400 hover:text-red-500 flex-shrink-0" onClick={() => setConfirmDeleteTaskId(task.id)} disabled={saving}>&times;</button>
+              </>}
+            </div>
+          ))}
+          {tasks.length > 0 && (
+            <button className="w-full text-gradient-primary hover:underline text-xs mt-2" onClick={() => setShowAllTasks(true)}>View All Tasks</button>
+          )}
+        </div>
+      )}
       {/* All Tasks Modal */}
       <Modal
         isOpen={showAllTasks}

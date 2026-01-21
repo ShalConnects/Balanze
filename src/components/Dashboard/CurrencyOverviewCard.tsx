@@ -661,7 +661,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
 
       {/* Mobile Modal for Income Badge */}
       {showIncomeBadgeModal && isMobile && incomeByAccount.length > 0 && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" onClick={(e) => {
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={(e) => {
           e.stopPropagation();
           setShowIncomeBadgeModal(false);
         }}>
@@ -698,7 +698,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
 
       {/* Mobile Modal for Expense Badge */}
       {showExpenseBadgeModal && isMobile && expenseByAccount.length > 0 && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" onClick={(e) => {
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={(e) => {
           e.stopPropagation();
           setShowExpenseBadgeModal(false);
         }}>

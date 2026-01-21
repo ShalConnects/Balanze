@@ -14,9 +14,9 @@ interface TransferSummaryCardProps {
 }
 
 export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({ 
-    filterCurrency = '' 
+    filterCurrency: _filterCurrency = '' // Unused - kept for backward compatibility, currency filtering removed
 }) => {
-    const { user, profile } = useAuthStore();
+    const { user } = useAuthStore();
     
     const [transfers, setTransfers] = useState<any[]>([]);
     const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
@@ -24,7 +24,6 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
     const [loading, setLoading] = useState(true);
     const [showTransferTooltip, setShowTransferTooltip] = useState(false);
     const [showTransferMobileModal, setShowTransferMobileModal] = useState(false);
-    const [tooltipPosition, setTooltipPosition] = useState<'center' | 'right'>('center');
     const [isHovered, setIsHovered] = useState(false);
     const [showCrossTooltip, setShowCrossTooltip] = useState(false);
     const { isMobile } = useMobileDetection();
@@ -134,25 +133,6 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
         }
     };
 
-    const calculateTooltipPosition = () => {
-        if (!tooltipRef.current || !cardRef.current) return;
-        
-        const tooltip = tooltipRef.current;
-        const card = cardRef.current;
-        
-        const cardRect = card.getBoundingClientRect();
-        const tooltipRect = tooltip.getBoundingClientRect();
-        
-        const tooltipRight = cardRect.left + (cardRect.width / 2) + (tooltipRect.width / 2);
-        const cardRight = cardRect.right;
-        
-        if (tooltipRight > cardRight) {
-            setTooltipPosition('right');
-        } else {
-            setTooltipPosition('center');
-        }
-    };
-
     useEffect(() => {
         if (!user) return;
         
@@ -192,12 +172,6 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
         loadTransferData();
     }, [user]);
 
-    useEffect(() => {
-        if (showTransferTooltip) {
-            setTimeout(calculateTooltipPosition, 10);
-        }
-    }, [showTransferTooltip]);
-    
     function groupTransfersByTransferId(transfers: any[]) {
         const grouped: Record<string, any[]> = {};
         for (const t of transfers) {
@@ -267,56 +241,82 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
     }, [combinedTransfers, processedDpsTransfers]);
 
 
-    // Filter transfers by selected currency
-    const filteredTransfers = useMemo(() => {
-        if (!filterCurrency) return allTransfers;
-        return allTransfers.filter(t => 
-            (t.fromCurrency === filterCurrency) || (t.toCurrency === filterCurrency)
-        );
-    }, [allTransfers, filterCurrency]);
-
-    const totalTransfers = filteredTransfers.length;
+    const totalTransfers = allTransfers.length;
     
     const thisMonthTransfers = useMemo(() => {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         
-        return filteredTransfers.filter(transfer => {
+        return allTransfers.filter(transfer => {
             const transferDate = new Date(transfer.date);
             return transferDate >= startOfMonth && transferDate <= endOfMonth;
         }).length;
-    }, [filteredTransfers]);
+    }, [allTransfers]);
 
-    const currencyTransfers = filteredTransfers.filter(t => t.type === 'currency').length;
-    const inAccountTransfers = filteredTransfers.filter(t => t.type === 'inbetween').length;
-    const dpsTransfersCount = filteredTransfers.filter(t => t.type === 'dps').length;
+    const currencyTransfers = allTransfers.filter(t => t.type === 'currency').length;
+    const inAccountTransfers = allTransfers.filter(t => t.type === 'inbetween').length;
+    const dpsTransfersCount = allTransfers.filter(t => t.type === 'dps').length;
 
-    // Calculate total amounts by type (filtered by currency)
+    // Calculate total amounts by type
     const currencyTransfersTotal = useMemo(() => {
-        return filteredTransfers
-            .filter(t => t.type === 'currency' && t.fromCurrency === filterCurrency)
+        return allTransfers
+            .filter(t => t.type === 'currency')
             .reduce((sum, t) => sum + (t.fromAmount || 0), 0);
-    }, [filteredTransfers, filterCurrency]);
+    }, [allTransfers]);
 
     const inAccountTransfersTotal = useMemo(() => {
-        return filteredTransfers
-            .filter(t => t.type === 'inbetween' && t.fromCurrency === filterCurrency)
+        return allTransfers
+            .filter(t => t.type === 'inbetween')
             .reduce((sum, t) => sum + (t.fromAmount || 0), 0);
-    }, [filteredTransfers, filterCurrency]);
+    }, [allTransfers]);
 
     const dpsTransfersTotal = useMemo(() => {
-        return filteredTransfers
-            .filter(t => t.type === 'dps' && t.fromCurrency === filterCurrency)
+        return allTransfers
+            .filter(t => t.type === 'dps')
             .reduce((sum, t) => sum + (t.fromAmount || 0), 0);
-    }, [filteredTransfers, filterCurrency]);
+    }, [allTransfers]);
 
-    // Get recent transfers (last 3) - filtered by currency
+    // Group transfers by currency for each type
+    const currencyTransfersByCurrency = useMemo(() => {
+        const grouped: Record<string, number> = {};
+        allTransfers
+            .filter(t => t.type === 'currency')
+            .forEach(t => {
+                const currency = t.fromCurrency || 'USD';
+                grouped[currency] = (grouped[currency] || 0) + (t.fromAmount || 0);
+            });
+        return Object.entries(grouped).map(([currency, amount]) => ({ currency, amount }));
+    }, [allTransfers]);
+
+    const inAccountTransfersByCurrency = useMemo(() => {
+        const grouped: Record<string, number> = {};
+        allTransfers
+            .filter(t => t.type === 'inbetween')
+            .forEach(t => {
+                const currency = t.fromCurrency || 'USD';
+                grouped[currency] = (grouped[currency] || 0) + (t.fromAmount || 0);
+            });
+        return Object.entries(grouped).map(([currency, amount]) => ({ currency, amount }));
+    }, [allTransfers]);
+
+    const dpsTransfersByCurrency = useMemo(() => {
+        const grouped: Record<string, number> = {};
+        allTransfers
+            .filter(t => t.type === 'dps')
+            .forEach(t => {
+                const currency = t.fromCurrency || 'USD';
+                grouped[currency] = (grouped[currency] || 0) + (t.fromAmount || 0);
+            });
+        return Object.entries(grouped).map(([currency, amount]) => ({ currency, amount }));
+    }, [allTransfers]);
+
+    // Get recent transfers (last 3)
     const recentTransfers = useMemo(() => {
-        return filteredTransfers
+        return allTransfers
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .slice(0, 3);
-    }, [filteredTransfers]);
+    }, [allTransfers]);
 
     if (allTransfers.length === 0) {
         return null;
@@ -384,8 +384,12 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
                                         <div className="min-w-0">
                                             <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">Currency Exchange ({currencyTransfers}):</div>
                                     {currencyTransfers > 0 ? (
-                                        <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent break-words">
-                                            {formatCurrency(currencyTransfersTotal, filterCurrency || 'USD')}
+                                        <div className="space-y-0.5">
+                                            {currencyTransfersByCurrency.map(({ currency, amount }) => (
+                                                <div key={currency} className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent break-words">
+                                                    {formatCurrency(amount, currency)}
+                                                </div>
+                                            ))}
                                         </div>
                                     ) : (
                                         <div className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-500">No currency exchanges</div>
@@ -396,8 +400,12 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
                                 <div className="min-w-0">
                                     <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">In-Account ({inAccountTransfers}):</div>
                                     {inAccountTransfers > 0 ? (
-                                        <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent break-words">
-                                            {formatCurrency(inAccountTransfersTotal, filterCurrency || 'USD')}
+                                        <div className="space-y-0.5">
+                                            {inAccountTransfersByCurrency.map(({ currency, amount }) => (
+                                                <div key={currency} className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent break-words">
+                                                    {formatCurrency(amount, currency)}
+                                                </div>
+                                            ))}
                                         </div>
                                     ) : (
                                         <div className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-500">No in-account transfers</div>
@@ -409,8 +417,12 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
                             {dpsTransfersCount > 0 && (
                                 <div className="min-w-0">
                                     <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5">DPS Auto-Save ({dpsTransfersCount}):</div>
-                                    <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent break-words">
-                                        {formatCurrency(dpsTransfersTotal, filterCurrency || 'USD')}
+                                    <div className="space-y-0.5">
+                                        {dpsTransfersByCurrency.map(({ currency, amount }) => (
+                                            <div key={currency} className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent break-words">
+                                                {formatCurrency(amount, currency)}
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             )}
@@ -480,7 +492,7 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
             )}
 
             {showTransferMobileModal && isMobile && (
-                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div className="fixed inset-0 bg-black/50" onClick={() => setShowTransferMobileModal(false)} />
                     <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 md:w-96 max-w-md animate-fadein">
                         <div className="flex items-center justify-between mb-3 sm:mb-4">
@@ -500,8 +512,12 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
                                 <div className="min-w-0">
                                     <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1 truncate">Currency Exchange ({currencyTransfers}):</div>
                                     {currencyTransfers > 0 ? (
-                                        <div className="font-medium text-xs sm:text-sm bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent break-words">
-                                            {formatCurrency(currencyTransfersTotal, filterCurrency || 'USD')}
+                                        <div className="space-y-0.5">
+                                            {currencyTransfersByCurrency.map(({ currency, amount }) => (
+                                                <div key={currency} className="font-medium text-xs sm:text-sm bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent break-words">
+                                                    {formatCurrency(amount, currency)}
+                                                </div>
+                                            ))}
                                         </div>
                                     ) : (
                                         <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500">No currency exchanges</div>
@@ -512,8 +528,12 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
                                 <div className="min-w-0">
                                     <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1 truncate">In-Account ({inAccountTransfers}):</div>
                                     {inAccountTransfers > 0 ? (
-                                        <div className="font-medium text-xs sm:text-sm bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent break-words">
-                                            {formatCurrency(inAccountTransfersTotal, filterCurrency || 'USD')}
+                                        <div className="space-y-0.5">
+                                            {inAccountTransfersByCurrency.map(({ currency, amount }) => (
+                                                <div key={currency} className="font-medium text-xs sm:text-sm bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent break-words">
+                                                    {formatCurrency(amount, currency)}
+                                                </div>
+                                            ))}
                                         </div>
                                     ) : (
                                         <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500">No in-account transfers</div>
@@ -525,8 +545,12 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
                             {dpsTransfersCount > 0 && (
                                 <div className="min-w-0">
                                     <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1">DPS Auto-Save ({dpsTransfersCount}):</div>
-                                    <div className="font-medium text-xs sm:text-sm bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent break-words">
-                                        {formatCurrency(dpsTransfersTotal, filterCurrency || 'USD')}
+                                    <div className="space-y-0.5">
+                                        {dpsTransfersByCurrency.map(({ currency, amount }) => (
+                                            <div key={currency} className="font-medium text-xs sm:text-sm bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent break-words">
+                                                {formatCurrency(amount, currency)}
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             )}

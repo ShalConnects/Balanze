@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, ArrowRight, Plus } from 'lucide-react';
+import { BookOpen, ArrowRight, Plus, ChevronUp, ChevronDown } from 'lucide-react';
 import { useCourseStore } from '../../store/useCourseStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
@@ -117,8 +117,27 @@ export const LearningWidget: React.FC<LearningWidgetProps> = ({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 relative group">
+      {/* Toggle Button - positioned like drag handle on left side, only when courses exist */}
+      {courses.length > 0 && onAccordionToggle && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onAccordionToggle();
+          }}
+          className="absolute top-2 left-2 z-10 p-1.5 rounded-lg bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-sm opacity-100 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation transition-opacity"
+          title={isAccordionExpanded ? 'Collapse' : 'Expand'}
+          aria-label={isAccordionExpanded ? 'Collapse widget' : 'Expand widget'}
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+        >
+          {isAccordionExpanded ? (
+            <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+          )}
+        </button>
+      )}
+      <div className={`flex items-center justify-between ${isAccordionExpanded ? 'mb-3' : ''}`}>
         <div className="flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-blue-500" />
           <h3 className="font-semibold text-gray-900 dark:text-white">Learning</h3>
@@ -132,61 +151,65 @@ export const LearningWidget: React.FC<LearningWidgetProps> = ({
         </button>
       </div>
 
-      {/* Content */}
-      {/* Overall Stats */}
-      <div className="mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <div className="text-gray-600 dark:text-gray-400">Courses</div>
-            <div className="font-semibold text-gray-900 dark:text-white">{totalCourses}</div>
-          </div>
-          <div>
-            <div className="text-gray-600 dark:text-gray-400">Progress</div>
-            <div className="font-semibold text-gray-900 dark:text-white">{overallProgress}%</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Courses */}
-      <div className="space-y-2">
-        {displayCourses.map((course) => {
-          const progress = calculateProgress(course.id);
-          const courseModules = modules.filter(m => m.course_id === course.id);
-          const completedCount = courseModules.filter(m => m.completed).length;
-
-          return (
-            <div
-              key={course.id}
-              className="flex items-center justify-between p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 transition-all hover:shadow-sm"
-            >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                    {course.name}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                    <span>{completedCount}/{courseModules.length} modules</span>
-                    {progress > 0 && (
-                      <>
-                        <span>•</span>
-                        <span>{progress}%</span>
-                      </>
-                    )}
-                  </div>
-                </div>
+      {/* Content - Only show when expanded */}
+      {isAccordionExpanded && (
+        <>
+          {/* Overall Stats */}
+          <div className="mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <div className="text-gray-600 dark:text-gray-400">Courses</div>
+                <div className="font-semibold text-gray-900 dark:text-white">{totalCourses}</div>
+              </div>
+              <div>
+                <div className="text-gray-600 dark:text-gray-400">Progress</div>
+                <div className="font-semibold text-gray-900 dark:text-white">{overallProgress}%</div>
               </div>
             </div>
-          );
-        })}
-      </div>
+          </div>
 
-      {courses.length > 3 && (
-        <button
-          onClick={handleViewAll}
-          className="w-full mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline text-center"
-        >
-          +{courses.length - 3} more courses
-        </button>
+          {/* Recent Courses */}
+          <div className="space-y-2">
+            {displayCourses.map((course) => {
+              const progress = calculateProgress(course.id);
+              const courseModules = modules.filter(m => m.course_id === course.id);
+              const completedCount = courseModules.filter(m => m.completed).length;
+
+              return (
+                <div
+                  key={course.id}
+                  className="flex items-center justify-between p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 transition-all hover:shadow-sm"
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {course.name}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                        <span>{completedCount}/{courseModules.length} modules</span>
+                        {progress > 0 && (
+                          <>
+                            <span>•</span>
+                            <span>{progress}%</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {courses.length > 3 && (
+            <button
+              onClick={handleViewAll}
+              className="w-full mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline text-center"
+            >
+              +{courses.length - 3} more courses
+            </button>
+          )}
+        </>
       )}
       {showCourseForm && (
         <CourseForm

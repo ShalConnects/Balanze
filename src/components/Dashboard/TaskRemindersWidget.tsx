@@ -133,6 +133,36 @@ export const TaskRemindersWidget: React.FC<TaskRemindersWidgetProps> = ({
     }
   };
 
+  const getStatusLabel = (status: Task['status']) => {
+    switch (status) {
+      case 'in_progress':
+        return 'In Progress';
+      case 'waiting_on_client':
+        return 'Waiting on Client';
+      case 'waiting_on_me':
+        return 'Waiting on Me';
+      case 'completed':
+        return 'Completed';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status;
+    }
+  };
+
+  const getStatusColor = (status: Task['status']) => {
+    switch (status) {
+      case 'in_progress':
+        return 'text-blue-600 dark:text-blue-400';
+      case 'waiting_on_client':
+        return 'text-yellow-600 dark:text-yellow-400';
+      case 'waiting_on_me':
+        return 'text-purple-600 dark:text-purple-400';
+      default:
+        return 'text-gray-600 dark:text-gray-400';
+    }
+  };
+
   const getUrgencyColor = (urgencyLabel: string) => {
     if (urgencyLabel === 'Overdue') return 'text-red-600 dark:text-red-400';
     if (urgencyLabel === 'Due Today') return 'text-orange-600 dark:text-orange-400';
@@ -273,33 +303,38 @@ export const TaskRemindersWidget: React.FC<TaskRemindersWidgetProps> = ({
                           </Link>
                         </div>
                       </div>
-                      {/* Line 2: Priority • Urgency • Client • Due Date */}
-                      <div className="flex items-center gap-1 xs:gap-1.5 flex-wrap text-[10px] xs:text-xs sm:text-sm">
-                        <span className={`px-0.5 xs:px-1 py-0.5 rounded-full text-[8px] xs:text-[9px] font-medium flex-shrink-0 ${getPriorityColor(task.priority)}`}>
-                          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                        </span>
-                        {/* Only show urgencyLabel for Overdue, Due Today, or Urgent - hide for Due Soon/Upcoming */}
-                        {urgencyLabel !== 'Due Soon' && urgencyLabel !== 'Upcoming' && urgencyLabel && (
-                          <>
-                            <span className={`text-[9px] xs:text-[10px] font-medium flex-shrink-0 ${getUrgencyColor(urgencyLabel)}`}>
-                              {urgencyLabel}
-                            </span>
-                            <span className="text-gray-300 dark:text-gray-600">•</span>
-                          </>
-                        )}
-                        <span className="text-[9px] xs:text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 truncate max-w-[80px] xs:max-w-[100px] sm:max-w-none">
-                          {clientName}
-                        </span>
-                        {/* Show daysInfo for Due Soon/Upcoming, or if it exists and not Overdue/Due Today */}
-                        {daysInfo && (urgencyLabel === 'Due Soon' || urgencyLabel === 'Upcoming' || (urgencyLabel !== 'Due Today' && urgencyLabel !== 'Overdue')) && (
-                          <>
-                            <span className="text-gray-300 dark:text-gray-600">•</span>
-                            <span className="text-[9px] xs:text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                              {daysInfo}
-                            </span>
-                          </>
-                        )}
-                      </div>
+                        {/* Line 2: Priority • Status • Urgency • Client • Due Date */}
+                        <div className="flex items-center gap-1 xs:gap-1.5 flex-wrap text-[10px] xs:text-xs sm:text-sm">
+                          <span className={`px-0.5 xs:px-1 py-0.5 rounded-full text-[8px] xs:text-[9px] font-medium flex-shrink-0 ${getPriorityColor(task.priority)}`}>
+                            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                          </span>
+                          <span className="text-gray-300 dark:text-gray-600">•</span>
+                          <span className={`text-[9px] xs:text-[10px] font-medium flex-shrink-0 ${getStatusColor(task.status)}`}>
+                            {getStatusLabel(task.status)}
+                          </span>
+                          {/* Only show urgencyLabel for Overdue, Due Today, or Urgent - hide for Due Soon/Upcoming */}
+                          {urgencyLabel !== 'Due Soon' && urgencyLabel !== 'Upcoming' && urgencyLabel && (
+                            <>
+                              <span className="text-gray-300 dark:text-gray-600">•</span>
+                              <span className={`text-[9px] xs:text-[10px] font-medium flex-shrink-0 ${getUrgencyColor(urgencyLabel)}`}>
+                                {urgencyLabel}
+                              </span>
+                            </>
+                          )}
+                          <span className="text-gray-300 dark:text-gray-600">•</span>
+                          <span className="text-[9px] xs:text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 truncate max-w-[80px] xs:max-w-[100px] sm:max-w-none">
+                            {clientName}
+                          </span>
+                          {/* Show daysInfo for Due Soon/Upcoming, or if it exists and not Overdue/Due Today */}
+                          {daysInfo && (urgencyLabel === 'Due Soon' || urgencyLabel === 'Upcoming' || (urgencyLabel !== 'Due Today' && urgencyLabel !== 'Overdue')) && (
+                            <>
+                              <span className="text-gray-300 dark:text-gray-600">•</span>
+                              <span className="text-[9px] xs:text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                {daysInfo}
+                              </span>
+                            </>
+                          )}
+                        </div>
                     </div>
                   </div>
                 );
@@ -343,20 +378,25 @@ export const TaskRemindersWidget: React.FC<TaskRemindersWidgetProps> = ({
                             </Link>
                           </div>
                         </div>
-                        {/* Line 2: Priority • Urgency • Client • Due Date */}
+                        {/* Line 2: Priority • Status • Urgency • Client • Due Date */}
                         <div className="flex items-center gap-1 xs:gap-1.5 flex-wrap text-[10px] xs:text-xs sm:text-sm">
                           <span className={`px-0.5 xs:px-1 py-0.5 rounded-full text-[8px] xs:text-[9px] font-medium flex-shrink-0 ${getPriorityColor(task.priority)}`}>
                             {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
                           </span>
+                          <span className="text-gray-300 dark:text-gray-600">•</span>
+                          <span className={`text-[9px] xs:text-[10px] font-medium flex-shrink-0 ${getStatusColor(task.status)}`}>
+                            {getStatusLabel(task.status)}
+                          </span>
                           {/* Only show urgencyLabel for Overdue, Due Today, or Urgent - hide for Due Soon/Upcoming */}
                           {urgencyLabel !== 'Due Soon' && urgencyLabel !== 'Upcoming' && urgencyLabel && (
                             <>
+                              <span className="text-gray-300 dark:text-gray-600">•</span>
                               <span className={`text-[9px] xs:text-[10px] font-medium flex-shrink-0 ${getUrgencyColor(urgencyLabel)}`}>
                                 {urgencyLabel}
                               </span>
-                              <span className="text-gray-300 dark:text-gray-600">•</span>
                             </>
                           )}
+                          <span className="text-gray-300 dark:text-gray-600">•</span>
                           <span className="text-[9px] xs:text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 truncate max-w-[80px] xs:max-w-[100px] sm:max-w-none">
                             {clientName}
                           </span>
