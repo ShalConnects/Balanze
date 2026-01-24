@@ -30,6 +30,32 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { isMobile, isVerySmall, isBrowser } = useMobileDetection();
   const { setIsMobileSidebarOpen } = useMobileSidebar();
   
+  // Lazy load TodosWidget globally for modal access
+  const [TodosWidget, setTodosWidget] = useState<React.ComponentType | null>(null);
+  
+  useEffect(() => {
+    if (!TodosWidget) {
+      let isMounted = true;
+      const timer = setTimeout(() => {
+        import('../Dashboard/TodosWidget')
+          .then((module) => {
+            if (isMounted && module?.TodosWidget) {
+              setTodosWidget(() => module.TodosWidget);
+            }
+          })
+          .catch((error) => {
+            if (isMounted) {
+              console.error('Failed to load TodosWidget:', error);
+            }
+          });
+      }, 500);
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+      };
+    }
+  }, [TodosWidget]);
+  
   // Force collapse on mobile - always collapsed on mobile
   const effectiveCollapsed = isMobile ? true : isSidebarCollapsed;
   
@@ -202,6 +228,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       
       {/* Pomodoro Timer Bottom Bar */}
       <PomodoroTimerBar />
+      
+      {/* TodosWidget - Always mounted globally for modal access (widget UI hidden when not on Dashboard) */}
+      {TodosWidget && <TodosWidget isAccordionExpanded={false} onAccordionToggle={() => {}} />}
       
       {/* Home Button - Show on both mobile and desktop when not on dashboard */}
       {currentView !== 'dashboard' && location.pathname !== '/' && <HomeButton />}

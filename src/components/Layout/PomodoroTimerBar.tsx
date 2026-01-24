@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Timer, Play, Pause, Square, X, Minimize2, Maximize2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useAllTasksModalStore } from '../../store/useAllTasksModalStore';
 
 export const PomodoroTimerBar: React.FC = () => {
   // Detect Android device
@@ -12,7 +13,7 @@ export const PomodoroTimerBar: React.FC = () => {
     return saved ? JSON.parse(saved) : false; // Default to minimized
   });
   
-  const [isAllTasksModalOpen, setIsAllTasksModalOpen] = useState<boolean>(false);
+  const { isOpen: isAllTasksModalOpen, openModal } = useAllTasksModalStore();
   
   // Timer position state (for draggable functionality)
   // Position is stored as { x: left, y: bottom } for desktop, { x: left, y: top } for Android
@@ -160,9 +161,17 @@ export const PomodoroTimerBar: React.FC = () => {
     return () => clearInterval(interval);
   }, [pomodoroTimer?.isRunning, pomodoroTimer?.endTime]);
 
-  // Check if All Tasks modal is open
+  // Handle modal state changes - reset timer when modal closes
   useEffect(() => {
-    const loadTimerState = () => {
+    if (!isAllTasksModalOpen) {
+      // When modal closes, reset to minimized and reload timer state
+      setIsExpanded(false);
+      localStorage.setItem('pomodoroTimerExpanded', 'false');
+      // Reset hidden state so timer reappears when modal closes
+      setIsHidden(false);
+      localStorage.setItem('pomodoroTimerHidden', JSON.stringify(false));
+      
+      // Reload timer state from localStorage to ensure sync
       const saved = localStorage.getItem('pomodoroTimerState');
       if (saved) {
         try {
@@ -186,54 +195,10 @@ export const PomodoroTimerBar: React.FC = () => {
             }
           }
         } catch (e) {
-          // Error handling
           setPomodoroTimer(null);
         }
-      } else {
-        setPomodoroTimer(null);
       }
-    };
-
-    const checkModalState = () => {
-      const saved = localStorage.getItem('showAllTasksModal');
-      const isOpen = saved === 'true';
-      const wasOpen = isAllTasksModalOpen;
-      setIsAllTasksModalOpen(isOpen);
-      
-      // When modal closes (was open, now closed), reset to minimized and reload timer state
-      if (wasOpen && !isOpen) {
-        setIsExpanded(false);
-        localStorage.setItem('pomodoroTimerExpanded', 'false');
-        // Reset hidden state so timer reappears when modal closes
-        setIsHidden(false);
-        localStorage.setItem('pomodoroTimerHidden', JSON.stringify(false));
-        // Reload timer state from localStorage to ensure sync
-        loadTimerState();
-      }
-    };
-    
-    // Initialize - if no value exists, assume modal is closed
-    if (!localStorage.getItem('showAllTasksModal')) {
-      localStorage.setItem('showAllTasksModal', 'false');
     }
-    
-    checkModalState();
-    // Check for modal state changes (reduced frequency to avoid flooding)
-    const interval = setInterval(checkModalState, 500);
-    // Listen for storage events (fires when localStorage changes in other tabs/windows)
-    window.addEventListener('storage', checkModalState);
-    
-    // Also listen for custom events (for same-tab updates)
-    const handleModalStateChange = () => {
-      checkModalState();
-    };
-    window.addEventListener('pomodoroModalStateChange', handleModalStateChange);
-    
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', checkModalState);
-      window.removeEventListener('pomodoroModalStateChange', handleModalStateChange);
-    };
   }, [isAllTasksModalOpen]);
 
   // Fetch task name when taskId changes
@@ -674,8 +639,31 @@ export const PomodoroTimerBar: React.FC = () => {
   // Hide if timer has ended (timeRemaining === 0 and isRunning === false)
   if (!pomodoroTimer.taskId || pomodoroTimer.timeRemaining < 0 || (pomodoroTimer.timeRemaining === 0 && !pomodoroTimer.isRunning)) return null;
 
-  // Hide if user manually hid the timer (timer continues running in background)
-  if (isHidden) return null;
+  // If user manually hid the timer, show a minimal clickable element to open All Tasks modal
+  if (isHidden) {
+    return (
+      <div 
+        data-timer-container
+        className="fixed z-[9998] transition-all duration-300"
+        style={{
+          left: `${position.x}px`,
+          ...(isAndroid 
+            ? { top: `${position.y}px` }
+            : { bottom: `${position.y}px` }
+          ),
+        }}
+      >
+        <button
+          onClick={() => openModal()}
+          className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full shadow-lg hover:shadow-xl transition-all p-2.5 text-white touch-manipulation"
+          title="Click to open All Tasks"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+        >
+          <Timer className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
 
   const progress = getProgress();
 

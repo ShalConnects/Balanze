@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
+import { useAllTasksModalStore } from '../../store/useAllTasksModalStore';
 import { Timer, Play, Pause, RotateCcw, Settings, GripVertical, X, ChevronDown, RefreshCw, ChevronRight, Plus, ChevronUp } from 'lucide-react';
 import Modal from 'react-modal';
 import type { Task } from '../../types/index';
@@ -15,11 +17,12 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
   onAccordionToggle
 }) => {
   const { user } = useAuthStore();
+  const location = useLocation();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [todoInput, setTodoInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmDeleteTaskId, setConfirmDeleteTaskId] = useState<string | null>(null);
-  const [showAllTasks, setShowAllTasks] = useState(false);
+  const { isOpen: showAllTasks, openModal, closeModal } = useAllTasksModalStore();
   const [showAddTaskInput, setShowAddTaskInput] = useState(false);
   const [showRoadmap, setShowRoadmap] = useState(false);
   
@@ -1681,7 +1684,13 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
   })();
   const tasksToShow = filteredTasksForPreview.slice(0, 3);
 
+  // Determine if we're on Dashboard - widget UI only shows on Dashboard
+  const isDashboard = location.pathname === '/' || location.pathname === '/dashboard';
+  
   return (
+    <>
+      {/* Widget UI - Only visible on Dashboard */}
+      {isDashboard && (
     <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-blue-100 dark:from-blue-900/40 dark:via-purple-900/40 dark:to-blue-900/40 rounded-xl p-4 shadow-sm flex flex-col transition-all duration-300 relative group">
       {/* Toggle Button - positioned like drag handle on left side, only when tasks exist */}
       {tasks.length > 0 && onAccordionToggle && (
@@ -1769,15 +1778,17 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
             </div>
           ))}
           {tasks.length > 0 && (
-            <button className="w-full text-gradient-primary hover:underline text-xs mt-2" onClick={() => setShowAllTasks(true)}>View All Tasks</button>
+            <button className="w-full text-gradient-primary hover:underline text-xs mt-2" onClick={() => openModal()}>View All Tasks</button>
           )}
         </div>
       )}
-      {/* All Tasks Modal */}
+      </div>
+      )}
+      {/* All Tasks Modal - Always available globally */}
       <Modal
         isOpen={showAllTasks}
         onRequestClose={() => {
-          setShowAllTasks(false);
+          closeModal();
           setShowPomodoroSettings(false);
           setEditingTaskDuration(null);
           setShowAddTaskInput(false);
@@ -1911,7 +1922,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
               </div>
             <button 
               className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors" 
-              onClick={() => setShowAllTasks(false)}
+              onClick={() => closeModal()}
               title="Close"
             >
               <X className="w-4 h-4" />
@@ -2039,6 +2050,6 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
             )}
         </div>
       </Modal>
-    </div>
+    </>
   );
 };

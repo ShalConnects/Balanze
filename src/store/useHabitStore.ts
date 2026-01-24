@@ -33,8 +33,10 @@ interface HabitStore {
   // Stats
   getStreak: (habitId: string) => number;
   getBestStreak: (habitId: string) => number;
+  getBestStreakInLast14Days: (habitId: string) => number;
   getWeeklyCompletion: (habitId: string, weekStart: Date) => number;
   getHabitStats: (habitId: string, weekStart: Date) => HabitStats;
+  isDying: (habitId: string) => boolean;
 
   // Gamification
   fetchGamification: () => Promise<void>;
@@ -430,7 +432,7 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
             }));
           }
         } else {
-          // Insert new completion
+          // Insert new completion - handle race conditions with error catching
           const { data, error } = await supabase
             .from('habit_completions')
             .insert({
@@ -441,11 +443,58 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
             .select()
             .single();
 
-          if (error) throw error;
+          if (error) {
+            // Handle duplicate key error (race condition)
+            // Error code 23505 is PostgreSQL unique constraint violation
+            if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
+              // Fetch the existing completion that was created by concurrent request
+              const { data: existingCompletion, error: fetchError } = await supabase
+                .from('habit_completions')
+                .select('*')
+                .eq('habit_id', habitId)
+                .eq('user_id', user.id)
+                .eq('completion_date', date)
+                .single();
 
-          set(state => ({
-            completions: [...state.completions, data],
-          }));
+              if (fetchError) {
+                // If we can't fetch it, it might have been deleted, so just return
+                // This is a rare edge case, but we handle it gracefully
+                return;
+              }
+              
+              if (existingCompletion) {
+                // Add to local state if not already present
+                // Don't award points here - the first request that succeeded already did
+                set(state => {
+                  const alreadyExists = state.completions.some(c => c.id === existingCompletion.id);
+                  if (!alreadyExists) {
+                    return {
+                      completions: [...state.completions, existingCompletion],
+                    };
+                  }
+                  return state;
+                });
+                
+                // Exit early - completion already exists, points were already awarded by first request
+                return;
+              }
+            }
+            // Re-throw if it's not a duplicate key error
+            throw error;
+          }
+
+          if (data) {
+            set(state => {
+              // Check if already in state to prevent duplicates
+              const alreadyExists = state.completions.some(c => c.id === data.id);
+              if (!alreadyExists) {
+                return {
+                  completions: [...state.completions, data],
+                };
+              }
+              return state;
+            });
+          }
 
           // Award points and update gamification
           // Wait a bit to ensure completion is in state before calculating streak
@@ -630,6 +679,127 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
     }
 
     return bestStreak;
+  },
+
+  // Calculate best streak in the last 14 days (for showing previous stage when dying)
+  getBestStreakInLast14Days: (habitId: string) => {
+    const { completions } = get();
+    const today = normalizeDate(new Date());
+    const fourteenDaysAgo = new Date(today);
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    const habitCompletions = completions
+      .filter(c => {
+        if (c.habit_id !== habitId) return false;
+        const date = normalizeDate(c.completion_date);
+        return date.getTime() >= fourteenDaysAgo.getTime();
+      })
+      .map(c => normalizeDate(c.completion_date))
+      .sort((a, b) => a.getTime() - b.getTime()); // Oldest first
+
+    if (habitCompletions.length === 0) return 0;
+    if (habitCompletions.length === 1) return 1;
+
+    let bestStreak = 1;
+    let currentStreak = 1;
+
+    for (let i = 1; i < habitCompletions.length; i++) {
+      const prevDate = habitCompletions[i - 1];
+      const currDate = habitCompletions[i];
+
+      const daysDiff = Math.floor(
+        (currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      if (daysDiff === 1) {
+        currentStreak++;
+        bestStreak = Math.max(bestStreak, currentStreak);
+      } else {
+        currentStreak = 1;
+      }
+    }
+
+    return bestStreak;
+  },
+
+  // Check if a habit is in a "dying" state (recent activity but broken streak)
+  isDying: (habitId: string) => {
+    const { completions } = get();
+    const habitCompletions = completions
+      .filter(c => c.habit_id === habitId)
+      .map(c => normalizeDate(c.completion_date))
+      .sort((a, b) => b.getTime() - a.getTime()); // Most recent first
+
+    console.log(`[isDying] Habit ${habitId}:`, {
+      totalCompletions: habitCompletions.length,
+      habitCompletions: habitCompletions.map(d => d.toISOString().split('T')[0])
+    });
+
+    // Never show as dying if there are no completions at all
+    if (habitCompletions.length === 0) {
+      console.log(`[isDying] Habit ${habitId}: No completions, returning false`);
+      return false;
+    }
+
+    const today = normalizeDate(new Date());
+    const fourteenDaysAgo = new Date(today);
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    // Check if there's recent activity (completions in last 14 days)
+    const hasRecentActivity = habitCompletions.some(
+      d => d.getTime() >= fourteenDaysAgo.getTime()
+    );
+
+    console.log(`[isDying] Habit ${habitId}:`, {
+      today: today.toISOString().split('T')[0],
+      fourteenDaysAgo: fourteenDaysAgo.toISOString().split('T')[0],
+      hasRecentActivity
+    });
+
+    // Never show as dying if there's no recent activity (older than 14 days)
+    if (!hasRecentActivity) {
+      console.log(`[isDying] Habit ${habitId}: No recent activity (14+ days), returning false`);
+      return false;
+    }
+
+    // Check current streak
+    const currentStreak = get().getStreak(habitId);
+    
+    // Calculate days since last completion
+    const mostRecentCompletion = habitCompletions[0];
+    const daysSinceLastCompletion = Math.floor(
+      (today.getTime() - mostRecentCompletion.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    console.log(`[isDying] Habit ${habitId}:`, {
+      currentStreak,
+      mostRecentCompletion: mostRecentCompletion.toISOString().split('T')[0],
+      daysSinceLastCompletion
+    });
+
+    // Safeguard: If completion is in the future (shouldn't happen, but handle gracefully)
+    if (daysSinceLastCompletion < 0) {
+      console.log(`[isDying] Habit ${habitId}: Future date detected, returning false`);
+      return false;
+    }
+
+    // Dying if:
+    // 1. Streak is 0 AND last completion was 1 or more days ago (broken streak), OR
+    // 2. Streak is low (1-2) AND last completion was 2 or more days ago
+    // But only if there's recent activity (already checked above)
+    let result = false;
+    if (currentStreak === 0) {
+      // If streak is 0 and last completion was yesterday or earlier, streak is broken
+      result = daysSinceLastCompletion >= 1;
+      console.log(`[isDying] Habit ${habitId}: Streak is 0, daysSinceLastCompletion=${daysSinceLastCompletion}, result=${result}`);
+    } else {
+      // For low streaks (1-2), show as dying if missing 2+ days
+      result = currentStreak < 3 && daysSinceLastCompletion >= 2;
+      console.log(`[isDying] Habit ${habitId}: Streak=${currentStreak}, daysSinceLastCompletion=${daysSinceLastCompletion}, result=${result}`);
+    }
+
+    console.log(`[isDying] Habit ${habitId}: Final result = ${result}`);
+    return result;
   },
 
   // Calculate weekly completion percentage

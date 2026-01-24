@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
+import { useAllTasksModalStore } from '../../store/useAllTasksModalStore';
 import { Star, StickyNote as StickyNoteIcon, Plus, AlertTriangle, Timer, Play, Pause, RotateCcw, Settings, GripVertical, X, ChevronDown, RefreshCw, ChevronRight, ChevronUp } from 'lucide-react';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import Modal from 'react-modal';
@@ -40,6 +42,7 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
   onAccordionToggle
 }) => {
   const { user } = useAuthStore();
+  const location = useLocation();
   const [tab, setTab] = useState<'notes' | 'todos'>('notes');
   const [notes, setNotes] = useState<Note[]>([]);
   const [noteInput, setNoteInput] = useState('');
@@ -50,7 +53,7 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
   const [confirmDeleteNoteId, setConfirmDeleteNoteId] = useState<string | null>(null);
   const [confirmDeleteTaskId, setConfirmDeleteTaskId] = useState<string | null>(null);
   const [showAllNotes, setShowAllNotes] = useState(false);
-  const [showAllTasks, setShowAllTasks] = useState(false);
+  const { isOpen: showAllTasks, openModal, closeModal } = useAllTasksModalStore();
   const [showAddTaskInput, setShowAddTaskInput] = useState(false);
   
   // Force re-render every second to sync timer display with PomodoroTimerBar
@@ -2037,14 +2040,14 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
               </div>
             ))}
             {tasks.length > 0 && (
-              <button className="w-full text-gradient-primary hover:underline text-xs mt-2" onClick={() => setShowAllTasks(true)}>View All Tasks</button>
+              <button className="w-full text-gradient-primary hover:underline text-xs mt-2" onClick={() => openModal()}>View All Tasks</button>
             )}
           </div>
-          {/* All Tasks Modal */}
+          {/* All Tasks Modal - Always available globally */}
           <Modal
             isOpen={showAllTasks}
             onRequestClose={() => {
-              setShowAllTasks(false);
+              closeModal();
               setShowPomodoroSettings(false);
               setEditingTaskDuration(null);
               setShowAddTaskInput(false);
@@ -2178,7 +2181,7 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
                   </div>
                 <button 
                   className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors" 
-                  onClick={() => setShowAllTasks(false)}
+                  onClick={() => closeModal()}
                   title="Close"
                 >
                   <X className="w-4 h-4" />

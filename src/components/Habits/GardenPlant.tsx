@@ -31,10 +31,26 @@ const getColorClasses = (color: string) => {
 };
 
 export const GardenPlant: React.FC<GardenPlantProps> = ({ habit, size = 'md' }) => {
-  const { getStreak } = useHabitStore();
+  const { getStreak, isDying, getBestStreakInLast14Days } = useHabitStore();
+  
+  // Call functions directly - Zustand handles re-render optimization
   const streak = getStreak(habit.id);
-  const stage = getPlantStage(streak);
+  const dying = isDying(habit.id);
+  const bestStreakInLast14Days = getBestStreakInLast14Days(habit.id);
+  
+  // When dying, use the best streak from last 14 days to show previous stage
+  // Otherwise use current streak
+  const displayStreak = dying ? bestStreakInLast14Days : streak;
+  const stage = getPlantStage(displayStreak);
   const colorClasses = getColorClasses(habit.color);
+  
+  console.log(`[GardenPlant] Habit "${habit.title}" (${habit.id}):`, {
+    currentStreak: streak,
+    bestStreakInLast14Days,
+    displayStreak,
+    dying,
+    stage
+  });
 
   const sizeClasses = {
     sm: 'w-12 h-12',
@@ -43,20 +59,77 @@ export const GardenPlant: React.FC<GardenPlantProps> = ({ habit, size = 'md' }) 
   };
 
   const renderPlant = () => {
+    // Apply dying visual effect: grayscale and reduced opacity to all stages
+    const dyingClasses = dying ? 'grayscale opacity-30' : '';
+    const dyingStyle = dying ? { opacity: 0.3 } : {};
+    
     switch (stage) {
       case 'seed':
-        return <div className={`${sizeClasses[size]} rounded-full border-2 ${colorClasses.replace('text-', 'border-')} bg-gray-100 dark:bg-gray-800`} />;
+        // For dying seeds, use a more dramatic visual effect
+        if (dying) {
+          const seedStyle = { 
+            opacity: 0.2,
+            backgroundColor: 'rgb(107, 114, 128)', // gray-500
+            borderColor: 'rgb(75, 85, 99)', // gray-600
+          };
+          
+          return (
+            <div 
+              className={`${sizeClasses[size]} rounded-full border-2 bg-gray-500 dark:bg-gray-600 border-gray-600 dark:border-gray-500`}
+              style={seedStyle}
+              data-dying="true"
+            />
+          );
+        }
+        
+        // Normal seed - use habit color
+        return (
+          <div 
+            className={`${sizeClasses[size]} rounded-full border-2 ${colorClasses.replace('text-', 'border-')} bg-gray-100 dark:bg-gray-800`}
+            data-dying="false"
+          />
+        );
       case 'sprout':
-        return <Sprout className={`${sizeClasses[size]} ${colorClasses}`} />;
+        return (
+          <Sprout 
+            className={`${sizeClasses[size]} ${colorClasses} ${dyingClasses}`}
+            style={dyingStyle}
+            data-dying={dying ? 'true' : 'false'}
+          />
+        );
       case 'small':
-        return <Leaf className={`${sizeClasses[size]} ${colorClasses}`} />;
+        return (
+          <Leaf 
+            className={`${sizeClasses[size]} ${colorClasses} ${dyingClasses}`}
+            style={dyingStyle}
+            data-dying={dying ? 'true' : 'false'}
+          />
+        );
       case 'medium':
-        return <Flower2 className={`${sizeClasses[size]} ${colorClasses}`} />;
+        return (
+          <Flower2 
+            className={`${sizeClasses[size]} ${colorClasses} ${dyingClasses}`}
+            style={dyingStyle}
+            data-dying={dying ? 'true' : 'false'}
+          />
+        );
       case 'large':
       case 'mature':
-        return <TreePine className={`${sizeClasses[size]} ${colorClasses}`} />;
+        return (
+          <TreePine 
+            className={`${sizeClasses[size]} ${colorClasses} ${dyingClasses}`}
+            style={dyingStyle}
+            data-dying={dying ? 'true' : 'false'}
+          />
+        );
       default:
-        return <Sprout className={`${sizeClasses[size]} ${colorClasses}`} />;
+        return (
+          <Sprout 
+            className={`${sizeClasses[size]} ${colorClasses} ${dyingClasses}`}
+            style={dyingStyle}
+            data-dying={dying ? 'true' : 'false'}
+          />
+        );
     }
   };
 
