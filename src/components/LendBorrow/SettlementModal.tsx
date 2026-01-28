@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 // DatePicker loaded dynamically to reduce initial bundle size
 // import DatePicker from 'react-datepicker';
 // import 'react-datepicker/dist/react-datepicker.css';
-import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
+import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
 import { getCurrencySymbol } from '../../utils/currency';
 import { supabase } from '../../lib/supabase';
 
@@ -690,22 +690,10 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                     placeholderText="Return date"
                     dateFormat="yyyy-MM-dd"
                     className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100"
-                    calendarClassName="z-50 shadow-lg border border-gray-200 dark:border-gray-600 rounded-lg !font-sans"
-                    popperPlacement="bottom-start"
-                    showPopperArrow={false}
-                    wrapperClassName="w-full"
                     todayButton="Today"
                     isClearable
                     autoComplete="off"
                   />
-                  <button
-                    type="button"
-                    className="ml-2 text-xs text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
-                    onClick={() => setReturnDate(new Date())}
-                    tabIndex={-1}
-                  >
-                    Today
-                  </button>
                 </div>
               </div>
               

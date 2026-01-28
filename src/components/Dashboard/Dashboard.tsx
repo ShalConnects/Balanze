@@ -737,6 +737,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
   const [showMultiCurrencyAnalytics, setShowMultiCurrencyAnalytics] = useState(true);
   const [showPurchasesWidget, setShowPurchasesWidget] = useState(true);
   const [dashboardCurrencyFilter, setDashboardCurrencyFilter] = useState('');
+  const [dashboardTimeFilter, setDashboardTimeFilter] = useState<'1m' | '3m' | '6m' | '1y' | 'all'>('all');
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -999,6 +1000,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
               t={t}
               formatCurrency={formatCurrency}
               filterCurrency={dashboardCurrencyFilter}
+              timeFilter={dashboardTimeFilter}
             />
           </div>
         )
@@ -1011,7 +1013,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
         id: 'purchases',
         render: () => (
           <div className="w-full h-full animate-fadeIn" key="purchases">
-            <PurchaseOverviewCard filterCurrency={dashboardCurrencyFilter} />
+            <PurchaseOverviewCard filterCurrency={dashboardCurrencyFilter} timeFilter={dashboardTimeFilter} />
           </div>
         )
       });
@@ -1047,7 +1049,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
         id: 'clients',
         render: () => (
           <div className="w-full h-full animate-fadeIn" key="clients">
-            <ClientsOverviewCard filterCurrency={dashboardCurrencyFilter} />
+            <ClientsOverviewCard filterCurrency={dashboardCurrencyFilter} timeFilter={dashboardTimeFilter} />
           </div>
         )
       });
@@ -1081,6 +1083,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     showClientsWidget,
     showLearningWidget,
     dashboardCurrencyFilter,
+    dashboardTimeFilter, // Added: time filter affects widget data
     // t and formatCurrency are stable functions, but included for completeness
     t,
     formatCurrency
@@ -1404,20 +1407,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
             
             return (
               <div className="flex flex-row items-center justify-between gap-2 sm:gap-3 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-lg p-2 sm:p-2.5 border border-blue-200/50 dark:border-blue-800/50 shadow-sm mt-4 sm:mt-6">
-                {/* Left side: Currency Filter */}
-                {hasMultipleCurrencies && (
-                  <div className="flex items-center gap-2 flex-1 md:flex-initial">
-                    <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap flex-shrink-0">Currency:</span>
+                {/* Left side: Currency Filter & Time Filter */}
+                <div className="flex items-center gap-2 sm:gap-3 flex-1 md:flex-initial flex-wrap">
+                  {hasMultipleCurrencies && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap flex-shrink-0">Currency:</span>
+                      <CustomDropdown
+                        options={filteredDashboardCurrencies.map(currency => ({ value: currency, label: currency }))}
+                        value={dashboardCurrencyFilter}
+                        onChange={setDashboardCurrencyFilter}
+                        fullWidth={false}
+                        className="bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm h-8 min-h-0 hover:bg-blue-50 dark:hover:bg-blue-900/30 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-md px-2 sm:px-3 py-1 w-auto min-w-[80px] sm:min-w-[100px]"
+                        dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
+                      />
+                    </div>
+                  )}
+                  {/* Time Filter */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap flex-shrink-0">Period:</span>
                     <CustomDropdown
-                      options={filteredDashboardCurrencies.map(currency => ({ value: currency, label: currency }))}
-                      value={dashboardCurrencyFilter}
-                      onChange={setDashboardCurrencyFilter}
+                      options={[
+                        { value: 'all', label: 'All Time' },
+                        { value: '1m', label: '1 Month' },
+                        { value: '3m', label: '3 Months' },
+                        { value: '6m', label: '6 Months' },
+                        { value: '1y', label: '1 Year' },
+                      ]}
+                      value={dashboardTimeFilter}
+                      onChange={(val) => setDashboardTimeFilter(val as '1m' | '3m' | '6m' | '1y' | 'all')}
                       fullWidth={false}
-                      className="bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm h-8 min-h-0 hover:bg-blue-50 dark:hover:bg-blue-900/30 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-md px-2 sm:px-3 py-1 w-auto min-w-[80px] sm:min-w-[100px]"
+                      className="bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm h-8 min-h-0 hover:bg-blue-50 dark:hover:bg-blue-900/30 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-md px-2 sm:px-3 py-1 w-auto min-w-[90px] sm:min-w-[110px]"
                       dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
                     />
                   </div>
-                )}
+                </div>
                 
                 {/* Right side: Widgets Button */}
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 ml-auto">

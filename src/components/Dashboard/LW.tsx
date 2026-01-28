@@ -1814,6 +1814,9 @@ These memories are my gift to you.`
           checkInFrequency={settings.checkInFrequency} // Use actual check-in frequency
           userProfile={profile}
           user={user}
+          accounts={accounts}
+          lendBorrowRecords={lendBorrowRecords}
+          lastCheckIn={settings.lastCheckIn}
         />
       )}
 
@@ -2177,6 +2180,9 @@ interface MessagePreviewModalProps {
   checkInFrequency: number;
   userProfile: any;
   user: any;
+  accounts: any[];
+  lendBorrowRecords: any[];
+  lastCheckIn: string | null;
 }
 
 const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({ 
@@ -2187,8 +2193,70 @@ const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
   dataSummary, 
   checkInFrequency,
   userProfile,
-  user
+  user,
+  accounts,
+  lendBorrowRecords,
+  lastCheckIn
 }) => {
+  // Currency symbols
+  const currencySymbols: Record<string, string> = {
+    USD: '$',
+    BDT: '৳',
+    EUR: '€',
+    GBP: '£',
+    JPY: '¥',
+    INR: '₹',
+    CAD: '$',
+    AUD: '$',
+  };
+
+  const formatCurrencyWithSymbol = (amount: number, currency: string) => {
+    const symbol = currencySymbols[currency] || currency;
+    if (currency === 'BDT') {
+      return `${symbol}${Math.abs(amount || 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return `${symbol}${Math.abs(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  // Calculate assets by currency
+  const assetsByCurrency: Record<string, number> = {};
+  const accountsByCurrency: Record<string, number> = {};
+  
+  if (includeData.accounts && accounts) {
+    accounts.forEach((acc: any) => {
+      const currency = acc.currency || 'USD';
+      const balance = acc.calculated_balance || 0;
+      assetsByCurrency[currency] = (assetsByCurrency[currency] || 0) + balance;
+      accountsByCurrency[currency] = (accountsByCurrency[currency] || 0) + 1;
+    });
+  }
+
+  // Calculate lent/borrowed by currency
+  const lentByCurrency: Record<string, number> = {};
+  const borrowedByCurrency: Record<string, number> = {};
+  const activeLendBorrow = lendBorrowRecords?.filter((lb: any) => 
+    lb.status === 'active' || lb.status === 'partial'
+  ) || [];
+
+  if (includeData.lendBorrow && lendBorrowRecords) {
+    lendBorrowRecords.forEach((lb: any) => {
+      const currency = lb.currency || 'USD';
+      if (lb.type === 'lent') {
+        const remaining = (lb.amount || 0) - (lb.total_returned_amount || 0);
+        if (remaining > 0) {
+          lentByCurrency[currency] = (lentByCurrency[currency] || 0) + remaining;
+        }
+      } else if (lb.type === 'borrowed') {
+        const remaining = (lb.amount || 0) - (lb.total_returned_amount || 0);
+        if (remaining > 0) {
+          borrowedByCurrency[currency] = (borrowedByCurrency[currency] || 0) + remaining;
+        }
+      }
+    });
+  }
+
+  const totalAccounts = Object.values(accountsByCurrency).reduce((sum, count) => sum + count, 0);
+
   // Extract first name from full name, fallback to email or 'User'
   const getFirstName = (fullName: string | undefined, email: string | undefined) => {
     if (fullName) {
@@ -2210,36 +2278,66 @@ const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
     day: 'numeric' 
   });
 
-  const getIncludedDataList = () => {
-    const included = [];
-    if (includeData.accounts) included.push(`• ${dataSummary.accounts} accounts ($${dataSummary.totalValue.toLocaleString()} total)`);
-    if (includeData.transactions) included.push(`• ${dataSummary.transactions} transactions`);
-    if (includeData.purchases) included.push(`• ${dataSummary.purchases} purchases`);
-    if (includeData.lendBorrow) included.push(`• ${dataSummary.lendBorrow} lend/borrow records`);
-    if (includeData.savings) included.push(`• ${dataSummary.savings} savings goals`);
-    if (includeData.analytics) included.push(`• Financial analytics and insights`);
-    return included;
+  // Format date helper
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return 'N/A';
+    }
   };
+
+  // Calculate days overdue
+  const calculateDaysOverdue = () => {
+    if (!lastCheckIn) return null;
+    try {
+      const lastCheckInDate = new Date(lastCheckIn);
+      const expectedCheckIn = new Date(lastCheckInDate.getTime() + (checkInFrequency * 24 * 60 * 60 * 1000));
+      const now = new Date();
+      const diffTime = now.getTime() - expectedCheckIn.getTime();
+      if (diffTime > 0) {
+        return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      }
+      return 0;
+    } catch {
+      return null;
+    }
+  };
+
+  const daysOverdue = calculateDaysOverdue();
+  
+  // Get last activity date (most recent transaction or account update)
+  const getLastActivityDate = () => {
+    // This would ideally come from the actual data, but for preview we'll use last check-in
+    return lastCheckIn;
+  };
+
+  const lastActivityDate = getLastActivityDate();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#000000] rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[#374151]">
           <div className="flex items-center space-x-3">
             <Mail className="w-6 h-6 text-blue-600 flex-shrink-0" />
             <div className="min-w-0">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h3 className="text-lg font-semibold text-[#f9fafb]">
                 Legacy Documentation Preview
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-[#9ca3af]">
                 This is what your authorized beneficiaries will receive
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="text-[#9ca3af] hover:text-[#d1d5db] p-2 rounded-lg hover:bg-[#1f2937] transition-colors"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -2248,116 +2346,194 @@ const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
         </div>
 
         {/* Email Preview Content */}
-        <div className="p-4 sm:p-6 space-y-6">
-          {/* Email Header */}
-          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[60px]">From:</span>
-                <span className="text-sm text-gray-900 dark:text-white break-words">Balanze Financial Legacy Management System</span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[60px]">To:</span>
-                <span className="text-sm text-gray-900 dark:text-white break-words">
-                  {recipients.length > 0 ? recipients.map(r => r.email).join(', ') : 'Your authorized beneficiaries'}
-                </span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[60px]">Subject:</span>
-                <span className="text-sm text-gray-900 dark:text-white break-words">
-                  Financial Legacy Documentation from {userName}
-                </span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[60px]">Date:</span>
-                <span className="text-sm text-gray-900 dark:text-white">{currentDate}</span>
-              </div>
-            </div>
+        <div className="p-4 sm:p-6 space-y-6 bg-[#000000]">
+          {/* Email Header Banner */}
+          <div className="bg-[#1f2937] rounded-lg p-12 text-center border-b-2 border-[#374151]">
+            <h1 className="text-2xl font-semibold text-[#f9fafb] mb-2 tracking-wide">Last Wish Delivery</h1>
+            <p className="text-sm text-[#9ca3af] font-light tracking-wider">Important Financial Information</p>
           </div>
 
           {/* Email Body */}
-          <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 sm:p-6 bg-white dark:bg-gray-800">
-            <div className="space-y-4">
+          <div className="border border-[#374151] rounded-lg p-4 sm:p-6 bg-[#111827]">
+            <div className="space-y-6">
               {/* Greeting */}
-              <div>
-                <p className="text-gray-900 dark:text-white text-base">
-                  Dear {recipients.length > 1 ? 'Authorized Beneficiaries' : recipients[0]?.name || 'Beneficiary'},
+              <div className="mb-6 pb-6 border-b border-[#374151]">
+                <h2 className="text-2xl font-medium text-[#f9fafb] mb-4 tracking-wide">
+                  Dear {recipients.length > 0 ? recipients[0]?.name || 'Authorized Beneficiary' : 'Authorized Beneficiary'},
+                </h2>
+                <p className="text-[#d1d5db] text-sm sm:text-base mb-3 leading-relaxed tracking-wide">
+                  We are reaching out to you with important information regarding the financial records of <strong>{userName}</strong>, who designated you as a trusted recipient through the Last Wish system.
                 </p>
-                <p className="text-gray-700 dark:text-gray-300 mt-2 text-sm sm:text-base">
-                  This is an automated notification from <strong>{userFirstName}'s</strong> Financial Legacy Management System.
+                <p className="text-[#d1d5db] text-sm sm:text-base leading-relaxed tracking-wide">
+                  We understand that receiving this information may come during a difficult time. Please know that this delivery is part of a system designed to ensure continuity and care for loved ones, and we extend our deepest sympathies and support.
                 </p>
               </div>
 
               {/* Personal Message */}
-              {message && (
-                <div className="border-l-4 border-blue-500 pl-4 py-3">
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-3 text-base">Legacy Documentation:</h4>
+              {message && message.trim() && 
+               message.trim() !== 'This is the personal message' && 
+               message.trim() !== 'Create documentation to accompany your financial data' &&
+               !message.trim().toLowerCase().includes('create documentation') &&
+               !message.trim().toLowerCase().includes('legacy documentation') &&
+               message.trim().length > 10 && (
+                <div className="bg-[#1f2937] rounded-lg p-7 border-l-4 border-[#6b7280] shadow-[0_2px_8px_rgba(0,0,0,0.3)] mb-7">
+                  <h3 className="font-semibold text-[#f3f4f6] mb-3.5 text-base tracking-wide" style={{ fontSize: '17px', letterSpacing: '0.3px' }}>Personal Message from {userName}</h3>
                   <div 
-                    className="prose prose-sm max-w-none text-gray-700 dark:text-gray-300 rich-editor"
+                    className="prose prose-sm max-w-none text-[#d1d5db] rich-editor italic"
                     dangerouslySetInnerHTML={{ __html: message }}
                     style={{
-                      lineHeight: '1.6',
-                      fontFamily: 'system-ui, -apple-system, sans-serif'
+                      lineHeight: '1.8',
+                      fontFamily: 'system-ui, -apple-system, sans-serif',
+                      fontSize: '15px',
+                      letterSpacing: '0.1px',
+                      margin: 0
                     }}
                   />
                 </div>
               )}
 
-              {/* Data Summary */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-3 text-base">Financial Data Summary:</h4>
-                <div className="space-y-2">
-                  {getIncludedDataList().map((item, index) => (
-                    <p key={index} className="text-sm sm:text-base text-gray-700 dark:text-gray-300">{item}</p>
-                  ))}
+              <div className="border-t border-[#374151]"></div>
+
+              {/* Financial Summary */}
+              <div className="space-y-4 mb-7">
+                <h3 className="text-lg font-semibold text-[#f9fafb] mb-5" style={{ fontSize: '19px', letterSpacing: '0.5px' }}>Financial Summary</h3>
+                
+                {/* Assets by Currency */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                  {Object.keys(assetsByCurrency).length > 0 ? (
+                    Object.entries(assetsByCurrency).map(([currency, amount]) => (
+                      <div key={currency} className="bg-[#111827] rounded-lg p-[18px] border border-[#374151] text-center">
+                        <div className="text-[#9ca3af] mb-2 uppercase tracking-wider" style={{ fontSize: '11px', letterSpacing: '1.2px', fontWeight: 500 }}>Total Assets ({currency})</div>
+                        <div className="text-[#f9fafb] font-semibold mb-1" style={{ fontSize: '24px', letterSpacing: '0.5px' }}>
+                          {formatCurrencyWithSymbol(amount, currency)}
+                        </div>
+                        <div className="text-[#6b7280]" style={{ fontSize: '12px' }}>
+                          {accountsByCurrency[currency] || 0} account{(accountsByCurrency[currency] || 0) !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="bg-[#111827] rounded-lg p-[18px] border border-[#374151] text-center">
+                      <div className="text-[#9ca3af] mb-2 uppercase tracking-wider" style={{ fontSize: '11px', letterSpacing: '1.2px', fontWeight: 500 }}>Total Assets</div>
+                      <div className="text-[#f9fafb] font-semibold mb-1" style={{ fontSize: '24px', letterSpacing: '0.5px' }}>
+                        {formatCurrencyWithSymbol(0, 'USD')}
+                      </div>
+                      <div className="text-[#6b7280]" style={{ fontSize: '12px' }}>0 accounts</div>
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-3">
-                  * Detailed financial data will be attached as encrypted files for your security.
+
+                {/* Account Summary */}
+                <div className="bg-[#111827] rounded-lg p-[18px] border border-[#374151] mt-4">
+                  <h4 className="font-semibold text-[#f3f4f6] mb-3" style={{ fontSize: '14px' }}>Account Summary</h4>
+                  <div className="text-sm" style={{ fontSize: '13px' }}>
+                    <div className="flex justify-between py-2 border-b border-[#374151]">
+                      <span className="text-[#9ca3af]">Total Accounts: </span>
+                      <span className="text-[#e5e7eb] font-medium">{totalAccounts} account{totalAccounts !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-[#9ca3af]">Currencies: </span>
+                      <span className="text-[#e5e7eb] font-medium">
+                        {Object.keys(assetsByCurrency).length > 0 ? Object.keys(assetsByCurrency).join(', ') : 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lend/Borrow Summary */}
+                {includeData.lendBorrow && (
+                  <div className="bg-[#111827] rounded-lg p-[18px] border border-[#374151] mt-4">
+                    <h4 className="font-semibold text-[#f3f4f6] mb-3" style={{ fontSize: '14px' }}>Lend/Borrow Summary</h4>
+                    <div className="text-sm" style={{ fontSize: '13px' }}>
+                      <div className="flex justify-between py-2 border-b border-[#374151]">
+                        <span className="text-[#9ca3af]">Total Lent: </span>
+                        <span className="text-[#48bb78] font-medium">
+                          {Object.keys(lentByCurrency).length > 0 
+                            ? Object.entries(lentByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ')
+                            : formatCurrencyWithSymbol(0, 'USD')}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b border-[#374151]">
+                        <span className="text-[#9ca3af]">Total Borrowed: </span>
+                        <span className="text-[#f56565] font-medium">
+                          {Object.keys(borrowedByCurrency).length > 0 
+                            ? Object.entries(borrowedByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ')
+                            : formatCurrencyWithSymbol(0, 'USD')}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-2">
+                        <span className="text-[#9ca3af]">Active Records: </span>
+                        <span className="text-[#e5e7eb] font-medium">{activeLendBorrow.length} record{activeLendBorrow.length !== 1 ? 's' : ''}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-[#374151]"></div>
+
+              {/* Attachment Card */}
+              <div className="bg-[#1f2937] rounded-lg p-7 border border-[#374151] border-l-4 border-l-[#6b7280] text-center shadow-[0_2px_8px_rgba(0,0,0,0.3)] mb-7">
+                <h3 className="font-semibold text-[#f3f4f6] mb-4 text-base tracking-wide" style={{ fontSize: '17px', letterSpacing: '0.3px' }}>Financial Data Attached</h3>
+                <div className="inline-block bg-[#111827] px-5 py-3 rounded border border-[#374151] text-xs font-mono text-[#d1d5db] mb-4">
+                  financial-data-backup.pdf
+                </div>
+                <p className="text-sm text-[#9ca3af] mt-4" style={{ fontSize: '13px' }}>
+                  A PDF document containing the financial records you have been designated to receive.
                 </p>
               </div>
 
-              {/* System Message */}
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-3 text-base">System Information:</h4>
-                <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300">
-                  This notification was triggered because <strong>{userFirstName}</strong> has not recorded activity for <strong>{checkInFrequency} days</strong>. 
-                  This is part of their Financial Legacy Management System to ensure their financial data is preserved and distributed to authorized beneficiaries.
+              <div className="border-t border-[#374151]"></div>
+
+              {/* About This Delivery */}
+              <div className="bg-[#1f2937] rounded-lg p-7 border-l-4 border-l-[#4b5563] shadow-[0_2px_8px_rgba(0,0,0,0.3)] mb-7">
+                <h3 className="font-semibold text-[#f3f4f6] mb-3.5 text-base tracking-wide" style={{ fontSize: '17px', letterSpacing: '0.3px', lineHeight: '1.4' }}>About This Delivery</h3>
+                <p className="text-[#d1d5db] mb-0" style={{ fontSize: '14px', lineHeight: '1.75', letterSpacing: '0.1px' }}>
+                  This delivery was automatically triggered because <strong className="text-[#f9fafb] font-semibold">{userName}</strong> had not checked in within the specified time period ({checkInFrequency} days).
                 </p>
+                <div className="mt-4 pt-4 border-t border-[#374151]">
+                  <div className="flex justify-between py-2 text-sm" style={{ fontSize: '13px' }}>
+                    <span className="text-[#9ca3af]">Last Check-in:</span>
+                    <span className="text-[#e5e7eb] font-medium">{formatDate(lastCheckIn)}</span>
+                  </div>
+                  <div className="flex justify-between py-2 text-sm" style={{ fontSize: '13px' }}>
+                    <span className="text-[#9ca3af]">Last Account Activity:</span>
+                    <span className="text-[#e5e7eb] font-medium">{formatDate(lastActivityDate)}</span>
+                  </div>
+                  <div className="flex justify-between py-2 text-sm" style={{ fontSize: '13px' }}>
+                    <span className="text-[#9ca3af]">Days Overdue:</span>
+                    <span className="text-[#e5e7eb] font-medium">
+                      {daysOverdue !== null && daysOverdue !== undefined ? `${daysOverdue} days` : 'N/A'}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              {/* Footer */}
-              <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
-                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                  This notification was generated automatically by Balanze's Financial Legacy Management System. 
-                  For questions about this system, please contact Balanze support.
+              <div className="border-t border-[#374151]"></div>
+
+              {/* Confidentiality & Privacy */}
+              <div className="bg-[#1f2937] rounded-lg p-7 border-l-4 border-l-[#6b7280] shadow-[0_2px_8px_rgba(0,0,0,0.3)] mb-7">
+                <h3 className="font-semibold text-[#f3f4f6] mb-3.5 text-base tracking-wide" style={{ fontSize: '17px', letterSpacing: '0.3px' }}>Confidentiality & Privacy</h3>
+                <p className="text-[#d1d5db] m-0" style={{ fontSize: '14px', lineHeight: '1.75', letterSpacing: '0.1px' }}>
+                  This information contains sensitive financial data and personal records. Please store it securely, respect the privacy of the account holder, and only use it as intended. If you have any concerns about receiving this information or need assistance, please contact our support team. This delivery is automated and confidential.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Recipients List */}
-          {recipients.length > 0 && (
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-4 text-base">Authorized Beneficiaries ({recipients.length}):</h4>
-              <div className="space-y-3">
-                {recipients.map((recipient) => (
-                  <div key={recipient.id} className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center flex-shrink-0">
-                      <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white break-words">{recipient.name}</p>
-                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 break-words">{recipient.email} • {recipient.relationship}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Email Footer */}
+          <div className="bg-[#0f172a] rounded-lg p-8 mt-6 text-center border-t border-[#1f2937]">
+            <p className="font-semibold text-[#d1d5db] mb-2" style={{ fontSize: '13px' }}>Balanze</p>
+            <p className="text-[#9ca3af] mb-2" style={{ fontSize: '12px', lineHeight: '1.6', letterSpacing: '0.2px' }}>Delivery Date: {currentDate}</p>
+            <p className="text-[#6b7280] mt-4" style={{ fontSize: '11px' }}>
+              For support or questions, please contact: hello@shalconnects.com
+            </p>
+          </div>
+
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex justify-end p-4 sm:p-6 border-t border-[#374151]">
           <button
             onClick={onClose}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"

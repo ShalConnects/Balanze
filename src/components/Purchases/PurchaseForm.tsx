@@ -4,8 +4,8 @@ import { CustomDropdown } from './CustomDropdown';
 // DatePicker loaded dynamically to reduce initial bundle size
 // import DatePicker from 'react-datepicker';
 // import 'react-datepicker/dist/react-datepicker.css';
-import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
-import { parseISO, format } from 'date-fns';
+import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
+import { format } from 'date-fns';
 import { Purchase, PurchaseAttachment } from '../../types';
 import { PurchaseDetailsSection } from '../Transactions/PurchaseDetailsSection';
 import { useFinanceStore } from '../../store/useFinanceStore';
@@ -1079,30 +1079,19 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                     </svg>
                     <DatePicker
                       selected={formData.purchase_date ? parseLocalDate(formData.purchase_date) : null}
-                      onChange={date => {
+                      onChange={(date: Date | null) => {
                         handleFormChange('purchase_date', date ? format(date, 'yyyy-MM-dd') : '');
                       }}
                       onBlur={() => { setTouched(t => ({ ...t, purchase_date: true })); }}
                       placeholderText="Purchase date *"
                       dateFormat="yyyy-MM-dd"
                       className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400"
-                      calendarClassName="z-[60] shadow-lg border border-gray-200 dark:border-gray-700 rounded-lg !font-sans bg-white dark:bg-gray-800"
-                      popperPlacement="bottom-start"
-                      showPopperArrow={false}
-                      wrapperClassName="w-full"
+                      todayButton="Today"
                       highlightDates={[new Date()]}
                       isClearable
                       autoComplete="off"
                       disabled={isLoading}
                     />
-                    <button
-                      type="button"
-                      className="ml-2 text-xs text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
-                      onClick={() => handleFormChange('purchase_date', new Date().toISOString().split('T')[0])}
-                      tabIndex={-1}
-                    >
-                      Today
-                    </button>
                   </div>
                   {fieldErrors.purchase_date && touched.purchase_date && (
                     <span className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle className="w-4 h-4" />{fieldErrors.purchase_date}</span>

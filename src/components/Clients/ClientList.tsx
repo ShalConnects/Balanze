@@ -30,6 +30,7 @@ import {
   getTaskStatusColor,
   formatKnownSinceDate
 } from '../../utils/clientUtils';
+import { isTaskOverdue, getDaysOverdue } from '../../utils/taskDateUtils';
 
 // Tag Management Component
 interface ClientTagManagerProps {
@@ -1190,12 +1191,7 @@ export const ClientList: React.FC = () => {
                                     {(() => {
                                       const clientTasks = getTasksByClient(client.id);
                                       const activeTasks = clientTasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled');
-                                      const overdueTasks = clientTasks.filter(task => {
-                                        if (!task.due_date || task.status === 'completed' || task.status === 'cancelled') {
-                                          return false;
-                                        }
-                                        return new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0));
-                                      });
+                                      const overdueTasks = clientTasks.filter(task => isTaskOverdue(task.due_date, task.status));
                                       const hasOverdue = overdueTasks.length > 0;
                                       if (activeTasks.length > 0) {
                                         return (
@@ -1829,12 +1825,8 @@ export const ClientList: React.FC = () => {
                                           .slice(0, 5)
                                           .map((task) => {
                                             // Check if task is overdue
-                                            const isOverdue = task.due_date && task.status !== 'completed' && task.status !== 'cancelled' 
-                                              ? new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0))
-                                              : false;
-                                            const daysOverdue = isOverdue && task.due_date
-                                              ? Math.floor((new Date().getTime() - new Date(task.due_date).getTime()) / (1000 * 60 * 60 * 24))
-                                              : 0;
+                                            const isOverdue = isTaskOverdue(task.due_date, task.status);
+                                            const daysOverdue = getDaysOverdue(task.due_date, task.status);
                                             
                                             return (
                                               <div key={task.id} className={`flex justify-between items-start p-2 rounded-md ${isOverdue ? 'bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50' : 'bg-gray-50 dark:bg-gray-800/50'}`}>
@@ -1846,9 +1838,13 @@ export const ClientList: React.FC = () => {
                                                     </div>
                                                   )}
                                                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                                    {task.due_date && (
+                                                    {task.due_date ? (
                                                       <span className={`text-xs lg:text-[10px] ${isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
                                                         {isOverdue ? `Overdue ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''}` : `Due: ${new Date(task.due_date).toLocaleDateString()}`}
+                                                      </span>
+                                                    ) : (
+                                                      <span className="text-xs lg:text-[10px] text-gray-400 dark:text-gray-500 italic">
+                                                        No due date
                                                       </span>
                                                     )}
                                                     {isOverdue && (
@@ -1973,12 +1969,7 @@ export const ClientList: React.FC = () => {
                                 {(() => {
                                   const clientTasks = getTasksByClient(client.id);
                                   const activeTasks = clientTasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled');
-                                  const overdueTasks = clientTasks.filter(task => {
-                                    if (!task.due_date || task.status === 'completed' || task.status === 'cancelled') {
-                                      return false;
-                                    }
-                                    return new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0));
-                                  });
+                                  const overdueTasks = clientTasks.filter(task => isTaskOverdue(task.due_date, task.status));
                                   const hasOverdue = overdueTasks.length > 0;
                                   if (activeTasks.length > 0) {
                                     return (
@@ -2404,20 +2395,20 @@ export const ClientList: React.FC = () => {
                                         .slice(0, 3)
                                         .map((task) => {
                                           // Check if task is overdue
-                                          const isOverdue = task.due_date && task.status !== 'completed' && task.status !== 'cancelled' 
-                                            ? new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0))
-                                            : false;
-                                          const daysOverdue = isOverdue && task.due_date
-                                            ? Math.floor((new Date().getTime() - new Date(task.due_date).getTime()) / (1000 * 60 * 60 * 24))
-                                            : 0;
+                                          const isOverdue = isTaskOverdue(task.due_date, task.status);
+                                          const daysOverdue = getDaysOverdue(task.due_date, task.status);
                                           
                                           return (
                                             <div key={task.id} className={`p-1.5 rounded text-xs ${isOverdue ? 'bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50' : 'bg-gray-50 dark:bg-gray-800/50'}`}>
                                               <div className="font-medium truncate">{task.title}</div>
                                               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                                {task.due_date && (
+                                                {task.due_date ? (
                                                   <span className={isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'}>
                                                     {isOverdue ? `Overdue ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''}` : `Due: ${new Date(task.due_date).toLocaleDateString()}`}
+                                                  </span>
+                                                ) : (
+                                                  <span className="text-xs text-gray-400 dark:text-gray-500 italic">
+                                                    No due date
                                                   </span>
                                                 )}
                                                 {isOverdue && (

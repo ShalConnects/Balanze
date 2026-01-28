@@ -11,10 +11,12 @@ import { toast } from 'sonner';
 
 interface PurchaseOverviewCardProps {
   filterCurrency?: string;
+  timeFilter?: '1m' | '3m' | '6m' | '1y' | 'all';
 }
 
 export const PurchaseOverviewCard: React.FC<PurchaseOverviewCardProps> = ({ 
-  filterCurrency = '' 
+  filterCurrency = '',
+  timeFilter = 'all'
 }) => {
   const { user } = useAuthStore();
   const purchases = useFinanceStore((state) => state.purchases);
@@ -141,11 +143,57 @@ export const PurchaseOverviewCard: React.FC<PurchaseOverviewCardProps> = ({
     }
   };
 
-  // Filter purchases by currency
+  // Date range logic based on time filter - memoized for performance
+  const { startDate, endDate } = useMemo(() => {
+    if (timeFilter === 'all') {
+      return { startDate: null, endDate: null };
+    }
+    
+    const now = new Date();
+    let start: Date;
+    let end: Date;
+    
+    if (timeFilter === '1m') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else if (timeFilter === '3m') {
+      start = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else if (timeFilter === '6m') {
+      start = new Date(now.getFullYear(), now.getMonth() - 5, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else { // '1y'
+      start = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    }
+    
+    return { startDate: start, endDate: end };
+  }, [timeFilter]);
+
+  // Filter purchases by currency and date range
   const filteredPurchases = useMemo(() => {
-    if (!filterCurrency) return purchases;
-    return purchases.filter(p => (p.currency || 'USD') === filterCurrency);
-  }, [purchases, filterCurrency]);
+    let filtered = purchases;
+    
+    // Filter by currency
+    if (filterCurrency) {
+      filtered = filtered.filter(p => (p.currency || 'USD') === filterCurrency);
+    }
+    
+    // Filter by date range (normalize dates for comparison)
+    if (timeFilter !== 'all' && startDate && endDate) {
+      filtered = filtered.filter(p => {
+        if (!p.purchase_date) return false;
+        const purchaseDate = new Date(p.purchase_date);
+        // Normalize dates to midnight for comparison
+        const normalizedDate = new Date(purchaseDate.getFullYear(), purchaseDate.getMonth(), purchaseDate.getDate());
+        const normalizedStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+        const normalizedEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+        return normalizedDate >= normalizedStart && normalizedDate <= normalizedEnd;
+      });
+    }
+    
+    return filtered;
+  }, [purchases, filterCurrency, timeFilter, startDate, endDate]);
 
   // Calculate purchase overview stats - memoized for performance
   const purchaseStats = useMemo(() => {

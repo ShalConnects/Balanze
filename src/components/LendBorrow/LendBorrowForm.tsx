@@ -8,8 +8,8 @@ import { CustomDropdown } from '../Purchases/CustomDropdown';
 // DatePicker loaded dynamically to reduce initial bundle size
 // import DatePicker from 'react-datepicker';
 // import 'react-datepicker/dist/react-datepicker.css';
-import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
-import { parseISO } from 'date-fns';
+import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
+import { parseLocalDate } from '../../utils/taskDateUtils';
 import { useAuthStore } from '../../store/authStore';
 import { Loader } from '../../components/common/Loader';
 import { useLoadingContext } from '../../context/LoadingContext';
@@ -415,10 +415,14 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
   // DatePicker: highlight today, allow typing, quick-select today
   const today = new Date();
   const handleDateChange = (date: Date | null) => {
-    handleDropdownChange('due_date', date ? date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0') : '');
-  };
-  const handleDateToday = () => {
-    handleDropdownChange('due_date', today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'));
+    if (date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      handleDropdownChange('due_date', `${year}-${month}-${day}`);
+    } else {
+      handleDropdownChange('due_date', '');
+    }
   };
 
   // Disable Add button if required fields missing or submitting
@@ -710,33 +714,21 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
 
             {/* Due Date - Show for all records */}
             <div className="w-full" style={{ marginTop: 0, marginBottom: '15px' }}>
-              <div className={getInputClasses('due_date') + ' flex items-center bg-gray-100 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full'}>
-                <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              <div className={getInputClasses('due_date') + ' flex items-center bg-gray-100 dark:bg-gray-700 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full'}>
+                <svg className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 <DatePicker
-                  selected={form.due_date ? parseISO(form.due_date) : null}
+                  selected={parseLocalDate(form.due_date)}
                   onChange={handleDateChange}
                   onBlur={() => handleDropdownBlur('due_date')}
                   placeholderText="Due date"
                   dateFormat="yyyy-MM-dd"
-                  className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px]"
-                  calendarClassName="z-50 shadow-lg border border-gray-200 rounded-lg !font-sans"
-                  popperPlacement="bottom-start"
-                  showPopperArrow={false}
-                  wrapperClassName="w-full"
+                  className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400"
                   todayButton="Today"
                   highlightDates={[today]}
                   isClearable
                   autoComplete="off"
                   disabled={isAccountHidden}
                 />
-                <button
-                  type="button"
-                  className="ml-2 text-xs text-blue-600 hover:underline"
-                  onClick={handleDateToday}
-                  tabIndex={-1}
-                >
-                  Today
-                </button>
               </div>
               {errors.due_date && touched.due_date && (
                 <p className="mt-1 text-xs text-red-600 flex items-center">

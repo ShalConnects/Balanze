@@ -5,8 +5,9 @@ import { Task, TaskInput } from '../../types/client';
 import { Loader } from '../common/Loader';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
-import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
-import { parseISO, format } from 'date-fns';
+import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
+import { format } from 'date-fns';
+import { parseLocalDate } from '../../utils/taskDateUtils';
 
 interface TaskFormProps {
   isOpen: boolean;
@@ -202,35 +203,30 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, task, clien
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <DatePicker
-                      selected={formData.due_date ? parseISO(formData.due_date) : null}
+                      selected={parseLocalDate(formData.due_date)}
                       onChange={(date) => {
                         handleFieldChange('due_date', date ? format(date, 'yyyy-MM-dd') : '');
                       }}
                       onBlur={() => handleBlur('due_date')}
-                      placeholderText="Due Date"
+                      placeholderText="Due Date (optional)"
                       dateFormat="yyyy-MM-dd"
                       className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-700 dark:text-white placeholder-gray-400 dark:placeholder-gray-400"
-                      calendarClassName="z-[60] shadow-lg border border-gray-200 dark:border-gray-700 rounded-lg !font-sans bg-white dark:bg-gray-800"
-                      popperPlacement="bottom-start"
-                      showPopperArrow={false}
-                      wrapperClassName="w-full"
                       todayButton="Today"
                       highlightDates={[new Date()]}
                       isClearable
                       autoComplete="off"
                       disabled={loading}
                     />
-                    {formData.due_date && (
-                      <button
-                        type="button"
-                        className="ml-2 text-xs text-blue-600 hover:underline flex-shrink-0"
-                        onClick={() => handleFieldChange('due_date', '')}
-                        tabIndex={-1}
-                      >
-                        Clear
-                      </button>
-                    )}
                   </div>
+                  {/* Subtle hint for high/urgent tasks without due date */}
+                  {!formData.due_date && (formData.priority === 'high' || formData.priority === 'urgent') && (
+                    <div className="mt-1 flex items-start gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                      <span className="text-xs text-amber-600 dark:text-amber-400">
+                        Consider adding a due date for {formData.priority === 'urgent' ? 'urgent' : 'high'} priority tasks
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="relative">

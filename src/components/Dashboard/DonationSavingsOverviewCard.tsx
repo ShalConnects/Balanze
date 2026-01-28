@@ -12,12 +12,14 @@ interface DonationSavingsOverviewCardProps {
   t: (key: string, options?: any) => string;
   formatCurrency: (amount: number, currency: string) => string;
   filterCurrency?: string;
+  timeFilter?: '1m' | '3m' | '6m' | '1y' | 'all';
 }
 
 export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardProps> = ({ 
   t, 
   formatCurrency,
-  filterCurrency = ''
+  filterCurrency = '',
+  timeFilter = 'all'
 }) => {
   const accounts = useFinanceStore(state => state.accounts);
   const transactions = useFinanceStore(state => state.transactions);
@@ -42,6 +44,36 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
     return Array.from(new Set(accounts.map(a => a.currency)));
   }, [accounts]);
 
+  // Date range logic based on time filter - memoized for performance
+  const { startDate, endDate } = useMemo(() => {
+    if (timeFilter === 'all') {
+      return { startDate: null, endDate: null };
+    }
+    
+    const now = new Date();
+    let start: Date;
+    let end: Date;
+    
+    if (timeFilter === '1m') {
+      // Current month: from 1st of current month to last day of current month
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else if (timeFilter === '3m') {
+      // Last 3 months: from 3 months ago to end of current month
+      start = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else if (timeFilter === '6m') {
+      // Last 6 months: from 6 months ago to end of current month
+      start = new Date(now.getFullYear(), now.getMonth() - 5, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else { // '1y'
+      // Last 12 months: from 12 months ago to end of current month
+      start = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    }
+    
+    return { startDate: start, endDate: end };
+  }, [timeFilter]);
 
   // Set loading to false when we have data
   useEffect(() => {
@@ -140,10 +172,24 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
     }
   };
 
+  // Helper function to check if date is within range (normalize to date only for comparison)
+  const isDateInRange = (dateString: string | null | undefined): boolean => {
+    if (timeFilter === 'all' || !startDate || !endDate || !dateString) return true;
+    const date = new Date(dateString);
+    // Normalize dates to midnight for comparison
+    const normalizedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const normalizedStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const normalizedEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    return normalizedDate >= normalizedStart && normalizedDate <= normalizedEnd;
+  };
+
   // Calculate totalDonated using the same logic as Donations page
   const totalDonated = useMemo(() => {
     return donationSavingRecords.filter(record => {
       if (record.status !== 'donated') return false;
+      
+      // Check date range
+      if (!isDateInRange(record.created_at || record.updated_at)) return false;
       
       // For manual donations (no transaction_id), check currency from note
       if (!record.transaction_id) {
@@ -157,7 +203,7 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
       const account = transaction ? accounts.find(a => a.id === transaction.account_id) : undefined;
       return account && account.currency === filterCurrency;
     }).reduce((sum, r) => sum + (r.amount || 0), 0);
-  }, [donationSavingRecords, accounts, transactions, filterCurrency]);
+  }, [donationSavingRecords, accounts, transactions, filterCurrency, timeFilter, startDate, endDate]);
 
   // Calculate totalPending for pending donations
   const totalPending = useMemo(() => {
@@ -217,25 +263,31 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
     return total;
   }, [accounts, filterCurrency]);
 
-  // Count active savings goals
+  // Count active savings goals (pending savings records)
   const activeSavingsGoals = useMemo(() => {
-    return donationSavingRecords.filter(record => 
-      record.type === 'saving' && 
-      record.status === 'active' &&
-      record.currency === filterCurrency
-    ).length;
-  }, [donationSavingRecords, filterCurrency]);
+    return donationSavingRecords.filter(record => {
+      if (record.type !== 'saving' || record.status !== 'pending') return false;
+      
+      // Check currency from linked transaction or note
+      if (!record.transaction_id) {
+        const currencyMatch = record.note?.match(/\(?Currency:\s*([A-Z]{3})\)?/);
+        const manualCurrency = currencyMatch ? currencyMatch[1] : 'USD';
+        return manualCurrency === filterCurrency;
+      }
+      
+      const transaction = transactions.find(t => t.id === record.transaction_id);
+      const account = transaction ? accounts.find(a => a.id === transaction.account_id) : undefined;
+      return account && account.currency === filterCurrency;
+    }).length;
+  }, [donationSavingRecords, filterCurrency, accounts, transactions]);
 
-  // Count completed donations this month
+  // Count donations in selected period
   const monthlyDonations = useMemo(() => {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    
     return donationSavingRecords.filter(record => {
       if (record.status !== 'donated') return false;
       
-      const recordDate = new Date(record.created_at);
-      if (recordDate < startOfMonth) return false;
+      // Check date range
+      if (!isDateInRange(record.created_at || record.updated_at)) return false;
       
       // Check currency
       if (!record.transaction_id) {
@@ -248,18 +300,15 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
       const account = transaction ? accounts.find(a => a.id === transaction.account_id) : undefined;
       return account && account.currency === filterCurrency;
     }).length;
-  }, [donationSavingRecords, accounts, transactions, filterCurrency]);
+  }, [donationSavingRecords, accounts, transactions, filterCurrency, timeFilter, startDate, endDate]);
 
-  // Calculate total monthly donated amount
+  // Calculate total donated amount in selected period
   const totalMonthlyDonated = useMemo(() => {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    
     return donationSavingRecords.filter(record => {
       if (record.status !== 'donated') return false;
       
-      const recordDate = new Date(record.created_at);
-      if (recordDate < startOfMonth) return false;
+      // Check date range
+      if (!isDateInRange(record.created_at || record.updated_at)) return false;
       
       // Check currency
       if (!record.transaction_id) {
@@ -272,7 +321,7 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
       const account = transaction ? accounts.find(a => a.id === transaction.account_id) : undefined;
       return account && account.currency === filterCurrency;
     }).reduce((sum, r) => sum + (r.amount || 0), 0);
-  }, [donationSavingRecords, accounts, transactions, filterCurrency]);
+  }, [donationSavingRecords, accounts, transactions, filterCurrency, timeFilter, startDate, endDate]);
 
   // Get DPS accounts contributing to savings for tooltip
   const dpsAccountsForTooltip = useMemo(() => {
@@ -287,11 +336,14 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
     });
   }, [accounts, filterCurrency]);
 
-  // Get recent donations for tooltip
+  // Get recent donations for tooltip (filtered by time range)
   const recentDonations = useMemo(() => {
     return donationSavingRecords
       .filter(record => {
         if (record.status !== 'donated') return false;
+        
+        // Check date range
+        if (!isDateInRange(record.created_at || record.updated_at)) return false;
         
         // Check currency
         if (!record.transaction_id) {
@@ -306,7 +358,7 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
       })
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 3); // Show last 3 donations
-  }, [donationSavingRecords, accounts, transactions, filterCurrency]);
+  }, [donationSavingRecords, accounts, transactions, filterCurrency, timeFilter, startDate, endDate]);
 
   // Currency options: only show selected_currencies if available, else all
   const allCurrencyOptions = [
@@ -435,9 +487,11 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
                       )}
                     </div>
 
-                    {/* Monthly Donations */}
+                    {/* Period Donations */}
                     <div className="min-w-0">
-                      <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">This Month ({monthlyDonations}):</div>
+                      <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">
+                        {timeFilter === 'all' ? 'All Time' : timeFilter === '1m' ? 'This Month' : timeFilter === '3m' ? '3 Months' : timeFilter === '6m' ? '6 Months' : '1 Year'} ({monthlyDonations}):
+                      </div>
                       {monthlyDonations > 0 ? (
                         <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent break-words">
                           {formatCurrency(totalMonthlyDonated, filterCurrency || 'USD')}
@@ -539,7 +593,9 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
 
                 {/* Monthly Donations */}
                 <div className="min-w-0">
-                  <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1 truncate">This Month ({monthlyDonations}):</div>
+                  <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1 truncate">
+                    {timeFilter === 'all' ? 'All Time' : timeFilter === '1m' ? 'This Month' : timeFilter === '3m' ? '3 Months' : timeFilter === '6m' ? '6 Months' : '1 Year'} ({monthlyDonations}):
+                  </div>
                   {monthlyDonations > 0 ? (
                     <div className="font-medium text-xs sm:text-sm bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent break-words">
                       {formatCurrency(totalMonthlyDonated, filterCurrency || 'USD')}

@@ -764,6 +764,152 @@
   border-top: 1px solid #374151 !important;
 }
 
+/* React Day Picker styles */
+.rdp {
+  --rdp-cell-size: 40px;
+  --rdp-accent-color: #3b82f6;
+  --rdp-background-color: transparent;
+  --rdp-accent-color-dark: #60a5fa;
+  --rdp-background-color-dark: #1f2937;
+  --rdp-outline: 2px solid var(--rdp-accent-color);
+  --rdp-outline-selected: 3px solid var(--rdp-accent-color);
+  margin: 0;
+}
+
+.rdp-day {
+  width: var(--rdp-cell-size);
+  height: var(--rdp-cell-size);
+}
+
+.rdp-day_button {
+  width: 100%;
+  height: 100%;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.rdp-day_button:hover:not([disabled]) {
+  background-color: #e5e7eb;
+}
+
+.dark .rdp-day_button:hover:not([disabled]) {
+  background-color: #374151;
+}
+
+.rdp-day_selected {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  color: white;
+  font-weight: 500;
+}
+
+.rdp-day_selected:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+}
+
+.rdp-day_today {
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.dark .rdp-day_today {
+  color: #60a5fa;
+}
+
+.rdp-day_disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.rdp-day_outside {
+  opacity: 0.3;
+}
+
+.rdp-day_highlighted {
+  background-color: #fef3c7;
+}
+
+.dark .rdp-day_highlighted {
+  background-color: #78350f;
+}
+
+.rdp-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.rdp-caption_label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #111827;
+}
+
+.dark .rdp-caption_label {
+  color: #f3f4f6;
+}
+
+.rdp-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.rdp-button_previous,
+.rdp-button_next {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dark .rdp-button_previous,
+.dark .rdp-button_next {
+  border-color: #374151;
+  background: #1f2937;
+  color: #f3f4f6;
+}
+
+.rdp-button_previous:hover,
+.rdp-button_next:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.dark .rdp-button_previous:hover,
+.dark .rdp-button_next:hover {
+  background-color: #374151;
+  border-color: #4b5563;
+}
+
+.rdp-head_cell {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  padding: 0.5rem 0;
+}
+
+.dark .rdp-head_cell {
+  color: #9ca3af;
+}
+
+.rdp-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rdp-cell {
+  padding: 0.125rem;
+}
+
 /* Mobile sidebar improvements */
 @layer components {
   /* Mobile sidebar improvements */

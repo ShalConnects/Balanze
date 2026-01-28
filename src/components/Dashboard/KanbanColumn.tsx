@@ -20,6 +20,7 @@ interface KanbanColumnProps {
   onTaskDelete: (taskId: string) => void;
   color: string;
   isDraggingTask?: string | null;
+  maxVisibleTasks?: number;
 }
 
 const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
@@ -37,6 +38,7 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
   onTaskDelete,
   color,
   isDraggingTask = null,
+  maxVisibleTasks,
 }) => {
   const { setNodeRef, isOver } = useDroppable({
     id,
@@ -44,26 +46,9 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
 
   const taskIds = tasks.map(task => task.id);
 
-  console.log(`🔍 KanbanColumn rendered - ${title}:`, {
-    id,
-    taskCount: tasks.length,
-    taskIds: taskIds
-  });
-
   return (
     <div 
       className="flex flex-col w-full sm:w-[280px] sm:min-w-[280px] md:w-auto md:flex-1 md:min-w-[220px] lg:min-w-[240px] xl:min-w-[260px] 2xl:min-w-[280px] max-w-full snap-start flex-shrink-0"
-      ref={(el) => {
-        if (el) {
-          console.log(`🔍 KanbanColumn ${title} dimensions:`, {
-            id,
-            offsetWidth: el.offsetWidth,
-            offsetHeight: el.offsetHeight,
-            computedStyle: window.getComputedStyle(el).width,
-            flexBasis: window.getComputedStyle(el).flexBasis
-          });
-        }
-      }}
     >
       {/* Column Header */}
       <div className={`mb-1 sm:mb-1.5 md:mb-2 px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-2 rounded-md sm:rounded-lg ${color} border border-gray-200 dark:border-gray-700 sticky top-0 z-10 md:relative md:z-auto shadow-sm`}>
@@ -80,7 +65,7 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
       {/* Droppable Area */}
       <div
         ref={setNodeRef}
-        className={`flex-1 min-h-[180px] sm:min-h-[180px] md:min-h-[180px] max-h-[300px] sm:max-h-[350px] md:max-h-[400px] lg:max-h-[450px] xl:max-h-[500px] rounded-md sm:rounded-lg p-1 sm:p-1.5 md:p-2 transition-colors overflow-y-auto ${
+        className={`flex-1 min-h-[180px] sm:min-h-[180px] md:min-h-[180px] ${maxVisibleTasks === 3 ? 'max-h-[180px] sm:max-h-[200px] md:max-h-[220px]' : 'max-h-[300px] sm:max-h-[350px] md:max-h-[400px] lg:max-h-[450px] xl:max-h-[500px]'} rounded-md sm:rounded-lg p-1 sm:p-1.5 md:p-2 transition-colors overflow-y-auto ${
           isOver
             ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-600 border-dashed'
             : 'bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700'

@@ -4,6 +4,9 @@ import { useClientStore } from '../../store/useClientStore';
 import { Invoice, InvoiceInput, InvoiceItemInput } from '../../types/client';
 import { Loader } from '../common/Loader';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
+import { format } from 'date-fns';
+import { parseLocalDate } from '../../utils/taskDateUtils';
 
 interface InvoiceFormProps {
   isOpen: boolean;
@@ -377,30 +380,61 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ isOpen, onClose, invoi
                   <label htmlFor="invoice_date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Invoice Date <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
-                    id="invoice_date"
-                    name="invoice_date"
-                    value={formData.invoice_date}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <div className="flex items-center bg-gray-100 dark:bg-gray-700 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full border border-gray-200 dark:border-gray-600">
+                    <svg className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <DatePicker
+                      selected={parseLocalDate(formData.invoice_date)}
+                      onChange={(date) => {
+                        handleChange({
+                          target: {
+                            name: 'invoice_date',
+                            value: date ? format(date, 'yyyy-MM-dd') : ''
+                          }
+                        } as React.ChangeEvent<HTMLInputElement>);
+                      }}
+                      onBlur={() => {}}
+                      placeholderText="Invoice date *"
+                      dateFormat="yyyy-MM-dd"
+                      className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400"
+                      todayButton="Today"
+                      highlightDates={[new Date()]}
+                      isClearable={false}
+                      autoComplete="off"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label htmlFor="due_date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Due Date <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
-                    id="due_date"
-                    name="due_date"
-                    value={formData.due_date}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <div className="flex items-center bg-gray-100 dark:bg-gray-700 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full border border-gray-200 dark:border-gray-600">
+                    <svg className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <DatePicker
+                      selected={parseLocalDate(formData.due_date)}
+                      onChange={(date) => {
+                        handleChange({
+                          target: {
+                            name: 'due_date',
+                            value: date ? format(date, 'yyyy-MM-dd') : ''
+                          }
+                        } as React.ChangeEvent<HTMLInputElement>);
+                      }}
+                      onBlur={() => {}}
+                      placeholderText="Due date *"
+                      dateFormat="yyyy-MM-dd"
+                      className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400"
+                      todayButton="Today"
+                      highlightDates={[new Date()]}
+                      isClearable={false}
+                      autoComplete="off"
+                      minDate={parseLocalDate(formData.invoice_date) || undefined}
+                    />
+                  </div>
                 </div>
 
                 <div>

@@ -9,8 +9,9 @@ import { generateTransactionId } from '../../utils/transactionId';
 import { getCurrencySymbol } from '../../utils/currency';
 import { getDefaultAccountId } from '../../utils/defaultAccount';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
-import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
-import { parseISO, format } from 'date-fns';
+import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
+import { format } from 'date-fns';
+import { parseLocalDate } from '../../utils/taskDateUtils';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getFilteredCategoriesForTransaction } from '../../utils/categoryFiltering';
 
@@ -438,16 +439,13 @@ export const BulkTransactionForm: React.FC<BulkTransactionFormProps> = ({ onClos
                               <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                             <DatePicker
-                              selected={row.date ? parseISO(row.date) : null}
-                              onChange={date => updateRow(row.id, 'date', date ? format(date, 'yyyy-MM-dd') : '')}
+                              selected={parseLocalDate(row.date)}
+                              onChange={(date: Date | null) => updateRow(row.id, 'date', date ? format(date, 'yyyy-MM-dd') : '')}
                               placeholderText="Date *"
                               dateFormat="yyyy-MM-dd"
-                              className="bg-transparent outline-none border-none w-full cursor-pointer text-sm"
-                              calendarClassName="z-[60] shadow-lg border border-gray-200 rounded-lg !font-sans"
-                              popperPlacement="bottom-start"
-                              showPopperArrow={false}
-                              wrapperClassName="w-full"
+                              className="bg-transparent outline-none border-none w-full cursor-pointer text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400"
                               todayButton="Today"
+                              maxDate={new Date()}
                               isClearable
                               autoComplete="off"
                             />

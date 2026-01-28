@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 // DatePicker loaded dynamically to reduce initial bundle size
 // import DatePicker from 'react-datepicker';
 // import 'react-datepicker/dist/react-datepicker.css';
-import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
+import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
 import { Loader } from '../common/Loader';
 import { getCurrencySymbol } from '../../utils/currency';
 
@@ -285,23 +285,11 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
                   placeholderText="Return date"
                   dateFormat="yyyy-MM-dd"
                   className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100"
-                  calendarClassName="z-50 shadow-lg border border-gray-200 dark:border-gray-600 rounded-lg !font-sans"
-                  popperPlacement="bottom-start"
-                  showPopperArrow={false}
-                  wrapperClassName="w-full"
                   todayButton="Today"
                   highlightDates={[today]}
                   isClearable
                   autoComplete="off"
                 />
-                <button
-                  type="button"
-                  className="ml-2 text-xs text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
-                  onClick={() => setReturnDate(today)}
-                  tabIndex={-1}
-                >
-                  Today
-                </button>
               </div>
               <div className="h-5 mt-1">
                 {/* Consistent spacing */}

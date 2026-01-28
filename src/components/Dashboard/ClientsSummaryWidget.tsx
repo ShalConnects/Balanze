@@ -10,10 +10,12 @@ import { useAuthStore } from '../../store/authStore';
 
 interface ClientsSummaryWidgetProps {
   filterCurrency?: string;
+  timeFilter?: '1m' | '3m' | '6m' | '1y' | 'all';
 }
 
 export const ClientsSummaryWidget: React.FC<ClientsSummaryWidgetProps> = ({ 
-  filterCurrency 
+  filterCurrency,
+  timeFilter = 'all'
 }) => {
   const { user } = useAuthStore();
   const { 
@@ -187,11 +189,56 @@ export const ClientsSummaryWidget: React.FC<ClientsSummaryWidgetProps> = ({
     }
   };
 
-  // Memoize filtered invoices to avoid multiple filters
+  // Date range logic based on time filter - memoized for performance
+  const { startDate, endDate } = useMemo(() => {
+    if (timeFilter === 'all') {
+      return { startDate: null, endDate: null };
+    }
+    
+    const now = new Date();
+    let start: Date;
+    let end: Date;
+    
+    if (timeFilter === '1m') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else if (timeFilter === '3m') {
+      start = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else if (timeFilter === '6m') {
+      start = new Date(now.getFullYear(), now.getMonth() - 5, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else { // '1y'
+      start = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    }
+    
+    return { startDate: start, endDate: end };
+  }, [timeFilter]);
+
+  // Memoize filtered invoices to avoid multiple filters (by currency and date)
   const filteredInvoices = useMemo(() => {
-    if (!filterCurrency) return invoices;
-    return invoices.filter(i => i.currency === filterCurrency);
-  }, [invoices, filterCurrency]);
+    let filtered = invoices;
+    
+    // Filter by currency
+    if (filterCurrency) {
+      filtered = filtered.filter(i => i.currency === filterCurrency);
+    }
+    
+    // Filter by date range (normalize dates for comparison)
+    if (timeFilter !== 'all' && startDate && endDate) {
+      filtered = filtered.filter(i => {
+        const invoiceDate = i.invoice_date ? new Date(i.invoice_date) : new Date(i.created_at);
+        // Normalize dates to midnight for comparison
+        const normalizedDate = new Date(invoiceDate.getFullYear(), invoiceDate.getMonth(), invoiceDate.getDate());
+        const normalizedStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+        const normalizedEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+        return normalizedDate >= normalizedStart && normalizedDate <= normalizedEnd;
+      });
+    }
+    
+    return filtered;
+  }, [invoices, filterCurrency, timeFilter, startDate, endDate]);
 
   // Memoize client status counts to avoid repeated filtering
   const clientStatusCounts = useMemo(() => {

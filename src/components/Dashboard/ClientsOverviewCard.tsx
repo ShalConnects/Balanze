@@ -11,10 +11,12 @@ import { toast } from 'sonner';
 
 interface ClientsOverviewCardProps {
   filterCurrency?: string;
+  timeFilter?: '1m' | '3m' | '6m' | '1y' | 'all';
 }
 
 export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({ 
-  filterCurrency = '' 
+  filterCurrency = '',
+  timeFilter = 'all'
 }) => {
   const { user } = useAuthStore();
   const { 
@@ -173,18 +175,69 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
     }
   };
 
+  // Date range logic based on time filter - memoized for performance
+  const { startDate, endDate } = useMemo(() => {
+    if (timeFilter === 'all') {
+      return { startDate: null, endDate: null };
+    }
+    
+    const now = new Date();
+    let start: Date;
+    let end: Date;
+    
+    if (timeFilter === '1m') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else if (timeFilter === '3m') {
+      start = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else if (timeFilter === '6m') {
+      start = new Date(now.getFullYear(), now.getMonth() - 5, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else { // '1y'
+      start = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    }
+    
+    return { startDate: start, endDate: end };
+  }, [timeFilter]);
+
+  // Helper function to check if date is within range (normalize to date only for comparison)
+  const isDateInRange = (dateString: string | null | undefined): boolean => {
+    if (timeFilter === 'all' || !startDate || !endDate || !dateString) return true;
+    const date = new Date(dateString);
+    // Normalize dates to midnight for comparison
+    const normalizedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const normalizedStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const normalizedEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    return normalizedDate >= normalizedStart && normalizedDate <= normalizedEnd;
+  };
+
   // Calculate client statistics
   const clientStats = useMemo(() => {
     const activeClients = clients.filter(c => c.status === 'active');
     const inactiveClients = clients.filter(c => c.status === 'inactive');
     
-    // Calculate total value (orders + invoices)
+    // Calculate total value (orders + invoices) filtered by currency and date
     let totalValue = 0;
     clients.forEach(client => {
       const clientOrders = getOrdersByClient(client.id);
       const clientInvoices = getInvoicesByClient(client.id);
-      const orderValue = clientOrders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
-      const invoiceValue = clientInvoices.reduce((sum, invoice) => sum + (Number(invoice.total_amount) || 0), 0);
+      
+      // Filter orders by currency and date
+      const filteredOrders = clientOrders.filter(order => {
+        if (filterCurrency && order.currency !== filterCurrency) return false;
+        return isDateInRange(order.order_date || order.created_at);
+      });
+      
+      // Filter invoices by currency and date
+      const filteredInvoices = clientInvoices.filter(invoice => {
+        if (filterCurrency && invoice.currency !== filterCurrency) return false;
+        return isDateInRange(invoice.invoice_date || invoice.created_at);
+      });
+      
+      const orderValue = filteredOrders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
+      const invoiceValue = filteredInvoices.reduce((sum, invoice) => sum + (Number(invoice.total_amount) || 0), 0);
       totalValue += orderValue + invoiceValue;
     });
 
@@ -194,7 +247,7 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
       inactive: inactiveClients.length,
       totalValue
     };
-  }, [clients, getOrdersByClient, getInvoicesByClient]);
+  }, [clients, getOrdersByClient, getInvoicesByClient, filterCurrency, timeFilter, startDate, endDate]);
 
   // Get recent clients for tooltip
   const recentClients = useMemo(() => {

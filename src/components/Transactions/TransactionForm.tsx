@@ -15,8 +15,9 @@ import { CustomDropdown } from '../Purchases/CustomDropdown';
 // DatePicker loaded dynamically to reduce initial bundle size
 // import DatePicker from 'react-datepicker';
 // import 'react-datepicker/dist/react-datepicker.css';
-import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
-import { parseISO, format } from 'date-fns';
+import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
+import { format } from 'date-fns';
+import { parseLocalDate } from '../../utils/taskDateUtils';
 import { CategoryModal } from '../common/CategoryModal';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getFilteredCategoriesForTransaction } from '../../utils/categoryFiltering';
@@ -1485,13 +1486,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               )}
             </div>
             <div className="w-full">
-              <div className={getInputClasses('date') + ' flex items-center bg-gray-100 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full'}>
-                <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <div className={getInputClasses('date') + ' flex items-center bg-gray-100 dark:bg-gray-700 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full'}>
+                <svg className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <DatePicker
-                  selected={data.date ? parseISO(data.date) : null}
-                  onChange={date => {
+                  selected={parseLocalDate(data.date)}
+                  onChange={(date: Date | null) => {
                     setData({ ...data, date: date ? format(date, 'yyyy-MM-dd') : '' });
                     if (errors.date) setErrors({ ...errors, date: '' });
                   }}
@@ -1499,25 +1500,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                   onBlur={() => handleDropdownBlur('date')}
                   placeholderText="Date *"
                   dateFormat="yyyy-MM-dd"
-                  className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px]"
-                  calendarClassName="z-[60] shadow-lg border border-gray-200 rounded-lg !font-sans"
-                  popperPlacement="bottom-start"
-                  showPopperArrow={false}
-                  wrapperClassName="w-full"
+                  className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400"
                   todayButton="Today"
                   highlightDates={[new Date()]}
+                  maxDate={new Date()}
                   isClearable
                   autoComplete="off"
-                  popperProps={{ strategy: 'fixed' }}
                 />
-                <button
-                  type="button"
-                  className="ml-2 text-xs text-blue-600 hover:underline"
-                  onClick={() => setData({ ...data, date: new Date().toISOString().split('T')[0] })}
-                  tabIndex={-1}
-                >
-                  Today
-                </button>
               </div>
               {errors.date && (touched.date || formSubmitted) && (
                 <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1">
@@ -1609,13 +1598,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                         End Date (Optional)
                       </label>
-                      <div className={`${getInputClasses('recurring_end_date')} flex items-center bg-gray-100 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full ${isChildTransaction ? 'opacity-60 cursor-not-allowed' : ''}`}>
-                        <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <div className={`${getInputClasses('recurring_end_date')} flex items-center bg-gray-100 dark:bg-gray-700 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full ${isChildTransaction ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                        <svg className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                         <DatePicker
-                          selected={recurringEndDate ? parseISO(recurringEndDate) : null}
-                          onChange={date => {
+                          selected={parseLocalDate(recurringEndDate)}
+                          onChange={(date: Date | null) => {
                             if (!isChildTransaction) {
                               setRecurringEndDate(date ? format(date, 'yyyy-MM-dd') : undefined);
                             }
@@ -1623,16 +1612,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                           disabled={isChildTransaction}
                           placeholderText="No end date (recur forever)"
                           dateFormat="yyyy-MM-dd"
-                          className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px]"
-                          calendarClassName="z-[100000] shadow-lg border border-gray-200 rounded-lg !font-sans"
-                          popperPlacement="bottom-start"
-                          showPopperArrow={false}
-                          wrapperClassName="w-full"
+                          className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400"
                           isClearable
-                          minDate={parseISO(data.date)}
+                          minDate={parseLocalDate(data.date) || undefined}
                           autoComplete="off"
-                        popperProps={{ strategy: 'fixed' }}
-                      />
+                        />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">Leave empty for unlimited recurring transactions</p>
                   </div>

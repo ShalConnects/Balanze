@@ -9,32 +9,37 @@ interface DatePickerProps {
 export const LazyDatePicker: React.FC<DatePickerProps> = (props) => {
   const [DatePicker, setDatePicker] = useState<ComponentType<any> | null>(null);
   const [cssLoaded, setCssLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     // Load DatePicker and its CSS only when component mounts
-    if (!DatePicker && !cssLoaded) {
+    if (!DatePicker && !cssLoaded && !loadError) {
       Promise.all([
         import('react-datepicker'),
         import('react-datepicker/dist/react-datepicker.css')
       ]).then(([datePickerModule]) => {
         setDatePicker(() => datePickerModule.default);
         setCssLoaded(true);
-      }).catch((error) => {
-        console.error('Failed to load DatePicker:', error);
+        setLoadError(false);
+      }).catch(() => {
+        // Silently handle loading errors - fallback input will be shown
+        setLoadError(true);
       });
     }
-  }, [DatePicker, cssLoaded]);
+  }, [DatePicker, cssLoaded, loadError]);
 
   if (!DatePicker) {
-    // Fallback: simple input while DatePicker loads
+    // Fallback: simple input while DatePicker loads or if loading failed
     return (
       <input
         type="text"
         {...props}
         readOnly
         className={props.className}
-        placeholder={props.placeholder || 'Select date...'}
-        style={{ cursor: 'not-allowed', opacity: 0.6 }}
+        placeholder={props.placeholderText || props.placeholder || 'Select date...'}
+        style={{ cursor: loadError ? 'not-allowed' : 'wait', opacity: 0.6 }}
+        disabled={loadError}
+        title={loadError ? 'Date picker unavailable. Please refresh the page.' : 'Loading date picker...'}
       />
     );
   }
