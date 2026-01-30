@@ -66,22 +66,27 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
   // Get visible widgets sorted by order
   const visibleWidgets = useMemo(() => {
     const widgets = [];
+    const addedIds = new Set<string>(); // Track added widget IDs to prevent duplicates
     
     // Only include last-wish if user is premium/demo AND widget is visible
-    if ((isDemo || isPremium) && isWidgetVisible('last-wish')) {
+    if ((isDemo || isPremium) && isWidgetVisible('last-wish') && !addedIds.has('last-wish')) {
       widgets.push({ id: 'last-wish', visible: true, order: widgetConfig.find(w => w.id === 'last-wish')?.order ?? 0 });
+      addedIds.add('last-wish');
     }
     
-    if (isWidgetVisible('habit-garden')) {
+    if (isWidgetVisible('habit-garden') && !addedIds.has('habit-garden')) {
       widgets.push({ id: 'habit-garden', visible: true, order: widgetConfig.find(w => w.id === 'habit-garden')?.order ?? 2 });
+      addedIds.add('habit-garden');
     }
     
-    if (isWidgetVisible('notes')) {
+    if (isWidgetVisible('notes') && !addedIds.has('notes')) {
       widgets.push({ id: 'notes', visible: true, order: widgetConfig.find(w => w.id === 'notes')?.order ?? 4 });
+      addedIds.add('notes');
     }
     
-    if (isWidgetVisible('todos')) {
+    if (isWidgetVisible('todos') && !addedIds.has('todos')) {
       widgets.push({ id: 'todos', visible: true, order: widgetConfig.find(w => w.id === 'todos')?.order ?? 5 });
+      addedIds.add('todos');
     }
     
     return widgets.sort((a, b) => a.order - b.order);

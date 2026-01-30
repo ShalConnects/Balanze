@@ -716,10 +716,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
                   placeholder="Notes"
                   rows={3}
                   disabled={loading}
-                  maxLength={500}
+                  maxLength={2000}
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {formData.notes.length}/500 characters
+                  {formData.notes.length}/2000 characters
                 </p>
               </div>
             </div>

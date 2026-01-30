@@ -21,7 +21,7 @@ export const ClientNoteModal: React.FC<ClientNoteModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const MAX_LENGTH = 500;
+  const MAX_LENGTH = 2000;
 
   useEffect(() => {
     if (isOpen) {

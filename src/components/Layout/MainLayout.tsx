@@ -229,8 +229,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       {/* Pomodoro Timer Bottom Bar */}
       <PomodoroTimerBar />
       
-      {/* TodosWidget - Always mounted globally for modal access (widget UI hidden when not on Dashboard) */}
-      {TodosWidget && <TodosWidget isAccordionExpanded={false} onAccordionToggle={() => {}} />}
+      {/* TodosWidget - Always mounted globally for modal access (widget UI hidden - only modal functionality) */}
+      {TodosWidget && <TodosWidget isAccordionExpanded={false} onAccordionToggle={() => {}} showWidgetUI={false} />}
       
       {/* Home Button - Show on both mobile and desktop when not on dashboard */}
       {currentView !== 'dashboard' && location.pathname !== '/' && <HomeButton />}

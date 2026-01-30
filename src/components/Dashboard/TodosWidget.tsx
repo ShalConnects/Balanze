@@ -10,11 +10,13 @@ import type { Task } from '../../types/index';
 interface TodosWidgetProps {
   isAccordionExpanded?: boolean;
   onAccordionToggle?: () => void;
+  showWidgetUI?: boolean; // Control whether to show the widget UI (for modal-only rendering)
 }
 
 export const TodosWidget: React.FC<TodosWidgetProps> = ({
   isAccordionExpanded = true,
-  onAccordionToggle
+  onAccordionToggle,
+  showWidgetUI = true
 }) => {
   const { user } = useAuthStore();
   const location = useLocation();
@@ -1689,8 +1691,8 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
   
   return (
     <>
-      {/* Widget UI - Only visible on Dashboard */}
-      {isDashboard && (
+      {/* Widget UI - Only visible on Dashboard and when showWidgetUI is true */}
+      {isDashboard && showWidgetUI && (
     <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-blue-100 dark:from-blue-900/40 dark:via-purple-900/40 dark:to-blue-900/40 rounded-xl p-4 shadow-sm flex flex-col transition-all duration-300 relative group">
       {/* Toggle Button - positioned like drag handle on left side, only when tasks exist */}
       {tasks.length > 0 && onAccordionToggle && (

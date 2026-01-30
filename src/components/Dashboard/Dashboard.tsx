@@ -88,8 +88,10 @@ const isValidWidgetConfig = (config: unknown): config is WidgetConfig[] => {
 // Migrate widget config to include new widgets
 const migrateWidgetConfig = (config: WidgetConfig[]): WidgetConfig[] => {
   const defaultWidgets = getDefaultWidgets();
+  // Use Map to deduplicate by widget ID (if config has duplicates, only last one is kept)
   const configMap = new Map(config.map(w => [w.id, w]));
   const migrated: WidgetConfig[] = [];
+  const addedIds = new Set<string>(); // Track added IDs to prevent duplicates
   
   // Handle migration from 'notes-todos' to separate 'notes' and 'todos' widgets
   const hasOldNotesTodos = configMap.has('notes-todos');
@@ -108,12 +110,16 @@ const migrateWidgetConfig = (config: WidgetConfig[]): WidgetConfig[] => {
   
   // Add all default widgets, preserving existing configs or adding new ones
   defaultWidgets.forEach(defaultWidget => {
-    if (configMap.has(defaultWidget.id)) {
-      // Keep existing widget config
-      migrated.push(configMap.get(defaultWidget.id)!);
-    } else {
-      // Add new widget with default settings
-      migrated.push(defaultWidget);
+    // Ensure we never add duplicate widget IDs
+    if (!addedIds.has(defaultWidget.id)) {
+      if (configMap.has(defaultWidget.id)) {
+        // Keep existing widget config
+        migrated.push(configMap.get(defaultWidget.id)!);
+      } else {
+        // Add new widget with default settings
+        migrated.push(defaultWidget);
+      }
+      addedIds.add(defaultWidget.id);
     }
   });
   
@@ -466,8 +472,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
 
   // Get visible widgets sorted by order - memoized for performance
   // Filter out premium-only widgets for free users and unloaded widgets
-  const visibleWidgets = useMemo(() => 
-    widgetConfig
+  const visibleWidgets = useMemo(() => {
+    const filtered = widgetConfig
       .filter(w => {
         // Filter by visibility
         if (!w.visible) return false;
@@ -481,7 +487,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
         
         return true;
       })
-      .sort((a, b) => a.order - b.order),
+      .sort((a, b) => a.order - b.order);
+    
+    // Deduplicate by widget ID (keep first occurrence)
+    const seen = new Set<string>();
+    return filtered.filter(w => {
+      if (seen.has(w.id)) {
+        return false;
+      }
+      seen.add(w.id);
+      return true;
+    });
+  },
     [widgetConfig, isPremium, NotesWidget, TodosWidget]
   );
   
