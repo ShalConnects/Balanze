@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { X, Save, Loader2, AlertCircle } from 'lucide-react';
 import { useClientStore } from '../../store/useClientStore';
 import { Client, ClientInput } from '../../types/client';
+import { getTagSuggestionPool } from '../../utils/clientTagSuggestions';
 import { Loader } from '../common/Loader';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
@@ -18,7 +19,7 @@ interface ClientFormProps {
 }
 
 export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client }) => {
-  const { addClient, updateClient, loading, error, clients } = useClientStore();
+  const { addClient, updateClient, getClientChatGptThreadUrl, setClientChatGptThreadUrl, loading, error, clients } = useClientStore();
   const { isMobile } = useMobileDetection();
   const { canCreateClient, usageStats, getUpgradeMessage, loadUsageStats } = usePlanFeatures();
   const [formData, setFormData] = useState<ClientInput>({
@@ -47,22 +48,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const tagSuggestionsRef = useRef<HTMLDivElement>(null);
+  const [chatGptThreadUrl, setChatGptThreadUrl] = useState('');
+  const [savingThreadUrl, setSavingThreadUrl] = useState(false);
 
-  // Common tag suggestions
-  const commonTags = [
-    'Fiverr',
-    'Upwork',
-    'Freelancer',
-    'Premium',
-    'Long-term',
-    'One-time',
-    'Referral',
-    'Website',
-    'Social Media',
-    'Repeat Client',
-    'VIP',
-    'Corporate'
-  ];
+  const tagPool = useMemo(() => getTagSuggestionPool(clients), [clients]);
 
   // Currency options
   const currencyOptions = [
@@ -213,6 +202,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
         notes: client.notes || '',
         custom_fields: client.custom_fields || {}
       });
+      setChatGptThreadUrl(getClientChatGptThreadUrl(client.id) || '');
     } else {
       // Reset form for new client
       setFormData({
@@ -238,6 +228,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
     }
     setTagInput('');
     setShowTagSuggestions(false);
+    if (!client) setChatGptThreadUrl('');
   }, [client, isOpen]);
 
   // Close tag suggestions when clicking outside
@@ -268,12 +259,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
     }
   };
 
-  // Get filtered suggestions (exclude already added tags)
   const getFilteredSuggestions = () => {
-    return commonTags.filter(tag => 
-      !formData.tags?.includes(tag) &&
-      tag.toLowerCase().includes(tagInput.toLowerCase())
-    );
+    const input = tagInput.toLowerCase().trim();
+    return tagPool.filter(tag => !formData.tags?.includes(tag) && tag.toLowerCase().includes(input));
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
@@ -281,6 +269,16 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
       ...prev,
       tags: (prev.tags || []).filter((tag) => tag !== tagToRemove)
     }));
+  };
+
+  const handleSaveChatGptThreadUrl = async () => {
+    if (!client) return;
+    setSavingThreadUrl(true);
+    try {
+      await setClientChatGptThreadUrl(client.id, chatGptThreadUrl.trim() || null);
+    } finally {
+      setSavingThreadUrl(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -722,6 +720,35 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
                   {formData.notes.length}/2000 characters
                 </p>
               </div>
+
+              {/* ChatGPT thread link (edit only) */}
+              {client && (
+                <div className="sm:col-span-2 flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-end">
+                  <div className="flex-1 min-w-0">
+                    <label htmlFor="client-chatgpt-thread" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      ChatGPT thread link
+                    </label>
+                    <input
+                      id="client-chatgpt-thread"
+                      type="url"
+                      value={chatGptThreadUrl}
+                      onChange={(e) => setChatGptThreadUrl(e.target.value)}
+                      className={getInputClasses('website')}
+                      placeholder="https://chat.openai.com/c/..."
+                      disabled={loading}
+                      aria-label="ChatGPT thread link"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSaveChatGptThreadUrl}
+                    disabled={loading || savingThreadUrl}
+                    className="px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center min-w-[80px]"
+                  >
+                    {savingThreadUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save link'}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Error Display */}

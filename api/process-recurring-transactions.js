@@ -1,10 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+import { supabase } from '../lib/supabaseServer.js';
 
 /**
  * Calculate the next occurrence date based on frequency
@@ -394,19 +388,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization;
+  const isCron = req.headers['x-vercel-cron'];
+  if (!cronSecret || ((authHeader !== `Bearer ${cronSecret}`) && !isCron)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (!supabase) {
+    return res.status(503).json({ error: 'Server configuration error' });
+  }
   try {
-    // Optional: Add authentication check for security
-    const authHeader = req.headers.authorization;
-    const cronSecret = process.env.CRON_SECRET;
-    
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      // For cron jobs, Vercel adds a special header
-      const cronHeader = req.headers['x-vercel-cron'];
-      if (!cronHeader) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-    }
-
     const result = await processRecurringTransactions();
 
     return res.status(200).json({

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { format, parse, isValid } from 'date-fns';
 
 // Lazy-loaded DayPicker wrapper compatible with react-datepicker API
@@ -44,6 +45,8 @@ export const LazyDayPicker: React.FC<DayPickerProps> = ({
   const [month, setMonth] = useState<Date>(selected || new Date());
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<{ top: number; left: number } | null>(null);
 
   // Lazy load react-day-picker
   useEffect(() => {
@@ -110,10 +113,13 @@ export const LazyDayPicker: React.FC<DayPickerProps> = ({
     setIsOpen(false);
   };
 
-  // Close calendar when clicking outside
+  // Close calendar when clicking outside (container or portaled dropdown)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const inContainer = containerRef.current?.contains(target);
+      const inDropdown = dropdownRef.current?.contains(target);
+      if (!inContainer && !inDropdown) {
         setIsOpen(false);
       }
     };
@@ -122,6 +128,30 @@ export const LazyDayPicker: React.FC<DayPickerProps> = ({
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
+  }, [isOpen]);
+
+  // Compute fixed position for portaled dropdown (flip above when no space below)
+  const DROPDOWN_HEIGHT_ESTIMATE = 320;
+  const DROPDOWN_WIDTH_ESTIMATE = 300;
+  useLayoutEffect(() => {
+    if (!isOpen || !containerRef.current) {
+      setDropdownStyle(null);
+      return;
+    }
+    const rect = containerRef.current.getBoundingClientRect();
+    const viewportH = window.innerHeight;
+    const viewportW = window.innerWidth;
+    const gap = 4;
+    const padding = 8;
+    const openBelow = rect.bottom + DROPDOWN_HEIGHT_ESTIMATE + gap <= viewportH - padding;
+    const top = openBelow
+      ? rect.bottom + gap
+      : Math.max(padding, rect.top - DROPDOWN_HEIGHT_ESTIMATE - gap);
+    const left = Math.max(
+      padding,
+      Math.min(rect.left, viewportW - DROPDOWN_WIDTH_ESTIMATE - padding)
+    );
+    setDropdownStyle({ top, left });
   }, [isOpen]);
 
   // Handle keyboard shortcuts
@@ -217,8 +247,12 @@ export const LazyDayPicker: React.FC<DayPickerProps> = ({
         )}
       </div>
       
-      {isOpen && !disabled && (
-        <div className="absolute z-[60] mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
+      {isOpen && !disabled && dropdownStyle && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3"
+          style={{ top: dropdownStyle.top, left: dropdownStyle.left }}
+        >
           <DayPicker
             mode="single"
             selected={selected || undefined}
@@ -271,7 +305,8 @@ export const LazyDayPicker: React.FC<DayPickerProps> = ({
               </button>
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

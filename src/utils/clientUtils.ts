@@ -38,6 +38,13 @@ export const taskStatusColors: Record<string, string> = {
   cancelled: 'text-gray-400 dark:text-gray-500'
 };
 
+/** Client status options for dropdowns (single source of truth). */
+export const CLIENT_STATUS_OPTIONS: { label: string; value: 'active' | 'inactive' | 'archived' }[] = [
+  { label: 'Active', value: 'active' },
+  { label: 'Inactive', value: 'inactive' },
+  { label: 'Archived', value: 'archived' }
+];
+
 /**
  * Get invoice status color class
  */

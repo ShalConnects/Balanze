@@ -1,10 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY
-);
+import { supabase } from '../lib/supabaseServer.js';
 
 // Helper function to format currency with commas
 function formatCurrency(amount, currency = 'USD') {
@@ -1029,9 +1023,11 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+  if (!supabase) {
+    return res.status(503).json({ error: 'Server configuration error' });
   }
 
   if (req.method !== 'POST') {

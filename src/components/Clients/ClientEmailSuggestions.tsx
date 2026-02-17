@@ -18,30 +18,15 @@ export const ClientEmailSuggestions: React.FC<ClientEmailSuggestionsProps> = ({
   invoices,
   tasks
 }) => {
-  console.log('[ClientEmailSuggestions] Component function called with:', { clientId: client?.id, clientEmail: client?.email });
-  
   const { profile } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [expandedSuggestion, setExpandedSuggestion] = useState<string | null>(null);
 
   // Generate suggestions for all clients
   const suggestions = useMemo(() => {
-    console.log('[ClientEmailSuggestions] Generating suggestions for client:', {
-      clientId: client.id,
-      clientName: client.name,
-      clientEmail: client.email,
-      ordersCount: orders.length,
-      invoicesCount: invoices.length,
-      tasksCount: tasks.length,
-      hasProfile: !!profile
-    });
-    
     try {
-      const result = getClientEmailSuggestions(client, orders, invoices, tasks, profile);
-      console.log('[ClientEmailSuggestions] Generated suggestions:', result.length, result);
-      return result;
+      return getClientEmailSuggestions(client, orders, invoices, tasks, profile);
     } catch (error) {
-      console.error('[ClientEmailSuggestions] Error generating suggestions:', error);
       return [];
     }
   }, [client, orders, invoices, tasks, profile]);
@@ -67,16 +52,6 @@ export const ClientEmailSuggestions: React.FC<ClientEmailSuggestionsProps> = ({
     };
     return labels[type] || type;
   };
-
-  console.log('[ClientEmailSuggestions] Rendering component:', {
-    hasEmail: !!client.email,
-    suggestionsCount: suggestions.length,
-    isOpen,
-    clientId: client.id
-  });
-
-  // Always render the component (show suggestions for all clients)
-  console.log('[ClientEmailSuggestions] About to render JSX, suggestions:', suggestions.length);
 
   return (
     <div 

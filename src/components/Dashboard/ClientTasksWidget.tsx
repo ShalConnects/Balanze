@@ -28,7 +28,7 @@ import {
 } from '@dnd-kit/sortable';
 
 export const ClientTasksWidget: React.FC = () => {
-  const { tasks, clients, fetchTasks, fetchClients, updateTask, updateTaskPositions, deleteTask, error, tasksLoading } = useClientStore();
+  const { tasks, clients, loading: clientsLoading, fetchTasks, fetchClients, updateTask, updateTaskPositions, deleteTask, error, tasksLoading } = useClientStore();
   const [statusMenuOpen, setStatusMenuOpen] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(true); // Default to expanded
   const [activeTab, setActiveTab] = useState<'in_progress' | 'waiting_on_client' | 'waiting_on_me'>('in_progress');
@@ -337,17 +337,13 @@ export const ClientTasksWidget: React.FC = () => {
   };
 
   // Early returns - must be after all hooks
-  // Show loading state while fetching initial data
-  if (tasksLoading && tasks.length === 0 && !error) {
-    return null; // Don't show widget while loading initial data
-  }
-
-  if (allActiveTasks.length === 0) {
-    return null; // Don't show widget if no active tasks
-  }
+  if (tasksLoading && tasks.length === 0 && !error) return null;
+  if (allActiveTasks.length === 0) return null;
+  // Avoid "Unknown Client": wait for clients when we have tasks that need names
+  if (allActiveTasks.length > 0 && clients.length === 0 && clientsLoading) return null;
 
   return (
-    <div className="w-full max-w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-md sm:rounded-lg p-1 sm:p-1.5 md:p-2 shadow-sm transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 overflow-hidden">
+    <div className="w-full max-w-full min-w-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-md sm:rounded-lg p-1 sm:p-1.5 md:p-2 shadow-sm transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 overflow-hidden">
       {/* Header */}
       <div 
         className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-1"

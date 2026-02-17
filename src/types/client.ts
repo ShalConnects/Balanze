@@ -2,6 +2,16 @@
 // CLIENT MANAGEMENT TYPES
 // =====================================================
 
+/** Key in client.custom_fields for the ChatGPT conversation thread URL (one thread per client). */
+export const CHATGPT_THREAD_URL_KEY = 'chatgpt_thread_url';
+
+/** Key in client.custom_fields for "needs follow-up" flag. */
+export const NEEDS_FOLLOW_UP_KEY = 'needs_follow_up';
+
+export function getNeedsFollowUp(client: { custom_fields?: Record<string, unknown> }): boolean {
+  return client?.custom_fields?.[NEEDS_FOLLOW_UP_KEY] === true;
+}
+
 export interface Client {
   id: string;
   user_id: string;

@@ -44,6 +44,7 @@ import { Loader } from '../common/Loader';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
 import { getDefaultAccountId } from '../../utils/defaultAccount';
+import { sanitizeHtml } from '../../lib/sanitize';
 import { generateTransactionId } from '../../utils/transactionId';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 
@@ -2839,7 +2840,7 @@ export const PurchaseTracker: React.FC = () => {
                         <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Notes</div>
                         <div className="text-sm text-gray-900 dark:text-white max-h-20 overflow-hidden">
                           {purchase.notes ? (
-                            <div className="ql-editor" dangerouslySetInnerHTML={{ __html: purchase.notes }} />
+                            <div className="ql-editor" dangerouslySetInnerHTML={{ __html: sanitizeHtml(purchase.notes) }} />
                           ) : (
                             '-'
                           )}
@@ -3346,7 +3347,7 @@ export const PurchaseTracker: React.FC = () => {
                 {selectedPurchaseForModal.notes && selectedPurchaseForModal.notes.trim().length > 0 && (
                   <div className="mb-4 whitespace-pre-line text-gray-800 dark:text-gray-200 text-sm max-h-40 overflow-y-auto">
                     <strong>Notes:</strong>
-                    <div className="ql-editor dark:text-gray-200" dangerouslySetInnerHTML={{ __html: selectedPurchaseForModal.notes }} />
+                    <div className="ql-editor dark:text-gray-200" dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedPurchaseForModal.notes) }} />
                   </div>
                 )}
                 {modalAttachments.length > 0 &&

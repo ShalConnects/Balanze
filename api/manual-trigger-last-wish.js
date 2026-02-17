@@ -1,27 +1,24 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabaseServer.js';
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+const triggerSecret = process.env.LAST_WISH_TRIGGER_SECRET || process.env.CRON_SECRET;
 
 export default async function handler(req, res) {
-  // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed. Use POST.' });
   }
-
-  // Add CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
-
+  const auth = req.headers.authorization;
+  if (!triggerSecret || auth !== `Bearer ${triggerSecret}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (!supabase) {
+    return res.status(503).json({ error: 'Server configuration error' });
+  }
   try {
     const { userId } = req.body;
 

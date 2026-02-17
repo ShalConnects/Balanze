@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Eye, Edit3 } from 'lucide-react';
 import ArticleEditor from '../components/admin/ArticleEditor';
+import { sanitizeHtml } from '../lib/sanitize';
 import { KBArticle, TableOfContentsItem } from '../data/articles';
 
 // Import the current article data
@@ -829,7 +830,7 @@ export default function AdminPage() {
 
             <div 
               className="prose prose-lg max-w-none dark:prose-invert prose-blue prose-headings:font-bold prose-p:leading-relaxed prose-li:leading-relaxed prose-ul:my-6 prose-ol:my-6"
-              dangerouslySetInnerHTML={{ __html: currentArticle.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentArticle.content) }}
             />
           </div>
         </div>

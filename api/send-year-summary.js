@@ -1,11 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabaseServer.js';
 import nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
-
-const supabase = createClient(
-    process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_KEY
-);
 
 let transporter = null;
 if (process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -464,12 +459,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
   
-  // Check for authorization (simple API key check)
+  const expectedKey = process.env.YEAR_SUMMARY_API_KEY;
   const apiKey = req.headers['x-api-key'] || req.body?.apiKey;
-  const expectedKey = process.env.YEAR_SUMMARY_API_KEY || 'your-secret-key-change-this';
-  
-  if (apiKey !== expectedKey) {
+  if (!expectedKey || apiKey !== expectedKey) {
     return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (!supabase) {
+    return res.status(503).json({ error: 'Server configuration error' });
   }
   
   try {

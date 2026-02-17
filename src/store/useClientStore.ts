@@ -21,6 +21,7 @@ import type {
   Task,
   TaskInput
 } from '../types/client';
+import { CHATGPT_THREAD_URL_KEY, NEEDS_FOLLOW_UP_KEY, getNeedsFollowUp } from '../types/client';
 
 interface ClientStore {
   // State
@@ -39,6 +40,10 @@ interface ClientStore {
   updateClient: (id: string, client: Partial<ClientInput>) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
   getClient: (id: string) => Client | undefined;
+  getClientChatGptThreadUrl: (clientId: string) => string | undefined;
+  setClientChatGptThreadUrl: (clientId: string, url: string | null) => Promise<void>;
+  getClientNeedsFollowUp: (clientId: string) => boolean;
+  setClientNeedsFollowUp: (clientId: string, value: boolean) => Promise<void>;
 
   // Order Management
   fetchOrders: (clientId?: string) => Promise<void>;
@@ -300,6 +305,44 @@ export const useClientStore = create<ClientStore>((set, get) => ({
 
   getClient: (id: string) => {
     return get().clients.find((c) => c.id === id);
+  },
+
+  getClientChatGptThreadUrl: (clientId: string) => {
+    const client = get().getClient(clientId);
+    const url = client?.custom_fields?.[CHATGPT_THREAD_URL_KEY];
+    return typeof url === 'string' ? url : undefined;
+  },
+
+  setClientChatGptThreadUrl: async (clientId: string, url: string | null) => {
+    const client = get().getClient(clientId);
+    if (!client) return;
+    const next = { ...(client.custom_fields || {}), [CHATGPT_THREAD_URL_KEY]: url || undefined };
+    if (url === null) delete next[CHATGPT_THREAD_URL_KEY];
+    await get().updateClient(clientId, { custom_fields: next });
+    // Ensure client in state has the new custom_fields (handles missing DB column or stale response)
+    set((state) => ({
+      clients: state.clients.map((c) =>
+        c.id === clientId ? { ...c, custom_fields: next } : c
+      )
+    }));
+  },
+
+  getClientNeedsFollowUp: (clientId: string) => {
+    const client = get().getClient(clientId);
+    return client ? getNeedsFollowUp(client) : false;
+  },
+
+  setClientNeedsFollowUp: async (clientId: string, value: boolean) => {
+    const client = get().getClient(clientId);
+    if (!client) return;
+    const next = { ...(client.custom_fields || {}), [NEEDS_FOLLOW_UP_KEY]: value || undefined };
+    if (!value) delete next[NEEDS_FOLLOW_UP_KEY];
+    await get().updateClient(clientId, { custom_fields: next });
+    set((state) => ({
+      clients: state.clients.map((c) =>
+        c.id === clientId ? { ...c, custom_fields: next } : c
+      )
+    }));
   },
 
   // Order Management

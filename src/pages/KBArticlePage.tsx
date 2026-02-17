@@ -27,6 +27,7 @@ import { trackInternalLink, trackPageView, trackTimeOnPage, trackExitPage } from
 import { generateHelpCenterPageStructuredData, injectStructuredData } from '../lib/structuredData';
 import { generateMetaTags, generateMetaTagsHTML, generateArticleJsonLd } from '../lib/metaOptimizer';
 import { trackArticleView, trackInternalLinkClick, trackTimeOnPage as ga4TrackTimeOnPage, initializeGA4 } from '../lib/ga4Integration';
+import { sanitizeHtml } from '../lib/sanitize';
 
 interface KBArticle {
   slug: string;
@@ -6284,7 +6285,7 @@ export default function KBArticlePage() {
         <div className="bg-white dark:bg-gray-800 rounded-none sm:rounded-xl shadow-sm border-0 sm:border border-gray-200 dark:border-gray-700 p-4 sm:p-8 mb-6">
           <div 
             className="prose prose-sm sm:prose-lg max-w-none dark:prose-invert prose-blue dark:prose-blue prose-headings:font-bold prose-p:leading-relaxed prose-li:leading-relaxed prose-ul:my-4 sm:prose-ul:my-6 prose-ol:my-4 sm:prose-ol:my-6 prose-h1:text-2xl sm:prose-h1:text-3xl prose-h2:text-xl sm:prose-h2:text-2xl prose-h3:text-lg sm:prose-h3:text-xl dark:prose-headings:text-white dark:prose-p:text-gray-300 dark:prose-li:text-gray-300 dark:prose-strong:text-white dark:prose-a:text-blue-400 dark:prose-a:hover:text-blue-300"
-            dangerouslySetInnerHTML={{ __html: article.content }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content) }}
           />
         </div>
 

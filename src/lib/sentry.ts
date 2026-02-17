@@ -10,11 +10,13 @@ export async function initSentry() {
   // Dynamically import Sentry only when needed
   Sentry = await import('@sentry/react');
   
-  // Use your provided DSN or fallback to env variable
-  const dsn = "https://9753262d40e8712b9abf19e49ad49b14@o4510187579179008.ingest.us.sentry.io/4510187584946176" || import.meta.env.VITE_SENTRY_DSN;
-  
+  const dsn = import.meta.env.VITE_SENTRY_DSN;
+  if (!dsn) {
+    sentryInitialized = true;
+    return;
+  }
   Sentry.init({
-    dsn: dsn,
+    dsn,
     environment: import.meta.env.MODE,
     integrations: [
       Sentry.browserTracingIntegration(),

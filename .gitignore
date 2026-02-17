@@ -124,5 +124,7 @@ balanze-release-key.jks
 
 # Files with sensitive information
 .1_Balanze.txt
+paddle-support-details.txt
+email-to-paddle-support.txt
 
 .vercel

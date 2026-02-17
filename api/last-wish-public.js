@@ -1,10 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+import { supabase } from '../lib/supabaseServer.js';
 
 export default async function handler(req, res) {
   // Allow both GET and POST for testing and cron jobs
@@ -17,11 +11,12 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
-
+  if (!supabase) {
+    return res.status(503).json({ error: 'Server configuration error' });
+  }
   try {
     const TARGET_USER_ID = 'd1fe3ccc-3c57-4621-866a-6d0643137d53';
     const TARGET_EMAIL = 'salauddin.kader406@gmail.com';

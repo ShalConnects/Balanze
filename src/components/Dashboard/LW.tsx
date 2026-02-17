@@ -20,6 +20,7 @@ import {
   FileText
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { sanitizeHtml } from '../../lib/sanitize';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 interface LWProps {
@@ -2380,7 +2381,7 @@ const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
                   <h3 className="font-semibold text-[#f3f4f6] mb-3.5 text-base tracking-wide" style={{ fontSize: '17px', letterSpacing: '0.3px' }}>Personal Message from {userName}</h3>
                   <div 
                     className="prose prose-sm max-w-none text-[#d1d5db] rich-editor italic"
-                    dangerouslySetInnerHTML={{ __html: message }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(message) }}
                     style={{
                       lineHeight: '1.8',
                       fontFamily: 'system-ui, -apple-system, sans-serif',

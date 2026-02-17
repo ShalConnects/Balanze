@@ -3,13 +3,8 @@
  * Sends invoice email with PDF attachment via SMTP
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabaseServer.js';
 import nodemailer from 'nodemailer';
-
-const supabase = createClient(
-    process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_KEY
-);
 
 let transporter = null;
 if (process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -149,7 +144,9 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
-
+    if (!supabase) {
+        return res.status(503).json({ error: 'Server configuration error' });
+    }
     try {
         const {
             invoiceId,

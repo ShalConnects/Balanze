@@ -9,6 +9,7 @@ import InteractiveBackground from '../components/InteractiveBackground';
 import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
 import { Footer } from '../components/Layout/Footer';
+import { sanitizeHtml } from '../lib/sanitize';
 
 // Blog articles data
 const blogArticles = {
@@ -560,7 +561,7 @@ const BlogDetail: React.FC = () => {
             <div className="prose prose-lg max-w-none dark:prose-invert">
               <div 
                 className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: article.content }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content) }}
               />
             </div>
 

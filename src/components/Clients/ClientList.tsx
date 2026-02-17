@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Search, Edit2, Trash2, Building2, Mail, Phone, MapPin, Tag, X, Filter, Eye, ShoppingCart, ChevronUp, ChevronDown, Info, ChevronRight, Copy, AlertCircle } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Building2, Mail, Phone, MapPin, Tag, X, Filter, Eye, ShoppingCart, ChevronUp, ChevronDown, Info, ChevronRight, Copy, AlertCircle, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useClientStore } from '../../store/useClientStore';
-import { Client } from '../../types/client';
+import { Client, getNeedsFollowUp } from '../../types/client';
 import { ClientForm } from './ClientForm';
 import { TaskForm } from '../Tasks/TaskForm';
 import { InvoiceForm } from '../Invoices/InvoiceForm';
@@ -28,9 +28,11 @@ import {
   getPaymentStatusColor, 
   getTaskPriorityColor, 
   getTaskStatusColor,
-  formatKnownSinceDate
+  formatKnownSinceDate,
+  CLIENT_STATUS_OPTIONS
 } from '../../utils/clientUtils';
 import { isTaskOverdue, getDaysOverdue } from '../../utils/taskDateUtils';
+import { getTagSuggestionPool } from '../../utils/clientTagSuggestions';
 
 // Tag Management Component
 interface ClientTagManagerProps {
@@ -40,22 +42,16 @@ interface ClientTagManagerProps {
 }
 
 const ClientTagManager: React.FC<ClientTagManagerProps> = React.memo(({ client, onTagAdded, onTagRemoved }) => {
-  const { updateClient } = useClientStore();
+  const { updateClient, clients } = useClientStore();
   const [tagInput, setTagInput] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const tagInputRef = useRef<HTMLInputElement>(null);
   const tagSuggestionsRef = useRef<HTMLDivElement>(null);
-  
-  const commonTags = [
-    'Fiverr', 'Upwork', 'Freelancer', 'Premium', 'Long-term',
-    'One-time', 'Referral', 'Website', 'Social Media', 'Repeat Client', 'VIP', 'Corporate'
-  ];
-  
+  const tagPool = useMemo(() => getTagSuggestionPool(clients), [clients]);
+
   const getFilteredSuggestions = () => {
-    return commonTags.filter(tag => 
-      !client.tags?.includes(tag) &&
-      tag.toLowerCase().includes(tagInput.toLowerCase())
-    );
+    const input = tagInput.toLowerCase().trim();
+    return tagPool.filter(tag => !client.tags?.includes(tag) && tag.toLowerCase().includes(input));
   };
   
   const handleAddTag = async (tag?: string) => {
@@ -162,7 +158,8 @@ export const ClientList: React.FC = () => {
     updateTask,
     updateInvoice,
     updateClient,
-    deleteClient
+    deleteClient,
+    setClientNeedsFollowUp
   } = useClientStore();
 
   const { isMobile } = useMobileDetection();
@@ -193,7 +190,8 @@ export const ClientList: React.FC = () => {
           status: parsed.status || 'active',
           currency: parsed.currency || '',
           source: parsed.source || '',
-          tag: parsed.tag || ''
+          tag: parsed.tag || '',
+          needsFollowUp: !!parsed.needsFollowUp
         };
       } catch {
         // If parsing fails, use defaults
@@ -204,7 +202,8 @@ export const ClientList: React.FC = () => {
       status: 'active', // 'all', 'active', 'inactive', 'archived'
       currency: '',
       source: '',
-      tag: ''
+      tag: '',
+      needsFollowUp: false
     };
   });
 
@@ -263,6 +262,7 @@ export const ClientList: React.FC = () => {
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [taskStatusMenuOpen, setTaskStatusMenuOpen] = useState<string | null>(null);
   const [invoiceStatusMenuOpen, setInvoiceStatusMenuOpen] = useState<string | null>(null);
+  const [clientStatusMenuOpen, setClientStatusMenuOpen] = useState<string | null>(null);
   const [noteModalClient, setNoteModalClient] = useState<Client | null>(null);
   const isSavingNoteRef = useRef(false);
 
@@ -322,7 +322,7 @@ export const ClientList: React.FC = () => {
         // Don't fetch orders here - they're not needed for the client list
         // Orders will be fetched on demand when needed (e.g., in OrderList component)
       } catch (error) {
-        console.error('Error loading initial data:', error);
+        // Error loading initial data
       }
     };
     
@@ -358,7 +358,7 @@ export const ClientList: React.FC = () => {
         // Mark all expanded rows as loaded
         setLoadedClientData(new Set(expandedRows));
       } catch (error) {
-        console.error('Error loading client data:', error);
+        // Error loading client data
       } finally {
         // Remove from loading state
         setLoadingClientData(new Set());
@@ -412,11 +412,12 @@ export const ClientList: React.FC = () => {
         client.phone?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         client.company_name?.toLowerCase().includes(debouncedSearch.toLowerCase());
 
-      const matchesStatus = tableFilters.status === 'all' || client.status === tableFilters.status;
+      const matchesStatus = tableFilters.needsFollowUp || tableFilters.status === 'all' || client.status === tableFilters.status;
       const matchesCurrency = !tableFilters.currency || client.default_currency === tableFilters.currency;
       const matchesTag = !tableFilters.tag || client.tags?.includes(tableFilters.tag);
+      const matchesNeedsFollowUp = !tableFilters.needsFollowUp || getNeedsFollowUp(client);
 
-      return matchesSearch && matchesStatus && matchesCurrency && matchesTag;
+      return matchesSearch && matchesStatus && matchesCurrency && matchesTag && matchesNeedsFollowUp;
     });
 
     // Apply sorting
@@ -437,7 +438,7 @@ export const ClientList: React.FC = () => {
     }
 
     return filtered;
-  }, [clients, debouncedSearch, tableFilters.status, tableFilters.currency, tableFilters.tag, sortConfig]);
+  }, [clients, debouncedSearch, tableFilters.status, tableFilters.currency, tableFilters.tag, tableFilters.needsFollowUp, sortConfig]);
 
   // Check if there are active tasks (same logic as ClientTasksWidget)
   const hasActiveTasks = useMemo(() => {
@@ -535,24 +536,15 @@ export const ClientList: React.FC = () => {
     }
   };
 
-  const commonTags = [
-    'Fiverr', 'Upwork', 'Freelancer', 'Premium', 'Long-term',
-    'One-time', 'Referral', 'Website', 'Social Media', 'Repeat Client', 'VIP', 'Corporate'
-  ];
+  const tagPool = useMemo(() => getTagSuggestionPool(clients), [clients]);
 
   const getFilteredTagSuggestions = (clientId: string) => {
     const client = clients.find(c => c.id === clientId);
     if (!client) return { existing: [], new: [] };
-    
-    const inputLower = tagInputValue.toLowerCase();
-    const existingTags = (client.tags || []).filter(tag => 
-      tag.toLowerCase().includes(inputLower)
-    );
-    const newTags = commonTags.filter(tag => 
-      !client.tags?.includes(tag) &&
-      tag.toLowerCase().includes(inputLower)
-    );
-    
+    const inputLower = tagInputValue.toLowerCase().trim();
+    const clientTags = client.tags || [];
+    const existingTags = clientTags.filter(tag => tag.toLowerCase().includes(inputLower));
+    const newTags = tagPool.filter(tag => !clientTags.includes(tag) && tag.toLowerCase().includes(inputLower));
     return { existing: existingTags, new: newTags };
   };
 
@@ -711,7 +703,7 @@ export const ClientList: React.FC = () => {
             <div className="p-2 sm:p-3 md:p-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex flex-wrap items-center gap-x-1.5 sm:gap-x-2 gap-y-1.5 sm:gap-y-2" style={{ marginBottom: 0 }}>
                 {/* Search */}
-                <div className="flex-1 min-w-[150px] sm:min-w-[200px] md:min-w-[250px]">
+                <div>
                   <div className="relative">
                     <Search className={`absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 ${isSearching ? 'animate-pulse text-blue-500' : tableFilters.search ? 'text-blue-500' : 'text-gray-400'}`} />
                     <input
@@ -738,14 +730,14 @@ export const ClientList: React.FC = () => {
                   />
                 )}
 
-                {/* Mobile Filter Button */}
-                <div className="md:hidden">
+                {/* Mobile Filter Button + Follow-up */}
+                <div className="md:hidden flex items-center gap-1">
                   <div className="relative" ref={mobileFilterMenuRef}>
                     <button
                       onClick={() => setShowMobileFilterMenu(v => !v)}
                       className={`px-2 py-1.5 text-[13px] h-8 w-8 rounded-md transition-colors flex items-center justify-center ${
                         (tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag)
-                          ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700' 
+                          ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
                       }`}
                       style={(tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag) ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
@@ -754,6 +746,16 @@ export const ClientList: React.FC = () => {
                       <Filter className="w-4 h-4" />
                     </button>
                   </div>
+                  <button
+                    onClick={() => setTableFilters({ ...tableFilters, needsFollowUp: !tableFilters.needsFollowUp })}
+                    className={`p-1.5 h-8 w-8 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 rounded-md flex items-center justify-center transition-colors touch-manipulation ${
+                      tableFilters.needsFollowUp ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                    title={tableFilters.needsFollowUp ? 'Show all' : 'Needs follow-up'}
+                    aria-label="Follow-up filter"
+                  >
+                    <Bell className={`w-4 h-4 ${tableFilters.needsFollowUp ? 'fill-current' : ''}`} />
+                  </button>
                 </div>
 
                 {/* Mobile Add Client Button */}
@@ -787,9 +789,9 @@ export const ClientList: React.FC = () => {
 
                  {/* Mobile Clear Filters Button */}
                  <div className="md:hidden">
-                   {(tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag) && (
+                   {(tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag || tableFilters.needsFollowUp) && (
                      <button
-                       onClick={() => setTableFilters({ search: '', currency: '', status: 'active', source: '', tag: '' })}
+                       onClick={() => setTableFilters({ search: '', currency: '', status: 'active', source: '', tag: '', needsFollowUp: false })}
                        className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
                        title="Clear all filters"
                      >
@@ -926,10 +928,25 @@ export const ClientList: React.FC = () => {
                     </div>
                   )}
 
+                  {/* Needs follow-up filter */}
+                  <button
+                    onClick={() => setTableFilters({ ...tableFilters, needsFollowUp: !tableFilters.needsFollowUp })}
+                    className={`px-3 py-1.5 text-[13px] h-8 rounded-md transition-colors flex items-center gap-1.5 ${
+                      tableFilters.needsFollowUp
+                        ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                    style={tableFilters.needsFollowUp ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+                    title={tableFilters.needsFollowUp ? 'Show all clients' : 'Show only clients needing follow-up'}
+                  >
+                    <Bell className={`w-3.5 h-3.5 ${tableFilters.needsFollowUp ? 'text-blue-600 dark:text-blue-400' : ''}`} />
+                    <span>Follow-up</span>
+                  </button>
+
                   {/* Clear Filters */}
-                  {(tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.tag) && (
+                  {(tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.tag || tableFilters.needsFollowUp) && (
                     <button
-                      onClick={() => setTableFilters({ search: '', currency: '', status: 'active', source: '', tag: '' })}
+                      onClick={() => setTableFilters({ search: '', currency: '', status: 'active', source: '', tag: '', needsFollowUp: false })}
                       className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
                       title="Clear all filters"
                     >
@@ -973,16 +990,14 @@ export const ClientList: React.FC = () => {
             </div>
 
             {/* Summary Cards - matching AccountsView pattern */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 p-2 sm:p-3 lg:p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 p-2 sm:p-3 lg:p-4 min-w-0 overflow-hidden">
               {(() => {
                 const activeClients = filteredClients.filter(c => c.status === 'active');
                 const inactiveClients = filteredClients.filter(c => c.status === 'inactive');
                 const allInactiveClients = clients.filter(c => c.status === 'inactive');
                 const archivedClients = filteredClients.filter(c => c.status === 'archived');
-                const totalInvoices = filteredClients.reduce((sum, client) => {
-                  return sum + getInvoicesByClient(client.id).length;
-                }, 0);
-                
+                const needFollowUpCount = clients.filter(c => getNeedsFollowUp(c)).length;
+
                 return (
                   <>
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 sm:py-2 px-1.5 sm:px-2">
@@ -1015,16 +1030,21 @@ export const ClientList: React.FC = () => {
                         <Building2 className="text-blue-600 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                       </div>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 sm:py-2 px-1.5 sm:px-2">
-                      <div className="flex items-center justify-between">
+                    <div
+                      className={`rounded-md border py-1.5 sm:py-2 px-1.5 sm:px-2 cursor-pointer transition-colors touch-manipulation min-h-[44px] sm:min-h-0 flex items-center active:scale-[0.98] ${tableFilters.needsFollowUp ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                      onClick={() => setTableFilters({ ...tableFilters, needsFollowUp: !tableFilters.needsFollowUp })}
+                    >
+                      <div className="flex items-center justify-between w-full min-w-0">
                         <div className="text-left min-w-0 flex-1">
-                          <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Total Invoices</p>
-                          <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem]">{totalInvoices}</p>
+                          <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Follow-up</p>
+                          <p className={`font-bold bg-clip-text text-transparent text-base sm:text-xl lg:text-[1.2rem] ${tableFilters.needsFollowUp ? 'bg-gradient-to-r from-amber-600 to-orange-600' : 'bg-gradient-to-r from-blue-600 to-purple-600'}`}>
+                            {tableFilters.needsFollowUp ? filteredClients.length : needFollowUpCount}
+                          </p>
                           <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">
-                            {totalInvoices > 0 ? `${totalInvoices} invoices` : 'No invoices'}
+                            {tableFilters.needsFollowUp ? (filteredClients.length === 0 ? 'No clients' : 'filter active') : (needFollowUpCount > 0 ? 'need follow-up' : 'None')}
                           </p>
                         </div>
-                        <span className="text-blue-600 text-lg sm:text-xl lg:text-[1.2rem] flex-shrink-0">📄</span>
+                        <Bell className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${tableFilters.needsFollowUp ? 'text-amber-600 dark:text-amber-400 fill-current' : 'text-blue-600'}`} />
                       </div>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 sm:py-2 px-1.5 sm:px-2">
@@ -1055,7 +1075,8 @@ export const ClientList: React.FC = () => {
                           status: 'inactive',
                           currency: '',
                           source: '',
-                          tag: ''
+                          tag: '',
+                          needsFollowUp: false
                         });
                       }}
                     >
@@ -1155,7 +1176,7 @@ export const ClientList: React.FC = () => {
                           </div>
                           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No client records found</h3>
                           <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
-                            {tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag
+                            {tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag || tableFilters.needsFollowUp
                               ? 'No clients match your filters'
                               : 'Start managing your clients by adding your first client'}
                           </p>
@@ -1213,6 +1234,16 @@ export const ClientList: React.FC = () => {
                                       }
                                       return null;
                                     })()}
+                                    <Tooltip content={getNeedsFollowUp(client) ? 'Clear follow-up' : 'Mark for follow-up'}>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setClientNeedsFollowUp(client.id, !getNeedsFollowUp(client)); }}
+                                        className={`ml-1 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${getNeedsFollowUp(client) ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500'}`}
+                                        aria-label={getNeedsFollowUp(client) ? 'Clear follow-up' : 'Mark for follow-up'}
+                                      >
+                                        <Bell className={`w-3.5 h-3.5 ${getNeedsFollowUp(client) ? 'fill-current' : ''}`} />
+                                      </button>
+                                    </Tooltip>
                                   </div>
                                 </div>
                                 <div className="ml-1 sm:ml-2 flex-shrink-0">
@@ -1406,8 +1437,36 @@ export const ClientList: React.FC = () => {
                                 {client.default_currency || 'USD'}
                               </span>
                             </td>
-                            <td className="px-3 sm:px-4 lg:px-6 py-2 sm:py-[0.6rem] lg:py-[0.7rem] text-center">
-                              {getStatusBadge(client.status)}
+                            <td className="px-3 sm:px-4 lg:px-6 py-2 sm:py-[0.6rem] lg:py-[0.7rem] text-center" onClick={(e) => e.stopPropagation()}>
+                              <div className="relative inline-block">
+                                <button
+                                  type="button"
+                                  onClick={() => setClientStatusMenuOpen(clientStatusMenuOpen === client.id ? null : client.id)}
+                                  className="focus:outline-none focus:ring-2 focus:ring-blue-500/50 rounded-full"
+                                  aria-label={`Change status for ${client.name}`}
+                                >
+                                  {getStatusBadge(client.status)}
+                                </button>
+                                {clientStatusMenuOpen === client.id && (
+                                  <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg min-w-[120px]">
+                                    {CLIENT_STATUS_OPTIONS.map((opt) => (
+                                      <button
+                                        key={opt.value}
+                                        type="button"
+                                        onClick={() => {
+                                          updateClient(client.id, { status: opt.value });
+                                          setClientStatusMenuOpen(null);
+                                        }}
+                                        className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                                          client.status === opt.value ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'
+                                        }`}
+                                      >
+                                        {opt.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </td>
                             <td className="px-3 sm:px-4 lg:px-6 py-2 sm:py-[0.6rem] lg:py-[0.7rem] text-center">
                               <div className="flex items-center justify-center gap-2">
@@ -1941,7 +2000,7 @@ export const ClientList: React.FC = () => {
                     </div>
                     <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">No clients yet</h3>
                     <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mb-4 sm:mb-6 max-w-sm mx-auto px-4">
-                      {tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag
+                      {tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag || tableFilters.needsFollowUp
                         ? 'No clients match your filters'
                         : 'Start managing your clients by adding your first client'}
                     </p>
@@ -1951,9 +2010,6 @@ export const ClientList: React.FC = () => {
                     {filteredClients.map((client) => {
                       const financialData = clientFinancialData.get(client.id);
                       if (!financialData) return null;
-                      
-                      const { orders: clientOrders, invoices: clientInvoices, totalOrderValue, totalInvoiceValue, currencySymbol } = financialData;
-                      
                       return (
                         <div
                           key={client.id}
@@ -2007,15 +2063,32 @@ export const ClientList: React.FC = () => {
                           <div className="mb-3 sm:mb-4">
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center space-x-2 sm:space-x-2.5 flex-wrap">
-                                <span className={`inline-flex items-center px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium ${
-                                  client.status === 'active' 
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                    : client.status === 'inactive'
-                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
-                                }`}>
-                                  {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                                </span>
+                                <div className="relative">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setClientStatusMenuOpen(clientStatusMenuOpen === client.id ? null : client.id); }}
+                                    className="focus:outline-none focus:ring-2 focus:ring-blue-500/50 rounded-full"
+                                    aria-label={`Change status for ${client.name}`}
+                                  >
+                                    {getStatusBadge(client.status)}
+                                  </button>
+                                  {clientStatusMenuOpen === client.id && (
+                                    <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg min-w-[120px]">
+                                      {CLIENT_STATUS_OPTIONS.map((opt) => (
+                                        <button
+                                          key={opt.value}
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); updateClient(client.id, { status: opt.value }); setClientStatusMenuOpen(null); }}
+                                          className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                                            client.status === opt.value ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'
+                                          }`}
+                                        >
+                                          {opt.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                               {client.source && (
                                 <span className={`inline-flex items-center justify-center px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium flex-shrink-0 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300`}>
@@ -2501,9 +2574,6 @@ export const ClientList: React.FC = () => {
           onClose={() => {
             setShowTaskForm(false);
             setTaskClientId(null);
-            if (taskClientId) {
-              fetchTasks(taskClientId);
-            }
           }}
           clientId={taskClientId || undefined}
         />
@@ -2546,7 +2616,7 @@ export const ClientList: React.FC = () => {
                       e.stopPropagation();
                     }}
                     className={`p-2 transition-colors touch-manipulation ${
-                      (tempFilters.currency || tempFilters.status !== 'active' || tempFilters.source || tempFilters.tag)
+                      (tempFilters.currency || tempFilters.status !== 'active' || tempFilters.source || tempFilters.tag || tempFilters.needsFollowUp)
                         ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 active:opacity-70'
                         : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 active:opacity-70'
                     }`}
@@ -2560,7 +2630,7 @@ export const ClientList: React.FC = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setTableFilters({ search: '', currency: '', status: 'active', source: '', tag: '' });
+                      setTableFilters({ search: '', currency: '', status: 'active', source: '', tag: '', needsFollowUp: false });
                       setShowMobileFilterMenu(false);
                     }}
                     onTouchStart={(e) => {

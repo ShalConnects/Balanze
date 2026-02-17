@@ -641,35 +641,18 @@ export function getClientEmailSuggestions(
   tasks: Task[],
   userProfile: AppUser | null
 ): EmailSuggestion[] {
-  console.log('[clientEmailService] getClientEmailSuggestions called:', {
-    clientId: client.id,
-    clientName: client.name,
-    clientEmail: client.email,
-    ordersCount: orders.length,
-    invoicesCount: invoices.length,
-    tasksCount: tasks.length,
-    clientStatus: client.status,
-    clientTags: client.tags
-  });
-  
   // Generate suggestions for all clients, regardless of email
   
   // Analyze context
   const analysis = analyzeClientContext(client, orders, invoices, tasks);
-  console.log('[clientEmailService] Context analysis result:', {
-    emailTypes: analysis.emailTypes,
-    context: analysis.context
-  });
-  
+
   // Determine tone
   const tone = determineEmailTone(client);
-  console.log('[clientEmailService] Determined tone:', tone);
-  
+
   // Generate suggestions (limit to 1-2)
   const suggestions: EmailSuggestion[] = [];
   const emailTypes = analysis.emailTypes.slice(0, 2); // Top 2 only
-  console.log('[clientEmailService] Email types to generate:', emailTypes);
-  
+
   for (const emailType of emailTypes) {
     const email = generateEmailTemplate(
       client,
