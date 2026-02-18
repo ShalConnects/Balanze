@@ -108,6 +108,22 @@
       "destination": "/api/assetlinks"
     },
     {
+      "source": "/api/capture-paypal-order",
+      "destination": "/api/payments?path=capture-paypal-order"
+    },
+    {
+      "source": "/api/create-paypal-order",
+      "destination": "/api/payments?path=create-paypal-order"
+    },
+    {
+      "source": "/api/create-checkout-session",
+      "destination": "/api/payments?path=create-checkout-session"
+    },
+    {
+      "source": "/api/paddle-webhook",
+      "destination": "/api/payments?path=paddle-webhook"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
