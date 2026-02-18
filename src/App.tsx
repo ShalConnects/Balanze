@@ -65,6 +65,7 @@ const PublicArticlePage = lazy(() => import('./pages/PublicArticlePage'));
 const SitemapPage = lazy(() => import('./pages/SitemapPage'));
 // robots.txt is served as static file - no component needed
 const DonationsSavingsPage = lazy(() => import('./pages/DonationsSavingsPage'));
+const ZakahPage = lazy(() => import('./pages/ZakahPage').then(m => ({ default: m.ZakahPage })));
 const FavoriteQuotes = lazy(() => import('./pages/FavoriteQuotes').then(m => ({ default: m.FavoriteQuotes })));
 const Achievements = lazy(() => import('./pages/Achievements'));
 const HabitGarden = lazy(() => import('./components/Habits/HabitGarden').then(m => ({ default: m.HabitGarden })));
@@ -830,6 +831,7 @@ function AppContent() {
         <Route path="/test-taskable" element={user ? <MainLayout><TestTaskablePanel /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/history" element={user ? <MainLayout><History /></MainLayout> : <Navigate to="/login" />} />
         <Route path="/donations" element={user ? <MainLayout><DonationsSavingsPage /></MainLayout> : <Navigate to="/login" />} />
+        <Route path="/zakah" element={user ? <MainLayout><ZakahPage /></MainLayout> : <Navigate to="/login" />} />
         
         {/* Demo routes - public */}
         <Route path="/dashboard-demo" element={<DashboardDemo />} />

@@ -10,366 +10,40 @@ import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
 import { Footer } from '../components/Layout/Footer';
 import { sanitizeHtml } from '../lib/sanitize';
-
-// Blog articles data
-const blogArticles = {
-  '5-simple-ways-to-save-money': {
-    title: '5 Simple Ways to Save More Money Every Month',
-    date: 'July 15, 2024',
-    author: 'Balanze Team',
-    readTime: '8 min read',
-    category: 'Savings',
-    image: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
-    summary: 'Discover practical tips to boost your savings and reach your financial goals faster with these easy-to-implement strategies.',
-    content: `
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Saving money doesn't have to be complicated or overwhelming. In fact, the most effective strategies are often the simplest ones. Whether you're just starting your savings journey or looking to boost your existing savings, these five proven methods can help you build wealth month after month.
-      </p>
-
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">1. The 50/30/20 Rule: Your Financial Foundation</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        One of the most effective budgeting methods is the 50/30/20 rule. Here's how it works:
-      </p>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li><strong>50% for Needs:</strong> Essential expenses like housing, utilities, food, and transportation</li>
-        <li><strong>30% for Wants:</strong> Discretionary spending like entertainment, dining out, and shopping</li>
-        <li><strong>20% for Savings:</strong> Emergency fund, retirement, and financial goals</li>
-      </ul>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Start by tracking your current spending for one month to see where your money goes. Then, gradually adjust your spending to match this ratio. Even if you can't achieve the perfect 50/30/20 split immediately, aiming for it will significantly improve your savings rate.
-      </p>
-
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">2. Automate Your Savings: Set It and Forget It</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        The easiest way to save money is to make it automatic. Set up automatic transfers from your checking account to your savings account on payday. This way, you never see the money in your main account, making it much easier to avoid spending it.
-      </p>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Consider these automation strategies:
-      </p>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li>Direct deposit a portion of your paycheck into savings</li>
-        <li>Set up recurring transfers on payday</li>
-        <li>Use apps that round up purchases and save the difference</li>
-        <li>Automate retirement contributions</li>
-      </ul>
-
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">3. Cut the Big Three: Housing, Transportation, and Food</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        These three categories typically consume 60-70% of most people's budgets. Small changes here can have massive impacts on your savings:
-      </p>
-      
-      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Housing</h3>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-4 space-y-2">
-        <li>Consider downsizing or getting a roommate</li>
-        <li>Negotiate rent increases</li>
-        <li>Look for energy-efficient homes to reduce utilities</li>
-      </ul>
-
-      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Transportation</h3>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-4 space-y-2">
-        <li>Use public transportation when possible</li>
-        <li>Carpool with colleagues</li>
-        <li>Consider a more fuel-efficient vehicle</li>
-        <li>Walk or bike for short trips</li>
-      </ul>
-
-      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Food</h3>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li>Meal prep to avoid expensive takeout</li>
-        <li>Shop with a list and stick to it</li>
-        <li>Buy generic brands when quality is similar</li>
-        <li>Use grocery store loyalty programs</li>
-      </ul>
-
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">4. The No-Spend Challenge: Reset Your Spending Habits</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Try a no-spend challenge for a week, month, or even just a weekend. During this time, only spend money on absolute essentials like food, housing, and transportation. This challenge helps you:
-      </p>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li>Identify unnecessary spending habits</li>
-        <li>Discover free or low-cost alternatives</li>
-        <li>Build better financial discipline</li>
-        <li>Save significantly in a short period</li>
-      </ul>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Start with a weekend challenge, then gradually extend to longer periods. You'll be amazed at how much you can save and how creative you become with free activities.
-      </p>
-
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">5. The 24-Hour Rule: Curb Impulse Spending</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Before making any non-essential purchase over $50, wait 24 hours. This simple rule prevents impulse buying and gives you time to consider whether you really need the item.
-      </p>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        During the 24-hour period, ask yourself:
-      </p>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li>Do I really need this, or do I just want it?</li>
-        <li>Can I afford this without affecting my savings goals?</li>
-        <li>Will I still want this tomorrow?</li>
-        <li>Is there a cheaper alternative?</li>
-      </ul>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        You'll be surprised how often you decide not to buy something after sleeping on it.
-      </p>
-
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Putting It All Together</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        The key to successful saving is consistency. Start with one or two of these strategies and gradually incorporate more as they become habits. Remember, even small changes can add up to significant savings over time.
-      </p>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Track your progress using a budgeting app like Balanze, and celebrate your milestones along the way. Saving money is a marathon, not a sprint, and every step forward brings you closer to your financial goals.
-      </p>
-    `
-  },
-  'understanding-budgeting-basics': {
-    title: 'Understanding the Basics of Budgeting',
-    date: 'June 20, 2024',
-    author: 'Balanze Team',
-    readTime: '10 min read',
-    category: 'Budgeting',
-    image: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
-    summary: 'Learn how to create a budget that works for you, track your expenses, and avoid common pitfalls.',
-    content: `
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Budgeting is the foundation of financial success. It's not about restricting yourself—it's about making intentional decisions with your money. In this comprehensive guide, we'll walk you through creating a budget that actually works for your lifestyle.
-      </p>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">What is a Budget?</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        A budget is simply a plan for your money. It helps you understand where your money comes from and where it goes. Think of it as a roadmap for your finances—it shows you the path to your financial goals.
-      </p>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Step 1: Track Your Income</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Start by listing all your sources of income:
-      </p>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li>Salary or wages</li>
-        <li>Freelance income</li>
-        <li>Investment returns</li>
-        <li>Side hustles</li>
-        <li>Any other income sources</li>
-      </ul>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Step 2: List All Your Expenses</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Be thorough when listing your expenses. Don't forget about:
-      </p>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li>Fixed expenses (rent, utilities, insurance)</li>
-        <li>Variable expenses (groceries, gas, entertainment)</li>
-        <li>Periodic expenses (annual subscriptions, car maintenance)</li>
-        <li>Debt payments</li>
-      </ul>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Step 3: Choose Your Budgeting Method</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        There are several popular budgeting methods. Choose the one that fits your personality and lifestyle:
-      </p>
-      
-      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">The 50/30/20 Rule</h3>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-4">
-        Allocate 50% to needs, 30% to wants, and 20% to savings and debt repayment.
-      </p>
-      
-      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Zero-Based Budgeting</h3>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-4">
-        Every dollar has a job. Your income minus expenses equals zero.
-      </p>
-      
-      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Envelope Method</h3>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Use cash envelopes for different spending categories.
-      </p>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Step 4: Set Financial Goals</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Your budget should align with your financial goals. Common goals include:
-      </p>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li>Building an emergency fund</li>
-        <li>Paying off debt</li>
-        <li>Saving for retirement</li>
-        <li>Buying a home</li>
-        <li>Taking a vacation</li>
-      </ul>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Step 5: Monitor and Adjust</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        A budget is not set in stone. Review it regularly and make adjustments as needed. Life changes, and your budget should change with it.
-      </p>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Common Budgeting Mistakes to Avoid</h2>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li>Being unrealistic about your spending</li>
-        <li>Forgetting to include irregular expenses</li>
-        <li>Not having an emergency fund</li>
-        <li>Being too rigid with your budget</li>
-        <li>Not tracking your progress</li>
-      </ul>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Tools to Help You Budget</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Use technology to your advantage. Apps like Balanze can help you track your spending, set goals, and stay on top of your budget.
-      </p>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Final Thoughts</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Budgeting is a skill that takes time to master. Don't get discouraged if you don't get it right the first time. The important thing is to start and keep trying. With practice and patience, you'll develop a budget that works for you and helps you achieve your financial goals.
-      </p>
-    `
-  },
-  'manage-loans-responsibly': {
-    title: 'How to Manage Loans and Borrow Responsibly',
-    date: 'May 10, 2024',
-    author: 'Balanze Team',
-    readTime: '12 min read',
-    category: 'Lending & Borrowing',
-    image: 'https://images.unsplash.com/photo-1601597111158-2fceff292cdc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
-    summary: 'A guide to borrowing smart, keeping track of your loans, and staying out of debt trouble.',
-    content: `
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Loans can be powerful financial tools when used wisely, but they can also lead to financial trouble if not managed properly. This comprehensive guide will help you understand when to borrow, how to choose the right loan, and how to manage your debt effectively.
-      </p>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">When Should You Borrow?</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Not all debt is bad debt. Here are situations where borrowing might make sense:
-      </p>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li><strong>Education:</strong> Student loans for valuable skills and degrees</li>
-        <li><strong>Home Purchase:</strong> Mortgages for real estate investment</li>
-        <li><strong>Business:</strong> Loans to start or expand a business</li>
-        <li><strong>Emergency:</strong> When you have no other options</li>
-        <li><strong>Investment:</strong> When the return exceeds the cost</li>
-      </ul>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Types of Loans</h2>
-      
-      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Secured Loans</h3>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-4">
-        Backed by collateral (like a car or house). Generally have lower interest rates.
-      </p>
-      
-      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Unsecured Loans</h3>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-4">
-        Based on creditworthiness. Higher interest rates but no collateral required.
-      </p>
-      
-      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Personal Loans</h3>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Flexible loans for various purposes. Interest rates vary based on credit score.
-      </p>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Before You Borrow</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Ask yourself these important questions:
-      </p>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li>Do I really need this loan?</li>
-        <li>Can I afford the monthly payments?</li>
-        <li>What's the total cost including interest?</li>
-        <li>Do I have other options?</li>
-        <li>How will this affect my long-term financial goals?</li>
-      </ul>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Understanding Interest Rates</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Interest rates significantly impact the total cost of your loan. Always compare:
-      </p>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li><strong>APR (Annual Percentage Rate):</strong> The true cost of borrowing</li>
-        <li><strong>Fixed vs. Variable Rates:</strong> Stability vs. potential savings</li>
-        <li><strong>Loan Terms:</strong> Longer terms mean more interest paid</li>
-      </ul>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Managing Multiple Loans</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        If you have multiple loans, consider these strategies:
-      </p>
-      
-      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Debt Snowball Method</h3>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-4">
-        Pay off the smallest debt first, then roll that payment into the next smallest.
-      </p>
-      
-      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">Debt Avalanche Method</h3>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Pay off the highest interest rate debt first to minimize total interest paid.
-      </p>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Loan Tracking and Management</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Keep track of all your loans in one place. Use tools like Balanze to:
-      </p>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li>Track payment due dates</li>
-        <li>Monitor outstanding balances</li>
-        <li>Calculate total debt</li>
-        <li>Set up payment reminders</li>
-        <li>Track your progress</li>
-      </ul>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Red Flags to Watch For</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Be cautious of these warning signs:
-      </p>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li>Using loans to pay for daily expenses</li>
-        <li>Taking on new debt to pay old debt</li>
-        <li>Missing payments regularly</li>
-        <li>High debt-to-income ratio</li>
-        <li>Payday loans or high-interest alternatives</li>
-      </ul>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Building Good Credit</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Responsible borrowing helps build good credit:
-      </p>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li>Make payments on time</li>
-        <li>Keep credit utilization low</li>
-        <li>Don't close old accounts</li>
-        <li>Monitor your credit report</li>
-      </ul>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Getting Out of Debt</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        If you're struggling with debt:
-      </p>
-      <ul class="list-disc list-inside text-lg text-gray-700 dark:text-gray-300 mb-6 space-y-2">
-        <li>Contact your lenders immediately</li>
-        <li>Consider debt consolidation</li>
-        <li>Seek credit counseling</li>
-        <li>Create a strict budget</li>
-        <li>Consider a side hustle for extra income</li>
-      </ul>
-      
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-8">Final Thoughts</h2>
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
-        Borrowing money is a serious financial decision. Take the time to understand your options, read the fine print, and make sure you can afford the payments. Remember, the goal is to use debt as a tool to improve your financial situation, not to create long-term financial stress.
-      </p>
-    `
-  }
-};
+import { getArticle, HABIT_GARDEN_PATH, ZAKAH_PAGE_PATH } from '../data/blogArticles';
+import { openShare } from '../utils/share';
 
 const BlogDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const contentRef = React.useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useThemeStore();
   const { user, signOut } = useAuthStore();
 
-  const article = blogArticles[slug as keyof typeof blogArticles];
+  const article = slug ? getArticle(slug) : undefined;
 
   useEffect(() => {
-    // Set Manrope font for the whole page
     document.body.style.fontFamily = 'Manrope, sans-serif';
-    return () => {
-      window.removeEventListener('scroll', () => {});
-      document.body.style.fontFamily = '';
-    };
+    return () => { document.body.style.fontFamily = ''; };
   }, []);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el || !article) return;
+    const internalPaths = [HABIT_GARDEN_PATH, ZAKAH_PAGE_PATH] as const;
+    const cleanups: (() => void)[] = [];
+    internalPaths.forEach((path) => {
+      const links = el.querySelectorAll<HTMLAnchorElement>(`a[href="${CSS.escape(path)}"]`);
+      const handler = (e: Event) => {
+        e.preventDefault();
+        navigate(path);
+      };
+      links.forEach((a) => a.addEventListener('click', handler));
+      cleanups.push(() => links.forEach((a) => a.removeEventListener('click', handler)));
+    });
+    return () => cleanups.forEach((f) => f());
+  }, [article, navigate]);
 
   if (!article) {
     return (
@@ -559,7 +233,8 @@ const BlogDetail: React.FC = () => {
 
             {/* Article Content */}
             <div className="prose prose-lg max-w-none dark:prose-invert">
-              <div 
+              <div
+                ref={contentRef}
                 className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content) }}
               />
@@ -571,15 +246,20 @@ const BlogDetail: React.FC = () => {
                 <div className="flex items-center space-x-4">
                   <span className="text-gray-500 dark:text-gray-400">Share this article:</span>
                   <div className="flex space-x-2">
-                    <button className="text-gray-400 hover:text-blue-600 transition-colors">
-                      <Twitter className="w-5 h-5" />
-                    </button>
-                    <button className="text-gray-400 hover:text-blue-600 transition-colors">
-                      <Facebook className="w-5 h-5" />
-                    </button>
-                    <button className="text-gray-400 hover:text-blue-600 transition-colors">
-                      <Linkedin className="w-5 h-5" />
-                    </button>
+                    {(['twitter', 'facebook', 'linkedin'] as const).map((p) => {
+                      const Icon = { twitter: Twitter, facebook: Facebook, linkedin: Linkedin }[p];
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => openShare(p, window.location.href, article.title)}
+                          className="text-gray-400 hover:text-blue-600 transition-colors"
+                          aria-label={`Share on ${p}`}
+                        >
+                          <Icon className="w-5 h-5" />
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 <button

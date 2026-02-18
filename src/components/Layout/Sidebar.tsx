@@ -21,10 +21,10 @@ import {
   Sprout,
   Sparkles,
   BookOpen,
-  Heart
+  Heart,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useThemeStore } from '../../store/themeStore';
 import { useMobileDetection } from '../../hooks/useMobileDetection';

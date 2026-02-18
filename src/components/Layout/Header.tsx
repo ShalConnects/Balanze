@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, ReactNode } from 'react';
-import { Menu, Bell, Search, Sun, Moon, User, Settings, LogOut, ArrowLeftRight, LifeBuoy, Globe, Heart, Quote, X, BookOpen, Sparkles, RefreshCw, Trophy, Edit3 } from 'lucide-react';
+import { Menu, Bell, Search, Sun, Moon, User, Settings, LogOut, ArrowLeftRight, LifeBuoy, Globe, Heart, Quote, X, BookOpen, Sparkles, RefreshCw, Trophy, Edit3, Calculator } from 'lucide-react';
 import { format, isToday, isThisWeek } from 'date-fns';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useThemeStore } from '../../store/themeStore';
@@ -19,6 +19,7 @@ import { RetryMechanism } from '../../utils/retryMechanism';
 import { useGranularLoading } from '../../utils/loadingStates';
 import { useSmartRefresh } from '../../utils/smartRefresh';
 import { useAccessibility } from '../../utils/accessibilityEnhancements';
+import { isZakahVisible } from '../../utils/islamicCalendar';
 
 interface HeaderProps {
     onMenuToggle: () => void;
@@ -727,6 +728,18 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
                     <Heart className="w-4 h-4 mr-2 flex-shrink-0" />
                     <span className="truncate">Donations</span>
                   </button>
+                  {isZakahVisible() && (
+                    <button
+                      onClick={() => {
+                        navigate('/zakah');
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full px-3 sm:px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                    >
+                      <Calculator className="w-4 h-4 mr-2 flex-shrink-0" />
+                      <span className="truncate">{t('navigation.zakah')}</span>
+                    </button>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="w-full px-3 sm:px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"

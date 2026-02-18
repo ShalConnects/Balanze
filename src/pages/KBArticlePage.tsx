@@ -2009,6 +2009,54 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
 `,
     relatedArticles: ['create-first-transaction', 'transaction-management', 'analytics-dashboard']
   },
+  'habit-garden': {
+    slug: 'habit-garden',
+    title: 'How to Use Habit Garden in Balanze',
+    description: 'Step-by-step guide to tracking daily habits, streaks, and progress in the Habit Garden.',
+    category: 'Personal Growth',
+    tags: ['habits', 'habit garden', 'streaks', 'personal growth'],
+    difficulty: 'beginner',
+    lastUpdated: new Date().toISOString().split('T')[0],
+    readTime: '3 min read',
+    author: 'Balanze Team',
+    relatedArticles: ['getting-started-guide', 'settings-page-comprehensive-guide'],
+    tableOfContents: [
+      { id: 'overview', title: 'Overview', level: 1 },
+      { id: 'need-help', title: 'Need Help?', level: 1 }
+    ],
+    content: `
+<div id="overview" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Overview</h2>
+  <p class="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+    Habit Garden lets you track daily habits, build streaks, and see progress in a simple garden view. You mark each habit done for the day; streaks show how many days in a row you’ve kept it up.
+  </p>
+  <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">Where to find it</h3>
+  <p class="text-gray-700 dark:text-gray-300 mb-4">Open <strong>Personal Growth</strong> in the sidebar, then the <strong>Habits</strong> tab. You can also use the Habit Garden widget on your dashboard.</p>
+  <h3 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">How to use it</h3>
+  <ul class="space-y-4 text-gray-700 dark:text-gray-300 mb-6">
+    <li class="flex items-start"><span class="text-blue-600 dark:text-blue-400 mr-2">•</span><span><strong>Add habits</strong> – Create habits (e.g. prayer, Quran, sadaqah) and choose which days they repeat.</span></li>
+  </ul>
+  <figure class="mb-6 flex flex-wrap gap-4"><img src="/habit-garden-add-1.png" alt="Add habits in Habit Garden" class="w-full rounded-lg shadow-lg" loading="lazy" /><img src="/habit-garden-add-2.png" alt="Choose repeat days for habits" class="w-full max-w-md rounded-lg shadow-lg" loading="lazy" /></figure>
+  <ul class="space-y-4 text-gray-700 dark:text-gray-300 mb-6">
+    <li class="flex items-start"><span class="text-blue-600 dark:text-blue-400 mr-2">•</span><span><strong>Mark done</strong> – Each day, check off the habits you completed.</span></li>
+  </ul>
+  <figure class="mb-6"><img src="/habit-garden-mark-done.png" alt="Mark habits done for the day" class="w-full rounded-lg shadow-lg" loading="lazy" /></figure>
+  <ul class="space-y-4 text-gray-700 dark:text-gray-300 mb-6">
+    <li class="flex items-start"><span class="text-blue-600 dark:text-blue-400 mr-2">•</span><span><strong>Streaks & garden</strong> – Streaks show consecutive days; the garden view makes progress tangible.</span></li>
+  </ul>
+  <figure class="mb-6"><img src="/habit-garden-streaks.png" alt="Streaks and garden view" class="w-full max-w-md rounded-lg shadow-lg" loading="lazy" /></figure>
+</div>
+<div id="need-help" class="mb-12">
+  <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Need Help?</h2>
+  <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-6 rounded-r-lg">
+    <ul class="space-y-3 text-gray-700 dark:text-gray-300">
+      <li class="flex items-start"><span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span><span>Use the search function in the help center</span></li>
+      <li class="flex items-start"><span class="text-yellow-600 dark:text-yellow-400 mr-3 mt-1">•</span><span>Contact support at <a href="mailto:hello@shalconnects.com" class="text-blue-600 dark:text-blue-400 hover:underline">hello@shalconnects.com</a></span></li>
+    </ul>
+  </div>
+</div>
+`,
+  },
   'how-to-create-lent-borrow-records': {
     slug: 'how-to-create-lent-borrow-records',
     title: 'How to Create Lent & Borrow Records',

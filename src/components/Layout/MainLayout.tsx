@@ -133,6 +133,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'settings': return 'Settings';
       case 'about': return 'About';
       case 'donations': return 'Donations';
+      case 'zakah': return 'Zakah';
       case 'favorite-quotes': return 'Favorite Quotes';
       case 'history': return 'Activity History';
       case 'learning': return 'Learning Courses';
@@ -188,7 +189,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               setIsMobileSidebarOpen(true);
             }} 
             title={getTitle()}
-            subtitle={currentView === 'donations' ? 'See the donations amount you gave from your income' : (
+            subtitle={currentView === 'zakah' ? 'Estimate your Zakat from your wealth and optional additions' : currentView === 'donations' ? 'See the donations amount you gave from your income' : (
                 currentView === 'accounts'
                   ? 'Manage your financial accounts'
                   : currentView === 'transactions'
