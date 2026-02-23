@@ -1,6 +1,6 @@
 /** Zakah (Zakat) calculation – nisab and 2.5% of zakatable wealth. */
 
-/** Minimal transaction shape for balance-at-date (DRY, no store dependency). */
+/** Minimal transaction shape for balance-at-date (DRY, no store dependency). Expects date as ISO or YYYY-MM-DD. */
 export interface TxForBalance {
   account_id: string;
   type: 'income' | 'expense';
@@ -24,6 +24,8 @@ const NISAB_BY_CURRENCY: Record<string, { gold: number; silver: number }> = {
   EUR: { gold: 5060, silver: 414 },
   GBP: { gold: 4320, silver: 354 },
 };
+
+export const NISAB_SUPPORTED_CURRENCIES = Object.keys(NISAB_BY_CURRENCY);
 
 export function getNisabThreshold(type: NisabType, currency: string = 'USD'): number {
   const byCurr = NISAB_BY_CURRENCY[currency] || NISAB_USD;

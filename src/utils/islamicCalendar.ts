@@ -19,7 +19,7 @@ export function isZakahVisible(): boolean {
   return m === 8 || m === 9;
 }
 
-/** Date one Islamic (lunar) year ago (~354 days). Used for “held 1 year” zakatable balance. */
+/** Date one Islamic (lunar) year ago (~354 days; one lunar year ≈ 354–355). Used for “held 1 year” zakatable balance. */
 export function getDateOneIslamicYearAgo(): Date {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() - 354);

@@ -2,8 +2,8 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { useAuthStore } from '../store/authStore';
 import { formatCurrency } from '../utils/currency';
-import { computeZakat, getZakatableFromAccounts, type NisabType, type TxForBalance } from '../utils/zakah';
-import { getDateOneIslamicYearAgo } from '../utils/islamicCalendar';
+import { computeZakat, getZakatableFromAccounts, NISAB_SUPPORTED_CURRENCIES, type NisabType, type TxForBalance } from '../utils/zakah';
+import { getDateOneIslamicYearAgo, isZakahVisible } from '../utils/islamicCalendar';
 import { CustomDropdown } from '../components/Purchases/CustomDropdown';
 import { Wallet, Plus, Minus } from 'lucide-react';
 import type { Account } from '../types';
@@ -20,12 +20,13 @@ const CARD = 'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:b
 const SECTION_CARD = `flex flex-col min-h-0 ${CARD}`;
 const RESULT_CARD = 'bg-gradient-to-br from-blue-50 via-indigo-50/50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/10 dark:to-purple-900/20 rounded-xl border border-blue-200/50 dark:border-blue-800/50 p-3 sm:p-4';
 const SEP = 'border-blue-200/50 dark:border-blue-800/50';
+const NISAB_VERIFY_NOTE = 'Verify against current gold/silver prices.';
 const numInput = (val: number, set: (n: number) => void, className = `mt-1 ${FORM_CONTROL}`) =>
-  ({ type: 'number' as const, min: 0, step: 0.01, value: val || '', onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(Number(e.target.value) || 0), className });
+  ({ type: 'number' as const, min: 0, step: 0.01, value: Number.isFinite(val) ? val : '', onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(Number(e.target.value) || 0), className });
 
 export const ZakahPage: React.FC = () => {
   const { profile } = useAuthStore();
-  const { accounts, transactions, fetchAccounts, fetchTransactions } = useFinanceStore();
+  const { accounts, transactions, loading, error, fetchAccounts, fetchTransactions } = useFinanceStore();
   const [displayCurrency, setDisplayCurrency] = useState('');
   const [nisabType, setNisabType] = useState<NisabType>('silver');
   const [includedIds, setIncludedIds] = useState<Set<string>>(new Set());
@@ -70,7 +71,14 @@ export const ZakahPage: React.FC = () => {
   );
 
   useEffect(() => {
-    setIncludedIds(new Set(accountsInCurrency.map((a) => a.id)));
+    const currentIds = new Set(accountsInCurrency.map((a) => a.id));
+    setIncludedIds((prev) => {
+      if (!currentIds.size) return currentIds;
+      const next = new Set<string>();
+      for (const id of prev) if (currentIds.has(id)) next.add(id);
+      for (const id of currentIds) if (!prev.has(id)) next.add(id);
+      return next.size ? next : currentIds;
+    });
   }, [displayCurrency, accountsInCurrency]);
 
   const toggleAccount = (id: string) => {
@@ -82,20 +90,13 @@ export const ZakahPage: React.FC = () => {
     });
   };
 
-  const oneYearAgo = useMemo(() => getDateOneIslamicYearAgo(), []);
   const txForBalance: TxForBalance[] = useMemo(
     () => (transactions || []).map((t) => ({ account_id: t.account_id, type: t.type, amount: t.amount, date: t.date })),
     [transactions]
   );
   const { total: totalFromAccountsHeldOneYear, perAccount: zakatablePerAccount } = useMemo(
-    () =>
-      getZakatableFromAccounts(
-        accountsInCurrency,
-        txForBalance,
-        oneYearAgo,
-        includedIds
-      ),
-    [accountsInCurrency, txForBalance, oneYearAgo, includedIds]
+    () => getZakatableFromAccounts(accountsInCurrency, txForBalance, getDateOneIslamicYearAgo(), includedIds),
+    [accountsInCurrency, txForBalance, includedIds]
   );
   const curr = displayCurrency || 'USD';
   const additions = gold + silver + otherAssets;
@@ -109,6 +110,9 @@ export const ZakahPage: React.FC = () => {
   return (
     <div className="dark:bg-gray-900 min-h-full">
       <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 max-w-full overflow-x-hidden">
+        {!isZakahVisible() && <p className="text-xs text-gray-500 dark:text-gray-400">This tool is offered in Shaʿbān and Ramaḍān.</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {loading && !transactions?.length && <p className="text-sm text-gray-500 dark:text-gray-400">Loading…</p>}
         <section className={RESULT_CARD}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
             <div className="space-y-4 flex flex-col justify-center">
@@ -144,6 +148,7 @@ export const ZakahPage: React.FC = () => {
               <p className="text-gray-600 dark:text-gray-400">− Debts: <strong className="text-gray-900 dark:text-white">{formatCurrency(Math.max(0, debts), curr)}</strong></p>
               <p className={`text-gray-700 dark:text-gray-300 pt-1 border-t ${SEP}`}>Total zakatable: <strong className="text-gray-900 dark:text-white">{formatCurrency(Math.max(0, totalZakatable), curr)}</strong></p>
               <p className="text-gray-600 dark:text-gray-400">Nisab ({nisabType}): {formatCurrency(nisab, curr)}</p>
+              <p className={`text-xs ${NISAB_SUPPORTED_CURRENCIES.includes(curr) ? 'text-gray-500 dark:text-gray-400' : 'text-amber-600 dark:text-amber-400'}`}>{!NISAB_SUPPORTED_CURRENCIES.includes(curr) && 'Threshold in USD equivalent. '}{NISAB_VERIFY_NOTE}</p>
               <p className={aboveNisab ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-amber-600 dark:text-amber-400'}>
                 {aboveNisab ? 'Above nisab' : 'Below nisab'} — Zakat due (2.5%): <strong>{formatCurrency(zakatDue, curr)}</strong>
               </p>
@@ -193,6 +198,7 @@ export const ZakahPage: React.FC = () => {
             <h2 className="flex items-center gap-2 font-semibold text-gray-900 dark:text-white mb-3 flex-shrink-0">
               <Plus className="w-4 h-4" /> Add more (in {displayCurrency || '—'})
             </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Only assets held 1+ lunar year. Debts per your school.</p>
             <div className="flex-1 min-h-0 overflow-y-auto">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="text-sm text-gray-700 dark:text-gray-300">Gold (value) <input {...numInput(gold, setGold)} /></label>
