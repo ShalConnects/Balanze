@@ -12,7 +12,7 @@ import LandingPage from './pages/LandingPage';
 import { Toaster } from 'sonner';
 import { LoadingProvider, useLoadingContext } from './context/LoadingContext';
 import { Loader } from './components/common/Loader';
-import { MainLayout } from './components/Layout/MainLayout';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { WelcomeModal } from './components/common/WelcomeModal';
 import PostAccountCreationTour from './components/PostAccountCreationTour';
 import { AchievementIntegration } from './components/Achievements/AchievementIntegration';
@@ -58,7 +58,6 @@ const HelpAndSupport = lazy(() => import('./pages/HelpAndSupport'));
 const Investments = lazy(() => import('./pages/Investments').then(m => ({ default: m.Investments })));
 const SimpleInvestments = lazy(() => import('./pages/SimpleInvestments').then(m => ({ default: m.SimpleInvestments })));
 const History = lazy(() => import('./pages/History').then(m => ({ default: m.History })));
-const HelpLayout = lazy(() => import('./components/Layout/HelpLayout').then(m => ({ default: m.HelpLayout })));
 const PublicHelpCenter = lazy(() => import('./pages/PublicHelpCenter'));
 const TopicClusterHub = lazy(() => import('./pages/TopicClusterHub'));
 const PublicArticlePage = lazy(() => import('./pages/PublicArticlePage'));
@@ -795,43 +794,42 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<HomeRoute />} />
           <Route path="/landing" element={<LandingPage />} />
-          <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
-          <Route path="/login" element={user ? <Navigate to="/" /> : <Auth />} />
-          <Route path="/register" element={user ? <Navigate to="/" /> : <Auth />} />
-          <Route path="/auth" element={user ? <Navigate to="/" /> : <Auth />} />
+          <Route path="/dashboard" element={<ProtectedRoute layout="bare"><Dashboard /></ProtectedRoute>} />
+          <Route path="/login" element={user ? <Navigate to="/" replace /> : <Auth />} />
+          <Route path="/register" element={user ? <Navigate to="/" replace /> : <Auth />} />
+          <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/auth/reset-password" element={<ResetPassword />} />
           
-          {/* Dashboard routes - all protected */}
-          <Route path="/accounts" element={user ? <MainLayout><AccountsView /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/transactions" element={user ? <MainLayout><TransactionsView /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/transfers" element={user ? <MainLayout><Transfer_new /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/transfers-table" element={user ? <MainLayout><TransfersTableView /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/transfers-new" element={user ? <MainLayout><TransfersView /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/savings" element={user ? <MainLayout><SavingsView /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/purchases" element={user ? <MainLayout><PurchaseTracker /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/lent-borrow" element={user ? <MainLayout><LendBorrowTableView /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/investments" element={user ? <MainLayout><Investments /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/simple-investments" element={user ? <MainLayout><SimpleInvestments /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/purchase-categories" element={user ? <MainLayout><PurchaseCategories /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/purchase-analytics" element={user ? <MainLayout><PurchaseAnalytics /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/lent-borrow-analytics" element={user ? <MainLayout><LendBorrowAnalytics /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/analytics" element={user ? <MainLayout><AnalyticsView /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/currency-analytics" element={user ? <Navigate to="/analytics" replace /> : <Navigate to="/login" />} />
-        <Route path="/clients" element={user ? <MainLayout><ClientList /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/personal-growth" element={user ? <MainLayout><PersonalGrowth /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/settings" element={user ? <MainLayout><Settings /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/payment-history" element={user ? <PaymentHistoryPage /> : <Navigate to="/login" />} />
-        <Route path="/help" element={user ? <HelpLayout><HelpAndSupport /></HelpLayout> : <Navigate to="/login" />} />
-        <Route path="/kb/:slug" element={user ? <HelpLayout><KBArticlePage /></HelpLayout> : <Navigate to="/login" />} />
-        <Route path="/kb-sitemap.xml" element={user ? <KBSitemapPage /> : <Navigate to="/login" />} />
-        <Route path="/kb-robots.txt" element={user ? <KBRobotsPage /> : <Navigate to="/login" />} />
-        <Route path="/admin" element={user ? <AdminPage /> : <Navigate to="/login" />} />
-        <Route path="/admin/file-rename" element={user ? <FileRenameAdmin /> : <Navigate to="/login" />} />
-        <Route path="/test-taskable" element={user ? <MainLayout><TestTaskablePanel /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/history" element={user ? <MainLayout><History /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/donations" element={user ? <MainLayout><DonationsSavingsPage /></MainLayout> : <Navigate to="/login" />} />
-        <Route path="/zakah" element={user ? <MainLayout><ZakahPage /></MainLayout> : <Navigate to="/login" />} />
+          <Route path="/accounts" element={<ProtectedRoute><AccountsView /></ProtectedRoute>} />
+          <Route path="/transactions" element={<ProtectedRoute><TransactionsView /></ProtectedRoute>} />
+          <Route path="/transfers" element={<ProtectedRoute><Transfer_new /></ProtectedRoute>} />
+          <Route path="/transfers-table" element={<ProtectedRoute><TransfersTableView /></ProtectedRoute>} />
+          <Route path="/transfers-new" element={<ProtectedRoute><TransfersView /></ProtectedRoute>} />
+          <Route path="/savings" element={<ProtectedRoute><SavingsView /></ProtectedRoute>} />
+          <Route path="/purchases" element={<ProtectedRoute><PurchaseTracker /></ProtectedRoute>} />
+          <Route path="/lent-borrow" element={<ProtectedRoute><LendBorrowTableView /></ProtectedRoute>} />
+          <Route path="/investments" element={<ProtectedRoute><Investments /></ProtectedRoute>} />
+          <Route path="/simple-investments" element={<ProtectedRoute><SimpleInvestments /></ProtectedRoute>} />
+          <Route path="/purchase-categories" element={<ProtectedRoute><PurchaseCategories /></ProtectedRoute>} />
+          <Route path="/purchase-analytics" element={<ProtectedRoute><PurchaseAnalytics /></ProtectedRoute>} />
+          <Route path="/lent-borrow-analytics" element={<ProtectedRoute><LendBorrowAnalytics /></ProtectedRoute>} />
+          <Route path="/analytics" element={<ProtectedRoute><AnalyticsView /></ProtectedRoute>} />
+          <Route path="/currency-analytics" element={<ProtectedRoute layout="bare"><Navigate to="/analytics" replace /></ProtectedRoute>} />
+          <Route path="/clients" element={<ProtectedRoute><ClientList /></ProtectedRoute>} />
+          <Route path="/personal-growth" element={<ProtectedRoute><PersonalGrowth /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/payment-history" element={<ProtectedRoute layout="bare"><PaymentHistoryPage /></ProtectedRoute>} />
+          <Route path="/help" element={<ProtectedRoute layout="help"><HelpAndSupport /></ProtectedRoute>} />
+          <Route path="/kb/:slug" element={<ProtectedRoute layout="help"><KBArticlePage /></ProtectedRoute>} />
+          <Route path="/kb-sitemap.xml" element={<ProtectedRoute layout="bare"><KBSitemapPage /></ProtectedRoute>} />
+          <Route path="/kb-robots.txt" element={<ProtectedRoute layout="bare"><KBRobotsPage /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute layout="bare"><AdminPage /></ProtectedRoute>} />
+          <Route path="/admin/file-rename" element={<ProtectedRoute layout="bare"><FileRenameAdmin /></ProtectedRoute>} />
+          <Route path="/test-taskable" element={<ProtectedRoute><TestTaskablePanel /></ProtectedRoute>} />
+          <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
+          <Route path="/donations" element={<ProtectedRoute><DonationsSavingsPage /></ProtectedRoute>} />
+          <Route path="/zakah" element={<ProtectedRoute><ZakahPage /></ProtectedRoute>} />
         
         {/* Demo routes - public */}
         <Route path="/dashboard-demo" element={<DashboardDemo />} />

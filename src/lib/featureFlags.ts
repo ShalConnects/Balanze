@@ -1,39 +1,26 @@
 // Feature Flag System for Safe Feature Testing
-// This allows multiple developers to work on different features simultaneously
-// and test new features without affecting live users
+// Uses import.meta.env (Vite) - process.env.VITE_* is undefined in client builds
+
+const env = import.meta.env;
+const isDev = env.DEV;
 
 export const FEATURE_FLAGS = {
-  // Payment System Features
-  NEW_PAYMENT_SYSTEM: process.env.VITE_ENABLE_NEW_PAYMENTS === 'true',
-  ADVANCED_PAYMENT_ANALYTICS: process.env.VITE_ENABLE_PAYMENT_ANALYTICS === 'true',
-  
-  // Analytics Features
-  ADVANCED_ANALYTICS: process.env.VITE_ENABLE_ADVANCED_ANALYTICS === 'true',
-  REAL_TIME_CHARTS: process.env.VITE_ENABLE_REAL_TIME_CHARTS === 'true',
-  
-  // Mobile Features
-  MOBILE_OPTIMIZATION: process.env.VITE_ENABLE_MOBILE_OPT === 'true',
-  PWA_FEATURES: process.env.VITE_ENABLE_PWA === 'true',
-  
-  // Lend/Borrow Features
-  LEND_BORROW_ENHANCED: process.env.VITE_ENABLE_LEND_BORROW_ENHANCED === 'true',
-  INSTALLMENT_TRACKING: process.env.VITE_ENABLE_INSTALLMENTS === 'true',
-  
-  // Purchase Features
-  PURCHASE_ATTACHMENTS: process.env.VITE_ENABLE_PURCHASE_ATTACHMENTS === 'true',
-  PURCHASE_CATEGORIES: process.env.VITE_ENABLE_PURCHASE_CATEGORIES === 'true',
-  
-  // Savings Features
-  SAVINGS_GOALS_ENHANCED: process.env.VITE_ENABLE_SAVINGS_ENHANCED === 'true',
-  DONATION_TRACKING: process.env.VITE_ENABLE_DONATION_TRACKING === 'true',
-  
-  // UI/UX Features
-  DARK_MODE: process.env.VITE_ENABLE_DARK_MODE === 'true',
-  ANIMATIONS: process.env.VITE_ENABLE_ANIMATIONS === 'true',
-  
-  // Development Features (always enabled in development)
-  DEBUG_MODE: process.env.NODE_ENV === 'development',
-  TEST_FEATURES: process.env.NODE_ENV === 'development',
+  NEW_PAYMENT_SYSTEM: env.VITE_ENABLE_NEW_PAYMENTS === 'true',
+  ADVANCED_PAYMENT_ANALYTICS: env.VITE_ENABLE_PAYMENT_ANALYTICS === 'true',
+  ADVANCED_ANALYTICS: env.VITE_ENABLE_ADVANCED_ANALYTICS === 'true',
+  REAL_TIME_CHARTS: env.VITE_ENABLE_REAL_TIME_CHARTS === 'true',
+  MOBILE_OPTIMIZATION: env.VITE_ENABLE_MOBILE_OPT === 'true',
+  PWA_FEATURES: env.VITE_ENABLE_PWA === 'true',
+  LEND_BORROW_ENHANCED: env.VITE_ENABLE_LEND_BORROW_ENHANCED === 'true',
+  INSTALLMENT_TRACKING: env.VITE_ENABLE_INSTALLMENTS === 'true',
+  PURCHASE_ATTACHMENTS: env.VITE_ENABLE_PURCHASE_ATTACHMENTS === 'true',
+  PURCHASE_CATEGORIES: env.VITE_ENABLE_PURCHASE_CATEGORIES === 'true',
+  SAVINGS_GOALS_ENHANCED: env.VITE_ENABLE_SAVINGS_ENHANCED === 'true',
+  DONATION_TRACKING: env.VITE_ENABLE_DONATION_TRACKING === 'true',
+  DARK_MODE: env.VITE_ENABLE_DARK_MODE === 'true',
+  ANIMATIONS: env.VITE_ENABLE_ANIMATIONS === 'true',
+  DEBUG_MODE: isDev,
+  TEST_FEATURES: isDev,
 } as const;
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS;
@@ -96,11 +83,9 @@ export const getFeatureFlagsStatus = () => {
 
 // Environment-specific defaults
 export const getDefaultFeatureFlags = () => {
-  const isDev = process.env.NODE_ENV === 'development';
-  const isStaging = process.env.VITE_ENVIRONMENT === 'staging';
+  const isStaging = import.meta.env.VITE_ENVIRONMENT === 'staging';
   
   return {
-    // Development: Enable all features for testing
     ...(isDev && {
       NEW_PAYMENT_SYSTEM: true,
       ADVANCED_ANALYTICS: true,
@@ -125,7 +110,7 @@ export const getDefaultFeatureFlags = () => {
     }),
     
     // Production: Disable experimental features by default
-    ...(process.env.NODE_ENV === 'production' && {
+    ...(import.meta.env.PROD && {
       NEW_PAYMENT_SYSTEM: false,
       ADVANCED_ANALYTICS: false,
       MOBILE_OPTIMIZATION: false,

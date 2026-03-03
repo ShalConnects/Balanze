@@ -37,10 +37,11 @@ function json(res, status, data) {
 }
 
 // --- PayPal (DRY: shared auth) ---
+// Use server env vars (PAYPAL_*) - VITE_* not available in Vercel serverless
 async function paypalAuth() {
-  const clientId = process.env.VITE_PAYPAL_CLIENT_ID;
-  const clientSecret = process.env.VITE_PAYPAL_CLIENT_SECRET;
-  const env = process.env.VITE_PAYPAL_ENVIRONMENT || 'sandbox';
+  const clientId = process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID;
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET || process.env.VITE_PAYPAL_CLIENT_SECRET;
+  const env = process.env.PAYPAL_ENVIRONMENT || process.env.VITE_PAYPAL_ENVIRONMENT || 'sandbox';
   const baseUrl = env === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
   const authRes = await fetch(`${baseUrl}/v1/oauth2/token`, {
     method: 'POST',
@@ -100,7 +101,7 @@ async function handleCreateCheckoutSession(res, body) {
   const { planId, customerEmail, successUrl, cancelUrl } = body;
   const plan = STRIPE_PRICING[planId];
   if (!plan) return json(res, 400, { error: 'Invalid plan ID' });
-  const stripe = new Stripe(process.env.VITE_STRIPE_SECRET_KEY);
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || process.env.VITE_STRIPE_SECRET_KEY);
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
     line_items: [{
