@@ -23,14 +23,14 @@
    - Route: `/recurring-transactions`
 
 4. **Automated Processing API** (`api/process-recurring-transactions.js`)
-   - Processes due recurring transactions hourly
-   - Creates new transaction instances
+   - Processes due recurring transactions daily
+   - Creates new transaction instances (copies amount, saving_amount, to_account_id from parent)
    - Updates occurrence counts
    - **Creates bell notifications** when transactions are processed
 
 5. **Scheduled Job**
    - Configured in `vercel.json`
-   - Runs every hour (`0 * * * *`)
+   - Runs once daily at 1:00 AM UTC (`0 1 * * *`) - compatible with Vercel Hobby plan
    - Processes all due recurring transactions
 
 ## 🔔 Notification System
@@ -80,11 +80,11 @@ Optional (for cron security):
 
 ### 3. Deploy to Vercel
 
-The cron job is automatically configured in `vercel.json`:
+The cron job is configured in `vercel.json`:
 ```json
 {
   "path": "/api/process-recurring-transactions",
-  "schedule": "0 * * * *"  // Every hour
+  "schedule": "0 1 * * *"  // Daily at 1:00 AM UTC (Hobby plan compatible)
 }
 ```
 
@@ -121,7 +121,7 @@ The system automatically:
 
 ### Automatic Processing
 
-Every hour, the cron job:
+Once daily, the cron job:
 1. Finds all active recurring transactions where:
    - `is_recurring = true`
    - `is_paused = false`
@@ -148,6 +148,8 @@ Access via:
 Features:
 - **Pause**: Temporarily stop processing
 - **Resume**: Restart paused transactions
+- **Force Next**: Create next occurrence immediately (today)
+- **Skip Next**: Skip the next scheduled occurrence without creating it
 - **Edit**: Modify recurring transaction details
 - **Delete**: Remove recurring transaction (stops all future instances)
 
@@ -225,6 +227,11 @@ Check recurring transaction processing:
 - Verify environment variables are set
 - Check Vercel function logs for errors
 
+## ✨ Implemented Enhancements
+
+- **Preview upcoming occurrences**: Next 5 dates shown in recurring details modal
+- **Skip next occurrence**: Skip one occurrence without creating a transaction
+
 ## ✨ Future Enhancements (Optional)
 
 - Recurring transaction templates
@@ -232,5 +239,4 @@ Check recurring transaction processing:
 - Recurring transaction analytics
 - Custom frequency options (bi-weekly, quarterly)
 - Notification preferences for recurring transactions
-- Preview upcoming occurrences
 

@@ -1,47 +1,6 @@
 import { supabase } from '../lib/supabaseServer.js';
+import { calculateNextOccurrence } from '../lib/recurringUtils.js';
 
-/**
- * Calculate the next occurrence date based on frequency
- * Handles edge cases like month-end dates properly
- */
-function calculateNextOccurrence(currentDate, frequency) {
-  const date = new Date(currentDate);
-  const originalDay = date.getDate();
-  
-  switch (frequency) {
-    case 'daily':
-      date.setDate(date.getDate() + 1);
-      break;
-    case 'weekly':
-      date.setDate(date.getDate() + 7);
-      break;
-    case 'monthly':
-      // Preserve the day of month, handling month-end dates
-      date.setMonth(date.getMonth() + 1);
-      // If the day doesn't exist in the new month (e.g., Jan 31 -> Feb), adjust to last day of month
-      if (date.getDate() !== originalDay) {
-        date.setDate(0); // Go to last day of previous month (which is the target month)
-      }
-      break;
-    case 'yearly':
-      // Preserve month and day, handling leap years
-      const originalMonth = date.getMonth();
-      date.setFullYear(date.getFullYear() + 1);
-      // Handle Feb 29 -> Feb 28 in non-leap years
-      if (originalMonth === 1 && originalDay === 29 && date.getMonth() === 2) {
-        date.setDate(0); // Go to last day of February
-      }
-      break;
-    default:
-      // Invalid frequency, return current date
-      return date.toISOString().split('T')[0];
-  }
-  return date.toISOString().split('T')[0];
-}
-
-/**
- * Generate a unique transaction ID
- */
 function generateTransactionId() {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 8);
@@ -77,11 +36,10 @@ async function createRecurringTransactionNotification(userId, transaction) {
       type: transaction.type === 'income' ? 'success' : 'info',
     });
 
-    if (error) {
-      console.error('Error creating notification:', error);
-    }
+    if (error) console.error('Error creating notification:', error);
   } catch (error) {
-    }
+    console.error('Notification error:', error);
+  }
 }
 
 /**
@@ -219,21 +177,21 @@ async function processRecurringTransactions() {
           recurringTransaction.recurring_frequency
         );
 
-        // Create new transaction instance
         const newTransaction = {
           user_id: recurringTransaction.user_id,
           account_id: recurringTransaction.account_id,
           type: recurringTransaction.type,
-          amount: 0, // Start with 0, user can edit
+          amount: recurringTransaction.amount ?? 0,
           description: recurringTransaction.description,
           category: recurringTransaction.category,
-          date: occurrenceDate, // Use validated occurrence date
+          date: occurrenceDate,
           tags: recurringTransaction.tags || [],
-          saving_amount: 0, // Start with 0
-          donation_amount: 0, // Start with 0
-          is_recurring: false, // Instance is not recurring
+          saving_amount: recurringTransaction.saving_amount ?? 0,
+          donation_amount: 0,
+          is_recurring: false,
           parent_recurring_id: recurringTransaction.id,
           transaction_id: generateTransactionId(),
+          ...(recurringTransaction.to_account_id && { to_account_id: recurringTransaction.to_account_id }),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };

@@ -48,6 +48,14 @@ SHA1: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 
 **Copy the SHA-1 value and remove all colons** (Google Cloud Console needs it without colons).
 
+**Your keystore fingerprints (balanze-release-key.jks):**
+| Type | SHA-1 (with colons) | SHA-1 (no colons, for Google Cloud) |
+|------|---------------------|-------------------------------------|
+| Upload key (local release builds) | `EF:16:69:28:CE:E1:02:6F:91:F4:89:18:92:B0:FE:23:93:42:5A:EF` | `EF166928CEE1026F91F4891892B0FE2393425AEF` |
+| App signing (Play Store installs) | Get from Play Console → App integrity | — |
+
+Add **both** to Google Cloud if you test locally and from Play Store.
+
 ### Step 2: Create Android OAuth Client in Google Cloud Console
 
 1. **Go to Google Cloud Console**

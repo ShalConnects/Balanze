@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import { Dialog } from '@headlessui/react';
 import { Plus, Edit2, Trash2, DollarSign, Info, PlusCircle, InfoIcon, Search, ArrowLeft, Wallet, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown, X, Loader2, ArrowLeftRight } from 'lucide-react';
-import { isToday, isYesterday, isThisWeek, format, differenceInDays } from 'date-fns';
+import { format } from 'date-fns';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { AccountForm } from './AccountForm';
 import { TransactionForm } from '../Transactions/TransactionForm';
@@ -20,49 +20,15 @@ import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { AccountCardSkeleton, AccountTableSkeleton, AccountSummaryCardsSkeleton, AccountFiltersSkeleton } from './AccountSkeleton';
 import { CurrencyPortfolioSummary } from './CurrencyPortfolioSummary';
 import { AccountSummaryCards } from './AccountSummaryCards';
+import { AccountDetailsModal } from './AccountDetailsModal';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
 import { searchService, SEARCH_CONFIGS } from '../../utils/searchService';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
-import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { isLendBorrowTransaction, groupTransactionsByDate } from '../../utils/transactionUtils';
 import { formatCurrency } from '../../utils/currency';
-
-// Helper function to get date group label
-const getDateGroupLabel = (date: Date): string => {
-  if (isToday(date)) return 'Today';
-  if (isYesterday(date)) return 'Yesterday';
-  if (isThisWeek(date)) return format(date, 'EEEE'); // Day name (Monday, Tuesday, etc.)
-  const daysDiff = differenceInDays(new Date(), date);
-  if (daysDiff < 7) return format(date, 'EEEE');
-  if (daysDiff < 30) return format(date, 'MMM dd');
-  return format(date, 'MMM dd, yyyy');
-};
-
-// Helper function to group transactions by date
-const groupTransactionsByDate = (transactions: any[]) => {
-  const groups: Record<string, any[]> = {};
-  
-  transactions.forEach(transaction => {
-    const transactionDate = new Date(transaction.date);
-    const groupLabel = getDateGroupLabel(transactionDate);
-    
-    if (!groups[groupLabel]) {
-      groups[groupLabel] = [];
-    }
-    groups[groupLabel].push(transaction);
-  });
-  
-  // Sort groups by date (most recent first)
-  const sortedGroups = Object.entries(groups).sort((a, b) => {
-    const dateA = new Date(a[1][0].date);
-    const dateB = new Date(b[1][0].date);
-    return dateB.getTime() - dateA.getTime();
-  });
-  
-  return sortedGroups;
-};
 
 export const AccountsView: React.FC = () => {
   const { accounts, deleteAccount, getTransactionsByAccount, transactions, loading, error, updateAccount, updateAccountPosition, fetchAccounts, showTransactionForm, setShowTransactionForm, categories, purchaseCategories } = useFinanceStore();
@@ -3466,295 +3432,12 @@ export const AccountsView: React.FC = () => {
       {dpsDeleteModalContent}
 
       {modalOpen && selectedAccount && (
-        <>
-          {/* Mobile Full Screen Modal */}
-          <div className="fixed inset-0 z-50 lg:hidden account-modal-mobile">
-          <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setModalOpen(false)} />
-            <div className="relative bg-white w-full h-full flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-              {/* Sticky Mobile Header with Balance */}
-              <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
-                <div className="flex items-center justify-between p-4">
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-lg font-semibold text-gray-900 truncate">{selectedAccount.name}</h2>
-                    <div className="text-sm font-bold text-blue-600 mt-1">
-                      {formatCurrency(selectedAccount.calculated_balance || 0, selectedAccount.currency)}
-                    </div>
-                  </div>
-                  <button 
-                    className="text-gray-500 hover:text-gray-700 p-2 ml-2 flex-shrink-0" 
-                    onClick={() => setModalOpen(false)}
-                    aria-label="Close modal"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-              
-              {/* Mobile Scrollable Content */}
-              <div className="flex-1 overflow-y-auto overscroll-contain -webkit-overflow-scrolling-touch account-modal-content" style={{ height: 'calc(100dvh - 80px - env(safe-area-inset-top, 0px))' }}>
-                <div className="p-4 space-y-4">
-                  {/* Mobile Transactions Section */}
-                  <div>
-                    <h3 className="text-base font-bold mb-3">Transactions</h3>
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
-                      <div className="max-h-96 overflow-y-auto overscroll-contain -webkit-overflow-scrolling-touch">
-                        {(() => {
-                          const accountTransactions = transactions
-                            .filter(t => t.account_id === selectedAccount.id)
-                            .sort((a, b) => {
-                              const aLatestTime = a.updated_at ? Math.max(new Date(a.created_at).getTime(), new Date(a.updated_at).getTime()) : new Date(a.created_at).getTime();
-                              const bLatestTime = b.updated_at ? Math.max(new Date(b.created_at).getTime(), new Date(b.updated_at).getTime()) : new Date(b.created_at).getTime();
-                              return bLatestTime - aLatestTime;
-                            });
-
-                          if (accountTransactions.length === 0) {
-                            return (
-                              <div className="px-4 py-8 text-center text-gray-500">
-                                No transactions found
-                              </div>
-                            );
-                          }
-
-                          const groupedTransactions = groupTransactionsByDate(accountTransactions);
-
-                          return (
-                            <div className="divide-y divide-gray-200">
-                              {groupedTransactions.map(([groupLabel, groupTransactions]) => (
-                                <div key={groupLabel} className="bg-white">
-                                  <div className="sticky top-0 bg-gray-50 px-3 py-2 border-b border-gray-200">
-                                    <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{groupLabel}</h4>
-                                  </div>
-                                  <table className="w-full border-collapse">
-                                    <tbody className="bg-white divide-y divide-gray-100">
-                                      {groupTransactions.map((t) => (
-                                        <tr key={t.id} className="hover:bg-gray-50">
-                                          <td className="px-3 py-2 text-xs text-gray-900 w-1/3">
-                                            {formatTransactionDescription(t.description)}
-                                          </td>
-                                          <td className="px-3 py-2 text-xs">
-                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                              t.type === 'income' 
-                                                ? 'bg-green-100 text-green-800' 
-                                                : 'bg-red-100 text-red-800'
-                                            }`}>
-                                              {t.type}
-                                            </span>
-                                          </td>
-                                          <td className="px-3 py-2 text-xs text-right font-medium">
-                                            <span className={t.type === 'income' ? 'text-green-600' : 'text-red-600'}>
-                                              {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount, selectedAccount.currency)}
-                                            </span>
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Mobile Account Info Section */}
-                  <div>
-                    <h3 className="text-base font-bold mb-3">Account Info</h3>
-                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <div className="space-y-2 text-sm">
-                        <div><b>Name:</b> {selectedAccount.name.charAt(0).toUpperCase() + selectedAccount.name.slice(1)}</div>
-                        <div><b>Type:</b> <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getAccountColor(selectedAccount.type)} ml-1`}>
-                          {selectedAccount.type === 'cash' ? 'Cash Wallet' : selectedAccount.type.charAt(0).toUpperCase() + selectedAccount.type.slice(1)}
-                        </span></div>
-                        <div><b>Initial Balance:</b> {formatCurrency(Number(selectedAccount.initial_balance), selectedAccount.currency)}</div>
-                        <div><b>Currency:</b> {selectedAccount.currency}</div>
-                        <div><b>Description:</b> {selectedAccount.description || 'N/A'}</div>
-                        <div><b>Transactions:</b> {transactions.filter(t => t.account_id === selectedAccount.id).length}</div>
-                        <div><b>Total Saved:</b> {formatCurrency(0, selectedAccount.currency)}</div>
-                        <div><b>Total Donated:</b> {formatCurrency(0, selectedAccount.currency)}</div>
-                        <div><b>Donation Preference:</b> None</div>
-                        
-                        {/* Current Balance Section */}
-                        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                          <div className="text-sm font-semibold text-blue-900 mb-1">Current Balance</div>
-                          <div className="text-lg font-bold text-blue-600">
-                            {formatCurrency(selectedAccount.calculated_balance || 0, selectedAccount.currency)}
-                          </div>
-                        </div>
-                        
-                        {/* Print Statement Button */}
-                        <div className="mt-4">
-                          <button 
-                            onClick={() => {
-                              if (isAndroidApp) {
-                                setShowAndroidDownloadModal(true);
-                              } else {
-                                setShowStatementModal(true);
-                              }
-                            }}
-                            className="w-full px-4 py-3 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors text-sm font-medium"
-                          >
-                            Print Statement
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Desktop Modal */}
-          <div className="hidden lg:flex fixed inset-0 z-50 items-start justify-center p-4 pt-16">
-            <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setModalOpen(false)} />
-            <div className="relative bg-white w-full max-w-6xl rounded-lg shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
-            {/* Close Button - Absolute positioned */}
-            <button 
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 p-1 z-10" 
-              onClick={() => setModalOpen(false)}
-            >
-              ✕
-            </button>
-
-              {/* Main Content: Transactions and Account Info - Full height scrollable container */}
-              <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 p-3 sm:p-4 pt-8 pb-6 flex-1 min-h-0" style={{ maxHeight: 'calc(100vh - 12rem)', overflow: 'hidden' }}>
-              {/* Left: Transactions List (100% on mobile, 80% on desktop) - Scrollable */}
-              <div className="w-full lg:w-4/5 flex flex-col min-h-0">
-                <h3 className="text-sm sm:text-base font-bold mb-2">Transactions</h3>
-                <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden">
-                  <div className="h-full overflow-y-auto overscroll-contain -webkit-overflow-scrolling-touch">
-                    <table className="w-full border-collapse">
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {(() => {
-                          const accountTransactions = transactions
-                            .filter(t => t.account_id === selectedAccount.id)
-                            .sort((a, b) => {
-                              const aLatestTime = a.updated_at ? Math.max(new Date(a.created_at).getTime(), new Date(a.updated_at).getTime()) : new Date(a.created_at).getTime();
-                              const bLatestTime = b.updated_at ? Math.max(new Date(b.created_at).getTime(), new Date(b.updated_at).getTime()) : new Date(b.created_at).getTime();
-                              return bLatestTime - aLatestTime;
-                            });
-
-                          if (accountTransactions.length === 0) {
-                            return (
-                              <tr>
-                                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                                  No transactions found
-                                </td>
-                              </tr>
-                            );
-                          }
-
-                          // Calculate running balances correctly (chronological order for balance calculation)
-                          const sortedForBalance = [...accountTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-                          const balanceMap = new Map();
-                          let runningBalance = Number(selectedAccount.initial_balance);
-                          
-                          sortedForBalance.forEach((tx) => {
-                            if (tx.type === 'income') {
-                              runningBalance += tx.amount;
-                            } else {
-                              runningBalance -= tx.amount;
-                            }
-                            balanceMap.set(tx.id, runningBalance);
-                          });
-
-                          const groupedTransactions = groupTransactionsByDate(accountTransactions);
-
-                          return groupedTransactions.map(([groupLabel, groupTransactions]) => (
-                            <React.Fragment key={groupLabel}>
-                              <tr className="bg-gray-50 sticky top-0 z-10">
-                                <td colSpan={6} className="px-3 py-2 border-b border-gray-200">
-                                  <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{groupLabel}</h4>
-                                </td>
-                              </tr>
-                              {groupTransactions.map((t) => (
-                                <tr key={t.id} className="hover:bg-gray-50">
-                                  <td className="px-1 sm:px-2 py-1 sm:py-2 text-xs text-gray-900">
-                                    {new Date(t.date).toLocaleDateString()}
-                                  </td>
-                                  <td className="px-1 sm:px-2 py-1 sm:py-2 text-xs font-medium text-gray-900 hidden sm:table-cell">
-                                    {formatTransactionDescription(t.description)}
-                                  </td>
-                                  <td className="px-1 sm:px-2 py-1 sm:py-2 text-xs text-gray-500 hidden md:table-cell">
-                                    {t.category}
-                                  </td>
-                                  <td className="px-1 sm:px-2 py-1 sm:py-2 text-xs">
-                                    <span className={`inline-flex px-1.5 py-0.5 text-xs font-semibold rounded-full ${
-                                      t.type === 'income' 
-                                        ? 'bg-green-100 text-green-800' 
-                                        : 'bg-red-100 text-red-800'
-                                    }`}>
-                                      {t.type}
-                                    </span>
-                                  </td>
-                                  <td className="px-1 sm:px-2 py-1 sm:py-2 text-xs text-right font-medium">
-                                    <span className={t.type === 'income' ? 'text-green-600' : 'text-red-600'}>
-                                      {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount, selectedAccount.currency)}
-                                    </span>
-                                  </td>
-                                  <td className="px-1 sm:px-2 py-1 sm:py-2 text-xs text-right text-blue-600 font-medium hidden lg:table-cell">
-                                    {formatCurrency(balanceMap.get(t.id) || 0, selectedAccount.currency)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </React.Fragment>
-                          ));
-                        })()}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: Account Info (100% on mobile, 20% on desktop) - Scrollable on mobile */}
-              <div className="w-full lg:w-1/5 flex flex-col mt-3 lg:mt-0">
-                <h3 className="text-sm sm:text-base font-bold mb-2">Account Info</h3>
-                <div className="flex-1 p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-200 overflow-y-auto overscroll-contain -webkit-overflow-scrolling-touch">
-                  <div className="space-y-1.5 sm:space-y-2 text-xs">
-                    <div><b>Name:</b> {selectedAccount.name.charAt(0).toUpperCase() + selectedAccount.name.slice(1)}</div>
-                    <div><b>Type:</b> <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getAccountColor(selectedAccount.type)} ml-1`}>
-                      {selectedAccount.type === 'cash' ? 'Cash Wallet' : selectedAccount.type.charAt(0).toUpperCase() + selectedAccount.type.slice(1)}
-                    </span></div>
-                    <div><b>Initial Balance:</b> {formatCurrency(Number(selectedAccount.initial_balance), selectedAccount.currency)}</div>
-                    <div><b>Currency:</b> {selectedAccount.currency}</div>
-                    <div><b>Description:</b> {selectedAccount.description || 'N/A'}</div>
-                    <div><b>Transactions:</b> {transactions.filter(t => t.account_id === selectedAccount.id).length}</div>
-                    <div><b>Total Saved:</b> {formatCurrency(0, selectedAccount.currency)}</div>
-                    <div><b>Total Donated:</b> {formatCurrency(0, selectedAccount.currency)}</div>
-                    <div><b>Donation Preference:</b> None</div>
-                    
-                    {/* Current Balance Section */}
-                    <div className="mt-3 sm:mt-4 p-2 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="text-xs font-semibold text-blue-900 mb-1">Current Balance</div>
-                      <div className="text-sm sm:text-base font-bold text-blue-600">
-                        {formatCurrency(selectedAccount.calculated_balance || 0, selectedAccount.currency)}
-                      </div>
-                    </div>
-                    
-                    {/* Print Statement Button */}
-                    <div className="mt-2 sm:mt-3">
-                      <button 
-                        onClick={() => {
-                          if (isAndroidApp) {
-                            setShowAndroidDownloadModal(true);
-                          } else {
-                            setShowStatementModal(true);
-                          }
-                        }}
-                        className="w-full px-2 py-1.5 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors text-xs"
-                      >
-                        Print Statement
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        </>
+        <AccountDetailsModal
+          account={selectedAccount}
+          transactions={transactions}
+          onClose={() => setModalOpen(false)}
+          onPrintStatement={() => isAndroidApp ? setShowAndroidDownloadModal(true) : setShowStatementModal(true)}
+        />
       )}
 
       {/* Mobile Filter Modal */}

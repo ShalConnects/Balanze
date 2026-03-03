@@ -1,4 +1,37 @@
+import { format, differenceInDays } from 'date-fns';
 import { Transaction, Account } from '../types';
+export { calculateNextOccurrence, getUpcomingOccurrences } from '../../lib/recurringUtils.js';
+
+const isToday = (d: Date) => format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+const isYesterday = (d: Date) => differenceInDays(new Date(), d) === 1;
+const isThisWeek = (d: Date) => {
+  const now = new Date();
+  const start = new Date(now); start.setDate(now.getDate() - now.getDay());
+  const end = new Date(start); end.setDate(start.getDate() + 6);
+  return d >= start && d <= end;
+};
+
+export const getDateGroupLabel = (date: Date): string => {
+  if (isToday(date)) return 'Today';
+  if (isYesterday(date)) return 'Yesterday';
+  if (isThisWeek(date)) return format(date, 'EEEE');
+  const daysDiff = differenceInDays(new Date(), date);
+  if (daysDiff < 7) return format(date, 'EEEE');
+  if (daysDiff < 30) return format(date, 'MMM dd');
+  return format(date, 'MMM dd, yyyy');
+};
+
+export const groupTransactionsByDate = (transactions: Transaction[]): [string, Transaction[]][] => {
+  const groups: Record<string, Transaction[]> = {};
+  transactions.forEach(t => {
+    const label = getDateGroupLabel(new Date(t.date));
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(t);
+  });
+  return Object.entries(groups).sort((a, b) =>
+    new Date(b[1][0].date).getTime() - new Date(a[1][0].date).getTime()
+  );
+};
 
 export const TRANSACTION_TYPES = ['income', 'expense'] as const;
 
@@ -307,6 +340,47 @@ export const exportTransactionsToCSV = (transactions: Transaction[], accounts: A
     return [headers, ...csvData]
         .map(row => row.map(field => `"${field}"`).join(','))
         .join('\n');
+};
+
+/** All-time summary for a single account (excludes lend/borrow transactions) */
+export const getAccountAllTimeSummary = (
+    accountId: string,
+    transactions: Transaction[]
+): {
+    totalIncome: number;
+    totalExpenses: number;
+    netChange: number;
+    totalSaved: number;
+    totalDonated: number;
+    incomeCount: number;
+    expenseCount: number;
+    firstDate: string | null;
+    lastDate: string | null;
+    count: number;
+} => {
+    const accountTxs = transactions.filter(t => t.account_id === accountId);
+    const income = accountTxs.filter(t => t.type === 'income' && !isLendBorrowTransaction(t));
+    const expenses = accountTxs.filter(t => t.type === 'expense' && !isLendBorrowTransaction(t));
+    const totalIncome = income.reduce((s, t) => s + t.amount, 0);
+    const totalExpenses = expenses.reduce((s, t) => s + t.amount, 0);
+    let totalSaved = 0, totalDonated = 0;
+    income.forEach(t => {
+        if (t.category === 'Savings') totalSaved += t.amount;
+        else if (t.category === 'Donation') totalDonated += t.amount;
+    });
+    const sorted = [...accountTxs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return {
+        totalIncome,
+        totalExpenses,
+        netChange: totalIncome - totalExpenses,
+        totalSaved,
+        totalDonated,
+        incomeCount: income.length,
+        expenseCount: expenses.length,
+        firstDate: sorted[0]?.date ?? null,
+        lastDate: sorted[sorted.length - 1]?.date ?? null,
+        count: accountTxs.length
+    };
 };
 
 export const getDateRangePresets = () => {

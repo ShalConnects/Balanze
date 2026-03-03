@@ -21,6 +21,7 @@ import { parseLocalDate } from '../../utils/taskDateUtils';
 import { CategoryModal } from '../common/CategoryModal';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getFilteredCategoriesForTransaction } from '../../utils/categoryFiltering';
+import { calculateNextOccurrence } from '../../utils/transactionUtils';
 import { useDescriptionSuggestions } from '../../hooks/useDescriptionSuggestions';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
@@ -590,40 +591,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     }
   };
 
-  // Helper to calculate next occurrence date based on frequency
-  // Handles edge cases like month-end dates properly (matches backend logic)
-  const calculateNextOccurrenceDate = (currentDate: string, frequency: 'daily' | 'weekly' | 'monthly' | 'yearly'): string => {
-    const date = new Date(currentDate);
-    const originalDay = date.getDate();
-    
-    switch (frequency) {
-      case 'daily':
-        date.setDate(date.getDate() + 1);
-        break;
-      case 'weekly':
-        date.setDate(date.getDate() + 7);
-        break;
-      case 'monthly':
-        // Preserve the day of month, handling month-end dates
-        date.setMonth(date.getMonth() + 1);
-        // If the day doesn't exist in the new month (e.g., Jan 31 -> Feb), adjust to last day of month
-        if (date.getDate() !== originalDay) {
-          date.setDate(0); // Go to last day of previous month (which is the target month)
-        }
-        break;
-      case 'yearly':
-        // Preserve month and day, handling leap years
-        const originalMonth = date.getMonth();
-        date.setFullYear(date.getFullYear() + 1);
-        // Handle Feb 29 -> Feb 28 in non-leap years
-        if (originalMonth === 1 && originalDay === 29 && date.getMonth() === 2) {
-          date.setDate(0); // Go to last day of February
-        }
-        break;
-    }
-    return date.toISOString().split('T')[0];
-  };
-
   // Helper to upsert donation/saving records
   async function upsertDonationSavingRecords({ userId, transactionId, customTransactionId, donation, donationMode, modeValue }: {
     userId: string;
@@ -900,7 +867,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           
           // Add recurring transaction tracking fields if recurring
           if (data.is_recurring) {
-            transactionData.next_occurrence_date = calculateNextOccurrenceDate(data.date, data.recurring_frequency);
+            transactionData.next_occurrence_date = calculateNextOccurrence(data.date, data.recurring_frequency);
             transactionData.recurring_end_date = recurringEndDate || undefined;
             transactionData.occurrence_count = isEditMode && transactionToEdit?.occurrence_count ? transactionToEdit.occurrence_count : 0;
             transactionData.is_paused = isEditMode && transactionToEdit?.is_paused ? transactionToEdit.is_paused : false;
@@ -994,7 +961,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
 
                   if (firstInstance) {
                     // Update parent transaction: set occurrence_count to 1 and update next_occurrence_date
-                    const nextOccurrenceDate = calculateNextOccurrenceDate(firstInstanceDate, data.recurring_frequency);
+                    const nextOccurrenceDate = calculateNextOccurrence(firstInstanceDate, data.recurring_frequency);
                     await updateTransaction(result.id, {
                       occurrence_count: 1,
                       next_occurrence_date: nextOccurrenceDate

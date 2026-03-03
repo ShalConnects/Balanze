@@ -27,6 +27,7 @@ function getLocalISOString() {
   return localTime.toISOString();
 }
 import { generateTransactionId } from '../utils/transactionId';
+import { calculateNextOccurrence } from '../../lib/recurringUtils.js';
 import { useAchievementStore } from './achievementStore';
 import { userActivityService } from '../lib/userActivityService';
 import { isLendBorrowTransaction } from '../utils/transactionUtils';
@@ -99,6 +100,7 @@ interface FinanceStore {
   }) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   forceNextOccurrence: (transactionId: string) => Promise<void>;
+  skipNextOccurrence: (transactionId: string) => Promise<void>;
   
   fetchCategories: (currency?: string) => Promise<void>;
   addCategory: (category: Omit<Category, 'id'>) => Promise<void>;
@@ -1241,56 +1243,26 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         throw new Error('Instance already exists for this occurrence date');
       }
 
-      // Calculate next occurrence date (helper function)
-      const calculateNextOccurrence = (currentDate: string, frequency: string): string => {
-        const date = new Date(currentDate);
-        const originalDay = date.getDate();
-        
-        switch (frequency) {
-          case 'daily':
-            date.setDate(date.getDate() + 1);
-            break;
-          case 'weekly':
-            date.setDate(date.getDate() + 7);
-            break;
-          case 'monthly':
-            date.setMonth(date.getMonth() + 1);
-            if (date.getDate() !== originalDay) {
-              date.setDate(0);
-            }
-            break;
-          case 'yearly':
-            const originalMonth = date.getMonth();
-            date.setFullYear(date.getFullYear() + 1);
-            if (originalMonth === 1 && originalDay === 29 && date.getMonth() === 2) {
-              date.setDate(0);
-            }
-            break;
-        }
-        return date.toISOString().split('T')[0];
-      };
-
-      // Calculate next occurrence date from today (the date we're using for the forced instance)
       const nextOccurrenceDate = calculateNextOccurrence(
         occurrenceDate,
         recurringTransaction.recurring_frequency
       );
 
-      // Create new transaction instance - CRITICAL: is_recurring must be false
       const newTransaction = {
         user_id: recurringTransaction.user_id,
         account_id: recurringTransaction.account_id,
         type: recurringTransaction.type,
-        amount: 0, // Start with 0, user can edit
+        amount: recurringTransaction.amount ?? 0,
         description: recurringTransaction.description,
         category: recurringTransaction.category,
         date: occurrenceDate,
         tags: recurringTransaction.tags || [],
-        saving_amount: 0,
+        saving_amount: recurringTransaction.saving_amount ?? 0,
         donation_amount: 0,
-        is_recurring: false, // ✅ CRITICAL: Instance is NOT recurring
-        parent_recurring_id: recurringTransaction.id, // ✅ Link to parent
+        is_recurring: false,
+        parent_recurring_id: recurringTransaction.id,
         transaction_id: generateTransactionId(),
+        ...(recurringTransaction.to_account_id && { to_account_id: recurringTransaction.to_account_id }),
         created_at: getLocalISOString(),
         updated_at: getLocalISOString(),
       };
@@ -1366,13 +1338,55 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         throw new Error(`Failed to update recurring transaction: ${updateError.message}`);
       }
 
-      // Refresh transactions to show the new instance
       await get().fetchTransactions();
       set({ loading: false });
       showToast.success('Next occurrence created successfully');
     } catch (err: any) {
       set({ loading: false, error: err.message || 'Failed to force next occurrence' });
       showToast.error(err.message || 'Failed to force next occurrence');
+      throw err;
+    }
+  },
+
+  skipNextOccurrence: async (transactionId: string) => {
+    set({ loading: true, error: null });
+    try {
+      const { user } = useAuthStore.getState();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: t, error: fetchError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', transactionId)
+        .eq('is_recurring', true)
+        .single();
+
+      if (fetchError || !t) throw new Error('Recurring transaction not found');
+      if (t.is_paused) throw new Error('Cannot skip paused recurring transaction');
+
+      const current = t.next_occurrence_date || t.date;
+      if (!current) throw new Error('Missing next occurrence date');
+      if (!t.recurring_frequency || !['daily', 'weekly', 'monthly', 'yearly'].includes(t.recurring_frequency)) {
+        throw new Error(`Invalid frequency: ${t.recurring_frequency}`);
+      }
+
+      const next = calculateNextOccurrence(current, t.recurring_frequency);
+      if (t.recurring_end_date && new Date(next) > new Date(t.recurring_end_date)) {
+        throw new Error('Cannot skip: would exceed end date');
+      }
+
+      const { error: updateError } = await supabase
+        .from('transactions')
+        .update({ next_occurrence_date: next, updated_at: getLocalISOString() })
+        .eq('id', transactionId);
+
+      if (updateError) throw new Error(updateError.message);
+      await get().fetchTransactions();
+      set({ loading: false });
+      showToast.success('Next occurrence skipped');
+    } catch (err: any) {
+      set({ loading: false });
+      showToast.error(err.message || 'Failed to skip');
       throw err;
     }
   },

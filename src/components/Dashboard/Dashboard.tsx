@@ -35,7 +35,6 @@ import { StickyNote } from '../StickyNote';
 // import { NotesWidget } from './NotesWidget';
 // import { TodosWidget } from './TodosWidget';
 import { PurchaseForm } from '../Purchases/PurchaseForm';
-import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { SkeletonCard, SkeletonChart } from '../common/Skeleton';
 import { DashboardSkeleton } from './DashboardSkeleton';
@@ -51,7 +50,7 @@ import { SortableContext, sortableKeyboardCoordinates, arrayMove, verticalListSo
 import { DraggableWidget } from './DraggableWidget';
 import { AccordionWidget } from './AccordionWidget';
 import { WidgetSettingsPanel, WidgetConfig, MainDashboardWidget } from './WidgetSettingsPanel';
-import { Settings } from 'lucide-react';
+import { DashboardFilterBar } from './DashboardFilterBar';
 import { toast } from 'sonner';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import PullToRefreshDashboard from './PullToRefreshDashboard';
@@ -1414,67 +1413,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
             )}
           </div>
 
-          {/* Shared Currency Filter & Card Visibility - After Currency Cards */}
-          {(() => {
-            const { hasDonations, hasPurchases, hasLendBorrow, hasTransfersCard, hasClientsCard, hasLearning } = widgetAvailability;
-            const hasAnyCards = hasDonations || hasPurchases || hasLendBorrow || hasTransfersCard || hasClientsCard || hasLearning;
-            const hasMultipleCurrencies = filteredDashboardCurrencies.length > 1;
-            
-            // Always show section for widgets button (and currency filter if needed)
-            
-            return (
-              <div className="flex flex-row items-center justify-between gap-2 sm:gap-3 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-lg p-2 sm:p-2.5 border border-blue-200/50 dark:border-blue-800/50 shadow-sm mt-4 sm:mt-6">
-                {/* Left side: Currency Filter & Time Filter */}
-                <div className="flex items-center gap-2 sm:gap-3 flex-1 md:flex-initial flex-wrap">
-                  {hasMultipleCurrencies && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap flex-shrink-0">Currency:</span>
-                      <CustomDropdown
-                        options={filteredDashboardCurrencies.map(currency => ({ value: currency, label: currency }))}
-                        value={dashboardCurrencyFilter}
-                        onChange={setDashboardCurrencyFilter}
-                        fullWidth={false}
-                        className="bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm h-8 min-h-0 hover:bg-blue-50 dark:hover:bg-blue-900/30 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-md px-2 sm:px-3 py-1 w-auto min-w-[80px] sm:min-w-[100px]"
-                        dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
-                      />
-                    </div>
-                  )}
-                  {/* Time Filter */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap flex-shrink-0">Period:</span>
-                    <CustomDropdown
-                      options={[
-                        { value: 'all', label: 'All Time' },
-                        { value: '1m', label: '1 Month' },
-                        { value: '3m', label: '3 Months' },
-                        { value: '6m', label: '6 Months' },
-                        { value: '1y', label: '1 Year' },
-                      ]}
-                      value={dashboardTimeFilter}
-                      onChange={(val) => setDashboardTimeFilter(val as '1m' | '3m' | '6m' | '1y' | 'all')}
-                      fullWidth={false}
-                      className="bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm h-8 min-h-0 hover:bg-blue-50 dark:hover:bg-blue-900/30 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-md px-2 sm:px-3 py-1 w-auto min-w-[90px] sm:min-w-[110px]"
-                      dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
-                    />
-                  </div>
-                </div>
-                
-                {/* Right side: Widgets Button */}
-                <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 ml-auto">
-                  {/* Widgets Button - Opens modal with all widgets */}
-                  <button
-                    type="button"
-                    onClick={() => setShowSettingsPanel(true)}
-                    className="bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm h-8 min-h-0 hover:bg-blue-50 dark:hover:bg-blue-900/30 focus:ring-2 focus:ring-blue-500 focus:outline-none rounded-md px-2 sm:px-3 py-1 items-center gap-1.5 sm:gap-2 flex"
-                    title="Customize widgets"
-                  >
-                    <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                    <span className="text-xs font-medium text-gray-900 dark:text-white whitespace-nowrap">Widgets</span>
-                  </button>
-                </div>
-              </div>
-            );
-          })()}
+          {/* Shared Currency Filter & Card Visibility - Compact chips */}
+          <div className="mt-4 sm:mt-6">
+            <DashboardFilterBar
+              filterCurrency={dashboardCurrencyFilter}
+              onCurrencyChange={setDashboardCurrencyFilter}
+              timeFilter={dashboardTimeFilter}
+              onTimeFilterChange={setDashboardTimeFilter}
+              currencies={filteredDashboardCurrencies}
+              onOpenWidgets={() => setShowSettingsPanel(true)}
+            />
+          </div>
 
           {/* Donations, Purchase, L&B, Transfer - Responsive grid */}
           {/* Dynamic widget rendering - widgets automatically fill available spaces */}

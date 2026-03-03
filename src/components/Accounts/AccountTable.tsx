@@ -3,7 +3,7 @@ import { Edit2, Trash2, InfoIcon, PlusCircle, Wallet, ChevronUp, ChevronDown } f
 import { Account, Transaction } from '../../types';
 import { getAccountColor } from '../../utils/accountIcons';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
-import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { getAccountAllTimeSummary } from '../../utils/transactionUtils';
 
 interface AccountTableProps {
   accounts: Account[];
@@ -40,39 +40,21 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
   // Memoize expensive calculations
   const accountData = useMemo(() => {
     return accounts.map(account => {
+      const summary = getAccountAllTimeSummary(account.id, transactions);
       const accountTransactions = transactions
         .filter(t => t.account_id === account.id)
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      const incomeTransactions = accountTransactions.filter(t => t.type === 'income' && !isLendBorrowTransaction(t));
-      const expenseTransactions = accountTransactions.filter(t => t.type === 'expense' && !isLendBorrowTransaction(t));
-      
-      // Calculate total saved and donated
-      let totalSaved = 0;
-      let totalDonated = 0;
-      incomeTransactions.forEach(t => {
-        const income = t.amount;
-        if (t.category === 'Savings') {
-          totalSaved += income;
-        } else if (t.category === 'Donation') {
-          totalDonated += income;
-        }
-      });
-      
-      // Get DPS savings account
       const dpsSavingsAccount = accounts.find(a => a.id === account.dps_savings_account_id);
-      
-      // Check if this account is a DPS savings account
       const isDpsSavingsAccount = accounts.some(otherAccount => 
         otherAccount.dps_savings_account_id === account.id
       );
-
       return {
         account,
         accountTransactions,
-        incomeTransactions,
-        expenseTransactions,
-        totalSaved,
-        totalDonated,
+        totalSaved: summary.totalSaved,
+        totalDonated: summary.totalDonated,
+        incomeCount: summary.incomeCount,
+        expenseCount: summary.expenseCount,
         dpsSavingsAccount,
         isDpsSavingsAccount
       };
@@ -125,7 +107,7 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
       </thead>
       <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
         {accountData.map((data, index) => {
-          const { account, accountTransactions, incomeTransactions, expenseTransactions, totalSaved, totalDonated, dpsSavingsAccount, isDpsSavingsAccount } = data;
+          const { account, accountTransactions, incomeCount, expenseCount, totalSaved, totalDonated, dpsSavingsAccount, isDpsSavingsAccount } = data;
           const isEven = index % 2 === 0;
           
           return (
@@ -219,7 +201,7 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
                     {accountTransactions.length}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {incomeTransactions.length} income, {expenseTransactions.length} expense
+                    {incomeCount} income, {expenseCount} expense
                   </div>
                 </td>
                 <td className="px-6 py-[0.7rem] text-center">

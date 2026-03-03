@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { X, Calendar, RefreshCw, Pause, Play, Hash, Infinity, ArrowRight, Repeat } from 'lucide-react';
+import { X, Calendar, RefreshCw, Pause, Play, Hash, Infinity, ArrowRight, Repeat, SkipForward } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { format } from 'date-fns';
 import { formatCurrency } from '../../utils/currency';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Tooltip } from '../common/Tooltip';
+import { getUpcomingOccurrences } from '../../utils/transactionUtils';
 
 interface RecurringTransactionDetailsModalProps {
   isOpen: boolean;
@@ -24,7 +25,9 @@ export const RecurringTransactionDetailsModal: React.FC<RecurringTransactionDeta
   selectedCurrency,
 }) => {
   const forceNextOccurrence = useFinanceStore(state => state.forceNextOccurrence);
+  const skipNextOccurrence = useFinanceStore(state => state.skipNextOccurrence);
   const [isForcing, setIsForcing] = useState(false);
+  const [isSkipping, setIsSkipping] = useState(false);
 
   if (!isOpen || !transaction) return null;
 
@@ -143,34 +146,61 @@ export const RecurringTransactionDetailsModal: React.FC<RecurringTransactionDeta
                     <Calendar className="w-5 h-5 text-gray-400 dark:text-gray-500 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Next Occurrence</p>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="text-sm text-gray-900 dark:text-white">
                           {displayTransaction.next_occurrence_date
                             ? format(new Date(displayTransaction.next_occurrence_date), 'MMM dd, yyyy')
                             : 'N/A'}
                         </p>
                         {!displayTransaction.is_paused && displayTransaction.next_occurrence_date && (
-                          <Tooltip content="Force Next Occurrence" placement="top">
-                            <button
-                              onClick={async () => {
-                                if (isForcing) return;
-                                setIsForcing(true);
-                                try {
-                                  await forceNextOccurrence(displayTransaction.id);
-                                } catch (error) {
-                                  // Error already handled in store
-                                } finally {
-                                  setIsForcing(false);
-                                }
-                              }}
-                              disabled={isForcing}
-                              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <Repeat className={`w-3.5 h-3.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 ${isForcing ? 'animate-spin text-blue-600 dark:text-blue-400' : ''}`} />
-                            </button>
-                          </Tooltip>
+                          <>
+                            <Tooltip content="Force Next Occurrence" placement="top">
+                              <button
+                                onClick={async () => {
+                                  if (isForcing) return;
+                                  setIsForcing(true);
+                                  try {
+                                    await forceNextOccurrence(displayTransaction.id);
+                                  } finally {
+                                    setIsForcing(false);
+                                  }
+                                }}
+                                disabled={isForcing}
+                                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <Repeat className={`w-3.5 h-3.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 ${isForcing ? 'animate-spin text-blue-600 dark:text-blue-400' : ''}`} />
+                              </button>
+                            </Tooltip>
+                            <Tooltip content="Skip Next Occurrence" placement="top">
+                              <button
+                                onClick={async () => {
+                                  if (isSkipping) return;
+                                  setIsSkipping(true);
+                                  try {
+                                    await skipNextOccurrence(displayTransaction.id);
+                                  } finally {
+                                    setIsSkipping(false);
+                                  }
+                                }}
+                                disabled={isSkipping}
+                                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <SkipForward className={`w-3.5 h-3.5 text-gray-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 ${isSkipping ? 'animate-pulse' : ''}`} />
+                              </button>
+                            </Tooltip>
+                          </>
                         )}
                       </div>
+                      {displayTransaction.next_occurrence_date && displayTransaction.recurring_frequency && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Upcoming: {getUpcomingOccurrences(
+                            displayTransaction.next_occurrence_date,
+                            displayTransaction.recurring_frequency,
+                            displayTransaction.recurring_end_date ?? undefined,
+                            5
+                          ).map(d => format(new Date(d), 'MMM d')).join(', ')}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
