@@ -164,7 +164,7 @@ export class UrgentNotificationService {
       // Use .neq() instead of .not() for better compatibility
       const { data: completedPurchases, error: pError } = await supabase
         .from('purchases')
-        .select('id, title')
+        .select('id, item_name')
         .eq('user_id', userId)
         .neq('status', 'planned');
 
@@ -187,7 +187,7 @@ export class UrgentNotificationService {
 
       if (completedPurchases && completedPurchases.length > 0) {
         completedPurchases.forEach(purchase => {
-          const baseTitle = `Planned purchase: ${purchase.title}`;
+          const baseTitle = `Planned purchase: ${purchase.item_name}`;
           titlesToDelete.push(`🚨 URGENT: ${baseTitle}`);
           titlesToDelete.push(`⚠️ DUE SOON: ${baseTitle}`);
           titlesToDelete.push(`📅 UPCOMING: ${baseTitle}`);
@@ -312,13 +312,13 @@ export class UrgentNotificationService {
             urgentItems.push({
               id: purchase.id,
               type: 'purchase',
-              title: `Planned purchase: ${purchase.title}`,
-              message: `Planned to buy ${purchase.title} for ${formatCurrency(purchase.price, purchase.currency)}`,
+              title: `Planned purchase: ${purchase.item_name}`,
+              message: `Planned to buy ${purchase.item_name} for ${formatCurrency(purchase.price, purchase.currency)}`,
               dueDate: purchase.planned_date,
               daysUntil,
               amount: purchase.price,
               currency: purchase.currency,
-              itemName: purchase.title,
+              itemName: purchase.item_name,
               priority: status === 'overdue' ? 'high' : status === 'due_soon' ? 'medium' : 'low',
               status
             });

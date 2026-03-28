@@ -55,7 +55,7 @@ const ClientList = lazy(() => import('./components/Clients/ClientList').then(m =
 const Settings = lazy(() => import('./components/Dashboard/Settings').then(m => ({ default: m.Settings })));
 const PaymentHistoryPage = lazy(() => import('./pages/PaymentHistoryPage').then(m => ({ default: m.PaymentHistoryPage })));
 const HelpAndSupport = lazy(() => import('./pages/HelpAndSupport'));
-const Investments = lazy(() => import('./pages/Investments').then(m => ({ default: m.Investments })));
+const Investments = lazy(() => import('./pages/BusinessInvestments').then(m => ({ default: m.BusinessInvestments })));
 const SimpleInvestments = lazy(() => import('./pages/SimpleInvestments').then(m => ({ default: m.SimpleInvestments })));
 const History = lazy(() => import('./pages/History').then(m => ({ default: m.History })));
 const PublicHelpCenter = lazy(() => import('./pages/PublicHelpCenter'));

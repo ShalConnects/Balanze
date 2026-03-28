@@ -24,7 +24,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isSidebarCollapsed, toggleSidebar, isDarkMode } = useThemeStore();
+  const { isSidebarCollapsed, toggleSidebar } = useThemeStore();
   const { profile } = useAuthStore();
   const { isMobile } = useMobileDetection();
 
@@ -100,7 +100,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
                 isDemoPage={isDemoPage}
                 onNavigate={onViewChange}
                 t={t}
-                isDarkMode={isDarkMode}
               />
             ))}
           </nav>

@@ -1,10 +1,8 @@
 import React, { memo } from 'react';
 import type { NavItem } from './navigation';
 
-const ACTIVE_ICON_STYLE = {
-  light: { background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' },
-  dark: { background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' },
-};
+/** Solid colors for active icons — gradient text-fill breaks Lucide SVG stroke (looks thin/wrong vs inactive rows). */
+const ACTIVE_ICON_CLASS = 'text-blue-600 dark:text-blue-400';
 
 const BASE_BTN = 'w-full flex items-center rounded-lg sidebar-nav-item touch-active';
 const ACTIVE_BTN = 'sidebar-active-simple font-semibold';
@@ -19,12 +17,10 @@ interface Props {
   isDemoPage: boolean;
   onNavigate: (id: string) => void;
   t: (key: string) => string;
-  isDarkMode: boolean;
 }
 
-export const SidebarNavItem = memo(function SidebarNavItem({ item, isActive, showLabel, isDemoPage, onNavigate, t, isDarkMode }: Props) {
+export const SidebarNavItem = memo(function SidebarNavItem({ item, isActive, showLabel, isDemoPage, onNavigate, t }: Props) {
   const Icon = item.icon;
-  const iconStyle = isActive ? ACTIVE_ICON_STYLE[isDarkMode ? 'dark' : 'light'] : {};
   const padding = showLabel ? PADDING_EXPANDED : PADDING_COLLAPSED;
 
   return (
@@ -38,7 +34,7 @@ export const SidebarNavItem = memo(function SidebarNavItem({ item, isActive, sho
       className={`${BASE_BTN} ${padding} ${isActive ? ACTIVE_BTN : INACTIVE_BTN}`}
       title={!showLabel ? t(item.name) : undefined}
     >
-      <Icon className={`w-5 h-5 ${isActive ? 'text-gradient-primary' : 'text-gray-400 dark:text-gray-500'}`} style={iconStyle} />
+      <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? ACTIVE_ICON_CLASS : 'text-gray-400 dark:text-gray-500'}`} />
       {showLabel && (
         <>
           <span className={`${isActive ? 'text-gradient-primary' : ''} text-[14px] font-bold flex-1 text-left`}>{t(item.name)}</span>

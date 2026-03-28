@@ -55,6 +55,10 @@ export interface Transaction {
   created_at: string;
   updated_at?: string;
   tags?: string[];
+  /** e.g. business_investment — list UI may lock edit/delete */
+  origin?: string | null;
+  /** Set when transaction is created from Business Investments; DB CASCADE deletes with contract */
+  business_investment_contract_id?: string | null;
   to_account_id?: string;
   transaction_id?: string;
   // Recurring transaction tracking fields

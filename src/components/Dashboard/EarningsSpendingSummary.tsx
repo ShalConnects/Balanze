@@ -3,6 +3,8 @@ import { TrendingUp, TrendingDown, DollarSign, PieChart, BarChart3 } from 'lucid
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../../utils/currency';
 import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { computeDateAwareTotals } from '../../utils/transactionHistoryUtils';
+import { useFinanceStore } from '../../store/useFinanceStore';
 
 interface EarningsSpendingSummaryProps {
   transactions: any[];
@@ -24,6 +26,7 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
   period = '1m'
 }) => {
   const { t } = useTranslation();
+  const historyCache = useFinanceStore((s) => s.transactionHistoryCache);
 
   // Calculate date range
   const { startDate, endDate } = useMemo(() => {
@@ -51,25 +54,23 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
     const currencies = new Set<string>();
     accounts.forEach(acc => currencies.add(acc.currency));
     
+    const historyMap = historyCache ? new Map(historyCache) : new Map();
     return Array.from(currencies).map(currency => {
-      // Filter transactions for this currency and period
-      const currencyTransactions = transactions.filter(t => {
-        const account = accounts.find(a => a.id === t.account_id);
-        const tDate = new Date(t.date);
-        return account?.currency === currency && 
-               tDate >= startDate && 
-               tDate <= endDate &&
-               !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
+      const currencyTransactions = transactions.filter((t) => {
+        const account = accounts.find((a) => a.id === t.account_id);
+        return account?.currency === currency && !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
       });
-
-      const earnings = currencyTransactions
-        .filter(t => t.type === 'income' && !isLendBorrowTransaction(t))
-        .reduce((sum, t) => sum + t.amount, 0);
-      
-      const spending = currencyTransactions
-        .filter(t => t.type === 'expense' && !isLendBorrowTransaction(t))
-        .reduce((sum, t) => sum + t.amount, 0);
-
+      const inRange = (t: any) => {
+        const d = new Date(t.date);
+        return d >= startDate && d <= endDate;
+      };
+      const { income: earnings, expense: spending } =
+        historyMap.size > 0
+          ? computeDateAwareTotals(currencyTransactions, historyMap, startDate, endDate)
+          : {
+              income: currencyTransactions.filter((t) => inRange(t) && t.type === 'income' && !isLendBorrowTransaction(t)).reduce((s, t) => s + t.amount, 0),
+              expense: currencyTransactions.filter((t) => inRange(t) && t.type === 'expense' && !isLendBorrowTransaction(t)).reduce((s, t) => s + t.amount, 0),
+            };
       const net = earnings - spending;
       const currencyAccounts = accounts.filter(acc => acc.currency === currency);
 
@@ -81,7 +82,7 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
         accountCount: currencyAccounts.length
       };
     }).sort((a, b) => Math.abs(b.net) - Math.abs(a.net)); // Sort by absolute net value
-  }, [transactions, accounts, startDate, endDate]);
+  }, [transactions, accounts, startDate, endDate, historyCache]);
 
   // Calculate totals
   const totals = useMemo(() => {

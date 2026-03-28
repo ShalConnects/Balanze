@@ -1557,9 +1557,15 @@ export const useClientStore = create<ClientStore>((set, get) => ({
         ? Math.max(...existingTasksWithStatus.map(t => t.position || 0))
         : 0;
 
+      const normalizedDueDate =
+        typeof taskInput.due_date === 'string' && taskInput.due_date.trim() === ''
+          ? null
+          : taskInput.due_date;
+
       const taskData = {
         ...taskInput,
         user_id: user.id,
+        due_date: normalizedDueDate,
         priority: taskInput.priority || 'medium',
         status: status,
         position: taskInput.position ?? (maxPosition + 1)
@@ -1590,9 +1596,17 @@ export const useClientStore = create<ClientStore>((set, get) => ({
   updateTask: async (id: string, updates: Partial<TaskInput>) => {
     try {
       set({ loading: true, error: null });
+      const normalizedUpdates: Partial<TaskInput> & { due_date?: string | null } = { ...updates };
+      if (Object.prototype.hasOwnProperty.call(updates, 'due_date')) {
+        normalizedUpdates.due_date =
+          typeof updates.due_date === 'string' && updates.due_date.trim() === ''
+            ? null
+            : updates.due_date;
+      }
+
       const { data, error } = await supabase
         .from('client_tasks')
-        .update(updates)
+        .update(normalizedUpdates)
         .eq('id', id)
         .select()
         .single();

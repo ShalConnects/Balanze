@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Search, Edit2, Trash2, Building2, Mail, Phone, MapPin, Tag, X, Filter, Eye, ShoppingCart, ChevronUp, ChevronDown, Info, ChevronRight, Copy, AlertCircle, Bell } from 'lucide-react';
+import { Plus, Edit2, Trash2, Building2, Mail, Phone, MapPin, Tag, X, Filter, Eye, ShoppingCart, ChevronUp, ChevronDown, Info, ChevronRight, Copy, AlertCircle, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useClientStore } from '../../store/useClientStore';
 import { Client, getNeedsFollowUp } from '../../types/client';
@@ -31,8 +31,20 @@ import {
   formatKnownSinceDate,
   CLIENT_STATUS_OPTIONS
 } from '../../utils/clientUtils';
+import {
+  LP,
+  LP_SEARCH_ACTIVE_STYLE,
+  listPageMobileFilterIconButtonClass,
+  ListPageErrorBanner,
+  ListPageFilterSearchField,
+  ListPageClearFiltersButton,
+  ListPageMobileFilterModal,
+  ListPageMobileFilterSection,
+  ListPageMobileFilterChip
+} from '../common/listPage/listPageLayout';
 import { isTaskOverdue, getDaysOverdue } from '../../utils/taskDateUtils';
 import { getTagSuggestionPool } from '../../utils/clientTagSuggestions';
+import { CLIENTS_FEATURE_ICON } from '../../lib/clientFeatureIcon';
 
 // Tag Management Component
 interface ClientTagManagerProps {
@@ -215,8 +227,6 @@ export const ClientList: React.FC = () => {
   // Enhanced search state
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  
   // Debounced search value for filtering
   const [debouncedSearch, setDebouncedSearch] = useState(tableFilters.search);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -238,6 +248,8 @@ export const ClientList: React.FC = () => {
     };
   }, [tableFilters.search]);
 
+  const searchPending = tableFilters.search !== debouncedSearch;
+
   // Menu states
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(false);
@@ -251,8 +263,6 @@ export const ClientList: React.FC = () => {
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const currencyMenuRef = useRef<HTMLDivElement>(null);
   const tagMenuRef = useRef<HTMLDivElement>(null);
-  const mobileFilterMenuRef = useRef<HTMLDivElement>(null);
-
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -380,9 +390,6 @@ export const ClientList: React.FC = () => {
       if (tagMenuRef.current && !tagMenuRef.current.contains(event.target as Node)) {
         setShowTagMenu(false);
       }
-      if (mobileFilterMenuRef.current && !mobileFilterMenuRef.current.contains(event.target as Node)) {
-        setShowMobileFilterMenu(false);
-      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -439,6 +446,15 @@ export const ClientList: React.FC = () => {
 
     return filtered;
   }, [clients, debouncedSearch, tableFilters.status, tableFilters.currency, tableFilters.tag, tableFilters.needsFollowUp, sortConfig]);
+
+  const hasClientListFilters = Boolean(
+    tableFilters.search ||
+      tableFilters.currency ||
+      tableFilters.status !== 'active' ||
+      tableFilters.source ||
+      tableFilters.tag ||
+      tableFilters.needsFollowUp
+  );
 
   // Check if there are active tasks (same logic as ClientTasksWidget)
   const hasActiveTasks = useMemo(() => {
@@ -497,6 +513,20 @@ export const ClientList: React.FC = () => {
       ? <ChevronUp className="w-4 h-4 text-blue-600" />
       : <ChevronDown className="w-4 h-4 text-blue-600" />;
   };
+
+  const clientsEmptyBody = (
+    <>
+      <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+        <CLIENTS_FEATURE_ICON className="w-12 h-12 text-gray-400" />
+      </div>
+      <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">No client records found</h3>
+      <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mb-4 sm:mb-6 max-w-sm mx-auto px-4">
+        {hasClientListFilters
+          ? 'No clients match your filters'
+          : 'Start managing your clients by adding your first client'}
+      </p>
+    </>
+  );
 
   // Row expansion handlers
   const toggleRowExpansion = (clientId: string) => {
@@ -650,7 +680,7 @@ export const ClientList: React.FC = () => {
           <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
           
           {/* Filters skeleton */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 relative z-10">
+          <div className={`${LP.filterHeader} relative z-10`}>
             <ClientFiltersSkeleton />
           </div>
           
@@ -680,46 +710,29 @@ export const ClientList: React.FC = () => {
     <>
       <div className="w-full">
         {/* Unified Table View - matching AccountsView structure */}
-        <div className="space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6">
-          {/* Error Banner */}
-          {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 sm:p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                <span className="text-red-600 dark:text-red-400 font-medium text-xs sm:text-sm">⚠️ Error loading clients:</span>
-                <span className="text-red-700 dark:text-red-300 text-xs sm:text-sm">{error}</span>
-              </div>
-              <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm mt-2">
-                The page will still work, but client data may be incomplete. Please check your database connection or run the migration.
-              </p>
-            </div>
-          )}
+        <div className={LP.stack}>
+          {error ? (
+            <ListPageErrorBanner
+              title="⚠️ Error loading clients:"
+              message={error}
+              hint="The page will still work, but client data may be incomplete. Please check your database connection or run the migration."
+            />
+          ) : null}
           
           {/* Client Tasks Widget - Outside table */}
           <ClientTasksWidget />
           
           {/* Unified Filters and Table */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 pb-2 sm:pb-3 lg:pb-0" style={hasActiveTasks ? { marginTop: '15px' } : undefined}>
+          <div className={LP.card} style={hasActiveTasks ? { marginTop: '15px' } : undefined}>
             {/* Filters Section */}
-            <div className="p-2 sm:p-3 md:p-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex flex-wrap items-center gap-x-1.5 sm:gap-x-2 gap-y-1.5 sm:gap-y-2" style={{ marginBottom: 0 }}>
-                {/* Search */}
-                <div>
-                  <div className="relative">
-                    <Search className={`absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 ${isSearching ? 'animate-pulse text-blue-500' : tableFilters.search ? 'text-blue-500' : 'text-gray-400'}`} />
-                    <input
-                      type="text"
-                      value={tableFilters.search}
-                      onChange={(e) => setTableFilters({ ...tableFilters, search: e.target.value })}
-                      className={`w-full pl-8 pr-2 py-1.5 text-[13px] h-8 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400 transition-colors ${
-                        tableFilters.search 
-                          ? 'border-blue-300 dark:border-blue-600' 
-                          : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800'
-                      }`}
-                      style={tableFilters.search ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
-                      placeholder="Search clients..."
-                    />
-                  </div>
-                </div>
+            <div className={LP.filterHeader}>
+              <div className={LP.filterRow} style={{ marginBottom: 0 }}>
+                <ListPageFilterSearchField
+                  value={tableFilters.search}
+                  onChange={(search) => setTableFilters({ ...tableFilters, search })}
+                  placeholder="Search clients..."
+                  pending={searchPending}
+                />
 
                 {/* Selection Filter */}
                 {hasSelection && selectedRecord && (
@@ -732,20 +745,20 @@ export const ClientList: React.FC = () => {
 
                 {/* Mobile Filter Button + Follow-up */}
                 <div className="md:hidden flex items-center gap-1">
-                  <div className="relative" ref={mobileFilterMenuRef}>
                     <button
-                      onClick={() => setShowMobileFilterMenu(v => !v)}
-                      className={`px-2 py-1.5 text-[13px] h-8 w-8 rounded-md transition-colors flex items-center justify-center ${
-                        (tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag)
-                          ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
-                      }`}
-                      style={(tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag) ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
+                      onClick={() => setShowMobileFilterMenu(true)}
+                      className={listPageMobileFilterIconButtonClass(
+                        !!(tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag)
+                      )}
+                      style={
+                        tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag
+                          ? LP_SEARCH_ACTIVE_STYLE
+                          : undefined
+                      }
                       title="Filters"
                     >
                       <Filter className="w-4 h-4" />
                     </button>
-                  </div>
                   <button
                     onClick={() => setTableFilters({ ...tableFilters, needsFollowUp: !tableFilters.needsFollowUp })}
                     className={`p-1.5 h-8 w-8 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 rounded-md flex items-center justify-center transition-colors touch-manipulation ${
@@ -790,15 +803,9 @@ export const ClientList: React.FC = () => {
                  {/* Mobile Clear Filters Button */}
                  <div className="md:hidden">
                    {(tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag || tableFilters.needsFollowUp) && (
-                     <button
+                     <ListPageClearFiltersButton
                        onClick={() => setTableFilters({ search: '', currency: '', status: 'active', source: '', tag: '', needsFollowUp: false })}
-                       className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
-                       title="Clear all filters"
-                     >
-                       <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                       </svg>
-                     </button>
+                     />
                    )}
                  </div>
 
@@ -945,15 +952,9 @@ export const ClientList: React.FC = () => {
 
                   {/* Clear Filters */}
                   {(tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.tag || tableFilters.needsFollowUp) && (
-                    <button
+                    <ListPageClearFiltersButton
                       onClick={() => setTableFilters({ search: '', currency: '', status: 'active', source: '', tag: '', needsFollowUp: false })}
-                      className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
-                      title="Clear all filters"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                    />
                   )}
                 </div>
                 
@@ -990,7 +991,7 @@ export const ClientList: React.FC = () => {
             </div>
 
             {/* Summary Cards - matching AccountsView pattern */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 p-2 sm:p-3 lg:p-4 min-w-0 overflow-hidden">
+            <div className={LP.summaryGrid}>
               {(() => {
                 const activeClients = filteredClients.filter(c => c.status === 'active');
                 const inactiveClients = filteredClients.filter(c => c.status === 'inactive');
@@ -1000,7 +1001,7 @@ export const ClientList: React.FC = () => {
 
                 return (
                   <>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 sm:py-2 px-1.5 sm:px-2">
+                    <div className={LP.statCard}>
                       <div className="flex items-center justify-between">
                         <div className="text-left min-w-0 flex-1">
                           <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">{tableFilters.status === 'active' ? 'Active Clients' : tableFilters.status === 'all' ? 'All Clients' : tableFilters.status.charAt(0).toUpperCase() + tableFilters.status.slice(1) + ' Clients'}</p>
@@ -1047,7 +1048,7 @@ export const ClientList: React.FC = () => {
                         <Bell className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${tableFilters.needsFollowUp ? 'text-amber-600 dark:text-amber-400 fill-current' : 'text-blue-600'}`} />
                       </div>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 sm:py-2 px-1.5 sm:px-2">
+                    <div className={LP.statCard}>
                       <div className="flex items-center justify-between">
                         <div className="text-left min-w-0 flex-1">
                           <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Currencies</p>
@@ -1068,7 +1069,7 @@ export const ClientList: React.FC = () => {
                       </div>
                     </div>
                     <div 
-                      className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 sm:py-2 px-1.5 sm:px-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className={`${LP.statCard} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}
                       onClick={() => {
                         setTableFilters({
                           search: '',
@@ -1094,7 +1095,7 @@ export const ClientList: React.FC = () => {
                       </div>
                     </div>
                     {!isPremiumPlan && (
-                      <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 sm:py-2 px-1.5 sm:px-2">
+                      <div className={LP.statCard}>
                         <div className="flex items-center justify-between">
                           <div className="text-left min-w-0 flex-1">
                             <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Client Limit</p>
@@ -1128,10 +1129,10 @@ export const ClientList: React.FC = () => {
             </div>
 
             {/* Table Section */}
-            <div className="overflow-x-auto lg:rounded-b-xl" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
+            <div className={LP.tableOuter} style={LP.tableOuterRadius}>
               {/* Desktop Table View */}
-              <div className="hidden lg:block max-h-[400px] xl:max-h-[500px] overflow-y-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900 text-sm lg:text-[14px]">
+              <div className={LP.desktopTableScroll}>
+                <table className={LP.table}>
                   <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
                     <tr>
                       <th 
@@ -1171,15 +1172,7 @@ export const ClientList: React.FC = () => {
                     {filteredClients.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="py-16 text-center">
-                          <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                            <Building2 className="w-12 h-12 text-gray-400" />
-                          </div>
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No client records found</h3>
-                          <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
-                            {tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag || tableFilters.needsFollowUp
-                              ? 'No clients match your filters'
-                              : 'Start managing your clients by adding your first client'}
-                          </p>
+                          {clientsEmptyBody}
                         </td>
                       </tr>
                     ) : (
@@ -1992,19 +1985,9 @@ export const ClientList: React.FC = () => {
               </div>
 
               {/* Mobile/Tablet Card View */}
-              <div className="lg:hidden max-h-[400px] sm:max-h-[450px] md:max-h-[500px] overflow-y-auto">
+              <div className={LP.mobileScroll}>
                 {filteredClients.length === 0 ? (
-                  <div className="text-center py-12 px-4">
-                    <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Building2 className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" />
-                    </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">No clients yet</h3>
-                    <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mb-4 sm:mb-6 max-w-sm mx-auto px-4">
-                      {tableFilters.search || tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag || tableFilters.needsFollowUp
-                        ? 'No clients match your filters'
-                        : 'Start managing your clients by adding your first client'}
-                    </p>
-                  </div>
+                  <div className="text-center py-12 px-4">{clientsEmptyBody}</div>
                 ) : (
                   <div className="space-y-3 sm:space-y-4 px-3 sm:px-4">
                     {filteredClients.map((client) => {
@@ -2594,198 +2577,90 @@ export const ClientList: React.FC = () => {
         />
       )}
 
-      {/* Mobile Filter Modal */}
-      {showMobileFilterMenu && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black bg-opacity-50" onClick={() => setShowMobileFilterMenu(false)}>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl w-full max-w-xs overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
-            <div className="bg-white dark:bg-gray-900 px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">Filters</span>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Select filters and click ✓ to apply</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTableFilters(tempFilters);
-                      setShowMobileFilterMenu(false);
-                    }}
-                    onTouchStart={(e) => {
-                      e.stopPropagation();
-                    }}
-                    className={`p-2 transition-colors touch-manipulation ${
-                      (tempFilters.currency || tempFilters.status !== 'active' || tempFilters.source || tempFilters.tag || tempFilters.needsFollowUp)
-                        ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 active:opacity-70'
-                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 active:opacity-70'
-                    }`}
-                    style={{ touchAction: 'manipulation' }}
-                    title="Apply Filters"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTableFilters({ search: '', currency: '', status: 'active', source: '', tag: '', needsFollowUp: false });
-                      setShowMobileFilterMenu(false);
-                    }}
-                    onTouchStart={(e) => {
-                      e.stopPropagation();
-                    }}
-                    className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 transition-colors touch-manipulation active:opacity-70"
-                    style={{ touchAction: 'manipulation' }}
-                    title="Clear All Filters"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Filter Options */}
-            <div className="max-h-[60vh] overflow-y-auto">
-              {/* Currency Filter */}
-              {currencyOptions.length > 0 && (
-                <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Currency</div>
-                  <div className="flex flex-wrap gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTempFilters({ ...tempFilters, currency: '' });
-                      }}
-                      className={`px-2 py-1 text-xs rounded-full border transition-colors ${
-                        tempFilters.currency === '' 
-                          ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
-                          : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      All
-                    </button>
-                    {currencyOptions.map(currency => (
-                      <button
-                        key={currency}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setTempFilters({ ...tempFilters, currency });
-                        }}
-                        className={`px-2 py-1 text-xs rounded-full border transition-colors ${
-                          tempFilters.currency === currency 
-                            ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
-                            : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        {currency}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Status Filter */}
-              <div className="px-3 py-2">
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Status</div>
-                <div className="flex flex-wrap gap-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTempFilters({ ...tempFilters, status: 'all' });
-                    }}
-                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
-                      tempFilters.status === 'all' 
-                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
-                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    All
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTempFilters({ ...tempFilters, status: 'active' });
-                    }}
-                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
-                      tempFilters.status === 'active' 
-                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
-                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    Active
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTempFilters({ ...tempFilters, status: 'inactive' });
-                    }}
-                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
-                      tempFilters.status === 'inactive' 
-                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
-                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    Inactive
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTempFilters({ ...tempFilters, status: 'archived' });
-                    }}
-                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
-                      tempFilters.status === 'archived' 
-                        ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
-                        : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    Archived
-                  </button>
-                </div>
-              </div>
-
-              {/* Tag Filter */}
-              {tagOptions.length > 0 && (
-                <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700">
-                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Tags</div>
-                  <div className="flex flex-wrap gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTempFilters({ ...tempFilters, tag: '' });
-                      }}
-                      className={`px-2 py-1 text-xs rounded-full border transition-colors ${
-                        tempFilters.tag === '' 
-                          ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
-                          : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      All
-                    </button>
-                    {tagOptions.map(tag => (
-                      <button
-                        key={tag}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setTempFilters({ ...tempFilters, tag });
-                        }}
-                        className={`px-2 py-1 text-xs rounded-full border transition-colors ${
-                          tempFilters.tag === tag 
-                            ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200' 
-                            : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <ListPageMobileFilterModal
+        open={showMobileFilterMenu}
+        onBackdropClick={() => setShowMobileFilterMenu(false)}
+        onApply={() => {
+          setTableFilters(tempFilters);
+          setShowMobileFilterMenu(false);
+        }}
+        onClearAll={() => {
+          setTableFilters({ search: '', currency: '', status: 'active', source: '', tag: '', needsFollowUp: false });
+          setShowMobileFilterMenu(false);
+        }}
+        applyActive={Boolean(
+          tempFilters.currency ||
+            tempFilters.status !== 'active' ||
+            tempFilters.source ||
+            tempFilters.tag ||
+            tempFilters.needsFollowUp
+        )}
+      >
+        {currencyOptions.length > 0 && (
+          <ListPageMobileFilterSection label="Currency">
+            <ListPageMobileFilterChip
+              selected={tempFilters.currency === ''}
+              onClick={() => setTempFilters({ ...tempFilters, currency: '' })}
+            >
+              All
+            </ListPageMobileFilterChip>
+            {currencyOptions.map((currency) => (
+              <ListPageMobileFilterChip
+                key={currency}
+                selected={tempFilters.currency === currency}
+                onClick={() => setTempFilters({ ...tempFilters, currency })}
+              >
+                {currency}
+              </ListPageMobileFilterChip>
+            ))}
+          </ListPageMobileFilterSection>
+        )}
+        <ListPageMobileFilterSection label="Status" borderBottom={false}>
+          <ListPageMobileFilterChip
+            selected={tempFilters.status === 'all'}
+            onClick={() => setTempFilters({ ...tempFilters, status: 'all' })}
+          >
+            All
+          </ListPageMobileFilterChip>
+          <ListPageMobileFilterChip
+            selected={tempFilters.status === 'active'}
+            onClick={() => setTempFilters({ ...tempFilters, status: 'active' })}
+          >
+            Active
+          </ListPageMobileFilterChip>
+          <ListPageMobileFilterChip
+            selected={tempFilters.status === 'inactive'}
+            onClick={() => setTempFilters({ ...tempFilters, status: 'inactive' })}
+          >
+            Inactive
+          </ListPageMobileFilterChip>
+          <ListPageMobileFilterChip
+            selected={tempFilters.status === 'archived'}
+            onClick={() => setTempFilters({ ...tempFilters, status: 'archived' })}
+          >
+            Archived
+          </ListPageMobileFilterChip>
+        </ListPageMobileFilterSection>
+        {tagOptions.length > 0 && (
+          <ListPageMobileFilterSection label="Tags" borderTop borderBottom={false}>
+            <ListPageMobileFilterChip
+              selected={tempFilters.tag === ''}
+              onClick={() => setTempFilters({ ...tempFilters, tag: '' })}
+            >
+              All
+            </ListPageMobileFilterChip>
+            {tagOptions.map((tag) => (
+              <ListPageMobileFilterChip
+                key={tag}
+                selected={tempFilters.tag === tag}
+                onClick={() => setTempFilters({ ...tempFilters, tag })}
+              >
+                {tag}
+              </ListPageMobileFilterChip>
+            ))}
+          </ListPageMobileFilterSection>
+        )}
+      </ListPageMobileFilterModal>
 
       {/* Client Note Modal */}
       {noteModalClient && (

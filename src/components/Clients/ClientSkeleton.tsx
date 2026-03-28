@@ -1,4 +1,5 @@
 import React from 'react';
+import { LP } from '../common/listPage/listPageLayout';
 
 // Enhanced skeleton for client cards (mobile view) - matches real ClientCard structure
 export const ClientCardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => {
@@ -150,36 +151,29 @@ export const ClientSummaryCardsSkeleton: React.FC = () => {
   );
 };
 
-// Enhanced skeleton for client filters - matches real filter structure
+// Skeleton filter row — parent supplies `LP.filterHeader` (Investments) or equivalent padding (ClientList loading)
 export const ClientFiltersSkeleton: React.FC = () => {
   return (
-    <div className="flex flex-wrap md:flex-nowrap justify-between items-center w-full gap-3">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 flex-1">
-        {/* Search */}
-        <div className="flex-1 min-w-[200px] relative">
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg pl-10 animate-pulse"></div>
+    <div className={`${LP.filterRow} justify-between`} style={{ marginBottom: 0 }}>
+      <div className={`${LP.filterRow} flex-1 min-w-0`}>
+        <div>
+          <div className="relative">
+            <div className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 bg-gray-300 dark:bg-gray-600 rounded animate-pulse" />
+            <div className="h-8 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-700 pl-8 pr-2 animate-pulse" />
+          </div>
         </div>
-        
-        {/* Currency Filter */}
-        <div className="relative">
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
+        <div className="relative hidden md:block">
+          <div className="h-8 w-[7.5rem] rounded-md bg-gray-200 dark:bg-gray-700 animate-pulse" />
         </div>
-        
-        {/* Status Filter */}
-        <div className="relative">
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-32 animate-pulse"></div>
+        <div className="relative hidden md:block">
+          <div className="h-8 w-[7.5rem] rounded-md bg-gray-200 dark:bg-gray-700 animate-pulse" />
         </div>
-        
-        {/* Mobile Filter Button */}
         <div className="md:hidden">
-          <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse"></div>
+          <div className="w-8 h-8 rounded-md bg-gray-200 dark:bg-gray-700 animate-pulse" />
         </div>
       </div>
-      
-      {/* Desktop Action Buttons */}
-      <div className="hidden md:flex items-center gap-2">
-        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
+      <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+        <div className="h-8 w-28 rounded-md bg-gray-200 dark:bg-gray-700 animate-pulse" />
       </div>
     </div>
   );

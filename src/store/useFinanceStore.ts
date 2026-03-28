@@ -31,6 +31,7 @@ import { calculateNextOccurrence } from '../../lib/recurringUtils.js';
 import { useAchievementStore } from './achievementStore';
 import { userActivityService } from '../lib/userActivityService';
 import { isLendBorrowTransaction } from '../utils/transactionUtils';
+import type { TransactionHistoryEntry } from '../utils/transactionHistoryUtils';
 
 // Extend the Account type to make calculated_balance optional for input
 type AccountInput = Omit<Account, 'calculated_balance'>;
@@ -63,6 +64,7 @@ interface FinanceStore {
   showInvestmentGoalForm: boolean;
   setDonationSavingRecords: (records: DonationSavingRecord[] | ((prev: DonationSavingRecord[]) => DonationSavingRecord[])) => void;
   
+  transactionHistoryCache?: Map<string, TransactionHistoryEntry[]>;
   // Payment History
   paymentTransactions: PaymentTransaction[];
   setPaymentTransactions: (transactions: PaymentTransaction[] | ((prev: PaymentTransaction[]) => PaymentTransaction[])) => void;
@@ -99,6 +101,8 @@ interface FinanceStore {
     attachments: PurchaseAttachment[];
   }) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  fetchTransactionEditHistory: (transactionId: string) => Promise<{ rows: TransactionHistoryEntry[]; error: string | null }>;
+  fetchTransactionEditHistoryBulk: (transactionIds: string[]) => Promise<void>;
   forceNextOccurrence: (transactionId: string) => Promise<void>;
   skipNextOccurrence: (transactionId: string) => Promise<void>;
   
@@ -277,6 +281,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     }));
   },
   
+  transactionHistoryCache: undefined as Map<string, TransactionHistoryEntry[]> | undefined,
   // Payment History
   paymentTransactions: [],
   setPaymentTransactions: (transactions) => {
@@ -799,6 +804,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       }
 
       set({ transactions: data || [], loading: false });
+      const ids = (data || []).map((t: any) => t.transaction_id).filter(Boolean);
+      if (ids.length > 0) get().fetchTransactionEditHistoryBulk(ids);
     } catch (error: any) {
       set({ loading: false, error: error.message });
     }
@@ -949,7 +956,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       set({ error: 'Transaction not found' });
       return;
     }
-    
+
     console.log('🔄 [Store] Original transaction found', {
       id: originalTransaction.id,
       currentNote: originalTransaction.note,
@@ -1045,6 +1052,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       }
       
       if (transactionChanged) {
+        const tid = updatedTransaction?.transaction_id;
+        if (tid && get().transactionHistoryCache?.has(tid)) {
+          const m = new Map(get().transactionHistoryCache);
+          m.delete(tid);
+          set({ transactionHistoryCache: m });
+        }
         const serverUpdatedTransactions = stateAfterOptimistic.transactions.map(t => 
           t.id === id ? updatedTransaction : t
         );
@@ -1162,6 +1175,61 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       get().fetchPurchases()
     ]);
     set({ loading: false });
+  },
+
+  fetchTransactionEditHistory: async (transactionId: string) => {
+    if (!transactionId) return { rows: [], error: null };
+    const cached = get().transactionHistoryCache?.get(transactionId);
+    if (cached) return { rows: cached, error: null };
+    try {
+      const { data, error } = await supabase
+        .from('transaction_updates')
+        .select('id, field_name, old_value, new_value, updated_at, updated_by')
+        .eq('transaction_id', transactionId)
+        .order('updated_at', { ascending: true });
+      if (error) return { rows: [], error: error.message };
+      const result: TransactionHistoryEntry[] = (data || []).map((r: any) => ({
+        id: r.id ?? 0,
+        field_name: r.field_name,
+        old_value: r.old_value,
+        new_value: r.new_value,
+        updated_at: r.updated_at || '',
+        updated_by: r.updated_by ?? null,
+      }));
+      set((s) => ({
+        transactionHistoryCache: new Map(s.transactionHistoryCache || []).set(transactionId, result),
+      }));
+      return { rows: result, error: null };
+    } catch (e: unknown) {
+      return { rows: [], error: e instanceof Error ? e.message : 'Failed to load history' };
+    }
+  },
+
+  fetchTransactionEditHistoryBulk: async (transactionIds: string[]) => {
+    if (!transactionIds.length) return;
+    try {
+      const { data, error } = await supabase
+        .from('transaction_updates')
+        .select('id, transaction_id, field_name, old_value, new_value, updated_at, updated_by')
+        .in('transaction_id', transactionIds)
+        .order('updated_at', { ascending: true });
+      if (error || !data) return;
+      const m = new Map(get().transactionHistoryCache || []);
+      data.forEach((r: any) => {
+        const tid = r.transaction_id;
+        const row: TransactionHistoryEntry = {
+          id: r.id ?? 0,
+          field_name: r.field_name,
+          old_value: r.old_value,
+          new_value: r.new_value,
+          updated_at: r.updated_at || '',
+          updated_by: r.updated_by ?? null,
+        };
+        if (!m.has(tid)) m.set(tid, []);
+        m.get(tid)!.push(row);
+      });
+      set({ transactionHistoryCache: m });
+    } catch { /* no-op */ }
   },
 
   forceNextOccurrence: async (transactionId: string) => {

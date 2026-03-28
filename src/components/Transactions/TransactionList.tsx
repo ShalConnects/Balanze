@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check, EyeOff, FileText, X } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check, EyeOff, FileText, X, History } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -27,11 +27,46 @@ import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
 import { LendBorrowInfoModal } from './LendBorrowInfoModal';
 import { TransactionNoteModal } from './TransactionNoteModal';
+import { TransactionEditHistory } from './TransactionEditHistory';
 import { useExport } from '../../hooks/useExport';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { FinancialHealthCard } from './FinancialHealthCard';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { transactionHasAuditTrail } from '../../utils/transactionHistoryUtils';
+import { getTransactionListManagedElsewhereHint, isTransactionListActionsLocked } from '../../lib/transactionListLock';
+import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
+
+/** Actions column: Lend & Borrow uses Info; business-investment origin uses the Investments feature icon (LineChart). */
+function ManagedTransactionActionIcon({ transaction, className }: { transaction: Transaction; className: string }) {
+  return isLendBorrowTransaction(transaction) ? (
+    <Info className={className} />
+  ) : (
+    <INVESTMENTS_FEATURE_ICON className={className} />
+  );
+}
+
+const expandGlyphSizes = { md: { lead: 'w-4 h-4', chev: 'w-3.5 h-3.5' }, sm: { lead: 'w-3.5 h-3.5', chev: 'w-3 h-3' } } as const;
+
+/** Recurring: Repeat + chevron; history: History + chevron (avoids two identical chevrons when both expanded). */
+function TransactionActionExpandGlyph({
+  expanded,
+  variant,
+  size = 'md'
+}: {
+  expanded: boolean;
+  variant: 'recurring' | 'history';
+  size?: keyof typeof expandGlyphSizes;
+}) {
+  const { lead, chev } = expandGlyphSizes[size];
+  const Lead = variant === 'recurring' ? Repeat : History;
+  return (
+    <span className="inline-flex items-center justify-center gap-px" aria-hidden>
+      <Lead className={`${lead} flex-shrink-0`} />
+      {expanded ? <ChevronUp className={`${chev} flex-shrink-0 opacity-90`} /> : <ChevronDown className={`${chev} flex-shrink-0 opacity-90`} />}
+    </span>
+  );
+}
 
 const TransactionListComponent: React.FC<{ 
   transactions: Transaction[];
@@ -81,7 +116,7 @@ const TransactionListComponent: React.FC<{
   const [transactionToDuplicate, setTransactionToDuplicate] = useState<Transaction | undefined>();
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
-  const { getActiveAccounts, getActiveTransactions, deleteTransaction, updateTransaction, fetchTransactions, categories, purchaseCategories, accounts: allAccounts, forceNextOccurrence } = useFinanceStore();
+  const { getActiveAccounts, getActiveTransactions, deleteTransaction, updateTransaction, fetchTransactions, categories, purchaseCategories, accounts: allAccounts, forceNextOccurrence, transactionHistoryCache } = useFinanceStore();
   const accounts = getActiveAccounts(); // For filtering dropdowns, keep active accounts
   const allAccountsForLookup = allAccounts; // Use all accounts for lookups to show inactive account info
   const activeTransactions = getActiveTransactions();
@@ -543,6 +578,7 @@ const TransactionListComponent: React.FC<{
   });
   
   const [expandedRecurringIds, setExpandedRecurringIds] = useState<Set<string>>(new Set());
+  const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<string>>(new Set());
   const [forcingOccurrenceIds, setForcingOccurrenceIds] = useState<Set<string>>(new Set());
 
   // Column visibility state with localStorage persistence
@@ -863,11 +899,17 @@ const TransactionListComponent: React.FC<{
   const toggleRecurringExpand = (transactionId: string) => {
     setExpandedRecurringIds(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(transactionId)) {
-        newSet.delete(transactionId);
-      } else {
-        newSet.add(transactionId);
-      }
+      if (newSet.has(transactionId)) newSet.delete(transactionId);
+      else newSet.add(transactionId);
+      return newSet;
+    });
+  };
+
+  const toggleHistoryExpand = (transactionId: string) => {
+    setExpandedHistoryIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(transactionId)) newSet.delete(transactionId);
+      else newSet.add(transactionId);
       return newSet;
     });
   };
@@ -2292,7 +2334,7 @@ const TransactionListComponent: React.FC<{
                         {columnVisibility.modified && (
                           <td className="px-6 py-2 text-left">
                             <div className="text-gray-900 dark:text-white" style={{ fontSize: '14px' }}>
-                              {transaction.updated_at && transaction.updated_at !== transaction.created_at ? (
+                              {transactionHasAuditTrail(transaction, transactionHistoryCache) ? (
                                 <>
                                   <div>{format(new Date(transaction.updated_at), 'MMM dd, yyyy')}</div>
                                   <div className="text-xs text-gradient-primary flex items-center gap-1">
@@ -2422,13 +2464,22 @@ const TransactionListComponent: React.FC<{
                         )}
                         <td className="px-6 py-2 text-center">
                           <div className="flex justify-center gap-2 items-center">
-                             {isLendBorrowTransaction(transaction) ? (
-                               <Tooltip content="Lend & Borrow transaction info" placement="top">
+                             {isTransactionListActionsLocked(transaction) ? (
+                               <Tooltip
+                                 content={
+                                   isLendBorrowTransaction(transaction)
+                                     ? 'Lend & Borrow transaction info'
+                                     : 'Open Investments — this transaction is tied to your investment contracts.'
+                                 }
+                                 placement="top"
+                               >
                                  <button
-                                   onClick={() => setShowLendBorrowInfo(true)}
+                                   onClick={() =>
+                                     isLendBorrowTransaction(transaction) ? setShowLendBorrowInfo(true) : navigate('/investments')
+                                   }
                                    className="text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                                  >
-                                   <Info className="w-4 h-4" />
+                                   <ManagedTransactionActionIcon transaction={transaction} className="w-4 h-4" />
                                  </button>
                                </Tooltip>
                              ) : (
@@ -2442,11 +2493,20 @@ const TransactionListComponent: React.FC<{
                                        }}
                                        className="text-gray-500 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
                                      >
-                                       {expandedRecurringIds.has(transaction.id) ? (
-                                         <ChevronUp className="w-4 h-4" />
-                                       ) : (
-                                         <ChevronDown className="w-4 h-4" />
-                                       )}
+                                       <TransactionActionExpandGlyph expanded={expandedRecurringIds.has(transaction.id)} variant="recurring" />
+                                     </button>
+                                   </Tooltip>
+                                 )}
+                                 {transactionHasAuditTrail(transaction, transactionHistoryCache) && (
+                                   <Tooltip content={expandedHistoryIds.has(transaction.id) ? 'Collapse edit history' : 'View edit history'} placement="top">
+                                     <button
+                                       type="button"
+                                       aria-expanded={expandedHistoryIds.has(transaction.id)}
+                                       aria-label={expandedHistoryIds.has(transaction.id) ? 'Collapse edit history' : 'View edit history'}
+                                       onClick={(e) => { e.stopPropagation(); toggleHistoryExpand(transaction.id); }}
+                                       className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                     >
+                                       <TransactionActionExpandGlyph expanded={expandedHistoryIds.has(transaction.id)} variant="history" />
                                      </button>
                                    </Tooltip>
                                  )}
@@ -2737,6 +2797,17 @@ const TransactionListComponent: React.FC<{
                           </tr>
                         );
                       })()}
+                      {expandedHistoryIds.has(transaction.id) && (
+                        <tr className="bg-gray-50 dark:bg-gray-800/50">
+                          <td colSpan={4 + Object.values(columnVisibility).filter(v => v).length}>
+                            <TransactionEditHistory
+                              transactionId={transaction.transaction_id || ''}
+                              currency={account?.currency || 'USD'}
+                              currentAmount={transaction.amount}
+                            />
+                          </td>
+                        </tr>
+                      )}
                       </React.Fragment>
                     );
                   })
@@ -2783,7 +2854,7 @@ const TransactionListComponent: React.FC<{
                             {format(new Date(transaction.created_at), 'h:mm a')}
                           </span>
                         </div>
-                        {transaction.updated_at && transaction.updated_at !== transaction.created_at && (
+                        {transactionHasAuditTrail(transaction, transactionHistoryCache) && (
                           <div className="text-xs text-gradient-primary mt-1 flex items-center gap-1">
                             <Edit2 
                               className="w-3 h-3" 
@@ -2952,13 +3023,22 @@ const TransactionListComponent: React.FC<{
                         )}
                       </div>
                       <div className="flex gap-1">
-                         {isLendBorrowTransaction(transaction) ? (
-                           <Tooltip content="Lend & Borrow transaction info" placement="top">
+                         {isTransactionListActionsLocked(transaction) ? (
+                           <Tooltip
+                             content={
+                               isLendBorrowTransaction(transaction)
+                                 ? 'Lend & Borrow transaction info'
+                                 : 'Open Investments — this transaction is tied to your investment contracts.'
+                             }
+                             placement="top"
+                           >
                              <button
-                               onClick={() => setShowLendBorrowInfo(true)}
+                               onClick={() =>
+                                 isLendBorrowTransaction(transaction) ? setShowLendBorrowInfo(true) : navigate('/investments')
+                               }
                                className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
                              >
-                               <Info className="w-3.5 h-3.5" />
+                               <ManagedTransactionActionIcon transaction={transaction} className="w-3.5 h-3.5" />
                              </button>
                            </Tooltip>
                          ) : (
@@ -2972,11 +3052,20 @@ const TransactionListComponent: React.FC<{
                                      }}
                                      className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
                                    >
-                                     {expandedRecurringIds.has(transaction.id) ? (
-                                       <ChevronUp className="w-3.5 h-3.5" />
-                                     ) : (
-                                       <ChevronDown className="w-3.5 h-3.5" />
-                                     )}
+                                     <TransactionActionExpandGlyph expanded={expandedRecurringIds.has(transaction.id)} variant="recurring" size="sm" />
+                                   </button>
+                                 </Tooltip>
+                               )}
+                               {transactionHasAuditTrail(transaction, transactionHistoryCache) && (
+                                 <Tooltip content={expandedHistoryIds.has(transaction.id) ? 'Collapse edit history' : 'View edit history'} placement="top">
+                                   <button
+                                     type="button"
+                                     aria-expanded={expandedHistoryIds.has(transaction.id)}
+                                     aria-label={expandedHistoryIds.has(transaction.id) ? 'Collapse edit history' : 'View edit history'}
+                                     onClick={(e) => { e.stopPropagation(); toggleHistoryExpand(transaction.id); }}
+                                     className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                   >
+                                     <TransactionActionExpandGlyph expanded={expandedHistoryIds.has(transaction.id)} variant="history" size="sm" />
                                    </button>
                                  </Tooltip>
                                )}
@@ -3218,6 +3307,15 @@ const TransactionListComponent: React.FC<{
                         </div>
                       );
                     })()}
+                    {expandedHistoryIds.has(transaction.id) && (
+                      <div className="border-t border-gray-200 dark:border-gray-700">
+                        <TransactionEditHistory
+                          transactionId={transaction.transaction_id || ''}
+                          currency={account?.currency || 'USD'}
+                          currentAmount={transaction.amount}
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -3264,7 +3362,7 @@ const TransactionListComponent: React.FC<{
                         <div className="text-sm text-gray-900 dark:text-white">{format(new Date(transaction.date), 'MMM dd, yyyy')}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                           {format(new Date(transaction.created_at), 'h:mm a')}
-                          {transaction.updated_at && transaction.updated_at !== transaction.created_at && (
+                          {transactionHasAuditTrail(transaction, transactionHistoryCache) && (
                             <span className="ml-2 text-gradient-primary flex items-center" title={`Last modified: ${format(new Date(transaction.updated_at), 'MMM dd, h:mm a')}`}>
                               <Edit2 
                                 className="w-3 h-3" 
@@ -3337,7 +3435,7 @@ const TransactionListComponent: React.FC<{
                                 )}
                               </button>
                             )}
-                            {!isLendBorrowTransaction(transaction) && !transaction.is_recurring && (
+                            {!isTransactionListActionsLocked(transaction) && !transaction.is_recurring && (
                               <button
                                 onClick={() => handleDuplicate(transaction)}
                                 className="text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
@@ -3346,15 +3444,27 @@ const TransactionListComponent: React.FC<{
                                 <Files className="w-4 h-4" />
                               </button>
                             )}
+                            {transactionHasAuditTrail(transaction, transactionHistoryCache) && (
+                              <button
+                                type="button"
+                                aria-expanded={expandedHistoryIds.has(transaction.id)}
+                                aria-label={expandedHistoryIds.has(transaction.id) ? 'Collapse edit history' : 'View edit history'}
+                                onClick={() => toggleHistoryExpand(transaction.id)}
+                                className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                title={expandedHistoryIds.has(transaction.id) ? 'Collapse edit history' : 'View edit history'}
+                              >
+                                <TransactionActionExpandGlyph expanded={expandedHistoryIds.has(transaction.id)} variant="history" />
+                              </button>
+                            )}
                             <button
-                              onClick={() => !isLendBorrowTransaction(transaction) && handleEdit(transaction)}
+                              onClick={() => !isTransactionListActionsLocked(transaction) && handleEdit(transaction)}
                               className={`text-gray-500 dark:text-gray-400 ${
-                                isLendBorrowTransaction(transaction)
+                                isTransactionListActionsLocked(transaction)
                                   ? 'cursor-not-allowed opacity-50'
                                   : 'hover:text-blue-600 dark:hover:text-blue-400'
                               }`}
-                              title={isLendBorrowTransaction(transaction) ? "This transaction is managed by the Lend & Borrow page. Please make changes there instead." : "Edit"}
-                              disabled={isLendBorrowTransaction(transaction)}
+                              title={getTransactionListManagedElsewhereHint(transaction) ?? 'Edit'}
+                              disabled={isTransactionListActionsLocked(transaction)}
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
@@ -3368,18 +3478,18 @@ const TransactionListComponent: React.FC<{
                           )}
                           <button
                             onClick={() => {
-                              if (!isLendBorrowTransaction(transaction)) {
+                              if (!isTransactionListActionsLocked(transaction)) {
                                 setTransactionToDelete(transaction);
                                 setShowDeleteModal(true);
                               }
                             }}
                             className={`text-gray-500 dark:text-gray-400 ${
-                              isLendBorrowTransaction(transaction)
+                              isTransactionListActionsLocked(transaction)
                                 ? 'cursor-not-allowed opacity-50'
                                 : 'hover:text-red-600 dark:hover:text-red-400'
                             }`}
-                            title={isLendBorrowTransaction(transaction) ? "This transaction is managed by the Lend & Borrow page. Please make changes there instead." : "Delete"}
-                            disabled={isLendBorrowTransaction(transaction)}
+                            title={getTransactionListManagedElsewhereHint(transaction) ?? 'Delete'}
+                            disabled={isTransactionListActionsLocked(transaction)}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -3556,6 +3666,15 @@ const TransactionListComponent: React.FC<{
                         </div>
                       );
                     })()}
+                    {expandedHistoryIds.has(transaction.id) && (
+                      <div className="border-t border-gray-200 dark:border-gray-700">
+                        <TransactionEditHistory
+                          transactionId={transaction.transaction_id || ''}
+                          currency={account?.currency || 'USD'}
+                          currentAmount={transaction.amount}
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })

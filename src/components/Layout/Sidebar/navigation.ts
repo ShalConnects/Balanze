@@ -6,9 +6,10 @@ import {
   Settings,
   ShoppingBag,
   Handshake,
-  Users,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { INVESTMENTS_FEATURE_ICON } from '../../../lib/investmentFeatureIcon';
+import { CLIENTS_FEATURE_ICON } from '../../../lib/clientFeatureIcon';
 
 export interface NavItem {
   id: string;
@@ -23,7 +24,8 @@ export const SIDEBAR_NAV: NavItem[] = [
   { id: 'transactions', name: 'navigation.transactions', icon: TrendingUp },
   { id: 'purchases', name: 'navigation.purchases', icon: ShoppingBag },
   { id: 'lent-borrow', name: 'navigation.lendBorrow', icon: Handshake },
-  { id: 'clients', name: 'navigation.clients', icon: Users, isNew: true },
+  { id: 'investments', name: 'navigation.investments', icon: INVESTMENTS_FEATURE_ICON, isNew: true },
+  { id: 'clients', name: 'navigation.clients', icon: CLIENTS_FEATURE_ICON, isNew: true },
   { id: 'analytics', name: 'navigation.analytics', icon: PieChart },
   { id: 'settings', name: 'navigation.settings', icon: Settings },
 ];

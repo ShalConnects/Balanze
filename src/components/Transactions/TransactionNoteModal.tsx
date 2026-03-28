@@ -20,7 +20,7 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
   const [note, setNote] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const MAX_LENGTH = 50;
+  const MAX_LENGTH = 500;
 
   // Log component mount/unmount to detect page refreshes
   useEffect(() => {

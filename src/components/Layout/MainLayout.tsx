@@ -125,6 +125,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'purchases': return 'Purchases';
       case 'purchase-categories': return 'Purchase Categories';
       case 'lent-borrow': return 'Lent & Borrow';
+      case 'investments': return 'Investments';
       case 'clients': return 'Clients';
       case 'habits': return 'Habit Garden';
       case 'orders': return 'Orders';
@@ -200,6 +201,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                         ? 'Track and manage all your purchases.'
                         : currentView === 'lent-borrow'
                           ? 'Track and manage all your lending and borrowing activities'
+                          : currentView === 'investments'
+                            ? 'Track business investment contracts and profit updates'
                           : currentView === 'clients'
                             ? 'Manage your clients and track their information'
                             : currentView === 'habits'
