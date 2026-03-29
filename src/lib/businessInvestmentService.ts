@@ -111,6 +111,26 @@ export async function insertBusinessInvestmentContract(
   return mapContract(data as DbContract, []);
 }
 
+export type BusinessInvestmentContractDetailsPatch = {
+  title: string;
+  start_date: string;
+  end_date: string | null;
+  note: string | null;
+};
+
+export async function updateBusinessInvestmentContractDetails(id: string, patch: BusinessInvestmentContractDetailsPatch): Promise<void> {
+  const { error } = await supabase
+    .from('business_investment_contracts')
+    .update({
+      title: patch.title,
+      start_date: patch.start_date,
+      end_date: patch.end_date,
+      note: patch.note
+    })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 export async function updateBusinessInvestmentContractStatus(id: string, status: ContractStatus): Promise<void> {
   const { error } = await supabase.from('business_investment_contracts').update({ status }).eq('id', id);
   if (error) throw error;

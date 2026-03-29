@@ -11,7 +11,6 @@ import { AccountsOverview } from './AccountsOverview';
 import { ToDoList } from './ToDoList';
 import { PurchaseOverviewAlerts } from './PurchaseOverviewAlerts';
 import { formatCurrency } from '../../utils/currency';
-import { FloatingActionButton } from '../Layout/FloatingActionButton';
 import { TransactionForm } from '../Transactions/TransactionForm';
 import { AccountForm } from '../Accounts/AccountForm';
 import { TransferModal } from '../Transfers/TransferModal';
@@ -24,6 +23,7 @@ import { CurrencyOverviewCard } from './CurrencyOverviewCard';
 import { DonationSavingsOverviewCard } from './DonationSavingsOverviewCard';
 import { ClientsOverviewCard } from './ClientsOverviewCard';
 import { LearningSummaryCard } from './LearningSummaryCard';
+import { InvestmentSummaryCard } from './InvestmentSummaryCard';
 import { PurchaseOverviewCard } from './PurchaseOverviewCard';
 import { ClientTasksWidget } from './ClientTasksWidget';
 import { ClientsSummaryWidget } from './ClientsSummaryWidget';
@@ -55,7 +55,7 @@ import { toast } from 'sonner';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import PullToRefreshDashboard from './PullToRefreshDashboard';
 import { supabase } from '../../lib/supabase';
-import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 import { UpgradeBanner } from '../common/UpgradeBanner';
 import { Purchase } from '../../types';
 
@@ -199,7 +199,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
   // Main dashboard widget order
   const [mainDashboardWidgetOrder, setMainDashboardWidgetOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem('mainDashboardWidgetOrder');
-    return saved ? JSON.parse(saved) : ['donations', 'purchases', 'lend-borrow', 'transfers', 'clients', 'learning'];
+    return saved ? JSON.parse(saved) : ['donations', 'purchases', 'lend-borrow', 'investments', 'transfers', 'clients', 'learning'];
   });
 
   // Accordion state for right sidebar widgets
@@ -585,6 +585,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     const saved = localStorage.getItem('showLearningWidget');
     return saved !== null ? JSON.parse(saved) : true;
   });
+
+  const [showInvestmentsWidget, setShowInvestmentsWidget] = useState(() => {
+    const saved = localStorage.getItem('showInvestmentsWidget');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
   
   // Get clients from store
   const clients = useClientStore((state) => state.clients);
@@ -611,6 +616,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
           setShowClientsWidget(JSON.parse(e.newValue));
         } else if (e.key === 'showLearningWidget') {
           setShowLearningWidget(JSON.parse(e.newValue));
+        } else if (e.key === 'showInvestmentsWidget') {
+          setShowInvestmentsWidget(JSON.parse(e.newValue));
         }
       } catch (error) {
         console.error(`Error parsing localStorage value for ${e.key}:`, error);
@@ -672,6 +679,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       } catch (error) {
         console.error('Error parsing showLearningWidget from localStorage:', error);
       }
+
+      try {
+        const savedInv = localStorage.getItem('showInvestmentsWidget');
+        if (savedInv !== null) {
+          setShowInvestmentsWidget(JSON.parse(savedInv));
+        }
+      } catch (error) {
+        console.error('Error parsing showInvestmentsWidget from localStorage:', error);
+      }
     };
     
     window.addEventListener('storage', handleStorageChange);
@@ -681,6 +697,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     window.addEventListener('showDonationsSavingsWidgetChanged', handleCustomStorageChange);
     window.addEventListener('showClientsWidgetChanged', handleCustomStorageChange);
     window.addEventListener('showLearningWidgetChanged', handleCustomStorageChange);
+    window.addEventListener('showInvestmentsWidgetChanged', handleCustomStorageChange);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -690,6 +707,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       window.removeEventListener('showDonationsSavingsWidgetChanged', handleCustomStorageChange);
       window.removeEventListener('showClientsWidgetChanged', handleCustomStorageChange);
       window.removeEventListener('showLearningWidgetChanged', handleCustomStorageChange);
+      window.removeEventListener('showInvestmentsWidgetChanged', handleCustomStorageChange);
     };
   }, []);
   
@@ -754,8 +772,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
   const [showPurchasesWidget, setShowPurchasesWidget] = useState(true);
   const [dashboardCurrencyFilter, setDashboardCurrencyFilter] = useState('');
   const [dashboardTimeFilter, setDashboardTimeFilter] = useState<'1m' | '3m' | '6m' | '1y' | 'all'>('all');
+  const [hasInvestmentContractsInCurrency, setHasInvestmentContractsInCurrency] = useState(false);
   const navigate = useNavigate();
   const { t } = useTranslation();
+
+  useEffect(() => {
+    if (!user?.id || !dashboardCurrencyFilter) {
+      setHasInvestmentContractsInCurrency(false);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from('business_investment_contracts')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('currency', dashboardCurrencyFilter)
+      .then(({ count, error }) => {
+        if (cancelled || error) return;
+        setHasInvestmentContractsInCurrency((count || 0) > 0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, dashboardCurrencyFilter]);
 
   // Load user preferences - consolidated into single effect for better performance
   useEffect(() => {
@@ -888,6 +927,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     }
   };
 
+  const handleInvestmentsWidgetToggle = async (show: boolean) => {
+    setShowInvestmentsWidget(show);
+    localStorage.setItem('showInvestmentsWidget', JSON.stringify(show));
+    window.dispatchEvent(new CustomEvent('showInvestmentsWidgetChanged'));
+    if (user?.id) {
+      setPreference(user.id, 'showInvestmentsWidget', show).catch(() => {});
+    }
+  };
+
   // Handle main dashboard widget toggle from modal
   const handleMainDashboardWidgetToggle = (id: string, visible: boolean) => {
     switch (id) {
@@ -908,6 +956,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
         break;
       case 'learning':
         handleLearningWidgetToggle(visible);
+        break;
+      case 'investments':
+        handleInvestmentsWidgetToggle(visible);
         break;
       default:
         break;
@@ -988,8 +1039,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       hasTransfersCard: hasTransfers,
       hasClientsCard: clients.length > 0,
       hasLearning: courses.length > 0,
+      hasInvestments: hasInvestmentContractsInCurrency,
     };
-  }, [storeAccounts, donationSavingRecords, dashboardCurrencyFilter, storeTransactions, purchases, isPremium, hasLendBorrowRecords, hasTransfers, clients.length, courses.length]);
+  }, [storeAccounts, donationSavingRecords, dashboardCurrencyFilter, storeTransactions, purchases, isPremium, hasLendBorrowRecords, hasTransfers, clients.length, courses.length, hasInvestmentContractsInCurrency]);
   
   // Check if any widget in the Purchase/LendBorrow/Transfer row will be visible
   const hasAnyWidgetVisible = useMemo(() => {
@@ -1047,6 +1099,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       });
     }
 
+    if (widgetAvailability.hasInvestments && showInvestmentsWidget) {
+      widgets.push({
+        id: 'investments',
+        render: () => (
+          <div className="w-full h-full animate-fadeIn" key="investments">
+            <InvestmentSummaryCard filterCurrency={dashboardCurrencyFilter} />
+          </div>
+        )
+      });
+    }
+
     // Transfer Summary Card (position 4)
     if (hasTransfers && showTransferWidget) {
       widgets.push({
@@ -1083,6 +1146,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       });
     }
 
+    const orderRank = (id: string) => {
+      const i = mainDashboardWidgetOrder.indexOf(id);
+      return i === -1 ? 999 : i;
+    };
+    widgets.sort((a, b) => orderRank(a.id) - orderRank(b.id));
     return widgets;
   }, [
     // Only include dependencies that affect widget visibility
@@ -1098,6 +1166,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     clients.length,
     showClientsWidget,
     showLearningWidget,
+    showInvestmentsWidget,
+    mainDashboardWidgetOrder,
     dashboardCurrencyFilter,
     dashboardTimeFilter, // Added: time filter affects widget data
     // t and formatCurrency are stable functions, but included for completeness
@@ -1203,14 +1273,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     const income = transactions
       .filter(t => t.type === 'income' && 
         !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer')) &&
-        !isLendBorrowTransaction(t)
+        countsTowardIncomeExpenseSummaries(t)
       )
       .reduce((sum, t) => sum + t.amount, 0);
     
     const expenses = transactions
       .filter(t => t.type === 'expense' && 
         !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer')) &&
-        !isLendBorrowTransaction(t)
+        countsTowardIncomeExpenseSummaries(t)
       )
       .reduce((sum, t) => sum + t.amount, 0);
     
@@ -1238,7 +1308,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       t.type === 'expense' && 
       new Date(t.date) >= last30Days &&
       !t.tags?.some(tag => tag.includes('transfer') || tag.includes('dps_transfer')) &&
-      !isLendBorrowTransaction(t)
+      countsTowardIncomeExpenseSummaries(t)
     );
 
     const categoryTotals = expenses.reduce((acc, transaction) => {
@@ -1266,6 +1336,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     }).reverse();
 
     transactions.forEach(transaction => {
+      if (transaction.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'))) return;
+      if (!countsTowardIncomeExpenseSummaries(transaction)) return;
       const transactionDate = new Date(transaction.date);
       const monthIndex = last6Months.findIndex(m => 
         new Date().getMonth() - (TRENDS_ANALYSIS_MONTHS - 1 - last6Months.indexOf(m)) === transactionDate.getMonth()
@@ -1334,7 +1406,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
             </div>
           </div>
         )}
-        <FloatingActionButton />
       </>
     );
   }
@@ -1628,6 +1699,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
                   order: 0,
                 };
               }
+              if (widgetAvailability.hasInvestments) {
+                widgetsMap['investments'] = {
+                  id: 'investments',
+                  name: 'Investments',
+                  visible: showInvestmentsWidget,
+                  available: true,
+                  order: 0,
+                };
+              }
               
               // Apply saved order
               const widgets: MainDashboardWidget[] = [];
@@ -1665,14 +1745,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
         <div className="lg:hidden dashboard-mobile-container">
           <MobileAccordionWidget widgetConfig={widgetConfig} />
         </div>
-
-        <FloatingActionButton />
       </div>
 
-
-
       {/* Modals - Consolidated at the end to prevent multiple instances */}
-      {/* TransactionForm is handled by FloatingActionButton to prevent conflicts */}
+      {/* TransactionForm is opened from MainLayout FloatingActionButton */}
 
       {showTransferModal && (
         <TransferModal isOpen={showTransferModal} onClose={() => setShowTransferModal(false)} />

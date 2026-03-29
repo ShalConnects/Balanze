@@ -4,7 +4,7 @@ import { Transaction, Account } from '../../types';
 import { formatCurrency } from '../../utils/accountUtils';
 import { format } from 'date-fns';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
-import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 
 interface TransactionMobileViewProps {
   transactions: Transaction[];
@@ -220,7 +220,7 @@ export const TransactionMobileView: React.FC<TransactionMobileViewProps> = React
             <span className="text-gray-500 dark:text-gray-400">Total Income:</span>
             <span className="ml-1 font-medium text-green-600 dark:text-green-400">
               {formatCurrency(
-                transactions.filter(t => t.type === 'income' && !isLendBorrowTransaction(t)).reduce((sum, t) => sum + t.amount, 0),
+                transactions.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0),
                 accounts[0]?.currency || 'USD'
               )}
             </span>
@@ -229,7 +229,7 @@ export const TransactionMobileView: React.FC<TransactionMobileViewProps> = React
             <span className="text-gray-500 dark:text-gray-400">Total Expenses:</span>
             <span className="ml-1 font-medium text-red-600 dark:text-red-400">
               {formatCurrency(
-                transactions.filter(t => t.type === 'expense' && !isLendBorrowTransaction(t)).reduce((sum, t) => sum + t.amount, 0),
+                transactions.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0),
                 accounts[0]?.currency || 'USD'
               )}
             </span>
@@ -237,12 +237,12 @@ export const TransactionMobileView: React.FC<TransactionMobileViewProps> = React
           <div>
             <span className="text-gray-500 dark:text-gray-400">Net Amount:</span>
             <span className={`ml-1 font-medium ${
-              transactions.filter(t => !isLendBorrowTransaction(t)).reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0) >= 0
+              transactions.filter(t => countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0) >= 0
                 ? 'text-green-600 dark:text-green-400'
                 : 'text-red-600 dark:text-red-400'
             }`}>
               {formatCurrency(
-                Math.abs(transactions.filter(t => !isLendBorrowTransaction(t)).reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0)),
+                Math.abs(transactions.filter(t => countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0)),
                 accounts[0]?.currency || 'USD'
               )}
             </span>

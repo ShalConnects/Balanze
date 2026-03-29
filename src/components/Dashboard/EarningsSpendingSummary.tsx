@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, PieChart, BarChart3 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../../utils/currency';
-import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 import { computeDateAwareTotals } from '../../utils/transactionHistoryUtils';
 import { useFinanceStore } from '../../store/useFinanceStore';
 
@@ -68,8 +68,8 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
         historyMap.size > 0
           ? computeDateAwareTotals(currencyTransactions, historyMap, startDate, endDate)
           : {
-              income: currencyTransactions.filter((t) => inRange(t) && t.type === 'income' && !isLendBorrowTransaction(t)).reduce((s, t) => s + t.amount, 0),
-              expense: currencyTransactions.filter((t) => inRange(t) && t.type === 'expense' && !isLendBorrowTransaction(t)).reduce((s, t) => s + t.amount, 0),
+              income: currencyTransactions.filter((t) => inRange(t) && t.type === 'income' && countsTowardIncomeExpenseSummaries(t)).reduce((s, t) => s + t.amount, 0),
+              expense: currencyTransactions.filter((t) => inRange(t) && t.type === 'expense' && countsTowardIncomeExpenseSummaries(t)).reduce((s, t) => s + t.amount, 0),
             };
       const net = earnings - spending;
       const currencyAccounts = accounts.filter(acc => acc.currency === currency);

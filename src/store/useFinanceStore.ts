@@ -30,8 +30,13 @@ import { generateTransactionId } from '../utils/transactionId';
 import { calculateNextOccurrence } from '../../lib/recurringUtils.js';
 import { useAchievementStore } from './achievementStore';
 import { userActivityService } from '../lib/userActivityService';
-import { isLendBorrowTransaction } from '../utils/transactionUtils';
-import type { TransactionHistoryEntry } from '../utils/transactionHistoryUtils';
+import { countsTowardIncomeExpenseSummaries } from '../utils/transactionUtils';
+import {
+  mergeBulkTransactionHistoryIntoCache,
+  toTransactionHistoryEntry,
+  transactionUpdatesOrder,
+  type TransactionHistoryEntry,
+} from '../utils/transactionHistoryUtils';
 
 // Extend the Account type to make calculated_balance optional for input
 type AccountInput = Omit<Account, 'calculated_balance'>;
@@ -1186,16 +1191,9 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         .from('transaction_updates')
         .select('id, field_name, old_value, new_value, updated_at, updated_by')
         .eq('transaction_id', transactionId)
-        .order('updated_at', { ascending: true });
+        .order('updated_at', transactionUpdatesOrder);
       if (error) return { rows: [], error: error.message };
-      const result: TransactionHistoryEntry[] = (data || []).map((r: any) => ({
-        id: r.id ?? 0,
-        field_name: r.field_name,
-        old_value: r.old_value,
-        new_value: r.new_value,
-        updated_at: r.updated_at || '',
-        updated_by: r.updated_by ?? null,
-      }));
+      const result: TransactionHistoryEntry[] = (data || []).map((r: any) => toTransactionHistoryEntry(r));
       set((s) => ({
         transactionHistoryCache: new Map(s.transactionHistoryCache || []).set(transactionId, result),
       }));
@@ -1212,23 +1210,11 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         .from('transaction_updates')
         .select('id, transaction_id, field_name, old_value, new_value, updated_at, updated_by')
         .in('transaction_id', transactionIds)
-        .order('updated_at', { ascending: true });
+        .order('updated_at', transactionUpdatesOrder);
       if (error || !data) return;
-      const m = new Map(get().transactionHistoryCache || []);
-      data.forEach((r: any) => {
-        const tid = r.transaction_id;
-        const row: TransactionHistoryEntry = {
-          id: r.id ?? 0,
-          field_name: r.field_name,
-          old_value: r.old_value,
-          new_value: r.new_value,
-          updated_at: r.updated_at || '',
-          updated_by: r.updated_by ?? null,
-        };
-        if (!m.has(tid)) m.set(tid, []);
-        m.get(tid)!.push(row);
+      set({
+        transactionHistoryCache: mergeBulkTransactionHistoryIntoCache(get().transactionHistoryCache, data),
       });
-      set({ transactionHistoryCache: m });
     } catch { /* no-op */ }
   },
 
@@ -1712,11 +1698,11 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         });
 
             const monthlyIncome = monthlyTransactions
-          .filter(t => t.type === 'income' && !isLendBorrowTransaction(t))
+          .filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t))
           .reduce((sum, t) => sum + t.amount, 0);
 
         const monthlyExpenses = monthlyTransactions
-          .filter(t => t.type === 'expense' && !isLendBorrowTransaction(t))
+          .filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t))
           .reduce((sum, t) => sum + t.amount, 0);
 
         // Debug logging removed to prevent console flood

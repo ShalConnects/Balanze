@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Wallet, CreditCard, ArrowLeftRight, ShoppingCart, Handshake, MessageCircle, Users, Sprout, BookOpen, Sparkles } from 'lucide-react';
+import { Plus, CreditCard, TrendingUp, ArrowLeftRight, ShoppingBag, Handshake, Sprout, BookOpen, Sparkles, Home } from 'lucide-react';
+import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
+import { CLIENTS_FEATURE_ICON } from '../../lib/clientFeatureIcon';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Dialog, Transition } from '@headlessui/react';
 import { TransferModal } from '../Transfers/TransferModal';
@@ -12,7 +14,7 @@ import { LendBorrowForm } from '../LendBorrow/LendBorrowForm';
 import { HabitForm } from '../Habits/HabitForm';
 import { CourseForm } from '../Learning/CourseForm';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { PurchaseForm } from '../Purchases/PurchaseForm';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
@@ -21,6 +23,7 @@ import { LendBorrowInput } from '../../types/index';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useMobileSidebar } from '../../context/MobileSidebarContext';
 import { AIChatBot } from '../AIChatBot/AIChatBot';
+import { BusinessInvestmentContractModal } from '../Dashboard/BusinessInvestmentContractModal';
 
 // Define the props for our new ActionButton component.
 interface ActionButtonProps {
@@ -67,6 +70,7 @@ export const FloatingActionButton: React.FC = () => {
   const [showClientForm, setShowClientForm] = useState(false);
   const [showHabitForm, setShowHabitForm] = useState(false);
   const [showCourseForm, setShowCourseForm] = useState(false);
+  const [showInvestmentContractModal, setShowInvestmentContractModal] = useState(false);
   const { isMobile, isBrowser } = useMobileDetection();
   const { isMobileSidebarOpen } = useMobileSidebar();
   // Detect Android for proper bottom offset
@@ -84,6 +88,11 @@ export const FloatingActionButton: React.FC = () => {
   const purchaseCategories = useFinanceStore(React.useCallback(state => state.purchaseCategories, []));
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isFullFabMenu =
+    location.pathname === '/' ||
+    location.pathname === '/dashboard' ||
+    location.pathname === '/dashboard-demo-only';
   const { user } = useAuthStore();
 
   // Check if categories exist and redirect to settings if needed - memoized to prevent infinite re-renders
@@ -201,28 +210,67 @@ export const FloatingActionButton: React.FC = () => {
     setIsOpen(false);
   }, [navigate]);
 
-  // Group actions by category
+  const handleGoHome = React.useCallback(() => {
+    if (location.pathname === '/dashboard-demo-only') window.close();
+    else navigate('/');
+  }, [location.pathname, navigate]);
+
+  // Group actions by category (full menu on dashboard + demo; compact + home elsewhere)
   const actionsByCategory = React.useMemo(() => {
     const financial = [
-      { label: t('dashboard.addTransaction'), icon: CreditCard, color: 'bg-blue-600', onClick: () => handleAction(handleAddTransaction), delay: '200ms' },
-      { label: 'Add Purchase', icon: ShoppingCart, color: 'bg-orange-600', onClick: () => handleAction(handleAddPurchase), delay: '150ms' },
+      { label: t('dashboard.addTransaction'), icon: TrendingUp, color: 'bg-blue-600', onClick: () => handleAction(handleAddTransaction), delay: '200ms' },
+      { label: 'Add Purchase', icon: ShoppingBag, color: 'bg-orange-600', onClick: () => handleAction(handleAddPurchase), delay: '150ms' },
       { label: t('dashboard.transfer'), icon: ArrowLeftRight, color: 'bg-purple-600', onClick: handleTransfer, delay: '0ms' },
-      { label: t('dashboard.addAccount'), icon: Wallet, color: 'bg-green-600', onClick: () => handleAction(() => setShowAccountFormLocal(true)), delay: '50ms' },
+      { label: t('dashboard.addAccount'), icon: CreditCard, color: 'bg-green-600', onClick: () => handleAction(() => setShowAccountFormLocal(true)), delay: '50ms' },
       { label: 'Lent & Borrow', icon: Handshake, color: 'bg-indigo-600', onClick: () => handleAction(() => setShowLendBorrowForm(true)), delay: '100ms' },
-      { label: 'Add Client', icon: Users, color: 'bg-teal-600', onClick: () => handleAction(() => setShowClientForm(true)), delay: '75ms' },
+      { label: 'Add investment contract', icon: INVESTMENTS_FEATURE_ICON, color: 'bg-sky-600', onClick: () => handleAction(() => setShowInvestmentContractModal(true)), delay: '95ms' },
+      { label: 'Add Client', icon: CLIENTS_FEATURE_ICON, color: 'bg-teal-600', onClick: () => handleAction(() => setShowClientForm(true)), delay: '75ms' },
     ];
-    
+
     const personalGrowth = [
       { label: 'Add Habit', icon: Sprout, color: 'bg-emerald-600', onClick: () => handleAction(handleAddHabit), delay: '140ms' },
       { label: 'Add Course', icon: BookOpen, color: 'bg-cyan-600', onClick: () => handleAction(handleAddCourse), delay: '130ms' },
       { label: 'View Personal Growth', icon: Sparkles, color: 'bg-gradient-to-r from-purple-600 to-pink-600', onClick: () => handleAction(handleViewPersonalGrowth), delay: '160ms' },
     ];
-    
+
+    const homeAction = {
+      label: location.pathname === '/dashboard-demo-only' ? 'Close demo' : 'Go to Dashboard',
+      icon: Home,
+      color: 'bg-slate-600',
+      onClick: () => handleAction(handleGoHome),
+      delay: '0ms',
+    };
+
+    if (!isFullFabMenu) {
+      return [{ category: 'Quick actions', actions: [homeAction, ...financial] }];
+    }
+    if (location.pathname === '/dashboard-demo-only') {
+      return [
+        { category: 'Financial', actions: [homeAction, ...financial] },
+        { category: 'Personal Growth', actions: personalGrowth },
+      ];
+    }
     return [
       { category: 'Financial', actions: financial },
       { category: 'Personal Growth', actions: personalGrowth },
     ];
-  }, [t, handleAction, handleAddTransaction, handleAddPurchase, handleAddHabit, handleAddCourse, setShowLendBorrowForm, setShowAccountFormLocal, handleTransfer, setShowClientForm, handleViewPersonalGrowth]);
+  }, [
+    isFullFabMenu,
+    location.pathname,
+    t,
+    handleAction,
+    handleGoHome,
+    handleAddTransaction,
+    handleAddPurchase,
+    handleAddHabit,
+    handleAddCourse,
+    setShowLendBorrowForm,
+    setShowInvestmentContractModal,
+    setShowAccountFormLocal,
+    handleTransfer,
+    setShowClientForm,
+    handleViewPersonalGrowth,
+  ]);
 
 
 
@@ -400,6 +448,12 @@ export const FloatingActionButton: React.FC = () => {
           onSuccess={handleCourseSuccess}
         />
       )}
+
+      <BusinessInvestmentContractModal
+        open={showInvestmentContractModal}
+        onClose={() => setShowInvestmentContractModal(false)}
+        onAdded={() => navigate('/investments')}
+      />
 
       {/* AI Chat Bot - temporarily hidden, will be enabled later */}
       {/* <AIChatBot 

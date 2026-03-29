@@ -2,7 +2,7 @@ import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Transaction } from '../../types/index';
 import { format, startOfMonth, eachMonthOfInterval, subMonths } from 'date-fns';
-import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 
 interface MonthlyTrendProps {
   transactions: Transaction[];
@@ -49,11 +49,11 @@ export const MonthlyTrend: React.FC<MonthlyTrendProps> = ({ transactions, period
     });
 
     const income = monthTransactions
-      .filter(t => t.type === 'income' && !isLendBorrowTransaction(t))
+      .filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t))
       .reduce((sum, t) => sum + t.amount, 0);
 
     const expenses = Math.abs(monthTransactions
-      .filter(t => t.type === 'expense' && !isLendBorrowTransaction(t))
+      .filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t))
       .reduce((sum, t) => sum + t.amount, 0));
 
     return {

@@ -1,10 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, ChevronUp, Plus, Trash2, Wallet, TrendingUp, TrendingDown, Landmark, X, Building2, Filter } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, Plus, Pencil, Trash2, Wallet, TrendingUp, TrendingDown, Landmark, X, Building2, Filter, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '../../utils/currency';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
+import {
+  accountsToTransactionDropdownOptions,
+  prepareAccountsForTransactionDropdown,
+  resolveDefaultAccountIdForTransactionDropdown
+} from '../../utils/transactionAccountDropdown';
 import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
 import { parseLocalDate } from '../../utils/taskDateUtils';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
@@ -22,39 +27,30 @@ import {
 } from '../common/listPage/listPageLayout';
 import { InvestmentListSkeleton } from '../Investments/InvestmentListSkeleton';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
-import type { ContractStatus, EntryType, InvestmentContract } from '../../types/businessInvestment';
+import { ENTRY_TYPE_LABELS, type ContractStatus, type EntryType, type InvestmentContract } from '../../types/businessInvestment';
 import {
   deleteBusinessInvestmentContract,
   deleteBusinessInvestmentEntry,
   fetchBusinessInvestmentContracts,
-  insertBusinessInvestmentContract,
   insertBusinessInvestmentEntry,
   updateBusinessInvestmentContractStatus
 } from '../../lib/businessInvestmentService';
 import { TRANSACTION_ORIGIN_BUSINESS_INVESTMENT } from '../../lib/transactionListLock';
+import { getContractStats, getEffectivePrincipal } from '../../utils/businessInvestmentStats';
+import { entryPostingDescription, entryPostingTransactionType } from '../../utils/businessInvestmentEntryPosting';
+import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { BusinessInvestmentContractModal } from './BusinessInvestmentContractModal';
 
 type SortField = 'title' | 'funding_account_name' | 'status';
 type SortDirection = 'asc' | 'desc';
 const dateInputClass = 'bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400';
 const compactInputClass = 'w-full pl-8 pr-2 py-1.5 text-[13px] h-8 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400 transition-colors border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800';
-const modalInputClass =
-  'w-full px-4 py-2 text-[14px] h-10 rounded-lg border transition-colors bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600';
 const compactDateShellClass =
   'flex items-center bg-gray-50 dark:bg-gray-800 px-3 pr-[10px] text-[13px] h-8 rounded-md border border-gray-300 dark:border-gray-700';
-const modalDateShellClass =
-  'flex items-center bg-gray-100 dark:bg-gray-700 px-3 pr-[10px] text-[14px] h-10 rounded-lg border border-gray-200 dark:border-gray-600';
 const compactTextareaClass =
   'w-full px-3 py-2 text-[13px] rounded-md border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400';
 const compactDropdownClass =
   'px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700';
-const defaultContractForm = {
-  title: '',
-  principal: '',
-  funding_account_id: '',
-  start_date: '',
-  end_date: '',
-  note: ''
-};
 const defaultEntryForm = {
   contract_id: '',
   type: 'profit' as EntryType,
@@ -65,21 +61,14 @@ const defaultEntryForm = {
 const formatDateYmd = (date: Date | null) =>
   date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '';
 
-/** Prevents labels like "Cash Wallet (EUR) (EUR)" when `name` already ends with the currency. */
-const accountDropdownLabel = (name: string, currency: string) => {
-  const t = name.trim();
-  const c = currency.trim();
-  if (!c) return t;
-  return t.toLowerCase().endsWith(`(${c.toLowerCase()})`) ? t : `${t} (${c})`;
-};
+const contractMetaRowClass =
+  'flex min-w-0 flex-col gap-1.5 text-xs text-gray-500 dark:text-gray-400 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2 sm:gap-y-0';
 
-const getContractStats = (contract: InvestmentContract) => {
-  const totalProfit = contract.entries.filter((entry) => entry.type === 'profit').reduce((sum, entry) => sum + entry.amount, 0);
-  const totalLoss = contract.entries.filter((entry) => entry.type === 'loss').reduce((sum, entry) => sum + entry.amount, 0);
-  const principalReturned = contract.entries.filter((entry) => entry.type === 'principal_return').reduce((sum, entry) => sum + entry.amount, 0);
-  const netResult = (totalProfit - totalLoss) + (principalReturned - contract.principal);
-  return { totalProfit, totalLoss, principalReturned, netResult };
-};
+const CONTRACT_UPDATE_SECTION_HINT =
+  'Record profit, loss, principal return, or capital contribution (reinvest). Optionally post a linked transaction: profit and principal returned as income; loss and capital contribution as expense — pick any cash account.';
+
+const CONTRACT_UPDATE_TOOLTIP_PANEL_CLASS =
+  'absolute left-0 top-full z-50 mt-2 w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white p-2.5 text-[10px] leading-snug text-gray-700 shadow-xl animate-fadein dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 sm:mt-2 sm:w-72 sm:p-3 sm:text-xs sm:leading-snug';
 
 /** Same disclosure chevron as AccountsView (row expand). */
 function ContractRowChevron({ expanded }: { expanded: boolean }) {
@@ -101,18 +90,19 @@ export const BusinessInvestmentTracker: React.FC = () => {
   const [hydrated, setHydrated] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showContractModal, setShowContractModal] = useState(false);
+  const [editingContractId, setEditingContractId] = useState<string | null>(null);
   const [expandedContractIds, setExpandedContractIds] = useState<Set<string>>(() => new Set());
-  const [contractForm, setContractForm] = useState(defaultContractForm);
-  const [createPrincipalExpense, setCreatePrincipalExpense] = useState(false);
   const [entryForm, setEntryForm] = useState(defaultEntryForm);
-  const [postProfitAsIncome, setPostProfitAsIncome] = useState(true);
-  const [incomeAccountId, setIncomeAccountId] = useState('');
+  const [postEntryAsTransaction, setPostEntryAsTransaction] = useState(true);
+  const [postingAccountId, setPostingAccountId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | ContractStatus>('all');
   const [sortField, setSortField] = useState<SortField>('title');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [isContractUpdateOpen, setIsContractUpdateOpen] = useState(true);
+  const [isContractUpdateOpen, setIsContractUpdateOpen] = useState(false);
+  const [showContractUpdateTooltip, setShowContractUpdateTooltip] = useState(false);
+  const [showContractUpdateInfoMobile, setShowContractUpdateInfoMobile] = useState(false);
   const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
   const [summaryCurrency, setSummaryCurrency] = useState('');
   const [tempMobileFilters, setTempMobileFilters] = useState({
@@ -123,6 +113,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
 
   const { accounts, addTransaction, fetchTransactions, fetchAccounts } = useFinanceStore();
   const { user, profile } = useAuthStore();
+  const { isMobile } = useMobileDetection();
   const userDefaultCurrency = profile?.local_currency?.trim() || 'USD';
   const formatAmount = (amount: number, currency: string) => formatCurrency(amount, currency || userDefaultCurrency);
 
@@ -151,31 +142,30 @@ export const BusinessInvestmentTracker: React.FC = () => {
     };
   }, [user?.id]);
 
-  const fundingAccounts = useMemo(
-    () => accounts.filter((account) => account.type !== 'credit' && account.isActive),
-    [accounts]
-  );
-  const postingAccounts = useMemo(
-    () => accounts.filter((account) => account.type !== 'credit'),
-    [accounts]
-  );
-  const selectedFundingAccount = useMemo(
-    () => fundingAccounts.find((account) => account.id === contractForm.funding_account_id),
-    [fundingAccounts, contractForm.funding_account_id]
+  const basePreparedAccounts = useMemo(
+    () => prepareAccountsForTransactionDropdown(accounts, userDefaultCurrency, null),
+    [accounts, userDefaultCurrency]
   );
   const selectedContract = useMemo(
     () => contracts.find((contract) => contract.id === entryForm.contract_id),
     [contracts, entryForm.contract_id]
   );
-  const selectedIncomeAccount = useMemo(
-    () => postingAccounts.find((account) => account.id === incomeAccountId),
-    [postingAccounts, incomeAccountId]
-  );
+
   useEffect(() => {
-    if (incomeAccountId && postingAccounts.some((account) => account.id === incomeAccountId)) return;
-    const defaultAccount = postingAccounts.find((account) => account.isActive) || postingAccounts[0];
-    if (defaultAccount) setIncomeAccountId(defaultAccount.id);
-  }, [postingAccounts, incomeAccountId]);
+    if (!entryForm.contract_id) return;
+    const sel = contracts.find((c) => c.id === entryForm.contract_id);
+    if (sel?.status === 'closed') {
+      setEntryForm((prev) => ({ ...prev, contract_id: '' }));
+    }
+  }, [contracts, entryForm.contract_id]);
+
+  useEffect(() => {
+    const withCurrent = prepareAccountsForTransactionDropdown(accounts, userDefaultCurrency, postingAccountId || null);
+    if (postingAccountId && withCurrent.some((a) => a.id === postingAccountId)) return;
+    const id = resolveDefaultAccountIdForTransactionDropdown(basePreparedAccounts, profile);
+    if (id) setPostingAccountId(id);
+  }, [accounts, userDefaultCurrency, postingAccountId, basePreparedAccounts, profile]);
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
     return () => clearTimeout(timer);
@@ -215,23 +205,32 @@ export const BusinessInvestmentTracker: React.FC = () => {
     () => contracts.filter((c) => c.currency === filterCurrency),
     [contracts, filterCurrency]
   );
+  /** Summary cards: active deals only (closed excluded from totals and counts). */
+  const activeVisibleContracts = useMemo(
+    () => visibleContracts.filter((c) => c.status === 'active'),
+    [visibleContracts]
+  );
 
   const contractCurrencyCodes = useMemo(
-    () => [...new Set(visibleContracts.map((c) => c.currency))].filter(Boolean).sort(),
-    [visibleContracts]
+    () => [...new Set(activeVisibleContracts.map((c) => c.currency))].filter(Boolean).sort(),
+    [activeVisibleContracts]
   );
   const summaryMixedCurrencies = contractCurrencyCodes.length > 1;
   const summaryListForTotals = useMemo(() => {
-    if (contractCurrencyCodes.length <= 1) return visibleContracts;
-    return visibleContracts.filter((c) => c.currency === contractCurrencyCodes[0]);
-  }, [visibleContracts, contractCurrencyCodes]);
+    if (contractCurrencyCodes.length <= 1) return activeVisibleContracts;
+    return activeVisibleContracts.filter((c) => c.currency === contractCurrencyCodes[0]);
+  }, [activeVisibleContracts, contractCurrencyCodes]);
 
   const summaryDisplayCurrency =
-    contractCurrencyCodes[0] ?? filterCurrency ?? fundingAccounts[0]?.currency ?? accounts[0]?.currency ?? userDefaultCurrency;
+    contractCurrencyCodes[0] ??
+    filterCurrency ??
+    basePreparedAccounts[0]?.currency ??
+    accounts[0]?.currency ??
+    userDefaultCurrency;
 
   const summary = useMemo(() => {
     const list = summaryListForTotals;
-    const totalPrincipal = list.reduce((sum, contract) => sum + contract.principal, 0);
+    const totalPrincipal = list.reduce((sum, contract) => sum + getContractStats(contract).effectivePrincipal, 0);
     const totalProfit = list.reduce((sum, contract) => sum + getContractStats(contract).totalProfit, 0);
     const totalLoss = list.reduce((sum, contract) => sum + getContractStats(contract).totalLoss, 0);
     const totalPrincipalReturned = list.reduce((sum, contract) => sum + getContractStats(contract).principalReturned, 0);
@@ -244,7 +243,10 @@ export const BusinessInvestmentTracker: React.FC = () => {
     [contracts, contractIdToDelete]
   );
   const contractOptions = useMemo(
-    () => contracts.map((contract) => ({ value: contract.id, label: `${contract.title} (${contract.currency})` })),
+    () =>
+      contracts
+        .filter((contract) => contract.status === 'active')
+        .map((contract) => ({ value: contract.id, label: `${contract.title} (${contract.currency})` })),
     [contracts]
   );
   const statusFilterOptions = useMemo(
@@ -256,32 +258,24 @@ export const BusinessInvestmentTracker: React.FC = () => {
     []
   );
   const entryTypeOptions = useMemo(
-    () => [
-      { value: 'profit', label: 'Profit' },
-      { value: 'loss', label: 'Loss' },
-      { value: 'principal_return', label: 'Principal Returned' }
-    ],
-    []
-  );
-  const fundingAccountOptions = useMemo(
     () =>
-      fundingAccounts.map((account) => ({
-        value: account.id,
-        label: accountDropdownLabel(account.name, account.currency)
-      })),
-    [fundingAccounts]
+      (Object.keys(ENTRY_TYPE_LABELS) as EntryType[]).map((value) => ({ value, label: ENTRY_TYPE_LABELS[value] })),
+    []
   );
   const postingAccountOptions = useMemo(
     () =>
-      postingAccounts.map((account) => ({
-        value: account.id,
-        label: accountDropdownLabel(account.name, account.currency)
-      })),
-    [postingAccounts]
+      accountsToTransactionDropdownOptions(
+        prepareAccountsForTransactionDropdown(accounts, userDefaultCurrency, postingAccountId || null)
+      ),
+    [accounts, userDefaultCurrency, postingAccountId]
   );
   const fundingAccountNameMap = useMemo(() => new Map(accounts.map((account) => [account.id, account.name])), [accounts]);
   const getFundingAccountName = (contract: InvestmentContract) =>
     fundingAccountNameMap.get(contract.funding_account_id) || contract.funding_account_name || 'Unknown';
+  const editingContract = useMemo(
+    () => (editingContractId ? contracts.find((c) => c.id === editingContractId) : undefined),
+    [contracts, editingContractId]
+  );
   const clearFilters = () => {
     setSearchTerm('');
     setDebouncedSearch('');
@@ -329,6 +323,19 @@ export const BusinessInvestmentTracker: React.FC = () => {
       <ChevronUp className="w-4 h-4 text-gray-300 dark:text-gray-600" />
     );
 
+  const closeContractModal = () => {
+    setShowContractModal(false);
+    setEditingContractId(null);
+  };
+  const openAddContractModal = () => {
+    setEditingContractId(null);
+    setShowContractModal(true);
+  };
+  const openEditContractModal = (contract: InvestmentContract) => {
+    setEditingContractId(contract.id);
+    setShowContractModal(true);
+  };
+
   const contractsEmptyBody = (
     <>
       <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
@@ -341,71 +348,6 @@ export const BusinessInvestmentTracker: React.FC = () => {
     </>
   );
 
-  const handleAddContract = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const principal = Number(contractForm.principal);
-    if (!contractForm.title.trim() || !contractForm.funding_account_id || !principal || principal <= 0 || !contractForm.start_date) {
-      toast.error('Please complete contract title, account, principal, and start date');
-      return;
-    }
-
-    const fundingAccount = fundingAccounts.find((account) => account.id === contractForm.funding_account_id);
-    if (!fundingAccount) {
-      toast.error('Please select a valid funding account');
-      return;
-    }
-
-    if (!user?.id) {
-      toast.error('Sign in to save contracts');
-      return;
-    }
-
-    try {
-      const newContract = await insertBusinessInvestmentContract({
-        title: contractForm.title.trim(),
-        principal,
-        currency: fundingAccount.currency || 'USD',
-        funding_account_id: fundingAccount.id,
-        funding_account_name: fundingAccount.name,
-        start_date: contractForm.start_date,
-        end_date: contractForm.end_date || undefined,
-        status: 'active',
-        note: contractForm.note.trim() || undefined
-      });
-
-      setContracts((prev) => [newContract, ...prev]);
-      setEntryForm((prev) => ({ ...prev, contract_id: prev.contract_id || newContract.id }));
-      setContractForm(defaultContractForm);
-      setShowContractModal(false);
-      setCreatePrincipalExpense(false);
-      toast.success('Contract added');
-
-      if (createPrincipalExpense && user) {
-        try {
-          await addTransaction({
-            user_id: user.id,
-            account_id: fundingAccount.id,
-            type: 'expense',
-            amount: principal,
-            description: `Investment principal: ${newContract.title}`,
-            date: newContract.start_date,
-            category: 'Investment',
-            is_recurring: false,
-            origin: TRANSACTION_ORIGIN_BUSINESS_INVESTMENT,
-            business_investment_contract_id: newContract.id
-          });
-          toast.success('Principal expense transaction created');
-        } catch (error) {
-          console.error('Failed to create principal expense transaction:', error);
-          toast.warning('Contract saved, but principal expense transaction failed');
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error(err instanceof Error ? err.message : 'Failed to save contract');
-    }
-  };
-
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     const amount = Number(entryForm.amount);
@@ -414,6 +356,10 @@ export const BusinessInvestmentTracker: React.FC = () => {
       return;
     }
     if (!selectedContract) return;
+    if (postEntryAsTransaction && !postingAccountId) {
+      toast.error('Select an account to post this transaction, or turn off “Post transaction”.');
+      return;
+    }
 
     try {
       const newEntry = await insertBusinessInvestmentEntry(entryForm.contract_id, {
@@ -430,27 +376,28 @@ export const BusinessInvestmentTracker: React.FC = () => {
       );
       setEntryForm((prev) => ({ ...prev, amount: '', date: '', note: '' }));
 
-      if (entryForm.type === 'profit' && postProfitAsIncome && incomeAccountId && user) {
+      if (postEntryAsTransaction && postingAccountId && user) {
+        const postingAcc = accounts.find((a) => a.id === postingAccountId);
         try {
-          if (selectedIncomeAccount && selectedIncomeAccount.currency !== selectedContract.currency) {
-            toast.warning('Posting to different currency account');
+          if (postingAcc && postingAcc.currency !== selectedContract.currency) {
+            toast.warning('Account currency differs from contract currency');
           }
           await addTransaction({
             user_id: user.id,
-            account_id: incomeAccountId,
-            type: 'income',
+            account_id: postingAccountId,
+            type: entryPostingTransactionType(entryForm.type),
             amount,
-            description: `Investment profit: ${selectedContract.title}${entryForm.note ? ` - ${entryForm.note}` : ''}`,
+            description: entryPostingDescription(entryForm.type, selectedContract.title, entryForm.note),
             date: entryForm.date,
             category: 'Investment',
             is_recurring: false,
             origin: TRANSACTION_ORIGIN_BUSINESS_INVESTMENT,
             business_investment_contract_id: selectedContract.id
           });
-          toast.success('Profit also posted as income transaction');
+          toast.success('Transaction posted');
         } catch (error) {
-          console.error('Failed to post profit as income transaction:', error);
-          toast.error('Profit saved in tracker, income posting failed');
+          console.error('Investment entry transaction failed:', error);
+          toast.error('Entry saved, transaction posting failed');
         }
       }
     } catch (err) {
@@ -511,17 +458,39 @@ export const BusinessInvestmentTracker: React.FC = () => {
   };
   const isContractRowExpanded = (contractId: string) => expandedContractIds.has(contractId);
 
+  const toggleContractUpdateSection = () => setIsContractUpdateOpen((prev) => !prev);
+
+  useEffect(() => {
+    if (isContractUpdateOpen) {
+      setShowContractUpdateTooltip(false);
+      setShowContractUpdateInfoMobile(false);
+    }
+  }, [isContractUpdateOpen]);
+
   const renderContractDetails = (contract: InvestmentContract) => {
     const stats = getContractStats(contract);
     const fundingAccountName = getFundingAccountName(contract);
+    const deployed = getEffectivePrincipal(contract);
     return (
-      <div className="space-y-3">
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          Principal: {formatAmount(contract.principal, contract.currency)} | Start: {new Date(contract.start_date).toLocaleDateString()}
-          {contract.end_date ? ` | End: ${new Date(contract.end_date).toLocaleDateString()}` : ''}
-          {` | Funding: ${fundingAccountName}`}
+      <div className="space-y-3 min-w-0">
+        <div className={contractMetaRowClass}>
+          <span className="break-words">
+            Initial principal: {formatAmount(contract.principal, contract.currency)} · Start: {new Date(contract.start_date).toLocaleDateString()}
+            {contract.end_date ? ` · End: ${new Date(contract.end_date).toLocaleDateString()}` : ''}
+          </span>
+          <span className="break-words sm:max-w-[min(100%,24rem)]">Funding: {fundingAccountName}</span>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
+        <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
+          Total deployed: {formatAmount(deployed, contract.currency)}
+          {stats.capitalContributed > 0 ? (
+            <span className="font-normal text-gray-500 dark:text-gray-400">
+              {' '}
+              ({formatAmount(contract.principal, contract.currency)} initial + {formatAmount(stats.capitalContributed, contract.currency)}{' '}
+              reinvested)
+            </span>
+          ) : null}
+        </p>
+        <div className="grid grid-cols-2 min-[480px]:grid-cols-4 gap-2 text-xs">
           <div className="rounded-lg bg-gray-50 dark:bg-gray-700/40 p-2">
             <p className="text-gray-500 dark:text-gray-400">Profit</p>
             <p className="font-semibold text-green-600">{formatAmount(stats.totalProfit, contract.currency)}</p>
@@ -550,23 +519,34 @@ export const BusinessInvestmentTracker: React.FC = () => {
               .slice()
               .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
               .map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 dark:bg-gray-700/30 p-2">
-                  <div>
-                    <p className="text-xs font-medium text-gray-800 dark:text-gray-200">
-                      {entry.type === 'principal_return' ? 'Principal Returned' : entry.type === 'profit' ? 'Profit' : 'Loss'} -{' '}
-                      {new Date(entry.date).toLocaleDateString()}
+                <div
+                  key={entry.id}
+                  className="flex flex-col gap-2 rounded-lg bg-gray-50 dark:bg-gray-700/30 p-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-gray-800 dark:text-gray-200 break-words">
+                      {ENTRY_TYPE_LABELS[entry.type]} — {new Date(entry.date).toLocaleDateString()}
                     </p>
-                    {entry.note && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{entry.note}</p>}
+                    {entry.note && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 break-words">{entry.note}</p>}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <p className={`text-xs font-semibold ${entry.type === 'loss' ? 'text-red-600' : 'text-green-600'}`}>
-                      {entry.type === 'loss' ? '-' : '+'}
+                  <div className="flex shrink-0 items-center justify-end gap-2">
+                    <p
+                      className={`text-xs font-semibold tabular-nums ${
+                        entry.type === 'loss'
+                          ? 'text-red-600'
+                          : entry.type === 'capital_contribution'
+                            ? 'text-amber-600 dark:text-amber-500'
+                            : 'text-green-600'
+                      }`}
+                    >
+                      {entry.type === 'loss' || entry.type === 'capital_contribution' ? '-' : '+'}
                       {formatAmount(entry.amount, contract.currency)}
                     </p>
                     <button
                       type="button"
                       onClick={() => removeEntry(contract.id, entry.id)}
-                      className="p-1 rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      className="min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0 p-2 sm:p-1 rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 touch-manipulation"
+                      aria-label="Remove entry"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -581,14 +561,14 @@ export const BusinessInvestmentTracker: React.FC = () => {
 
   if (!hydrated) {
     return (
-      <div className="w-full">
+      <div className="w-full min-w-0">
         <InvestmentListSkeleton />
       </div>
     );
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full min-w-0">
       <div className={LP.stack}>
         {loadError ? (
           <ListPageErrorBanner
@@ -599,21 +579,64 @@ export const BusinessInvestmentTracker: React.FC = () => {
         ) : null}
       {contracts.length > 0 && (
         <div className={LP.card}>
-          <button
-            type="button"
-            onClick={() => setIsContractUpdateOpen((prev) => !prev)}
-            className="w-full flex items-center justify-between p-2 sm:p-3 md:p-4 text-left"
+          <div
+            className="flex w-full cursor-pointer flex-wrap items-center gap-x-2 gap-y-2 py-2 px-4 sm:flex-nowrap sm:gap-1"
+            onClick={toggleContractUpdateSection}
           >
-            <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">Add Contract Update</h3>
-            {isContractUpdateOpen ? (
-              <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            )}
-          </button>
+            <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2 sm:min-h-0 sm:gap-1">
+              <h3 className="min-w-0 flex-1 text-left text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 sm:flex-none sm:line-clamp-none sm:text-base">
+                Add Contract Update
+              </h3>
+              {!isContractUpdateOpen ? (
+                <div className="relative flex shrink-0 items-center">
+                  <button
+                    type="button"
+                    className="touch-manipulation rounded-full p-2 transition-colors hover:bg-gray-100 focus:bg-gray-100 focus:outline-none sm:p-1 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
+                    aria-label="About Add Contract Update"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onMouseEnter={() => !isMobile && setShowContractUpdateTooltip(true)}
+                    onMouseLeave={() => !isMobile && setShowContractUpdateTooltip(false)}
+                    onFocus={() => !isMobile && setShowContractUpdateTooltip(true)}
+                    onBlur={() => !isMobile && setShowContractUpdateTooltip(false)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isMobile) setShowContractUpdateInfoMobile(true);
+                      else setShowContractUpdateTooltip((v) => !v);
+                    }}
+                  >
+                    <Info className="h-4 w-4 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300" />
+                  </button>
+                  {showContractUpdateTooltip && !isMobile ? (
+                    <div className={CONTRACT_UPDATE_TOOLTIP_PANEL_CLASS} role="tooltip">
+                      {CONTRACT_UPDATE_SECTION_HINT}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleContractUpdateSection();
+              }}
+              className="ml-auto flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 sm:ml-0 sm:h-9 sm:w-9 dark:text-gray-400 dark:hover:bg-gray-700"
+              aria-expanded={isContractUpdateOpen}
+              aria-label={isContractUpdateOpen ? 'Collapse section' : 'Expand section'}
+            >
+              {isContractUpdateOpen ? (
+                <ChevronDown className="h-5 w-5 sm:h-4 sm:w-4" />
+              ) : (
+                <ChevronRight className="h-5 w-5 sm:h-4 sm:w-4" />
+              )}
+            </button>
+          </div>
           {isContractUpdateOpen && (
-            <form onSubmit={handleAddEntry} className="p-2 sm:p-3 md:p-4 pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3">
+            <form
+              onSubmit={handleAddEntry}
+              className="space-y-3 border-t border-gray-200 p-2 pt-3 dark:border-gray-700 sm:p-3 sm:pt-4 md:p-4"
+            >
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5">
                 <CustomDropdown
                   value={entryForm.contract_id}
                   onChange={(value) => setEntryForm((prev) => ({ ...prev, contract_id: value }))}
@@ -652,36 +675,40 @@ export const BusinessInvestmentTracker: React.FC = () => {
                 </div>
                 <button
                   type="submit"
-                  className="px-2 sm:px-3 py-1.5 h-8 rounded-md transition-colors flex items-center justify-center text-xs sm:text-[13px] bg-gradient-primary text-white hover:bg-gradient-primary-hover"
+                  className="flex h-10 w-full min-h-10 items-center justify-center rounded-md bg-gradient-primary px-3 text-xs text-white transition-colors hover:bg-gradient-primary-hover sm:h-8 sm:min-h-0 sm:w-auto sm:px-2 sm:text-[13px] md:px-3 touch-manipulation"
                 >
                   Add Entry
                 </button>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3">
-                <label className="inline-flex items-center gap-2 text-[13px] text-gray-700 dark:text-gray-300">
+              <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-2">
+                <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 text-xs text-gray-700 dark:text-gray-300 sm:min-h-0 sm:text-[13px]">
                   <input
                     type="checkbox"
-                    checked={postProfitAsIncome}
-                    onChange={(e) => setPostProfitAsIncome(e.target.checked)}
+                    checked={postEntryAsTransaction}
+                    onChange={(e) => setPostEntryAsTransaction(e.target.checked)}
                     className="rounded border-gray-300 dark:border-gray-600"
                   />
-                  Post profit entries as income transaction
+                  Post transaction to account
                 </label>
                 <CustomDropdown
-                  value={incomeAccountId}
-                  onChange={setIncomeAccountId}
+                  value={postingAccountId}
+                  onChange={setPostingAccountId}
                   options={postingAccountOptions}
-                  placeholder="Select income account"
-                  disabled={!postProfitAsIncome}
+                  placeholder="Select account *"
+                  disabled={!postEntryAsTransaction}
                   className={compactDropdownClass}
+                  fullWidth
                 />
+                <p className="text-[11px] leading-snug text-gray-500 dark:text-gray-400 lg:col-span-2">
+                  Profit and principal returned → income. Loss and capital contribution → expense.
+                </p>
               </div>
               <textarea
                 value={entryForm.note}
                 onChange={(e) => setEntryForm((prev) => ({ ...prev, note: e.target.value }))}
                 placeholder="Optional note for this update"
                 rows={2}
-                className={compactTextareaClass}
+                className={`${compactTextareaClass} min-h-[4.5rem] sm:min-h-0`}
               />
             </form>
           )}
@@ -691,12 +718,14 @@ export const BusinessInvestmentTracker: React.FC = () => {
       <div className={LP.card}>
         <div className={LP.filterHeader}>
           <div className={LP.filterRow} style={{ marginBottom: 0 }}>
-            <ListPageFilterSearchField
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder="Search contracts..."
-              pending={searchPending}
-            />
+            <div className="min-w-0 w-full flex-1 sm:max-w-md">
+              <ListPageFilterSearchField
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder="Search contracts..."
+                pending={searchPending}
+              />
+            </div>
 
             <div className="md:hidden flex items-center gap-1">
               <button
@@ -714,7 +743,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
             <div className="md:hidden">
               <button
                 type="button"
-                onClick={() => setShowContractModal(true)}
+                onClick={() => openAddContractModal()}
                 className="px-2 py-1.5 rounded-md transition-colors flex items-center justify-center text-[13px] h-8 w-8 bg-gradient-primary text-white hover:bg-gradient-primary-hover"
                 title="Add Contract"
                 aria-label="Add Contract"
@@ -751,7 +780,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
             <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 type="button"
-                onClick={() => setShowContractModal(true)}
+                onClick={() => openAddContractModal()}
                 className="hidden md:flex px-2 sm:px-3 py-1.5 h-8 rounded-md transition-colors flex items-center space-x-1 sm:space-x-1.5 text-xs sm:text-[13px] bg-gradient-primary text-white hover:bg-gradient-primary-hover"
               >
                 <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -761,16 +790,16 @@ export const BusinessInvestmentTracker: React.FC = () => {
             </div>
           </div>
         </div>
-            <div className={LP.summaryGrid}>
+            <div className={LP.investmentSummaryGrid}>
               <div className={LP.statCard}>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div className="text-left min-w-0 flex-1">
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Total Principal</p>
-                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem]">
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Total deployed</p>
+                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem] break-words tabular-nums">
                     {formatAmount(summary.totalPrincipal, summaryDisplayCurrency)}
                   </p>
                   <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">
-                    {visibleContracts.length} contract{visibleContracts.length === 1 ? '' : 's'}
+                    {activeVisibleContracts.length} active contract{activeVisibleContracts.length === 1 ? '' : 's'}
                     {summaryMixedCurrencies ? ` · Totals in ${summaryDisplayCurrency} only` : ''}
                   </p>
                 </div>
@@ -778,10 +807,10 @@ export const BusinessInvestmentTracker: React.FC = () => {
               </div>
             </div>
             <div className={LP.statCard}>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div className="text-left min-w-0 flex-1">
                   <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Total Profit</p>
-                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem]">
+                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem] break-words tabular-nums">
                     {formatAmount(summary.totalProfit, summaryDisplayCurrency)}
                   </p>
                   <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">Profit total</p>
@@ -790,10 +819,10 @@ export const BusinessInvestmentTracker: React.FC = () => {
               </div>
             </div>
             <div className={LP.statCard}>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div className="text-left min-w-0 flex-1">
                   <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Total Loss</p>
-                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem]">
+                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem] break-words tabular-nums">
                     {formatAmount(summary.totalLoss, summaryDisplayCurrency)}
                   </p>
                   <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">Loss total</p>
@@ -802,10 +831,10 @@ export const BusinessInvestmentTracker: React.FC = () => {
               </div>
             </div>
             <div className={LP.statCard}>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div className="text-left min-w-0 flex-1">
                   <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Overall Net</p>
-                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem]">
+                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem] break-words tabular-nums">
                     {formatAmount(summary.overallNet, summaryDisplayCurrency)}
                   </p>
                   <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">Net position</p>
@@ -818,9 +847,9 @@ export const BusinessInvestmentTracker: React.FC = () => {
                 <div className="text-left min-w-0 flex-1">
                   <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Contracts</p>
                   <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem]">
-                    {visibleContracts.length}
+                    {activeVisibleContracts.length}
                   </p>
-                  <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">Tracked items</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">Active in this currency</p>
                 </div>
                 <Building2 className="text-blue-600 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
               </div>
@@ -883,10 +912,15 @@ export const BusinessInvestmentTracker: React.FC = () => {
                             <div className="flex items-center">
                               <div className="flex-1 min-w-0">
                                 <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">{contract.title}</div>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  Principal: {formatAmount(contract.principal, contract.currency)} | Start: {new Date(contract.start_date).toLocaleDateString()}
-                                  {contract.end_date ? ` | End: ${new Date(contract.end_date).toLocaleDateString()}` : ''}
-                                </p>
+                                <div className={contractMetaRowClass}>
+                                  <span className="break-words">
+                                    Deployed: {formatAmount(getEffectivePrincipal(contract), contract.currency)} · Start:{' '}
+                                    {new Date(contract.start_date).toLocaleDateString()}
+                                    {contract.end_date
+                                      ? ` · End: ${new Date(contract.end_date).toLocaleDateString()}`
+                                      : ''}
+                                  </span>
+                                </div>
                               </div>
                               <div className="ml-2 flex-shrink-0">
                                 <ContractRowChevron expanded={isExpanded} />
@@ -913,7 +947,15 @@ export const BusinessInvestmentTracker: React.FC = () => {
                             </button>
                           </td>
                           <td className="px-3 sm:px-4 lg:px-6 py-2 sm:py-[0.6rem] lg:py-[0.7rem]" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-center">
+                            <div className="flex items-center justify-center gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => openEditContractModal(contract)}
+                                className="p-1.5 rounded text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                title="Edit contract details"
+                              >
+                                <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => setContractIdToDelete(contract.id)}
@@ -963,11 +1005,16 @@ export const BusinessInvestmentTracker: React.FC = () => {
                               <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white truncate">{contract.title}</p>
                               <ContractRowChevron expanded={isExpanded} />
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                              Principal: {formatAmount(contract.principal, contract.currency)} | Start: {new Date(contract.start_date).toLocaleDateString()}
-                              {contract.end_date ? ` | End: ${new Date(contract.end_date).toLocaleDateString()}` : ''}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">Funding: {fundingAccountName}</p>
+                            <div className={`${contractMetaRowClass} mt-0.5`}>
+                              <span className="break-words">
+                                Deployed: {formatAmount(getEffectivePrincipal(contract), contract.currency)} · Start:{' '}
+                                {new Date(contract.start_date).toLocaleDateString()}
+                                {contract.end_date
+                                  ? ` · End: ${new Date(contract.end_date).toLocaleDateString()}`
+                                  : ''}
+                              </span>
+                              <span className="break-words">Funding: {fundingAccountName}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -986,14 +1033,24 @@ export const BusinessInvestmentTracker: React.FC = () => {
                         >
                           {contract.status === 'active' ? 'Active' : 'Closed'}
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setContractIdToDelete(contract.id)}
-                          className="p-1.5 rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          title="Delete contract"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        </button>
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditContractModal(contract)}
+                            className="p-1.5 rounded text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                            title="Edit contract details"
+                          >
+                            <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setContractIdToDelete(contract.id)}
+                            className="p-1.5 rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            title="Delete contract"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </button>
+                        </div>
                       </div>
                       {isExpanded && (
                         <div
@@ -1052,106 +1109,53 @@ export const BusinessInvestmentTracker: React.FC = () => {
         </ListPageMobileFilterSection>
       </ListPageMobileFilterModal>
 
-      {showContractModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
-          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setShowContractModal(false)} />
-          <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Add Contract</h3>
-              <button type="button" onClick={() => setShowContractModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1">
-                <X className="w-5 h-5 sm:w-6 sm:h-6" />
+      <BusinessInvestmentContractModal
+        open={showContractModal}
+        onClose={closeContractModal}
+        editingContract={editingContract ?? null}
+        onAdded={(newContract) => {
+          setContracts((prev) => [newContract, ...prev]);
+          setEntryForm((prev) => ({ ...prev, contract_id: prev.contract_id || newContract.id }));
+        }}
+        onUpdated={(payload) => {
+          setContracts((prev) =>
+            prev.map((c) =>
+              c.id === payload.id
+                ? { ...c, title: payload.title, start_date: payload.start_date, end_date: payload.end_date, note: payload.note }
+                : c
+            )
+          );
+        }}
+      />
+
+      {showContractUpdateInfoMobile && isMobile ? (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 pb-[env(safe-area-inset-bottom,0px)] sm:items-center sm:p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setShowContractUpdateInfoMobile(false)} aria-hidden />
+          <div
+            className="relative max-h-[min(85vh,100%)] w-full max-w-md animate-fadein overflow-y-auto overscroll-contain rounded-t-2xl border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-900 sm:rounded-lg sm:p-5 touch-manipulation"
+            role="dialog"
+            aria-labelledby="contract-update-info-title"
+          >
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div
+                id="contract-update-info-title"
+                className="pr-2 text-base font-semibold leading-snug text-gray-900 dark:text-white"
+              >
+                Add Contract Update
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowContractUpdateInfoMobile(false)}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
-
-            <form onSubmit={handleAddContract} className="p-4 sm:p-5 overflow-y-auto flex-1">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-[1.15rem] gap-y-[1.20rem] sm:gap-y-[1.40rem]">
-                <input
-                  type="text"
-                  value={contractForm.title}
-                  onChange={(e) => setContractForm((prev) => ({ ...prev, title: e.target.value }))}
-                  placeholder="Contract title"
-                  className={modalInputClass}
-                  required
-                />
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={contractForm.principal}
-                  onChange={(e) => setContractForm((prev) => ({ ...prev, principal: e.target.value }))}
-                  placeholder="Principal amount"
-                  className={modalInputClass}
-                  required
-                />
-                <CustomDropdown
-                  value={contractForm.funding_account_id}
-                  onChange={(value) => setContractForm((prev) => ({ ...prev, funding_account_id: value }))}
-                  options={fundingAccountOptions}
-                  placeholder="Funding account *"
-                />
-                <div className="flex items-center px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
-                  Currency: {selectedFundingAccount?.currency || '-'}
-                </div>
-                <div className={modalDateShellClass}>
-                  <DatePicker
-                    selected={parseLocalDate(contractForm.start_date)}
-                    onChange={(date) => setContractForm((prev) => ({ ...prev, start_date: formatDateYmd(date) }))}
-                    placeholderText="Start date *"
-                    dateFormat="yyyy-MM-dd"
-                    className={dateInputClass}
-                    todayButton="Today"
-                    isClearable
-                    autoComplete="off"
-                  />
-                </div>
-                <div className={modalDateShellClass}>
-                  <DatePicker
-                    selected={parseLocalDate(contractForm.end_date)}
-                    onChange={(date) => setContractForm((prev) => ({ ...prev, end_date: formatDateYmd(date) }))}
-                    placeholderText="End date"
-                    dateFormat="yyyy-MM-dd"
-                    className={dateInputClass}
-                    todayButton="Today"
-                    isClearable
-                    autoComplete="off"
-                  />
-                </div>
-              </div>
-              <textarea
-                value={contractForm.note}
-                onChange={(e) => setContractForm((prev) => ({ ...prev, note: e.target.value }))}
-                placeholder="Optional note"
-                rows={2}
-                className={`${modalInputClass} min-h-[80px] mt-3 sm:mt-4`}
-              />
-              <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mt-3">
-                <input
-                  type="checkbox"
-                  checked={createPrincipalExpense}
-                  onChange={(e) => setCreatePrincipalExpense(e.target.checked)}
-                  className="rounded border-gray-300 dark:border-gray-600"
-                />
-                Also create expense transaction for principal from funding account
-              </label>
-              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-4 sm:mt-5">
-                <button
-                  type="button"
-                  onClick={() => setShowContractModal(false)}
-                  className="w-full sm:w-auto px-4 sm:px-6 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm sm:text-base"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="w-full sm:w-auto px-4 sm:px-6 py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors flex items-center justify-center min-w-[80px] text-sm sm:text-base"
-                >
-                  Save Contract
-                </button>
-              </div>
-            </form>
+            <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-300">{CONTRACT_UPDATE_SECTION_HINT}</p>
           </div>
         </div>
-      )}
+      ) : null}
 
       <DeleteConfirmationModal
         isOpen={contractIdToDelete !== null}
@@ -1160,7 +1164,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
           if (contractIdToDelete) void removeContract(contractIdToDelete);
         }}
         title="Delete contract?"
-        message="This will permanently remove the contract and all its updates. Linked transactions created from Investments (principal or profit) will also be removed. This cannot be undone."
+        message="This will permanently remove the contract and all its updates. Linked transactions created from Investments (principal, capital contributions, or profit) will also be removed. This cannot be undone."
         recordDetails={
           pendingDeleteTitle ? (
             <p className="text-sm font-medium text-gray-900 dark:text-white">{pendingDeleteTitle}</p>

@@ -4,7 +4,7 @@ import { StatCard } from './StatCard';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { Info, X } from 'lucide-react';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
-import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 
 interface CurrencyOverviewCardProps {
   currency: string;
@@ -227,7 +227,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
         !t.tags?.some((tag: string) => 
           tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
         ) &&
-        !isLendBorrowTransaction(t)
+        countsTowardIncomeExpenseSummaries(t)
       )
       .reduce((sum, t) => sum + t.amount, 0);
   }, [filteredTransactions]);
@@ -238,7 +238,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
         !t.tags?.some((tag: string) => 
           tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
         ) &&
-        !isLendBorrowTransaction(t)
+        countsTowardIncomeExpenseSummaries(t)
       )
       .reduce((sum, t) => sum + t.amount, 0);
   }, [filteredTransactions]);
@@ -252,7 +252,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
         !t.tags?.some((tag: string) => 
           tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
         ) &&
-        !isLendBorrowTransaction(t)
+        countsTowardIncomeExpenseSummaries(t)
       )
       .forEach(t => {
         const account = currencyAccounts.find(acc => acc.id === t.account_id);
@@ -278,7 +278,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
         !t.tags?.some((tag: string) => 
           tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
         ) &&
-        !isLendBorrowTransaction(t)
+        countsTowardIncomeExpenseSummaries(t)
       )
       .forEach(t => {
         const account = currencyAccounts.find(acc => acc.id === t.account_id);
@@ -310,7 +310,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
         !t.tags?.some((tag: string) => 
           tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
         ) &&
-        !isLendBorrowTransaction(t)
+        countsTowardIncomeExpenseSummaries(t)
       )
       .reduce((sum, t) => sum + t.amount, 0);
   }, [prevFilteredTransactions]);
@@ -321,7 +321,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
         !t.tags?.some((tag: string) => 
           tag.includes('transfer') || tag.includes('dps_transfer') || tag === 'dps_deletion'
         ) &&
-        !isLendBorrowTransaction(t)
+        countsTowardIncomeExpenseSummaries(t)
       )
       .reduce((sum, t) => sum + t.amount, 0);
   }, [prevFilteredTransactions]);

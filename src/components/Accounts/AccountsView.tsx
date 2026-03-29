@@ -27,7 +27,7 @@ import { SelectionFilter } from '../common/SelectionFilter';
 import { searchService, SEARCH_CONFIGS } from '../../utils/searchService';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
-import { isLendBorrowTransaction, groupTransactionsByDate } from '../../utils/transactionUtils';
+import { countsTowardIncomeExpenseSummaries, groupTransactionsByDate } from '../../utils/transactionUtils';
 import { formatCurrency } from '../../utils/currency';
 
 export const AccountsView: React.FC = () => {
@@ -229,8 +229,8 @@ export const AccountsView: React.FC = () => {
     });
     
     // Calculate summary
-    const income = accountTransactions.filter(t => t.type === 'income' && !isLendBorrowTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
-    const expenses = accountTransactions.filter(t => t.type === 'expense' && !isLendBorrowTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
+    const income = accountTransactions.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0);
+    const expenses = accountTransactions.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0);
     const net = income - expenses;
     
     const start = startDate ? new Date(startDate) : null;
@@ -1853,8 +1853,8 @@ export const AccountsView: React.FC = () => {
                     const accountTransactions = transactions
                       .filter(t => t.account_id === account.id)
                       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                    const incomeTransactions = accountTransactions.filter(t => t.type === 'income' && !isLendBorrowTransaction(t));
-                    const expenseTransactions = accountTransactions.filter(t => t.type === 'expense' && !isLendBorrowTransaction(t));
+                    const incomeTransactions = accountTransactions.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t));
+                    const expenseTransactions = accountTransactions.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t));
                     
                     // Calculate total saved and donated
                     let totalSaved = 0;
@@ -2259,8 +2259,8 @@ export const AccountsView: React.FC = () => {
                     const accountTransactions = transactions
                       .filter(t => t.account_id === account.id)
                       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                    const incomeTransactions = accountTransactions.filter(t => t.type === 'income' && !isLendBorrowTransaction(t));
-                    const expenseTransactions = accountTransactions.filter(t => t.type === 'expense' && !isLendBorrowTransaction(t));
+                    const incomeTransactions = accountTransactions.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t));
+                    const expenseTransactions = accountTransactions.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t));
                     
                     // Calculate total saved and donated
                     let totalSaved = 0;
@@ -2691,8 +2691,8 @@ export const AccountsView: React.FC = () => {
                     const accountTransactions = transactions
                       .filter(t => t.account_id === account.id)
                       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                    const incomeTransactions = accountTransactions.filter(t => t.type === 'income' && !isLendBorrowTransaction(t));
-                    const expenseTransactions = accountTransactions.filter(t => t.type === 'expense' && !isLendBorrowTransaction(t));
+                    const incomeTransactions = accountTransactions.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t));
+                    const expenseTransactions = accountTransactions.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t));
                     
                     // Calculate total saved and donated
                     let totalSaved = 0;
@@ -3031,8 +3031,8 @@ export const AccountsView: React.FC = () => {
                     const accountTransactions = transactions
                       .filter(t => t.account_id === account.id)
                       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                    const incomeTransactions = accountTransactions.filter(t => t.type === 'income' && !isLendBorrowTransaction(t));
-                    const expenseTransactions = accountTransactions.filter(t => t.type === 'expense' && !isLendBorrowTransaction(t));
+                    const incomeTransactions = accountTransactions.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t));
+                    const expenseTransactions = accountTransactions.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t));
                     
                     // Calculate total saved and donated
                     let totalSaved = 0;

@@ -32,7 +32,7 @@ import { useExport } from '../../hooks/useExport';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { FinancialHealthCard } from './FinancialHealthCard';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
-import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { countsTowardIncomeExpenseSummaries, isLendBorrowTransaction } from '../../utils/transactionUtils';
 import { transactionHasAuditTrail } from '../../utils/transactionHistoryUtils';
 import { getTransactionListManagedElsewhereHint, isTransactionListActionsLocked } from '../../lib/transactionListLock';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
@@ -1230,8 +1230,8 @@ const TransactionListComponent: React.FC<{
   const lendBorrowIncomeInFiltered = filteredTransactions.filter(t => t.type === 'income' && isLendBorrowTransaction(t));
   const lendBorrowExpenseInFiltered = filteredTransactions.filter(t => t.type === 'expense' && isLendBorrowTransaction(t));
   
-  const totalIncome = filteredTransactions.filter(t => t.type === 'income' && !isLendBorrowTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
-  const totalExpense = filteredTransactions.filter(t => t.type === 'expense' && !isLendBorrowTransaction(t)).reduce((sum, t) => sum + t.amount, 0);
+  const totalIncome = filteredTransactions.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = filteredTransactions.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0);
   const transactionCount = filteredTransactions.length;
   
   // Console log for verification - always log when transactions are present

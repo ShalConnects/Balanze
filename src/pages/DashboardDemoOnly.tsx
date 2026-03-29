@@ -3,7 +3,6 @@ import { ArrowRight, CheckCircle, X, AlertTriangle, Eye, Settings, Calendar, Use
 import { StatCard } from '../components/Dashboard/StatCard';
 import { formatCurrency } from '../utils/currency';
 import { formatTransactionDescription } from '../utils/transactionDescriptionFormatter';
-import { FloatingActionButton } from '../components/Layout/FloatingActionButton';
 import { TransferModal } from '../components/Transfers/TransferModal';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -1903,7 +1902,6 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
     return (
       <>
         <DashboardSkeleton />
-        <FloatingActionButton />
       </>
     );
   }
@@ -2049,8 +2047,6 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
             MockRecentTransactions={MockRecentTransactions}
           />
         </div>
-
-        <FloatingActionButton />
       </div>
 
       {/* Demo Footer */}
@@ -2136,7 +2132,7 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
       </div>
 
       {/* Modals - Consolidated at the end to prevent multiple instances */}
-      {/* TransactionForm is handled by FloatingActionButton to prevent conflicts */}
+      {/* TransactionForm is opened from MainLayout FloatingActionButton */}
 
       {showTransferModal && (
         <TransferModal isOpen={showTransferModal} onClose={() => setShowTransferModal(false)} />

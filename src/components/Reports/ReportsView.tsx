@@ -7,7 +7,7 @@ import { MonthlyTrend } from './MonthlyTrend';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
 import { TransactionChart } from '../Dashboard/TransactionChart';
 import { AccountsOverview } from '../Dashboard/AccountsOverview';
-import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 
 export const ReportsView: React.FC = () => {
   const { getActiveAccounts, getActiveTransactions, getDashboardStats, getCategories } = useFinanceStore();
@@ -60,11 +60,11 @@ export const ReportsView: React.FC = () => {
   const periodTransactions = getPeriodData();
   
   const totalIncome = periodTransactions
-    .filter(t => t.type === 'income' && !isLendBorrowTransaction(t))
+    .filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t))
     .reduce((sum, t) => sum + t.amount, 0);
 
   const totalExpenses = Math.abs(periodTransactions
-    .filter(t => t.type === 'expense' && !isLendBorrowTransaction(t))
+    .filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t))
     .reduce((sum, t) => sum + t.amount, 0));
 
   const netIncome = totalIncome - totalExpenses;

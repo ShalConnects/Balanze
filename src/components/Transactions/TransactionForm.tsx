@@ -10,6 +10,7 @@ import { logTransactionEvent } from '../../lib/auditLogging';
 import { PurchaseDetailsSection } from './PurchaseDetailsSection';
 import { generateTransactionId } from '../../utils/transactionId';
 import { getCurrencySymbol } from '../../utils/currency';
+import { buildTransactionAccountDropdownOptions } from '../../utils/transactionAccountDropdown';
 import { getDefaultAccountId } from '../../utils/defaultAccount';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 // DatePicker loaded dynamically to reduce initial bundle size
@@ -132,6 +133,16 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const descriptionSuggestions = useDescriptionSuggestions(data.description, 8);
 
   // Add isFormValid variable after data and errors are defined - memoized to prevent infinite re-renders
+  const transactionAccountDropdownOptions = React.useMemo(
+    () =>
+      buildTransactionAccountDropdownOptions(
+        accounts,
+        profile?.local_currency || 'USD',
+        isEditMode && transactionToEdit?.account_id ? transactionToEdit.account_id : null
+      ),
+    [accounts, profile?.local_currency, isEditMode, transactionToEdit?.account_id]
+  );
+
   const isFormValid = React.useMemo(() => 
     data.account_id &&
     data.amount &&
@@ -1140,44 +1151,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                   if (errors.account_id) setErrors({ ...errors, account_id: '' });
                 }}
                 disabled={isAccountHidden}
-                options={(() => {
-                  // Get active accounts (excluding DPS accounts)
-                  let availableAccounts = accounts.filter(account => account.isActive && !account.name.includes('(DPS)'));
-                  
-                  // If editing a transaction, include its current account even if hidden/inactive
-                  if (isEditMode && transactionToEdit?.account_id) {
-                    const currentAccount = accounts.find(acc => acc.id === transactionToEdit.account_id);
-                    if (currentAccount && !currentAccount.name.includes('(DPS)')) {
-                      // Add the current account if it's not already in the list
-                      const accountExists = availableAccounts.some(acc => acc.id === currentAccount.id);
-                      if (!accountExists) {
-                        availableAccounts = [...availableAccounts, currentAccount];
-                      }
-                    }
-                  }
-                  
-                  return availableAccounts
-                    .sort((a, b) => {
-                      const defaultCurrency = profile?.local_currency || 'USD';
-                      // Default currency first
-                      if (a.currency === defaultCurrency && b.currency !== defaultCurrency) return -1;
-                      if (a.currency !== defaultCurrency && b.currency === defaultCurrency) return 1;
-                      // Then sort by currency alphabetically
-                      if (a.currency !== b.currency) {
-                        return a.currency.localeCompare(b.currency);
-                      }
-                      // Within same currency, sort by balance (descending - highest first)
-                      return (b.calculated_balance || 0) - (a.calculated_balance || 0);
-                    })
-                    .map((account) => {
-                      const accountLabel = `${account.name} (${getCurrencySymbol(account.currency)}${Number(account.calculated_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
-                      
-                      return {
-                        value: account.id,
-                        label: accountLabel
-                      };
-                    });
-                })()}
+                options={transactionAccountDropdownOptions}
                 placeholder="Select account *"
                 fullWidth={true}
               />

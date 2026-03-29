@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Info } from 'lu
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../../utils/currency';
 import { getExchangeRate } from '../../utils/exchangeRate';
+import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 
 interface CurrencyComparisonWidgetProps {
   transactions: any[];
@@ -52,11 +53,11 @@ export const CurrencyComparisonWidget: React.FC<CurrencyComparisonWidgetProps> =
       });
 
       const income = currencyTransactions
-        .filter(t => t.type === 'income')
+        .filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t))
         .reduce((sum, t) => sum + t.amount, 0);
       
       const expenses = currencyTransactions
-        .filter(t => t.type === 'expense')
+        .filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t))
         .reduce((sum, t) => sum + t.amount, 0);
 
       const netAmount = income - expenses;

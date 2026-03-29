@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { Transaction } from '../types';
-import { isLendBorrowTransaction } from './transactionUtils';
+import { isBusinessInvestmentFundingExpense, isLendBorrowTransaction } from './transactionUtils';
 import { formatCurrency } from './currency';
 
 /** Row from `transaction_updates` — single source for store cache and UI. */
@@ -12,6 +12,45 @@ export type TransactionHistoryEntry = {
   updated_at: string;
   updated_by: string | null;
 };
+
+/** Shared by single + bulk Supabase reads (newest first for UI). */
+export const transactionUpdatesOrder = { ascending: false } as const;
+
+export function toTransactionHistoryEntry(r: {
+  id?: number | null;
+  field_name: string;
+  old_value?: string | null;
+  new_value?: string | null;
+  updated_at?: string | null;
+  updated_by?: string | null;
+}): TransactionHistoryEntry {
+  return {
+    id: r.id ?? 0,
+    field_name: r.field_name,
+    old_value: r.old_value ?? null,
+    new_value: r.new_value ?? null,
+    updated_at: r.updated_at || '',
+    updated_by: r.updated_by ?? null,
+  };
+}
+
+type TransactionUpdateRow = Parameters<typeof toTransactionHistoryEntry>[0] & { transaction_id: string };
+
+/** Replaces per–transaction_id slices from a bulk fetch (avoids duplicate append into cache). */
+export function mergeBulkTransactionHistoryIntoCache(
+  prev: Map<string, TransactionHistoryEntry[]> | undefined,
+  rows: TransactionUpdateRow[]
+): Map<string, TransactionHistoryEntry[]> {
+  const byTid = new Map<string, TransactionHistoryEntry[]>();
+  for (const r of rows) {
+    const tid = r.transaction_id;
+    if (!byTid.has(tid)) byTid.set(tid, []);
+    byTid.get(tid)!.push(toTransactionHistoryEntry(r));
+  }
+  const m = new Map(prev || []);
+  byTid.forEach((list, tid) => m.set(tid, list));
+  return m;
+}
 
 const FIELD_LABELS: Record<string, string> = {
   amount: 'Amount',
@@ -77,10 +116,62 @@ export function formatHistoryFieldValue(
   return value;
 }
 
+/** Signed change new − old for amount audit rows; null if not numeric or zero. */
+export function formatAmountHistoryDelta(
+  oldValue: string | null,
+  newValue: string | null,
+  currency: string
+): string | null {
+  const o = parseFloat(oldValue || '');
+  const n = parseFloat(newValue || '');
+  if (!Number.isFinite(o) || !Number.isFinite(n)) return null;
+  const d = n - o;
+  if (d === 0) return null;
+  if (d > 0) return `(+${formatCurrency(d, currency)})`;
+  return `(${formatCurrency(d, currency)})`;
+}
+
+/** Shown on rows when attribution matters; omits current user (no repeated 'You'). */
 export function formatHistoryActorLabel(updatedBy: string | null, currentUserId: string | undefined): string | null {
   if (!updatedBy) return null;
-  if (currentUserId && updatedBy === currentUserId) return 'You';
+  if (currentUserId && updatedBy === currentUserId) return null;
   return 'Another user';
+}
+
+/** When every row in a field group is the same non-you editor, show once at the group header. */
+export function transactionHistoryGroupActorNote(
+  items: Pick<TransactionHistoryEntry, 'updated_by'>[],
+  currentUserId: string | undefined
+): string | null {
+  const withActor = items.map((i) => i.updated_by).filter(Boolean) as string[];
+  if (!withActor.length) return null;
+  const u = withActor[0];
+  if (!withActor.every((id) => id === u)) return null;
+  if (currentUserId && u === currentUserId) return null;
+  return 'Another user';
+}
+
+/** Groups rows by field; each group stays newest-first; groups ordered by latest edit in that field. */
+export function groupTransactionHistoryForDisplay(entries: TransactionHistoryEntry[]): {
+  field_name: string;
+  label: string;
+  items: TransactionHistoryEntry[];
+}[] {
+  const map = new Map<string, TransactionHistoryEntry[]>();
+  for (const e of entries) {
+    if (!map.has(e.field_name)) map.set(e.field_name, []);
+    map.get(e.field_name)!.push(e);
+  }
+  return [...map.entries()]
+    .map(([field_name, items]) => ({
+      field_name,
+      label: transactionHistoryFieldLabel(field_name),
+      items,
+    }))
+    .sort(
+      (a, b) =>
+        new Date(b.items[0].updated_at).getTime() - new Date(a.items[0].updated_at).getTime()
+    );
 }
 
 const toDateStr = (d: Date | string) => (typeof d === 'string' ? d : d.toISOString()).split('T')[0];
@@ -150,7 +241,9 @@ export function computeDateAwareTotals(
   let income = 0;
   let expense = 0;
   const excluded = (t: Transaction) =>
-    t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer')) || isLendBorrowTransaction(t);
+    t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer')) ||
+    isLendBorrowTransaction(t) ||
+    isBusinessInvestmentFundingExpense(t);
   transactions
     .filter((t) => !excluded(t))
     .forEach((t) => {

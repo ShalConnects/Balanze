@@ -14,7 +14,7 @@ import { HeaderQuote } from '../Dashboard/HeaderQuote';
 import { useThemeStore } from '../../store/themeStore';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useMobileSidebar } from '../../context/MobileSidebarContext';
-import { HomeButton } from './HomeButton';
+import { FloatingActionButton } from './FloatingActionButton';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -236,8 +236,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       {/* TodosWidget - Always mounted globally for modal access (widget UI hidden - only modal functionality) */}
       {TodosWidget && <TodosWidget isAccordionExpanded={false} onAccordionToggle={() => {}} showWidgetUI={false} />}
       
-      {/* Home Button - Show on both mobile and desktop when not on dashboard */}
-      {currentView !== 'dashboard' && location.pathname !== '/' && <HomeButton />}
+      <FloatingActionButton />
       {/* Mobile sidebar overlay rendered outside the main flex container */}
       {isMobile && isSidebarOpen && (
         <div className="fixed inset-0 z-[99999] flex">

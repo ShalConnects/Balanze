@@ -2,7 +2,7 @@ import React, { useMemo, useRef } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Calendar } from 'lucide-react';
 import { Transaction, Account } from '../../types';
 import { formatCurrency } from '../../utils/accountUtils';
-import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { countsTowardIncomeExpenseSummaries, isLendBorrowTransaction } from '../../utils/transactionUtils';
 
 interface TransactionSummaryCardsProps {
   transactions: Transaction[];
@@ -26,8 +26,8 @@ export const TransactionSummaryCards: React.FC<TransactionSummaryCardsProps> = (
     const lendBorrowIncome = transactions.filter(t => t.type === 'income' && isLendBorrowTransaction(t));
     const lendBorrowExpense = transactions.filter(t => t.type === 'expense' && isLendBorrowTransaction(t));
     
-    const incomeTransactions = transactions.filter(t => t.type === 'income' && !isLendBorrowTransaction(t));
-    const expenseTransactions = transactions.filter(t => t.type === 'expense' && !isLendBorrowTransaction(t));
+    const incomeTransactions = transactions.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t));
+    const expenseTransactions = transactions.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t));
     
     const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
     const totalExpenses = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);

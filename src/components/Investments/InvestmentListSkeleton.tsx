@@ -18,10 +18,10 @@ export const InvestmentListSkeleton: React.FC = () => (
       <div className="p-4 relative z-10">
         <ClientSummaryCardsSkeleton />
       </div>
-      <div className="hidden md:block p-4 relative z-10">
+      <div className="hidden lg:block p-4 relative z-10">
         <ClientTableSkeleton rows={6} />
       </div>
-      <div className="md:hidden relative z-10">
+      <div className="lg:hidden relative z-10">
         <ClientCardSkeleton count={4} />
       </div>
     </div>

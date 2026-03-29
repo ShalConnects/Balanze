@@ -73,6 +73,13 @@ export const isLendBorrowTransaction = (transaction: Transaction): boolean => {
     return hasLendBorrowTag || matchesDescription;
 };
 
+export const isBusinessInvestmentFundingExpense = (t: Transaction): boolean =>
+    t.type === 'expense' && Boolean(t.business_investment_contract_id);
+
+/** Income/expense rows that count toward summary cards and net (excludes lend/borrow and BI principal / capital deployment). */
+export const countsTowardIncomeExpenseSummaries = (t: Transaction): boolean =>
+    !isLendBorrowTransaction(t) && !isBusinessInvestmentFundingExpense(t);
+
 export const filterTransactions = (
     transactions: Transaction[],
     filters: {
@@ -175,12 +182,11 @@ export const sortTransactions = (
 };
 
 export const calculateTransactionStats = (transactions: Transaction[], accounts: Account[]) => {
-    // Exclude lend/borrow transactions from income/expense calculations
     const incomeTransactions = transactions.filter(t => 
-        t.type === 'income' && !isLendBorrowTransaction(t)
+        t.type === 'income' && countsTowardIncomeExpenseSummaries(t)
     );
     const expenseTransactions = transactions.filter(t => 
-        t.type === 'expense' && !isLendBorrowTransaction(t)
+        t.type === 'expense' && countsTowardIncomeExpenseSummaries(t)
     );
     
     const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
@@ -342,7 +348,7 @@ export const exportTransactionsToCSV = (transactions: Transaction[], accounts: A
         .join('\n');
 };
 
-/** All-time summary for a single account (excludes lend/borrow transactions) */
+/** All-time summary for a single account (excludes lend/borrow and BI funding expenses) */
 export const getAccountAllTimeSummary = (
     accountId: string,
     transactions: Transaction[]
@@ -359,8 +365,8 @@ export const getAccountAllTimeSummary = (
     count: number;
 } => {
     const accountTxs = transactions.filter(t => t.account_id === accountId);
-    const income = accountTxs.filter(t => t.type === 'income' && !isLendBorrowTransaction(t));
-    const expenses = accountTxs.filter(t => t.type === 'expense' && !isLendBorrowTransaction(t));
+    const income = accountTxs.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t));
+    const expenses = accountTxs.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t));
     const totalIncome = income.reduce((s, t) => s + t.amount, 0);
     const totalExpenses = expenses.reduce((s, t) => s + t.amount, 0);
     let totalSaved = 0, totalDonated = 0;

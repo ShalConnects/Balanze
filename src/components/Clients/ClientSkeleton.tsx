@@ -1,6 +1,18 @@
 import React from 'react';
 import { LP } from '../common/listPage/listPageLayout';
 
+const TABLE_ROW_SHIMMER_CLASS =
+  'pointer-events-none absolute inset-0 z-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent';
+
+function ClientTableSkeletonCell({ className, children }: { className: string; children: React.ReactNode }) {
+  return (
+    <td className={`${className} relative overflow-hidden`}>
+      <div className={TABLE_ROW_SHIMMER_CLASS} aria-hidden />
+      <div className="relative z-10">{children}</div>
+    </td>
+  );
+}
+
 // Enhanced skeleton for client cards (mobile view) - matches real ClientCard structure
 export const ClientCardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => {
   return (
@@ -76,12 +88,11 @@ export const ClientTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) =
         {/* Table Body - matches real row structure */}
         <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
           {Array.from({ length: rows }).map((_, rowIndex) => (
-            <tr key={rowIndex} className={`${rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'} relative overflow-hidden`}>
-              {/* Shimmer effect for each row */}
-              <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
-              
-              {/* Client Name - matches real client name structure */}
-              <td className="px-6 py-4 relative z-10">
+            <tr
+              key={rowIndex}
+              className={rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}
+            >
+              <ClientTableSkeletonCell className="px-6 py-4">
                 <div className="flex items-center">
                   <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center mr-3 animate-pulse">
                     <div className="w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded"></div>
@@ -91,35 +102,25 @@ export const ClientTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) =
                     <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div>
                   </div>
                 </div>
-              </td>
-              
-              {/* Email - matches real email display */}
-              <td className="px-6 py-4 relative z-10">
+              </ClientTableSkeletonCell>
+              <ClientTableSkeletonCell className="px-6 py-4">
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
-              </td>
-              
-              {/* Phone - matches real phone display */}
-              <td className="px-6 py-4 relative z-10">
+              </ClientTableSkeletonCell>
+              <ClientTableSkeletonCell className="px-6 py-4">
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div>
-              </td>
-              
-              {/* Currency - matches real currency display */}
-              <td className="px-6 py-4 text-center relative z-10">
+              </ClientTableSkeletonCell>
+              <ClientTableSkeletonCell className="px-6 py-4 text-center">
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 animate-pulse mx-auto"></div>
-              </td>
-              
-              {/* Status - matches real status badge */}
-              <td className="px-6 py-4 text-center relative z-10">
+              </ClientTableSkeletonCell>
+              <ClientTableSkeletonCell className="px-6 py-4 text-center">
                 <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full w-16 animate-pulse mx-auto"></div>
-              </td>
-              
-              {/* Actions - matches real action buttons */}
-              <td className="px-6 py-4 text-center relative z-10">
+              </ClientTableSkeletonCell>
+              <ClientTableSkeletonCell className="px-6 py-4 text-center">
                 <div className="flex justify-center gap-2">
                   <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
                   <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
                 </div>
-              </td>
+              </ClientTableSkeletonCell>
             </tr>
           ))}
         </tbody>

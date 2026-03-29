@@ -3,7 +3,7 @@ import { TrendingUp, TrendingDown, DollarSign, Globe, ArrowUpRight, ArrowDownRig
 import { StatCard } from '../Dashboard/StatCard';
 import { formatCurrency } from '../../utils/currency';
 import { getExchangeRate } from '../../utils/exchangeRate';
-import { isLendBorrowTransaction } from '../../utils/transactionUtils';
+import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 
 interface CurrencyPortfolioSummaryProps {
   accounts: any[];
@@ -59,11 +59,11 @@ export const CurrencyPortfolioSummary: React.FC<CurrencyPortfolioSummaryProps> =
 
       // Calculate monthly income and expenses (excluding lend/borrow transactions)
       const monthlyIncome = currencyTransactions
-        .filter(t => t.type === 'income' && !isLendBorrowTransaction(t))
+        .filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t))
         .reduce((sum, t) => sum + t.amount, 0);
       
       const monthlyExpenses = currencyTransactions
-        .filter(t => t.type === 'expense' && !isLendBorrowTransaction(t))
+        .filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t))
         .reduce((sum, t) => sum + t.amount, 0);
 
       const netAmount = monthlyIncome - monthlyExpenses;

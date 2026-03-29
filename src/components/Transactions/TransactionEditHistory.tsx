@@ -6,9 +6,11 @@ import { useAuthStore } from '../../store/authStore';
 import { formatCurrency } from '../../utils/currency';
 import {
   type TransactionHistoryEntry,
+  formatAmountHistoryDelta,
   formatHistoryActorLabel,
   formatHistoryFieldValue,
-  transactionHistoryFieldLabel,
+  groupTransactionHistoryForDisplay,
+  transactionHistoryGroupActorNote,
 } from '../../utils/transactionHistoryUtils';
 
 export const TransactionEditHistory: React.FC<{
@@ -79,20 +81,35 @@ export const TransactionEditHistory: React.FC<{
         <History className="w-4 h-4 text-gray-500" aria-hidden />
         <span className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Edit History</span>
       </div>
-      <div className="space-y-1.5 text-sm">
-        {history.map((h) => {
-          const actor = formatHistoryActorLabel(h.updated_by, user?.id);
+      <div className="space-y-3 text-sm">
+        {groupTransactionHistoryForDisplay(history).map((g) => {
+          const groupActor = transactionHistoryGroupActorNote(g.items, user?.id);
           return (
-            <div
-              key={h.id ? String(h.id) : `${h.field_name}-${h.updated_at}`}
-              className="flex flex-wrap items-center gap-x-2 gap-y-1 text-gray-700 dark:text-gray-300"
-            >
-              <span className="font-medium">{transactionHistoryFieldLabel(h.field_name)}:</span>
-              <span>{formatHistoryFieldValue(h.field_name, h.old_value, currency)}</span>
-              <span className="text-gray-400">→</span>
-              <span>{formatHistoryFieldValue(h.field_name, h.new_value, currency)}</span>
-              <span className="text-xs text-gray-500">{format(new Date(h.updated_at), 'MMM dd, h:mm a')}</span>
-              {actor && <span className="text-xs text-gray-500">· {actor}</span>}
+            <div key={g.field_name} className="space-y-1">
+              <div className="flex flex-wrap items-baseline gap-x-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+                <span>{g.label}</span>
+                {groupActor && <span className="font-normal text-gray-500">{groupActor}</span>}
+              </div>
+              {g.items.map((h) => {
+                const rowActor = groupActor ? null : formatHistoryActorLabel(h.updated_by, user?.id);
+                const amountDelta =
+                  h.field_name === 'amount' ? formatAmountHistoryDelta(h.old_value, h.new_value, currency) : null;
+                return (
+                  <div
+                    key={h.id ? String(h.id) : `${h.field_name}-${h.updated_at}`}
+                    className="flex flex-wrap items-center gap-x-2 gap-y-1 text-gray-700 dark:text-gray-300"
+                  >
+                    <span>{formatHistoryFieldValue(h.field_name, h.old_value, currency)}</span>
+                    <span className="text-gray-400">→</span>
+                    <span>{formatHistoryFieldValue(h.field_name, h.new_value, currency)}</span>
+                    {amountDelta && (
+                      <span className="text-xs text-gray-600 dark:text-gray-400">{amountDelta}</span>
+                    )}
+                    <span className="text-xs text-gray-500">{format(new Date(h.updated_at), 'MMM dd, h:mm a')}</span>
+                    {rowActor && <span className="text-xs text-gray-500">· {rowActor}</span>}
+                  </div>
+                );
+              })}
             </div>
           );
         })}
