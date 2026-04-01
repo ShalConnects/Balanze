@@ -21,6 +21,10 @@ export const GLOBAL_SEARCH_INV_CATEGORY_KEYS: Array<{ name: string; weight: numb
   { name: 'icon', weight: 0.15 },
 ];
 
+export const GLOBAL_SEARCH_BUSINESS_CONTRACT_KEYS: Array<{ name: string; weight: number }> = [
+  { name: 'title', weight: 1 },
+];
+
 export const GLOBAL_SEARCH_INV_GOAL_KEYS: Array<{ name: string; weight: number }> = [
   { name: 'name', weight: 0.45 },
   { name: 'description', weight: 0.3 },

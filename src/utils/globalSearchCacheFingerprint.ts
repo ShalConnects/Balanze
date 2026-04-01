@@ -27,6 +27,7 @@ export interface GlobalSearchCacheSources {
   investmentTransactions: readonly unknown[] | null | undefined;
   investmentGoals: readonly unknown[] | null | undefined;
   investmentCategories: readonly unknown[] | null | undefined;
+  businessInvestmentContracts: readonly unknown[] | null | undefined;
   transfers: readonly unknown[] | null | undefined;
   dpsTransfers: readonly unknown[] | null | undefined;
 }
@@ -47,6 +48,7 @@ export function globalSearchCacheFingerprint(s: GlobalSearchCacheSources): strin
     segment(s.investmentTransactions),
     segment(s.investmentGoals),
     segment(s.investmentCategories),
+    segment(s.businessInvestmentContracts),
     segment(s.transfers),
     segment(s.dpsTransfers),
   ].join('\x1e');

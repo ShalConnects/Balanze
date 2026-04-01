@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, DollarSign, Users, CheckSquare, FileText, Sprout, BookOpen, TrendingUp } from 'lucide-react';
+import { Search, DollarSign, Users, CheckSquare, FileText, Sprout, BookOpen, TrendingUp, CreditCard, ShoppingBag, Handshake } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useClientStore } from '../../store/useClientStore';
 import { useHabitStore } from '../../store/useHabitStore';
@@ -13,10 +13,13 @@ import {
   GLOBAL_SEARCH_INV_TX_KEYS,
   GLOBAL_SEARCH_INV_GOAL_KEYS,
   GLOBAL_SEARCH_INV_CATEGORY_KEYS,
+  GLOBAL_SEARCH_BUSINESS_CONTRACT_KEYS,
 } from '../../utils/globalSearchInvestmentKeys';
 import { globalSearchCacheFingerprint } from '../../utils/globalSearchCacheFingerprint';
 import { SearchSkeleton } from '../common/SearchSkeleton';
 import { formatCurrency } from '../../utils/currency';
+import { fetchBusinessInvestmentContracts } from '../../lib/businessInvestmentService';
+import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 
 // Date formatting utility
 const formatSearchDate = (dateString: string): string => {
@@ -47,116 +50,6 @@ interface GlobalSearchDropdownProps {
   dropdownRef: React.RefObject<HTMLDivElement>;
   onClose: () => void;
   isOverlay?: boolean; // New prop to indicate if this is in an overlay
-}
-
-// Enhanced synonyms/aliases for comprehensive financial search
-const SYNONYMS: Record<string, string[]> = {
-  // Income/Deposit synonyms
-  deposit: ['income', 'credit', 'salary', 'wage', 'payroll', 'earnings', 'revenue', 'profit', 'bonus', 'commission'],
-  income: ['deposit', 'credit', 'salary', 'wage', 'payroll', 'earnings', 'revenue', 'profit', 'bonus', 'commission'],
-  salary: ['income', 'wage', 'payroll', 'earnings', 'salary', 'stipend', 'allowance'],
-  
-  // Expense/Withdrawal synonyms
-  withdrawal: ['expense', 'debit', 'payment', 'cost', 'charge', 'fee', 'bill', 'spending', 'outgoing'],
-  expense: ['withdrawal', 'debit', 'payment', 'cost', 'charge', 'fee', 'bill', 'spending', 'outgoing'],
-  payment: ['expense', 'withdrawal', 'debit', 'cost', 'charge', 'fee', 'bill'],
-  
-  // Transfer synonyms
-  transfer: ['move', 'send', 'shift', 'relocate', 'migrate', 'port', 'switch'],
-  move: ['transfer', 'send', 'shift', 'relocate'],
-  send: ['transfer', 'move', 'dispatch', 'transmit'],
-  
-  // Purchase/Buy synonyms
-  purchase: ['buy', 'expense', 'acquisition', 'procurement', 'shopping', 'buying'],
-  buy: ['purchase', 'acquire', 'obtain', 'procure', 'shop'],
-  shopping: ['purchase', 'buying', 'retail', 'spending'],
-  
-  // Account types
-  bank: ['checking', 'savings', 'account', 'financial'],
-  credit: ['card', 'credit card', 'plastic', 'payment card'],
-  cash: ['money', 'currency', 'bills', 'coins', 'physical'],
-  
-  // Transaction types
-  recurring: ['repeating', 'regular', 'periodic', 'scheduled', 'automatic'],
-  one_time: ['single', 'once', 'individual', 'unique'],
-  
-  // Status synonyms
-  pending: ['waiting', 'processing', 'in progress', 'unconfirmed'],
-  completed: ['done', 'finished', 'processed', 'confirmed', 'settled'],
-  cancelled: ['aborted', 'terminated', 'stopped', 'voided'],
-  
-  // Amount/Currency synonyms
-  amount: ['value', 'sum', 'total', 'cost', 'price'],
-  balance: ['remaining', 'available', 'current', 'outstanding'],
-  
-  // Date/Time synonyms
-  recent: ['latest', 'newest', 'current', 'today', 'this week'],
-  old: ['previous', 'past', 'historical', 'archived'],
-  
-  // Common financial terms
-  budget: ['allocation', 'planning', 'forecast', 'estimate'],
-  savings: ['reserve', 'fund', 'nest egg', 'stash'],
-  investment: ['portfolio', 'assets', 'securities', 'stocks', 'bonds'],
-  debt: ['loan', 'borrowing', 'liability', 'obligation'],
-  loan: ['debt', 'borrowing', 'advance', 'credit'],
-  
-  // Client/Customer synonyms
-  client: ['customer', 'contact', 'client', 'account', 'partner', 'vendor'],
-  customer: ['client', 'contact', 'account', 'buyer', 'purchaser'],
-  contact: ['client', 'customer', 'person', 'individual', 'company'],
-  
-  // Task/Project synonyms
-  task: ['todo', 'job', 'work', 'assignment', 'project', 'item', 'action'],
-  todo: ['task', 'job', 'work', 'assignment', 'item'],
-  project: ['task', 'work', 'assignment', 'job', 'undertaking'],
-  
-  // Invoice/Billing synonyms
-  invoice: ['bill', 'receipt', 'statement', 'charge', 'payment request'],
-  bill: ['invoice', 'receipt', 'statement', 'charge', 'payment'],
-  receipt: ['invoice', 'bill', 'statement', 'proof of payment'],
-  
-  // Habit/Routine synonyms
-  habit: ['routine', 'tracker', 'daily', 'practice', 'custom', 'behavior', 'activity'],
-  routine: ['habit', 'tracker', 'daily', 'practice', 'custom', 'schedule'],
-  tracker: ['habit', 'routine', 'tracking', 'monitor', 'log'],
-  
-  // Categories
-  food: ['dining', 'restaurant', 'groceries', 'meals', 'eating'],
-  transport: ['travel', 'commute', 'gas', 'fuel', 'transportation'],
-  entertainment: ['fun', 'leisure', 'recreation', 'hobby', 'activity'],
-  healthcare: ['medical', 'health', 'doctor', 'hospital', 'medicine'],
-  education: ['school', 'learning', 'tuition', 'course', 'training'],
-  utilities: ['bills', 'electricity', 'water', 'internet', 'phone'],
-};
-
-function expandQuery(query: string): string[] {
-  const words = query.toLowerCase().split(/\s+/);
-  let expanded = [...words];
-  
-  // Add synonyms for each word
-  for (const word of words) {
-    if (SYNONYMS[word]) {
-      expanded = expanded.concat(SYNONYMS[word]);
-    }
-  }
-  
-  // Add phrase-based synonyms for common financial phrases
-  const phrase = query.toLowerCase();
-  if (phrase.includes('credit card') || phrase.includes('creditcard')) {
-    expanded.push('card', 'plastic', 'payment');
-  }
-  if (phrase.includes('bank account') || phrase.includes('bankaccount')) {
-    expanded.push('checking', 'savings', 'financial');
-  }
-  if (phrase.includes('cash flow') || phrase.includes('cashflow')) {
-    expanded.push('income', 'expense', 'money', 'flow');
-  }
-  if (phrase.includes('monthly') || phrase.includes('recurring')) {
-    expanded.push('regular', 'periodic', 'scheduled');
-  }
-  
-  // Remove duplicates and return
-  return [...new Set(expanded)];
 }
 
 // Recent searches (localStorage)
@@ -199,6 +92,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   const navigate = useNavigate();
   const [transfers, setTransfers] = useState<any[]>([]);
   const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
+  const [businessInvestmentContracts, setBusinessInvestmentContracts] = useState<any[]>([]);
   const [highlightedIdx, setHighlightedIdx] = useState(0);
   const [recentSearches, setRecentSearches] = useState<string[]>(getRecentSearches());
   const [isSearching, setIsSearching] = useState(false);
@@ -305,6 +199,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       case 'investment_category':
         navigate(`/investments?tab=assets&from=search`);
         break;
+      case 'business_investment_contract':
+        navigate(`/investments?from=search`);
+        break;
       default:
         break;
     }
@@ -350,6 +247,13 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       fetchInvestmentGoals(),
       fetchInvestmentCategories(),
     ]);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    void fetchBusinessInvestmentContracts(user.id)
+      .then(setBusinessInvestmentContracts)
+      .catch(() => setBusinessInvestmentContracts([]));
   }, [user?.id]);
 
   // Generate search suggestions based on available data
@@ -431,10 +335,16 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     (investmentGoals || []).forEach(g => {
       if (g.name?.toLowerCase().includes(queryLower)) suggestions.push(g.name);
     });
-    
+    (investmentCategories || []).forEach(c => {
+      if (c.name?.toLowerCase().includes(queryLower)) suggestions.push(c.name);
+    });
+    (businessInvestmentContracts || []).forEach(c => {
+      if (c.title?.toLowerCase().includes(queryLower)) suggestions.push(c.title);
+    });
+
     // Remove duplicates and limit to 3 suggestions
     return [...new Set(suggestions)].slice(0, 3);
-  }, [transactions, accounts, purchases, lendBorrowRecords, clients, tasks, invoices, habits, investmentAssets, investmentGoals]);
+  }, [transactions, accounts, purchases, lendBorrowRecords, clients, tasks, invoices, habits, investmentAssets, investmentGoals, investmentCategories, businessInvestmentContracts]);
 
   // Debounce search input for performance
   useEffect(() => {
@@ -524,6 +434,18 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     return combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
+  const investmentTransactionsForSearch = useMemo(() => {
+    const byId = new Map((investmentAssets || []).map(a => [a.id, a]));
+    return (investmentTransactions || []).map(t => {
+      const asset = t.asset_id ? byId.get(t.asset_id) : undefined;
+      return {
+        ...t,
+        asset_symbol: asset?.symbol ?? '',
+        asset_name: asset?.name ?? '',
+      };
+    });
+  }, [investmentTransactions, investmentAssets]);
+
   const combinedTransfers = getCombinedTransfers(transfers, accounts);
   const allTransfers = [
     ...combinedTransfers.map(t => ({
@@ -596,8 +518,16 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     { name: 'description', weight: 0.3 },
   ]);
   const fuseInvAssets = createGlobalFuseIndex(investmentAssets, GLOBAL_SEARCH_INV_ASSET_KEYS);
-  const fuseInvTransactions = createGlobalFuseIndex(investmentTransactions, GLOBAL_SEARCH_INV_TX_KEYS);
+  const fuseInvTransactions = createGlobalFuseIndex(
+    investmentTransactionsForSearch,
+    GLOBAL_SEARCH_INV_TX_KEYS
+  );
   const fuseInvGoals = createGlobalFuseIndex(investmentGoals, GLOBAL_SEARCH_INV_GOAL_KEYS);
+  const fuseInvCategories = createGlobalFuseIndex(investmentCategories, GLOBAL_SEARCH_INV_CATEGORY_KEYS);
+  const fuseBusinessInvestmentContracts = createGlobalFuseIndex(
+    businessInvestmentContracts,
+    GLOBAL_SEARCH_BUSINESS_CONTRACT_KEYS
+  );
 
   // Memoized search results with caching
   const searchResults = useMemo(() => {
@@ -632,6 +562,8 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       investmentAssets,
       investmentTransactions,
       investmentGoals,
+      investmentCategories,
+      businessInvestmentContracts,
       transfers,
       dpsTransfers,
     })}`;
@@ -639,13 +571,16 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       return searchCache.get(cacheKey);
     }
 
-    // Expand query with synonyms
-    const expandedQuery = expandQuery(debouncedSearch.toLowerCase()).join(' ');
+    // Single string for Fuse (Bitap). Concatenating synonym lists made the pattern
+    // too long and effectively matched almost nothing.
+    const fuseQuery = debouncedSearch.toLowerCase().trim();
 
     const invMerged = [
-      ...fuseInvAssets.search(expandedQuery).map(r => ({ ...r, invKind: 'investment_asset' as const })),
-      ...fuseInvTransactions.search(expandedQuery).map(r => ({ ...r, invKind: 'investment_transaction' as const })),
-      ...fuseInvGoals.search(expandedQuery).map(r => ({ ...r, invKind: 'investment_goal' as const })),
+      ...fuseInvAssets.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_asset' as const })),
+      ...fuseInvTransactions.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_transaction' as const })),
+      ...fuseInvGoals.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_goal' as const })),
+      ...fuseInvCategories.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_category' as const })),
+      ...fuseBusinessInvestmentContracts.search(fuseQuery).map(r => ({ ...r, invKind: 'business_investment_contract' as const })),
     ].sort((a, b) => {
       const ta = new Date((a.item as { transaction_date?: string; created_at?: string }).transaction_date || a.item.created_at || 0).getTime();
       const tb = new Date((b.item as { transaction_date?: string; created_at?: string }).transaction_date || b.item.created_at || 0).getTime();
@@ -653,17 +588,17 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     });
 
     const results = {
-      fuzzyTransactions: fuseTransactions.search(expandedQuery),
-      fuzzyAccounts: fuseAccounts.search(expandedQuery),
-      fuzzyTransfers: fuseTransfers.search(expandedQuery),
-      fuzzyPurchases: fusePurchases.search(expandedQuery),
-      fuzzyLendBorrow: fuseLendBorrow.search(expandedQuery),
-      fuzzyDonations: fuseDonations.search(expandedQuery),
-      fuzzyClients: fuseClients.search(expandedQuery),
-      fuzzyTasks: fuseTasks.search(expandedQuery),
-      fuzzyInvoices: fuseInvoices.search(expandedQuery),
-      fuzzyHabits: fuseHabits.search(expandedQuery),
-      fuzzyCourses: fuseCourses.search(expandedQuery),
+      fuzzyTransactions: fuseTransactions.search(fuseQuery),
+      fuzzyAccounts: fuseAccounts.search(fuseQuery),
+      fuzzyTransfers: fuseTransfers.search(fuseQuery),
+      fuzzyPurchases: fusePurchases.search(fuseQuery),
+      fuzzyLendBorrow: fuseLendBorrow.search(fuseQuery),
+      fuzzyDonations: fuseDonations.search(fuseQuery),
+      fuzzyClients: fuseClients.search(fuseQuery),
+      fuzzyTasks: fuseTasks.search(fuseQuery),
+      fuzzyInvoices: fuseInvoices.search(fuseQuery),
+      fuzzyHabits: fuseHabits.search(fuseQuery),
+      fuzzyCourses: fuseCourses.search(fuseQuery),
       fuzzyInvestments: invMerged,
     };
 
@@ -692,6 +627,8 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     investmentAssets,
     investmentTransactions,
     investmentGoals,
+    investmentCategories,
+    businessInvestmentContracts,
     transfers,
     dpsTransfers,
     fuseTransactions,
@@ -708,6 +645,8 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     fuseInvAssets,
     fuseInvTransactions,
     fuseInvGoals,
+    fuseInvCategories,
+    fuseBusinessInvestmentContracts,
     searchCache,
   ]);
 
@@ -754,14 +693,14 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
   const searchOffsets = useMemo(() => {
     const L = {
+      acc: rankedAccounts.length,
       tx: rankedTransactions.length,
       pur: rankedPurchases.length,
-      trf: rankedTransfers.length,
-      acc: rankedAccounts.length,
-      inv: rankedInvestments.length,
       lb: rankedLendBorrow.length,
-      don: rankedDonations.length,
+      inv: rankedInvestments.length,
       cli: rankedClients.length,
+      trf: rankedTransfers.length,
+      don: rankedDonations.length,
       tas: rankedTasks.length,
       invdoc: rankedInvoices.length,
       hab: rankedHabits.length,
@@ -769,24 +708,28 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     };
     const s = (keys: (keyof typeof L)[]) => keys.reduce((n, k) => n + L[k], 0);
     return {
-      invStart: s(['tx', 'pur', 'trf', 'acc']),
-      lbStart: s(['tx', 'pur', 'trf', 'acc', 'inv']),
-      donStart: s(['tx', 'pur', 'trf', 'acc', 'inv', 'lb']),
-      cliStart: s(['tx', 'pur', 'trf', 'acc', 'inv', 'lb', 'don']),
-      tasStart: s(['tx', 'pur', 'trf', 'acc', 'inv', 'lb', 'don', 'cli']),
-      invdocStart: s(['tx', 'pur', 'trf', 'acc', 'inv', 'lb', 'don', 'cli', 'tas']),
-      habStart: s(['tx', 'pur', 'trf', 'acc', 'inv', 'lb', 'don', 'cli', 'tas', 'invdoc']),
-      couStart: s(['tx', 'pur', 'trf', 'acc', 'inv', 'lb', 'don', 'cli', 'tas', 'invdoc', 'hab']),
+      accStart: 0,
+      txStart: s(['acc']),
+      purStart: s(['acc', 'tx']),
+      lbStart: s(['acc', 'tx', 'pur']),
+      invStart: s(['acc', 'tx', 'pur', 'lb']),
+      cliStart: s(['acc', 'tx', 'pur', 'lb', 'inv']),
+      trfStart: s(['acc', 'tx', 'pur', 'lb', 'inv', 'cli']),
+      donStart: s(['acc', 'tx', 'pur', 'lb', 'inv', 'cli', 'trf']),
+      tasStart: s(['acc', 'tx', 'pur', 'lb', 'inv', 'cli', 'trf', 'don']),
+      invdocStart: s(['acc', 'tx', 'pur', 'lb', 'inv', 'cli', 'trf', 'don', 'tas']),
+      habStart: s(['acc', 'tx', 'pur', 'lb', 'inv', 'cli', 'trf', 'don', 'tas', 'invdoc']),
+      couStart: s(['acc', 'tx', 'pur', 'lb', 'inv', 'cli', 'trf', 'don', 'tas', 'invdoc', 'hab']),
     };
   }, [
+    rankedAccounts.length,
     rankedTransactions.length,
     rankedPurchases.length,
-    rankedTransfers.length,
-    rankedAccounts.length,
-    rankedInvestments.length,
     rankedLendBorrow.length,
-    rankedDonations.length,
+    rankedInvestments.length,
     rankedClients.length,
+    rankedTransfers.length,
+    rankedDonations.length,
     rankedTasks.length,
     rankedInvoices.length,
     rankedHabits.length,
@@ -794,14 +737,14 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   ]);
 
   const totalResults =
+    rankedAccounts.length +
     rankedTransactions.length +
     rankedPurchases.length +
-    rankedTransfers.length +
-    rankedAccounts.length +
-    rankedInvestments.length +
     rankedLendBorrow.length +
-    rankedDonations.length +
+    rankedInvestments.length +
     rankedClients.length +
+    rankedTransfers.length +
+    rankedDonations.length +
     rankedTasks.length +
     rankedInvoices.length +
     rankedHabits.length +
@@ -866,56 +809,55 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         let item;
         let itemType = '';
         if (search) {
+          const accLen = rankedAccounts.length;
           const txLen = rankedTransactions.length;
           const purLen = rankedPurchases.length;
-          const trfLen = rankedTransfers.length;
-          const accLen = rankedAccounts.length;
           const lbLen = rankedLendBorrow.length;
-          const donLen = rankedDonations.length;
+          const invLen = rankedInvestments.length;
           const cliLen = rankedClients.length;
+          const trfLen = rankedTransfers.length;
+          const donLen = rankedDonations.length;
           const tasLen = rankedTasks.length;
           const invdocLen = rankedInvoices.length;
           const habLen = rankedHabits.length;
           const couLen = rankedCourses.length;
-          const invLen = rankedInvestments.length;
-          const invStart = txLen + purLen + trfLen + accLen;
 
-          if (txLen > 0 && highlightedIdx < txLen) {
-            item = rankedTransactions[highlightedIdx]?.item;
-            itemType = 'transaction';
-          } else if (purLen > 0 && highlightedIdx >= txLen && highlightedIdx < txLen + purLen) {
-            item = rankedPurchases[highlightedIdx - txLen]?.item;
-            itemType = 'purchase';
-          } else if (trfLen > 0 && highlightedIdx >= txLen + purLen && highlightedIdx < txLen + purLen + trfLen) {
-            item = rankedTransfers[highlightedIdx - txLen - purLen]?.item;
-            itemType = 'transfer';
-          } else if (accLen > 0 && highlightedIdx >= txLen + purLen + trfLen && highlightedIdx < txLen + purLen + trfLen + accLen) {
-            item = rankedAccounts[highlightedIdx - txLen - purLen - trfLen]?.item;
+          if (accLen > 0 && highlightedIdx >= searchOffsets.accStart && highlightedIdx < searchOffsets.txStart) {
+            item = rankedAccounts[highlightedIdx - searchOffsets.accStart]?.item;
             itemType = 'account';
-          } else if (invLen > 0 && highlightedIdx >= invStart && highlightedIdx < invStart + invLen) {
-            const hit = rankedInvestments[highlightedIdx - invStart];
+          } else if (txLen > 0 && highlightedIdx >= searchOffsets.txStart && highlightedIdx < searchOffsets.purStart) {
+            item = rankedTransactions[highlightedIdx - searchOffsets.txStart]?.item;
+            itemType = 'transaction';
+          } else if (purLen > 0 && highlightedIdx >= searchOffsets.purStart && highlightedIdx < searchOffsets.lbStart) {
+            item = rankedPurchases[highlightedIdx - searchOffsets.purStart]?.item;
+            itemType = 'purchase';
+          } else if (lbLen > 0 && highlightedIdx >= searchOffsets.lbStart && highlightedIdx < searchOffsets.invStart) {
+            item = rankedLendBorrow[highlightedIdx - searchOffsets.lbStart]?.item;
+            itemType = 'lendborrow';
+          } else if (invLen > 0 && highlightedIdx >= searchOffsets.invStart && highlightedIdx < searchOffsets.cliStart) {
+            const hit = rankedInvestments[highlightedIdx - searchOffsets.invStart];
             item = hit.item;
             itemType = hit.invKind;
-          } else if (lbLen > 0 && highlightedIdx >= invStart + invLen && highlightedIdx < invStart + invLen + lbLen) {
-            item = rankedLendBorrow[highlightedIdx - invStart - invLen]?.item;
-            itemType = 'lendborrow';
-          } else if (donLen > 0 && highlightedIdx >= invStart + invLen + lbLen && highlightedIdx < invStart + invLen + lbLen + donLen) {
-            item = rankedDonations[highlightedIdx - invStart - invLen - lbLen]?.item;
-            itemType = 'donation';
-          } else if (cliLen > 0 && highlightedIdx >= invStart + invLen + lbLen + donLen && highlightedIdx < invStart + invLen + lbLen + donLen + cliLen) {
-            item = rankedClients[highlightedIdx - invStart - invLen - lbLen - donLen]?.item;
+          } else if (cliLen > 0 && highlightedIdx >= searchOffsets.cliStart && highlightedIdx < searchOffsets.trfStart) {
+            item = rankedClients[highlightedIdx - searchOffsets.cliStart]?.item;
             itemType = 'client';
-          } else if (tasLen > 0 && highlightedIdx >= invStart + invLen + lbLen + donLen + cliLen && highlightedIdx < invStart + invLen + lbLen + donLen + cliLen + tasLen) {
-            item = rankedTasks[highlightedIdx - invStart - invLen - lbLen - donLen - cliLen]?.item;
+          } else if (trfLen > 0 && highlightedIdx >= searchOffsets.trfStart && highlightedIdx < searchOffsets.donStart) {
+            item = rankedTransfers[highlightedIdx - searchOffsets.trfStart]?.item;
+            itemType = 'transfer';
+          } else if (donLen > 0 && highlightedIdx >= searchOffsets.donStart && highlightedIdx < searchOffsets.tasStart) {
+            item = rankedDonations[highlightedIdx - searchOffsets.donStart]?.item;
+            itemType = 'donation';
+          } else if (tasLen > 0 && highlightedIdx >= searchOffsets.tasStart && highlightedIdx < searchOffsets.invdocStart) {
+            item = rankedTasks[highlightedIdx - searchOffsets.tasStart]?.item;
             itemType = 'task';
-          } else if (invdocLen > 0 && highlightedIdx >= invStart + invLen + lbLen + donLen + cliLen + tasLen && highlightedIdx < invStart + invLen + lbLen + donLen + cliLen + tasLen + invdocLen) {
-            item = rankedInvoices[highlightedIdx - invStart - invLen - lbLen - donLen - cliLen - tasLen]?.item;
+          } else if (invdocLen > 0 && highlightedIdx >= searchOffsets.invdocStart && highlightedIdx < searchOffsets.habStart) {
+            item = rankedInvoices[highlightedIdx - searchOffsets.invdocStart]?.item;
             itemType = 'invoice';
-          } else if (habLen > 0 && highlightedIdx >= invStart + invLen + lbLen + donLen + cliLen + tasLen + invdocLen && highlightedIdx < invStart + invLen + lbLen + donLen + cliLen + tasLen + invdocLen + habLen) {
-            item = rankedHabits[highlightedIdx - invStart - invLen - lbLen - donLen - cliLen - tasLen - invdocLen]?.item;
+          } else if (habLen > 0 && highlightedIdx >= searchOffsets.habStart && highlightedIdx < searchOffsets.couStart) {
+            item = rankedHabits[highlightedIdx - searchOffsets.habStart]?.item;
             itemType = 'habit';
-          } else if (couLen > 0 && highlightedIdx >= invStart + invLen + lbLen + donLen + cliLen + tasLen + invdocLen + habLen && highlightedIdx < invStart + invLen + lbLen + donLen + cliLen + tasLen + invdocLen + habLen + couLen) {
-            item = rankedCourses[highlightedIdx - invStart - invLen - lbLen - donLen - cliLen - tasLen - invdocLen - habLen]?.item;
+          } else if (couLen > 0 && highlightedIdx >= searchOffsets.couStart && highlightedIdx < searchOffsets.couStart + couLen) {
+            item = rankedCourses[highlightedIdx - searchOffsets.couStart]?.item;
             itemType = 'course';
           }
         } else {
@@ -934,7 +876,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isFocused, search, highlightedIdx, rankedTransactions, rankedPurchases, rankedTransfers, rankedAccounts, rankedInvestments, rankedLendBorrow, rankedDonations, rankedClients, rankedTasks, rankedInvoices, rankedHabits, rankedCourses, recentSearches, setGlobalSearchTerm]);
+  }, [isFocused, search, highlightedIdx, rankedTransactions, rankedPurchases, rankedTransfers, rankedAccounts, rankedInvestments, rankedLendBorrow, rankedDonations, rankedClients, rankedTasks, rankedInvoices, rankedHabits, rankedCourses, recentSearches, searchOffsets, setGlobalSearchTerm]);
 
   // Show recent searches if input is focused and empty
   
@@ -1052,7 +994,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       }}
     >
       <div
-        className="px-4 pt-4 pb-8 min-h-[160px] sm:px-6 flex-1"
+        className="px-4 pt-4 pb-8 min-h-[160px] sm:px-6 flex-1 flex flex-col"
         style={{
           maxHeight: search ? '65vh' : '50vh',
           overflowY: 'auto',
@@ -1128,7 +1070,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Transactions Section */}
         {rankedTransactions.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-6" style={{ order: 20 }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
               Transactions ({rankedTransactions.length})
@@ -1146,7 +1088,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                     handleResultClick('transaction', res.item);
                   }}
                   className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                    highlightedIdx === index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    highlightedIdx === searchOffsets.txStart + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -1178,7 +1120,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Purchases Section */}
         {rankedPurchases.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-6" style={{ order: 30 }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
               Purchases ({rankedPurchases.length})
@@ -1189,14 +1131,12 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                   key={`purchase-${index}`}
                   onClick={() => handleResultClick('purchase', res.item)}
                   className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                    highlightedIdx === rankedTransactions.length + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    highlightedIdx === searchOffsets.purStart + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
-                      <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                      </svg>
+                      <ShoppingBag className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
@@ -1223,7 +1163,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Transfers Section */}
         {rankedTransfers.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-6" style={{ order: 70 }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
               Transfers ({rankedTransfers.length})
@@ -1234,7 +1174,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                   key={`transfer-${index}`}
                   onClick={() => handleResultClick('transfer', res.item)}
                   className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                    highlightedIdx === rankedTransactions.length + rankedPurchases.length + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    highlightedIdx === searchOffsets.trfStart + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -1270,7 +1210,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Accounts Section */}
         {rankedAccounts.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-6" style={{ order: 10 }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
               Accounts ({rankedAccounts.length})
@@ -1281,14 +1221,12 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                   key={`account-${index}`}
                   onClick={() => handleResultClick('account', res.item)}
                   className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                    highlightedIdx === rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    highlightedIdx === searchOffsets.accStart + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                      <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                      </svg>
+                      <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
@@ -1314,7 +1252,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         )}
 
         {rankedInvestments.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-6" style={{ order: 50 }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-violet-500 rounded-full"></span>
               Investments ({rankedInvestments.length})
@@ -1327,19 +1265,39 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                     ? ['name', 'symbol', 'asset_type', 'notes']
                     : res.invKind === 'investment_goal'
                       ? ['name', 'description', 'status', 'priority']
-                      : ['transaction_type', 'notes', 'currency'];
+                      : res.invKind === 'investment_category'
+                        ? ['name', 'description', 'icon']
+                        : res.invKind === 'business_investment_contract'
+                          ? ['title']
+                        : [
+                            'transaction_type',
+                            'notes',
+                            'currency',
+                            'asset_symbol',
+                            'asset_name',
+                          ];
                 const primary =
                   res.invKind === 'investment_asset'
                     ? [res.item.symbol, res.item.name].filter(Boolean).join(' · ') || res.item.name
                     : res.invKind === 'investment_goal'
                       ? res.item.name || ''
-                      : res.item.transaction_type || 'Transaction';
+                      : res.invKind === 'investment_category'
+                        ? res.item.name || 'Category'
+                        : res.invKind === 'business_investment_contract'
+                          ? res.item.title || 'Contract'
+                        : [res.item.asset_symbol, res.item.asset_name].filter(Boolean).join(' · ') ||
+                          res.item.transaction_type ||
+                          'Transaction';
                 const sub =
                   res.invKind === 'investment_asset'
                     ? `${String(res.item.asset_type || '').replace(/_/g, ' ')} · ${formatCurrency(res.item.total_value, res.item.currency)}`
                     : res.invKind === 'investment_goal'
                       ? `${res.item.status || ''} · ${formatCurrency(res.item.current_amount, 'USD')} / ${formatCurrency(res.item.target_amount, 'USD')}`
-                      : `${formatCurrency(res.item.total_amount, res.item.currency)} · ${formatSearchDate(res.item.transaction_date || res.item.created_at)}`;
+                      : res.invKind === 'investment_category'
+                        ? (res.item.description?.trim() || 'Investment category')
+                        : res.invKind === 'business_investment_contract'
+                          ? `${res.item.status || ''} · ${formatCurrency(res.item.principal || 0, res.item.currency || 'USD')}`
+                        : `${String(res.item.transaction_type || '').replace(/_/g, ' ')} · ${formatCurrency(res.item.total_amount, res.item.currency)} · ${formatSearchDate(res.item.transaction_date || res.item.created_at)}`;
                 return (
                   <button
                     key={`${res.invKind}-${res.item.id}-${index}`}
@@ -1350,7 +1308,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-violet-100 dark:bg-violet-900/20 rounded-lg flex items-center justify-center">
-                        <TrendingUp className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                        <INVESTMENTS_FEATURE_ICON className="w-4 h-4 text-violet-600 dark:text-violet-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
@@ -1376,7 +1334,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Lend & Borrow Section */}
         {rankedLendBorrow.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-6" style={{ order: 40 }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-pink-500 rounded-full"></span>
               Lend & Borrow ({rankedLendBorrow.length})
@@ -1392,9 +1350,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-pink-100 dark:bg-pink-900/20 rounded-lg flex items-center justify-center">
-                      <svg className="w-4 h-4 text-pink-600 dark:text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                      </svg>
+                      <Handshake className="w-4 h-4 text-pink-600 dark:text-pink-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
@@ -1413,7 +1369,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Clients Section */}
         {rankedClients.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-6" style={{ order: 60 }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-teal-500 rounded-full"></span>
               Clients ({rankedClients.length})
@@ -1459,7 +1415,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Tasks Section */}
         {rankedTasks.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-6" style={{ order: 90 }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
               Tasks ({rankedTasks.length})
@@ -1506,7 +1462,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Invoices Section */}
         {rankedInvoices.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-6" style={{ order: 100 }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-cyan-500 rounded-full"></span>
               Invoices ({rankedInvoices.length})
@@ -1553,7 +1509,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Donations Section */}
         {rankedDonations.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-6" style={{ order: 80 }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
               Donations ({rankedDonations.length})
@@ -1613,7 +1569,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Habits Section */}
         {rankedHabits.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-6" style={{ order: 110 }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
               Habits ({rankedHabits.length})
@@ -1661,7 +1617,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Courses Section */}
         {rankedCourses.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-6" style={{ order: 120 }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
               Courses ({rankedCourses.length})

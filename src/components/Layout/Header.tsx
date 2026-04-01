@@ -85,6 +85,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const searchOverlayPanelRef = useRef<HTMLDivElement>(null);
     const profileBtnRef = useRef<HTMLButtonElement>(null);
     const userMenuRef = useRef<HTMLDivElement>(null);
     const languageBtnRef = useRef<HTMLButtonElement>(null);
@@ -302,25 +303,36 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showUserMenu, showLanguageMenu]);
 
-  // Handle click outside to close dropdown
+  // Handle click outside to close dropdown (desktop: input + dropdown; mobile: whole overlay panel + backdrop)
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
-        // Check if click is inside the dropdown
-        if (dropdownRef.current && dropdownRef.current.contains(event.target as Node)) {
-          return; // Don't close if clicking inside dropdown
+      const target = event.target as Node;
+
+      if (showSearchOverlay && searchOverlayPanelRef.current) {
+        if (searchOverlayPanelRef.current.contains(target)) {
+          return;
+        }
+        setShowSearchOverlay(false);
+        setIsSearchFocused(false);
+        setGlobalSearchTerm('');
+        return;
+      }
+
+      if (searchInputRef.current && !searchInputRef.current.contains(target)) {
+        if (dropdownRef.current && dropdownRef.current.contains(target)) {
+          return;
         }
         setIsSearchFocused(false);
         setGlobalSearchTerm('');
       }
     }
-    if (isSearchFocused) {
+    if (isSearchFocused || showSearchOverlay) {
       document.addEventListener('mousedown', handleClickOutside);
     } else {
       document.removeEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isSearchFocused, setGlobalSearchTerm]);
+  }, [isSearchFocused, showSearchOverlay, setGlobalSearchTerm]);
 
   // Handle escape key to close search overlay
   useEffect(() => {
@@ -769,7 +781,10 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
       {/* Search Overlay - Only for screens under 768px */}
       {showSearchOverlay && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center pt-20 sm:pt-32">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl mx-4 sm:mx-8">
+          <div
+            ref={searchOverlayPanelRef}
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl mx-4 sm:mx-8"
+          >
             <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700">
               <Search className="w-5 h-5 text-gray-400 dark:text-gray-300 mr-3" />
               <input
@@ -778,6 +793,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
                 className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 border-none outline-none"
                 value={globalSearchTerm}
                 onChange={e => setGlobalSearchTerm(e.target.value)}
+                onFocus={() => setIsSearchFocused(true)}
                 ref={searchInputRef}
               />
               <button

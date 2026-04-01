@@ -27,6 +27,7 @@ import { sanitizeHtml } from '../../lib/sanitize';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { DEFAULT_INCLUDE_DATA, normalizeIncludeData } from '../../../lib/lastWishIncludeData.js';
 import { fetchBusinessInvestmentContracts } from '../../lib/businessInvestmentService';
+import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 import { ENTRY_TYPE_LABELS, type InvestmentContract } from '../../types/businessInvestment';
 
 interface LWProps {
@@ -1252,8 +1253,8 @@ These memories are my gift to you.`
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           {/* System Title & Description */}
           <div className="flex items-start space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-800 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-              <Shield className="w-6 h-6 text-blue-500" />
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+              <Shield className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-1">
@@ -1509,7 +1510,7 @@ These memories are my gift to you.`
                   </div>
                   <div className="flex items-center justify-between gap-3 sm:col-span-2 p-2 sm:p-2.5 rounded-lg bg-white/60 dark:bg-gray-800/40 hover:bg-white/80 dark:hover:bg-gray-800/60 transition-colors border border-blue-200/50 dark:border-blue-800/40">
                     <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                      <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                      <INVESTMENTS_FEATURE_ICON className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium text-gray-900 dark:text-gray-100">Business investments</p>
                         <p className="text-xs text-gray-600 dark:text-gray-400 leading-tight">Active contracts · {businessContracts.length} total</p>
