@@ -6,10 +6,19 @@ export const GLOBAL_SEARCH_INV_ASSET_KEYS: Array<{ name: string; weight: number 
   { name: 'notes', weight: 0.15 },
 ];
 
+/** Denormalized on each row in global search: asset_symbol, asset_name from linked asset. */
 export const GLOBAL_SEARCH_INV_TX_KEYS: Array<{ name: string; weight: number }> = [
-  { name: 'transaction_type', weight: 0.25 },
-  { name: 'notes', weight: 0.35 },
-  { name: 'currency', weight: 0.1 },
+  { name: 'asset_symbol', weight: 0.28 },
+  { name: 'asset_name', weight: 0.28 },
+  { name: 'transaction_type', weight: 0.18 },
+  { name: 'notes', weight: 0.18 },
+  { name: 'currency', weight: 0.08 },
+];
+
+export const GLOBAL_SEARCH_INV_CATEGORY_KEYS: Array<{ name: string; weight: number }> = [
+  { name: 'name', weight: 0.5 },
+  { name: 'description', weight: 0.35 },
+  { name: 'icon', weight: 0.15 },
 ];
 
 export const GLOBAL_SEARCH_INV_GOAL_KEYS: Array<{ name: string; weight: number }> = [

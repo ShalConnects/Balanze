@@ -12,6 +12,7 @@ import {
   GLOBAL_SEARCH_INV_ASSET_KEYS,
   GLOBAL_SEARCH_INV_TX_KEYS,
   GLOBAL_SEARCH_INV_GOAL_KEYS,
+  GLOBAL_SEARCH_INV_CATEGORY_KEYS,
 } from '../../utils/globalSearchInvestmentKeys';
 import { globalSearchCacheFingerprint } from '../../utils/globalSearchCacheFingerprint';
 import { SearchSkeleton } from '../common/SearchSkeleton';
@@ -189,6 +190,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     investmentAssets,
     investmentTransactions,
     investmentGoals,
+    investmentCategories,
   } = useFinanceStore();
   const { clients, tasks, invoices } = useClientStore();
   const { habits } = useHabitStore();
@@ -300,6 +302,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       case 'investment_goal':
         navigate(`/investments?tab=goals&from=search`);
         break;
+      case 'investment_category':
+        navigate(`/investments?tab=assets&from=search`);
+        break;
       default:
         break;
     }
@@ -333,8 +338,18 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
   useEffect(() => {
     if (!user?.id) return;
-    const { fetchInvestmentAssets, fetchInvestmentTransactions, fetchInvestmentGoals } = useFinanceStore.getState();
-    void Promise.all([fetchInvestmentAssets(), fetchInvestmentTransactions(), fetchInvestmentGoals()]);
+    const {
+      fetchInvestmentAssets,
+      fetchInvestmentTransactions,
+      fetchInvestmentGoals,
+      fetchInvestmentCategories,
+    } = useFinanceStore.getState();
+    void Promise.all([
+      fetchInvestmentAssets(),
+      fetchInvestmentTransactions(),
+      fetchInvestmentGoals(),
+      fetchInvestmentCategories(),
+    ]);
   }, [user?.id]);
 
   // Generate search suggestions based on available data

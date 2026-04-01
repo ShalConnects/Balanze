@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
 import { normalizeIncludeData } from '../lib/lastWishIncludeData.js';
 import { fetchActiveBusinessContractsWithEntries } from '../lib/lastWishBusinessInvestmentsServer.js';
+import { sumAmountsByCurrency } from '../lib/lastWishSummaryRollups.js';
 
 const BIZ_ENTRY_LABELS = {
   profit: 'Profit',
@@ -450,16 +451,25 @@ function calculateFinancialMetrics(data) {
   const transactions = data.transactions || [];
   const lendBorrow = data.lendBorrow || [];
   const investmentAssets = data.investmentAssets || [];
+  const activeBizContracts = (data.businessInvestmentContracts || []).filter((c) => c.status === 'active');
+
+  const {
+    totals: investmentTotalsByCurrency,
+    counts: investmentCountsByCurrency,
+    count: investmentAssetCount
+  } = sumAmountsByCurrency(investmentAssets, (a) => parseFloat(a.current_value ?? a.total_value ?? 0) || 0);
+  const {
+    totals: businessPrincipalByCurrency,
+    counts: businessContractCountsByCurrency,
+    count: activeBusinessContractCount
+  } = sumAmountsByCurrency(activeBizContracts, (c) => parseFloat(c.principal) || 0);
   
   // Calculate total account balances
   const totalAssets = accounts.reduce((sum, account) => {
     return sum + (parseFloat(account.calculated_balance) || 0);
   }, 0);
   
-  // Calculate investment portfolio value
-  const investmentPortfolio = investmentAssets.reduce((sum, asset) => {
-    return sum + (parseFloat(asset.current_value || asset.total_value || 0) || 0);
-  }, 0);
+  const investmentPortfolio = Object.values(investmentTotalsByCurrency).reduce((s, v) => s + v, 0);
   
   // Calculate outstanding debts (borrowed amounts that are still active or overdue)
   const outstandingDebts = lendBorrow
@@ -495,6 +505,12 @@ function calculateFinancialMetrics(data) {
   return {
     totalAssets,
     investmentPortfolio,
+    investmentTotalsByCurrency,
+    investmentCountsByCurrency,
+    investmentAssetCount,
+    businessPrincipalByCurrency,
+    businessContractCountsByCurrency,
+    activeBusinessContractCount,
     outstandingDebts,
     amountsOwed,
     netWorth,
@@ -1325,10 +1341,31 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
                   <span class="summary-row-value">${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}</span>
                 </div>
               </div>
-              ${businessContracts.length > 0 ? `
+              ${'investmentAssets' in data ? `
               <div class="summary-section">
-                <h4>Business investment contracts (active)</h4>
-                ${renderBusinessInvestmentContractsHtml(businessContracts, formatCurrencyWithSymbol, true)}
+                <h4>Investment portfolio</h4>
+                <div class="summary-row">
+                  <span class="summary-row-label">By currency: </span>
+                  <span class="summary-row-value">${Object.keys(metrics.investmentTotalsByCurrency).length > 0 ? Object.entries(metrics.investmentTotalsByCurrency).map(([c, a]) => formatCurrencyWithSymbol(a, c)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</span>
+                </div>
+                <div class="summary-row">
+                  <span class="summary-row-label">Assets: </span>
+                  <span class="summary-row-value">${metrics.investmentAssetCount} asset${metrics.investmentAssetCount !== 1 ? 's' : ''}</span>
+                </div>
+              </div>
+              ` : ''}
+              ${'businessInvestmentContracts' in data ? `
+              <div class="summary-section">
+                <h4>Active business contracts (principal)</h4>
+                <div class="summary-row">
+                  <span class="summary-row-label">By currency: </span>
+                  <span class="summary-row-value">${Object.keys(metrics.businessPrincipalByCurrency).length > 0 ? Object.entries(metrics.businessPrincipalByCurrency).map(([c, a]) => formatCurrencyWithSymbol(a, c)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</span>
+                </div>
+                <div class="summary-row">
+                  <span class="summary-row-label">Contracts: </span>
+                  <span class="summary-row-value">${metrics.activeBusinessContractCount} active</span>
+                </div>
+                ${businessContracts.length > 0 ? renderBusinessInvestmentContractsHtml(businessContracts, formatCurrencyWithSymbol, true) : ''}
               </div>
               ` : ''}
             </div>
@@ -1932,6 +1969,8 @@ function createPDFHTMLContent(user, recipient, data, settings) {
     <p><strong>Total Lent:</strong> ${Object.keys(lentByCurrency).length > 0 ? Object.entries(lentByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</p>
     <p><strong>Total Borrowed:</strong> ${Object.keys(borrowedByCurrency).length > 0 ? Object.entries(borrowedByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</p>
     <p><strong>Active Records:</strong> ${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}</p>
+    ${'investmentAssets' in data ? `<p><strong>Investment portfolio:</strong> ${Object.keys(metrics.investmentTotalsByCurrency).length > 0 ? Object.entries(metrics.investmentTotalsByCurrency).map(([c, a]) => formatCurrencyWithSymbol(a, c)).join(', ') : formatCurrencyWithSymbol(0, 'USD')} <span style="color:#6b7280;">(${metrics.investmentAssetCount} asset${metrics.investmentAssetCount !== 1 ? 's' : ''})</span></p>` : ''}
+    ${'businessInvestmentContracts' in data ? `<p><strong>Active business contracts (principal):</strong> ${Object.keys(metrics.businessPrincipalByCurrency).length > 0 ? Object.entries(metrics.businessPrincipalByCurrency).map(([c, a]) => formatCurrencyWithSymbol(a, c)).join(', ') : formatCurrencyWithSymbol(0, 'USD')} <span style="color:#6b7280;">(${metrics.activeBusinessContractCount} active)</span></p>` : ''}
   </div>
   
   ${businessContracts.length > 0 ? `
@@ -2493,6 +2532,34 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
           .text(`${item.page}`, dotEndX + 5, yPos, { align: 'right' });
       });
 
+      const drawCurrencySummaryBoxes = (heading, totals, counts, emptyText, lineLabel, subline) => {
+        doc.fillColor('#000000').fontSize(16).font('Helvetica-Bold').text(heading, 50, doc.y);
+        doc.moveDown(0.8);
+        const curEntries = Object.entries(totals);
+        if (curEntries.length === 0) {
+          doc.fillColor('#9ca3af').fontSize(11).font('Helvetica').text(emptyText, 70, doc.y);
+          doc.moveDown(1.5);
+          return;
+        }
+        curEntries.forEach(([currency, amount]) => {
+          const boxY = doc.y;
+          const boxHeight = 45;
+          doc.rect(50, boxY, doc.page.width - 100, boxHeight)
+            .fillColor('#f9fafb')
+            .fill()
+            .strokeColor('#e5e7eb')
+            .lineWidth(1)
+            .stroke();
+          doc.fillColor('#6b7280').fontSize(10).font('Helvetica').text(String(lineLabel(currency)), 60, boxY + 8);
+          doc.fillColor('#000000').fontSize(18).font('Helvetica-Bold')
+            .text(String(formatCurrency(amount, currency)), 60, boxY + 20);
+          const n = counts[currency] || 0;
+          doc.fillColor('#6b7280').fontSize(9).font('Helvetica').text(String(subline(n)), 60, boxY + 38);
+          doc.y = boxY + boxHeight + 10;
+        });
+        doc.moveDown(1);
+      };
+
       // FINANCIAL SUMMARY PAGE - Enhanced
       currentPageNum = addPageWithHeader();
       pageNumbers.set('financialSummary', currentPageNum);
@@ -2679,6 +2746,27 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         .text(String(activeRecordsText), 180, currentLendBorrowY);
       
       doc.y = lendBorrowBoxY + lendBorrowBoxHeight + 15;
+
+      if ('investmentAssets' in data) {
+        drawCurrencySummaryBoxes(
+          'Investment portfolio',
+          metrics.investmentTotalsByCurrency,
+          metrics.investmentCountsByCurrency,
+          'No investment assets',
+          (c) => `Portfolio value (${c})`,
+          (n) => `${n} asset${n !== 1 ? 's' : ''}`
+        );
+      }
+      if ('businessInvestmentContracts' in data) {
+        drawCurrencySummaryBoxes(
+          'Active business contracts (principal)',
+          metrics.businessPrincipalByCurrency,
+          metrics.businessContractCountsByCurrency,
+          'No active business contracts',
+          (c) => `Principal (${c})`,
+          (n) => `${n} active contract${n !== 1 ? 's' : ''}`
+        );
+      }
       
       // BANK ACCOUNTS SECTION (Grouped by Currency, Excluding Zero Balances)
       // accountsWithBalance already declared above for TOC
