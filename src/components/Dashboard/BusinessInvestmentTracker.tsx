@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, ChevronUp, Plus, Pencil, Trash2, Wallet, TrendingUp, TrendingDown, Landmark, X, Building2, Filter, Info } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, Plus, Pencil, Trash2, Wallet, TrendingUp, TrendingDown, Landmark, X, Filter, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '../../utils/currency';
 import { useFinanceStore } from '../../store/useFinanceStore';
@@ -63,6 +63,17 @@ const formatDateYmd = (date: Date | null) =>
 
 const contractMetaRowClass =
   'flex min-w-0 flex-col gap-1.5 text-xs text-gray-500 dark:text-gray-400 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2 sm:gap-y-0';
+
+const rowActionIconButtonClass =
+  'p-1.5 rounded text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700';
+const entryRemoveIconButtonClass =
+  'min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0 p-2 sm:p-1 rounded text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 touch-manipulation';
+
+const investmentSummaryMetricCopy = {
+  profit: { label: 'Profit', caption: 'Sum of profit entries' },
+  loss: { label: 'Loss', caption: 'Sum of loss entries' },
+  net: { label: 'Net', caption: 'Profit minus loss' }
+} as const;
 
 const CONTRACT_UPDATE_SECTION_HINT =
   'Record profit, loss, principal return, or capital contribution (reinvest). Optionally post a linked transaction: profit and principal returned as income; loss and capital contribution as expense — pick any cash account.';
@@ -545,7 +556,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => removeEntry(contract.id, entry.id)}
-                      className="min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0 p-2 sm:p-1 rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 touch-manipulation"
+                      className={entryRemoveIconButtonClass}
                       aria-label="Remove entry"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -718,14 +729,12 @@ export const BusinessInvestmentTracker: React.FC = () => {
       <div className={LP.card}>
         <div className={LP.filterHeader}>
           <div className={LP.filterRow} style={{ marginBottom: 0 }}>
-            <div className="min-w-0 w-full flex-1 sm:max-w-md">
-              <ListPageFilterSearchField
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder="Search contracts..."
-                pending={searchPending}
-              />
-            </div>
+            <ListPageFilterSearchField
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Search contracts..."
+              pending={searchPending}
+            />
 
             <div className="md:hidden flex items-center gap-1">
               <button
@@ -809,11 +818,15 @@ export const BusinessInvestmentTracker: React.FC = () => {
             <div className={LP.statCard}>
               <div className="flex items-center justify-between gap-2">
                 <div className="text-left min-w-0 flex-1">
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Total Profit</p>
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">
+                    {investmentSummaryMetricCopy.profit.label}
+                  </p>
                   <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem] break-words tabular-nums">
                     {formatAmount(summary.totalProfit, summaryDisplayCurrency)}
                   </p>
-                  <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">Profit total</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">
+                    {investmentSummaryMetricCopy.profit.caption}
+                  </p>
                 </div>
                 <TrendingUp className="text-blue-600 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
               </div>
@@ -821,11 +834,15 @@ export const BusinessInvestmentTracker: React.FC = () => {
             <div className={LP.statCard}>
               <div className="flex items-center justify-between gap-2">
                 <div className="text-left min-w-0 flex-1">
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Total Loss</p>
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">
+                    {investmentSummaryMetricCopy.loss.label}
+                  </p>
                   <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem] break-words tabular-nums">
                     {formatAmount(summary.totalLoss, summaryDisplayCurrency)}
                   </p>
-                  <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">Loss total</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">
+                    {investmentSummaryMetricCopy.loss.caption}
+                  </p>
                 </div>
                 <TrendingDown className="text-blue-600 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
               </div>
@@ -833,25 +850,17 @@ export const BusinessInvestmentTracker: React.FC = () => {
             <div className={LP.statCard}>
               <div className="flex items-center justify-between gap-2">
                 <div className="text-left min-w-0 flex-1">
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Overall Net</p>
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">
+                    {investmentSummaryMetricCopy.net.label}
+                  </p>
                   <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem] break-words tabular-nums">
                     {formatAmount(summary.overallNet, summaryDisplayCurrency)}
                   </p>
-                  <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">Net position</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">
+                    {investmentSummaryMetricCopy.net.caption}
+                  </p>
                 </div>
                 <Landmark className="text-blue-600 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-              </div>
-            </div>
-            <div className={LP.statCard}>
-              <div className="flex items-center justify-between">
-                <div className="text-left min-w-0 flex-1">
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">Contracts</p>
-                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem]">
-                    {activeVisibleContracts.length}
-                  </p>
-                  <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">Active in this currency</p>
-                </div>
-                <Building2 className="text-blue-600 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
               </div>
             </div>
           </div>
@@ -951,7 +960,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => openEditContractModal(contract)}
-                                className="p-1.5 rounded text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                className={rowActionIconButtonClass}
                                 title="Edit contract details"
                               >
                                 <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -959,7 +968,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setContractIdToDelete(contract.id)}
-                                className="p-1.5 rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                className={rowActionIconButtonClass}
                                 title="Delete contract"
                               >
                                 <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1037,7 +1046,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => openEditContractModal(contract)}
-                            className="p-1.5 rounded text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                            className={rowActionIconButtonClass}
                             title="Edit contract details"
                           >
                             <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1045,7 +1054,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setContractIdToDelete(contract.id)}
-                            className="p-1.5 rounded text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            className={rowActionIconButtonClass}
                             title="Delete contract"
                           >
                             <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />

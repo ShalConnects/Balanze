@@ -1,4 +1,5 @@
 import React, { memo } from 'react';
+import { ProBadge, SIDEBAR_NAV_BADGE_BASE } from '../../common/ProBadge';
 import type { NavItem } from './navigation';
 
 /** Solid colors for active icons — gradient text-fill breaks Lucide SVG stroke (looks thin/wrong vs inactive rows). */
@@ -15,13 +16,16 @@ interface Props {
   isActive: boolean;
   showLabel: boolean;
   isDemoPage: boolean;
+  /** Muted style; parent should still route taps to upgrade when locked */
+  locked?: boolean;
   onNavigate: (id: string) => void;
   t: (key: string) => string;
 }
 
-export const SidebarNavItem = memo(function SidebarNavItem({ item, isActive, showLabel, isDemoPage, onNavigate, t }: Props) {
+export const SidebarNavItem = memo(function SidebarNavItem({ item, isActive, showLabel, isDemoPage, locked, onNavigate, t }: Props) {
   const Icon = item.icon;
   const padding = showLabel ? PADDING_EXPANDED : PADDING_COLLAPSED;
+  const lockedCls = locked ? 'opacity-55 saturate-50' : '';
 
   return (
     <button
@@ -31,15 +35,22 @@ export const SidebarNavItem = memo(function SidebarNavItem({ item, isActive, sho
         if (!isDemoPage) onNavigate(item.id);
       }}
       data-tour={item.id === 'accounts' ? 'accounts-nav' : undefined}
-      className={`${BASE_BTN} ${padding} ${isActive ? ACTIVE_BTN : INACTIVE_BTN}`}
-      title={!showLabel ? t(item.name) : undefined}
+      className={`${BASE_BTN} ${padding} ${lockedCls} ${isActive ? ACTIVE_BTN : INACTIVE_BTN}`}
+      title={
+        !showLabel
+          ? locked
+            ? `${t(item.name)} — ${t('navigation.upgradeToPremium')}`
+            : t(item.name)
+          : undefined
+      }
     >
       <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? ACTIVE_ICON_CLASS : 'text-gray-400 dark:text-gray-500'}`} />
       {showLabel && (
         <>
           <span className={`${isActive ? 'text-gradient-primary' : ''} text-[14px] font-bold flex-1 text-left`}>{t(item.name)}</span>
+          {item.requiresPremium && <ProBadge />}
           {item.isNew && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-gradient-to-r from-blue-500 to-purple-500 text-white">New</span>
+            <span className={`${SIDEBAR_NAV_BADGE_BASE} bg-gradient-to-r from-blue-500 to-purple-500`}>New</span>
           )}
         </>
       )}

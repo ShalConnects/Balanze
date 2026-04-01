@@ -9,6 +9,7 @@ import { writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dotenv from 'dotenv';
+import { normalizeIncludeData } from './lib/lastWishIncludeData.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -103,11 +104,12 @@ async function testEmailAndPDFGeneration() {
     console.log(`   Accounts: ${userData.accounts?.length || 0}`);
     console.log(`   Lend/Borrow: ${userData.lendBorrow?.length || 0}`);
     console.log(`   Active Lend/Borrow: ${(userData.lendBorrow || []).filter(lb => lb.status === 'active').length}`);
-    console.log(`   Transactions: ${userData.transactions?.length || 0}\n`);
+    console.log(`   Transactions: ${userData.transactions?.length || 0}`);
+    console.log(`   Business contracts (active): ${userData.businessInvestmentContracts?.length || 0}\n`);
     
     // Step 5: Filter data based on settings
     console.log('🔍 Step 5: Filtering data based on settings...');
-    const filteredData = filterDataBySettings(userData, settingsData.include_data || {});
+    const filteredData = filterDataBySettings(userData, normalizeIncludeData(settingsData.include_data));
     console.log('   ✅ Data filtered\n');
     
     // Step 6: Get recipient info

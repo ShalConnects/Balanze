@@ -131,6 +131,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'orders': return 'Orders';
       case 'invoices': return 'Invoices';
       case 'achievements': return 'Achievements';
+      case 'last-wish': return 'Last Wish';
       case 'settings': return 'Settings';
       case 'about': return 'About';
       case 'donations': return 'Donations';
@@ -219,6 +220,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                                         ? 'Grow personally through habits, learning, quotes, and achievements'
                                         : currentView === 'analytics'
                                           ? 'Analyze your financial data with insights and trends'
+                                          : currentView === 'last-wish'
+                                            ? 'Configure check-ins, recipients, and what to include if delivery is triggered'
                                           : currentView === 'settings'
                                             ? 'Manage your account preferences and application settings'
                                             : undefined

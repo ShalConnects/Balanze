@@ -14,10 +14,14 @@ import { AssetManagement } from '../components/Investments/AssetManagement';
 import { InvestmentGoals } from '../components/Investments/InvestmentGoals';
 import { InvestmentTransactionForm } from '../components/Investments/InvestmentTransactionForm';
 import { useAuthStore } from '../store/authStore';
+import { useSearchParams } from 'react-router-dom';
 
 type InvestmentTab = 'dashboard' | 'assets' | 'transactions' | 'goals' | 'analytics';
 
+const INVESTMENT_TABS: InvestmentTab[] = ['dashboard', 'assets', 'transactions', 'goals', 'analytics'];
+
 export const Investments: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<InvestmentTab>('dashboard');
   const [showTransactionForm, setShowTransactionForm] = useState(false);
   const [showAssetForm, setShowAssetForm] = useState(false);
@@ -48,7 +52,6 @@ export const Investments: React.FC = () => {
   const { accounts } = useFinanceStore();
 
   useEffect(() => {
-    // Fetch all investment data when component mounts
     const fetchData = async () => {
       await Promise.all([
         fetchInvestmentAssets(),
@@ -60,6 +63,18 @@ export const Investments: React.FC = () => {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && INVESTMENT_TABS.includes(tab as InvestmentTab)) {
+      setActiveTab(tab as InvestmentTab);
+    }
+    if (searchParams.get('from') === 'search') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('from');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleAddTransaction = async (transaction: any) => {
     try {

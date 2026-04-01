@@ -53,10 +53,10 @@ const LendBorrowAnalytics = lazy(() => import('./components/LendBorrow/LendBorro
 const AnalyticsView = lazy(() => import('./components/Reports/AnalyticsView').then(m => ({ default: m.AnalyticsView })));
 const ClientList = lazy(() => import('./components/Clients/ClientList').then(m => ({ default: m.ClientList })));
 const Settings = lazy(() => import('./components/Dashboard/Settings').then(m => ({ default: m.Settings })));
+const LastWishPage = lazy(() => import('./pages/LastWishPage').then(m => ({ default: m.LastWishPage })));
 const PaymentHistoryPage = lazy(() => import('./pages/PaymentHistoryPage').then(m => ({ default: m.PaymentHistoryPage })));
 const HelpAndSupport = lazy(() => import('./pages/HelpAndSupport'));
 const Investments = lazy(() => import('./pages/BusinessInvestments').then(m => ({ default: m.BusinessInvestments })));
-const SimpleInvestments = lazy(() => import('./pages/SimpleInvestments').then(m => ({ default: m.SimpleInvestments })));
 const History = lazy(() => import('./pages/History').then(m => ({ default: m.History })));
 const PublicHelpCenter = lazy(() => import('./pages/PublicHelpCenter'));
 const TopicClusterHub = lazy(() => import('./pages/TopicClusterHub'));
@@ -810,7 +810,6 @@ function AppContent() {
           <Route path="/purchases" element={<ProtectedRoute><PurchaseTracker /></ProtectedRoute>} />
           <Route path="/lent-borrow" element={<ProtectedRoute><LendBorrowTableView /></ProtectedRoute>} />
           <Route path="/investments" element={<ProtectedRoute><Investments /></ProtectedRoute>} />
-          <Route path="/simple-investments" element={<ProtectedRoute><SimpleInvestments /></ProtectedRoute>} />
           <Route path="/purchase-categories" element={<ProtectedRoute><PurchaseCategories /></ProtectedRoute>} />
           <Route path="/purchase-analytics" element={<ProtectedRoute><PurchaseAnalytics /></ProtectedRoute>} />
           <Route path="/lent-borrow-analytics" element={<ProtectedRoute><LendBorrowAnalytics /></ProtectedRoute>} />
@@ -819,6 +818,7 @@ function AppContent() {
           <Route path="/clients" element={<ProtectedRoute><ClientList /></ProtectedRoute>} />
           <Route path="/personal-growth" element={<ProtectedRoute><PersonalGrowth /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/last-wish" element={<ProtectedRoute><LastWishPage /></ProtectedRoute>} />
           <Route path="/payment-history" element={<ProtectedRoute layout="bare"><PaymentHistoryPage /></ProtectedRoute>} />
           <Route path="/help" element={<ProtectedRoute layout="help"><HelpAndSupport /></ProtectedRoute>} />
           <Route path="/kb/:slug" element={<ProtectedRoute layout="help"><KBArticlePage /></ProtectedRoute>} />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Heart, TrendingUp, ArrowRight, Info, X, Clock, Calendar } from 'lucide-react';
+import { Heart, TrendingUp, ArrowRight, X, Clock, Calendar } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
 import { StatCard } from './StatCard';
@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { toast } from 'sonner';
+import { DashboardWidgetInfo } from './DashboardWidgetInfo';
 
 interface DonationSavingsOverviewCardProps {
   t: (key: string, options?: any) => string;
@@ -26,8 +27,6 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
   const donationSavingRecords = useFinanceStore(state => state.donationSavingRecords);
   const { user, profile } = useAuthStore();
   const [loading, setLoading] = useState(true);
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [showMobileModal, setShowMobileModal] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [showCrossTooltip, setShowCrossTooltip] = useState(false);
   const { isMobile } = useMobileDetection();
@@ -360,6 +359,87 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
       .slice(0, 3); // Show last 3 donations
   }, [donationSavingRecords, accounts, transactions, filterCurrency, timeFilter, startDate, endDate]);
 
+  const donationsInfoBody = useMemo(() => {
+    const periodLabel =
+      timeFilter === 'all'
+        ? 'All Time'
+        : timeFilter === '1m'
+          ? 'This Month'
+          : timeFilter === '3m'
+            ? '3 Months'
+            : timeFilter === '6m'
+              ? '6 Months'
+              : '1 Year';
+    const cur = filterCurrency || 'USD';
+    return (
+      <div className="space-y-2 sm:space-y-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="min-w-0">
+            <div className="mb-0.5 truncate text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">
+              Pending ({pendingDonationsCount}):
+            </div>
+            {pendingDonationsCount > 0 ? (
+              <div className="break-words bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
+                {formatCurrency(totalPending, cur)}
+              </div>
+            ) : (
+              <div className="text-[10px] text-gray-500 sm:text-[11px] dark:text-gray-500">No pending donations</div>
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="mb-0.5 truncate text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">
+              {periodLabel} ({monthlyDonations}):
+            </div>
+            {monthlyDonations > 0 ? (
+              <div className="break-words bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
+                {formatCurrency(totalMonthlyDonated, cur)}
+              </div>
+            ) : (
+              <div className="text-[10px] text-gray-500 sm:text-[11px] dark:text-gray-500">No donations this month</div>
+            )}
+          </div>
+        </div>
+        {recentDonations.length > 0 && (
+          <>
+            <div className="mt-2 border-t border-gray-200 dark:border-gray-700" />
+            <div>
+              <div className="mb-1">
+                <div className="text-[10px] font-semibold text-gray-900 dark:text-gray-100 sm:text-[11px]">Recent Donations</div>
+              </div>
+              <ul className="max-h-32 space-y-0.5 overflow-y-auto sm:max-h-40">
+                {recentDonations.map((donation, index) => {
+                  const cleanNote = donation.note?.replace(/\s*\(?Currency:\s*[A-Z]{3}\)?/g, '').trim() || 'Donation';
+                  return (
+                    <li
+                      key={index}
+                      className="flex items-center justify-between rounded py-0.5 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-[10px] text-gray-700 dark:text-gray-300 sm:text-[11px]" title={cleanNote}>
+                        {cleanNote}
+                      </span>
+                      <span className="ml-2 flex-shrink-0 tabular-nums text-[10px] font-medium text-gray-900 dark:text-gray-100 sm:text-[11px]">
+                        {formatCurrency(donation.amount || 0, cur)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }, [
+    pendingDonationsCount,
+    totalPending,
+    monthlyDonations,
+    totalMonthlyDonated,
+    recentDonations,
+    filterCurrency,
+    timeFilter,
+    formatCurrency,
+  ]);
+
   // Currency options: only show selected_currencies if available, else all
   const allCurrencyOptions = [
     { value: 'USD', label: 'USD' },
@@ -450,87 +530,9 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
         {/* Left side - Info button */}
         <div className="flex items-center gap-2 flex-1">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Donations</h2>
-          <div className="relative flex items-center">
-            <button
-              type="button"
-              className="ml-1 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-110 active:scale-95"
-              onMouseEnter={() => !isMobile && setShowTooltip(true)}
-              onMouseLeave={() => !isMobile && setShowTooltip(false)}
-              onFocus={() => !isMobile && setShowTooltip(true)}
-              onBlur={() => !isMobile && setShowTooltip(false)}
-              onClick={() => {
-                if (isMobile) {
-                  setShowMobileModal(true);
-                } else {
-                  setShowTooltip(v => !v);
-                }
-              }}
-              tabIndex={0}
-              aria-label="Show donations & savings info"
-            >
-              <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200" />
-            </button>
-            {showTooltip && !isMobile && (
-              <div className="absolute left-1/2 top-full z-50 mt-2 w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-3 sm:p-4 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
-                <div className="space-y-2 sm:space-y-3">
-                  {/* Pending and Monthly Donations - Side by Side */}
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                    {/* Pending Donations */}
-                    <div className="min-w-0">
-                      <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">Pending ({pendingDonationsCount}):</div>
-                      {pendingDonationsCount > 0 ? (
-                        <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent break-words">
-                          {formatCurrency(totalPending, filterCurrency || 'USD')}
-                        </div>
-                      ) : (
-                        <div className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-500">No pending donations</div>
-                      )}
-                    </div>
-
-                    {/* Period Donations */}
-                    <div className="min-w-0">
-                      <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">
-                        {timeFilter === 'all' ? 'All Time' : timeFilter === '1m' ? 'This Month' : timeFilter === '3m' ? '3 Months' : timeFilter === '6m' ? '6 Months' : '1 Year'} ({monthlyDonations}):
-                      </div>
-                      {monthlyDonations > 0 ? (
-                        <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent break-words">
-                          {formatCurrency(totalMonthlyDonated, filterCurrency || 'USD')}
-                        </div>
-                      ) : (
-                        <div className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-500">No donations this month</div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Recent Donations */}
-                  {recentDonations.length > 0 && (
-                    <>
-                      <div className="border-t border-gray-200 dark:border-gray-700 mt-2"></div>
-                      <div>
-                        <div className="mb-1">
-                          <div className="font-semibold text-gray-900 dark:text-gray-100 text-[10px] sm:text-[11px]">Recent Donations</div>
-                        </div>
-                        <ul className="space-y-0.5 max-h-32 sm:max-h-40 overflow-y-auto">
-                          {recentDonations.map((donation, index) => {
-                            // Clean up donation note by removing currency information
-                            const cleanNote = donation.note?.replace(/\s*\(?Currency:\s*[A-Z]{3}\)?/g, '').trim() || 'Donation';
-                            return (
-                              <li key={index} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
-                                <span className="truncate flex-1 text-[10px] sm:text-[11px] text-gray-700 dark:text-gray-300 min-w-0" title={cleanNote}>{cleanNote}</span>
-                                <span className="ml-2 tabular-nums font-medium text-[10px] sm:text-[11px] text-gray-900 dark:text-gray-100 flex-shrink-0">
-                                  {formatCurrency(donation.amount || 0, filterCurrency || 'USD')}
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <DashboardWidgetInfo title="Donations" ariaLabel="Show donations & savings info">
+            {donationsInfoBody}
+          </DashboardWidgetInfo>
         </div>
         
         {/* Right side - Controls */}
@@ -561,80 +563,6 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
         </div>
       </div>
 
-      {/* Mobile Modal for Donations Info */}
-      {showMobileModal && isMobile && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setShowMobileModal(false)} />
-          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 md:w-96 max-w-md animate-fadein">
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">Donations Info</div>
-              <button
-                onClick={() => setShowMobileModal(false)}
-                className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
-                aria-label="Close modal"
-              >
-                <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-              </button>
-            </div>
-            <div className="space-y-3 sm:space-y-4">
-              {/* Pending and Monthly Donations - Side by Side */}
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                {/* Pending Donations */}
-                <div className="min-w-0">
-                  <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1 truncate">Pending ({pendingDonationsCount}):</div>
-                  {pendingDonationsCount > 0 ? (
-                    <div className="font-medium text-xs sm:text-sm bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent break-words">
-                      {formatCurrency(totalPending, filterCurrency || 'USD')}
-                    </div>
-                  ) : (
-                    <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500">No pending donations</div>
-                  )}
-                </div>
-
-                {/* Monthly Donations */}
-                <div className="min-w-0">
-                  <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1 truncate">
-                    {timeFilter === 'all' ? 'All Time' : timeFilter === '1m' ? 'This Month' : timeFilter === '3m' ? '3 Months' : timeFilter === '6m' ? '6 Months' : '1 Year'} ({monthlyDonations}):
-                  </div>
-                  {monthlyDonations > 0 ? (
-                    <div className="font-medium text-xs sm:text-sm bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent break-words">
-                      {formatCurrency(totalMonthlyDonated, filterCurrency || 'USD')}
-                    </div>
-                  ) : (
-                    <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500">No donations this month</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Recent Donations */}
-              {recentDonations.length > 0 && (
-                <>
-                  <div className="border-t border-gray-200 dark:border-gray-700 mt-3"></div>
-                  <div>
-                    <div className="mb-1">
-                      <div className="font-semibold text-[10px] sm:text-xs text-gray-900 dark:text-gray-100">Recent Donations</div>
-                    </div>
-                    <ul className="space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
-                      {recentDonations.map((donation, index) => {
-                        // Clean up donation note by removing currency information
-                        const cleanNote = donation.note?.replace(/\s*\(?Currency:\s*[A-Z]{3}\)?/g, '').trim() || 'Donation';
-                        return (
-                          <li key={index} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
-                            <span className="truncate flex-1 text-[10px] sm:text-xs text-gray-700 dark:text-gray-300 min-w-0" title={cleanNote}>{cleanNote}</span>
-                            <span className="ml-2 tabular-nums font-medium text-[10px] sm:text-xs text-gray-900 dark:text-gray-100 flex-shrink-0">
-                              {formatCurrency(donation.amount || 0, filterCurrency || 'USD')}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

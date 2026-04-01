@@ -101,6 +101,10 @@ const shouldShowEyeIcon = (hasNotes: boolean, hasAttachments: boolean): boolean 
   return hasNotes || hasAttachments;
 };
 
+/** Same as ClientList note/eye when client has a note; purchase eye only renders with notes or attachments. */
+const purchaseNoteEyeButtonClassName =
+  'p-2 rounded-lg transition-colors text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20';
+
 export const PurchaseTracker: React.FC = () => {
   const {
     purchases,
@@ -2397,9 +2401,9 @@ export const PurchaseTracker: React.FC = () => {
                                       setModalAttachments([]);
                                     }
                                   }}
-                                  className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                  className={purchaseNoteEyeButtonClassName}
                                 >
-                                  <Eye className="w-4 h-4 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400" />
+                                  <Eye className="w-4 h-4" />
                                 </button>
                               </Tooltip>
                             );
@@ -2587,7 +2591,7 @@ export const PurchaseTracker: React.FC = () => {
                                         setModalAttachments([]);
                                       }
                                     }}
-                                    className="p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors"
+                                    className={purchaseNoteEyeButtonClassName}
                                   >
                                     <Eye className="w-3.5 h-3.5" />
                                   </button>
@@ -2766,7 +2770,7 @@ export const PurchaseTracker: React.FC = () => {
                                     setModalAttachments([]);
                                   }
                                 }}
-                                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                className={purchaseNoteEyeButtonClassName}
                               >
                                 <Eye className="w-4 h-4" />
                               </button>

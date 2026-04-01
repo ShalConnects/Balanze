@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ArrowRight, Info, X } from 'lucide-react';
+import { ArrowRight, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { StatCard } from './StatCard';
@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { fetchBusinessInvestmentContracts } from '../../lib/businessInvestmentService';
 import type { InvestmentContract } from '../../types/businessInvestment';
 import { aggregateActiveInvestmentSummary } from '../../utils/businessInvestmentStats';
+import { DashboardWidgetInfo } from './DashboardWidgetInfo';
 
 interface InvestmentSummaryCardProps {
   filterCurrency?: string;
@@ -22,8 +23,6 @@ export const InvestmentSummaryCard: React.FC<InvestmentSummaryCardProps> = ({ fi
   const [loading, setLoading] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
   const [showCrossTooltip, setShowCrossTooltip] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [showMobileModal, setShowMobileModal] = useState(false);
   const { isMobile } = useMobileDetection();
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -224,29 +223,9 @@ export const InvestmentSummaryCard: React.FC<InvestmentSummaryCardProps> = ({ fi
       <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-2 mb-2 pr-8">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <h2 className="truncate text-base font-bold text-gray-900 dark:text-white sm:text-lg">Investments</h2>
-          <div className="relative flex items-center flex-shrink-0">
-            <button
-              type="button"
-              className="ml-1 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-110 active:scale-95"
-              onMouseEnter={() => !isMobile && setShowTooltip(true)}
-              onMouseLeave={() => !isMobile && setShowTooltip(false)}
-              onFocus={() => !isMobile && setShowTooltip(true)}
-              onBlur={() => !isMobile && setShowTooltip(false)}
-              onClick={() => {
-                if (isMobile) setShowMobileModal(true);
-                else setShowTooltip((v) => !v);
-              }}
-              tabIndex={0}
-              aria-label="Investments widget info"
-            >
-              <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200" />
-            </button>
-            {showTooltip && !isMobile && (
-              <div className="absolute left-1/2 top-full z-50 mt-2 w-72 sm:w-80 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-3 sm:p-4 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
-                {infoBody}
-              </div>
-            )}
-          </div>
+          <DashboardWidgetInfo title="Investments" ariaLabel="Investments widget info">
+            {infoBody}
+          </DashboardWidgetInfo>
         </div>
         <div className="flex flex-shrink-0 items-center gap-3">
           <Link
@@ -272,25 +251,6 @@ export const InvestmentSummaryCard: React.FC<InvestmentSummaryCardProps> = ({ fi
         </div>
       </div>
 
-      {showMobileModal && isMobile && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setShowMobileModal(false)} role="presentation" />
-          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 max-w-md animate-fadein">
-            <div className="flex items-center justify-between mb-3">
-              <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">Investments</div>
-              <button
-                type="button"
-                onClick={() => setShowMobileModal(false)}
-                className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                aria-label="Close"
-              >
-                <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-              </button>
-            </div>
-            {infoBody}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

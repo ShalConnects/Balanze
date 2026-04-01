@@ -249,7 +249,7 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
                     Set up automatic data sharing for your loved ones with our Last Wish feature.
                   </div>
                   <Link 
-                    to="/settings?tab=last-wish" 
+                    to="/settings?tab=plans-usage" 
                     className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 text-sm font-medium shadow-sm"
                   >
                     <Sparkles className="w-4 h-4" />

@@ -412,7 +412,7 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
 
           {/* Action Button */}
           <button
-            onClick={() => navigate('/settings?tab=last-wish')}
+            onClick={() => navigate('/last-wish')}
             className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm font-medium shadow-sm"
           >
             <Settings className="w-4 h-4" />
@@ -439,7 +439,7 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
               Set up automatic data sharing for your loved ones
             </p>
             <button
-              onClick={() => navigate('/settings?tab=last-wish')}
+              onClick={() => navigate('/last-wish')}
               className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors duration-200 text-sm font-medium"
             >
               <Settings className="w-4 h-4" />
@@ -558,7 +558,7 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
           {checkingIn ? 'Checking In...' : 'Check In Now'}
         </button>
         <button
-          onClick={() => navigate('/settings?tab=last-wish')}
+          onClick={() => navigate('/last-wish')}
           className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
         >
           <Settings className="w-4 h-4" />
@@ -585,7 +585,7 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
             </div>
             <div className="text-right">
               <button
-                onClick={() => navigate('/settings?tab=last-wish')}
+                onClick={() => navigate('/last-wish')}
                 className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"
               >
                 Manage
@@ -595,7 +595,7 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
           
           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
             <button
-              onClick={() => navigate('/settings?tab=last-wish')}
+              onClick={() => navigate('/last-wish')}
               className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 text-sm font-medium"
             >
               <ArrowRight className="w-4 h-4" />

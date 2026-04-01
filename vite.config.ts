@@ -73,5 +73,13 @@ export default defineConfig({
       // Allow Paddle sandbox iframe
       'Content-Security-Policy': "frame-ancestors 'self' https://*.paddle.com https://*.paddlejs.com https://sandbox-buy.paddle.com https://buy.paddle.com; frame-src 'self' https://*.paddle.com https://*.paddlejs.com https://sandbox-buy.paddle.com https://buy.paddle.com;",
     },
+    // Forward /api to local Vercel (run `vercel dev` in another terminal, default port 3000).
+    // Override with VITE_DEV_API_PROXY=http://127.0.0.1:3000 in .env.local if needed.
+    proxy: {
+      '/api': {
+        target: process.env.VITE_DEV_API_PROXY || 'http://127.0.0.1:3000',
+        changeOrigin: true,
+      },
+    },
   },
 });

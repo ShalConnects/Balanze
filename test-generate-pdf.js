@@ -8,6 +8,7 @@ import { writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dotenv from 'dotenv';
+import { normalizeIncludeData } from './lib/lastWishIncludeData.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -116,11 +117,12 @@ async function generateTestPDF() {
     console.log(`   gatherUserData results:`);
     console.log(`     Accounts: ${userData.accounts?.length || 0}`);
     console.log(`     Lend/Borrow: ${userData.lendBorrow?.length || 0}`);
-    console.log(`     Active Lend/Borrow: ${(userData.lendBorrow || []).filter(lb => lb.status === 'active').length}\n`);
+    console.log(`     Active Lend/Borrow: ${(userData.lendBorrow || []).filter(lb => lb.status === 'active').length}`);
+    console.log(`     Business contracts (active): ${userData.businessInvestmentContracts?.length || 0}\n`);
     
     // Step 5: Filter data based on settings
     console.log('Step 5: Filtering data based on settings...');
-    const filteredData = filterDataBySettings(userData, settingsData.include_data || {});
+    const filteredData = filterDataBySettings(userData, normalizeIncludeData(settingsData.include_data));
     console.log('   Data filtered\n');
     
     // Step 6: Get recipient info (use first recipient or create a test one)

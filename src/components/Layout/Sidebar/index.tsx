@@ -26,6 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
   const location = useLocation();
   const { isSidebarCollapsed, toggleSidebar } = useThemeStore();
   const { profile } = useAuthStore();
+  const isPremium = profile?.subscription?.plan === 'premium';
   const { isMobile } = useMobileDetection();
 
   const effectiveCollapsed = isMobile ? true : isSidebarCollapsed;
@@ -91,17 +92,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
           )}
 
           <nav data-tour="navigation" className={`flex-1 space-y-2 pl-2 ${showExpanded ? 'pr-4' : 'pr-2'}`} style={{ paddingTop: '10px' }}>
-            {SIDEBAR_NAV.map((item) => (
-              <SidebarNavItem
-                key={item.id}
-                item={item}
-                isActive={currentView === item.id}
-                showLabel={showExpanded}
-                isDemoPage={isDemoPage}
-                onNavigate={onViewChange}
-                t={t}
-              />
-            ))}
+            {SIDEBAR_NAV.map((item) => {
+              const locked = !!item.requiresPremium && !isPremium;
+              return (
+                <SidebarNavItem
+                  key={item.id}
+                  item={item}
+                  isActive={currentView === item.id}
+                  showLabel={showExpanded}
+                  isDemoPage={isDemoPage}
+                  locked={locked}
+                  onNavigate={(id) => {
+                    if (item.requiresPremium && !isPremium) {
+                      handleUpgrade();
+                      return;
+                    }
+                    onViewChange(id);
+                  }}
+                  t={t}
+                />
+              );
+            })}
           </nav>
 
           <div className={`border-t border-gray-200 dark:border-gray-700 ${px(showExpanded)} ${py}`}>

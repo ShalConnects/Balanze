@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { ArrowRight, Info, X, RefreshCw, AlertCircle, Plus } from 'lucide-react';
+import { ArrowRight, X, RefreshCw, AlertCircle, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useClientStore } from '../../store/useClientStore';
 import { StatCard } from './StatCard';
@@ -7,6 +7,7 @@ import { formatCurrency } from '../../utils/currency';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { useAuthStore } from '../../store/authStore';
+import { DashboardWidgetInfo } from './DashboardWidgetInfo';
 
 interface ClientsSummaryWidgetProps {
   filterCurrency?: string;
@@ -28,8 +29,6 @@ export const ClientsSummaryWidget: React.FC<ClientsSummaryWidgetProps> = ({
   } = useClientStore();
   const [localLoading, setLocalLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showInfoTooltip, setShowInfoTooltip] = useState(false);
-  const [showInfoMobileModal, setShowInfoMobileModal] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [showCrossTooltip, setShowCrossTooltip] = useState(false);
   const { isMobile } = useMobileDetection();
@@ -65,7 +64,6 @@ export const ClientsSummaryWidget: React.FC<ClientsSummaryWidgetProps> = ({
     };
   }, []);
   
-  const tooltipRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Load user preferences for Clients widget visibility
@@ -278,6 +276,73 @@ export const ClientsSummaryWidget: React.FC<ClientsSummaryWidgetProps> = ({
       .slice(0, 5);
   }, [clients]);
 
+  const clientsWidgetInfoBody = useMemo(
+    () => (
+      <div className="space-y-2 sm:space-y-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="min-w-0">
+            <div className="mb-0.5 truncate text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">Active:</div>
+            <div className="bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
+              {clientStatusCounts.active}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div className="mb-0.5 truncate text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">Inactive:</div>
+            <div className="bg-gradient-to-r from-gray-600 to-gray-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
+              {clientStatusCounts.inactive}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div className="mb-0.5 truncate text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">Archived:</div>
+            <div className="bg-gradient-to-r from-gray-600 to-gray-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
+              {clientStatusCounts.archived}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div className="mb-0.5 truncate text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">Total Revenue:</div>
+            <div className="break-words bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
+              {formatCurrency(stats.totalRevenue, filterCurrency || 'USD')}
+            </div>
+          </div>
+        </div>
+        {recentClients.length > 0 && (
+          <>
+            <div className="mt-2 border-t border-gray-200 dark:border-gray-700" />
+            <div>
+              <div className="mb-1">
+                <div className="text-[10px] font-semibold text-gray-900 dark:text-gray-100 sm:text-[11px]">Recent Clients</div>
+              </div>
+              <ul className="max-h-32 space-y-0.5 overflow-y-auto sm:max-h-40">
+                {recentClients.map((client) => (
+                  <li
+                    key={client.id}
+                    className="flex items-center justify-between rounded py-0.5 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-[10px] text-gray-700 dark:text-gray-300 sm:text-[11px]" title={client.name}>
+                      {client.name}
+                    </span>
+                    <span
+                      className={`ml-2 flex-shrink-0 text-[10px] font-medium sm:text-[11px] ${
+                        client.status === 'active'
+                          ? 'text-green-600 dark:text-green-400'
+                          : client.status === 'inactive'
+                            ? 'text-gray-500 dark:text-gray-400'
+                            : 'text-gray-400 dark:text-gray-500'
+                      }`}
+                    >
+                      {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>
+        )}
+      </div>
+    ),
+    [clientStatusCounts, stats.totalRevenue, recentClients, filterCurrency]
+  );
+
   // Don't render if widget is hidden
   if (!showClientsWidget) {
     return null;
@@ -400,91 +465,13 @@ export const ClientsSummaryWidget: React.FC<ClientsSummaryWidgetProps> = ({
       <div className="flex items-center justify-between gap-2 sm:gap-3 mb-2 sm:mb-3 md:mb-4 min-w-0 pr-12 sm:pr-16">
         <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
           <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-white truncate">Clients</h2>
-          <div className="relative flex items-center">
-            <button
-              type="button"
-              className="ml-1 p-1 sm:p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-110 active:scale-95 touch-manipulation"
-              onMouseEnter={() => !isMobile && setShowInfoTooltip(true)}
-              onMouseLeave={() => !isMobile && setShowInfoTooltip(false)}
-              onFocus={() => !isMobile && setShowInfoTooltip(true)}
-              onBlur={() => !isMobile && setShowInfoTooltip(false)}
-              onClick={() => {
-                if (isMobile) {
-                  setShowInfoMobileModal(true);
-                } else {
-                  setShowInfoTooltip(v => !v);
-                }
-              }}
-              tabIndex={0}
-              aria-label="Show clients info"
-            >
-              <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200" />
-            </button>
-            {showInfoTooltip && !isMobile && (
-              <div 
-                ref={tooltipRef}
-                className="absolute left-1/2 top-full z-40 mt-2 w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-3 sm:p-4 md:p-5 text-xs sm:text-sm text-gray-700 dark:text-gray-200 animate-fadein"
-              >
-                <div className="space-y-2 sm:space-y-3 md:space-y-4">
-                  {/* Stats Grid */}
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
-                    <div className="min-w-0">
-                      <div className="font-semibold text-[11px] sm:text-xs md:text-sm text-gray-900 dark:text-gray-100 mb-0.5 sm:mb-1 truncate">Active:</div>
-                      <div className="font-medium text-[11px] sm:text-xs md:text-sm bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-                        {clientStatusCounts.active}
-                      </div>
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-[11px] sm:text-xs md:text-sm text-gray-900 dark:text-gray-100 mb-0.5 sm:mb-1 truncate">Inactive:</div>
-                      <div className="font-medium text-[11px] sm:text-xs md:text-sm bg-gradient-to-r from-gray-600 to-gray-600 bg-clip-text text-transparent">
-                        {clientStatusCounts.inactive}
-                      </div>
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-[11px] sm:text-xs md:text-sm text-gray-900 dark:text-gray-100 mb-0.5 sm:mb-1 truncate">Archived:</div>
-                      <div className="font-medium text-[11px] sm:text-xs md:text-sm bg-gradient-to-r from-gray-600 to-gray-600 bg-clip-text text-transparent">
-                        {clientStatusCounts.archived}
-                      </div>
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-[11px] sm:text-xs md:text-sm text-gray-900 dark:text-gray-100 mb-0.5 sm:mb-1 truncate">Total Revenue:</div>
-                      <div className="font-medium text-[11px] sm:text-xs md:text-sm bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent break-words">
-                        {formatCurrency(stats.totalRevenue, filterCurrency || 'USD')}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Recent Clients */}
-                  {recentClients.length > 0 && (
-                    <>
-                      <div className="border-t border-gray-200 dark:border-gray-700 mt-2"></div>
-                      <div>
-                        <div className="mb-1">
-                          <div className="font-semibold text-gray-900 dark:text-gray-100 text-[10px] sm:text-[11px]">Recent Clients</div>
-                        </div>
-                        <ul className="space-y-0.5 max-h-32 sm:max-h-40 overflow-y-auto">
-                          {recentClients.map((client) => (
-                            <li key={client.id} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
-                              <span className="truncate flex-1 text-[10px] sm:text-[11px] text-gray-700 dark:text-gray-300 min-w-0" title={client.name}>
-                                {client.name}
-                              </span>
-                              <span className={`ml-2 text-[10px] sm:text-[11px] font-medium flex-shrink-0 ${
-                                client.status === 'active' ? 'text-green-600 dark:text-green-400' :
-                                client.status === 'inactive' ? 'text-gray-500 dark:text-gray-400' :
-                                'text-gray-400 dark:text-gray-500'
-                              }`}>
-                                {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <DashboardWidgetInfo
+            title="Clients"
+            ariaLabel="Show clients info"
+            modalPanelClassName="max-h-[85vh] overflow-y-auto"
+          >
+            {clientsWidgetInfoBody}
+          </DashboardWidgetInfo>
         </div>
         <Link 
           to="/clients" 
@@ -530,81 +517,6 @@ export const ClientsSummaryWidget: React.FC<ClientsSummaryWidgetProps> = ({
         </div>
       </div>
 
-      {/* Mobile Info Modal */}
-      {showInfoMobileModal && isMobile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setShowInfoMobileModal(false)} />
-          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 md:p-5 w-[90vw] sm:w-80 md:w-96 max-w-md animate-fadein max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-3 sm:mb-4 sticky top-0 bg-white dark:bg-gray-900 pb-2 border-b border-gray-200 dark:border-gray-700">
-              <div className="font-semibold text-sm sm:text-base text-gray-900 dark:text-gray-100">Clients Info</div>
-              <button
-                onClick={() => setShowInfoMobileModal(false)}
-                className="p-1.5 sm:p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
-                aria-label="Close modal"
-              >
-                <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-gray-400" />
-              </button>
-            </div>
-            <div className="space-y-3 sm:space-y-4 md:space-y-5">
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
-                <div className="min-w-0">
-                  <div className="font-semibold text-xs sm:text-sm md:text-base text-gray-900 dark:text-gray-100 mb-1 sm:mb-1.5 truncate">Active:</div>
-                  <div className="font-medium text-xs sm:text-sm md:text-base bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-                    {clientStatusCounts.active}
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <div className="font-semibold text-xs sm:text-sm md:text-base text-gray-900 dark:text-gray-100 mb-1 sm:mb-1.5 truncate">Inactive:</div>
-                  <div className="font-medium text-xs sm:text-sm md:text-base bg-gradient-to-r from-gray-600 to-gray-600 bg-clip-text text-transparent">
-                    {clientStatusCounts.inactive}
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <div className="font-semibold text-xs sm:text-sm md:text-base text-gray-900 dark:text-gray-100 mb-1 sm:mb-1.5 truncate">Archived:</div>
-                  <div className="font-medium text-xs sm:text-sm md:text-base bg-gradient-to-r from-gray-600 to-gray-600 bg-clip-text text-transparent">
-                    {clientStatusCounts.archived}
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <div className="font-semibold text-xs sm:text-sm md:text-base text-gray-900 dark:text-gray-100 mb-1 sm:mb-1.5 truncate">Total Revenue:</div>
-                  <div className="font-medium text-xs sm:text-sm md:text-base bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent break-words">
-                    {formatCurrency(stats.totalRevenue, filterCurrency || 'USD')}
-                  </div>
-                </div>
-              </div>
-
-              {/* Recent Clients */}
-              {recentClients.length > 0 && (
-                <>
-                  <div className="border-t border-gray-200 dark:border-gray-700 mt-3"></div>
-                  <div>
-                    <div className="mb-1">
-                      <div className="font-semibold text-[10px] sm:text-xs text-gray-900 dark:text-gray-100">Recent Clients</div>
-                    </div>
-                    <ul className="space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
-                      {recentClients.map((client) => (
-                        <li key={client.id} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
-                          <span className="truncate flex-1 text-[10px] sm:text-xs text-gray-700 dark:text-gray-300 min-w-0" title={client.name}>
-                            {client.name}
-                          </span>
-                          <span className={`ml-2 text-[10px] sm:text-xs font-medium flex-shrink-0 ${
-                            client.status === 'active' ? 'text-green-600 dark:text-green-400' :
-                            client.status === 'inactive' ? 'text-gray-500 dark:text-gray-400' :
-                            'text-gray-400 dark:text-gray-500'
-                          }`}>
-                            {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

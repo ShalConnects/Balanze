@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronDown, Check, Sparkles, Sprout, BookOpen, Heart, Trophy } from 'lucide-react';
 import { HabitGarden } from '../Habits/HabitGarden';
@@ -27,14 +27,6 @@ export const PersonalGrowth: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState(getInitialTab);
 
-  // Touch gesture handling for mobile swipe navigation
-  const touchStartX = useRef<number>(0);
-  const touchEndX = useRef<number>(0);
-  const touchStartY = useRef<number>(0);
-  const touchEndY = useRef<number>(0);
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  // Define tabs array (must be before callbacks that use it)
   const tabs: TabItem[] = [
     { id: 'habits', label: 'Habits', icon: Sprout },
     { id: 'learning', label: 'Learning', icon: BookOpen },
@@ -56,40 +48,6 @@ export const PersonalGrowth: React.FC = () => {
     // Close mobile menu when tab is selected
     setIsMobileMenuOpen(false);
   };
-
-  // Handle swipe gestures for mobile navigation
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.changedTouches[0].screenX;
-    touchStartY.current = e.changedTouches[0].screenY;
-  }, []);
-
-  const handleSwipe = useCallback(() => {
-    const swipeThreshold = 80; // Increased threshold for Android
-    const horizontalDistance = touchStartX.current - touchEndX.current;
-    const verticalDistance = Math.abs(touchStartY.current - touchEndY.current);
-    
-    // Only trigger swipe if horizontal movement is significantly greater than vertical
-    const isHorizontalSwipe = Math.abs(horizontalDistance) > verticalDistance * 2;
-    const isSignificantSwipe = Math.abs(horizontalDistance) > swipeThreshold;
-    
-    if (isHorizontalSwipe && isSignificantSwipe) {
-      const currentIndex = tabs.findIndex(tab => tab.id === activeTab);
-      
-      if (horizontalDistance > 0 && currentIndex < tabs.length - 1) {
-        // Swipe left - next tab
-        handleTabChange(tabs[currentIndex + 1].id);
-      } else if (horizontalDistance < 0 && currentIndex > 0) {
-        // Swipe right - previous tab
-        handleTabChange(tabs[currentIndex - 1].id);
-      }
-    }
-  }, [activeTab, tabs]);
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    touchEndX.current = e.changedTouches[0].screenX;
-    touchEndY.current = e.changedTouches[0].screenY;
-    handleSwipe();
-  }, [handleSwipe]);
 
   const getActiveTabLabel = () => {
     return tabs.find(tab => tab.id === activeTab)?.label || 'Personal Growth';
@@ -219,13 +177,8 @@ export const PersonalGrowth: React.FC = () => {
         </nav>
       </div>
 
-      {/* Tab Content - Optimized for Mobile with Swipe Support */}
-      <div 
-        ref={contentRef}
-        className="min-h-[400px] px-0 touch-pan-y transition-all duration-300"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
+      {/* Tab Content */}
+      <div className="min-h-[400px] px-0 touch-pan-y transition-all duration-300">
         {activeTab === 'habits' && (
           <HabitGarden />
         )}

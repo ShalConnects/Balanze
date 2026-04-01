@@ -1,12 +1,19 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, DollarSign, Users, CheckSquare, FileText, Sprout, BookOpen } from 'lucide-react';
+import { Search, DollarSign, Users, CheckSquare, FileText, Sprout, BookOpen, TrendingUp } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useClientStore } from '../../store/useClientStore';
 import { useHabitStore } from '../../store/useHabitStore';
 import { useCourseStore } from '../../store/useCourseStore';
 import { supabase } from '../../lib/supabase';
-import Fuse from 'fuse.js';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
+import { createGlobalFuseIndex } from '../../utils/createGlobalFuseIndex';
+import {
+  GLOBAL_SEARCH_INV_ASSET_KEYS,
+  GLOBAL_SEARCH_INV_TX_KEYS,
+  GLOBAL_SEARCH_INV_GOAL_KEYS,
+} from '../../utils/globalSearchInvestmentKeys';
+import { globalSearchCacheFingerprint } from '../../utils/globalSearchCacheFingerprint';
 import { SearchSkeleton } from '../common/SearchSkeleton';
 import { formatCurrency } from '../../utils/currency';
 
@@ -171,10 +178,22 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   onClose, 
   isOverlay = false 
 }) => {
-  const { globalSearchTerm, transactions, accounts, setGlobalSearchTerm, purchases, lendBorrowRecords, donationSavingRecords } = useFinanceStore();
+  const {
+    globalSearchTerm,
+    transactions,
+    accounts,
+    setGlobalSearchTerm,
+    purchases,
+    lendBorrowRecords,
+    donationSavingRecords,
+    investmentAssets,
+    investmentTransactions,
+    investmentGoals,
+  } = useFinanceStore();
   const { clients, tasks, invoices } = useClientStore();
   const { habits } = useHabitStore();
   const { courses } = useCourseStore();
+  const user = useAuthStore(s => s.user);
   const navigate = useNavigate();
   const [transfers, setTransfers] = useState<any[]>([]);
   const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
@@ -202,6 +221,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   const [showAllInvoices, setShowAllInvoices] = useState(false);
   const [showAllHabits, setShowAllHabits] = useState(false);
   const [showAllCourses, setShowAllCourses] = useState(false);
+  const [showAllInvestments, setShowAllInvestments] = useState(false);
 
   // Handle result click navigation
   const handleResultClick = (type: string, item: any) => {
@@ -271,8 +291,17 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       case 'course':
         navigate(`/personal-growth?tab=learning&from=search`);
         break;
+      case 'investment_asset':
+        navigate(`/investments?tab=assets&from=search`);
+        break;
+      case 'investment_transaction':
+        navigate(`/investments?tab=transactions&from=search`);
+        break;
+      case 'investment_goal':
+        navigate(`/investments?tab=goals&from=search`);
+        break;
       default:
-
+        break;
     }
   };
 
@@ -301,6 +330,12 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     const { fetchLendBorrowRecords } = useFinanceStore.getState();
     fetchLendBorrowRecords();
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const { fetchInvestmentAssets, fetchInvestmentTransactions, fetchInvestmentGoals } = useFinanceStore.getState();
+    void Promise.all([fetchInvestmentAssets(), fetchInvestmentTransactions(), fetchInvestmentGoals()]);
+  }, [user?.id]);
 
   // Generate search suggestions based on available data
   const generateSearchSuggestions = useCallback((query: string) => {
@@ -373,10 +408,18 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         suggestions.push(habit.title);
       }
     });
+
+    (investmentAssets || []).forEach(a => {
+      if (a.name?.toLowerCase().includes(queryLower)) suggestions.push(a.name);
+      if (a.symbol?.toLowerCase().includes(queryLower)) suggestions.push(a.symbol);
+    });
+    (investmentGoals || []).forEach(g => {
+      if (g.name?.toLowerCase().includes(queryLower)) suggestions.push(g.name);
+    });
     
     // Remove duplicates and limit to 3 suggestions
     return [...new Set(suggestions)].slice(0, 3);
-  }, [transactions, accounts, purchases, lendBorrowRecords, clients, tasks, invoices, habits]);
+  }, [transactions, accounts, purchases, lendBorrowRecords, clients, tasks, invoices, habits, investmentAssets, investmentGoals]);
 
   // Debounce search input for performance
   useEffect(() => {
@@ -476,140 +519,70 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   ];
   // Removed unused filteredTransfers - now using fuzzy search
 
-  // Enhanced fuzzy search configuration with optimized thresholds and weights
-  const fuseOptions = {
-    threshold: 0.3, // Lower threshold for more sensitive matching
-    keys: [
-      { name: 'description', weight: 0.4 },
-      { name: 'category', weight: 0.25 },
-      { name: 'tags', weight: 0.15 },
-      { name: 'transaction_id', weight: 0.1 },
-      { name: 'name', weight: 0.4 },
-      { name: 'type', weight: 0.15 },
-      { name: 'currency', weight: 0.05 },
-    ],
-    includeMatches: true,
-    minMatchCharLength: 1, // Allow single character matches for better UX
-    findAllMatches: true, // Find all matches, not just the first
-    ignoreLocation: true, // Ignore location of match in string
-    useExtendedSearch: true, // Enable extended search features
-  };
-  const fuseTransactions = new Fuse(transactions, fuseOptions);
-  const fuseAccounts = new Fuse(accounts, fuseOptions);
-  const fuseTransfers = new Fuse(allTransfers, fuseOptions);
-  const fusePurchases = new Fuse(purchases || [], {
-    threshold: 0.3,
-    keys: [
-      { name: 'item_name', weight: 0.4 },
-      { name: 'category', weight: 0.25 },
-      { name: 'notes', weight: 0.15 },
-      { name: 'status', weight: 0.1 },
-      { name: 'price', weight: 0.1 },
-    ],
-    includeMatches: true,
-    minMatchCharLength: 1,
-    findAllMatches: true,
-    ignoreLocation: true,
-    useExtendedSearch: true,
-  });
-  const fuseLendBorrow = new Fuse(lendBorrowRecords || [], {
-    threshold: 0.3,
-    keys: [
-      { name: 'person_name', weight: 0.4 },
-      { name: 'type', weight: 0.25 },
-      { name: 'notes', weight: 0.15 },
-      { name: 'status', weight: 0.1 },
-      { name: 'currency', weight: 0.1 },
-    ],
-    includeMatches: true,
-    minMatchCharLength: 1,
-    findAllMatches: true,
-    ignoreLocation: true,
-    useExtendedSearch: true,
-  });
-  const fuseDonations = new Fuse(donationSavingRecords || [], {
-    threshold: 0.3,
-    keys: [
-      { name: 'type', weight: 0.4 },
-      { name: 'note', weight: 0.3 },
-      { name: 'status', weight: 0.2 },
-      { name: 'mode', weight: 0.1 },
-    ],
-    includeMatches: true,
-    minMatchCharLength: 1,
-    findAllMatches: true,
-    ignoreLocation: true,
-    useExtendedSearch: true,
-  });
-  const fuseClients = new Fuse(clients || [], {
-    threshold: 0.3,
-    keys: [
-      { name: 'name', weight: 0.35 },
-      { name: 'company_name', weight: 0.25 },
-      { name: 'email', weight: 0.15 },
-      { name: 'source', weight: 0.1 },
-      { name: 'tags', weight: 0.1 },
-      { name: 'phone', weight: 0.05 },
-    ],
-    includeMatches: true,
-    minMatchCharLength: 1,
-    findAllMatches: true,
-    ignoreLocation: true,
-    useExtendedSearch: true,
-  });
-  const fuseTasks = new Fuse(tasks || [], {
-    threshold: 0.3,
-    keys: [
-      { name: 'title', weight: 0.4 },
-      { name: 'description', weight: 0.25 },
-      { name: 'status', weight: 0.15 },
-      { name: 'priority', weight: 0.1 },
-    ],
-    includeMatches: true,
-    minMatchCharLength: 1,
-    findAllMatches: true,
-    ignoreLocation: true,
-    useExtendedSearch: true,
-  });
-  const fuseInvoices = new Fuse(invoices || [], {
-    threshold: 0.3,
-    keys: [
-      { name: 'invoice_number', weight: 0.35 },
-      { name: 'status', weight: 0.15 },
-      { name: 'total', weight: 0.1 },
-      { name: 'notes', weight: 0.1 },
-      { name: 'payment_status', weight: 0.05 },
-    ],
-    includeMatches: true,
-    minMatchCharLength: 1,
-    findAllMatches: true,
-    ignoreLocation: true,
-    useExtendedSearch: true,
-  });
-  const fuseHabits = new Fuse(habits || [], {
-    threshold: 0.3,
-    keys: [
-      { name: 'title', weight: 0.5 },
-      { name: 'description', weight: 0.3 },
-    ],
-    includeMatches: true,
-    minMatchCharLength: 1,
-    findAllMatches: true,
-    ignoreLocation: true,
-    useExtendedSearch: true,
-  });
-  const fuseCourses = new Fuse(courses || [], {
-    threshold: 0.3,
-    keys: [
-      { name: 'name', weight: 0.5 },
-      { name: 'description', weight: 0.3 },
-    ],
-    includeMatches: true,
-    minMatchCharLength: 1,
-    findAllMatches: true,
-    ignoreLocation: true,
-    useExtendedSearch: true,
-  });
+  const financeFuzzyKeys: Array<{ name: string; weight: number }> = [
+    { name: 'description', weight: 0.4 },
+    { name: 'category', weight: 0.25 },
+    { name: 'tags', weight: 0.15 },
+    { name: 'transaction_id', weight: 0.1 },
+    { name: 'name', weight: 0.4 },
+    { name: 'type', weight: 0.15 },
+    { name: 'currency', weight: 0.05 },
+  ];
+  const fuseTransactions = createGlobalFuseIndex(transactions, financeFuzzyKeys);
+  const fuseAccounts = createGlobalFuseIndex(accounts, financeFuzzyKeys);
+  const fuseTransfers = createGlobalFuseIndex(allTransfers, financeFuzzyKeys);
+  const fusePurchases = createGlobalFuseIndex(purchases, [
+    { name: 'item_name', weight: 0.4 },
+    { name: 'category', weight: 0.25 },
+    { name: 'notes', weight: 0.15 },
+    { name: 'status', weight: 0.1 },
+    { name: 'price', weight: 0.1 },
+  ]);
+  const fuseLendBorrow = createGlobalFuseIndex(lendBorrowRecords, [
+    { name: 'person_name', weight: 0.4 },
+    { name: 'type', weight: 0.25 },
+    { name: 'notes', weight: 0.15 },
+    { name: 'status', weight: 0.1 },
+    { name: 'currency', weight: 0.1 },
+  ]);
+  const fuseDonations = createGlobalFuseIndex(donationSavingRecords, [
+    { name: 'type', weight: 0.4 },
+    { name: 'note', weight: 0.3 },
+    { name: 'status', weight: 0.2 },
+    { name: 'mode', weight: 0.1 },
+  ]);
+  const fuseClients = createGlobalFuseIndex(clients, [
+    { name: 'name', weight: 0.35 },
+    { name: 'company_name', weight: 0.25 },
+    { name: 'email', weight: 0.15 },
+    { name: 'source', weight: 0.1 },
+    { name: 'tags', weight: 0.1 },
+    { name: 'phone', weight: 0.05 },
+  ]);
+  const fuseTasks = createGlobalFuseIndex(tasks, [
+    { name: 'title', weight: 0.4 },
+    { name: 'description', weight: 0.25 },
+    { name: 'status', weight: 0.15 },
+    { name: 'priority', weight: 0.1 },
+  ]);
+  const fuseInvoices = createGlobalFuseIndex(invoices, [
+    { name: 'invoice_number', weight: 0.35 },
+    { name: 'status', weight: 0.15 },
+    { name: 'total', weight: 0.1 },
+    { name: 'notes', weight: 0.1 },
+    { name: 'payment_status', weight: 0.05 },
+  ]);
+  const fuseHabits = createGlobalFuseIndex(habits, [
+    { name: 'title', weight: 0.5 },
+    { name: 'description', weight: 0.3 },
+  ]);
+  const fuseCourses = createGlobalFuseIndex(courses, [
+    { name: 'name', weight: 0.5 },
+    { name: 'description', weight: 0.3 },
+  ]);
+  const fuseInvAssets = createGlobalFuseIndex(investmentAssets, GLOBAL_SEARCH_INV_ASSET_KEYS);
+  const fuseInvTransactions = createGlobalFuseIndex(investmentTransactions, GLOBAL_SEARCH_INV_TX_KEYS);
+  const fuseInvGoals = createGlobalFuseIndex(investmentGoals, GLOBAL_SEARCH_INV_GOAL_KEYS);
 
   // Memoized search results with caching
   const searchResults = useMemo(() => {
@@ -625,12 +598,28 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         fuzzyTasks: [],
         fuzzyInvoices: [],
         fuzzyHabits: [],
-        fuzzyCourses: []
+        fuzzyCourses: [],
+        fuzzyInvestments: [],
       };
     }
 
-    // Check cache first
-    const cacheKey = debouncedSearch.toLowerCase();
+    const cacheKey = `${debouncedSearch.toLowerCase()}\0${globalSearchCacheFingerprint({
+      transactions,
+      accounts,
+      purchases,
+      lendBorrowRecords,
+      donationSavingRecords,
+      clients,
+      tasks,
+      invoices,
+      habits,
+      courses,
+      investmentAssets,
+      investmentTransactions,
+      investmentGoals,
+      transfers,
+      dpsTransfers,
+    })}`;
     if (searchCache.has(cacheKey)) {
       return searchCache.get(cacheKey);
     }
@@ -638,7 +627,16 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     // Expand query with synonyms
     const expandedQuery = expandQuery(debouncedSearch.toLowerCase()).join(' ');
 
-    // Perform fuzzy search
+    const invMerged = [
+      ...fuseInvAssets.search(expandedQuery).map(r => ({ ...r, invKind: 'investment_asset' as const })),
+      ...fuseInvTransactions.search(expandedQuery).map(r => ({ ...r, invKind: 'investment_transaction' as const })),
+      ...fuseInvGoals.search(expandedQuery).map(r => ({ ...r, invKind: 'investment_goal' as const })),
+    ].sort((a, b) => {
+      const ta = new Date((a.item as { transaction_date?: string; created_at?: string }).transaction_date || a.item.created_at || 0).getTime();
+      const tb = new Date((b.item as { transaction_date?: string; created_at?: string }).transaction_date || b.item.created_at || 0).getTime();
+      return tb - ta;
+    });
+
     const results = {
       fuzzyTransactions: fuseTransactions.search(expandedQuery),
       fuzzyAccounts: fuseAccounts.search(expandedQuery),
@@ -650,7 +648,8 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       fuzzyTasks: fuseTasks.search(expandedQuery),
       fuzzyInvoices: fuseInvoices.search(expandedQuery),
       fuzzyHabits: fuseHabits.search(expandedQuery),
-      fuzzyCourses: fuseCourses.search(expandedQuery)
+      fuzzyCourses: fuseCourses.search(expandedQuery),
+      fuzzyInvestments: invMerged,
     };
 
     // Cache results (limit cache size to prevent memory issues)
@@ -663,9 +662,54 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     searchCache.set(cacheKey, results);
 
     return results;
-  }, [debouncedSearch, fuseTransactions, fuseAccounts, fuseTransfers, fusePurchases, fuseLendBorrow, fuseDonations, fuseClients, fuseTasks, fuseInvoices, fuseHabits, fuseCourses, searchCache]);
+  }, [
+    debouncedSearch,
+    transactions,
+    accounts,
+    purchases,
+    lendBorrowRecords,
+    donationSavingRecords,
+    clients,
+    tasks,
+    invoices,
+    habits,
+    courses,
+    investmentAssets,
+    investmentTransactions,
+    investmentGoals,
+    transfers,
+    dpsTransfers,
+    fuseTransactions,
+    fuseAccounts,
+    fuseTransfers,
+    fusePurchases,
+    fuseLendBorrow,
+    fuseDonations,
+    fuseClients,
+    fuseTasks,
+    fuseInvoices,
+    fuseHabits,
+    fuseCourses,
+    fuseInvAssets,
+    fuseInvTransactions,
+    fuseInvGoals,
+    searchCache,
+  ]);
 
-  const { fuzzyTransactions, fuzzyAccounts, fuzzyTransfers, fuzzyPurchases, fuzzyLendBorrow, fuzzyDonations, fuzzyClients, fuzzyTasks, fuzzyInvoices, fuzzyHabits, fuzzyCourses } = searchResults;
+  const {
+    fuzzyTransactions,
+    fuzzyAccounts,
+    fuzzyTransfers,
+    fuzzyPurchases,
+    fuzzyLendBorrow,
+    fuzzyDonations,
+    fuzzyClients,
+    fuzzyTasks,
+    fuzzyInvoices,
+    fuzzyHabits,
+    fuzzyCourses,
+    fuzzyInvestments = [],
+  } = searchResults;
 
   // Simple date-based sorting function - latest first within each category
   const sortByLatest = (results: any[]) => {
@@ -691,12 +735,62 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   const rankedInvoices = search ? sortByLatest(fuzzyInvoices) : [];
   const rankedHabits = search ? sortByLatest(fuzzyHabits) : [];
   const rankedCourses = search ? sortByLatest(fuzzyCourses) : [];
+  const rankedInvestments = search ? fuzzyInvestments : [];
 
+  const searchOffsets = useMemo(() => {
+    const L = {
+      tx: rankedTransactions.length,
+      pur: rankedPurchases.length,
+      trf: rankedTransfers.length,
+      acc: rankedAccounts.length,
+      inv: rankedInvestments.length,
+      lb: rankedLendBorrow.length,
+      don: rankedDonations.length,
+      cli: rankedClients.length,
+      tas: rankedTasks.length,
+      invdoc: rankedInvoices.length,
+      hab: rankedHabits.length,
+      cou: rankedCourses.length,
+    };
+    const s = (keys: (keyof typeof L)[]) => keys.reduce((n, k) => n + L[k], 0);
+    return {
+      invStart: s(['tx', 'pur', 'trf', 'acc']),
+      lbStart: s(['tx', 'pur', 'trf', 'acc', 'inv']),
+      donStart: s(['tx', 'pur', 'trf', 'acc', 'inv', 'lb']),
+      cliStart: s(['tx', 'pur', 'trf', 'acc', 'inv', 'lb', 'don']),
+      tasStart: s(['tx', 'pur', 'trf', 'acc', 'inv', 'lb', 'don', 'cli']),
+      invdocStart: s(['tx', 'pur', 'trf', 'acc', 'inv', 'lb', 'don', 'cli', 'tas']),
+      habStart: s(['tx', 'pur', 'trf', 'acc', 'inv', 'lb', 'don', 'cli', 'tas', 'invdoc']),
+      couStart: s(['tx', 'pur', 'trf', 'acc', 'inv', 'lb', 'don', 'cli', 'tas', 'invdoc', 'hab']),
+    };
+  }, [
+    rankedTransactions.length,
+    rankedPurchases.length,
+    rankedTransfers.length,
+    rankedAccounts.length,
+    rankedInvestments.length,
+    rankedLendBorrow.length,
+    rankedDonations.length,
+    rankedClients.length,
+    rankedTasks.length,
+    rankedInvoices.length,
+    rankedHabits.length,
+    rankedCourses.length,
+  ]);
 
-  // Debug logging - REMOVED to prevent console flooding
-
-  // Calculate total results for keyboard navigation
-  const totalResults = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length + rankedClients.length + rankedTasks.length + rankedInvoices.length + rankedHabits.length + rankedCourses.length;
+  const totalResults =
+    rankedTransactions.length +
+    rankedPurchases.length +
+    rankedTransfers.length +
+    rankedAccounts.length +
+    rankedInvestments.length +
+    rankedLendBorrow.length +
+    rankedDonations.length +
+    rankedClients.length +
+    rankedTasks.length +
+    rankedInvoices.length +
+    rankedHabits.length +
+    rankedCourses.length;
 
   // Highlight helper
   function highlight(text: string, matches: any[]): React.ReactNode {
@@ -765,10 +859,12 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
           const donLen = rankedDonations.length;
           const cliLen = rankedClients.length;
           const tasLen = rankedTasks.length;
-          const invLen = rankedInvoices.length;
+          const invdocLen = rankedInvoices.length;
           const habLen = rankedHabits.length;
           const couLen = rankedCourses.length;
-          
+          const invLen = rankedInvestments.length;
+          const invStart = txLen + purLen + trfLen + accLen;
+
           if (txLen > 0 && highlightedIdx < txLen) {
             item = rankedTransactions[highlightedIdx]?.item;
             itemType = 'transaction';
@@ -781,26 +877,30 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
           } else if (accLen > 0 && highlightedIdx >= txLen + purLen + trfLen && highlightedIdx < txLen + purLen + trfLen + accLen) {
             item = rankedAccounts[highlightedIdx - txLen - purLen - trfLen]?.item;
             itemType = 'account';
-          } else if (lbLen > 0 && highlightedIdx >= txLen + purLen + trfLen + accLen && highlightedIdx < txLen + purLen + trfLen + accLen + lbLen) {
-            item = rankedLendBorrow[highlightedIdx - txLen - purLen - trfLen - accLen]?.item;
+          } else if (invLen > 0 && highlightedIdx >= invStart && highlightedIdx < invStart + invLen) {
+            const hit = rankedInvestments[highlightedIdx - invStart];
+            item = hit.item;
+            itemType = hit.invKind;
+          } else if (lbLen > 0 && highlightedIdx >= invStart + invLen && highlightedIdx < invStart + invLen + lbLen) {
+            item = rankedLendBorrow[highlightedIdx - invStart - invLen]?.item;
             itemType = 'lendborrow';
-          } else if (donLen > 0 && highlightedIdx >= txLen + purLen + trfLen + accLen + lbLen && highlightedIdx < txLen + purLen + trfLen + accLen + lbLen + donLen) {
-            item = rankedDonations[highlightedIdx - txLen - purLen - trfLen - accLen - lbLen]?.item;
+          } else if (donLen > 0 && highlightedIdx >= invStart + invLen + lbLen && highlightedIdx < invStart + invLen + lbLen + donLen) {
+            item = rankedDonations[highlightedIdx - invStart - invLen - lbLen]?.item;
             itemType = 'donation';
-          } else if (cliLen > 0 && highlightedIdx >= txLen + purLen + trfLen + accLen + lbLen + donLen && highlightedIdx < txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen) {
-            item = rankedClients[highlightedIdx - txLen - purLen - trfLen - accLen - lbLen - donLen]?.item;
+          } else if (cliLen > 0 && highlightedIdx >= invStart + invLen + lbLen + donLen && highlightedIdx < invStart + invLen + lbLen + donLen + cliLen) {
+            item = rankedClients[highlightedIdx - invStart - invLen - lbLen - donLen]?.item;
             itemType = 'client';
-          } else if (tasLen > 0 && highlightedIdx >= txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen && highlightedIdx < txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen + tasLen) {
-            item = rankedTasks[highlightedIdx - txLen - purLen - trfLen - accLen - lbLen - donLen - cliLen]?.item;
+          } else if (tasLen > 0 && highlightedIdx >= invStart + invLen + lbLen + donLen + cliLen && highlightedIdx < invStart + invLen + lbLen + donLen + cliLen + tasLen) {
+            item = rankedTasks[highlightedIdx - invStart - invLen - lbLen - donLen - cliLen]?.item;
             itemType = 'task';
-          } else if (invLen > 0 && highlightedIdx >= txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen + tasLen && highlightedIdx < txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen + tasLen + invLen) {
-            item = rankedInvoices[highlightedIdx - txLen - purLen - trfLen - accLen - lbLen - donLen - cliLen - tasLen]?.item;
+          } else if (invdocLen > 0 && highlightedIdx >= invStart + invLen + lbLen + donLen + cliLen + tasLen && highlightedIdx < invStart + invLen + lbLen + donLen + cliLen + tasLen + invdocLen) {
+            item = rankedInvoices[highlightedIdx - invStart - invLen - lbLen - donLen - cliLen - tasLen]?.item;
             itemType = 'invoice';
-          } else if (habLen > 0 && highlightedIdx >= txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen + tasLen + invLen && highlightedIdx < txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen + tasLen + invLen + habLen) {
-            item = rankedHabits[highlightedIdx - txLen - purLen - trfLen - accLen - lbLen - donLen - cliLen - tasLen - invLen]?.item;
+          } else if (habLen > 0 && highlightedIdx >= invStart + invLen + lbLen + donLen + cliLen + tasLen + invdocLen && highlightedIdx < invStart + invLen + lbLen + donLen + cliLen + tasLen + invdocLen + habLen) {
+            item = rankedHabits[highlightedIdx - invStart - invLen - lbLen - donLen - cliLen - tasLen - invdocLen]?.item;
             itemType = 'habit';
-          } else if (couLen > 0 && highlightedIdx >= txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen + tasLen + invLen + habLen && highlightedIdx < txLen + purLen + trfLen + accLen + lbLen + donLen + cliLen + tasLen + invLen + habLen + couLen) {
-            item = rankedCourses[highlightedIdx - txLen - purLen - trfLen - accLen - lbLen - donLen - cliLen - tasLen - invLen - habLen]?.item;
+          } else if (couLen > 0 && highlightedIdx >= invStart + invLen + lbLen + donLen + cliLen + tasLen + invdocLen + habLen && highlightedIdx < invStart + invLen + lbLen + donLen + cliLen + tasLen + invdocLen + habLen + couLen) {
+            item = rankedCourses[highlightedIdx - invStart - invLen - lbLen - donLen - cliLen - tasLen - invdocLen - habLen]?.item;
             itemType = 'course';
           }
         } else {
@@ -819,7 +919,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isFocused, search, highlightedIdx, rankedTransactions, rankedPurchases, rankedTransfers, rankedAccounts, rankedLendBorrow, rankedDonations, rankedClients, rankedTasks, rankedInvoices, rankedHabits, rankedCourses, recentSearches, setGlobalSearchTerm]);
+  }, [isFocused, search, highlightedIdx, rankedTransactions, rankedPurchases, rankedTransfers, rankedAccounts, rankedInvestments, rankedLendBorrow, rankedDonations, rankedClients, rankedTasks, rankedInvoices, rankedHabits, rankedCourses, recentSearches, setGlobalSearchTerm]);
 
   // Show recent searches if input is focused and empty
   
@@ -1198,6 +1298,67 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
           </div>
         )}
 
+        {rankedInvestments.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-violet-500 rounded-full"></span>
+              Investments ({rankedInvestments.length})
+            </h3>
+            <div className="space-y-2">
+              {(showAllInvestments ? rankedInvestments : rankedInvestments.slice(0, 3)).map((res, index) => {
+                const invIdx = searchOffsets.invStart + index;
+                const matchKeys =
+                  res.invKind === 'investment_asset'
+                    ? ['name', 'symbol', 'asset_type', 'notes']
+                    : res.invKind === 'investment_goal'
+                      ? ['name', 'description', 'status', 'priority']
+                      : ['transaction_type', 'notes', 'currency'];
+                const primary =
+                  res.invKind === 'investment_asset'
+                    ? [res.item.symbol, res.item.name].filter(Boolean).join(' · ') || res.item.name
+                    : res.invKind === 'investment_goal'
+                      ? res.item.name || ''
+                      : res.item.transaction_type || 'Transaction';
+                const sub =
+                  res.invKind === 'investment_asset'
+                    ? `${String(res.item.asset_type || '').replace(/_/g, ' ')} · ${formatCurrency(res.item.total_value, res.item.currency)}`
+                    : res.invKind === 'investment_goal'
+                      ? `${res.item.status || ''} · ${formatCurrency(res.item.current_amount, 'USD')} / ${formatCurrency(res.item.target_amount, 'USD')}`
+                      : `${formatCurrency(res.item.total_amount, res.item.currency)} · ${formatSearchDate(res.item.transaction_date || res.item.created_at)}`;
+                return (
+                  <button
+                    key={`${res.invKind}-${res.item.id}-${index}`}
+                    onClick={() => handleResultClick(res.invKind, res.item)}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                      highlightedIdx === invIdx ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-violet-100 dark:bg-violet-900/20 rounded-lg flex items-center justify-center">
+                        <TrendingUp className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {highlight(primary, (res.matches?.filter((m: any) => matchKeys.includes(m.key)) ?? []) as any[])}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{sub}</div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+              {rankedInvestments.length > 3 && (
+                <button
+                  className="w-full text-center text-xs text-blue-600 dark:text-blue-400 mt-2"
+                  onClick={() => setShowAllInvestments(v => !v)}
+                >
+                  {showAllInvestments ? 'Show less' : `Show more (${rankedInvestments.length - 3})`}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Lend & Borrow Section */}
         {rankedLendBorrow.length > 0 && (
           <div className="mb-6">
@@ -1211,7 +1372,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                   key={`lendborrow-${index}`}
                   onClick={() => handleResultClick('lendborrow', res.item)}
                   className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                    highlightedIdx === rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    highlightedIdx === searchOffsets.lbStart + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -1244,7 +1405,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
             </h3>
             <div className="space-y-2">
               {(showAllClients ? rankedClients : rankedClients.slice(0, 3)).map((res, index) => {
-                const clientOffset = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length;
+                const clientOffset = searchOffsets.cliStart;
                 return (
                   <button
                     key={`client-${index}`}
@@ -1290,7 +1451,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
             </h3>
             <div className="space-y-2">
               {(showAllTasks ? rankedTasks : rankedTasks.slice(0, 3)).map((res, index) => {
-                const taskOffset = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length + rankedClients.length;
+                const taskOffset = searchOffsets.tasStart;
                 const client = clients?.find(c => c.id === res.item.client_id);
                 return (
                   <button
@@ -1337,7 +1498,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
             </h3>
             <div className="space-y-2">
               {(showAllInvoices ? rankedInvoices : rankedInvoices.slice(0, 3)).map((res, index) => {
-                const invoiceOffset = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length + rankedClients.length + rankedTasks.length;
+                const invoiceOffset = searchOffsets.invdocStart;
                 const client = clients?.find(c => c.id === res.item.client_id);
                 return (
                   <button
@@ -1384,7 +1545,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
             </h3>
             <div className="space-y-2">
               {rankedDonations.slice(0, 3).map((res, index) => {
-                const donationOffset = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length;
+                const donationOffset = searchOffsets.donStart;
                 return (
                   <button
                     key={`donation-${index}`}
@@ -1444,7 +1605,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
             </h3>
             <div className="space-y-2">
               {(showAllHabits ? rankedHabits : rankedHabits.slice(0, 3)).map((res, index) => {
-                const habitOffset = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length + rankedClients.length + rankedTasks.length + rankedInvoices.length;
+                const habitOffset = searchOffsets.habStart;
                 return (
                   <button
                     key={`habit-${index}`}
@@ -1492,7 +1653,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
             </h3>
             <div className="space-y-2">
               {(showAllCourses ? rankedCourses : rankedCourses.slice(0, 3)).map((res, index) => {
-                const courseOffset = rankedTransactions.length + rankedPurchases.length + rankedTransfers.length + rankedAccounts.length + rankedLendBorrow.length + rankedDonations.length + rankedClients.length + rankedTasks.length + rankedInvoices.length + rankedHabits.length;
+                const courseOffset = searchOffsets.couStart;
                 return (
                   <button
                     key={`course-${index}`}
@@ -1532,7 +1693,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         )}
 
         {/* No Results */}
-        {search && rankedTransactions.length === 0 && rankedPurchases.length === 0 && rankedTransfers.length === 0 && rankedAccounts.length === 0 && rankedLendBorrow.length === 0 && rankedDonations.length === 0 && rankedClients.length === 0 && rankedTasks.length === 0 && rankedInvoices.length === 0 && rankedHabits.length === 0 && rankedCourses.length === 0 && (
+        {search && rankedTransactions.length === 0 && rankedPurchases.length === 0 && rankedTransfers.length === 0 && rankedAccounts.length === 0 && rankedInvestments.length === 0 && rankedLendBorrow.length === 0 && rankedDonations.length === 0 && rankedClients.length === 0 && rankedTasks.length === 0 && rankedInvoices.length === 0 && rankedHabits.length === 0 && rankedCourses.length === 0 && (
           <div className="text-center py-8">
             <div className="text-gray-400 dark:text-gray-500 mb-2">
               <Search className="w-8 h-8 mx-auto" />

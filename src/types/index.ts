@@ -364,7 +364,6 @@ export interface PaymentHistoryStats {
 // INVESTMENT TRACKING EXPORTS
 // =====================================================
 export * from './investment';
-export * from './simple-investment';
 
 // =====================================================
 // LEARNING TRACKING TYPES

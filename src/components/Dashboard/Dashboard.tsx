@@ -132,6 +132,36 @@ const migrateWidgetConfig = (config: WidgetConfig[]): WidgetConfig[] => {
   }));
 };
 
+const DEFAULT_MAIN_DASHBOARD_WIDGET_ORDER = [
+  'investments',
+  'donations',
+  'purchases',
+  'lend-borrow',
+  'transfers',
+  'clients',
+  'learning',
+] as const;
+
+const MAIN_DASHBOARD_WIDGET_ID_SET = new Set<string>(DEFAULT_MAIN_DASHBOARD_WIDGET_ORDER);
+
+/** Ensures investments precedes donations; fills missing ids; drops unknown ids. */
+function normalizeMainDashboardWidgetOrder(raw: unknown): string[] {
+  if (!Array.isArray(raw) || !raw.every((x): x is string => typeof x === 'string')) {
+    return [...DEFAULT_MAIN_DASHBOARD_WIDGET_ORDER];
+  }
+  const ids = [...new Set(raw.filter((id) => MAIN_DASHBOARD_WIDGET_ID_SET.has(id)))];
+  DEFAULT_MAIN_DASHBOARD_WIDGET_ORDER.forEach((id) => {
+    if (!ids.includes(id)) ids.push(id);
+  });
+  const iInv = ids.indexOf('investments');
+  const iDon = ids.indexOf('donations');
+  if (iDon !== -1 && iInv !== -1 && iInv > iDon) {
+    ids.splice(iInv, 1);
+    ids.splice(iDon, 0, 'investments');
+  }
+  return ids;
+}
+
 interface DashboardProps {
   onViewChange?: (view: string) => void;
 }
@@ -199,7 +229,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
   // Main dashboard widget order
   const [mainDashboardWidgetOrder, setMainDashboardWidgetOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem('mainDashboardWidgetOrder');
-    return saved ? JSON.parse(saved) : ['donations', 'purchases', 'lend-borrow', 'investments', 'transfers', 'clients', 'learning'];
+    if (!saved) return normalizeMainDashboardWidgetOrder(null);
+    try {
+      return normalizeMainDashboardWidgetOrder(JSON.parse(saved));
+    } catch {
+      return normalizeMainDashboardWidgetOrder(null);
+    }
   });
 
   // Accordion state for right sidebar widgets
@@ -1057,8 +1092,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     const widgets: Array<{ id: string; render: () => React.ReactNode }> = [];
     const { hasDonations, hasLearning } = widgetAvailability;
 
-    // Donations Overview Card (position 1)
-    // Check both visibility flag AND actual data availability
+    if (widgetAvailability.hasInvestments && showInvestmentsWidget) {
+      widgets.push({
+        id: 'investments',
+        render: () => (
+          <div className="w-full h-full animate-fadeIn" key="investments">
+            <InvestmentSummaryCard filterCurrency={dashboardCurrencyFilter} />
+          </div>
+        )
+      });
+    }
+
     if (showDonationsSavingsWidget && hasDonations) {
       widgets.push({
         id: 'donations',
@@ -1075,7 +1119,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       });
     }
 
-    // Purchase Overview (position 2)
+    // Purchase Overview
     if (purchases.length > 0 && showPurchasesWidget) {
       widgets.push({
         id: 'purchases',
@@ -1087,7 +1131,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       });
     }
 
-    // L&B Summary Card (position 3)
+    // L&B Summary Card
     if (isPremium && hasLendBorrowRecords && showLendBorrowWidget) {
       widgets.push({
         id: 'lend-borrow',
@@ -1099,18 +1143,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       });
     }
 
-    if (widgetAvailability.hasInvestments && showInvestmentsWidget) {
-      widgets.push({
-        id: 'investments',
-        render: () => (
-          <div className="w-full h-full animate-fadeIn" key="investments">
-            <InvestmentSummaryCard filterCurrency={dashboardCurrencyFilter} />
-          </div>
-        )
-      });
-    }
-
-    // Transfer Summary Card (position 4)
+    // Transfer Summary Card
     if (hasTransfers && showTransferWidget) {
       widgets.push({
         id: 'transfers',
@@ -1122,7 +1155,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       });
     }
 
-    // Clients Overview Card (position 5)
+    // Clients Overview Card
     if (clients.length > 0 && showClientsWidget) {
       widgets.push({
         id: 'clients',
@@ -1134,7 +1167,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       });
     }
 
-    // Learning Summary Card (position 6) - only show if has courses and widget is visible
+    // Learning Summary Card
     if (hasLearning && showLearningWidget) {
       widgets.push({
         id: 'learning',
@@ -1645,6 +1678,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
               const { hasDonations, hasPurchases, hasLendBorrow, hasTransfersCard, hasClientsCard, hasLearning } = widgetAvailability;
               const widgetsMap: Record<string, MainDashboardWidget> = {};
               
+              if (widgetAvailability.hasInvestments) {
+                widgetsMap['investments'] = {
+                  id: 'investments',
+                  name: 'Investments',
+                  visible: showInvestmentsWidget,
+                  available: true,
+                  order: 0,
+                };
+              }
               if (hasDonations) {
                 widgetsMap['donations'] = {
                   id: 'donations',
@@ -1695,15 +1737,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
                   id: 'learning',
                   name: 'Learning',
                   visible: showLearningWidget,
-                  available: true,
-                  order: 0,
-                };
-              }
-              if (widgetAvailability.hasInvestments) {
-                widgetsMap['investments'] = {
-                  id: 'investments',
-                  name: 'Investments',
-                  visible: showInvestmentsWidget,
                   available: true,
                   order: 0,
                 };

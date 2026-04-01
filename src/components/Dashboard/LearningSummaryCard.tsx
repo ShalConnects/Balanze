@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ArrowRight, Info, X, Plus } from 'lucide-react';
+import { ArrowRight, X, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCourseStore } from '../../store/useCourseStore';
 import { StatCard } from './StatCard';
@@ -8,6 +8,7 @@ import { getPreference, setPreference } from '../../lib/userPreferences';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
 import { CourseForm } from '../Learning/CourseForm';
+import { DashboardWidgetInfo } from './DashboardWidgetInfo';
 
 interface LearningSummaryCardProps {
   filterCurrency?: string;
@@ -23,8 +24,6 @@ export const LearningSummaryCard: React.FC<LearningSummaryCardProps> = () => {
   } = useCourseStore();
   
   const [loading, setLoading] = useState(true);
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [showMobileModal, setShowMobileModal] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [showCrossTooltip, setShowCrossTooltip] = useState(false);
   const [showCourseForm, setShowCourseForm] = useState(false);
@@ -210,6 +209,59 @@ export const LearningSummaryCard: React.FC<LearningSummaryCardProps> = () => {
       });
   }, [courses, modules]);
 
+  const learningInfoBody = useMemo(
+    () => (
+      <div className="space-y-2 sm:space-y-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="min-w-0">
+            <div className="mb-0.5 truncate text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">Total Courses:</div>
+            <div className="break-words bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
+              {learningStats.totalCourses} courses
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div className="mb-0.5 truncate text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">Total Modules:</div>
+            <div className="break-words bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
+              {learningStats.totalModules} modules
+            </div>
+          </div>
+        </div>
+        <div className="mt-2 border-t border-gray-200 pt-2 dark:border-gray-700">
+          <div className="mb-0.5 text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">Completed Modules:</div>
+          <div className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
+            {learningStats.completedModules} / {learningStats.totalModules} ({learningStats.overallProgress}%)
+          </div>
+        </div>
+        {recentCourses.length > 0 && (
+          <>
+            <div className="mt-2 border-t border-gray-200 dark:border-gray-700" />
+            <div>
+              <div className="mb-1">
+                <div className="text-[10px] font-semibold text-gray-900 dark:text-gray-100 sm:text-[11px]">Recent Courses</div>
+              </div>
+              <ul className="max-h-32 space-y-0.5 overflow-y-auto sm:max-h-40">
+                {recentCourses.map((course) => (
+                  <li
+                    key={course.id}
+                    className="flex items-center justify-between rounded py-0.5 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-[10px] text-gray-700 dark:text-gray-300 sm:text-[11px]" title={course.name}>
+                      {course.name}
+                    </span>
+                    <span className="ml-2 flex-shrink-0 tabular-nums text-[10px] font-medium text-gray-900 dark:text-gray-100 sm:text-[11px]">
+                      {course.completedCount}/{course.moduleCount} ({course.progress}%)
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>
+        )}
+      </div>
+    ),
+    [learningStats, recentCourses]
+  );
+
   if (loading) {
     return (
       <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm border border-blue-200/50 dark:border-blue-800/50 h-full flex flex-col">
@@ -310,81 +362,9 @@ export const LearningSummaryCard: React.FC<LearningSummaryCardProps> = () => {
         {/* Left side - Info button */}
         <div className="flex items-center gap-2 flex-1">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Learning</h2>
-          <div className="relative flex items-center">
-            <button
-              type="button"
-              className="ml-1 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-110 active:scale-95"
-              onMouseEnter={() => !isMobile && setShowTooltip(true)}
-              onMouseLeave={() => !isMobile && setShowTooltip(false)}
-              onFocus={() => !isMobile && setShowTooltip(true)}
-              onBlur={() => !isMobile && setShowTooltip(false)}
-              onClick={() => {
-                if (isMobile) {
-                  setShowMobileModal(true);
-                } else {
-                  setShowTooltip(v => !v);
-                }
-              }}
-              tabIndex={0}
-              aria-label="Show learning info"
-            >
-              <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200" />
-            </button>
-            {showTooltip && !isMobile && (
-              <div className="absolute left-1/2 top-full z-50 mt-2 w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-3 sm:p-4 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
-                <div className="space-y-2 sm:space-y-3">
-                  {/* Learning Stats - Side by Side */}
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                    {/* Total Courses */}
-                    <div className="min-w-0">
-                      <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">Total Courses:</div>
-                      <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent break-words">
-                        {learningStats.totalCourses} courses
-                      </div>
-                    </div>
-
-                    {/* Total Modules */}
-                    <div className="min-w-0">
-                      <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">Total Modules:</div>
-                      <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent break-words">
-                        {learningStats.totalModules} modules
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Completed Modules */}
-                  <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
-                    <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5">Completed Modules:</div>
-                    <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                      {learningStats.completedModules} / {learningStats.totalModules} ({learningStats.overallProgress}%)
-                    </div>
-                  </div>
-
-                  {/* Recent Courses */}
-                  {recentCourses.length > 0 && (
-                    <>
-                      <div className="border-t border-gray-200 dark:border-gray-700 mt-2"></div>
-                      <div>
-                        <div className="mb-1">
-                          <div className="font-semibold text-gray-900 dark:text-gray-100 text-[10px] sm:text-[11px]">Recent Courses</div>
-                        </div>
-                        <ul className="space-y-0.5 max-h-32 sm:max-h-40 overflow-y-auto">
-                          {recentCourses.map((course) => (
-                            <li key={course.id} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
-                              <span className="truncate flex-1 text-[10px] sm:text-[11px] text-gray-700 dark:text-gray-300 min-w-0" title={course.name}>{course.name}</span>
-                              <span className="ml-2 tabular-nums font-medium text-[10px] sm:text-[11px] text-gray-900 dark:text-gray-100 flex-shrink-0">
-                                {course.completedCount}/{course.moduleCount} ({course.progress}%)
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <DashboardWidgetInfo title="Learning" ariaLabel="Show learning info">
+            {learningInfoBody}
+          </DashboardWidgetInfo>
         </div>
         
         {/* Right side - Controls */}
@@ -416,72 +396,6 @@ export const LearningSummaryCard: React.FC<LearningSummaryCardProps> = () => {
         </div>
       </div>
 
-      {/* Mobile Modal for Learning Info */}
-      {showMobileModal && isMobile && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setShowMobileModal(false)} />
-          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 md:w-96 max-w-md animate-fadein">
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <div className="font-semibold text-xs sm:text-sm text-gray-700 dark:text-gray-200">Learning Info</div>
-              <button
-                onClick={() => setShowMobileModal(false)}
-                className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ml-2 touch-manipulation"
-              >
-                <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-              </button>
-            </div>
-            
-            <div className="space-y-3 sm:space-y-4">
-              {/* Learning Stats - Side by Side */}
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                {/* Total Courses */}
-                <div>
-                  <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-1">Total Courses:</div>
-                  <div className="font-medium text-sm sm:text-base text-blue-600 dark:text-blue-400">
-                    {learningStats.totalCourses}
-                  </div>
-                </div>
-                {/* Total Modules */}
-                <div>
-                  <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-1">Total Modules:</div>
-                  <div className="font-medium text-sm sm:text-base text-green-600 dark:text-green-400">
-                    {learningStats.totalModules}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-                <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-1">Completed Modules:</div>
-                <div className="font-medium text-sm sm:text-base text-purple-600 dark:text-purple-400">
-                  {learningStats.completedModules} / {learningStats.totalModules} ({learningStats.overallProgress}%)
-                </div>
-              </div>
-
-              {/* Recent Courses */}
-              {recentCourses.length > 0 && (
-                <>
-                  <div className="border-t border-gray-200 dark:border-gray-700 mt-3"></div>
-                  <div>
-                    <div className="mb-1">
-                      <div className="font-semibold text-[10px] sm:text-xs text-gray-900 dark:text-gray-100">Recent Courses</div>
-                    </div>
-                    <ul className="space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
-                      {recentCourses.map((course) => (
-                        <li key={course.id} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
-                          <span className="truncate flex-1 text-[10px] sm:text-xs text-gray-700 dark:text-gray-300 min-w-0" title={course.name}>{course.name}</span>
-                          <span className="ml-2 tabular-nums font-medium text-[10px] sm:text-xs text-gray-900 dark:text-gray-100 flex-shrink-0">
-                            {course.completedCount}/{course.moduleCount} ({course.progress}%)
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
       {showCourseForm && (
         <CourseForm
           course={null}

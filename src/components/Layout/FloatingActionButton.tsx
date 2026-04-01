@@ -89,10 +89,6 @@ export const FloatingActionButton: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const isFullFabMenu =
-    location.pathname === '/' ||
-    location.pathname === '/dashboard' ||
-    location.pathname === '/dashboard-demo-only';
   const { user } = useAuthStore();
 
   // Check if categories exist and redirect to settings if needed - memoized to prevent infinite re-renders
@@ -215,7 +211,7 @@ export const FloatingActionButton: React.FC = () => {
     else navigate('/');
   }, [location.pathname, navigate]);
 
-  // Group actions by category (full menu on dashboard + demo; compact + home elsewhere)
+  /** Financial omits "Go to Dashboard" only on `/` and `/dashboard`; all other routes prepend it (incl. demo close on `/dashboard-demo-only`). */
   const actionsByCategory = React.useMemo(() => {
     const financial = [
       { label: t('dashboard.addTransaction'), icon: TrendingUp, color: 'bg-blue-600', onClick: () => handleAction(handleAddTransaction), delay: '200ms' },
@@ -241,21 +237,14 @@ export const FloatingActionButton: React.FC = () => {
       delay: '0ms',
     };
 
-    if (!isFullFabMenu) {
-      return [{ category: 'Quick actions', actions: [homeAction, ...financial] }];
-    }
-    if (location.pathname === '/dashboard-demo-only') {
-      return [
-        { category: 'Financial', actions: [homeAction, ...financial] },
-        { category: 'Personal Growth', actions: personalGrowth },
-      ];
-    }
+    const financialActions =
+      location.pathname === '/' || location.pathname === '/dashboard' ? financial : [homeAction, ...financial];
+
     return [
-      { category: 'Financial', actions: financial },
-      { category: 'Personal Growth', actions: personalGrowth },
+      { category: 'Financial', actions: financialActions },
+      { category: 'Personal Growth', actions: personalGrowth }
     ];
   }, [
-    isFullFabMenu,
     location.pathname,
     t,
     handleAction,

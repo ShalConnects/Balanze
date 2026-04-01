@@ -312,7 +312,7 @@ export const AssetManagement: React.FC<AssetManagementProps> = ({
                   </button>
                   <button
                     onClick={() => onDeleteAsset?.(asset.id)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                     Delete

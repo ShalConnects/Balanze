@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Building2, ArrowRight, Info, X } from 'lucide-react';
+import { Building2, ArrowRight, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useClientStore } from '../../store/useClientStore';
 import { StatCard } from './StatCard';
@@ -8,6 +8,7 @@ import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
+import { DashboardWidgetInfo } from './DashboardWidgetInfo';
 
 interface ClientsOverviewCardProps {
   filterCurrency?: string;
@@ -32,8 +33,6 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
   } = useClientStore();
   
   const [loading, setLoading] = useState(true);
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [showMobileModal, setShowMobileModal] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [showCrossTooltip, setShowCrossTooltip] = useState(false);
   const { isMobile } = useMobileDetection();
@@ -256,6 +255,71 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
       .slice(0, 3);
   }, [clients]);
 
+  const clientsInfoBody = useMemo(
+    () => (
+      <div className="space-y-2 sm:space-y-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="min-w-0">
+            <div className="mb-0.5 truncate text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">
+              Active ({clientStats.active}):
+            </div>
+            <div className="break-words bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
+              {clientStats.active} clients
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div className="mb-0.5 truncate text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">
+              Inactive ({clientStats.inactive}):
+            </div>
+            <div className="break-words bg-gradient-to-r from-gray-600 to-gray-400 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
+              {clientStats.inactive} clients
+            </div>
+          </div>
+        </div>
+        <div className="mt-2 border-t border-gray-200 pt-2 dark:border-gray-700">
+          <div className="mb-0.5 text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">Total Value:</div>
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
+            {formatCurrency(clientStats.totalValue, 'USD')}
+          </div>
+        </div>
+        {recentClients.length > 0 && (
+          <>
+            <div className="mt-2 border-t border-gray-200 dark:border-gray-700" />
+            <div>
+              <div className="mb-1">
+                <div className="text-[10px] font-semibold text-gray-900 dark:text-gray-100 sm:text-[11px]">Recent Clients</div>
+              </div>
+              <ul className="max-h-32 space-y-0.5 overflow-y-auto sm:max-h-40">
+                {recentClients.map((client) => {
+                  const clientOrders = getOrdersByClient(client.id);
+                  const clientInvoices = getInvoicesByClient(client.id);
+                  const orderValue = clientOrders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
+                  const invoiceValue = clientInvoices.reduce((sum, invoice) => sum + (Number(invoice.total_amount) || 0), 0);
+                  const totalValue = orderValue + invoiceValue;
+                  const currency = client.default_currency || 'USD';
+                  return (
+                    <li
+                      key={client.id}
+                      className="flex items-center justify-between rounded py-0.5 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-[10px] text-gray-700 dark:text-gray-300 sm:text-[11px]" title={client.name}>
+                        {client.name}
+                      </span>
+                      <span className="ml-2 flex-shrink-0 tabular-nums text-[10px] font-medium text-gray-900 dark:text-gray-100 sm:text-[11px]">
+                        {formatCurrency(totalValue, currency)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </>
+        )}
+      </div>
+    ),
+    [clientStats, recentClients, getOrdersByClient, getInvoicesByClient]
+  );
+
   if (loading) {
     return (
       <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm border border-blue-200/50 dark:border-blue-800/50 h-full flex flex-col">
@@ -318,90 +382,9 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
         {/* Left side - Info button */}
         <div className="flex items-center gap-2 flex-1">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Clients</h2>
-          <div className="relative flex items-center">
-            <button
-              type="button"
-              className="ml-1 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-110 active:scale-95"
-              onMouseEnter={() => !isMobile && setShowTooltip(true)}
-              onMouseLeave={() => !isMobile && setShowTooltip(false)}
-              onFocus={() => !isMobile && setShowTooltip(true)}
-              onBlur={() => !isMobile && setShowTooltip(false)}
-              onClick={() => {
-                if (isMobile) {
-                  setShowMobileModal(true);
-                } else {
-                  setShowTooltip(v => !v);
-                }
-              }}
-              tabIndex={0}
-              aria-label="Show clients info"
-            >
-              <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200" />
-            </button>
-            {showTooltip && !isMobile && (
-              <div className="absolute left-1/2 top-full z-50 mt-2 w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-3 sm:p-4 text-xs text-gray-700 dark:text-gray-200 animate-fadein">
-                <div className="space-y-2 sm:space-y-3">
-                  {/* Client Stats - Side by Side */}
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                    {/* Active Clients */}
-                    <div className="min-w-0">
-                      <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">Active ({clientStats.active}):</div>
-                      <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent break-words">
-                        {clientStats.active} clients
-                      </div>
-                    </div>
-
-                    {/* Inactive Clients */}
-                    <div className="min-w-0">
-                      <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">Inactive ({clientStats.inactive}):</div>
-                      <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-gray-600 to-gray-400 bg-clip-text text-transparent break-words">
-                        {clientStats.inactive} clients
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Total Value */}
-                  <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
-                    <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5">Total Value:</div>
-                    <div className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                      {formatCurrency(clientStats.totalValue, 'USD')}
-                    </div>
-                  </div>
-
-                  {/* Recent Clients */}
-                  {recentClients.length > 0 && (
-                    <>
-                      <div className="border-t border-gray-200 dark:border-gray-700 mt-2"></div>
-                      <div>
-                        <div className="mb-1">
-                          <div className="font-semibold text-gray-900 dark:text-gray-100 text-[10px] sm:text-[11px]">Recent Clients</div>
-                        </div>
-                        <ul className="space-y-0.5 max-h-32 sm:max-h-40 overflow-y-auto">
-                          {recentClients.map((client) => {
-                            const clientOrders = getOrdersByClient(client.id);
-                            const clientInvoices = getInvoicesByClient(client.id);
-                            const orderValue = clientOrders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
-                            const invoiceValue = clientInvoices.reduce((sum, invoice) => sum + (Number(invoice.total_amount) || 0), 0);
-                            const totalValue = orderValue + invoiceValue;
-                            const currency = client.default_currency || 'USD';
-                            
-                            return (
-                              <li key={client.id} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
-                                <span className="truncate flex-1 text-[10px] sm:text-[11px] text-gray-700 dark:text-gray-300 min-w-0" title={client.name}>{client.name}</span>
-                                <span className="ml-2 tabular-nums font-medium text-[10px] sm:text-[11px] text-gray-900 dark:text-gray-100 flex-shrink-0">
-                                  {formatCurrency(totalValue, currency)}
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <DashboardWidgetInfo title="Clients" ariaLabel="Show clients info">
+            {clientsInfoBody}
+          </DashboardWidgetInfo>
         </div>
         
         {/* Right side - Controls */}
@@ -433,47 +416,6 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
         </div>
       </div>
 
-      {/* Mobile Modal for Client Info */}
-      {showMobileModal && isMobile && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setShowMobileModal(false)} />
-          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 md:w-96 max-w-md animate-fadein">
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <div className="font-semibold text-xs sm:text-sm text-gray-700 dark:text-gray-200">Clients Info</div>
-              <button
-                onClick={() => setShowMobileModal(false)}
-                className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ml-2 touch-manipulation"
-              >
-                <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-              </button>
-            </div>
-            
-            <div className="space-y-3 sm:space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-1">Active:</div>
-                  <div className="font-medium text-sm sm:text-base text-green-600 dark:text-green-400">
-                    {clientStats.active}
-                  </div>
-                </div>
-                <div>
-                  <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-1">Inactive:</div>
-                  <div className="font-medium text-sm sm:text-base text-gray-600 dark:text-gray-400">
-                    {clientStats.inactive}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-                <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-1">Total Value:</div>
-                <div className="font-medium text-sm sm:text-base text-blue-600 dark:text-blue-400">
-                  {formatCurrency(clientStats.totalValue, 'USD')}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

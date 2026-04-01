@@ -51,14 +51,21 @@ function mapContract(row: DbContract, entries: InvestmentEntry[]): InvestmentCon
   };
 }
 
-export async function fetchBusinessInvestmentContracts(userId: string | undefined): Promise<InvestmentContract[]> {
+export async function fetchBusinessInvestmentContracts(
+  userId: string | undefined,
+  options?: { activeOnly?: boolean }
+): Promise<InvestmentContract[]> {
   if (!userId) return [];
 
-  const { data: rows, error: cErr } = await supabase
+  let q = supabase
     .from('business_investment_contracts')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
+  if (options?.activeOnly) {
+    q = q.eq('status', 'active');
+  }
+  const { data: rows, error: cErr } = await q;
 
   if (cErr) throw cErr;
   const contracts = (rows || []) as DbContract[];

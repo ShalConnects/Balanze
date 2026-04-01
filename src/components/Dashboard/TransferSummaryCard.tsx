@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { ArrowRight, Info, X } from 'lucide-react';
+import { ArrowRight, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
@@ -8,6 +8,7 @@ import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { toast } from 'sonner';
 import { formatCurrency } from '../../utils/currency';
+import { DashboardWidgetInfo } from './DashboardWidgetInfo';
 
 interface TransferSummaryCardProps {
     filterCurrency?: string;
@@ -22,8 +23,6 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
     const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
     const [accounts, setAccounts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showTransferTooltip, setShowTransferTooltip] = useState(false);
-    const [showTransferMobileModal, setShowTransferMobileModal] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [showCrossTooltip, setShowCrossTooltip] = useState(false);
     const { isMobile } = useMobileDetection();
@@ -57,7 +56,6 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
         };
     }, []);
     
-    const tooltipRef = useRef<HTMLDivElement>(null);
     const cardRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -318,6 +316,112 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
             .slice(0, 3);
     }, [allTransfers]);
 
+    const transferInfoBody = useMemo(
+        () => (
+            <div className="space-y-2 sm:space-y-3">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    <div className="min-w-0">
+                        <div className="mb-0.5 truncate text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">
+                            Currency Exchange ({currencyTransfers}):
+                        </div>
+                        {currencyTransfers > 0 ? (
+                            <div className="space-y-0.5">
+                                {currencyTransfersByCurrency.map(({ currency, amount }) => (
+                                    <div
+                                        key={currency}
+                                        className="break-words bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs"
+                                    >
+                                        {formatCurrency(amount, currency)}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-[10px] text-gray-500 sm:text-[11px] dark:text-gray-500">No currency exchanges</div>
+                        )}
+                    </div>
+                    <div className="min-w-0">
+                        <div className="mb-0.5 truncate text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">
+                            In-Account ({inAccountTransfers}):
+                        </div>
+                        {inAccountTransfers > 0 ? (
+                            <div className="space-y-0.5">
+                                {inAccountTransfersByCurrency.map(({ currency, amount }) => (
+                                    <div
+                                        key={currency}
+                                        className="break-words bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs"
+                                    >
+                                        {formatCurrency(amount, currency)}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-[10px] text-gray-500 sm:text-[11px] dark:text-gray-500">No in-account transfers</div>
+                        )}
+                    </div>
+                </div>
+                {dpsTransfersCount > 0 && (
+                    <div className="min-w-0">
+                        <div className="mb-0.5 text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">
+                            DPS Auto-Save ({dpsTransfersCount}):
+                        </div>
+                        <div className="space-y-0.5">
+                            {dpsTransfersByCurrency.map(({ currency, amount }) => (
+                                <div
+                                    key={currency}
+                                    className="break-words bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs"
+                                >
+                                    {formatCurrency(amount, currency)}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {recentTransfers.length > 0 && (
+                    <>
+                        <div className="mt-2 border-t border-gray-200 dark:border-gray-700" />
+                        <div>
+                            <div className="mb-1">
+                                <div className="text-[10px] font-semibold text-gray-900 dark:text-gray-100 sm:text-[11px]">Recent Transfers</div>
+                            </div>
+                            <ul className="max-h-32 space-y-0.5 overflow-y-auto sm:max-h-40">
+                                {recentTransfers.map((transfer, index) => {
+                                    const fromName = transfer.fromAccount?.name || 'Unknown';
+                                    const toName = transfer.toAccount?.name || 'Unknown';
+                                    const currency = transfer.fromCurrency || 'USD';
+                                    return (
+                                        <li
+                                            key={index}
+                                            className="flex items-center justify-between rounded py-0.5 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                                        >
+                                            <span
+                                                className="min-w-0 flex-1 truncate text-[10px] text-gray-700 dark:text-gray-300 sm:text-[11px]"
+                                                title={`${fromName} → ${toName}`}
+                                            >
+                                                {fromName} → {toName}
+                                            </span>
+                                            <span className="ml-2 flex-shrink-0 tabular-nums text-[10px] font-medium text-gray-900 dark:text-gray-100 sm:text-[11px]">
+                                                {formatCurrency(transfer.fromAmount || 0, currency)}
+                                            </span>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                    </>
+                )}
+            </div>
+        ),
+        [
+            currencyTransfers,
+            inAccountTransfers,
+            dpsTransfersCount,
+            currencyTransfersByCurrency,
+            inAccountTransfersByCurrency,
+            dpsTransfersByCurrency,
+            recentTransfers,
+        ]
+    );
+
     if (allTransfers.length === 0) {
         return null;
     }
@@ -352,113 +456,9 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
             <div className="flex items-center justify-between mb-2 pr-8">
                 <div className="flex items-center gap-2 flex-1">
                     <h2 className="text-lg font-bold text-gray-900 dark:text-white">Transfers</h2>
-                    <div className="relative flex items-center">
-                        <button
-                            type="button"
-                            className="ml-1 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none transition-all duration-200 hover:scale-110 active:scale-95"
-                            onMouseEnter={() => !isMobile && setShowTransferTooltip(true)}
-                            onMouseLeave={() => !isMobile && setShowTransferTooltip(false)}
-                            onFocus={() => !isMobile && setShowTransferTooltip(true)}
-                            onBlur={() => !isMobile && setShowTransferTooltip(false)}
-                            onClick={() => {
-                                if (isMobile) {
-                                    setShowTransferMobileModal(true);
-                                } else {
-                                    setShowTransferTooltip(v => !v);
-                                }
-                            }}
-                            tabIndex={0}
-                            aria-label="Show transfer info"
-                        >
-                            <Info className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200" />
-                        </button>
-                        {showTransferTooltip && !isMobile && (
-                            <div 
-                                ref={tooltipRef}
-                                className="absolute left-1/2 top-full z-50 mt-2 w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-3 sm:p-4 text-xs text-gray-700 dark:text-gray-200 animate-fadein"
-                            >
-                                <div className="space-y-2 sm:space-y-3">
-                                    {/* Transfer Types - Side by Side */}
-                                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                                        {/* Currency Exchange */}
-                                        <div className="min-w-0">
-                                            <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">Currency Exchange ({currencyTransfers}):</div>
-                                    {currencyTransfers > 0 ? (
-                                        <div className="space-y-0.5">
-                                            {currencyTransfersByCurrency.map(({ currency, amount }) => (
-                                                <div key={currency} className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent break-words">
-                                                    {formatCurrency(amount, currency)}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-500">No currency exchanges</div>
-                                    )}
-                                </div>
-
-                                {/* In-Account Transfers */}
-                                <div className="min-w-0">
-                                    <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5 truncate">In-Account ({inAccountTransfers}):</div>
-                                    {inAccountTransfers > 0 ? (
-                                        <div className="space-y-0.5">
-                                            {inAccountTransfersByCurrency.map(({ currency, amount }) => (
-                                                <div key={currency} className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent break-words">
-                                                    {formatCurrency(amount, currency)}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-500">No in-account transfers</div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* DPS Auto-Save */}
-                            {dpsTransfersCount > 0 && (
-                                <div className="min-w-0">
-                                    <div className="font-semibold text-[11px] sm:text-xs text-gray-900 dark:text-gray-100 mb-0.5">DPS Auto-Save ({dpsTransfersCount}):</div>
-                                    <div className="space-y-0.5">
-                                        {dpsTransfersByCurrency.map(({ currency, amount }) => (
-                                            <div key={currency} className="font-medium text-[11px] sm:text-xs bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent break-words">
-                                                {formatCurrency(amount, currency)}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                                    {/* Recent Transfers */}
-                                    {recentTransfers.length > 0 && (
-                                        <>
-                                            <div className="border-t border-gray-200 dark:border-gray-700 mt-2"></div>
-                                            <div>
-                                                <div className="mb-1">
-                                                    <div className="font-semibold text-gray-900 dark:text-gray-100 text-[10px] sm:text-[11px]">Recent Transfers</div>
-                                                </div>
-                                                <ul className="space-y-0.5 max-h-32 sm:max-h-40 overflow-y-auto">
-                                                    {recentTransfers.map((transfer, index) => {
-                                                        const fromName = transfer.fromAccount?.name || 'Unknown';
-                                                        const toName = transfer.toAccount?.name || 'Unknown';
-                                                        const currency = transfer.fromCurrency || 'USD';
-                                                        return (
-                                                            <li key={index} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
-                                                                <span className="truncate flex-1 text-[10px] sm:text-[11px] text-gray-700 dark:text-gray-300 min-w-0" title={`${fromName} → ${toName}`}>
-                                                                    {fromName} → {toName}
-                                                                </span>
-                                                                <span className="ml-2 tabular-nums font-medium text-[10px] sm:text-[11px] text-gray-900 dark:text-gray-100 flex-shrink-0">
-                                                                    {formatCurrency(transfer.fromAmount || 0, currency)}
-                                                                </span>
-                                                            </li>
-                                                        );
-                                                    })}
-                                                </ul>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                    <DashboardWidgetInfo title="Transfers" ariaLabel="Show transfer info">
+                        {transferInfoBody}
+                    </DashboardWidgetInfo>
                 </div>
                 <div className="flex items-center gap-3">
                     <Link 
@@ -491,102 +491,6 @@ export const TransferSummaryCard: React.FC<TransferSummaryCardProps> = ({
                 </div>
             )}
 
-            {showTransferMobileModal && isMobile && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="fixed inset-0 bg-black/50" onClick={() => setShowTransferMobileModal(false)} />
-                    <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 md:w-96 max-w-md animate-fadein">
-                        <div className="flex items-center justify-between mb-3 sm:mb-4">
-                            <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">Transfers Info</div>
-                            <button
-                                onClick={() => setShowTransferMobileModal(false)}
-                                className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
-                                aria-label="Close modal"
-                            >
-                                <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                            </button>
-                        </div>
-                        <div className="space-y-3 sm:space-y-4">
-                            {/* Transfer Types - Side by Side */}
-                            <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                                {/* Currency Exchange */}
-                                <div className="min-w-0">
-                                    <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1 truncate">Currency Exchange ({currencyTransfers}):</div>
-                                    {currencyTransfers > 0 ? (
-                                        <div className="space-y-0.5">
-                                            {currencyTransfersByCurrency.map(({ currency, amount }) => (
-                                                <div key={currency} className="font-medium text-xs sm:text-sm bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent break-words">
-                                                    {formatCurrency(amount, currency)}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500">No currency exchanges</div>
-                                    )}
-                                </div>
-
-                                {/* In-Account Transfers */}
-                                <div className="min-w-0">
-                                    <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1 truncate">In-Account ({inAccountTransfers}):</div>
-                                    {inAccountTransfers > 0 ? (
-                                        <div className="space-y-0.5">
-                                            {inAccountTransfersByCurrency.map(({ currency, amount }) => (
-                                                <div key={currency} className="font-medium text-xs sm:text-sm bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent break-words">
-                                                    {formatCurrency(amount, currency)}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500">No in-account transfers</div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* DPS Auto-Save */}
-                            {dpsTransfersCount > 0 && (
-                                <div className="min-w-0">
-                                    <div className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100 mb-1">DPS Auto-Save ({dpsTransfersCount}):</div>
-                                    <div className="space-y-0.5">
-                                        {dpsTransfersByCurrency.map(({ currency, amount }) => (
-                                            <div key={currency} className="font-medium text-xs sm:text-sm bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent break-words">
-                                                {formatCurrency(amount, currency)}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Recent Transfers */}
-                            {recentTransfers.length > 0 && (
-                                <>
-                                    <div className="border-t border-gray-200 dark:border-gray-700 mt-3"></div>
-                                    <div>
-                                        <div className="mb-1">
-                                            <div className="font-semibold text-[10px] sm:text-xs text-gray-900 dark:text-gray-100">Recent Transfers</div>
-                                        </div>
-                                        <ul className="space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
-                                            {recentTransfers.map((transfer, index) => {
-                                                const fromName = transfer.fromAccount?.name || 'Unknown';
-                                                const toName = transfer.toAccount?.name || 'Unknown';
-                                                const currency = transfer.fromCurrency || 'USD';
-                                                return (
-                                                    <li key={index} className="flex items-center justify-between rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors py-0.5">
-                                                        <span className="truncate flex-1 text-[10px] sm:text-xs text-gray-700 dark:text-gray-300 min-w-0" title={`${fromName} → ${toName}`}>
-                                                            {fromName} → {toName}
-                                                        </span>
-                                                        <span className="ml-2 tabular-nums font-medium text-[10px] sm:text-xs text-gray-900 dark:text-gray-100 flex-shrink-0">
-                                                            {formatCurrency(transfer.fromAmount || 0, currency)}
-                                                        </span>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

@@ -1,6 +1,48 @@
 import { supabase } from '../lib/supabaseServer.js';
 import nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
+import { normalizeIncludeData } from '../lib/lastWishIncludeData.js';
+import { fetchActiveBusinessContractsWithEntries } from '../lib/lastWishBusinessInvestmentsServer.js';
+
+const BIZ_ENTRY_LABELS = {
+  profit: 'Profit',
+  loss: 'Loss',
+  principal_return: 'Principal returned',
+  capital_contribution: 'Capital contribution'
+};
+
+function htmlEsc(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** @param {Array<{ title: string, principal: number|string, currency?: string, funding_account_name?: string, start_date?: string, end_date?: string, note?: string, entries?: Array<{ type: string, amount: number|string, date: string, note?: string }> }>} contracts */
+function renderBusinessInvestmentContractsHtml(contracts, formatCurrencyWithSymbol, dark = false) {
+  if (!contracts?.length) return '';
+  const cardBg = dark ? '#1f2937' : '#f9fafb';
+  const border = dark ? '#374151' : '#e5e7eb';
+  const sub = dark ? '#9ca3af' : '#6b7280';
+  const fd = (d) => (d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A');
+  return contracts.map((c) => {
+    const cur = c.currency || 'USD';
+    const pr = parseFloat(c.principal) || 0;
+    const rows = (c.entries || []).slice(0, 20).map((e) =>
+      `<tr><td style="padding:4px 8px;border-bottom:1px solid ${border};">${htmlEsc(BIZ_ENTRY_LABELS[e.type] || e.type || '')}</td>` +
+      `<td style="padding:4px 8px;border-bottom:1px solid ${border};">${fd(e.date)}</td>` +
+      `<td style="padding:4px 8px;border-bottom:1px solid ${border};">${formatCurrencyWithSymbol(parseFloat(e.amount) || 0, cur)}</td>` +
+      `<td style="padding:4px 8px;border-bottom:1px solid ${border};">${htmlEsc((e.note || '').slice(0, 48))}</td></tr>`
+    ).join('');
+    return `<div style="background:${cardBg};border:1px solid ${border};border-radius:8px;padding:14px;margin-bottom:14px;">` +
+      `<div style="font-weight:600;margin-bottom:8px;">${htmlEsc(c.title)}</div>` +
+      `<div style="font-size:13px;color:${sub};">Principal: ${formatCurrencyWithSymbol(pr, cur)}` +
+      (c.funding_account_name ? ` · Funding: ${htmlEsc(c.funding_account_name)}` : '') +
+      `</div>` +
+      `<div style="font-size:13px;color:${sub};margin-top:4px;">${fd(c.start_date)}${c.end_date ? ` – ${fd(c.end_date)}` : ''}</div>` +
+      (c.note ? `<p style="font-size:13px;color:${sub};margin:8px 0 0 0;">${htmlEsc(c.note)}</p>` : '') +
+      (rows ? `<table style="width:100%;margin-top:10px;font-size:12px;border-collapse:collapse;"><thead><tr>` +
+        `<th style="text-align:left;padding:4px 8px;">Type</th><th style="text-align:left;">Date</th><th style="text-align:left;">Amount</th><th style="text-align:left;">Note</th></tr></thead><tbody>${rows}</tbody></table>` : '') +
+      `</div>`;
+  }).join('');
+}
 
 let transporter = null;
 if (process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -60,7 +102,7 @@ function validateEmail(email) {
  * @param {Array} recipients - Array of recipient objects with email property
  * @returns {object} - { valid: boolean, errors: Array, validRecipients: Array }
  */
-function validateRecipients(recipients) {
+export function validateRecipients(recipients) {
   if (!Array.isArray(recipients) || recipients.length === 0) {
     return {
       valid: false,
@@ -356,6 +398,13 @@ export async function gatherUserData(userId) {
       data.investmentAssets = [];
     }
 
+    try {
+      data.businessInvestmentContracts = await fetchActiveBusinessContractsWithEntries(supabase, userId);
+    } catch (error) {
+      await logError('gatherUserData', error, { ...metadata, table: 'business_investment_contracts' });
+      data.businessInvestmentContracts = [];
+    }
+
   return data;
   } catch (error) {
     await logError('gatherUserData', error, { ...metadata, fatal: true });
@@ -380,6 +429,12 @@ export function filterDataBySettings(userData, includeSettings) {
   }
   if (includeSettings.savings) {
     filtered.donationSavings = userData.donationSavings;
+  }
+  if (includeSettings.investments) {
+    filtered.investmentAssets = userData.investmentAssets;
+  }
+  if (includeSettings.businessInvestments) {
+    filtered.businessInvestmentContracts = userData.businessInvestmentContracts;
   }
 
   return filtered;
@@ -605,6 +660,8 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
     }
     borrowedByCurrency[currency] += parseFloat(lb.amount) || 0;
   });
+
+  const businessContracts = data.businessInvestmentContracts || [];
 
   // Currency formatting helper
   const formatCurrencyWithSymbol = (amount, currency = 'USD') => {
@@ -1268,6 +1325,12 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
                   <span class="summary-row-value">${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}</span>
                 </div>
               </div>
+              ${businessContracts.length > 0 ? `
+              <div class="summary-section">
+                <h4>Business investment contracts (active)</h4>
+                ${renderBusinessInvestmentContractsHtml(businessContracts, formatCurrencyWithSymbol, true)}
+              </div>
+              ` : ''}
             </div>
 
             <div class="divider"></div>
@@ -1465,6 +1528,38 @@ function generateCSVExport(data, settings) {
         escapeCSV(asset.quantity || 'N/A'),
         escapeCSV(asset.notes || 'N/A')
       ].join(','));
+    });
+    csvRows.push('');
+  }
+
+  if (data.businessInvestmentContracts && data.businessInvestmentContracts.length > 0) {
+    csvRows.push('=== BUSINESS INVESTMENT CONTRACTS (ACTIVE) ===');
+    csvRows.push('Title,Principal,Currency,Funding Account,Start Date,End Date,Status,Note');
+    data.businessInvestmentContracts.forEach((c) => {
+      csvRows.push([
+        escapeCSV(c.title || 'N/A'),
+        escapeCSV(c.principal ?? 0),
+        escapeCSV(c.currency || 'USD'),
+        escapeCSV(c.funding_account_name || 'N/A'),
+        escapeCSV(c.start_date ? new Date(c.start_date).toISOString().split('T')[0] : 'N/A'),
+        escapeCSV(c.end_date ? new Date(c.end_date).toISOString().split('T')[0] : 'N/A'),
+        escapeCSV(c.status || 'active'),
+        escapeCSV(c.note || 'N/A')
+      ].join(','));
+    });
+    csvRows.push('');
+    csvRows.push('=== BUSINESS INVESTMENT ENTRIES ===');
+    csvRows.push('Contract Title,Entry Type,Date,Amount,Note');
+    data.businessInvestmentContracts.forEach((c) => {
+      (c.entries || []).forEach((e) => {
+        csvRows.push([
+          escapeCSV(c.title || 'N/A'),
+          escapeCSV(BIZ_ENTRY_LABELS[e.type] || e.type || 'N/A'),
+          escapeCSV(e.date ? new Date(e.date).toISOString().split('T')[0] : 'N/A'),
+          escapeCSV(e.amount ?? 0),
+          escapeCSV(e.note || 'N/A')
+        ].join(','));
+      });
     });
     csvRows.push('');
   }
@@ -1701,6 +1796,7 @@ function createPDFHTMLContent(user, recipient, data, settings) {
   };
   
   const accountsWithBalance = (data.accounts || []).filter(acc => parseFloat(acc.calculated_balance) !== 0);
+  const businessContracts = data.businessInvestmentContracts || [];
   
   return `<!DOCTYPE html>
 <html>
@@ -1837,6 +1933,13 @@ function createPDFHTMLContent(user, recipient, data, settings) {
     <p><strong>Total Borrowed:</strong> ${Object.keys(borrowedByCurrency).length > 0 ? Object.entries(borrowedByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</p>
     <p><strong>Active Records:</strong> ${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}</p>
   </div>
+  
+  ${businessContracts.length > 0 ? `
+    <div style="page-break-before: always;" class="section">
+      <div class="section-title">Business investment contracts (active)</div>
+      ${renderBusinessInvestmentContractsHtml(businessContracts, formatCurrencyWithSymbol, false)}
+    </div>
+  ` : ''}
   
   ${accountsWithBalance.length > 0 ? `
     <div style="page-break-before: always;" class="section">
@@ -2330,6 +2433,8 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       const investmentAssets = (data.investmentAssets || []).filter(asset => 
         parseFloat(asset.current_value || asset.total_value || 0) > 0
       );
+
+      const businessInvestmentContracts = data.businessInvestmentContracts || [];
       
       // Filter savings/donation records
       const savingsRecords = (data.donationSavings || []).filter(ds => 
@@ -2351,6 +2456,11 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       
       if (investmentAssets.length > 0) {
         tocItems.push({ title: 'Investment Assets', page: tocPageNum });
+        tocPageNum++;
+      }
+
+      if (businessInvestmentContracts.length > 0) {
+        tocItems.push({ title: 'Business investment contracts', page: tocPageNum });
         tocPageNum++;
       }
       
@@ -2663,6 +2773,52 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
           }
         );
       }
+
+      if (businessInvestmentContracts.length > 0) {
+        currentPageNum = addPageWithHeader();
+        pageNumbers.set('businessInvestmentContracts', currentPageNum);
+        doc.fillColor('#000000').fontSize(20).font('Helvetica-Bold')
+          .text('Business investment contracts (active)', 50, 80);
+        doc.moveDown(1);
+        const bicRows = businessInvestmentContracts.map((c) => [
+          (c.title || 'N/A').substring(0, 40),
+          formatCurrency(parseFloat(c.principal) || 0, c.currency || 'USD'),
+          c.currency || 'USD',
+          c.start_date ? formatDate(c.start_date) : 'N/A',
+          c.end_date ? formatDate(c.end_date) : '—',
+          (c.funding_account_name || 'N/A').substring(0, 28),
+          (c.note || '').substring(0, 30) || 'N/A'
+        ]);
+        drawTable(
+          ['Title', 'Principal', 'Currency', 'Start', 'End', 'Funding', 'Notes'],
+          bicRows,
+          doc.y,
+          { columnWidths: [0.22, 0.14, 0.10, 0.12, 0.12, 0.16, 0.14].map((w) => (doc.page.width - 100) * w), fontSize: 8 }
+        );
+        const entryRowsFlat = [];
+        businessInvestmentContracts.forEach((c) => {
+          (c.entries || []).forEach((e) => {
+            entryRowsFlat.push([
+              (c.title || '').substring(0, 24),
+              BIZ_ENTRY_LABELS[e.type] || e.type || '',
+              e.date ? formatDate(e.date) : 'N/A',
+              formatCurrency(parseFloat(e.amount) || 0, c.currency || 'USD'),
+              (e.note || '').substring(0, 28) || 'N/A'
+            ]);
+          });
+        });
+        if (entryRowsFlat.length > 0) {
+          doc.moveDown(1.5);
+          doc.fillColor('#000000').fontSize(14).font('Helvetica-Bold').text('Contract entries', 50, doc.y);
+          doc.moveDown(0.8);
+          drawTable(
+            ['Contract', 'Type', 'Date', 'Amount', 'Note'],
+            entryRowsFlat,
+            doc.y,
+            { columnWidths: [0.22, 0.18, 0.14, 0.18, 0.28].map((w) => (doc.page.width - 100) * w), fontSize: 8 }
+          );
+        }
+      }
       
       // SAVINGS & DONATION RECORDS SECTION
       if (savingsRecords.length > 0) {
@@ -2808,7 +2964,7 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
     }
     
     // Filter data based on user preferences
-    const filteredData = filterDataBySettings(userData, settings.include_data);
+    const filteredData = filterDataBySettings(userData, normalizeIncludeData(settings.include_data));
 
     if (isTargetUser) {
       console.log(`[SEND-DATA-TO-RECIPIENT] Creating email content...`);

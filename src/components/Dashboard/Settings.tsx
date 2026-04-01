@@ -3,36 +3,32 @@ import { CollapsibleCategories } from './CollapsibleCategories';
 import { CurrencySettings } from './CurrencySettings';
 import { AccountManagement } from './AccountManagement';
 import { PlansAndUsage } from './PlansAndUsage';
-import { LW } from './LW';
 import { PaymentHistory } from './PaymentHistory';
 import { AboutSettings } from './AboutSettings';
-import { useSearchParams } from 'react-router-dom';
-import { ChevronDown, Settings as SettingsIcon, Filter, Check, Globe, FolderTree, CreditCard, User, Crown, Receipt, Info } from 'lucide-react';
-import { useAuthStore } from '../../store/authStore';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { ChevronDown, Settings as SettingsIcon, Check, Globe, FolderTree, CreditCard, User, Receipt, Info } from 'lucide-react';
 
 interface TabItem {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }> | null;
-  premium?: boolean;
 }
 
 export const Settings: React.FC = () => {
-  const { profile } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
-  // Check if user has Premium plan for Last Wish
-  const isPremium = profile?.subscription?.plan === 'premium';
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'last-wish') {
+      navigate('/last-wish', { replace: true });
+    }
+  }, [searchParams, navigate]);
   
   // Initialize activeTab from URL parameter or default to general
   const getInitialTab = () => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['general', 'categories', 'account-management', 'plans-usage', 'last-wish', 'about'].includes(tabParam)) {
-      // If user tries to access Last Wish tab but is not premium, redirect to general
-      if (tabParam === 'last-wish' && !isPremium) {
-        return 'general';
-      }
+    if (tabParam && ['general', 'categories', 'account-management', 'plans-usage', 'about'].includes(tabParam)) {
       return tabParam;
     }
     return 'general';
@@ -54,23 +50,16 @@ export const Settings: React.FC = () => {
     { id: 'plans-usage', label: 'Plans & Usage', icon: CreditCard },
     { id: 'payment-history', label: 'Payment', icon: Receipt },
     { id: 'account-management', label: 'Account', icon: User },
-    ...(isPremium ? [{ id: 'last-wish', label: 'Last Wish', icon: Crown, premium: true }] : []),
     { id: 'about', label: 'About', icon: Info }
   ];
 
   // Handle URL parameters for tab selection
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['general', 'categories', 'account-management', 'plans-usage', 'payment-history', 'last-wish', 'about'].includes(tabParam)) {
-      // If user tries to access Last Wish tab but is not premium, redirect to general
-      if (tabParam === 'last-wish' && !isPremium) {
-        setActiveTab('general');
-        setSearchParams({ tab: 'general' }, { replace: true });
-      } else {
-        setActiveTab(tabParam);
-      }
+    if (tabParam && ['general', 'categories', 'account-management', 'plans-usage', 'payment-history', 'about'].includes(tabParam)) {
+      setActiveTab(tabParam);
     }
-  }, [searchParams, isPremium, setSearchParams]);
+  }, [searchParams, setSearchParams]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -190,11 +179,6 @@ export const Settings: React.FC = () => {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 sm:gap-2">
                             <span className="text-xs sm:text-sm font-medium truncate">{tab.label}</span>
-                            {tab.premium && (
-                              <span className="px-1 sm:px-1.5 py-0.5 text-[10px] sm:text-xs font-semibold bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full flex-shrink-0">
-                                Pro
-                              </span>
-                            )}
                           </div>
                           {isActive && (
                             <div className="text-[10px] sm:text-xs opacity-90 mt-0.5">Currently viewing</div>
@@ -239,11 +223,6 @@ export const Settings: React.FC = () => {
                   {isActive && (
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full" />
                   )}
-                  {tab.premium && (
-                    <span className="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-[10px] sm:text-xs font-semibold bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full flex-shrink-0">
-                      Pro
-                    </span>
-                  )}
                 </button>
               );
             })}
@@ -275,9 +254,6 @@ export const Settings: React.FC = () => {
         )}
         {activeTab === 'about' && (
           <AboutSettings hideTitle />
-        )}
-        {activeTab === 'last-wish' && (
-          <LW setActiveTab={setActiveTab} />
         )}
       </div>
       

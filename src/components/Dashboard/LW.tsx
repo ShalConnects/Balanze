@@ -17,11 +17,17 @@ import {
   Wallet,
   Handshake,
   MessageSquare,
-  FileText
+  FileText,
+  TrendingUp,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { sanitizeHtml } from '../../lib/sanitize';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { DEFAULT_INCLUDE_DATA, normalizeIncludeData } from '../../../lib/lastWishIncludeData.js';
+import { fetchBusinessInvestmentContracts } from '../../lib/businessInvestmentService';
+import { ENTRY_TYPE_LABELS, type InvestmentContract } from '../../types/businessInvestment';
 
 interface LWProps {
   setActiveTab?: (tab: string) => void;
@@ -45,6 +51,8 @@ interface LWSettings {
     lendBorrow: boolean;
     savings: boolean;
     analytics: boolean;
+    investments: boolean;
+    businessInvestments: boolean;
   };
   message: string;
   isActive: boolean;
@@ -58,24 +66,19 @@ export const LW: React.FC<LWProps> = () => {
   // Check if user has Premium plan for Last Wish
   const isPremium = profile?.subscription?.plan === 'premium';
   const [lendBorrowRecords, setLendBorrowRecords] = useState<any[]>([]);
+  const [businessContracts, setBusinessContracts] = useState<InvestmentContract[]>([]);
   const [settings, setSettings] = useState<LWSettings>({
     isEnabled: false,
     checkInFrequency: 30,
     lastCheckIn: null,
     recipients: [],
-    includeData: {
-      accounts: true,
-      transactions: true,
-      purchases: true,
-      lendBorrow: true,
-      savings: true,
-      analytics: true,
-    },
+    includeData: { ...(DEFAULT_INCLUDE_DATA as LWSettings['includeData']) },
     message: '',
     isActive: false,
     deliveryTriggered: false,
   });
   const [loading, setLoading] = useState(false);
+  const [testPdfLoading, setTestPdfLoading] = useState(false);
   const [showRecipientModal, setShowRecipientModal] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [daysUntilCheckIn, setDaysUntilCheckIn] = useState<number | null>(null);
@@ -415,6 +418,7 @@ These memories are my gift to you.`
       purchases: purchases.length,
       lendBorrow: lendBorrowRecords.length,
       savings: savingsGoals.length,
+      businessInvestments: businessContracts.length,
       analytics: 1, // Analytics is always available (we can generate reports)
       totalValue: accounts.reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0),
     };
@@ -447,6 +451,18 @@ These memories are my gift to you.`
     };
 
     fetchLendBorrowRecords();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const rows = await fetchBusinessInvestmentContracts(user.id, { activeOnly: true });
+        setBusinessContracts(rows);
+      } catch {
+        setBusinessContracts([]);
+      }
+    })();
   }, [user]);
 
   // Cleanup auto-save timeout on unmount
@@ -543,14 +559,7 @@ These memories are my gift to you.`
           checkInFrequency: data.check_in_frequency || 30,
           lastCheckIn: data.last_check_in,
           recipients: data.recipients || [],
-          includeData: data.include_data || {
-            accounts: true,
-            transactions: true,
-            purchases: true,
-            lendBorrow: true,
-            savings: true,
-            analytics: true,
-          },
+          includeData: normalizeIncludeData(data.include_data as Partial<LWSettings['includeData']>),
           message: data.message || '',
           isActive: data.is_active || false,
           deliveryTriggered: isDelivered,
@@ -583,6 +592,119 @@ These memories are my gift to you.`
       }
     } catch (error) {
 
+    }
+  };
+
+  const persistIncludeDataUpdate = async (nextInclude: LWSettings['includeData']) => {
+    if (!user) return;
+    try {
+      const { data: updateData, error: updateError } = await supabase
+        .from('last_wish_settings')
+        .update({
+          include_data: nextInclude,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+        .select();
+
+      if (!updateError && (!updateData || updateData.length === 0)) {
+        const { error: insertError } = await supabase.from('last_wish_settings').insert({
+          user_id: user.id,
+          is_enabled: settings.isEnabled,
+          check_in_frequency: settings.checkInFrequency,
+          last_check_in: settings.lastCheckIn,
+          recipients: settings.recipients,
+          include_data: nextInclude,
+          message: settings.message,
+          is_active: settings.isActive,
+          delivery_triggered: false,
+          updated_at: new Date().toISOString(),
+        });
+        if (insertError) throw insertError;
+      } else if (updateError) {
+        throw updateError;
+      }
+    } catch {
+      toast.error('Failed to save inclusion settings');
+    }
+  };
+
+  const setIncludeBusinessInvestments = (enabled: boolean) => {
+    if (!user) return;
+    const nextInclude = { ...settings.includeData, businessInvestments: enabled };
+    setSettings((prev) => ({
+      ...prev,
+      includeData: { ...prev.includeData, businessInvestments: enabled },
+    }));
+    void persistIncludeDataUpdate(nextInclude);
+  };
+
+  const downloadTestLastWishPdf = async () => {
+    if (!user) return;
+    const logPrefix = '[Last Wish Test PDF]';
+    console.log(logPrefix, 'click — starting', { userId: user.id });
+    setTestPdfLoading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        console.warn(logPrefix, 'no access_token — session missing or expired');
+        toast.error('Please sign in again.');
+        return;
+      }
+      console.log(logPrefix, 'POST /api/generate-last-wish-test-pdf');
+      const res = await fetch('/api/generate-last-wish-test-pdf', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/pdf',
+        },
+      });
+      const ct = res.headers.get('Content-Type') || '';
+      console.log(logPrefix, 'response', { ok: res.ok, status: res.status, contentType: ct });
+      if (res.ok && ct.includes('application/pdf')) {
+        const blob = await res.blob();
+        console.log(logPrefix, 'success — blob size (bytes)', blob.size);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `financial-data-backup-preview-${new Date().toISOString().slice(0, 10)}.pdf`;
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        toast.success('Test PDF downloaded');
+        return;
+      }
+      const raw = await res.text();
+      let msg = `Could not generate PDF (${res.status})`;
+      try {
+        const j = JSON.parse(raw) as { error?: string; detail?: string; code?: string };
+        if (j.error) msg = j.error;
+        console.warn(logPrefix, 'error response JSON', { code: j.code, error: j.error });
+        if (import.meta.env.DEV && j.detail) {
+          console.error(logPrefix, 'detail (dev)', j.code || '', j.detail);
+        }
+      } catch {
+        const preview = raw.slice(0, 800).trim();
+        console.warn(
+          logPrefix,
+          'error response is not JSON (proxy/HTML/plain). Body preview:',
+          preview || '(empty)'
+        );
+        if (preview && !preview.startsWith('<')) {
+          msg = `${msg}: ${preview.slice(0, 160)}${preview.length > 160 ? '…' : ''}`;
+        }
+      }
+      toast.error(msg.length > 220 ? `${msg.slice(0, 217)}…` : msg);
+    } catch (err) {
+      console.error(logPrefix, 'fetch failed', err);
+      toast.error(
+        'Could not reach the PDF API. On localhost, run `vercel dev` in another terminal (default port 3000), or open this page on your deployed site.'
+      );
+    } finally {
+      setTestPdfLoading(false);
     }
   };
 
@@ -963,7 +1085,7 @@ These memories are my gift to you.`
   }
 
   return (
-    <div className="space-y-2 sm:space-y-3 w-full">
+    <div className="w-full">
       <style>{`
         .rich-editor h1 {
           font-size: 1.5rem;
@@ -1124,7 +1246,7 @@ These memories are my gift to you.`
           }
         }
       `}</style>
-      
+      <div className="space-y-2 sm:space-y-3">
       {/* Enterprise Header with Status Dashboard */}
       <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900 dark:to-gray-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4 sm:p-6 mb-6 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -1385,6 +1507,24 @@ These memories are my gift to you.`
                       <p className="text-xs text-gray-600 dark:text-gray-400 leading-tight">Encrypted document delivery</p>
                     </div>
                   </div>
+                  <div className="flex items-center justify-between gap-3 sm:col-span-2 p-2 sm:p-2.5 rounded-lg bg-white/60 dark:bg-gray-800/40 hover:bg-white/80 dark:hover:bg-gray-800/60 transition-colors border border-blue-200/50 dark:border-blue-800/40">
+                    <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
+                      <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-gray-900 dark:text-gray-100">Business investments</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 leading-tight">Active contracts · {businessContracts.length} total</p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={settings.includeData.businessInvestments}
+                        onChange={(e) => setIncludeBusinessInvestments(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600" />
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1499,6 +1639,20 @@ These memories are my gift to you.`
             >
               <Eye className="w-4 h-4" />
               <span>Preview</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => void downloadTestLastWishPdf()}
+              disabled={testPdfLoading}
+              title="Uses the same PDF generator as real delivery (saved Last Wish settings + your data)"
+              className="px-3 sm:px-4 py-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/60 disabled:opacity-50 flex items-center space-x-2 text-xs sm:text-sm font-medium transition-colors"
+            >
+              {testPdfLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              <span>Test PDF</span>
             </button>
             {/* Editor Mode Toggle - Hidden on mobile */}
             {!isMobile && (
@@ -1793,6 +1947,7 @@ These memories are my gift to you.`
           </div>
         </div>
       </div>
+      </div>
 
       {/* Recipient Modal */}
       {showRecipientModal && (
@@ -1817,6 +1972,7 @@ These memories are my gift to you.`
           user={user}
           accounts={accounts}
           lendBorrowRecords={lendBorrowRecords}
+          businessContracts={businessContracts}
           lastCheckIn={settings.lastCheckIn}
         />
       )}
@@ -2169,6 +2325,8 @@ interface MessagePreviewModalProps {
     lendBorrow: boolean;
     savings: boolean;
     analytics: boolean;
+    investments: boolean;
+    businessInvestments: boolean;
   };
   dataSummary: {
     accounts: number;
@@ -2176,6 +2334,7 @@ interface MessagePreviewModalProps {
     purchases: number;
     lendBorrow: number;
     savings: number;
+    businessInvestments: number;
     totalValue: number;
   };
   checkInFrequency: number;
@@ -2183,6 +2342,7 @@ interface MessagePreviewModalProps {
   user: any;
   accounts: any[];
   lendBorrowRecords: any[];
+  businessContracts: InvestmentContract[];
   lastCheckIn: string | null;
 }
 
@@ -2197,6 +2357,7 @@ const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
   user,
   accounts,
   lendBorrowRecords,
+  businessContracts,
   lastCheckIn
 }) => {
   // Currency symbols
@@ -2440,6 +2601,49 @@ const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {includeData.businessInvestments && businessContracts.length > 0 && (
+                  <div className="bg-[#111827] rounded-lg p-[18px] border border-[#374151] mt-4">
+                    <h4 className="font-semibold text-[#f3f4f6] mb-3" style={{ fontSize: '14px' }}>
+                      Business investment contracts (active)
+                    </h4>
+                    <div className="space-y-4 text-sm" style={{ fontSize: '12px' }}>
+                      {businessContracts.map((c) => (
+                        <div key={c.id} className="border border-[#374151] rounded-lg p-3 bg-[#0f172a]">
+                          <div className="flex flex-wrap justify-between gap-2 mb-2">
+                            <span className="text-[#e5e7eb] font-medium">{c.title}</span>
+                            <span className="text-[#e5e7eb] tabular-nums">
+                              {formatCurrencyWithSymbol(c.principal, c.currency || 'USD')} principal
+                            </span>
+                          </div>
+                          <div className="text-[#6b7280] space-y-1">
+                            {c.funding_account_name ? <div>Funding: {c.funding_account_name}</div> : null}
+                            <div>
+                              {formatDate(c.start_date)}
+                              {c.end_date ? ` → ${formatDate(c.end_date)}` : ''}
+                            </div>
+                            {c.note ? <div className="italic text-[#9ca3af]">{c.note}</div> : null}
+                          </div>
+                          {c.entries?.length ? (
+                            <div className="mt-3 pt-2 border-t border-[#374151] space-y-1">
+                              <div className="text-[#9ca3af] text-xs uppercase tracking-wide mb-1">Recent activity</div>
+                              {c.entries.slice(0, 8).map((e) => (
+                                <div key={e.id} className="flex justify-between gap-2 text-[#d1d5db]">
+                                  <span>
+                                    {ENTRY_TYPE_LABELS[e.type] ?? e.type} · {formatDate(e.date)}
+                                  </span>
+                                  <span className="tabular-nums">
+                                    {formatCurrencyWithSymbol(e.amount, c.currency || 'USD')}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Lend/Borrow Summary */}
                 {includeData.lendBorrow && (

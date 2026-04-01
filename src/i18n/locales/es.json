@@ -5,6 +5,8 @@
     "accounts": "Cuentas",
     "transactions": "Transacciones",
     "purchases": "Compras",
+    "lastWish": "Último deseo",
+    "upgradeToPremium": "Mejorar a Premium",
     "settings": "Configuraciones"
   },
   "dashboard": {
