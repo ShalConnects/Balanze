@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
-import { formatTimeUTC } from '../utils/timezoneUtils';
+import { formatDateUTC, formatTimeUTC } from '../utils/timezoneUtils';
 import { useAuthStore } from '../store/authStore';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { useClientStore } from '../store/useClientStore';
@@ -359,7 +359,7 @@ export const History: React.FC = () => {
   });
 
   const groupedLogs = filteredLogs.reduce((groups, log) => {
-    const date = format(new Date(log.created_at), 'MMM dd, yyyy');
+    const date = formatDateUTC(log.created_at, 'MMM dd, yyyy');
     if (!groups[date]) groups[date] = [];
     groups[date].push(log);
     return groups;
@@ -479,7 +479,7 @@ export const History: React.FC = () => {
     const csvContent = [
       ['Date', 'Time', 'Entity Type', 'Activity Type', 'Entity ID', 'Details'],
       ...filteredLogs.map(log => [
-        format(new Date(log.created_at), 'MMM dd, yyyy'),
+        formatDateUTC(log.created_at, 'MMM dd, yyyy'),
         formatTimeUTC(log.created_at),
         log.entity_type,
         log.activity_type,

@@ -34,6 +34,7 @@ import { FinancialHealthCard } from './FinancialHealthCard';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { countsTowardIncomeExpenseSummaries, isLendBorrowTransaction } from '../../utils/transactionUtils';
 import { transactionHasAuditTrail } from '../../utils/transactionHistoryUtils';
+import { formatDateUTC, formatTimeUTC } from '../../utils/timezoneUtils';
 import { getTransactionListManagedElsewhereHint, isTransactionListActionsLocked } from '../../lib/transactionListLock';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 
@@ -86,37 +87,13 @@ const TransactionListComponent: React.FC<{
   clearSelection 
 }) => {
   
-  // Log component mount/unmount and track ref initialization
-  useEffect(() => {
-    const mountTime = Date.now();
-    console.log('🔄 [TransactionList] Component MOUNTED', {
-      timestamp: mountTime,
-      lastClosedTimeRef: lastClosedModalTimeRef.current,
-      isSavingRef: isSavingNoteRef.current,
-      transactionsCount: transactions.length
-    });
-    
-    // Check if page was refreshed
-    const navigationType = (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming)?.type;
-    console.log('🔄 [TransactionList] Navigation type:', navigationType);
-    
-    return () => {
-      console.log('🔄 [TransactionList] Component UNMOUNTING', {
-        timestamp: Date.now(),
-        lastClosedTimeRef: lastClosedModalTimeRef.current,
-        isSavingRef: isSavingNoteRef.current,
-        mountDuration: Date.now() - mountTime
-      });
-    };
-  }, [transactions.length]);
-  
   // Record selection functionality is now passed as props from parent component
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | undefined>();
   const [transactionToDuplicate, setTransactionToDuplicate] = useState<Transaction | undefined>();
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
-  const { getActiveAccounts, getActiveTransactions, deleteTransaction, updateTransaction, fetchTransactions, categories, purchaseCategories, accounts: allAccounts, forceNextOccurrence, transactionHistoryCache } = useFinanceStore();
+  const { getActiveAccounts, getActiveTransactions, deleteTransaction, updateTransaction, fetchTransactions, categories, purchaseCategories, accounts: allAccounts, forceNextOccurrence, transactionHistoryCache, fetchAmountEditDeltaSummary } = useFinanceStore();
   const accounts = getActiveAccounts(); // For filtering dropdowns, keep active accounts
   const allAccountsForLookup = allAccounts; // Use all accounts for lookups to show inactive account info
   const activeTransactions = getActiveTransactions();
@@ -543,8 +520,6 @@ const TransactionListComponent: React.FC<{
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const modifiedMenuRef = useRef<HTMLDivElement>(null); // New: ref for recently modified menu
   const itemsPerPageMenuRef = useRef<HTMLDivElement>(null);
-  const lastLoggedValuesRef = useRef<string>(''); // Track last logged values to reduce log frequency
-  
   // State for delete confirmation modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
@@ -561,21 +536,9 @@ const TransactionListComponent: React.FC<{
       // Only use if it's recent (within last 5 seconds)
       if (Date.now() - storedTime < 5000) {
         lastClosedModalTimeRef.current = storedTime;
-        console.log('🔄 [TransactionList] Restored timestamp from sessionStorage', { storedTime });
       }
     }
   }, []);
-  
-  // Log ref state on every render
-  useEffect(() => {
-    console.log('🔄 [TransactionList] Render cycle', {
-      lastClosedTime: lastClosedModalTimeRef.current,
-      isSaving: isSavingNoteRef.current,
-      timestamp: Date.now(),
-      transactionsLength: transactions.length,
-      noteModalOpen: !!noteModalTransaction
-    });
-  });
   
   const [expandedRecurringIds, setExpandedRecurringIds] = useState<Set<string>>(new Set());
   const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<string>>(new Set());
@@ -972,27 +935,12 @@ const TransactionListComponent: React.FC<{
   };
 
   const handleNoteSave = async (note: string) => {
-    console.log('💾 [TransactionList] handleNoteSave called', { 
-      transactionId: noteModalTransaction?.id, 
-      note, 
-      noteLength: note.length,
-      currentSaveFlag: isSavingNoteRef.current
-    });
     isSavingNoteRef.current = true;
-    console.log('💾 [TransactionList] Save flag set to true');
     try {
       if (noteModalTransaction) {
-        console.log('💾 [TransactionList] Calling updateTransaction', {
-          id: noteModalTransaction.id,
-          note
-        });
         await updateTransaction(noteModalTransaction.id, { note });
-        console.log('💾 [TransactionList] updateTransaction completed');
         // Don't update noteModalTransaction state here - let the modal close
         // The store's optimistic update will handle the UI update automatically
-        console.log('💾 [TransactionList] Note saved, store will handle UI update');
-      } else {
-        console.warn('💾 [TransactionList] No noteModalTransaction set');
       }
     } catch (error) {
       console.error('💾 [TransactionList] Error saving note:', error);
@@ -1001,10 +949,6 @@ const TransactionListComponent: React.FC<{
       // Longer delay to prevent modal from reopening during re-render
       setTimeout(() => {
         isSavingNoteRef.current = false;
-        console.log('💾 [TransactionList] Save flag cleared after delay', {
-          clearedAt: Date.now(),
-          lastCloseTime: lastClosedModalTimeRef.current
-        });
       }, 2000);
     }
   };
@@ -1338,6 +1282,42 @@ const TransactionListComponent: React.FC<{
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customStart, setCustomStart] = useState(filters.dateRange.start ? filters.dateRange.start.slice(0, 10) : '');
   const [customEnd, setCustomEnd] = useState(filters.dateRange.end ? filters.dateRange.end.slice(0, 10) : '');
+  const [amountEditSummary, setAmountEditSummary] = useState({ netDelta: 0, editCount: 0 });
+
+  const filteredTransactionIds = useMemo(
+    () => Array.from(new Set(filteredTransactions.map(t => t.transaction_id).filter((id): id is string => Boolean(id)))),
+    [filteredTransactions]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const filterType = getDateFilterType();
+    const shouldTrackEditDelta =
+      (filterType === 'today' || filterType === 'week') &&
+      !!filters.dateRange.start &&
+      !!filters.dateRange.end &&
+      filteredTransactionIds.length > 0;
+
+    if (!shouldTrackEditDelta) {
+      setAmountEditSummary({ netDelta: 0, editCount: 0 });
+      return;
+    }
+
+    fetchAmountEditDeltaSummary(filteredTransactionIds, filters.dateRange.start, filters.dateRange.end)
+      .then((res) => {
+        if (cancelled || res.error) return;
+        setAmountEditSummary({ netDelta: res.netDelta, editCount: res.editCount });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    fetchAmountEditDeltaSummary,
+    filteredTransactionIds,
+    filters.dateRange.start,
+    filters.dateRange.end,
+  ]);
 
   return (
     <div className="space-y-6">
@@ -2015,7 +1995,7 @@ const TransactionListComponent: React.FC<{
           </div>
         </div>
         {/* Summary Cards - moved inside table container */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 p-3">
           <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
             <div className="flex items-center justify-between">
               <div className="text-left">
@@ -2173,6 +2153,32 @@ const TransactionListComponent: React.FC<{
               <span className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }}>#</span>
             </div>
           </div>
+          {(() => {
+            const filterType = getDateFilterType();
+            if (filterType !== 'today' && filterType !== 'week') return null;
+            const isPositive = amountEditSummary.netDelta >= 0;
+            return (
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-left">
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Net Edited Change</p>
+                      <Tooltip content="Sum of amount edits (new - old) within the selected timeframe." placement="top">
+                        <Info className="w-3 h-3 text-gray-400 cursor-help" />
+                      </Tooltip>
+                    </div>
+                    <p className={`font-bold ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} style={{ fontSize: '1.2rem' }}>
+                      {`${isPositive ? '+' : ''}${formatCurrency(amountEditSummary.netDelta, selectedCurrency)}`}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                      {`${amountEditSummary.editCount} amount edit${amountEditSummary.editCount === 1 ? '' : 's'} ${getDateRangeLabel().toLowerCase()}`}
+                    </p>
+                  </div>
+                  <History className={`w-5 h-5 ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} />
+                </div>
+              </div>
+            );
+          })()}
           <FinancialHealthCard 
             transactions={filteredTransactions} 
             selectedCurrency={selectedCurrency} 
@@ -2327,7 +2333,7 @@ const TransactionListComponent: React.FC<{
                           <div className="text-gray-900 dark:text-white" style={{ fontSize: '14px' }}>
                             <div>{format(new Date(transaction.date), 'MMM dd, yyyy')}</div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {format(new Date(transaction.created_at), 'h:mm a')}
+                              {formatTimeUTC(transaction.created_at, 'h:mm a')}
                             </div>
                           </div>
                         </td>
@@ -2336,9 +2342,9 @@ const TransactionListComponent: React.FC<{
                             <div className="text-gray-900 dark:text-white" style={{ fontSize: '14px' }}>
                               {transactionHasAuditTrail(transaction, transactionHistoryCache) ? (
                                 <>
-                                  <div>{format(new Date(transaction.updated_at), 'MMM dd, yyyy')}</div>
+                                  <div>{formatDateUTC(transaction.updated_at, 'MMM dd, yyyy')}</div>
                                   <div className="text-xs text-gradient-primary flex items-center gap-1">
-                                    {format(new Date(transaction.updated_at), 'h:mm a')}
+                                    {formatTimeUTC(transaction.updated_at, 'h:mm a')}
                                     <Edit2 
                                       className="w-3 h-3" 
                                       style={{
@@ -2518,14 +2524,12 @@ const TransactionListComponent: React.FC<{
                                        // Prevent opening modal if we just closed it (within 1000ms)
                                        const timeSinceLastClose = Date.now() - lastClosedModalTimeRef.current;
                                        if (timeSinceLastClose < 1000) {
-                                         console.log('🖱️ [TransactionList] Ignoring mousedown - modal just closed', { timeSinceLastClose });
                                          e.preventDefault();
                                          e.stopPropagation();
                                          return;
                                        }
                                        
                                        if (isSavingNoteRef.current) {
-                                         console.log('🖱️ [TransactionList] Ignoring mousedown - save in progress');
                                          e.preventDefault();
                                          e.stopPropagation();
                                          return;
@@ -2533,7 +2537,6 @@ const TransactionListComponent: React.FC<{
                                        
                                        // Prevent if modal is already open for this transaction
                                        if (noteModalTransaction?.id === transaction.id) {
-                                         console.log('🖱️ [TransactionList] Ignoring mousedown - modal already open for this transaction');
                                          e.preventDefault();
                                          e.stopPropagation();
                                          return;
@@ -2547,38 +2550,14 @@ const TransactionListComponent: React.FC<{
                                        const lastClosed = lastClosedModalTimeRef.current || storedLastClosed;
                                        const timeSinceClose = currentTime - lastClosed;
                                        
-                                       console.log('🖱️ [TransactionList] onClick triggered', {
-                                         transactionId: transaction.id,
-                                         lastClosedTime: lastClosed,
-                                         refValue: lastClosedModalTimeRef.current,
-                                         storedValue: storedLastClosed,
-                                         currentTime: currentTime,
-                                         timeSinceLastClose: timeSinceClose,
-                                         isSaving: isSavingNoteRef.current,
-                                         currentModalId: noteModalTransaction?.id,
-                                         isSameTransaction: noteModalTransaction?.id === transaction.id,
-                                         eventType: e.type,
-                                         isTrusted: e.isTrusted,
-                                         detail: (e.nativeEvent as any)?.detail,
-                                         button: (e.nativeEvent as any)?.button
-                                       });
-                                       
                                        // Prevent opening modal if we just closed it (within 3000ms)
                                        if (timeSinceClose < 3000) {
-                                         console.log('🛡️ [TransactionList] BLOCKED: Modal just closed', { 
-                                           timeSinceLastClose: timeSinceClose, 
-                                           threshold: 3000,
-                                           lastClosed,
-                                           refValue: lastClosedModalTimeRef.current,
-                                           storedValue: storedLastClosed
-                                         });
                                          e.preventDefault();
                                          e.stopPropagation();
                                          return;
                                        }
                                        
                                        if (isSavingNoteRef.current) {
-                                         console.log('🛡️ [TransactionList] BLOCKED: Save in progress');
                                          e.preventDefault();
                                          e.stopPropagation();
                                          return;
@@ -2586,20 +2565,14 @@ const TransactionListComponent: React.FC<{
                                        
                                        // Prevent if modal is already open for this transaction
                                        if (noteModalTransaction?.id === transaction.id) {
-                                         console.log('🛡️ [TransactionList] BLOCKED: Modal already open for this transaction');
                                          e.preventDefault();
                                          e.stopPropagation();
                                          return;
                                        }
                                        
-                                       console.log('✅ [TransactionList] Note icon clicked - ALLOWED', {
-                                         transactionId: transaction.id,
-                                         hasNote: !!(transaction.note && transaction.note.trim().length > 0)
-                                       });
                                        e.preventDefault();
                                        e.stopPropagation();
                                        setNoteModalTransaction(transaction);
-                                       console.log('✅ [TransactionList] Modal transaction set');
                                      }}
                                      className={transaction.note && transaction.note.trim().length > 0 
                                        ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors" 
@@ -2851,7 +2824,7 @@ const TransactionListComponent: React.FC<{
                         <div className="font-medium flex items-center gap-1.5">
                           <span>{format(new Date(transaction.date), 'MMM dd, yyyy')}</span>
                           <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">
-                            {format(new Date(transaction.created_at), 'h:mm a')}
+                            {formatTimeUTC(transaction.created_at, 'h:mm a')}
                           </span>
                         </div>
                         {transactionHasAuditTrail(transaction, transactionHistoryCache) && (
@@ -2865,7 +2838,7 @@ const TransactionListComponent: React.FC<{
                                 backgroundClip: 'text'
                               }}
                             />
-                            <span>{format(new Date(transaction.updated_at), 'MMM dd, h:mm a')}</span>
+                            <span>{formatTimeUTC(transaction.updated_at, 'MMM dd, h:mm a')}</span>
                           </div>
                         )}
                       </div>
@@ -3084,20 +3057,12 @@ const TransactionListComponent: React.FC<{
                                      
                                      // Prevent opening modal if we just closed it (within 3000ms)
                                      if (timeSinceClose < 3000) {
-                                       console.log('🛡️ [TransactionList] BLOCKED: Modal just closed (mobile)', { 
-                                         timeSinceLastClose: timeSinceClose, 
-                                         threshold: 3000,
-                                         lastClosed,
-                                         refValue: lastClosedModalTimeRef.current,
-                                         storedValue: storedLastClosed
-                                       });
                                        e.preventDefault();
                                        e.stopPropagation();
                                        return;
                                      }
                                      
                                      if (isSavingNoteRef.current) {
-                                       console.log('🛡️ [TransactionList] BLOCKED: Save in progress (mobile)');
                                        e.preventDefault();
                                        e.stopPropagation();
                                        return;
@@ -3105,16 +3070,11 @@ const TransactionListComponent: React.FC<{
                                      
                                      // Prevent if modal is already open for this transaction
                                      if (noteModalTransaction?.id === transaction.id) {
-                                       console.log('🛡️ [TransactionList] BLOCKED: Modal already open for this transaction (mobile)');
                                        e.preventDefault();
                                        e.stopPropagation();
                                        return;
                                      }
                                      
-                                     console.log('✅ [TransactionList] Note icon clicked - ALLOWED (mobile)', {
-                                       transactionId: transaction.id,
-                                       hasNote: !!(transaction.note && transaction.note.trim().length > 0)
-                                     });
                                      e.preventDefault();
                                      e.stopPropagation();
                                      setNoteModalTransaction(transaction);
@@ -3361,9 +3321,9 @@ const TransactionListComponent: React.FC<{
                         <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</div>
                         <div className="text-sm text-gray-900 dark:text-white">{format(new Date(transaction.date), 'MMM dd, yyyy')}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                          {format(new Date(transaction.created_at), 'h:mm a')}
+                          {formatTimeUTC(transaction.created_at, 'h:mm a')}
                           {transactionHasAuditTrail(transaction, transactionHistoryCache) && (
-                            <span className="ml-2 text-gradient-primary flex items-center" title={`Last modified: ${format(new Date(transaction.updated_at), 'MMM dd, h:mm a')}`}>
+                            <span className="ml-2 text-gradient-primary flex items-center" title={`Last modified: ${formatTimeUTC(transaction.updated_at, 'MMM dd, h:mm a')}`}>
                               <Edit2 
                                 className="w-3 h-3" 
                                 style={{
@@ -4006,30 +3966,10 @@ const TransactionListComponent: React.FC<{
           isOpen={!!noteModalTransaction}
           onClose={() => {
             const closeTime = Date.now();
-            console.log('❌ [TransactionList] Modal close called', {
-              closeTime,
-              previousCloseTime: lastClosedModalTimeRef.current,
-              refObject: lastClosedModalTimeRef
-            });
             lastClosedModalTimeRef.current = closeTime;
             // Store in sessionStorage to persist across remounts
             sessionStorage.setItem('transactionNoteModalLastClosed', closeTime.toString());
-            console.log('❌ [TransactionList] Timestamp set in ref and sessionStorage', { 
-              timestamp: lastClosedModalTimeRef.current,
-              refCurrent: lastClosedModalTimeRef.current,
-              refObject: lastClosedModalTimeRef
-            });
             setNoteModalTransaction(null);
-            console.log('❌ [TransactionList] Modal state cleared');
-            
-            // Verify timestamp persists after state update
-            setTimeout(() => {
-              console.log('❌ [TransactionList] Timestamp check after 100ms', {
-                timestamp: lastClosedModalTimeRef.current,
-                shouldBe: closeTime,
-                sessionStorage: sessionStorage.getItem('transactionNoteModalLastClosed')
-              });
-            }, 100);
           }}
           transactionId={noteModalTransaction.id}
           currentNote={noteModalTransaction.note}

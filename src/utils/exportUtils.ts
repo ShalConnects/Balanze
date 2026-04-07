@@ -3,6 +3,7 @@
 // import autoTable from 'jspdf-autotable';
 import { FilterState, SortConfig, ExportOptions, ExportResult, FilterSummary } from '../types/export';
 import { formatTransactionDescription } from './transactionDescriptionFormatter';
+import { getTodayLocalDateString } from './taskDateUtils';
 
 /**
  * Generate a smart filename based on active filters
@@ -12,7 +13,7 @@ export const generateExportFilename = (
   filters?: FilterState,
   recordCount?: number
 ): string => {
-  const date = new Date().toISOString().split('T')[0];
+  const date = getTodayLocalDateString();
   const extension = format.toUpperCase();
   
   if (!filters || !hasActiveFilters(filters)) {

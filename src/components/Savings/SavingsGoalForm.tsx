@@ -3,6 +3,7 @@ import { Dialog } from '@headlessui/react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Account } from '../../types';
 import { formatCurrency } from '../../utils/currency';
+import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 
 interface SavingsGoalFormProps {
   isOpen: boolean;
@@ -134,7 +135,7 @@ export const SavingsGoalForm: React.FC<SavingsGoalFormProps> = ({ isOpen, onClos
                 onChange={(e) => setFormData(prev => ({ ...prev, target_date: e.target.value }))}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                 required
-                min={new Date().toISOString().split('T')[0]}
+                min={getTodayLocalDateString()}
                 disabled={loading}
               />
             </div>

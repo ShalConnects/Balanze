@@ -38,6 +38,7 @@ import {
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
 import { format, startOfMonth, endOfMonth, subMonths, eachMonthOfInterval, parseISO } from 'date-fns';
+import { getTodayLocalDateString, toBusinessDateString } from '../../utils/taskDateUtils';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { detectUserContext } from '../../utils/humorContext';
 import { HumorEngine } from '../../utils/humorEngine';
@@ -287,7 +288,7 @@ ${accounts.map(a =>
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `analytics-export-${format}-${new Date().toISOString().split('T')[0]}.txt`;
+      a.download = `analytics-export-${format}-${getTodayLocalDateString()}.txt`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -302,7 +303,7 @@ ${accounts.map(a =>
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `analytics-export-${format}-${new Date().toISOString().split('T')[0]}.${format === 'csv' ? 'csv' : 'xlsx'}`;
+      a.download = `analytics-export-${format}-${getTodayLocalDateString()}.${format === 'csv' ? 'csv' : 'xlsx'}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -488,11 +489,11 @@ ${accounts.map(a =>
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
-      const dateKey = date.toISOString().split('T')[0];
+      const dateKey = toBusinessDateString(date);
       
       const dayPurchases = periodPurchases.filter(p => {
         const purchaseDate = new Date(p.purchase_date);
-        return purchaseDate.toISOString().split('T')[0] === dateKey;
+        return toBusinessDateString(purchaseDate) === dateKey;
       });
       
       const dailySpend = dayPurchases

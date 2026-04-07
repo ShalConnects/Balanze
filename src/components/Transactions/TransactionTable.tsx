@@ -8,6 +8,7 @@ import { TransactionNoteModal } from './TransactionNoteModal';
 import { toast } from 'sonner';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Tooltip } from '../common/Tooltip';
+import { formatTimeUTC } from '../../utils/timezoneUtils';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -59,25 +60,12 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
   };
 
   const handleNoteSave = async (note: string) => {
-    console.log('💾 [TransactionTable] handleNoteSave called', { 
-      transactionId: noteModalTransaction?.id, 
-      note, 
-      noteLength: note.length 
-    });
     isSavingNoteRef.current = true;
     try {
       if (noteModalTransaction) {
-        console.log('💾 [TransactionTable] Calling updateTransaction', {
-          id: noteModalTransaction.id,
-          note
-        });
         await updateTransaction(noteModalTransaction.id, { note });
-        console.log('💾 [TransactionTable] updateTransaction completed');
         // Don't update noteModalTransaction state here - let the modal close
         // The store's optimistic update will handle the UI update automatically
-        console.log('💾 [TransactionTable] Note saved, store will handle UI update');
-      } else {
-        console.warn('💾 [TransactionTable] No noteModalTransaction set');
       }
     } catch (error) {
       console.error('💾 [TransactionTable] Error saving note:', error);
@@ -86,7 +74,6 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
       // Small delay to prevent modal from reopening during re-render
       setTimeout(() => {
         isSavingNoteRef.current = false;
-        console.log('💾 [TransactionTable] Save flag cleared');
       }, 100);
     }
   };
@@ -104,7 +91,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
         isLendBorrow: isLendBorrowTransaction(transaction),
         isPurchase: isPurchaseTransaction(transaction),
         formattedDate: format(new Date(transaction.date), 'MMM dd, yyyy'),
-        formattedTime: format(new Date(transaction.created_at), 'h:mm a'),
+        formattedTime: formatTimeUTC(transaction.created_at, 'h:mm a'),
         isExpanded: expandedRows.has(transaction.id)
       };
     });
@@ -276,14 +263,12 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
                           // Prevent opening modal if we just closed it (within 500ms)
                           const timeSinceLastClose = Date.now() - lastClosedModalTimeRef.current;
                           if (timeSinceLastClose < 500) {
-                            console.log('🖱️ [TransactionTable] Ignoring click - modal just closed', { timeSinceLastClose });
                             e.preventDefault();
                             e.stopPropagation();
                             return;
                           }
                           
                           if (isSavingNoteRef.current) {
-                            console.log('🖱️ [TransactionTable] Ignoring click - save in progress');
                             e.preventDefault();
                             e.stopPropagation();
                             return;
@@ -291,20 +276,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
                           
                           // Prevent if modal is already open for this transaction
                           if (noteModalTransaction?.id === transaction.id) {
-                            console.log('🖱️ [TransactionTable] Ignoring click - modal already open for this transaction');
                             e.preventDefault();
                             e.stopPropagation();
                             return;
                           }
                           
-                          console.log('🖱️ [TransactionTable] Note icon clicked', {
-                            transactionId: transaction.id,
-                            hasNote: !!(transaction.note && transaction.note.trim().length > 0)
-                          });
                           e.preventDefault();
                           e.stopPropagation();
                           setNoteModalTransaction(transaction);
-                          console.log('🖱️ [TransactionTable] Modal transaction set');
                         }}
                         className={transaction.note && transaction.note.trim().length > 0 
                           ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300" 
@@ -361,9 +340,9 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
                           <h4 className="text-sm font-medium text-gray-900 dark:text-white">Transaction Details</h4>
                           <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
                             <div><span className="font-medium">ID:</span> {transaction.id}</div>
-                            <div><span className="font-medium">Created:</span> {format(new Date(transaction.created_at), 'MMM dd, yyyy HH:mm')}</div>
+                            <div><span className="font-medium">Created:</span> {formatTimeUTC(transaction.created_at, 'MMM dd, yyyy HH:mm')}</div>
                             {transaction.updated_at && (
-                              <div><span className="font-medium">Updated:</span> {format(new Date(transaction.updated_at), 'MMM dd, yyyy HH:mm')}</div>
+                              <div><span className="font-medium">Updated:</span> {formatTimeUTC(transaction.updated_at, 'MMM dd, yyyy HH:mm')}</div>
                             )}
                             <div><span className="font-medium">Recurring:</span> {transaction.is_recurring ? 'Yes' : 'No'}</div>
                             {transaction.recurring_frequency && (
@@ -454,7 +433,6 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
          <TransactionNoteModal
            isOpen={!!noteModalTransaction}
            onClose={() => {
-             console.log('❌ [TransactionTable] Modal close called');
              lastClosedModalTimeRef.current = Date.now();
              setNoteModalTransaction(null);
            }}

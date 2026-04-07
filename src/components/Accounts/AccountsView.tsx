@@ -29,6 +29,7 @@ import { formatTransactionDescription } from '../../utils/transactionDescription
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { countsTowardIncomeExpenseSummaries, groupTransactionsByDate } from '../../utils/transactionUtils';
 import { formatCurrency } from '../../utils/currency';
+import { getTodayLocalDateString, toBusinessDateString } from '../../utils/taskDateUtils';
 
 export const AccountsView: React.FC = () => {
   const { accounts, deleteAccount, getTransactionsByAccount, transactions, loading, error, updateAccount, updateAccountPosition, fetchAccounts, showTransactionForm, setShowTransactionForm, categories, purchaseCategories } = useFinanceStore();
@@ -192,8 +193,8 @@ export const AccountsView: React.FC = () => {
       const start = new Date();
       start.setDate(start.getDate() - 30);
       setStatementDateRange({
-        start: start.toISOString().split('T')[0],
-        end: end.toISOString().split('T')[0]
+        start: toBusinessDateString(start),
+        end: toBusinessDateString(end)
       });
     }
   }, [showStatementModal, statementDateRange.start, statementDateRange.end]);
@@ -513,7 +514,7 @@ export const AccountsView: React.FC = () => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `${selectedAccount.name}_transactions_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `${selectedAccount.name}_transactions_${getTodayLocalDateString()}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();

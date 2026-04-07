@@ -11,6 +11,7 @@ import { getCurrencySymbol } from '../../utils/currency';
 import { generateInvoicePDF } from '../../utils/invoiceUtils';
 import { sendInvoiceEmail } from '../../utils/invoiceEmailService';
 import { toast } from 'sonner';
+import { formatDateUTC } from '../../utils/timezoneUtils';
 
 export const InvoiceList: React.FC = () => {
   const {
@@ -436,7 +437,7 @@ export const InvoiceList: React.FC = () => {
 
                   <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {invoice.currency} • Created {format(new Date(invoice.created_at), 'MMM dd, yyyy')}
+                      {invoice.currency} • Created {formatDateUTC(invoice.created_at, 'MMM dd, yyyy')}
                     </div>
                     <div className="flex gap-2">
                       <button

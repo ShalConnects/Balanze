@@ -10,6 +10,7 @@ import { getUserReadingHistory, getUserArticleStats } from '../lib/articleHistor
 import { generateInternalLinkingSuggestions } from '../lib/kbSitemap';
 import { searchService, SEARCH_CONFIGS, highlightMatches, SearchResult } from '../utils/searchService';
 import clsx from 'clsx';
+import { getTodayLocalDateString } from '../utils/taskDateUtils';
 
 interface KBArticle {
   slug: string;
@@ -82,7 +83,7 @@ const MOCK_ARTICLES: KBArticle[] = [
     category: 'Accounts',
     tags: ['accounts', 'setup', 'banking'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0], // dynamically set to today
+    lastUpdated: getTodayLocalDateString(), // dynamically set to today
     readTime: '6 min read' // updated based on content length
   },
   {
@@ -112,7 +113,7 @@ const MOCK_ARTICLES: KBArticle[] = [
     category: 'Features',
     tags: ['quotes', 'motivation', 'favorites', 'personalization', 'dashboard', 'widgets'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '8 min read'
   },
   {
@@ -122,7 +123,7 @@ const MOCK_ARTICLES: KBArticle[] = [
     category: 'Premium Features',
     tags: ['lent', 'borrow', 'loans', 'transactions', 'debt', 'premium'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '5 min read'
   },
   {
@@ -132,7 +133,7 @@ const MOCK_ARTICLES: KBArticle[] = [
     category: 'Analytics',
     tags: ['analytics', 'dashboard', 'reports', 'insights', 'charts', 'purchases', 'lent-borrow'],
     difficulty: 'intermediate',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '12 min read'
   },
   {
@@ -142,7 +143,7 @@ const MOCK_ARTICLES: KBArticle[] = [
     category: 'Getting Started',
     tags: ['categories', 'income', 'expense', 'organization', 'setup', 'beginner'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '8 min read'
   },
   {
@@ -152,7 +153,7 @@ const MOCK_ARTICLES: KBArticle[] = [
     category: 'Premium Features',
     tags: ['premium', 'last-wish', 'digital-time-capsule', 'legacy', 'financial-planning', 'advanced'],
     difficulty: 'intermediate',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '8 min read'
   },
   {
@@ -162,7 +163,7 @@ const MOCK_ARTICLES: KBArticle[] = [
     category: 'Transactions',
     tags: ['donations', 'charity', 'savings', 'transactions', 'giving', 'tracking'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '10 min read'
   },
   {
@@ -172,7 +173,7 @@ const MOCK_ARTICLES: KBArticle[] = [
     category: 'Analytics',
     tags: ['history', 'activity', 'audit-trail', 'tracking', 'timeline', 'changes'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '4 min read'
   },
   {
@@ -182,7 +183,7 @@ const MOCK_ARTICLES: KBArticle[] = [
     category: 'Productivity Features',
     tags: ['notes', 'todo', 'tasks', 'productivity', 'organization', 'planning'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '5 min read'
   }
 ];

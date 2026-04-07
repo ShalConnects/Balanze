@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { toBusinessDateString } from './taskDateUtils';
 
 // Generate a short code for URL shortening
 export const generateShortCode = (length: number = 6): string => {
@@ -79,7 +80,7 @@ export const generateFriendlyFileName = (
     .substring(0, 20);
 
   // Format date as YYYY-MM-DD
-  const date = new Date(purchase.purchase_date).toISOString().split('T')[0];
+  const date = toBusinessDateString(purchase.purchase_date);
   
   // Get file extension
   const extension = originalFile.name.split('.').pop()?.toLowerCase() || 'jpg';

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { format } from 'date-fns';
 import { 
   Edit, 
   DollarSign, 
@@ -12,6 +11,7 @@ import {
   User,
   ArrowRight
 } from 'lucide-react';
+import { formatDateUTC, formatTimeUTC } from '../../utils/timezoneUtils';
 
 interface TransactionUpdate {
   id: number;
@@ -138,7 +138,7 @@ export const TransactionPurchaseUpdates: React.FC<TransactionPurchaseUpdatesProp
   });
 
   const groupedTransactionUpdates = filteredTransactionUpdates.reduce((groups, update) => {
-    const date = format(new Date(update.updated_at), 'MMM dd, yyyy');
+    const date = formatDateUTC(update.updated_at, 'MMM dd, yyyy');
     if (!groups[date]) {
       groups[date] = [];
     }
@@ -147,7 +147,7 @@ export const TransactionPurchaseUpdates: React.FC<TransactionPurchaseUpdatesProp
   }, {} as Record<string, TransactionUpdate[]>);
 
   const groupedPurchaseUpdates = filteredPurchaseUpdates.reduce((groups, update) => {
-    const date = format(new Date(update.updated_at), 'MMM dd, yyyy');
+    const date = formatDateUTC(update.updated_at, 'MMM dd, yyyy');
     if (!groups[date]) {
       groups[date] = [];
     }
@@ -262,7 +262,7 @@ export const TransactionPurchaseUpdates: React.FC<TransactionPurchaseUpdatesProp
                               </h4>
                               <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 mt-1">
                                 <Clock className="w-3 h-3" />
-                                <span>{format(new Date(update.updated_at), 'h:mm a')}</span>
+                                <span>{formatTimeUTC(update.updated_at, 'h:mm a')}</span>
                                 {update.transaction_description && (
                                   <span className="text-gray-500 truncate">• {update.transaction_description}</span>
                                 )}
@@ -353,7 +353,7 @@ export const TransactionPurchaseUpdates: React.FC<TransactionPurchaseUpdatesProp
                               </h4>
                               <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 mt-1">
                                 <Clock className="w-3 h-3" />
-                                <span>{format(new Date(update.updated_at), 'h:mm a')}</span>
+                                <span>{formatTimeUTC(update.updated_at, 'h:mm a')}</span>
                                 {update.purchase_item_name && (
                                   <span className="text-gray-500 truncate">• {update.purchase_item_name}</span>
                                 )}

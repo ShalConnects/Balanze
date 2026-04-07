@@ -12,6 +12,7 @@ import {
   Eye
 } from 'lucide-react';
 import { getSEOAnalytics, getContentGapAnalysis, seoAnalytics } from '../lib/seoAnalytics';
+import { getTodayLocalDateString } from '../utils/taskDateUtils';
 
 interface SEOAnalyticsDashboardProps {
   className?: string;
@@ -46,7 +47,7 @@ const SEOAnalyticsDashboard: React.FC<SEOAnalyticsDashboardProps> = ({ className
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `seo-analytics-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `seo-analytics-${getTodayLocalDateString()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

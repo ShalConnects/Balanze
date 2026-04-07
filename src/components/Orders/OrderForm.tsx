@@ -5,6 +5,7 @@ import { Order, OrderInput, OrderItemInput } from '../../types/client';
 import { Loader } from '../common/Loader';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
+import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 
 interface OrderFormProps {
   isOpen: boolean;
@@ -29,7 +30,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, order, cl
   const { isMobile } = useMobileDetection();
   const [formData, setFormData] = useState<OrderInput>({
     client_id: clientId || '',
-    order_date: new Date().toISOString().split('T')[0],
+    order_date: getTodayLocalDateString(),
     status: 'pending',
     currency: 'USD',
     shipping_address: '',
@@ -85,7 +86,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ isOpen, onClose, order, cl
     } else {
       setFormData({
         client_id: clientId || '',
-        order_date: new Date().toISOString().split('T')[0],
+        order_date: getTodayLocalDateString(),
         status: 'pending',
         currency: 'USD',
         shipping_address: '',

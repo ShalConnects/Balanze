@@ -18,7 +18,7 @@ import { CustomDropdown } from '../Purchases/CustomDropdown';
 // import 'react-datepicker/dist/react-datepicker.css';
 import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
 import { format } from 'date-fns';
-import { parseLocalDate } from '../../utils/taskDateUtils';
+import { parseLocalDate, getTodayLocalDateString, toBusinessDateString } from '../../utils/taskDateUtils';
 import { CategoryModal } from '../common/CategoryModal';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getFilteredCategoriesForTransaction } from '../../utils/categoryFiltering';
@@ -67,7 +67,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     category: '',
     description: '',
     tags: [] as string[],
-    date: new Date().toISOString().split('T')[0],
+    date: getTodayLocalDateString(),
     is_recurring: false,
     recurring_frequency: 'monthly' as 'daily' | 'weekly' | 'monthly' | 'yearly'
   });
@@ -282,7 +282,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         category: transactionToEdit.category,
         description: transactionToEdit.description,
         tags: transactionToEdit.tags || [],
-        date: new Date(transactionToEdit.date).toISOString().split('T')[0],
+        date: toBusinessDateString(transactionToEdit.date),
         is_recurring: transactionToEdit.is_recurring,
         recurring_frequency: (transactionToEdit.recurring_frequency as 'daily' | 'weekly' | 'monthly' | 'yearly') || 'monthly'
       });
@@ -347,7 +347,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             category: duplicateFrom.category,
             description: duplicateFrom.description,
             tags: duplicateFrom.tags || [],
-            date: new Date(duplicateFrom.date).toISOString().split('T')[0],
+            date: toBusinessDateString(duplicateFrom.date),
             is_recurring: false, // Don't duplicate recurring settings
             recurring_frequency: 'monthly'
           });
@@ -403,7 +403,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             category: '',
             description: '',
             tags: [],
-            date: new Date().toISOString().split('T')[0],
+            date: getTodayLocalDateString(),
             is_recurring: false,
             recurring_frequency: 'monthly'
           });
@@ -672,7 +672,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       category: '',
       description: '',
       tags: [],
-      date: currentDate || new Date().toISOString().split('T')[0],
+      date: currentDate || getTodayLocalDateString(),
       is_recurring: false,
       recurring_frequency: 'monthly'
     });
@@ -746,7 +746,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             type: 'expense' as const,
             category: 'Cash Withdrawal',
             description: data.description || 'Cash Withdrawal',
-            date: new Date(data.date).toISOString(),
+            date: toBusinessDateString(data.date),
             tags: ['cash_withdrawal', 'transfer'],
             user_id: user?.id || ''
           };
@@ -760,7 +760,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             type: 'income' as const,
             category: 'Cash Deposit',
             description: data.description || 'Cash Withdrawal',
-            date: new Date(data.date).toISOString(),
+            date: toBusinessDateString(data.date),
             tags: ['cash_deposit', 'transfer'],
             user_id: user?.id || ''
           };
@@ -818,7 +818,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 category: '',
                 description: '',
                 tags: [],
-                date: currentDate || new Date().toISOString().split('T')[0],
+                date: currentDate || getTodayLocalDateString(),
                 is_recurring: false,
                 recurring_frequency: 'monthly'
               });
@@ -868,7 +868,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             type: data.type as 'income' | 'expense',
             category: data.category,
             description: data.description,
-            date: new Date(data.date).toISOString(),
+            date: toBusinessDateString(data.date),
             tags: data.tags,
             donation_amount,
             is_recurring: data.is_recurring,
@@ -1004,7 +1004,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 category: '',
                 description: '',
                 tags: [],
-                date: currentDate || new Date().toISOString().split('T')[0],
+                date: currentDate || getTodayLocalDateString(),
                 is_recurring: false,
                 recurring_frequency: 'monthly'
               });

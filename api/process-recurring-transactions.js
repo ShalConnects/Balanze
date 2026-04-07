@@ -1,6 +1,18 @@
 import { supabase } from '../lib/supabaseServer.js';
 import { calculateNextOccurrence } from '../lib/recurringUtils.js';
 
+function toYyyyMmDd(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function parseLocalDate(dateString) {
+  const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 function generateTransactionId() {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 8);
@@ -47,7 +59,7 @@ async function createRecurringTransactionNotification(userId, transaction) {
  */
 async function processRecurringTransactions() {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toYyyyMmDd(new Date());
     
     // Find all active recurring transactions that are due
     // Query: is_recurring=true, is_paused=false, next_occurrence_date <= today
@@ -96,8 +108,8 @@ async function processRecurringTransactions() {
         }
 
         // Validate occurrence date is not in the future
-        const occurrenceDateObj = new Date(occurrenceDate);
-        const todayDate = new Date(today);
+        const occurrenceDateObj = parseLocalDate(occurrenceDate);
+        const todayDate = parseLocalDate(today);
         if (occurrenceDateObj > todayDate) {
           // Occurrence date is in the future, skip processing
           continue;
@@ -105,7 +117,7 @@ async function processRecurringTransactions() {
 
         // Check if end date has passed
         if (recurringTransaction.recurring_end_date) {
-          const endDate = new Date(recurringTransaction.recurring_end_date);
+          const endDate = parseLocalDate(recurringTransaction.recurring_end_date);
           
           // Skip if end date has passed (strictly less than today)
           if (endDate < todayDate) {

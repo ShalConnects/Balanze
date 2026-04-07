@@ -5,6 +5,7 @@ import { ArrowLeft, Save, Eye, Edit3 } from 'lucide-react';
 import ArticleEditor from '../components/admin/ArticleEditor';
 import { sanitizeHtml } from '../lib/sanitize';
 import { KBArticle, TableOfContentsItem } from '../data/articles';
+import { getTodayLocalDateString } from '../utils/taskDateUtils';
 
 // Import the current article data
 const MOCK_ARTICLES: Record<string, KBArticle> = {
@@ -369,7 +370,7 @@ const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Productivity Features',
     tags: ['notes', 'todo', 'tasks', 'productivity', 'organization', 'planning'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '5 min read',
     author: 'Balanze Team',
     relatedArticles: ['getting-started-guide', 'settings-page-comprehensive-guide', 'premium-features'],

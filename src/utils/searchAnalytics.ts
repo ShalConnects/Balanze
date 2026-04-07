@@ -1,5 +1,6 @@
 // Search Analytics Service
 // Tracks user search behavior to improve search experience and performance
+import { toBusinessDateString } from './taskDateUtils';
 
 export interface SearchEvent {
   id: string;
@@ -268,7 +269,7 @@ class SearchAnalyticsService {
     const recentEvents = this.events.filter(e => e.timestamp > sevenDaysAgo);
     
     const searchTrends = recentEvents.reduce((acc, e) => {
-      const date = new Date(e.timestamp).toISOString().split('T')[0];
+      const date = toBusinessDateString(new Date(e.timestamp));
       acc[date] = (acc[date] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);

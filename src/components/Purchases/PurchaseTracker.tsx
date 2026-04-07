@@ -47,6 +47,7 @@ import { getDefaultAccountId } from '../../utils/defaultAccount';
 import { sanitizeHtml } from '../../lib/sanitize';
 import { generateTransactionId } from '../../utils/transactionId';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { CategoryModal } from '../common/CategoryModal';
@@ -456,7 +457,7 @@ export const PurchaseTracker: React.FC = () => {
     category: '',
     price: '',
     currency: profile?.local_currency || profile?.selected_currencies?.[0] || '',
-    purchase_date: new Date().toISOString().split('T')[0],
+    purchase_date: getTodayLocalDateString(),
     status: '' as '' | 'planned' | 'purchased' | 'cancelled',
     priority: 'medium' as 'low' | 'medium' | 'high',
     notes: ''
@@ -1192,7 +1193,7 @@ export const PurchaseTracker: React.FC = () => {
       category: '',
         price: '',
         currency: '',
-      purchase_date: new Date().toISOString().split('T')[0],
+      purchase_date: getTodayLocalDateString(),
         status: '' as '' | 'planned' | 'purchased' | 'cancelled',
       priority: 'medium',
       notes: ''

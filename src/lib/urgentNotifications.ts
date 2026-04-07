@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { LendBorrow } from '../types/index';
 import { formatCurrency } from '../utils/currency';
+import { toBusinessDateString } from '../utils/taskDateUtils';
 
 interface UrgentItem {
   id: string;
@@ -433,7 +434,7 @@ export class UrgentNotificationService {
   private async updateOverdueStatus(userId: string): Promise<void> {
     try {
       const today = new Date();
-      const todayString = today.toISOString().split('T')[0];
+      const todayString = toBusinessDateString(today);
       
       // Find all active records that are overdue
       const { data: overdueRecords, error: fetchError } = await supabase

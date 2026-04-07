@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, TrendingUp, Clock, Target, BarChart3, Download, Trash2, Eye } from 'lucide-react';
 import { searchAnalytics, SearchMetrics } from '../../utils/searchAnalytics';
+import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 
 interface SearchAnalyticsDashboardProps {
   className?: string;
@@ -40,7 +41,7 @@ export const SearchAnalyticsDashboard: React.FC<SearchAnalyticsDashboardProps> =
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `search-analytics-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `search-analytics-${getTodayLocalDateString()}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

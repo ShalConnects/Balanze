@@ -18,6 +18,7 @@ import {
   EyeOff,
   Wallet
 } from 'lucide-react';
+import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
@@ -253,7 +254,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
       doc.text('No payment transactions found.', 14, y);
     }
 
-    doc.save(`payment-history-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`payment-history-${getTodayLocalDateString()}.pdf`);
     toast.success('Payment history exported successfully');
   };
 

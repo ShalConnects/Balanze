@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Play, CheckCircle, XCircle, Clock, AlertTriangle, Download, RefreshCw } from 'lucide-react';
 import { runSearchTests, TestSuite, TestResult } from '../../utils/searchTestSuite';
+import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 
 interface SearchValidationPanelProps {
   className?: string;
@@ -32,7 +33,7 @@ export const SearchValidationPanel: React.FC<SearchValidationPanelProps> = ({ cl
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `search-validation-report-${new Date().toISOString().split('T')[0]}.md`;
+    a.download = `search-validation-report-${getTodayLocalDateString()}.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

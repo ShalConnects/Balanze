@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { trackHelpCenter } from '../lib/analytics';
 import { trackArticleReadingUniversal, trackArticleTimeSpent, trackArticleFeedback } from '../lib/articleHistory';
+import { getTodayLocalDateString } from '../utils/taskDateUtils';
 import { toast } from 'sonner';
 import clsx from 'clsx';
 import { useThemeStore } from '../store/themeStore';
@@ -61,7 +62,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Settings & Configuration',
     tags: ['settings', 'configuration', 'account', 'preferences', 'categories', 'plans', 'last-wish'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0], // dynamically set to today
+    lastUpdated: getTodayLocalDateString(), // dynamically set to today
     readTime: '3 min read',
     author: 'Balanze Team',
     relatedArticles: ['getting-started-guide', 'create-first-transaction', 'analytics-dashboard'],
@@ -352,7 +353,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     tags: ['setup', 'beginner', 'accounts', 'transactions'],
     seoKeywords: ['get started', 'setup balanze', 'personal finance app', 'add account', 'add transaction', 'budget tracking'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0], // dynamically set to today
+    lastUpdated: getTodayLocalDateString(), // dynamically set to today
     readTime: `${Math.max(1, Math.round((`
       <div id="what-is-balanze" class="mb-12">
 
@@ -568,7 +569,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     tags: ['accounts', 'setup', 'banking', 'dps'],
     seoKeywords: ['create first account', 'add bank account', 'add credit card', 'cash wallet setup', 'account management', 'personal finance setup', 'Balanze account setup', 'open checking account', 'add savings account', 'beginner guide'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0], // dynamically set to today
+    lastUpdated: getTodayLocalDateString(), // dynamically set to today
     readTime: `${Math.max(1, Math.round((`
       You can add more accounts later by following these steps: Click on Accounts in the sidebar. Click the Add Account button. Choose your account type Bank Account Credit Card Cash etc. Fill in the details: Account name e.g. Chase Checking Account Type Initial balance Currency Description optional. Account Types Balanze supports several account types including Checking Savings Credit Cash Investment accounts and more. DPS While you are at it you can also enable Daily Profit Sharing DPS for your account. DPS is a feature that allows you to automatically transfer a portion of your daily income to a savings account to build wealth over time. What is DPS Daily Profit Sharing? DPS stands for Daily Profit Sharing. It's a savings automation feature that helps you grow your wealth by regularly transferring a set amount or percentage of your income into a dedicated savings account. With DPS enabled you can ensure consistent savings without manual effort making it easier to reach your financial goals. DPS can be enabled for any eligible account such as a savings account. You can choose how often to contribute e.g. daily monthly. Decide whether to save a fixed amount or a percentage of your income. Track your DPS balance and watch your savings grow automatically. How to Enable DPS When creating or editing an account look for the Enable DPS option. Toggle the switch to enable DPS for this account. Choose your DPS Type: Monthly: Contribute once per month. Daily: Contribute every day if supported. Select your Amount Type: Fixed Amount: Save a specific amount each period e.g. 10/month. Percentage: Save a percentage of your income e.g. 5% of each deposit. Enter the Fixed Amount or Percentage you want to save. For example 0.00 as the starting value. Optionally set an Initial DPS Balance if you want to start with an existing amount. Save your account settings. DPS will now run automatically based on your configuration! Tip: You can always adjust or disable DPS later from your account settings. Start with Real Balances Enter your actual account balances when creating accounts - this gives you an accurate starting point for tracking your finances. Enable DPS Early Set up Daily Profit Sharing when creating savings accounts - even small amounts add up over time and build good saving habits. Use Descriptive Names Give your accounts clear descriptive names like Chase Checking or Emergency Savings - this makes it easier to identify them later. Account Types Matter Choose the correct account type Checking Savings Credit etc. - this affects how balances are calculated and displayed in your dashboard.
       `.replace(/<[^>]+>/g, '').split(/\s+/).length) / 200))} min read`, // estimate: 200 wpm
@@ -931,7 +932,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Premium Features',
     tags: ['premium', 'last-wish', 'digital-time-capsule', 'legacy', 'financial-planning', 'advanced'],
     difficulty: 'intermediate',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '8 min read',
     author: 'Balanze Team',
     relatedArticles: ['settings-page-comprehensive-guide', 'premium-features', 'account-management'],
@@ -1563,7 +1564,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     tags: ['transactions', 'income', 'expenses', 'beginner'],
     seoKeywords: ['add transaction', 'record expense', 'record income', 'personal finance', 'budget tracking', 'transaction form', 'transaction categories', 'first transaction guide', 'Balanze transactions', 'how to add expense'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '4 min read',
     author: 'Balanze Team',
     tableOfContents: [
@@ -1755,7 +1756,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Transactions',
     tags: ['purchase', 'spending', 'goals', 'transactions'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '5 min read',
     author: 'Balanze Team',
     tableOfContents: [
@@ -2016,7 +2017,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Personal Growth',
     tags: ['habits', 'habit garden', 'streaks', 'personal growth'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '3 min read',
     author: 'Balanze Team',
     relatedArticles: ['getting-started-guide', 'settings-page-comprehensive-guide'],
@@ -2064,7 +2065,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Premium Features',
     tags: ['lent', 'borrow', 'loans', 'transactions', 'debt', 'premium'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '5 min read',
     author: 'Balanze Team',
     tableOfContents: [
@@ -2358,7 +2359,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Analytics',
     tags: ['analytics', 'dashboard', 'reports', 'insights', 'charts', 'purchases', 'lent-borrow'],
     difficulty: 'intermediate',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '12 min read',
     author: 'Balanze Team',
     seoKeywords: ['analytics dashboard', 'financial insights', 'spending analysis', 'budget reports', 'expense tracking', 'income analysis', 'financial charts', 'money management', 'Balanze analytics', 'financial data'],
@@ -2852,7 +2853,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Transfers',
     tags: ['transfers', 'currency', 'dps', 'accounts', 'beginner'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '8 min read',
     author: 'Balanze Team',
     tableOfContents: [
@@ -3306,7 +3307,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     tags: ['categories', 'income', 'expense', 'organization', 'setup', 'beginner'],
     seoKeywords: ['create income categories', 'expense categories setup', 'organize spending categories', 'personal finance categories', 'Balanze categories guide', 'income expense tracking', 'budget categories', 'financial organization', 'category management', 'spending organization'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '8 min read',
     author: 'Balanze Team',
     relatedArticles: ['create-first-transaction', 'analytics-dashboard', 'settings-page-comprehensive-guide'],
@@ -3708,7 +3709,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Transactions',
     tags: ['donations', 'charity', 'savings', 'transactions', 'giving', 'tracking'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '10 min read',
     author: 'Balanze Team',
     relatedArticles: ['create-first-transaction', 'transaction-management', 'how-to-make-your-first-purchase'],
@@ -4216,7 +4217,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Analytics',
     tags: ['history', 'activity', 'audit-trail', 'tracking', 'timeline', 'changes'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '4 min read',
     author: 'Balanze Team',
     relatedArticles: ['analytics-dashboard', 'getting-started-guide', 'create-first-transaction'],
@@ -4480,7 +4481,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Features',
     tags: ['quotes', 'motivation', 'favorites', 'personalization', 'dashboard', 'widgets'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '10 min read',
     author: 'Balanze Team',
     relatedArticles: ['getting-started-guide', 'settings-page-comprehensive-guide', 'dashboard-overview'],
@@ -4817,7 +4818,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     tags: ['transactions', 'income', 'expense', 'categories', 'import', 'reports'],
     seoKeywords: ['transaction management', 'add transaction', 'edit transaction', 'delete transaction', 'bulk import CSV', 'transaction reports', 'expense tracking', 'income tracking', 'financial analytics', 'data export'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '4 min read',
     author: 'Balanze Team',
     relatedArticles: ['create-first-transaction', 'transaction-categories', 'transaction-reports'],
@@ -4991,7 +4992,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Financial Planning',
     tags: ['financial-planning', 'goals', 'budgeting', 'wealth-management', 'strategy'],
     difficulty: 'intermediate',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '15 min read',
     author: 'Balanze Team',
     relatedArticles: ['analytics-dashboard', 'transaction-management', 'settings-page-comprehensive-guide'],
@@ -5208,7 +5209,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Data Management',
     tags: ['data-export', 'backup', 'csv', 'portability', 'security'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '8 min read',
     author: 'Balanze Team',
     relatedArticles: ['settings-page-comprehensive-guide', 'transaction-management', 'analytics-dashboard'],
@@ -5289,7 +5290,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Mobile',
     tags: ['mobile', 'app', 'features', 'on-the-go', 'smartphone', 'tablet'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '10 min read',
     author: 'Balanze Team',
     relatedArticles: ['getting-started-guide', 'transaction-management', 'analytics-dashboard'],
@@ -5378,7 +5379,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Analytics',
     tags: ['advanced-analytics', 'reports', 'insights', 'custom-reports', 'financial-analysis'],
     difficulty: 'advanced',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '20 min read',
     author: 'Balanze Team',
     relatedArticles: ['analytics-dashboard', 'financial-planning-guide', 'data-export-guide'],
@@ -5458,7 +5459,7 @@ export const MOCK_ARTICLES: Record<string, KBArticle> = {
     category: 'Support',
     tags: ['troubleshooting', 'support', 'errors', 'solutions', 'help', 'fixes'],
     difficulty: 'beginner',
-    lastUpdated: new Date().toISOString().split('T')[0],
+    lastUpdated: getTodayLocalDateString(),
     readTime: '12 min read',
     author: 'Balanze Team',
     relatedArticles: ['getting-started-guide', 'settings-page-comprehensive-guide', 'data-export-guide'],

@@ -12,6 +12,7 @@ import { ProfileEditModal } from '../Layout/ProfileEditModal';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { Link } from 'react-router-dom';
+import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 
 interface AccountManagementProps {
   hideTitle?: boolean;
@@ -236,7 +237,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-              a.download = `balanze-data-${user?.id}-${new Date().toISOString().split('T')[0]}.json`;
+              a.download = `balanze-data-${user?.id}-${getTodayLocalDateString()}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -351,7 +352,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
       });
       y = (doc as any).lastAutoTable.finalY + 6;
     }
-    doc.save(`user-data-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`user-data-${getTodayLocalDateString()}.pdf`);
   };
 
   if (!hideTitle) {

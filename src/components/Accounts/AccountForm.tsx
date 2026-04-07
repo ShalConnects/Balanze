@@ -448,7 +448,6 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
         dps_fixed_amount: formData.has_dps && formData.dps_amount_type === 'fixed' ? parseFloat(formData.dps_fixed_amount) : null,
         dps_savings_account_id: null,
         isActive: true,
-        updated_at: new Date().toISOString(),
         dps_initial_balance: formData.has_dps ? parseFloat(formData.dps_initial_balance) || 0 : 0
       };
 

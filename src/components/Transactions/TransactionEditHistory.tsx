@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { format } from 'date-fns';
 import { History } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
 import { formatCurrency } from '../../utils/currency';
+import { formatTimeUTC } from '../../utils/timezoneUtils';
 import {
   type TransactionHistoryEntry,
   formatAmountHistoryDelta,
@@ -105,7 +105,7 @@ export const TransactionEditHistory: React.FC<{
                     {amountDelta && (
                       <span className="text-xs text-gray-600 dark:text-gray-400">{amountDelta}</span>
                     )}
-                    <span className="text-xs text-gray-500">{format(new Date(h.updated_at), 'MMM dd, h:mm a')}</span>
+                    <span className="text-xs text-gray-500">{formatTimeUTC(h.updated_at, 'MMM dd, h:mm a')}</span>
                     {rowActor && <span className="text-xs text-gray-500">· {rowActor}</span>}
                   </div>
                 );

@@ -1,5 +1,6 @@
 // XML Sitemap Generator for SEO
 // Automatically generates XML sitemaps for search engines
+import { getTodayLocalDateString } from '../utils/taskDateUtils';
 
 export interface SitemapUrl {
   loc: string;
@@ -38,14 +39,14 @@ export function generateHelpCenterSitemap(
     // Main help center page
     {
       loc: `${finalConfig.baseUrl}/help-center`,
-      lastmod: new Date().toISOString().split('T')[0],
+      lastmod: getTodayLocalDateString(),
       changefreq: 'daily',
       priority: 1.0
     },
     // Topic cluster hub
     {
       loc: `${finalConfig.baseUrl}/help-center/topics`,
-      lastmod: new Date().toISOString().split('T')[0],
+      lastmod: getTodayLocalDateString(),
       changefreq: 'weekly',
       priority: 0.8
     },
@@ -77,7 +78,7 @@ export function generateMainSiteSitemap(
     // Homepage
     {
       loc: finalConfig.baseUrl,
-      lastmod: new Date().toISOString().split('T')[0],
+      lastmod: getTodayLocalDateString(),
       changefreq: 'daily',
       priority: 1.0
     },
@@ -116,21 +117,21 @@ export function generateCompleteSitemap(
     // Homepage
     {
       loc: finalConfig.baseUrl,
-      lastmod: new Date().toISOString().split('T')[0],
+      lastmod: getTodayLocalDateString(),
       changefreq: 'daily',
       priority: 1.0
     },
     // Help center main page
     {
       loc: `${finalConfig.baseUrl}/help-center`,
-      lastmod: new Date().toISOString().split('T')[0],
+      lastmod: getTodayLocalDateString(),
       changefreq: 'daily',
       priority: 0.9
     },
     // Topic cluster hub
     {
       loc: `${finalConfig.baseUrl}/help-center/topics`,
-      lastmod: new Date().toISOString().split('T')[0],
+      lastmod: getTodayLocalDateString(),
       changefreq: 'weekly',
       priority: 0.8
     },

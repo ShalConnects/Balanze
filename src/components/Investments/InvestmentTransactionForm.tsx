@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Calculator, DollarSign, Calendar, FileText } from 'lucide-react';
 import { InvestmentTransactionInput, InvestmentAsset, Account } from '../../types/investment';
 import { INVESTMENT_TRANSACTION_TYPES } from '../../types/investment';
+import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 
 interface InvestmentTransactionFormProps {
   isOpen: boolean;
@@ -31,7 +32,7 @@ export const InvestmentTransactionForm: React.FC<InvestmentTransactionFormProps>
     total_amount: 0,
     fees: 0,
     currency: 'USD',
-    transaction_date: new Date().toISOString().split('T')[0],
+    transaction_date: getTodayLocalDateString(),
     notes: ''
   });
 
@@ -104,7 +105,7 @@ export const InvestmentTransactionForm: React.FC<InvestmentTransactionFormProps>
         total_amount: 0,
         fees: 0,
         currency: 'USD',
-        transaction_date: new Date().toISOString().split('T')[0],
+        transaction_date: getTodayLocalDateString(),
         notes: ''
       });
       setErrors({});

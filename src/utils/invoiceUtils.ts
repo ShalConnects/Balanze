@@ -5,6 +5,7 @@
 
 import { Invoice } from '../types/client';
 import { getCurrencySymbol } from './currency';
+import { getTodayLocalDateString } from './taskDateUtils';
 
 export interface InvoicePDFOptions {
   invoice: Invoice;
@@ -415,7 +416,7 @@ export const generateInvoicePDF = async (options: InvoicePDFOptions): Promise<{ 
 
     // Save PDF with error handling
     try {
-      const filename = `Invoice-${invoice.invoice_number}-${new Date().toISOString().split('T')[0]}.pdf`;
+      const filename = `Invoice-${invoice.invoice_number}-${getTodayLocalDateString()}.pdf`;
       doc.save(filename);
     } catch (saveError) {
       console.error('Error saving PDF:', saveError);

@@ -1,5 +1,6 @@
 // src/lib/kbSitemap.ts
 import { MOCK_ARTICLES } from '../pages/KBArticlePage';
+import { getTodayLocalDateString } from '../utils/taskDateUtils';
 
 export interface SitemapEntry {
   url: string;
@@ -18,7 +19,7 @@ export function generateKBSitemapEntries(): SitemapEntry[] {
   // Add main help center page
   entries.push({
     url: `${baseUrl}/help`,
-    lastmod: new Date().toISOString().split('T')[0],
+    lastmod: getTodayLocalDateString(),
     changefreq: 'weekly',
     priority: 0.9
   });

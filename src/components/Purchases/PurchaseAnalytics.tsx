@@ -3,6 +3,7 @@ import { useFinanceStore } from '../../store/useFinanceStore';
 import { formatCurrency } from '../../utils/currency';
 import { CustomDropdown } from './CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
+import { toBusinessDateString } from '../../utils/taskDateUtils';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -147,11 +148,11 @@ export const PurchaseAnalytics: React.FC = () => {
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
-      const dateKey = date.toISOString().split('T')[0];
+      const dateKey = toBusinessDateString(date);
       
       const dayPurchases = periodPurchases.filter(p => {
         const purchaseDate = new Date(p.purchase_date);
-        return purchaseDate.toISOString().split('T')[0] === dateKey;
+        return toBusinessDateString(purchaseDate) === dateKey;
       });
       
       const dailySpend = dayPurchases

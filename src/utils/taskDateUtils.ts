@@ -17,6 +17,31 @@ export function parseLocalDate(dateString: string | null | undefined): Date | nu
   return new Date(year, month - 1, day); // month is 0-indexed in Date constructor
 }
 
+function toYyyyMmDd(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function getTodayLocalDateString(): string {
+  return toYyyyMmDd(new Date());
+}
+
+export function getLocalDateStringWithOffsetDays(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return toYyyyMmDd(date);
+}
+
+export function toBusinessDateString(input: string | Date | null | undefined): string {
+  if (!input) return '';
+  if (input instanceof Date) return toYyyyMmDd(input);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(input)) return input;
+  const parsed = parseLocalDate(input);
+  return parsed ? toYyyyMmDd(parsed) : '';
+}
+
 /**
  * Normalizes a date string to a Date object at the start of the day
  * @param dateStr - Date string in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)

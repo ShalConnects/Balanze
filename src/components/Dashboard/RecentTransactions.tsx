@@ -6,6 +6,7 @@ import { useFinanceStore } from '../../store/useFinanceStore';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { getCurrencySymbol } from '../../utils/currency';
 import { Tooltip } from '../common/Tooltip';
+import { formatTimeUTC } from '../../utils/timezoneUtils';
 
 export const RecentTransactions: React.FC = () => {
   const { accounts: allAccounts } = useFinanceStore();
@@ -62,7 +63,7 @@ export const RecentTransactions: React.FC = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">{formatTransactionDescription(transaction.description)}</p>
                   <p className="text-xs text-gray-500">
-                    {format(new Date(transaction.created_at), 'MMM d, h:mm a')}
+                    {formatTimeUTC(transaction.created_at, 'MMM d, h:mm a')}
                   </p>
                 </div>
               </div>

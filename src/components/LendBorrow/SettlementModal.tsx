@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { LendBorrow } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
+import { toBusinessDateString } from '../../utils/taskDateUtils';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { toast } from 'sonner';
 // DatePicker loaded dynamically to reduce initial bundle size
@@ -220,7 +221,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           amount: partialAmount,
           description: `${record.type === 'lend' ? 'Partial return from' : 'Partial return to'} ${record.person_name}`,
           category: 'Lend/Borrow',
-          date: returnDate.toISOString().split('T')[0],
+          date: toBusinessDateString(returnDate),
           tags: ['lend_borrow', 'loan', 'partial'],
           transaction_id: `LB${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`
         };

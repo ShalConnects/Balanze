@@ -22,6 +22,7 @@ import type {
   TaskInput
 } from '../types/client';
 import { CHATGPT_THREAD_URL_KEY, NEEDS_FOLLOW_UP_KEY, getNeedsFollowUp } from '../types/client';
+import { getTodayLocalDateString } from '../utils/taskDateUtils';
 
 interface ClientStore {
   // State
@@ -413,7 +414,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       const orderData = {
         ...orderInput,
         user_id: user.id,
-        order_date: orderInput.order_date || new Date().toISOString().split('T')[0],
+        order_date: orderInput.order_date || getTodayLocalDateString(),
         status: orderInput.status || 'pending',
         currency: orderInput.currency || 'USD',
         subtotal: orderInput.subtotal || 0,
@@ -784,7 +785,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
         return null;
       }
 
-      const invoiceDate = invoiceInput.invoice_date || new Date().toISOString().split('T')[0];
+      const invoiceDate = invoiceInput.invoice_date || getTodayLocalDateString();
       const dueDate = invoiceInput.due_date;
 
       // Validate date: due_date should not be before invoice_date
@@ -1023,7 +1024,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       await get().updateInvoice(id, {
         status: 'paid',
         payment_status: 'paid',
-        paid_date: new Date().toISOString().split('T')[0]
+        paid_date: getTodayLocalDateString()
       });
     } catch (error: any) {
       set({ error: error.message });
@@ -1244,7 +1245,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       const paymentData = {
         ...paymentInput,
         user_id: user.id,
-        payment_date: paymentInput.payment_date || new Date().toISOString().split('T')[0],
+        payment_date: paymentInput.payment_date || getTodayLocalDateString(),
         currency: paymentInput.currency || 'USD',
         payment_method: paymentInput.payment_method || 'other',
         metadata: paymentInput.metadata || {}

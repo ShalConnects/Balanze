@@ -20,6 +20,7 @@ import { getDefaultAccountId } from '../../utils/defaultAccount';
 import { generateTransactionId } from '../../utils/transactionId';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { AmountAdjustmentModal } from '../common/AmountAdjustmentModal';
+import { parseLocalDate, getTodayLocalDateString } from '../../utils/taskDateUtils';
 
 
 interface PurchaseFormProps {
@@ -27,15 +28,6 @@ interface PurchaseFormProps {
   onClose: () => void;
   isOpen?: boolean;
 }
-
-// Helper function to parse date string as local date (not UTC)
-// This prevents timezone offset issues when displaying dates
-const parseLocalDate = (dateString: string): Date | null => {
-  if (!dateString) return null;
-  const [year, month, day] = dateString.split('-').map(Number);
-  if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
-  return new Date(year, month - 1, day); // month is 0-indexed in Date constructor
-};
 
 export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isOpen = true }) => {
   // Get data from store
@@ -60,7 +52,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     category: record?.category || '',
     price: record?.price ? String(record.price) : '',
     currency: record?.currency || profile?.local_currency || profile?.selected_currencies?.[0] || '',
-    purchase_date: record?.purchase_date || new Date().toISOString().split('T')[0],
+    purchase_date: record?.purchase_date || getTodayLocalDateString(),
     status: record?.status || '' as '' | 'planned' | 'purchased' | 'cancelled',
     priority: record?.priority || 'medium' as 'low' | 'medium' | 'high',
     notes: record?.notes || ''
@@ -643,7 +635,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
           category: '',
           price: '',
           currency: profile?.local_currency || profile?.selected_currencies?.[0] || '',
-          purchase_date: new Date().toISOString().split('T')[0],
+          purchase_date: getTodayLocalDateString(),
           status: '',
           priority: 'medium',
           notes: ''

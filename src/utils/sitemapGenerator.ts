@@ -1,5 +1,6 @@
 // Sitemap generator for help center articles
 // Note: We'll import MOCK_ARTICLES dynamically to avoid build-time issues
+import { getTodayLocalDateString } from './taskDateUtils';
 
 export interface SitemapUrl {
   loc: string;
@@ -10,7 +11,7 @@ export interface SitemapUrl {
 
 export function generateHelpCenterSitemap(): string {
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://balanze.com';
-  const currentDate = new Date().toISOString().split('T')[0];
+  const currentDate = getTodayLocalDateString();
   
   // For now, we'll create a basic sitemap without the articles
   // In production, you'd fetch this from your CMS/API

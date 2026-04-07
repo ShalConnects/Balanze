@@ -21,6 +21,7 @@ import {
   BarChart3,
   Settings
 } from 'lucide-react';
+import { getTodayLocalDateString } from '../utils/taskDateUtils';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { PaymentTransaction } from '../types';
 import { toast } from 'react-hot-toast';
@@ -225,7 +226,7 @@ export const PaymentHistoryPage: React.FC = () => {
       doc.text('No payment transactions found.', 14, y);
     }
 
-    doc.save(`payment-history-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`payment-history-report-${getTodayLocalDateString()}.pdf`);
     toast.success('Payment history exported successfully');
   };
 

@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { getPreference, setPreference } from '../lib/userPreferences';
 import { useRecordSelection } from '../hooks/useRecordSelection';
 import { SelectionFilter } from '../components/common/SelectionFilter';
+import { formatDateUTC } from '../utils/timezoneUtils';
 // PDF libraries loaded dynamically to reduce initial bundle size
 // import jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable';
@@ -500,7 +501,7 @@ const DonationsSavingsPage: React.FC = () => {
       const monthlyTotals: Record<string, number> = {};
       
       donatedRecords.forEach(record => {
-        const monthKey = format(new Date(record.created_at), 'yyyy-MM');
+        const monthKey = formatDateUTC(record.created_at, 'yyyy-MM');
         monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + (record.amount || 0);
       });
       
@@ -1328,7 +1329,7 @@ const DonationsSavingsPage: React.FC = () => {
                               {isSaving ? 'Savings Goal' : 'Donation'} - {activity.note?.replace(/\(?Currency:\s*[A-Z]{3}\)?/g, '').trim() || 'No description'}
                             </p>
                             <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">
-                              {format(new Date(activity.created_at), 'MMM dd')}
+                              {formatDateUTC(activity.created_at, 'MMM dd')}
                             </span>
                           </div>
                           <div className="flex items-center justify-between mt-1">

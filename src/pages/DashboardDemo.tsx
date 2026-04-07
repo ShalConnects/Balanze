@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import FinanceDashboard from '../components/FinanceDashboard';
 import PhoneLayout from '../components/PhoneLayout';
 import { getDashboardAnalytics, trackDashboardLoad } from '../lib/dashboardAnalytics';
+import { getTodayLocalDateString } from '../utils/taskDateUtils';
 
 const DashboardDemo: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
@@ -79,7 +80,7 @@ const DashboardDemo: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `finance-dashboard-export-${format}-${new Date().toISOString().split('T')[0]}.${format}`;
+    a.download = `finance-dashboard-export-${format}-${getTodayLocalDateString()}.${format}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

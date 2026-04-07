@@ -4,6 +4,7 @@ import { useAuthStore } from './authStore';
 import { showToast } from '../lib/toast';
 import { format } from 'date-fns';
 import type { Habit, HabitInput, HabitCompletion, HabitStats, HabitAchievement, HabitGamification, AchievementType } from '../types/habit';
+import { toBusinessDateString } from '../utils/taskDateUtils';
 
 interface HabitStore {
   // State
@@ -577,8 +578,8 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
         extendedEnd.setDate(extendedEnd.getDate() + 7);
         
         await get().fetchCompletions(
-          extendedStart.toISOString().split('T')[0],
-          extendedEnd.toISOString().split('T')[0]
+          toBusinessDateString(extendedStart),
+          toBusinessDateString(extendedEnd)
         );
       } else {
         // If no completions, fetch around the date we tried to toggle
@@ -589,8 +590,8 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
         end.setDate(end.getDate() + 7);
         
         await get().fetchCompletions(
-          start.toISOString().split('T')[0],
-          end.toISOString().split('T')[0]
+          toBusinessDateString(start),
+          toBusinessDateString(end)
         );
       }
     }
@@ -732,7 +733,7 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
 
     console.log(`[isDying] Habit ${habitId}:`, {
       totalCompletions: habitCompletions.length,
-      habitCompletions: habitCompletions.map(d => d.toISOString().split('T')[0])
+      habitCompletions: habitCompletions.map(d => toBusinessDateString(d))
     });
 
     // Never show as dying if there are no completions at all
@@ -751,8 +752,8 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
     );
 
     console.log(`[isDying] Habit ${habitId}:`, {
-      today: today.toISOString().split('T')[0],
-      fourteenDaysAgo: fourteenDaysAgo.toISOString().split('T')[0],
+      today: toBusinessDateString(today),
+      fourteenDaysAgo: toBusinessDateString(fourteenDaysAgo),
       hasRecentActivity
     });
 
@@ -773,7 +774,7 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
 
     console.log(`[isDying] Habit ${habitId}:`, {
       currentStreak,
-      mostRecentCompletion: mostRecentCompletion.toISOString().split('T')[0],
+      mostRecentCompletion: toBusinessDateString(mostRecentCompletion),
       daysSinceLastCompletion
     });
 

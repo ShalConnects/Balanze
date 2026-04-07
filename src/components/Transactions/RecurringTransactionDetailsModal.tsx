@@ -6,6 +6,7 @@ import { formatCurrency } from '../../utils/currency';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Tooltip } from '../common/Tooltip';
 import { getUpcomingOccurrences } from '../../utils/transactionUtils';
+import { formatDateUTC } from '../../utils/timezoneUtils';
 
 interface RecurringTransactionDetailsModalProps {
   isOpen: boolean;
@@ -119,7 +120,7 @@ export const RecurringTransactionDetailsModal: React.FC<RecurringTransactionDeta
                 <div>
                   <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Created</p>
                   <p className="text-sm text-gray-900 dark:text-white">
-                    {format(new Date(displayTransaction.created_at), 'MMM dd, yyyy')}
+                    {formatDateUTC(displayTransaction.created_at, 'MMM dd, yyyy')}
                   </p>
                 </div>
               </div>

@@ -6,7 +6,7 @@ import { Loader } from '../common/Loader';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
 import { format } from 'date-fns';
-import { parseLocalDate } from '../../utils/taskDateUtils';
+import { parseLocalDate, getTodayLocalDateString, getLocalDateStringWithOffsetDays } from '../../utils/taskDateUtils';
 
 interface InvoiceFormProps {
   isOpen: boolean;
@@ -32,8 +32,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ isOpen, onClose, invoi
   const [formData, setFormData] = useState<InvoiceInput>({
     client_id: clientId || '',
     order_id: orderId || '',
-    invoice_date: new Date().toISOString().split('T')[0],
-    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+    invoice_date: getTodayLocalDateString(),
+    due_date: getLocalDateStringWithOffsetDays(30), // 30 days from now
     status: 'draft',
     currency: 'USD',
     payment_status: 'unpaid',
@@ -107,8 +107,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ isOpen, onClose, invoi
       setFormData({
         client_id: clientId || '',
         order_id: orderId || '',
-        invoice_date: new Date().toISOString().split('T')[0],
-        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        invoice_date: getTodayLocalDateString(),
+        due_date: getLocalDateStringWithOffsetDays(30),
         status: 'draft',
         currency: 'USD',
         payment_status: 'unpaid',

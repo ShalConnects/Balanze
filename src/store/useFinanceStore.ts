@@ -19,12 +19,16 @@ import { showToast } from '../lib/toast';
 import { createNotification } from '../lib/notifications';
 import { logTransactionEvent, createAuditLog } from '../lib/auditLogging';
 
-// Utility function to get local time in ISO format
+// Unified timestamp helper for audit fields (UTC ISO)
 function getLocalISOString() {
-  const now = new Date();
-  const offset = now.getTimezoneOffset();
-  const localTime = new Date(now.getTime() - (offset * 60000));
-  return localTime.toISOString();
+  return new Date().toISOString();
+}
+
+function toYyyyMmDd(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 import { generateTransactionId } from '../utils/transactionId';
 import { calculateNextOccurrence } from '../../lib/recurringUtils.js';
@@ -108,6 +112,11 @@ interface FinanceStore {
   deleteTransaction: (id: string) => Promise<void>;
   fetchTransactionEditHistory: (transactionId: string) => Promise<{ rows: TransactionHistoryEntry[]; error: string | null }>;
   fetchTransactionEditHistoryBulk: (transactionIds: string[]) => Promise<void>;
+  fetchAmountEditDeltaSummary: (
+    transactionIds: string[],
+    startDate?: string,
+    endDate?: string
+  ) => Promise<{ netDelta: number; editCount: number; error: string | null }>;
   forceNextOccurrence: (transactionId: string) => Promise<void>;
   skipNextOccurrence: (transactionId: string) => Promise<void>;
   
@@ -1218,6 +1227,41 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     } catch { /* no-op */ }
   },
 
+  fetchAmountEditDeltaSummary: async (transactionIds: string[], startDate?: string, endDate?: string) => {
+    if (!transactionIds.length) return { netDelta: 0, editCount: 0, error: null };
+    try {
+      let query = supabase
+        .from('transaction_updates')
+        .select('old_value, new_value, updated_at')
+        .eq('field_name', 'amount')
+        .in('transaction_id', transactionIds);
+
+      if (startDate) {
+        query = query.gte('updated_at', `${startDate}T00:00:00`);
+      }
+      if (endDate) {
+        query = query.lte('updated_at', `${endDate}T23:59:59.999`);
+      }
+
+      const { data, error } = await query;
+      if (error) return { netDelta: 0, editCount: 0, error: error.message };
+
+      let netDelta = 0;
+      let editCount = 0;
+      for (const row of data || []) {
+        const oldValue = Number(row.old_value);
+        const newValue = Number(row.new_value);
+        if (Number.isNaN(oldValue) || Number.isNaN(newValue)) continue;
+        netDelta += newValue - oldValue;
+        editCount += 1;
+      }
+
+      return { netDelta, editCount, error: null };
+    } catch (e: unknown) {
+      return { netDelta: 0, editCount: 0, error: e instanceof Error ? e.message : 'Failed to load amount edit summary' };
+    }
+  },
+
   forceNextOccurrence: async (transactionId: string) => {
     set({ loading: true, error: null });
     try {
@@ -1258,8 +1302,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       // When forcing, always use today's date for the new transaction instance
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const occurrenceDate = today.toISOString().split('T')[0]; // Use today's date for forced instance
-      const occurrenceDateObj = new Date(occurrenceDate);
+      const occurrenceDate = toYyyyMmDd(today); // Use today's local date for forced instance
+      const occurrenceDateObj = new Date(today);
 
       // Check if end date has passed
       if (recurringTransaction.recurring_end_date) {

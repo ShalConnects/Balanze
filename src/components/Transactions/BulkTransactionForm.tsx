@@ -11,7 +11,7 @@ import { getDefaultAccountId } from '../../utils/defaultAccount';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
 import { format } from 'date-fns';
-import { parseLocalDate } from '../../utils/taskDateUtils';
+import { parseLocalDate, getTodayLocalDateString, toBusinessDateString } from '../../utils/taskDateUtils';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getFilteredCategoriesForTransaction } from '../../utils/categoryFiltering';
 
@@ -49,13 +49,13 @@ export const BulkTransactionForm: React.FC<BulkTransactionFormProps> = ({ onClos
       type: '',
       category: '',
       description: '',
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayLocalDateString(),
       errors: {}
     }
   ]);
 
   const defaultAccountId = getDefaultAccountId();
-  const defaultDate = new Date().toISOString().split('T')[0];
+  const defaultDate = getTodayLocalDateString();
 
   // Get filtered categories based on account currency
   const getFilteredCategories = (accountId: string, type: 'income' | 'expense' | '') => {
@@ -211,7 +211,7 @@ export const BulkTransactionForm: React.FC<BulkTransactionFormProps> = ({ onClos
                 type: row.type as 'income' | 'expense',
                 category: row.category,
                 description: row.description || '',
-                date: new Date(row.date).toISOString(),
+                date: toBusinessDateString(row.date),
                 tags: [],
                 user_id: user.id,
                 transaction_id: transactionId

@@ -21,6 +21,8 @@ import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useTranslation } from 'react-i18next';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { formatCurrencyCompact } from '../../utils/currency';
+import { getTodayLocalDateString } from '../../utils/taskDateUtils';
+import { formatDateUTC } from '../../utils/timezoneUtils';
 // DatePicker loaded dynamically to reduce initial bundle size
 // import DatePicker from 'react-datepicker';
 // import 'react-datepicker/dist/react-datepicker.css';
@@ -823,7 +825,7 @@ export const LendBorrowTableView: React.FC = () => {
           ? `Repayment from ${record.person_name}` 
           : `Repayment to ${record.person_name}`,
         category: 'Lend/Borrow',
-        date: new Date().toISOString().split('T')[0],
+        date: getTodayLocalDateString(),
         tags: ['lend_borrow', 'settlement'],
         transaction_id: settlementTransactionId
       };
@@ -1961,7 +1963,7 @@ export const LendBorrowTableView: React.FC = () => {
                                     </div>
                                     <div className="flex items-center justify-between gap-2">
                                       <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Date:</span>
-                                      <span className="text-gray-900 dark:text-white text-xs sm:text-sm break-words">{record.created_at ? (isNaN(new Date(record.created_at).getTime()) ? 'No date' : format(new Date(record.created_at), 'MMM dd, yyyy')) : 'No date'}</span>
+                                      <span className="text-gray-900 dark:text-white text-xs sm:text-sm break-words">{record.created_at ? formatDateUTC(record.created_at, 'MMM dd, yyyy') : 'No date'}</span>
                                     </div>
                                     <div className="flex items-center justify-between gap-2">
                                       <span className="font-medium text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Due Date:</span>

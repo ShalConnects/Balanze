@@ -9,6 +9,7 @@ import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { format } from 'date-fns';
 import { getCurrencySymbol } from '../../utils/currency';
+import { formatDateUTC } from '../../utils/timezoneUtils';
 
 export const OrderList: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -365,7 +366,7 @@ export const OrderList: React.FC = () => {
 
                 <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {order.currency} • Created {format(new Date(order.created_at), 'MMM dd, yyyy')}
+                    {order.currency} • Created {formatDateUTC(order.created_at, 'MMM dd, yyyy')}
                   </div>
                   <div className="flex gap-2">
                     <button

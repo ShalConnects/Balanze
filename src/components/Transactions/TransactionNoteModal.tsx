@@ -22,21 +22,8 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const MAX_LENGTH = 500;
 
-  // Log component mount/unmount to detect page refreshes
-  useEffect(() => {
-    console.log('📦 [NoteModal] Component mounted');
-    return () => {
-      console.log('📦 [NoteModal] Component unmounting');
-    };
-  }, []);
-
   useEffect(() => {
     if (isOpen) {
-      console.log('📂 [NoteModal] Modal opened', {
-        transactionId,
-        currentNote,
-        noteLength: currentNote?.length || 0
-      });
       setNote(currentNote || '');
       // Focus textarea after modal opens
       setTimeout(() => {
@@ -46,69 +33,54 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
           textareaRef.current.value.length
         );
       }, 100);
-    } else {
-      console.log('📂 [NoteModal] Modal closed');
     }
   }, [isOpen, currentNote, transactionId]);
 
   const handleSave = async (e?: React.MouseEvent) => {
-    console.log('📝 [NoteModal] handleSave called', { note: note.trim(), noteLength: note.length });
     if (e) {
       e.preventDefault();
       e.stopPropagation();
-      console.log('📝 [NoteModal] Prevented default and stopped propagation');
     }
     
     if (note.length > MAX_LENGTH) {
-      console.warn('📝 [NoteModal] Note exceeds max length');
       toast.error(`Note cannot exceed ${MAX_LENGTH} characters`);
       return;
     }
 
-    console.log('📝 [NoteModal] Setting loading state and calling onSave');
     setIsLoading(true);
     try {
       // Close modal FIRST to prevent reopening during store update
-      console.log('📝 [NoteModal] Closing modal before save');
       onClose();
       
       await onSave(note.trim());
-      console.log('📝 [NoteModal] onSave completed successfully');
       toast.success('Note saved successfully');
     } catch (error) {
       console.error('📝 [NoteModal] Error saving note:', error);
       toast.error('Failed to save note. Please try again.');
       // Don't close on error - let user try again
     } finally {
-      console.log('📝 [NoteModal] Clearing loading state');
       setIsLoading(false);
     }
   };
 
   const handleDelete = async (e?: React.MouseEvent) => {
-    console.log('🗑️ [NoteModal] handleDelete called');
     if (e) {
       e.preventDefault();
       e.stopPropagation();
-      console.log('🗑️ [NoteModal] Prevented default and stopped propagation');
     }
     
-    console.log('🗑️ [NoteModal] Setting loading state and calling onSave with empty string');
     setIsLoading(true);
     try {
       // Close modal FIRST to prevent reopening during store update
-      console.log('🗑️ [NoteModal] Closing modal before delete');
       onClose();
       
       await onSave('');
-      console.log('🗑️ [NoteModal] onSave (delete) completed successfully');
       toast.success('Note deleted successfully');
     } catch (error) {
       console.error('🗑️ [NoteModal] Error deleting note:', error);
       toast.error('Failed to delete note. Please try again.');
       // Don't close on error - let user try again
     } finally {
-      console.log('🗑️ [NoteModal] Clearing loading state');
       setIsLoading(false);
     }
   };

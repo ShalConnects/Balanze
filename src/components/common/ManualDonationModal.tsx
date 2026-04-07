@@ -153,7 +153,7 @@ export const ManualDonationModal: React.FC<ManualDonationModalProps> = ({
         mode_value: amountNum,
         note: note ? `${note} Currency: ${currency}` : `Currency: ${currency}`,
         status: 'donated', // Manual donations are marked as donated by default
-        created_at: new Date().toISOString().split('T')[0] // Always use current date for created_at
+        created_at: new Date().toISOString() // UTC audit timestamp
       };
       
 
