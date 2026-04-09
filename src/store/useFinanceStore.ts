@@ -379,7 +379,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   addAccount: async (account: Omit<AccountInput, 'id' | 'user_id' | 'created_at'> & { dps_initial_balance?: number, transaction_id?: string }) => {
     try {
       set({ loading: true, error: null });
-      const { user } = useAuthStore.getState();
+      const { user, profile } = useAuthStore.getState();
       if (!user) throw new Error('Not authenticated');
 
       // Calculate DPS initial balance
@@ -537,7 +537,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       } else {
         set({ error: null });
       }
-      const { user } = useAuthStore.getState();
+      const { user, profile } = useAuthStore.getState();
       if (!user) throw new Error('Not authenticated');
 
       // Get the current account state
@@ -719,7 +719,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   updateAccountPosition: async (accountId: string, newPosition: number) => {
     try {
       set({ loading: true, error: null });
-      const { user } = useAuthStore.getState();
+      const { user, profile } = useAuthStore.getState();
       if (!user) throw new Error('Not authenticated');
 
       // Update the account position in the database
@@ -3339,7 +3339,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   fetchPaymentTransactions: async () => {
     try {
       set({ loading: true, error: null });
-      const { user } = useAuthStore.getState();
+      const { user, profile } = useAuthStore.getState();
       
       if (!user) {
         set({ loading: false });
@@ -3364,20 +3364,33 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       }
 
       // Transform subscription_history data to payment transaction format
-      const transformedTransactions = historyData?.map(sub => ({
+      const transformedTransactions = historyData?.map(sub => {
+        const method = (sub.payment_method || '').toLowerCase();
+        const constPaymentProvider =
+          sub.payment_provider ||
+          (method.includes('paddle') ? 'paddle' : method.includes('paypal') ? 'paypal' : 'stripe');
+        const constBillingCycle = sub.billing_cycle === 'one-time' ? 'one-time' : 'monthly';
+        const normalizedMethod =
+          method.includes('paddle') ? 'paddle' :
+          method.includes('paypal') ? 'paypal' :
+          sub.payment_method || 'N/A';
+        const providerTransactionId = method.includes('paddle')
+          ? (profile?.subscription as any)?.paddle_subscription_id || sub.id
+          : sub.id;
+        return {
         id: sub.id,
         user_id: sub.user_id,
         plan_id: sub.plan_id,
         amount: sub.amount_paid || 0,
         currency: sub.currency || 'USD',
-        payment_provider: 'stripe' as const, // Default to stripe
-        provider_transaction_id: sub.id, // Use subscription history ID
+        payment_provider: constPaymentProvider as 'stripe' | 'paypal' | 'paddle',
+        provider_transaction_id: providerTransactionId,
         status: sub.status === 'active' ? 'completed' as const : 
                 sub.status === 'cancelled' ? 'cancelled' as const : 
                 sub.status === 'expired' ? 'failed' as const :
                 'pending' as const,
-        payment_method: sub.payment_method || 'N/A',
-        billing_cycle: 'monthly' as const, // Default billing cycle
+        payment_method: normalizedMethod,
+        billing_cycle: constBillingCycle as 'monthly' | 'one-time',
         transaction_type: 'payment' as const,
         metadata: { 
           source: 'subscription_history',
@@ -3386,7 +3399,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         },
         created_at: sub.created_at,
         plan_name: sub.plan_name || 'Unknown Plan'
-      })) || [];
+      };
+      }) || [];
 
       set({ 
         paymentTransactions: transformedTransactions,

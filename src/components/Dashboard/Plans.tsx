@@ -205,85 +205,37 @@ export const Plans: React.FC = () => {
         'premium_monthly': import.meta.env.VITE_PADDLE_MONTHLY_PRICE_ID,
         'premium_lifetime': import.meta.env.VITE_PADDLE_LIFETIME_PRICE_ID
       };
-      
-      const hostedCheckoutUrls: { [key: string]: string } = {
-        'premium_monthly': import.meta.env.VITE_PADDLE_MONTHLY_HOSTED_CHECKOUT_URL || '',
-        'premium_lifetime': import.meta.env.VITE_PADDLE_LIFETIME_HOSTED_CHECKOUT_URL || ''
-      };
 
       const priceId = priceMapping[planId];
-      const hostedCheckoutUrl = hostedCheckoutUrls[planId];
-
-
-
-      // Strategy 1: Try Paddle.js overlay checkout first
-      if (paddle && paddle.Checkout) {
-        try {
-
-          
-          const checkoutPromise = paddle.Checkout.open({
-            items: [{ priceId, quantity: 1 }],
-            customer: {
-              email: user.email,
-              country: 'US'
-            },
-            customData: {
-              user_id: user.id,
-              plan_id: planId,
-              billing_cycle: billingCycle
-            },
-            settings: {
-              displayMode: 'overlay',
-              theme: 'light',
-              locale: 'en'
-            },
-            successUrl: window.location.origin + '/settings?tab=plans-usage&payment=success',
-            cancelUrl: window.location.origin + '/settings?tab=plans-usage&payment=cancelled'
-          });
-
-          // Handle with timeout
-          if (checkoutPromise && typeof checkoutPromise.then === 'function') {
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Checkout timeout')), 5000)
-            );
-            
-            await Promise.race([checkoutPromise, timeoutPromise]);
-
-            setLoading(null);
-            toast.success('Checkout opened!');
-            return;
-          } else if (checkoutPromise === undefined || checkoutPromise === null) {
-            throw new Error('Checkout returned null/undefined');
-          } else {
-
-            setLoading(null);
-            toast.success('Checkout opened!');
-            return;
-          }
-        } catch (overlayError) {
-
-        }
+      if (!paddle?.Checkout) {
+        throw new Error('Secure checkout is currently unavailable. Please try again shortly.');
       }
 
-      // Strategy 2: Fallback to hosted checkout URL in new tab
-      if (hostedCheckoutUrl) {
-
-        window.open(hostedCheckoutUrl, '_blank', 'noopener,noreferrer');
-        setLoading(null);
-        toast.success('Opening secure checkout...');
-        return;
-      }
-
-      // Strategy 3: Final fallback
-
-      const fallbackUrl = `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
-      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+      await paddle.Checkout.open({
+        items: [{ priceId, quantity: 1 }],
+        customer: {
+          email: user.email,
+          country: 'US'
+        },
+        customData: {
+          user_id: user.id,
+          plan_id: planId,
+          billing_cycle: billingCycle
+        },
+        settings: {
+          displayMode: 'overlay',
+          theme: 'light',
+          locale: 'en'
+        },
+        successUrl: window.location.origin + '/settings?tab=plans-usage&payment=success',
+        cancelUrl: window.location.origin + '/settings?tab=plans-usage&payment=cancelled'
+      });
       setLoading(null);
-      toast.success('Opening checkout...');
+      toast.success('Checkout opened!');
 
     } catch (err) {
 
-      toast.error('Unable to open checkout. Please try again.');
+      toast.error('Unable to open secure checkout. Please try again.');
       setLoading(null);
     }
   };

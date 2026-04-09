@@ -1,17 +1,11 @@
 import React from 'react';
 import { Plans } from './Plans';
-import { useAuthStore } from '../../store/authStore';
 
 interface PlansAndUsageProps {
   hideTitle?: boolean;
 }
 
 export const PlansAndUsage: React.FC<PlansAndUsageProps> = ({ hideTitle = false }) => {
-  const { profile } = useAuthStore();
-
-  // Check if user is on free plan
-  const isFreeUser = !profile?.subscription?.plan || profile?.subscription?.plan === 'free';
-
   return (
     <div className="space-y-6">
       {!hideTitle && (

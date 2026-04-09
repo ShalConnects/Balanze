@@ -18,7 +18,7 @@ export type AppUser = {
     default_account_id?: string;
     subscription?: {
         plan: 'free' | 'premium';
-        status: 'active' | 'inactive' | 'cancelled';
+        status: 'active' | 'inactive' | 'cancelled' | 'trialing' | 'past_due' | 'expired';
         validUntil: string | null;
     };
 };

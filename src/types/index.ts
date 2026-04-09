@@ -333,7 +333,7 @@ export interface PaymentTransaction {
   plan_id: string;
   amount: number;
   currency: string;
-  payment_provider: 'stripe' | 'paypal';
+  payment_provider: 'stripe' | 'paypal' | 'paddle';
   provider_transaction_id: string;
   status: 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled';
   payment_method?: string;

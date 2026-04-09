@@ -35,7 +35,7 @@ interface PaymentTransaction {
   plan_id: string;
   amount: number;
   currency: string;
-  payment_provider: 'stripe' | 'paypal';
+  payment_provider: 'stripe' | 'paypal' | 'paddle';
   provider_transaction_id: string;
   status: 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled';
   payment_method?: string;
@@ -53,7 +53,7 @@ interface PaymentHistoryProps {
 
 export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = false }) => {
   const { paymentTransactions, loading, fetchPaymentTransactions } = useFinanceStore();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const [filteredTransactions, setFilteredTransactions] = useState<PaymentTransaction[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -62,6 +62,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
   const [showTransactionDetails, setShowTransactionDetails] = useState<string | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
+  const [liveSubscriptionDetails, setLiveSubscriptionDetails] = useState<any>(null);
   const { isMobile } = useMobileDetection();
 
   // Fetch payment transactions
@@ -211,13 +212,25 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
   };
 
   // Format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      day: 'numeric'
+    });
+  };
+
+  const formatDateOnly = (dateString?: string | null) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   };
 
@@ -279,6 +292,50 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
     return <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />;
   };
 
+  const subscription = (profile?.subscription as any) || {};
+  const latestSubscriptionMeta = paymentTransactions.find((tx) => tx.metadata?.source === 'subscription_history')?.metadata || {};
+  const historyFallback = {
+    trial_started_at: latestSubscriptionMeta.start_date || null,
+    trial_ends_at: latestSubscriptionMeta.end_date || null,
+    next_billing_date: latestSubscriptionMeta.end_date || null,
+  };
+  const mergedSubscription = { ...historyFallback, ...subscription, ...(liveSubscriptionDetails || {}) };
+  const isPremium = mergedSubscription?.plan === 'premium' || mergedSubscription?.status === 'trialing' || mergedSubscription?.status === 'active';
+  const status = mergedSubscription?.status || (isPremium ? 'active' : 'free');
+  const billingCycleLabel = mergedSubscription?.billing_cycle === 'one-time' || mergedSubscription?.billing_cycle === 'lifetime'
+    ? 'One-time'
+    : 'Monthly';
+  const trialStart = mergedSubscription?.trial_started_at;
+  const trialEnd = mergedSubscription?.trial_ends_at;
+  const nextBilling = mergedSubscription?.next_billing_date || mergedSubscription?.expires_at || mergedSubscription?.validUntil;
+  const statusBadgeClass = status === 'trialing'
+    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+    : status === 'active'
+    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+    : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+
+  useEffect(() => {
+    const subscriptionId = subscription?.paddle_subscription_id;
+    if (!user?.id || !subscriptionId) {
+      setLiveSubscriptionDetails(null);
+      return;
+    }
+    (async () => {
+      try {
+        const res = await fetch('/api/payments?path=get-paddle-subscription-details', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscriptionId, userId: user.id }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data?.details) setLiveSubscriptionDetails(data.details);
+      } catch {
+        // Keep local profile snapshot when live fetch is unavailable
+      }
+    })();
+  }, [user?.id, subscription?.paddle_subscription_id]);
+
   if (!hideTitle) {
     return (
       <div className="space-y-4 sm:space-y-6">
@@ -295,6 +352,33 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
 
   return (
     <div className="space-y-4">
+      {isPremium && (
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm text-gray-700 dark:text-gray-300 min-w-0">
+              <span className="font-semibold">Plan:</span> Premium ({billingCycleLabel})
+            </div>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${statusBadgeClass}`}>
+              {String(status).replace('_', ' ')}
+            </span>
+          </div>
+          <div className={`mt-3 grid gap-2 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
+            <div className="rounded-md bg-gray-50 dark:bg-gray-700/40 px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Trial started</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDateOnly(trialStart)}</p>
+            </div>
+            <div className="rounded-md bg-gray-50 dark:bg-gray-700/40 px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Trial ends</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDateOnly(trialEnd)}</p>
+            </div>
+            <div className="rounded-md bg-gray-50 dark:bg-gray-700/40 px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Next billing</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDateOnly(nextBilling)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Payment Methods Cards */}
       {paymentMethods.length > 0 && (
         <div>
@@ -305,7 +389,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
                 key={method.id}
                 className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all"
               >
-                <div className="flex items-start justify-between mb-2 sm:mb-3">
+                <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                     <div className="p-1.5 sm:p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex-shrink-0">
                       {getPaymentMethodIcon(method.type, method.brand)}
@@ -353,7 +437,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
       {/* Payment History Section */}
       <div className="space-y-3 sm:space-y-4">
         {/* Summary Statistics */}
-        <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
+        <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-3'}`}>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
@@ -376,6 +460,17 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
             </div>
             <div className="p-1.5 sm:p-2 bg-green-100 dark:bg-green-900/30 rounded-lg flex-shrink-0 ml-2">
               <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600 dark:text-green-400" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Completed</p>
+              <p className="text-lg sm:text-xl font-bold text-emerald-600 dark:text-emerald-400 truncate">{summaryStats.completedTransactions}</p>
+            </div>
+            <div className="p-1.5 sm:p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex-shrink-0 ml-2">
+              <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
           </div>
         </div>
@@ -539,12 +634,12 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
                 ) : (
                   // Desktop Layout
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
+                  <div className="flex items-center gap-3 sm:gap-4">
                       <div className="flex-shrink-0">
                         {getStatusIcon(transaction.status)}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-2">
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
                             {transaction.plan_name}
                           </p>
@@ -552,7 +647,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
                             {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
                           </span>
                         </div>
-                        <div className="flex items-center space-x-4 mt-1">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             {formatDate(transaction.created_at)}
                           </p>
@@ -566,12 +661,12 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
                       </div>
                     </div>
                     
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center gap-3 sm:gap-4">
                       <div className="text-right">
                         <p className="text-lg font-semibold text-gray-900 dark:text-white">
                           {formatCurrency(transaction.amount, transaction.currency)}
                         </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 break-all">
                           ID: {transaction.provider_transaction_id.substring(0, 8)}...
                         </p>
                       </div>
@@ -598,11 +693,15 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
                     <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
                       <div>
                         <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Transaction ID</p>
-                        <p className="text-sm text-gray-900 dark:text-white font-mono">{transaction.provider_transaction_id}</p>
+                        <p className="text-sm text-gray-900 dark:text-white font-mono break-all">{transaction.provider_transaction_id}</p>
                       </div>
                       <div>
                         <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Payment Provider</p>
                         <p className="text-sm text-gray-900 dark:text-white capitalize">{transaction.payment_provider}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Payment Method</p>
+                        <p className="text-sm text-gray-900 dark:text-white capitalize">{transaction.payment_method || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Transaction Type</p>
@@ -612,6 +711,18 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
                         <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Created</p>
                         <p className="text-sm text-gray-900 dark:text-white">{formatDate(transaction.created_at)}</p>
                       </div>
+                      {transaction.metadata?.start_date && (
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Trial/Period Start</p>
+                          <p className="text-sm text-gray-900 dark:text-white">{formatDate(transaction.metadata.start_date)}</p>
+                        </div>
+                      )}
+                      {transaction.metadata?.end_date && (
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Trial/Period End</p>
+                          <p className="text-sm text-gray-900 dark:text-white">{formatDate(transaction.metadata.end_date)}</p>
+                        </div>
+                      )}
                       {transaction.updated_at && (
                         <div>
                           <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Updated</p>
@@ -621,9 +732,18 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
                       {transaction.metadata && Object.keys(transaction.metadata).length > 0 && (
                         <div className={`${isMobile ? 'col-span-1' : 'sm:col-span-2 lg:col-span-3'}`}>
                           <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Metadata</p>
-                          <pre className={`text-xs text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 rounded overflow-x-auto ${isMobile ? 'p-2' : 'p-2'}`}>
-                            {JSON.stringify(transaction.metadata, null, 2)}
-                          </pre>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            <div className="rounded bg-gray-100 dark:bg-gray-700 p-2">
+                              <span className="text-gray-500 dark:text-gray-400">Source: </span>
+                              <span className="text-gray-900 dark:text-white">{transaction.metadata.source || 'N/A'}</span>
+                            </div>
+                            <div className="rounded bg-gray-100 dark:bg-gray-700 p-2">
+                              <span className="text-gray-500 dark:text-gray-400">Period: </span>
+                              <span className="text-gray-900 dark:text-white break-words">
+                                {formatDateOnly(transaction.metadata.start_date)} - {formatDateOnly(transaction.metadata.end_date)}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>

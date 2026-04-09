@@ -141,94 +141,38 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
 
     try {
       const priceId = getPaddlePriceId();
-      const hostedCheckoutUrls: { [key: string]: string } = {
-        'premium_monthly': import.meta.env.VITE_PADDLE_MONTHLY_HOSTED_CHECKOUT_URL || '',
-        'premium_lifetime': import.meta.env.VITE_PADDLE_LIFETIME_HOSTED_CHECKOUT_URL || ''
-      };
-      const hostedCheckoutUrl = hostedCheckoutUrls[planId];
-
-
-
-
-      // Strategy 1: Try Paddle.js overlay checkout first (best UX)
-      if (paddle && paddle.Checkout) {
-        try {
-
-          
-          const checkoutPromise = paddle.Checkout.open({
-            items: [{ priceId, quantity: 1 }],
-            customer: {
-              email: user.email,
-              country: 'US'
-            },
-            customData: {
-              user_id: user.id,
-              plan_id: planId,
-              billing_cycle: billingCycle
-            },
-            settings: {
-              displayMode: 'overlay',
-              theme: 'light',
-              locale: 'en',
-              allowLogout: false,
-              showAddTaxId: false,
-              showAddDiscounts: false
-            },
-            successUrl: window.location.origin + '/settings?tab=plans-usage&payment=success',
-            cancelUrl: window.location.origin + '/settings?tab=plans-usage&payment=cancelled'
-          });
-
-          // Handle the checkout promise with timeout
-          if (checkoutPromise && typeof checkoutPromise.then === 'function') {
-            // Add a timeout to catch hanging promises
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Checkout timeout')), 5000)
-            );
-            
-            await Promise.race([checkoutPromise, timeoutPromise]);
-
-            setLoading(false);
-            toast.success('Checkout opened!');
-            return; // Success - exit early
-          } else if (checkoutPromise === undefined || checkoutPromise === null) {
-            // If checkout returns undefined/null, it might have failed silently
-            throw new Error('Checkout returned null/undefined');
-          } else {
-
-            setLoading(false);
-            toast.success('Checkout opened!');
-            return; // Success - exit early
-          }
-        } catch (overlayError) {
-
-          // Continue to fallback strategy
-        }
+      if (!paddle?.Checkout) {
+        throw new Error('Secure checkout is currently unavailable. Please try again shortly.');
       }
 
-      // Strategy 2: Fallback to hosted checkout URL in new tab
-      if (hostedCheckoutUrl) {
-
-
-        
-        window.open(hostedCheckoutUrl, '_blank', 'noopener,noreferrer');
-        setLoading(false);
-        toast.success('Opening secure checkout...');
-        return; // Success - exit early
-      }
-
-      // Strategy 3: Final fallback - construct URL manually
-
-      const fallbackUrl = PADDLE_ENVIRONMENT === 'sandbox' 
-        ? `https://sandbox-buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`
-        : `https://buy.paddle.com/product/${priceId}?email=${encodeURIComponent(user.email)}&country=US`;
-      
-      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+      await paddle.Checkout.open({
+        items: [{ priceId, quantity: 1 }],
+        customer: {
+          email: user.email,
+          country: 'US'
+        },
+        customData: {
+          user_id: user.id,
+          plan_id: planId,
+          billing_cycle: billingCycle
+        },
+        settings: {
+          displayMode: 'overlay',
+          theme: 'light',
+          locale: 'en',
+          allowLogout: false,
+          showAddTaxId: false,
+          showAddDiscounts: false
+        },
+        successUrl: window.location.origin + '/settings?tab=plans-usage&payment=success',
+        cancelUrl: window.location.origin + '/settings?tab=plans-usage&payment=cancelled'
+      });
       setLoading(false);
-      toast.success('Opening checkout...');
+      toast.success('Checkout opened!');
 
     } catch (err) {
 
-      setError('Unable to open checkout. Please try again or contact support.');
+      setError('Unable to open secure checkout. Please try again or contact support.');
       setLoading(false);
     }
   };

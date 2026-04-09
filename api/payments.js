@@ -13,6 +13,7 @@ const PATH = {
   createPayPal: 'create-paypal-order',
   stripeCheckout: 'create-checkout-session',
   paddle: 'paddle-webhook',
+  paddleSubscriptionDetails: 'get-paddle-subscription-details',
 };
 
 function parsePath(req) {
@@ -137,14 +138,107 @@ function verifyPaddleSignature(secret, rawBody, signatureHeader) {
   return crypto.timingSafeEqual(Buffer.from(m[2], 'hex'), Buffer.from(expected, 'hex'));
 }
 
-async function handlePaddleTransactionCompleted(data) {
-  const custom = data?.custom_data;
-  if (!custom?.user_id) return;
-  const sub = custom.billing_cycle === 'monthly'
-    ? { plan: 'premium', status: 'active', billing_cycle: 'monthly', paddle_transaction_id: data.id, paddle_subscription_id: data.subscription_id || null, expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() }
-    : { plan: 'premium', status: 'active', billing_cycle: 'lifetime', paddle_transaction_id: data.id, paddle_subscription_id: data.subscription_id || null, expires_at: null, updated_at: new Date().toISOString() };
-  const { error } = await supabase.from('profiles').update({ subscription: sub }).eq('id', custom.user_id);
+const PREMIUM_STATUSES = new Set(['active', 'trialing']);
+
+function toIso(v) {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function extractUserId(data = {}) {
+  return (
+    data?.custom_data?.user_id ||
+    data?.custom_data?.userId ||
+    data?.customer?.custom_data?.user_id ||
+    data?.customer?.custom_data?.userId ||
+    null
+  );
+}
+
+function normalizeBillingCycle(data = {}) {
+  const raw = data?.custom_data?.billing_cycle || data?.billing_cycle || '';
+  if (raw === 'one-time' || raw === 'lifetime') return 'lifetime';
+  return 'monthly';
+}
+
+function buildSubscriptionPayload(data = {}, statusOverride = null) {
+  const status = (statusOverride || data?.status || 'active').toLowerCase();
+  const billingCycle = normalizeBillingCycle(data);
+  const isMonthly = billingCycle === 'monthly';
+  const trialStart = toIso(data?.started_at || data?.current_billing_period?.starts_at);
+  const trialEnd = toIso(data?.next_billed_at || data?.current_billing_period?.ends_at || data?.trial_dates?.ends_at);
+  const plan = PREMIUM_STATUSES.has(status) ? 'premium' : 'free';
+
+  return {
+    plan,
+    status,
+    billing_cycle: billingCycle,
+    paddle_transaction_id: data?.id || null,
+    paddle_subscription_id: data?.subscription_id || data?.id || null,
+    trial_started_at: status === 'trialing' ? trialStart : null,
+    trial_ends_at: status === 'trialing' ? trialEnd : null,
+    next_billing_date: trialEnd,
+    expires_at: isMonthly ? trialEnd : null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function updateSubscriptionByUser(userId, subscription) {
+  if (!userId) return;
+  const { error } = await supabase
+    .from('profiles')
+    .update({ subscription })
+    .eq('id', userId);
   if (error) throw error;
+}
+
+async function updateSubscriptionByPaddleId(paddleSubscriptionId, subscription) {
+  if (!paddleSubscriptionId) return false;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .filter('subscription->>paddle_subscription_id', 'eq', paddleSubscriptionId)
+    .limit(1)
+    .maybeSingle();
+  if (error || !data?.id) return false;
+  await updateSubscriptionByUser(data.id, subscription);
+  return true;
+}
+
+async function insertSubscriptionHistory(userId, subscription, paymentMethod = 'paddle') {
+  if (!userId) return;
+  const { error } = await supabase.from('subscription_history').insert({
+    user_id: userId,
+    plan_name: subscription.plan,
+    status: PREMIUM_STATUSES.has(subscription.status) ? 'active' : 'cancelled',
+    start_date: subscription.trial_started_at || new Date().toISOString(),
+    end_date: subscription.trial_ends_at || subscription.expires_at || null,
+    amount_paid: 0,
+    currency: 'USD',
+    payment_method: paymentMethod,
+  });
+  if (error) throw error;
+}
+
+async function handlePaddleEvent(eventType, data) {
+  const event = (eventType || '').toLowerCase();
+  const isSubscriptionEvent = event.startsWith('subscription.');
+  const isTransactionEvent = event === 'transaction.completed';
+  if (!isSubscriptionEvent && !isTransactionEvent) return;
+
+  const userId = extractUserId(data);
+  const statusOverride = isTransactionEvent ? 'active' : null;
+  const subscription = buildSubscriptionPayload(data, statusOverride);
+  const paddleSubId = subscription.paddle_subscription_id;
+
+  if (userId) {
+    await updateSubscriptionByUser(userId, subscription);
+    await insertSubscriptionHistory(userId, subscription);
+    return;
+  }
+
+  await updateSubscriptionByPaddleId(paddleSubId, subscription);
 }
 
 async function handlePaddleWebhook(req, res, rawBody) {
@@ -155,8 +249,59 @@ async function handlePaddleWebhook(req, res, rawBody) {
   }
   if (!supabase) return json(res, 503, { error: 'Server configuration error' });
   const event = rawBody ? JSON.parse(rawBody) : {};
-  if (event.event_type === 'transaction.completed') await handlePaddleTransactionCompleted(event.data);
+  await handlePaddleEvent(event.event_type, event.data);
   json(res, 200, { received: true });
+}
+
+function normalizePaddleSubscriptionDetails(data = {}) {
+  const periodStart = toIso(data?.current_billing_period?.starts_at || data?.started_at);
+  const periodEnd = toIso(data?.current_billing_period?.ends_at || data?.next_billed_at);
+  return {
+    id: data?.id || null,
+    status: data?.status || null,
+    trial_started_at: data?.status === 'trialing' ? periodStart : null,
+    trial_ends_at: data?.status === 'trialing' ? periodEnd : null,
+    next_billing_date: periodEnd,
+    current_billing_period_start: periodStart,
+    current_billing_period_end: periodEnd,
+    customer_email: data?.customer?.email || null,
+    customer_country: data?.customer?.address?.country_code || null,
+    payment_method_brand: data?.collection_mode === 'manual' ? 'manual' : (data?.billing_details?.payment_method?.type || null),
+    payment_method_last4: data?.billing_details?.payment_method?.card?.last4 || null,
+  };
+}
+
+async function handleGetPaddleSubscriptionDetails(res, body) {
+  const subscriptionId = body?.subscriptionId;
+  const userId = body?.userId;
+  if (!subscriptionId) return json(res, 400, { error: 'Missing subscriptionId' });
+
+  const apiKey = process.env.PADDLE_API_KEY || process.env.PADDLE_SECRET_KEY || process.env.PADDLE_LIVE_API_KEY || process.env.VITE_PADDLE_API_KEY;
+  if (!apiKey) return json(res, 503, { error: 'Paddle API key not configured' });
+
+  const apiRes = await fetch(`https://api.paddle.com/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  const payload = await apiRes.json();
+  if (!apiRes.ok) {
+    const msg = payload?.error?.detail || payload?.error?.message || payload?.error || 'Failed to fetch Paddle subscription';
+    throw new Error(msg);
+  }
+  const details = normalizePaddleSubscriptionDetails(payload?.data || {});
+  if (userId && supabase) {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('subscription')
+      .eq('id', userId)
+      .maybeSingle();
+    const merged = { ...(profileData?.subscription || {}), ...details };
+    await updateSubscriptionByUser(userId, merged);
+  }
+  json(res, 200, { details });
 }
 
 // --- Router ---
@@ -175,6 +320,7 @@ export default async function handler(req, res) {
     case PATH.createPayPal: return run(() => handleCreatePayPalOrder(req, res, body));
     case PATH.stripeCheckout: return run(() => handleCreateCheckoutSession(res, body));
     case PATH.paddle: return run(() => handlePaddleWebhook(req, res, rawBody));
+    case PATH.paddleSubscriptionDetails: return run(() => handleGetPaddleSubscriptionDetails(res, body));
     default: return json(res, 404, { error: 'Unknown payment path' });
   }
 }
