@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Dialog } from '@headlessui/react';
-import { Plus, Edit2, Trash2, DollarSign, Info, PlusCircle, InfoIcon, Search, ArrowLeft, Wallet, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown, X, Loader2, ArrowLeftRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, DollarSign, PlusCircle, Search, ArrowLeft, Wallet, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown, X, Loader2, ArrowLeftRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { AccountForm } from './AccountForm';
@@ -20,7 +20,9 @@ import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { AccountCardSkeleton, AccountTableSkeleton, AccountSummaryCardsSkeleton, AccountFiltersSkeleton } from './AccountSkeleton';
 import { CurrencyPortfolioSummary } from './CurrencyPortfolioSummary';
 import { AccountSummaryCards } from './AccountSummaryCards';
-import { AccountDetailsModal } from './AccountDetailsModal';
+import { AccountExpandedInlineDetails } from './AccountExpandedInlineDetails';
+import { AccountDpsInfoModal, AccountDpsInfoTrigger } from './AccountDpsInfoModal';
+import { AccountActiveToggle } from './AccountActiveToggle';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { SelectionFilter } from '../common/SelectionFilter';
@@ -30,6 +32,7 @@ import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { countsTowardIncomeExpenseSummaries, groupTransactionsByDate } from '../../utils/transactionUtils';
 import { formatCurrency } from '../../utils/currency';
 import { getTodayLocalDateString, toBusinessDateString } from '../../utils/taskDateUtils';
+import { TABLE_SUMMARY_CARDS_GRID } from '../common/listPage/listPageLayout';
 
 export const AccountsView: React.FC = () => {
   const { accounts, deleteAccount, getTransactionsByAccount, transactions, loading, error, updateAccount, updateAccountPosition, fetchAccounts, showTransactionForm, setShowTransactionForm, categories, purchaseCategories } = useFinanceStore();
@@ -55,7 +58,6 @@ export const AccountsView: React.FC = () => {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
   const [hoveredDpsAccount, setHoveredDpsAccount] = useState<string | null>(null);
   const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
   
@@ -63,6 +65,7 @@ export const AccountsView: React.FC = () => {
   const [showTransferTypeModal, setShowTransferTypeModal] = useState(false);
   const [showCurrencyTransferModal, setShowCurrencyTransferModal] = useState(false);
   const [showDpsTransferModal, setShowDpsTransferModal] = useState(false);
+  const [dpsTransferPresetAccountId, setDpsTransferPresetAccountId] = useState<string | undefined>();
   const [showInBetweenTransferModal, setShowInBetweenTransferModal] = useState(false);
   
   // Android detection
@@ -72,6 +75,7 @@ export const AccountsView: React.FC = () => {
   
   // Android download modal state
   const [showAndroidDownloadModal, setShowAndroidDownloadModal] = useState(false);
+  const [dpsInfoAccount, setDpsInfoAccount] = useState<Account | null>(null);
 
   // Memoize fetchAccounts to prevent infinite loops
   const fetchAccountsCallback = useCallback(() => {
@@ -198,7 +202,16 @@ export const AccountsView: React.FC = () => {
       });
     }
   }, [showStatementModal, statementDateRange.start, statementDateRange.end]);
-  
+
+  const openStatementForAccount = useCallback(
+    (account: Account) => {
+      setSelectedAccount(account);
+      if (isAndroidApp) setShowAndroidDownloadModal(true);
+      else setShowStatementModal(true);
+    },
+    [isAndroidApp]
+  );
+
   // Print function with date range
   const handlePrint = (startDate?: string, endDate?: string) => {
     if (!selectedAccount) return;
@@ -608,7 +621,10 @@ export const AccountsView: React.FC = () => {
     const fetchDpsTransfers = async () => {
       const { data, error } = await supabase
         .from('dps_transfers')
-        .select('*');
+        .select(
+          '*, from_account:accounts!from_account_id(name, currency), to_account:accounts!to_account_id(name, currency)'
+        )
+        .order('date', { ascending: false });
       if (!error) setDpsTransfers(data || []);
     };
     fetchDpsTransfers();
@@ -855,6 +871,7 @@ export const AccountsView: React.FC = () => {
     if (type === 'currency') {
       setShowCurrencyTransferModal(true);
     } else if (type === 'dps') {
+      setDpsTransferPresetAccountId(undefined);
       setShowDpsTransferModal(true);
     } else if (type === 'inbetween') {
       setShowInBetweenTransferModal(true);
@@ -867,6 +884,7 @@ export const AccountsView: React.FC = () => {
       setShowCurrencyTransferModal(false);
     } else if (type === 'dps') {
       setShowDpsTransferModal(false);
+      setDpsTransferPresetAccountId(undefined);
     } else if (type === 'inbetween') {
       setShowInBetweenTransferModal(false);
     }
@@ -1296,7 +1314,7 @@ export const AccountsView: React.FC = () => {
           </div>
           
           {/* Summary cards skeleton */}
-          <div className="p-4 relative z-10">
+          <div className="relative z-10">
             <AccountSummaryCardsSkeleton />
           </div>
           
@@ -1621,7 +1639,7 @@ export const AccountsView: React.FC = () => {
           </div>
 
           {/* Summary Cards - Now dynamic and after filters */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 p-3">
+          <div className={TABLE_SUMMARY_CARDS_GRID}>
             {(() => {
               const filteredTransactions = transactions.filter(t => filteredAccounts.some(a => a.id === t.account_id));
               // Use the first account's currency or fallback
@@ -1869,9 +1887,6 @@ export const AccountsView: React.FC = () => {
                       }
                     });
                     
-                    // Get DPS savings account
-                    const dpsSavingsAccount = accounts.find(a => a.id === account.dps_savings_account_id);
-                    
                     // Check if this account is a DPS savings account (linked to another account)
                     const isDpsSavingsAccount = accounts.some(otherAccount => 
                       otherAccount.dps_savings_account_id === account.id
@@ -1977,57 +1992,17 @@ export const AccountsView: React.FC = () => {
                             </div>
                           </td>
                           <td className="px-6 py-[0.7rem] text-center">
-                            <div className="flex flex-col items-center gap-1">
-                              {account.has_dps ? (
-                                <>
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200">
-                                    Active
-                                  </span>
-                                  {dpsSavingsAccount && (
-                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                      {formatCurrency(dpsSavingsAccount.calculated_balance, dpsSavingsAccount.currency)}
-                                    </div>
-                                  )}
-                                </>
-                              ) : (
-                                <span className="text-sm text-gray-400 dark:text-gray-500">-</span>
-                              )}
-                            </div>
+                            <AccountDpsInfoTrigger onOpen={() => setDpsInfoAccount(account)} dpsActive={account.has_dps} />
                           </td>
                           <td className="px-6 py-[0.7rem] text-center">
                             <div className="flex justify-center gap-2 items-center" onClick={(e) => e.stopPropagation()}>
-                              {/* Action buttons: Only hide delete for cash and DPS savings accounts. Show info, edit, add transaction, and toggle for cash accounts. */}
+                              {/* Action buttons: Only hide delete for cash and DPS savings accounts. */}
                               {!isDpsSavingsAccount && (
-                                <button
-                                  type="button"
-                                  onClick={async (e) => {
-                                    console.log('[Account Toggle] Button clicked', { accountId: account.id, currentState: account.isActive, event: e });
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    console.log('[Account Toggle] Calling updateAccount', { accountId: account.id, newState: !account.isActive });
-                                    try {
-                                      await updateAccount(account.id, { isActive: !account.isActive });
-                                      console.log('[Account Toggle] updateAccount completed successfully');
-                                    } catch (error) {
-                                      console.error('[Account Toggle] updateAccount error:', error);
-                                    }
-                                  }}
-                                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 ${account.isActive ? 'bg-green-600' : 'bg-gray-300'}`}
-                                  title={account.isActive ? 'Deactivate Account' : 'Activate Account'}
-                                >
-                                  <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform duration-200 ${account.isActive ? 'translate-x-5' : 'translate-x-1'}`} />
-                                </button>
+                                <AccountActiveToggle
+                                  isActive={account.isActive}
+                                  onToggle={() => updateAccount(account.id, { isActive: !account.isActive })}
+                                />
                               )}
-                              <button
-                                onClick={() => {
-                                  setSelectedAccount(account);
-                                  setModalOpen(true);
-                                }}
-                                className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-                                title="More Info"
-                              >
-                                <InfoIcon className="w-4 h-4" />
-                              </button>
                               {!isDpsSavingsAccount && (
                                 <button
                                   onClick={() => handleEditAccount(account)}
@@ -2064,187 +2039,14 @@ export const AccountsView: React.FC = () => {
                         {/* Expanded Row Content */}
                         {isRowExpanded(account.id) && (
                           <tr className="bg-gray-50 dark:bg-gray-800">
-                            <td colSpan={7} className="px-6 py-[0.7rem]">
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {/* Account Details */}
-                                <div className="space-y-2">
-                                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">Account Details</h4>
-                                  <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                    <div>
-                                      <span className="font-medium">Initial Balance:</span> {formatCurrency(Number(account.initial_balance), account.currency)}
-                                    </div>
-                                    {accounts.some(a => a.dps_savings_account_id === account.id) && (
-                                      <div>
-                                        <span className="font-medium">DPS Balance:</span> {
-                                          (() => {
-                                            const incoming = dpsTransfers
-                                              .filter(t => t.to_account_id === account.id)
-                                              .reduce((sum, t) => sum + (t.amount || 0), 0);
-                                            return formatCurrency(incoming, account.currency);
-                                          })()
-                                        }
-                                      </div>
-                                    )}
-                                    {!accounts.some(a => a.dps_savings_account_id === account.id) && (
-                                      <>
-                                        <div><span className="font-medium">Total Saved:</span> {formatCurrency(totalSaved, account.currency)}</div>
-                                        <div><span className="font-medium">Total Donated:</span> {formatCurrency(totalDonated, account.currency)}</div>
-                                      </>
-                                    )}
-                                    <div><span className="font-medium">Last Transaction:</span> {accountTransactions.length > 0 ? new Date(accountTransactions[accountTransactions.length - 1].date).toLocaleDateString() : 'None'}</div>
-                                  </div>
-                                </div>
-
-                                {/* DPS Information */}
-                                <div className="space-y-2">
-                                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">DPS Settings</h4>
-                                  {account.has_dps ? (
-                                    <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                      <div><span className="font-medium">Type:</span> {account.dps_type}</div>
-                                      <div><span className="font-medium">Amount Type:</span> {account.dps_amount_type}</div>
-                                      {account.dps_fixed_amount && (
-                                        <div><span className="font-medium">Fixed Amount:</span> {formatCurrency(account.dps_fixed_amount, account.currency)}</div>
-                                      )}
-                                      {dpsSavingsAccount && (
-                                        <div><span className="font-medium">Savings Account:</span> {dpsSavingsAccount.name}</div>
-                                      )}
-                                      <div className="pt-2 flex gap-2">
-                                        <button
-                                          onClick={() => handleManageDPS(account)}
-                                          className="text-xs bg-gradient-primary text-white px-3 py-1.5 rounded-lg hover:bg-gradient-primary-hover transition-colors"
-                                        >
-                                          Manage DPS
-                                        </button>
-                                        <button
-                                          onClick={() => handleDeleteDPSWithTransfer(account, dpsSavingsAccount || account)}
-                                          className="text-xs border border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                        >
-                                          Delete DPS
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : isDpsSavingsAccount ? (
-                                    <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                      {(() => {
-                                        // Find the main account that created this DPS account
-                                        const mainAccount = accounts.find(a => a.dps_savings_account_id === account.id);
-                                        if (mainAccount) {
-                                          return (
-                                            <>
-                                              <div><span className="font-medium">DPS Type:</span> {mainAccount.dps_type === 'monthly' ? 'Monthly' : 'Flexible'}</div>
-                                              <div><span className="font-medium">Linked to:</span> {mainAccount.name}</div>
-                                            </>
-                                          );
-                                        }
-                                        return <div>DPS Savings Account</div>;
-                                      })()}
-                                    </div>
-                                  ) : (
-                                    <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                      <div>No DPS configured</div>
-                                      <div className="pt-2">
-                                        <button
-                                          onClick={() => handleManageDPS(account)}
-                                          className="text-xs bg-gradient-primary text-white px-3 py-1.5 rounded-lg hover:bg-gradient-primary-hover transition-colors"
-                                        >
-                                          Setup DPS
-                                        </button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Recent Activity */}
-                                <div className="space-y-2">
-                                  <h4 className="text-sm font-medium text-gray-900">Recent Activity</h4>
-                                  <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                    {accountTransactions.slice(0, 3).map((transaction, index) => (
-                                      <div key={transaction.id} className="flex justify-between items-center">
-                                        <div className="flex-1 min-w-0">
-                                          <div className="truncate">
-                                            {(() => {
-                                              const formattedDesc = formatTransactionDescription(transaction.description || 'No description');
-                                              return formattedDesc.length > 20 
-                                                ? formattedDesc.substring(0, 20) + '...'
-                                                : formattedDesc;
-                                            })()}
-                                          </div>
-                                        </div>
-                                        <div className={`font-medium ml-2 ${transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount, account.currency)}
-                                        </div>
-                                      </div>
-                                    ))}
-                                    {accountTransactions.length === 0 && (
-                                      <div className="text-gray-400 italic">No transactions yet</div>
-                                    )}
-                                  </div>
-                                </div>
+                            <td colSpan={7} className="px-3 sm:px-6 py-3 align-top w-full min-w-0">
+                              <div className="w-full min-w-0" onClick={(e) => e.stopPropagation()}>
+                                <AccountExpandedInlineDetails
+                                  account={account}
+                                  transactions={transactions}
+                                  onPrintStatement={() => openStatementForAccount(account)}
+                                />
                               </div>
-                              
-                              {/* DPS Savings Account Section */}
-                              {account.has_dps && dpsSavingsAccount && (
-                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                  <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-                                      <div className="space-y-2 sm:space-y-3">
-                                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                          <div className="font-medium text-gray-900 dark:text-white mb-1">Account Name</div>
-                                          <div className="break-words">{dpsSavingsAccount.name}</div>
-                                        </div>
-                                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                          <div className="font-medium text-gray-900 dark:text-white mb-1">Balance</div>
-                                          <div className="text-base sm:text-lg font-semibold text-green-600 dark:text-green-400 break-words">
-                                            {formatCurrency(dpsSavingsAccount.calculated_balance, dpsSavingsAccount.currency)}
-                                          </div>
-                                        </div>
-                                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                          <div className="font-medium text-gray-900 dark:text-white mb-1">Type</div>
-                                          <div className="capitalize">{dpsSavingsAccount.type}</div>
-                                        </div>
-                                      </div>
-                                      <div className="space-y-2 sm:space-y-3">
-                                        {(() => {
-                                          const dpsAccountTransactions = transactions
-                                            .filter(t => t.account_id === dpsSavingsAccount.id)
-                                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                                            .slice(0, 3);
-                                          return (
-                                            <>
-                                              <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                                <div className="font-medium text-gray-900 dark:text-white mb-1 sm:mb-2">Recent Transactions</div>
-                                                {dpsAccountTransactions.length > 0 ? (
-                                                  <div className="space-y-1.5 sm:space-y-2">
-                                                    {dpsAccountTransactions.map((transaction) => (
-                                                      <div key={transaction.id} className="flex justify-between items-start sm:items-center gap-2 text-xs">
-                                                        <div className="flex-1 min-w-0 truncate">
-                                                          <span className="block sm:hidden">
-                                                            {formatTransactionDescription(transaction.description || 'No description').substring(0, 20)}
-                                                            {formatTransactionDescription(transaction.description || 'No description').length > 20 && '...'}
-                                                          </span>
-                                                          <span className="hidden sm:block">
-                                                            {formatTransactionDescription(transaction.description || 'No description').substring(0, 25)}
-                                                            {formatTransactionDescription(transaction.description || 'No description').length > 25 && '...'}
-                                                          </span>
-                                                        </div>
-                                                        <div className={`font-medium shrink-0 ${transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount, dpsSavingsAccount.currency)}
-                                                        </div>
-                                                      </div>
-                                                    ))}
-                                                  </div>
-                                                ) : (
-                                                  <div className="text-gray-400 italic text-xs sm:text-sm">No transactions yet</div>
-                                                )}
-                                              </div>
-                                            </>
-                                          );
-                                        })()}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
                             </td>
                           </tr>
                         )}
@@ -2275,9 +2077,6 @@ export const AccountsView: React.FC = () => {
                       }
                     });
                     
-                    // Get DPS savings account
-                    const dpsSavingsAccount = accounts.find(a => a.id === account.dps_savings_account_id);
-                    
                     // Check if this account is a DPS savings account (linked to another account)
                     const isDpsSavingsAccount = accounts.some(otherAccount => 
                       otherAccount.dps_savings_account_id === account.id
@@ -2383,56 +2182,16 @@ export const AccountsView: React.FC = () => {
                             </div>
                           </td>
                           <td className="px-6 py-[0.7rem] text-center">
-                            <div className="flex flex-col items-center gap-1">
-                              {account.has_dps ? (
-                                <>
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200">
-                                    Active
-                                  </span>
-                                  {dpsSavingsAccount && (
-                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                      {formatCurrency(dpsSavingsAccount.calculated_balance, dpsSavingsAccount.currency)}
-                                    </div>
-                                  )}
-                                </>
-                              ) : (
-                                <span className="text-sm text-gray-400 dark:text-gray-500">-</span>
-                              )}
-                            </div>
+                            <AccountDpsInfoTrigger onOpen={() => setDpsInfoAccount(account)} dpsActive={account.has_dps} />
                           </td>
                           <td className="px-6 py-[0.7rem] text-center">
                             <div className="flex justify-center gap-2 items-center" onClick={(e) => e.stopPropagation()}>
                               {!isDpsSavingsAccount && (
-                                <button
-                                  type="button"
-                                  onClick={async (e) => {
-                                    console.log('[Account Toggle] Button clicked', { accountId: account.id, currentState: account.isActive, event: e });
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    console.log('[Account Toggle] Calling updateAccount', { accountId: account.id, newState: !account.isActive });
-                                    try {
-                                      await updateAccount(account.id, { isActive: !account.isActive });
-                                      console.log('[Account Toggle] updateAccount completed successfully');
-                                    } catch (error) {
-                                      console.error('[Account Toggle] updateAccount error:', error);
-                                    }
-                                  }}
-                                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 ${account.isActive ? 'bg-green-600' : 'bg-gray-300'}`}
-                                  title={account.isActive ? 'Deactivate Account' : 'Activate Account'}
-                                >
-                                  <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform duration-200 ${account.isActive ? 'translate-x-5' : 'translate-x-1'}`} />
-                                </button>
+                                <AccountActiveToggle
+                                  isActive={account.isActive}
+                                  onToggle={() => updateAccount(account.id, { isActive: !account.isActive })}
+                                />
                               )}
-                              <button
-                                onClick={() => {
-                                  setSelectedAccount(account);
-                                  setModalOpen(true);
-                                }}
-                                className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-                                title="More Info"
-                              >
-                                <InfoIcon className="w-4 h-4" />
-                              </button>
                               {!isDpsSavingsAccount && (
                                 <button
                                   onClick={() => handleEditAccount(account)}
@@ -2469,176 +2228,14 @@ export const AccountsView: React.FC = () => {
                         {/* Expanded Row Content */}
                         {isRowExpanded(account.id) && (
                           <tr className="bg-gray-50 dark:bg-gray-800">
-                            <td colSpan={7} className="px-6 py-[0.7rem]">
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {/* Account Details */}
-                                <div className="space-y-2">
-                                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">Account Details</h4>
-                                  <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                    <div>
-                                      <span className="font-medium">Initial Balance:</span> {formatCurrency(Number(account.initial_balance), account.currency)}
-                                    </div>
-                                    {accounts.some(a => a.dps_savings_account_id === account.id) && (
-                                      <div>
-                                        <span className="font-medium">DPS Balance:</span> {
-                                          (() => {
-                                            const incoming = dpsTransfers
-                                              .filter(t => t.to_account_id === account.id)
-                                              .reduce((sum, t) => sum + (t.amount || 0), 0);
-                                            return formatCurrency(incoming, account.currency);
-                                          })()
-                                        }
-                                      </div>
-                                    )}
-                                    {!accounts.some(a => a.dps_savings_account_id === account.id) && (
-                                      <>
-                                        <div><span className="font-medium">Total Saved:</span> {formatCurrency(totalSaved, account.currency)}</div>
-                                        <div><span className="font-medium">Total Donated:</span> {formatCurrency(totalDonated, account.currency)}</div>
-                                      </>
-                                    )}
-                                    <div><span className="font-medium">Last Transaction:</span> {accountTransactions.length > 0 ? new Date(accountTransactions[accountTransactions.length - 1].date).toLocaleDateString() : 'None'}</div>
-                                  </div>
-                                </div>
-
-                                {/* DPS Information */}
-                                <div className="space-y-2">
-                                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">DPS Settings</h4>
-                                  {account.has_dps ? (
-                                    <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                      <div><span className="font-medium">Type:</span> {account.dps_type}</div>
-                                      <div><span className="font-medium">Amount Type:</span> {account.dps_amount_type}</div>
-                                      {account.dps_fixed_amount && (
-                                        <div><span className="font-medium">Fixed Amount:</span> {formatCurrency(account.dps_fixed_amount, account.currency)}</div>
-                                      )}
-                                      {dpsSavingsAccount && (
-                                        <div><span className="font-medium">Savings Account:</span> {dpsSavingsAccount.name}</div>
-                                      )}
-                                      <div className="pt-2 flex gap-2">
-                                        <button
-                                          onClick={() => handleManageDPS(account)}
-                                          className="text-xs bg-gradient-primary text-white px-3 py-1.5 rounded-lg hover:bg-gradient-primary-hover transition-colors"
-                                        >
-                                          Manage DPS
-                                        </button>
-                                        <button
-                                          onClick={() => handleDeleteDPSWithTransfer(account, dpsSavingsAccount || account)}
-                                          className="text-xs border border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                        >
-                                          Delete DPS
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : isDpsSavingsAccount ? (
-                                    <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                      {(() => {
-                                        // Find the main account that created this DPS account
-                                        const mainAccount = accounts.find(a => a.dps_savings_account_id === account.id);
-                                        if (mainAccount) {
-                                          return (
-                                            <>
-                                              <div><span className="font-medium">DPS Type:</span> {mainAccount.dps_type === 'monthly' ? 'Monthly' : 'Flexible'}</div>
-                                              <div><span className="font-medium">Linked to:</span> {mainAccount.name}</div>
-                                            </>
-                                          );
-                                        }
-                                        return <div>DPS Savings Account</div>;
-                                      })()}
-                                    </div>
-                                  ) : (
-                                    <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                      <div>No DPS configured</div>
-                                      <div className="pt-2">
-                                        <button
-                                          onClick={() => handleManageDPS(account)}
-                                          className="text-xs bg-gradient-primary text-white px-3 py-1.5 rounded-lg hover:bg-gradient-primary-hover transition-colors"
-                                        >
-                                          Setup DPS
-                                        </button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Recent Activity */}
-                                <div className="space-y-2">
-                                  <h4 className="text-sm font-medium text-gray-900">Recent Activity</h4>
-                                  <div className="text-xs text-gray-600 space-y-1">
-                                    {accountTransactions.slice(0, 3).map((transaction) => (
-                                      <div key={transaction.id} className="flex justify-between">
-                                        <span className="truncate">{formatTransactionDescription(transaction.description)}</span>
-                                        <div className={`font-medium ml-2 ${transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount, account.currency)}
-                                        </div>
-                                      </div>
-                                    ))}
-                                    {accountTransactions.length === 0 && (
-                                      <div className="text-gray-400 italic">No transactions yet</div>
-                                    )}
-                                  </div>
-                                </div>
+                            <td colSpan={7} className="px-3 sm:px-6 py-3 align-top w-full min-w-0">
+                              <div className="w-full min-w-0" onClick={(e) => e.stopPropagation()}>
+                                <AccountExpandedInlineDetails
+                                  account={account}
+                                  transactions={transactions}
+                                  onPrintStatement={() => openStatementForAccount(account)}
+                                />
                               </div>
-                              
-                              {/* DPS Savings Account Section */}
-                              {account.has_dps && dpsSavingsAccount && (
-                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                  <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-                                      <div className="space-y-2 sm:space-y-3">
-                                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                          <div className="font-medium text-gray-900 dark:text-white mb-1">Account Name</div>
-                                          <div className="break-words">{dpsSavingsAccount.name}</div>
-                                        </div>
-                                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                          <div className="font-medium text-gray-900 dark:text-white mb-1">Balance</div>
-                                          <div className="text-base sm:text-lg font-semibold text-green-600 dark:text-green-400 break-words">
-                                            {formatCurrency(dpsSavingsAccount.calculated_balance, dpsSavingsAccount.currency)}
-                                          </div>
-                                        </div>
-                                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                          <div className="font-medium text-gray-900 dark:text-white mb-1">Type</div>
-                                          <div className="capitalize">{dpsSavingsAccount.type}</div>
-                                        </div>
-                                      </div>
-                                      <div className="space-y-2 sm:space-y-3">
-                                        {(() => {
-                                          const dpsAccountTransactions = transactions
-                                            .filter(t => t.account_id === dpsSavingsAccount.id)
-                                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                                            .slice(0, 3);
-                                          return (
-                                            <>
-                                              <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                                <div className="font-medium text-gray-900 dark:text-white mb-1 sm:mb-2">Recent Transactions</div>
-                                                {dpsAccountTransactions.length > 0 ? (
-                                                  <div className="space-y-1.5 sm:space-y-2">
-                                                    {dpsAccountTransactions.map((transaction) => (
-                                                      <div key={transaction.id} className="flex justify-between items-start sm:items-center gap-2 text-xs">
-                                                        <div className="flex-1 min-w-0 truncate">
-                                                          <span className="block sm:hidden">
-                                                            {formatTransactionDescription(transaction.description)}
-                                                          </span>
-                                                          <span className="hidden sm:block">
-                                                            {formatTransactionDescription(transaction.description)}
-                                                          </span>
-                                                        </div>
-                                                        <div className={`font-medium flex-shrink-0 ${transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount, dpsSavingsAccount.currency)}
-                                                        </div>
-                                                      </div>
-                                                    ))}
-                                                  </div>
-                                                ) : (
-                                                  <div className="text-gray-400 italic text-xs sm:text-sm">No transactions yet</div>
-                                                )}
-                                              </div>
-                                            </>
-                                          );
-                                        })()}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
                             </td>
                           </tr>
                         )}
@@ -2707,9 +2304,6 @@ export const AccountsView: React.FC = () => {
                       }
                     });
                     
-                    // Get DPS savings account
-                    const dpsSavingsAccount = accounts.find(a => a.id === account.dps_savings_account_id);
-                    
                     // Check if this account is a DPS savings account (linked to another account)
                     const isDpsSavingsAccount = accounts.some(otherAccount => 
                       otherAccount.dps_savings_account_id === account.id
@@ -2772,29 +2366,11 @@ export const AccountsView: React.FC = () => {
                               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Actions</div>
                               <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                                 {!isDpsSavingsAccount && (
-                                  <button
-                                    type="button"
-                                    onClick={async (e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      await updateAccount(account.id, { isActive: !account.isActive });
-                                    }}
-                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 ${account.isActive ? 'bg-green-600' : 'bg-gray-300'}`}
-                                    title={account.isActive ? 'Deactivate Account' : 'Activate Account'}
-                                  >
-                                    <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform duration-200 ${account.isActive ? 'translate-x-5' : 'translate-x-1'}`} />
-                                  </button>
+                                  <AccountActiveToggle
+                                    isActive={account.isActive}
+                                    onToggle={() => updateAccount(account.id, { isActive: !account.isActive })}
+                                  />
                                 )}
-                                <button
-                                  onClick={() => {
-                                    setSelectedAccount(account);
-                                    setModalOpen(true);
-                                  }}
-                                  className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-                                  title="More Info"
-                                >
-                                  <InfoIcon className="w-4 h-4" />
-                                </button>
                                 {!isDpsSavingsAccount && (
                                   <button
                                     onClick={() => handleEditAccount(account)}
@@ -2842,182 +2418,25 @@ export const AccountsView: React.FC = () => {
                               </div>
                             </div>
                           </div>
+                          <div
+                            className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-gray-700"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">DPS</span>
+                            <AccountDpsInfoTrigger onOpen={() => setDpsInfoAccount(account)} dpsActive={account.has_dps} />
+                          </div>
                         </div>
 
                         {/* Expanded Content */}
                         {isRowExpanded(account.id) && (
-                          <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              {/* Account Details */}
-                              <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-gray-900 dark:text-white">Account Details</h4>
-                                <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                  <div>
-                                    <span className="font-medium">Initial Balance:</span> {formatCurrency(Number(account.initial_balance), account.currency)}
-                                  </div>
-                                  {accounts.some(a => a.dps_savings_account_id === account.id) && (
-                                    <div>
-                                      <span className="font-medium">DPS Balance:</span> {
-                                        (() => {
-                                          const incoming = dpsTransfers
-                                            .filter(t => t.to_account_id === account.id)
-                                            .reduce((sum, t) => sum + (t.amount || 0), 0);
-                                          return formatCurrency(Number(account.initial_balance) + incoming, account.currency);
-                                        })()
-                                      }
-                                    </div>
-                                  )}
-                                  {!accounts.some(a => a.dps_savings_account_id === account.id) && (
-                                    <>
-                                      <div><span className="font-medium">Total Saved:</span> {formatCurrency(totalSaved, account.currency)}</div>
-                                      <div><span className="font-medium">Total Donated:</span> {formatCurrency(totalDonated, account.currency)}</div>
-                                    </>
-                                  )}
-                                  <div><span className="font-medium">Last Transaction:</span> {accountTransactions.length > 0 ? new Date(accountTransactions[accountTransactions.length - 1].date).toLocaleDateString() : 'None'}</div>
-                                </div>
-                              </div>
-
-                              {/* DPS Information */}
-                              <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-gray-900 dark:text-white">DPS Settings</h4>
-                                {account.has_dps ? (
-                                  <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                    <div><span className="font-medium">Type:</span> {account.dps_type}</div>
-                                    <div><span className="font-medium">Amount Type:</span> {account.dps_amount_type}</div>
-                                    {account.dps_fixed_amount && (
-                                      <div><span className="font-medium">Fixed Amount:</span> {formatCurrency(account.dps_fixed_amount, account.currency)}</div>
-                                    )}
-                                    {dpsSavingsAccount && (
-                                      <div><span className="font-medium">Savings Account:</span> {dpsSavingsAccount.name}</div>
-                                    )}
-                                    <div className="pt-2 flex gap-2">
-                                      <button
-                                        onClick={() => handleManageDPS(account)}
-                                        className="text-xs bg-gradient-primary text-white px-3 py-1.5 rounded-lg hover:bg-gradient-primary-hover transition-colors"
-                                      >
-                                        Manage DPS
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeleteDPSWithTransfer(account, dpsSavingsAccount || account)}
-                                        className="text-xs border border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                      >
-                                        Delete DPS
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : isDpsSavingsAccount ? (
-                                  <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                    {(() => {
-                                      // Find the main account that created this DPS account
-                                      const mainAccount = accounts.find(a => a.dps_savings_account_id === account.id);
-                                      if (mainAccount) {
-                                        return (
-                                          <>
-                                            <div><span className="font-medium">DPS Type:</span> {mainAccount.dps_type === 'monthly' ? 'Monthly' : 'Flexible'}</div>
-                                            <div><span className="font-medium">Linked to:</span> {mainAccount.name}</div>
-                                          </>
-                                        );
-                                      }
-                                      return <div>DPS Savings Account</div>;
-                                    })()}
-                                  </div>
-                                ) : (
-                                  <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                    <div>No DPS configured</div>
-                                    <div className="pt-2">
-                                      <button
-                                        onClick={() => handleManageDPS(account)}
-                                        className="text-xs bg-gradient-primary text-white px-3 py-1.5 rounded-lg hover:bg-gradient-primary-hover transition-colors"
-                                      >
-                                        Setup DPS
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-
-                                {/* Recent Activity */}
-                                <div className="space-y-2">
-                                  <h4 className="text-sm font-medium text-gray-900">Recent Activity</h4>
-                                  <div className="text-xs text-gray-600 space-y-1">
-                                    {accountTransactions.slice(0, 3).map((transaction) => (
-                                      <div key={transaction.id} className="flex justify-between">
-                                        <span className="truncate">{formatTransactionDescription(transaction.description)}</span>
-                                        <div className={`font-medium ml-2 ${transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount, account.currency)}
-                                        </div>
-                                      </div>
-                                    ))}
-                                    {accountTransactions.length === 0 && (
-                                      <div className="text-gray-400 italic">No transactions yet</div>
-                                    )}
-                                  </div>
-                                </div>
+                          <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 w-full min-w-0">
+                            <div className="w-full min-w-0" onClick={(e) => e.stopPropagation()}>
+                              <AccountExpandedInlineDetails
+                                account={account}
+                                transactions={transactions}
+                                onPrintStatement={() => openStatementForAccount(account)}
+                              />
                             </div>
-
-                            {/* DPS Savings Account Card - Nested Display */}
-                            {account.has_dps && dpsSavingsAccount && (
-                              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm">
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                                    <div className="space-y-2 sm:space-y-3">
-                                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                        <div className="font-medium text-gray-900 dark:text-white mb-1">Account Name</div>
-                                        <div className="break-words">{dpsSavingsAccount.name}</div>
-                                      </div>
-                                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                        <div className="font-medium text-gray-900 dark:text-white mb-1">Balance</div>
-                                        <div className="text-base sm:text-lg font-semibold text-green-600 dark:text-green-400 break-words">
-                                          {formatCurrency(dpsSavingsAccount.calculated_balance, dpsSavingsAccount.currency)}
-                                        </div>
-                                      </div>
-                                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                        <div className="font-medium text-gray-900 dark:text-white mb-1">Type</div>
-                                        <div className="capitalize">{dpsSavingsAccount.type}</div>
-                                      </div>
-                                    </div>
-                                    <div className="space-y-2 sm:space-y-3">
-                                      {(() => {
-                                        const dpsAccountTransactions = transactions
-                                          .filter(t => t.account_id === dpsSavingsAccount.id)
-                                          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                                          .slice(0, 3);
-                                        return (
-                                          <>
-                                            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                              <div className="font-medium text-gray-900 dark:text-white mb-1 sm:mb-2">Recent Transactions</div>
-                                              {dpsAccountTransactions.length > 0 ? (
-                                                <div className="space-y-1.5 sm:space-y-2">
-                                                  {dpsAccountTransactions.map((transaction) => (
-                                                    <div key={transaction.id} className="flex justify-between items-start sm:items-center gap-2 text-xs">
-                                                      <div className="flex-1 min-w-0 truncate">
-                                                        <span className="block sm:hidden">
-                                                          {formatTransactionDescription(transaction.description || 'No description').substring(0, 20)}
-                                                          {formatTransactionDescription(transaction.description || 'No description').length > 20 && '...'}
-                                                        </span>
-                                                        <span className="hidden sm:block">
-                                                          {formatTransactionDescription(transaction.description || 'No description').substring(0, 25)}
-                                                          {formatTransactionDescription(transaction.description || 'No description').length > 25 && '...'}
-                                                        </span>
-                                                      </div>
-                                                      <div className={`font-medium shrink-0 ${transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount, dpsSavingsAccount.currency)}
-                                                      </div>
-                                                    </div>
-                                                  ))}
-                                                </div>
-                                              ) : (
-                                                <div className="text-gray-400 italic text-xs sm:text-sm">No transactions yet</div>
-                                              )}
-                                            </div>
-                                          </>
-                                        );
-                                      })()}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
                           </div>
                         )}
                       </div>
@@ -3047,9 +2466,6 @@ export const AccountsView: React.FC = () => {
                       }
                     });
                     
-                    // Get DPS savings account
-                    const dpsSavingsAccount = accounts.find(a => a.id === account.dps_savings_account_id);
-                    
                     // Check if this account is a DPS savings account (linked to another account)
                     const isDpsSavingsAccount = accounts.some(otherAccount => 
                       otherAccount.dps_savings_account_id === account.id
@@ -3112,29 +2528,11 @@ export const AccountsView: React.FC = () => {
                               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Actions</div>
                               <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                                 {!isDpsSavingsAccount && (
-                                  <button
-                                    type="button"
-                                    onClick={async (e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      await updateAccount(account.id, { isActive: !account.isActive });
-                                    }}
-                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 ${account.isActive ? 'bg-green-600' : 'bg-gray-300'}`}
-                                    title={account.isActive ? 'Deactivate Account' : 'Activate Account'}
-                                  >
-                                    <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform duration-200 ${account.isActive ? 'translate-x-5' : 'translate-x-1'}`} />
-                                  </button>
+                                  <AccountActiveToggle
+                                    isActive={account.isActive}
+                                    onToggle={() => updateAccount(account.id, { isActive: !account.isActive })}
+                                  />
                                 )}
-                                <button
-                                  onClick={() => {
-                                    setSelectedAccount(account);
-                                    setModalOpen(true);
-                                  }}
-                                  className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-                                  title="More Info"
-                                >
-                                  <InfoIcon className="w-4 h-4" />
-                                </button>
                                 {!isDpsSavingsAccount && (
                                   <button
                                     onClick={() => handleEditAccount(account)}
@@ -3182,182 +2580,25 @@ export const AccountsView: React.FC = () => {
                               </div>
                             </div>
                           </div>
+                          <div
+                            className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-gray-700"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">DPS</span>
+                            <AccountDpsInfoTrigger onOpen={() => setDpsInfoAccount(account)} dpsActive={account.has_dps} />
+                          </div>
                         </div>
 
                         {/* Expanded Content */}
                         {isRowExpanded(account.id) && (
-                          <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              {/* Account Details */}
-                              <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-gray-900 dark:text-white">Account Details</h4>
-                                <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                  <div>
-                                    <span className="font-medium">Initial Balance:</span> {formatCurrency(Number(account.initial_balance), account.currency)}
-                                  </div>
-                                  {accounts.some(a => a.dps_savings_account_id === account.id) && (
-                                    <div>
-                                      <span className="font-medium">DPS Balance:</span> {
-                                        (() => {
-                                          const incoming = dpsTransfers
-                                            .filter(t => t.to_account_id === account.id)
-                                            .reduce((sum, t) => sum + (t.amount || 0), 0);
-                                          return formatCurrency(Number(account.initial_balance) + incoming, account.currency);
-                                        })()
-                                      }
-                                    </div>
-                                  )}
-                                  {!accounts.some(a => a.dps_savings_account_id === account.id) && (
-                                    <>
-                                      <div><span className="font-medium">Total Saved:</span> {formatCurrency(totalSaved, account.currency)}</div>
-                                      <div><span className="font-medium">Total Donated:</span> {formatCurrency(totalDonated, account.currency)}</div>
-                                    </>
-                                  )}
-                                  <div><span className="font-medium">Last Transaction:</span> {accountTransactions.length > 0 ? new Date(accountTransactions[accountTransactions.length - 1].date).toLocaleDateString() : 'None'}</div>
-                                </div>
-                              </div>
-
-                              {/* DPS Information */}
-                              <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-gray-900 dark:text-white">DPS Settings</h4>
-                                {account.has_dps ? (
-                                  <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                    <div><span className="font-medium">Type:</span> {account.dps_type}</div>
-                                    <div><span className="font-medium">Amount Type:</span> {account.dps_amount_type}</div>
-                                    {account.dps_fixed_amount && (
-                                      <div><span className="font-medium">Fixed Amount:</span> {formatCurrency(account.dps_fixed_amount, account.currency)}</div>
-                                    )}
-                                    {dpsSavingsAccount && (
-                                      <div><span className="font-medium">Savings Account:</span> {dpsSavingsAccount.name}</div>
-                                    )}
-                                    <div className="pt-2 flex gap-2">
-                                      <button
-                                        onClick={() => handleManageDPS(account)}
-                                        className="text-xs bg-gradient-primary text-white px-3 py-1.5 rounded-lg hover:bg-gradient-primary-hover transition-colors"
-                                      >
-                                        Manage DPS
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeleteDPSWithTransfer(account, dpsSavingsAccount || account)}
-                                        className="text-xs border border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                      >
-                                        Delete DPS
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : isDpsSavingsAccount ? (
-                                  <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                    {(() => {
-                                      // Find the main account that created this DPS account
-                                      const mainAccount = accounts.find(a => a.dps_savings_account_id === account.id);
-                                      if (mainAccount) {
-                                        return (
-                                          <>
-                                            <div><span className="font-medium">DPS Type:</span> {mainAccount.dps_type === 'monthly' ? 'Monthly' : 'Flexible'}</div>
-                                            <div><span className="font-medium">Linked to:</span> {mainAccount.name}</div>
-                                          </>
-                                        );
-                                      }
-                                      return <div>DPS Savings Account</div>;
-                                    })()}
-                                  </div>
-                                ) : (
-                                  <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                                    <div>No DPS configured</div>
-                                    <div className="pt-2">
-                                      <button
-                                        onClick={() => handleManageDPS(account)}
-                                        className="text-xs bg-gradient-primary text-white px-3 py-1.5 rounded-lg hover:bg-gradient-primary-hover transition-colors"
-                                      >
-                                        Setup DPS
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Recent Activity */}
-                              <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-gray-900">Recent Activity</h4>
-                                <div className="text-xs text-gray-600 space-y-1">
-                                  {accountTransactions.slice(0, 3).map((transaction) => (
-                                    <div key={transaction.id} className="flex justify-between">
-                                      <span className="truncate">{formatTransactionDescription(transaction.description)}</span>
-                                      <div className={`font-medium ml-2 ${transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount, account.currency)}
-                                      </div>
-                                    </div>
-                                  ))}
-                                  {accountTransactions.length === 0 && (
-                                    <div className="text-gray-400 italic">No transactions yet</div>
-                                  )}
-                                </div>
-                              </div>
+                          <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 w-full min-w-0">
+                            <div className="w-full min-w-0" onClick={(e) => e.stopPropagation()}>
+                              <AccountExpandedInlineDetails
+                                account={account}
+                                transactions={transactions}
+                                onPrintStatement={() => openStatementForAccount(account)}
+                              />
                             </div>
-                            
-                            {/* DPS Savings Account Section */}
-                            {account.has_dps && dpsSavingsAccount && (
-                              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 shadow-sm">
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                                    <div className="space-y-2 sm:space-y-3">
-                                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                        <div className="font-medium text-gray-900 dark:text-white mb-1">Account Name</div>
-                                        <div className="break-words">{dpsSavingsAccount.name}</div>
-                                      </div>
-                                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                        <div className="font-medium text-gray-900 dark:text-white mb-1">Balance</div>
-                                        <div className="text-base sm:text-lg font-semibold text-green-600 dark:text-green-400 break-words">
-                                          {formatCurrency(dpsSavingsAccount.calculated_balance, dpsSavingsAccount.currency)}
-                                        </div>
-                                      </div>
-                                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                        <div className="font-medium text-gray-900 dark:text-white mb-1">Type</div>
-                                        <div className="capitalize">{dpsSavingsAccount.type}</div>
-                                      </div>
-                                    </div>
-                                    <div className="space-y-2 sm:space-y-3">
-                                      {(() => {
-                                        const dpsAccountTransactions = transactions
-                                          .filter(t => t.account_id === dpsSavingsAccount.id)
-                                          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                                          .slice(0, 3);
-                                        return (
-                                          <>
-                                            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                              <div className="font-medium text-gray-900 dark:text-white mb-1 sm:mb-2">Recent Transactions</div>
-                                              {dpsAccountTransactions.length > 0 ? (
-                                                <div className="space-y-1.5 sm:space-y-2">
-                                                  {dpsAccountTransactions.map((transaction) => (
-                                                    <div key={transaction.id} className="flex justify-between items-start sm:items-center gap-2 text-xs">
-                                                      <div className="flex-1 min-w-0 truncate">
-                                                        <span className="block sm:hidden">
-                                                          {formatTransactionDescription(transaction.description || 'No description').substring(0, 20)}
-                                                          {formatTransactionDescription(transaction.description || 'No description').length > 20 && '...'}
-                                                        </span>
-                                                        <span className="hidden sm:block">
-                                                          {formatTransactionDescription(transaction.description || 'No description').substring(0, 25)}
-                                                          {formatTransactionDescription(transaction.description || 'No description').length > 25 && '...'}
-                                                        </span>
-                                                      </div>
-                                                      <div className={`font-medium shrink-0 ${transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount, dpsSavingsAccount.currency)}
-                                                      </div>
-                                                    </div>
-                                                  ))}
-                                                </div>
-                                              ) : (
-                                                <div className="text-gray-400 italic text-xs sm:text-sm">No transactions yet</div>
-                                              )}
-                                            </div>
-                                          </>
-                                        );
-                                      })()}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
                           </div>
                         )}
                       </div>
@@ -3386,6 +2627,22 @@ export const AccountsView: React.FC = () => {
             Add Your First Account
           </button>
         </div>
+      )}
+
+      {dpsInfoAccount && (
+        <AccountDpsInfoModal
+          account={dpsInfoAccount}
+          accounts={accounts}
+          dpsTransfers={dpsTransfers}
+          onClose={() => setDpsInfoAccount(null)}
+          onManageDPS={handleManageDPS}
+          onDeleteDPS={handleDeleteDPSWithTransfer}
+          onOpenDpsTransfer={id => {
+            setDpsInfoAccount(null);
+            setDpsTransferPresetAccountId(id);
+            setShowDpsTransferModal(true);
+          }}
+        />
       )}
 
       {/* Account Form Modal */}
@@ -3431,15 +2688,6 @@ export const AccountsView: React.FC = () => {
 
       {/* DPS Delete Confirmation Modal */}
       {dpsDeleteModalContent}
-
-      {modalOpen && selectedAccount && (
-        <AccountDetailsModal
-          account={selectedAccount}
-          transactions={transactions}
-          onClose={() => setModalOpen(false)}
-          onPrintStatement={() => isAndroidApp ? setShowAndroidDownloadModal(true) : setShowStatementModal(true)}
-        />
-      )}
 
       {/* Mobile Filter Modal */}
       {showMobileFilterMenu && (
@@ -3737,9 +2985,10 @@ export const AccountsView: React.FC = () => {
         />
       )}
       {showDpsTransferModal && (
-        <DPSTransferModal 
-          isOpen={showDpsTransferModal} 
-          onClose={() => handleTransferClose('dps')} 
+        <DPSTransferModal
+          isOpen={showDpsTransferModal}
+          onClose={() => handleTransferClose('dps')}
+          initialAccountId={dpsTransferPresetAccountId}
         />
       )}
       {showInBetweenTransferModal && (

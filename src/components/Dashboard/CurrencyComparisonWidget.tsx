@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Info } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../../utils/currency';
-import { getExchangeRate } from '../../utils/exchangeRate';
 import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
+import { getAnalyticsPeriodLabel, getAnalyticsPeriodRange } from '../../utils/analyticsPeriod';
 
 interface CurrencyComparisonWidgetProps {
   transactions: any[];
   accounts: any[];
   baseCurrency: string;
+  period?: '1m' | '3m' | '6m' | '1y';
 }
 
 interface CurrencyPerformance {
@@ -16,6 +16,9 @@ interface CurrencyPerformance {
   totalIncome: number;
   totalExpenses: number;
   netAmount: number;
+  prevNetAmount: number;
+  netChangePct: number | null;
+  exposurePct: number;
   convertedNet: number;
   performance: 'positive' | 'negative' | 'neutral';
   exchangeRate: number;
@@ -24,10 +27,14 @@ interface CurrencyPerformance {
 export const CurrencyComparisonWidget: React.FC<CurrencyComparisonWidgetProps> = ({
   transactions,
   accounts,
-  baseCurrency
+  baseCurrency,
+  period = '1m'
 }) => {
-  const { t } = useTranslation();
   const [showDetails, setShowDetails] = useState(false);
+  const getPercentChange = (current: number, previous: number) => {
+    if (previous === 0) return current === 0 ? null : 100;
+    return ((current - previous) / Math.abs(previous)) * 100;
+  };
 
   // Get all currencies
   const allCurrencies = useMemo(() => {
@@ -36,19 +43,28 @@ export const CurrencyComparisonWidget: React.FC<CurrencyComparisonWidgetProps> =
     return Array.from(currencies).sort();
   }, [accounts]);
 
+  const { startDate, endDate, prevStartDate, prevEndDate } = useMemo(() => {
+    return getAnalyticsPeriodRange(period);
+  }, [period]);
+
   // Calculate currency performance
   const currencyPerformance = useMemo((): CurrencyPerformance[] => {
-    const now = new Date();
-    const startDate = new Date(now.getFullYear(), now.getMonth(), 1); // Current month
-    
-    return allCurrencies.map(currency => {
+    const rows = allCurrencies.map(currency => {
       // Filter transactions for this currency and current month
       const currencyTransactions = transactions.filter(t => {
         const account = accounts.find(a => a.id === t.account_id);
         const tDate = new Date(t.date);
         return account?.currency === currency && 
                tDate >= startDate && 
-               tDate <= now &&
+               tDate <= endDate &&
+               !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
+      });
+      const prevCurrencyTransactions = transactions.filter(t => {
+        const account = accounts.find(a => a.id === t.account_id);
+        const tDate = new Date(t.date);
+        return account?.currency === currency &&
+               tDate >= prevStartDate &&
+               tDate <= prevEndDate &&
                !t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
       });
 
@@ -61,6 +77,13 @@ export const CurrencyComparisonWidget: React.FC<CurrencyComparisonWidgetProps> =
         .reduce((sum, t) => sum + t.amount, 0);
 
       const netAmount = income - expenses;
+      const prevIncome = prevCurrencyTransactions
+        .filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t))
+        .reduce((sum, t) => sum + t.amount, 0);
+      const prevExpenses = prevCurrencyTransactions
+        .filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t))
+        .reduce((sum, t) => sum + t.amount, 0);
+      const prevNetAmount = prevIncome - prevExpenses;
       
       // Determine performance
       let performance: 'positive' | 'negative' | 'neutral';
@@ -73,12 +96,17 @@ export const CurrencyComparisonWidget: React.FC<CurrencyComparisonWidgetProps> =
         totalIncome: income,
         totalExpenses: expenses,
         netAmount,
+        prevNetAmount,
+        netChangePct: getPercentChange(netAmount, prevNetAmount),
+        exposurePct: 0,
         convertedNet: 0, // Will be calculated after exchange rates
         performance,
         exchangeRate: currency === baseCurrency ? 1 : 0 // Placeholder
       };
     });
-  }, [transactions, accounts, allCurrencies, baseCurrency]);
+    const totalAbsNet = rows.reduce((sum, r) => sum + Math.abs(r.netAmount), 0);
+    return rows.map(r => ({ ...r, exposurePct: totalAbsNet === 0 ? 0 : (Math.abs(r.netAmount) / totalAbsNet) * 100 }));
+  }, [transactions, accounts, allCurrencies, baseCurrency, startDate, endDate, prevStartDate, prevEndDate]);
 
   // Get top and bottom performing currencies
   const topPerformer = currencyPerformance
@@ -107,7 +135,7 @@ export const CurrencyComparisonWidget: React.FC<CurrencyComparisonWidgetProps> =
           </button>
         </div>
         <div className="text-sm text-gray-500 dark:text-gray-400">
-          This Month
+          {getAnalyticsPeriodLabel(period)}
         </div>
       </div>
 
@@ -195,6 +223,9 @@ export const CurrencyComparisonWidget: React.FC<CurrencyComparisonWidgetProps> =
                   {currency.performance === 'positive' ? 'Gaining' : 
                    currency.performance === 'negative' ? 'Losing' : 'Neutral'}
                 </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Exposure {currency.exposurePct.toFixed(1)}% • {currency.netChangePct === null ? 'N/A' : `${currency.netChangePct >= 0 ? '+' : ''}${Math.round(currency.netChangePct)}%`}
+                </p>
               </div>
             </div>
           ))}
@@ -219,8 +250,9 @@ export const CurrencyComparisonWidget: React.FC<CurrencyComparisonWidgetProps> =
           )}
           {allCurrencies.length > 1 && (
             <p>
-              You're managing {allCurrencies.length} currencies. Consider consolidating to{' '}
-              reduce complexity and exchange rate risks.
+              You're managing {allCurrencies.length} currencies. Highest concentration is{' '}
+              <strong>{[...currencyPerformance].sort((a, b) => b.exposurePct - a.exposurePct)[0]?.currency}</strong>{' '}
+              ({[...currencyPerformance].sort((a, b) => b.exposurePct - a.exposurePct)[0]?.exposurePct.toFixed(1)}%).
             </p>
           )}
         </div>

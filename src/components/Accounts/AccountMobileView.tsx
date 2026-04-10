@@ -4,6 +4,7 @@ import { Account, Transaction } from '../../types';
 import { getAccountColor } from '../../utils/accountIcons';
 import { AccountCard } from './AccountCard';
 import { formatCurrency } from '../../utils/accountUtils';
+import { accountActiveStatusDotClass } from './AccountActiveToggle';
 
 interface AccountMobileViewProps {
   accounts: Account[];
@@ -66,7 +67,7 @@ export const AccountMobileView: React.FC<AccountMobileViewProps> = React.memo(({
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-3">
                   <div 
-                    className={`w-3 h-3 rounded-full ${account.isActive ? 'bg-green-500' : 'bg-gray-400'}`}
+                    className={`w-3 h-3 rounded-full ${accountActiveStatusDotClass(account.isActive)}`}
                     role="status"
                     aria-label={account.isActive ? 'Active account' : 'Inactive account'}
                   />

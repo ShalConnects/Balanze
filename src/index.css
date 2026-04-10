@@ -719,6 +719,29 @@
   }
 }
 
+.overflow-marquee {
+  animation: overflow-marquee var(--overflow-marquee-duration, 10s) linear infinite;
+  animation-delay: 1s;
+}
+
+.overflow-marquee:hover,
+.overflow-marquee:focus-visible {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overflow-marquee {
+    animation: none;
+  }
+}
+
+@keyframes overflow-marquee {
+  0% { transform: translateX(0); }
+  10% { transform: translateX(0); }
+  90% { transform: translateX(calc(-1 * var(--overflow-marquee-distance, 0px))); }
+  100% { transform: translateX(0); }
+}
+
 /* Force dark mode for all input fields and react-datepicker input fields */
 .dark input,
 .dark .react-datepicker__input-container input {

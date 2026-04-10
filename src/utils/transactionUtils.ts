@@ -80,6 +80,10 @@ export const isBusinessInvestmentFundingExpense = (t: Transaction): boolean =>
 export const countsTowardIncomeExpenseSummaries = (t: Transaction): boolean =>
     !isLendBorrowTransaction(t) && !isBusinessInvestmentFundingExpense(t);
 
+/** Tooltip for summary UIs that use countsTowardIncomeExpenseSummaries. */
+export const INCOME_EXPENSE_NET_TOOLTIP =
+    'Income minus expenses, excluding lend/borrow flows and business investment funding.';
+
 export const filterTransactions = (
     transactions: Transaction[],
     filters: {

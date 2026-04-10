@@ -11,9 +11,11 @@ import { CustomDropdown } from '../Purchases/CustomDropdown';
 interface DPSTransferModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Preset "DPS Account" dropdown when opening from context (e.g. account info) */
+  initialAccountId?: string;
 }
 
-export const DPSTransferModal: React.FC<DPSTransferModalProps> = ({ isOpen, onClose }) => {
+export const DPSTransferModal: React.FC<DPSTransferModalProps> = ({ isOpen, onClose, initialAccountId }) => {
   const { accounts, transferDPS, loading } = useFinanceStore();
   const dpsAccounts = accounts.filter(a => a.has_dps && a.dps_savings_account_id);
   const [selectedAccountId, setSelectedAccountId] = useState('');
@@ -22,6 +24,7 @@ export const DPSTransferModal: React.FC<DPSTransferModalProps> = ({ isOpen, onCl
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const presetAppliedRef = useRef(false);
 
   const selectedAccount = dpsAccounts.find(a => a.id === selectedAccountId);
   const linkedSavingsAccount = selectedAccount && accounts.find(a => a.id === selectedAccount.dps_savings_account_id);
@@ -45,6 +48,22 @@ export const DPSTransferModal: React.FC<DPSTransferModalProps> = ({ isOpen, onCl
       timeoutRef.current = null;
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      presetAppliedRef.current = false;
+      return;
+    }
+    if (!initialAccountId) {
+      presetAppliedRef.current = true;
+      return;
+    }
+    if (presetAppliedRef.current) return;
+    if (dpsAccounts.some(a => a.id === initialAccountId)) {
+      setSelectedAccountId(initialAccountId);
+      presetAppliedRef.current = true;
+    }
+  }, [isOpen, initialAccountId, dpsAccounts]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

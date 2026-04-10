@@ -1,7 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 
+export interface DescriptionSuggestionItem {
+  text: string;
+  type?: 'income' | 'expense';
+  category?: string;
+  account_id?: string;
+  amount?: number;
+  purchase_status?: 'planned' | 'purchased' | 'cancelled';
+}
+
 export function useDescriptionSuggestions(input: string, maxResults: number = 8): string[] {
+  return useDescriptionSuggestionItems(input, maxResults).map(item => item.text);
+}
+
+export function useDescriptionSuggestionItems(input: string, maxResults: number = 8): DescriptionSuggestionItem[] {
   const { transactions, purchases } = useFinanceStore();
   const [debouncedInput, setDebouncedInput] = useState(input);
 
@@ -16,7 +29,16 @@ export function useDescriptionSuggestions(input: string, maxResults: number = 8)
     if (query.length < 1) return [];
 
     // Collect unique descriptions from both transactions and purchases
-    const uniqueDescriptions = new Map<string, { text: string; count: number; recentIndex: number }>();
+    const uniqueDescriptions = new Map<string, {
+      text: string;
+      count: number;
+      recentIndex: number;
+      type?: 'income' | 'expense';
+      category?: string;
+      account_id?: string;
+      amount?: number;
+      purchase_status?: 'planned' | 'purchased' | 'cancelled';
+    }>();
 
     // Process transactions
     for (let i = 0; i < transactions.length; i += 1) {
@@ -31,9 +53,23 @@ export function useDescriptionSuggestions(input: string, maxResults: number = 8)
       if (existing) {
         existing.count += 1;
         // Keep the most recent index (larger i) to bias recent usage
-        if (i > existing.recentIndex) existing.recentIndex = i;
+        if (i > existing.recentIndex) {
+          existing.recentIndex = i;
+          existing.type = transactions[i]?.type;
+          existing.category = transactions[i]?.category;
+          existing.account_id = transactions[i]?.account_id;
+          existing.amount = Number(transactions[i]?.amount) || existing.amount;
+        }
       } else {
-        uniqueDescriptions.set(key, { text: desc, count: 1, recentIndex: i });
+        uniqueDescriptions.set(key, {
+          text: desc,
+          count: 1,
+          recentIndex: i,
+          type: transactions[i]?.type,
+          category: transactions[i]?.category,
+          account_id: transactions[i]?.account_id,
+          amount: Number(transactions[i]?.amount) || undefined,
+        });
       }
     }
 
@@ -47,9 +83,23 @@ export function useDescriptionSuggestions(input: string, maxResults: number = 8)
       if (existing) {
         existing.count += 1;
         // Keep the most recent index (larger i) to bias recent usage
-        if (i > existing.recentIndex) existing.recentIndex = i;
+        if (i > existing.recentIndex) {
+          existing.recentIndex = i;
+          existing.category = purchases[i]?.category;
+          existing.purchase_status = purchases[i]?.status;
+          existing.account_id = (purchases[i] as any)?.account_id || existing.account_id;
+          existing.amount = Number((purchases[i] as any)?.price) || existing.amount;
+        }
       } else {
-        uniqueDescriptions.set(key, { text: itemName, count: 1, recentIndex: transactionCount + i });
+        uniqueDescriptions.set(key, {
+          text: itemName,
+          count: 1,
+          recentIndex: transactionCount + i,
+          category: purchases[i]?.category,
+          purchase_status: purchases[i]?.status,
+          account_id: (purchases[i] as any)?.account_id,
+          amount: Number((purchases[i] as any)?.price) || undefined,
+        });
       }
     }
 
@@ -79,7 +129,14 @@ export function useDescriptionSuggestions(input: string, maxResults: number = 8)
     contains.sort(rank);
 
     const ordered = [...startsWith, ...wordPrefix, ...contains]
-      .map(c => c.text)
+      .map(c => ({
+        text: c.text,
+        type: c.type,
+        category: c.category,
+        account_id: c.account_id,
+        amount: c.amount,
+        purchase_status: c.purchase_status,
+      }))
       .slice(0, maxResults);
 
     return ordered;

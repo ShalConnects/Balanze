@@ -351,6 +351,16 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
   
   // Calculate total account count - match what's actually displayed in the tooltip
   const totalAccountCount = (sortedAllRegularAccounts?.length || 0) + (sortedDpsSavingsAccounts?.length || 0);
+  const accountUsageCounts = useMemo(
+    () => ({
+      income: incomeByAccount.length,
+      expense: expenseByAccount.length,
+    }),
+    [incomeByAccount.length, expenseByAccount.length]
+  );
+
+  const formatAccountCount = (count: number, compact = false) =>
+    compact ? `${count} acc` : `${count} account${count === 1 ? '' : 's'}`;
 
   return (
     <div 
@@ -491,22 +501,20 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
             title={
               <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
                 <span className="text-[11px] xs:text-[12px] sm:text-[13px]">{t('dashboard.monthlyIncome')}</span>
-                {incomeByAccount.length > 0 && (
-                  <span
-                    className="inline-flex items-center justify-center px-1.5 sm:px-2 py-0.5 sm:py-1 min-w-[20px] text-[9px] xs:text-[10px] font-medium rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 cursor-help touch-manipulation"
-                    onMouseEnter={() => !isMobile && setShowIncomeBadgeTooltip(true)}
-                    onMouseLeave={() => !isMobile && setShowIncomeBadgeTooltip(false)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (isMobile) {
-                        setShowIncomeBadgeModal(true);
-                      }
-                    }}
-                    title={`${incomeByAccount.length} account${incomeByAccount.length !== 1 ? 's' : ''}`}
-                  >
-                    {incomeByAccount.length}
-                  </span>
-                )}
+                <span
+                  className="inline-flex items-center justify-center px-1 sm:px-1.5 py-0 sm:py-0.5 min-w-[16px] text-[8px] xs:text-[9px] font-medium rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 cursor-help touch-manipulation"
+                  onMouseEnter={() => !isMobile && setShowIncomeBadgeTooltip(true)}
+                  onMouseLeave={() => !isMobile && setShowIncomeBadgeTooltip(false)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isMobile && accountUsageCounts.income > 0) {
+                      setShowIncomeBadgeModal(true);
+                    }
+                  }}
+                  title={formatAccountCount(accountUsageCounts.income, true)}
+                >
+                  {accountUsageCounts.income}
+                </span>
               </div>
             }
             value={formatCurrency(filteredIncome, currency)}
@@ -535,22 +543,20 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
             title={
               <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
                 <span className="text-[11px] xs:text-[12px] sm:text-[13px]">{t('dashboard.monthlyExpenses')}</span>
-                {expenseByAccount.length > 0 && (
-                  <span
-                    className="inline-flex items-center justify-center px-1.5 sm:px-2 py-0.5 sm:py-1 min-w-[20px] text-[9px] xs:text-[10px] font-medium rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 cursor-help touch-manipulation"
-                    onMouseEnter={() => !isMobile && setShowExpenseBadgeTooltip(true)}
-                    onMouseLeave={() => !isMobile && setShowExpenseBadgeTooltip(false)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (isMobile) {
-                        setShowExpenseBadgeModal(true);
-                      }
-                    }}
-                    title={`${expenseByAccount.length} account${expenseByAccount.length !== 1 ? 's' : ''}`}
-                  >
-                    {expenseByAccount.length}
-                  </span>
-                )}
+                <span
+                  className="inline-flex items-center justify-center px-1 sm:px-1.5 py-0 sm:py-0.5 min-w-[16px] text-[8px] xs:text-[9px] font-medium rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 cursor-help touch-manipulation"
+                  onMouseEnter={() => !isMobile && setShowExpenseBadgeTooltip(true)}
+                  onMouseLeave={() => !isMobile && setShowExpenseBadgeTooltip(false)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isMobile && accountUsageCounts.expense > 0) {
+                      setShowExpenseBadgeModal(true);
+                    }
+                  }}
+                  title={formatAccountCount(accountUsageCounts.expense, true)}
+                >
+                  {accountUsageCounts.expense}
+                </span>
               </div>
             }
             value={formatCurrency(filteredExpenses, currency)}

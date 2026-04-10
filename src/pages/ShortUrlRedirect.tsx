@@ -20,9 +20,17 @@ const ShortUrlRedirect: React.FC = () => {
         
         if (originalUrl) {
           // Update access count
+          const { data: shortUrlData } = await supabase
+            .from('url_shortener')
+            .select('access_count')
+            .eq('short_code', shortCode)
+            .maybeSingle();
+
+          const currentAccessCount = shortUrlData?.access_count ?? 0;
+
           await supabase
             .from('url_shortener')
-            .update({ access_count: supabase.raw('access_count + 1') })
+            .update({ access_count: currentAccessCount + 1 })
             .eq('short_code', shortCode);
           
           // Redirect to the original URL

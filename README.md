@@ -71,4 +71,14 @@ alter table transactions add column if not exists donation_amount numeric;
 
 ---
 
+## 📁 File Placement Policy (Keep Repo Clean)
+
+- `supabase/migrations/`: only canonical, ordered schema/data migrations that must run in environments.
+- `scripts/`: one-off local utilities and diagnostics (JS/TS/SQL helpers).
+- root (`/`): only product/runtime code, core config, and primary docs.
+- do not add `test_*`, `check_*`, `debug_*`, `diagnose_*`, `backup_*`, `rollback_*` files to root.
+- if a script is temporary, place it in `scripts/` and delete it after use.
+
+---
+
 For any questions or contributions, open an issue or PR!

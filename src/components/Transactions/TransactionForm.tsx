@@ -23,10 +23,11 @@ import { CategoryModal } from '../common/CategoryModal';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getFilteredCategoriesForTransaction } from '../../utils/categoryFiltering';
 import { calculateNextOccurrence } from '../../utils/transactionUtils';
-import { useDescriptionSuggestions } from '../../hooks/useDescriptionSuggestions';
+import { useDescriptionSuggestionItems } from '../../hooks/useDescriptionSuggestions';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { AmountAdjustmentModal } from '../common/AmountAdjustmentModal';
+import { MAX_TRANSACTION_NOTE_LENGTH } from '../../constants/transactionNote';
 
 interface TransactionFormProps {
   accountId?: string;
@@ -99,11 +100,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const [purchaseAttachments, setPurchaseAttachments] = useState<PurchaseAttachment[]>([]);
   const [showPurchaseDetails, setShowPurchaseDetails] = useState(false);
   const [showPurchaseNote, setShowPurchaseNote] = useState(false);
+  const [transactionNote, setTransactionNote] = useState('');
 
   // Amount adjustment modal state
   const [showAmountModal, setShowAmountModal] = useState(false);
   const [amountMode, setAmountMode] = useState<'set' | 'adjust'>('set');
   const [originalAmount, setOriginalAmount] = useState<number | null>(null);
+  const [isAmountManuallyEdited, setIsAmountManuallyEdited] = useState(false);
 
   // Check if selected category is a purchase category - memoized to prevent infinite re-renders
   const isPurchaseCategory = React.useMemo(() =>
@@ -130,7 +133,39 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const descriptionRef = useRef<HTMLInputElement | null>(null);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const descriptionSuggestions = useDescriptionSuggestions(data.description, 8);
+  const [isAccountManuallySelected, setIsAccountManuallySelected] = useState(false);
+  const descriptionSuggestionItems = useDescriptionSuggestionItems(data.description, 8);
+  const descriptionSuggestions = React.useMemo(
+    () => descriptionSuggestionItems.map(item => item.text),
+    [descriptionSuggestionItems]
+  );
+
+  const applyDescriptionSuggestion = React.useCallback((value: string) => {
+    const selected = descriptionSuggestionItems.find(item => item.text === value);
+    setData(prev => {
+      const nextType = selected?.type || prev.type;
+      const nextCategory = selected?.category || prev.category;
+      const shouldSetAccount = !!(
+        !isAccountManuallySelected &&
+        selected?.account_id &&
+        accounts.some(acc => acc.id === selected.account_id && acc.isActive)
+      );
+
+      return {
+        ...prev,
+        description: value,
+        type: nextType,
+        category: nextCategory,
+        amount: !isAmountManuallyEdited && !prev.amount && typeof selected?.amount === 'number' && selected.amount > 0
+          ? String(selected.amount)
+          : prev.amount,
+        account_id: shouldSetAccount ? selected!.account_id! : prev.account_id,
+      };
+    });
+    if (selected?.type === 'expense') setIsExpenseType('regular_expense');
+    setIsSuggestionsOpen(false);
+    setHighlightedIndex(-1);
+  }, [accounts, descriptionSuggestionItems, isAccountManuallySelected]);
 
   // Add isFormValid variable after data and errors are defined - memoized to prevent infinite re-renders
   const transactionAccountDropdownOptions = React.useMemo(
@@ -225,10 +260,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     if (!data.date) {
       newErrors.date = 'Date is required';
     }
+
+    if (transactionNote.length > MAX_TRANSACTION_NOTE_LENGTH) {
+      newErrors.note = `Note cannot exceed ${MAX_TRANSACTION_NOTE_LENGTH} characters`;
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [data.account_id, data.amount, data.type, data.category, data.description, data.date, isExpenseType]);
+  }, [data.account_id, data.amount, data.type, data.category, data.description, data.date, isExpenseType, transactionNote]);
 
   // Auto-validate form when data changes
   React.useEffect(() => {
@@ -264,6 +303,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         setShowCategoryModal(false);
         setShowPurchaseDetails(false);
         setPurchaseAttachments([]);
+        setIsAccountManuallySelected(false);
+        setIsAmountManuallyEdited(false);
         setShowAddAnother(false);
         setNewCategory({
           category_name: '',
@@ -338,6 +379,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           // Reset purchase details
           setPurchasePriority('medium');
           setPurchaseNotes('');
+          setTransactionNote(transactionToEdit.note || '');
         } else if (duplicateFrom) {
           // Initialize for duplicating a transaction
           setData({
@@ -394,6 +436,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           // Reset purchase details
           setPurchasePriority('medium');
           setPurchaseNotes('');
+          setTransactionNote(duplicateFrom.note || '');
         } else {
           // Initialize for new transaction
           setData({
@@ -413,6 +456,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           setRecurringEndDate(undefined);
           setPurchasePriority('medium');
           setPurchaseNotes('');
+          setTransactionNote('');
         }
         
         // Update the current transaction ID
@@ -484,6 +528,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       setShowCategoryModal(false);
       setShowPurchaseDetails(false);
       setPurchaseAttachments([]);
+      setTransactionNote('');
       setRecurringEndDate(undefined);
       setShowAddAnother(false);
       setNewCategory({
@@ -682,6 +727,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     setRecurringEndDate(undefined);
     setPurchasePriority('medium');
     setPurchaseNotes('');
+    setTransactionNote('');
     setPurchaseAttachments([]);
     setErrors({});
     setTouched({});
@@ -748,7 +794,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             description: data.description || 'Cash Withdrawal',
             date: toBusinessDateString(data.date),
             tags: ['cash_withdrawal', 'transfer'],
-            user_id: user?.id || ''
+            user_id: user?.id || '',
+            note: transactionNote.trim(),
           };
 
 
@@ -762,7 +809,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             description: data.description || 'Cash Withdrawal',
             date: toBusinessDateString(data.date),
             tags: ['cash_deposit', 'transfer'],
-            user_id: user?.id || ''
+            user_id: user?.id || '',
+            note: transactionNote.trim(),
           };
 
 
@@ -828,6 +876,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               setRecurringEndDate(undefined);
               setPurchasePriority('medium');
               setPurchaseNotes('');
+              setTransactionNote('');
               setPurchaseAttachments([]);
               setErrors({});
               setTouched({});
@@ -873,7 +922,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             donation_amount,
             is_recurring: data.is_recurring,
             recurring_frequency: data.is_recurring ? data.recurring_frequency : undefined,
-            user_id: user?.id || ''
+            user_id: user?.id || '',
+            note: transactionNote.trim(),
           };
           
           // Add recurring transaction tracking fields if recurring
@@ -967,7 +1017,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                     is_recurring: false, // Instance is not recurring
                     parent_recurring_id: result.id,
                     transaction_id: firstInstanceTransactionId,
-                    user_id: user?.id || ''
+                    user_id: user?.id || '',
+                    note: transactionNote.trim(),
                   });
 
                   if (firstInstance) {
@@ -1014,6 +1065,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               setRecurringEndDate(undefined);
               setPurchasePriority('medium');
               setPurchaseNotes('');
+              setTransactionNote('');
               setPurchaseAttachments([]);
               setErrors({});
               setTouched({});
@@ -1143,10 +1195,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         <form onSubmit={handleSubmit} className="space-y-7">
           {/* Grid: Main Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-[1.15rem] gap-y-[1.40rem]">
-            <div className="relative">
+            <div className="relative order-1">
               <CustomDropdown
                 value={data.account_id}
                 onChange={(value: string) => {
+                  setIsAccountManuallySelected(true);
                   setData({ ...data, account_id: value });
                   if (errors.account_id) setErrors({ ...errors, account_id: '' });
                 }}
@@ -1174,7 +1227,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 return null;
               })()}
             </div>
-            <div className="relative">
+            <div className="relative order-2">
               <input
                 id="amount"
                 name="amount"
@@ -1184,6 +1237,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 ref={amountRef}
                 disabled={isAccountHidden}
                 onChange={(e) => {
+                  setIsAmountManuallyEdited(true);
                   setData({ ...data, amount: e.target.value });
                   if (errors.amount) setErrors({ ...errors, amount: '' });
                 }}
@@ -1225,7 +1279,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 </span>
               )}
             </div>
-            <div className="relative">
+            <div className="relative order-4">
               <CustomDropdown
                 value={data.type}
                 onChange={(value: string) => {
@@ -1254,7 +1308,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               )}
             </div>
             {data.type === 'expense' && !isEditMode && (
-              <div className="relative">
+              <div className="relative order-5">
                 <CustomDropdown
                   value={isExpenseType}
                   onChange={(value: string) => {
@@ -1276,7 +1330,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
 
               </div>
             )}
-            <div className="relative">
+            <div className="relative order-6">
               <CustomDropdown
                 value={data.category}
                 onChange={(value: string) => {
@@ -1332,7 +1386,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 </div>
               )}
             </div>
-            <div className="relative">
+            <div className="relative order-3">
               <input
                 type="text"
                 name="description"
@@ -1356,9 +1410,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                     if (highlightedIndex >= 0) {
                       e.preventDefault();
                       const value = descriptionSuggestions[highlightedIndex];
-                      setData({ ...data, description: value });
-                      setIsSuggestionsOpen(false);
-                      setHighlightedIndex(-1);
+                      applyDescriptionSuggestion(value);
                     }
                   } else if (e.key === 'Escape') {
                     setIsSuggestionsOpen(false);
@@ -1383,9 +1435,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                       className={`px-3 py-2 cursor-pointer text-sm ${idx === highlightedIndex ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
                       onMouseDown={(e) => {
                         e.preventDefault();
-                        setData({ ...data, description: s });
-                        setIsSuggestionsOpen(false);
-                        setHighlightedIndex(-1);
+                        applyDescriptionSuggestion(s);
                       }}
                       onMouseEnter={() => setHighlightedIndex(idx)}
                     >
@@ -1426,7 +1476,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 </span>
               )}
             </div>
-            <div className="w-full">
+            <div className="w-full order-7">
               <div className={getInputClasses('date') + ' flex items-center bg-gray-100 dark:bg-gray-700 px-4 pr-[10px] text-[14px] h-10 rounded-lg w-full'}>
                 <svg className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -1456,6 +1506,36 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 </span>
               )}
             </div>
+          </div>
+
+          <div className="w-full mt-2 sm:mt-1">
+            <label htmlFor="transaction-note" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              Note <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <textarea
+              id="transaction-note"
+              name="note"
+              value={transactionNote}
+              onChange={(e) => {
+                setTransactionNote(e.target.value);
+                if (errors.note) setErrors((prev) => ({ ...prev, note: '' }));
+              }}
+              onBlur={handleBlur}
+              disabled={isAccountHidden}
+              maxLength={MAX_TRANSACTION_NOTE_LENGTH}
+              rows={2}
+              className={`${getInputClasses('note')} min-h-[4.25rem] resize-y py-2`}
+              placeholder="Private note for this transaction…"
+            />
+            <div className="flex justify-end mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+              {transactionNote.length}/{MAX_TRANSACTION_NOTE_LENGTH}
+            </div>
+            {errors.note && (touched.note || formSubmitted) && (
+              <span className="text-xs text-red-600 mt-0.5 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {errors.note}
+              </span>
+            )}
           </div>
 
           {/* Recurring Transaction Section - Moved to be more visible */}
@@ -1774,6 +1854,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           currentAmount={transactionToEdit.amount}
           onConfirm={(newAmount) => {
             setData({ ...data, amount: newAmount.toString() });
+            setIsAmountManuallyEdited(true);
             setShowAmountModal(false);
           }}
           currencySymbol={modalCurrencySymbol}

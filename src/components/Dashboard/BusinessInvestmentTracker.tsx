@@ -72,6 +72,7 @@ const entryRemoveIconButtonClass =
 const investmentSummaryMetricCopy = {
   profit: { label: 'Profit', caption: 'Sum of profit entries' },
   loss: { label: 'Loss', caption: 'Sum of loss entries' },
+  principalReturned: { label: 'Principal Returned', caption: 'Sum of principal return entries' },
   net: { label: 'Net', caption: 'Profit minus loss' }
 } as const;
 
@@ -845,6 +846,22 @@ export const BusinessInvestmentTracker: React.FC = () => {
                   </p>
                 </div>
                 <TrendingDown className="text-blue-600 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+              </div>
+            </div>
+            <div className={LP.statCard}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-left min-w-0 flex-1">
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400 truncate">
+                    {investmentSummaryMetricCopy.principalReturned.label}
+                  </p>
+                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-lg sm:text-xl lg:text-[1.2rem] break-words tabular-nums">
+                    {formatAmount(summary.totalPrincipalReturned, summaryDisplayCurrency)}
+                  </p>
+                  <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] truncate">
+                    {investmentSummaryMetricCopy.principalReturned.caption}
+                  </p>
+                </div>
+                <Landmark className="text-blue-600 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
               </div>
             </div>
             <div className={LP.statCard}>

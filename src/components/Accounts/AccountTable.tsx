@@ -4,6 +4,7 @@ import { Account, Transaction } from '../../types';
 import { getAccountColor } from '../../utils/accountIcons';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { getAccountAllTimeSummary } from '../../utils/transactionUtils';
+import { AccountActiveToggle } from './AccountActiveToggle';
 
 interface AccountTableProps {
   accounts: Account[];
@@ -225,18 +226,10 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
                 <td className="px-6 py-[0.7rem] text-center">
                   <div className="flex justify-center gap-2 items-center" onClick={(e) => e.stopPropagation()}>
                     {!isDpsSavingsAccount && (
-                      <button
-                        type="button"
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          await onUpdateAccount(account.id, { isActive: !account.isActive });
-                        }}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 ${account.isActive ? 'bg-green-600' : 'bg-gray-300'}`}
-                        title={account.isActive ? 'Deactivate Account' : 'Activate Account'}
-                      >
-                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform duration-200 ${account.isActive ? 'translate-x-5' : 'translate-x-1'}`} />
-                      </button>
+                      <AccountActiveToggle
+                        isActive={account.isActive}
+                        onToggle={() => onUpdateAccount(account.id, { isActive: !account.isActive })}
+                      />
                     )}
                     <button
                       onClick={() => onShowInfo(account)}

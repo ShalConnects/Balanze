@@ -14,7 +14,9 @@ import { toast } from 'sonner';
 import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 import { parseISO } from 'date-fns';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
+import { TABLE_SUMMARY_CARDS_GRID } from '../common/listPage/listPageLayout';
 import { Tooltip } from '../common/Tooltip';
+import { SummaryLabelWithInfo } from '../common/SummaryLabelWithInfo';
 // PDF libraries are loaded dynamically via exportUtils (lazy load)
 // import jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable';
@@ -37,6 +39,25 @@ import { transactionHasAuditTrail } from '../../utils/transactionHistoryUtils';
 import { formatDateUTC, formatTimeUTC } from '../../utils/timezoneUtils';
 import { getTransactionListManagedElsewhereHint, isTransactionListActionsLocked } from '../../lib/transactionListLock';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
+import {
+  CASHFLOW_EXPENSE_CHIP_CLASS,
+  CASHFLOW_EXPENSE_TEXT_CLASS,
+  CASHFLOW_INCOME_CHIP_CLASS,
+  CASHFLOW_INCOME_TEXT_CLASS,
+  THEME_ACCENT_TEXT_CLASS,
+  THEME_ACTION_HOVER_EXPENSE_CLASS,
+  THEME_ACTION_HOVER_INCOME_CLASS,
+  THEME_ACTION_HOVER_PAUSE_CLASS,
+  THEME_BRAND_GRADIENT_TEXT_CLASS,
+  THEME_FILTER_APPLY_ACTIVE_CLASS,
+  THEME_ICON_HOVER_AMBER_CLASS,
+  THEME_ICON_HOVER_BLUE_CLASS,
+  THEME_ICON_HOVER_EMERALD_CLASS,
+  THEME_ICON_HOVER_RED_CLASS,
+  THEME_MUTED_CAPTION_CLASS,
+  THEME_STATUS_ACTIVE_TEXT_CLASS,
+  THEME_STATUS_PAUSED_TEXT_CLASS,
+} from '../../constants/appThemeClasses';
 
 /** Actions column: Lend & Borrow uses Info; business-investment origin uses the Investments feature icon (LineChart). */
 function ManagedTransactionActionIcon({ transaction, className }: { transaction: Transaction; className: string }) {
@@ -606,8 +627,8 @@ const TransactionListComponent: React.FC<{
       return <ChevronUp className="w-4 h-4 text-gray-400" />;
     }
     return sortConfig.direction === 'asc' 
-      ? <ChevronUp className="w-4 h-4 text-blue-600" />
-      : <ChevronDown className="w-4 h-4 text-blue-600" />;
+      ? <ChevronUp className={`w-4 h-4 ${THEME_ACCENT_TEXT_CLASS}`} />
+      : <ChevronDown className={`w-4 h-4 ${THEME_ACCENT_TEXT_CLASS}`} />;
   };
 
   // Sort function
@@ -1995,12 +2016,12 @@ const TransactionListComponent: React.FC<{
           </div>
         </div>
         {/* Summary Cards - moved inside table container */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 p-3">
+        <div className={TABLE_SUMMARY_CARDS_GRID}>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
             <div className="flex items-center justify-between">
               <div className="text-left">
                 <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Income</p>
-                <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
+                <p className={THEME_BRAND_GRADIENT_TEXT_CLASS} style={{ fontSize: '1.2rem' }}>
                   {formatCurrency(totalIncome, selectedCurrency)}
                 </p>
                 <p className={`${(() => {
@@ -2027,10 +2048,10 @@ const TransactionListComponent: React.FC<{
                              transactionDate <= compEndDate;
                     }).reduce((sum, t) => sum + t.amount, 0);
                     
-                    if (comparisonIncome === 0) return 'text-gray-500 dark:text-gray-400';
+                    if (comparisonIncome === 0) return THEME_MUTED_CAPTION_CLASS;
                     
                     const growthRate = Math.round(((currentIncome - comparisonIncome) / comparisonIncome) * 100);
-                    return growthRate > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+                    return growthRate > 0 ? CASHFLOW_INCOME_TEXT_CLASS : CASHFLOW_EXPENSE_TEXT_CLASS;
                   })()}`} style={{ fontSize: '11px' }}>
                   {(() => {
                     const filterType = getDateFilterType();
@@ -2064,14 +2085,14 @@ const TransactionListComponent: React.FC<{
                   })()}
                 </p>
               </div>
-              <span className="text-blue-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
+              <span className={THEME_ACCENT_TEXT_CLASS} style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
             <div className="flex items-center justify-between">
               <div className="text-left">
                 <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Expense</p>
-                <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
+                <p className={THEME_BRAND_GRADIENT_TEXT_CLASS} style={{ fontSize: '1.2rem' }}>
                   {formatCurrency(totalExpense, selectedCurrency)}
                 </p>
                 <p className={`${(() => {
@@ -2098,10 +2119,10 @@ const TransactionListComponent: React.FC<{
                              transactionDate <= compEndDate;
                     }).reduce((sum, t) => sum + t.amount, 0);
                     
-                    if (comparisonExpense === 0) return 'text-gray-500 dark:text-gray-400';
+                    if (comparisonExpense === 0) return THEME_MUTED_CAPTION_CLASS;
                     
                     const changeRate = Math.round(((currentExpense - comparisonExpense) / comparisonExpense) * 100);
-                    return changeRate > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400';
+                    return changeRate > 0 ? CASHFLOW_EXPENSE_TEXT_CLASS : CASHFLOW_INCOME_TEXT_CLASS;
                   })()}`} style={{ fontSize: '11px' }}>
                   {(() => {
                     const filterType = getDateFilterType();
@@ -2135,22 +2156,22 @@ const TransactionListComponent: React.FC<{
                   })()}
                 </p>
               </div>
-              <span className="text-blue-600" style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
+              <span className={THEME_ACCENT_TEXT_CLASS} style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
             </div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
             <div className="flex items-center justify-between">
               <div className="text-left">
                 <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Transactions</p>
-                <p className="font-bold text-blue-600 dark:text-blue-400" style={{ fontSize: '1.2rem' }}>{transactionCount}</p>
-                <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                <p className={`font-bold ${THEME_ACCENT_TEXT_CLASS}`} style={{ fontSize: '1.2rem' }}>{transactionCount}</p>
+                <p className={THEME_MUTED_CAPTION_CLASS} style={{ fontSize: '11px' }}>
                   {(() => {
                     const velocityData = getTransactionVelocity();
                     return velocityData.text;
                   })()}
                 </p>
               </div>
-              <span className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }}>#</span>
+              <span className={THEME_ACCENT_TEXT_CLASS} style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }}>#</span>
             </div>
           </div>
           {(() => {
@@ -2161,34 +2182,32 @@ const TransactionListComponent: React.FC<{
               <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
                 <div className="flex items-center justify-between">
                   <div className="text-left">
-                    <div className="flex items-center gap-1">
-                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Net Edited Change</p>
-                      <Tooltip content="Sum of amount edits (new - old) within the selected timeframe." placement="top">
-                        <Info className="w-3 h-3 text-gray-400 cursor-help" />
-                      </Tooltip>
-                    </div>
-                    <p className={`font-bold ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} style={{ fontSize: '1.2rem' }}>
+                    <SummaryLabelWithInfo
+                      label="Net Edited Change"
+                      tooltip="Sum of amount edits (new - old) within the selected timeframe."
+                    />
+                    <p className={`font-bold ${isPositive ? CASHFLOW_INCOME_TEXT_CLASS : CASHFLOW_EXPENSE_TEXT_CLASS}`} style={{ fontSize: '1.2rem' }}>
                       {`${isPositive ? '+' : ''}${formatCurrency(amountEditSummary.netDelta, selectedCurrency)}`}
                     </p>
-                    <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                    <p className={THEME_MUTED_CAPTION_CLASS} style={{ fontSize: '11px' }}>
                       {`${amountEditSummary.editCount} amount edit${amountEditSummary.editCount === 1 ? '' : 's'} ${getDateRangeLabel().toLowerCase()}`}
                     </p>
                   </div>
-                  <History className={`w-5 h-5 ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} />
+                  <History className={`w-5 h-5 ${isPositive ? CASHFLOW_INCOME_TEXT_CLASS : CASHFLOW_EXPENSE_TEXT_CLASS}`} />
                 </div>
               </div>
             );
           })()}
-          <FinancialHealthCard 
-            transactions={filteredTransactions} 
-            selectedCurrency={selectedCurrency} 
+          <FinancialHealthCard
+            transactions={filteredTransactions}
+            selectedCurrency={selectedCurrency}
           />
           {!isPremiumPlan && (
             <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
               <div className="flex items-center justify-between">
                 <div className="text-left">
                   <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Monthly Limit</p>
-                  <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
+                  <p className={THEME_BRAND_GRADIENT_TEXT_CLASS} style={{ fontSize: '1.2rem' }}>
                     {(() => {
                       if (isPremiumPlan) return '∞';
                       if (usageStats && 'current_month_transactions' in usageStats) {
@@ -2206,11 +2225,11 @@ const TransactionListComponent: React.FC<{
                       return `${currentMonthTransactions}/25`;
                     })()}
                   </p>
-                  <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
+                  <p className={THEME_MUTED_CAPTION_CLASS} style={{ fontSize: '11px' }}>
                     {isPremiumPlan ? 'Unlimited transactions' : 'Free plan limit'}
                   </p>
                 </div>
-                <svg className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2l4 -4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <svg className={THEME_ACCENT_TEXT_CLASS} style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2l4 -4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               </div>
             </div>
           )}
@@ -2457,11 +2476,11 @@ const TransactionListComponent: React.FC<{
                           <td className="px-6 py-2 text-center">
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               {transaction.type === 'income' ? (
-                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300" title="Income">
+                                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${CASHFLOW_INCOME_CHIP_CLASS}`} title="Income">
                                   <ArrowDownRight className="w-3 h-3" />
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300" title="Expense">
+                                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${CASHFLOW_EXPENSE_CHIP_CLASS}`} title="Expense">
                                   <ArrowUpRight className="w-3 h-3" />
                                 </span>
                               )}
@@ -2497,7 +2516,7 @@ const TransactionListComponent: React.FC<{
                                          e.stopPropagation();
                                          toggleRecurringExpand(transaction.id);
                                        }}
-                                       className="text-gray-500 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
+                                       className={`text-gray-500 dark:text-gray-400 transition-colors ${THEME_ICON_HOVER_AMBER_CLASS}`}
                                      >
                                        <TransactionActionExpandGlyph expanded={expandedRecurringIds.has(transaction.id)} variant="recurring" />
                                      </button>
@@ -2599,7 +2618,7 @@ const TransactionListComponent: React.FC<{
                                    <Tooltip content="Duplicate" placement="top">
                                      <button
                                        onClick={() => handleDuplicate(transaction)}
-                                       className="text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                                       className={`text-gray-500 dark:text-gray-400 transition-colors ${THEME_ICON_HOVER_EMERALD_CLASS}`}
                                      >
                                        <Files className="w-4 h-4" />
                                      </button>
@@ -2628,7 +2647,7 @@ const TransactionListComponent: React.FC<{
                                        setTransactionToDelete(transaction);
                                        setShowDeleteModal(true);
                                      }}
-                                     className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                     className={`text-gray-500 dark:text-gray-400 transition-colors ${THEME_ICON_HOVER_RED_CLASS}`}
                                    >
                                      <Trash2 className="w-4 h-4" />
                                    </button>
@@ -2695,7 +2714,7 @@ const TransactionListComponent: React.FC<{
                                       </div>
                                       <div>
                                         <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
-                                        <p className={`text-sm font-medium ${displayTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                        <p className={`text-sm font-medium ${displayTransaction.is_paused ? THEME_STATUS_PAUSED_TEXT_CLASS : THEME_STATUS_ACTIVE_TEXT_CLASS}`}>
                                           {displayTransaction.is_paused ? 'Paused' : 'Active'}
                                         </p>
                                       </div>
@@ -2734,7 +2753,7 @@ const TransactionListComponent: React.FC<{
                                       </div>
                                       <div>
                                         <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
-                                        <p className={`text-sm font-medium ${parentTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                        <p className={`text-sm font-medium ${parentTransaction.is_paused ? THEME_STATUS_PAUSED_TEXT_CLASS : THEME_STATUS_ACTIVE_TEXT_CLASS}`}>
                                           {parentTransaction.is_paused ? 'Paused' : 'Active'}
                                         </p>
                                       </div>
@@ -2845,11 +2864,11 @@ const TransactionListComponent: React.FC<{
                       <div className="flex flex-col items-end gap-1.5">
                         <div>
                           {transaction.type === 'income' ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${CASHFLOW_INCOME_CHIP_CLASS}`}>
                               <ArrowDownRight className="w-3 h-3" /> Income
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300">
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${CASHFLOW_EXPENSE_CHIP_CLASS}`}>
                               <ArrowUpRight className="w-3 h-3" /> Expense
                             </span>
                           )}
@@ -2882,9 +2901,7 @@ const TransactionListComponent: React.FC<{
                           })()}
                         </div>
                         <div className={`text-sm font-bold flex-shrink-0 flex items-center gap-1.5 ${
-                          transaction.type === 'income' 
-                            ? 'text-green-600 dark:text-green-400' 
-                            : 'text-red-600 dark:text-red-400'
+                          transaction.type === 'income' ? CASHFLOW_INCOME_TEXT_CLASS : CASHFLOW_EXPENSE_TEXT_CLASS
                         }`}>
                           <span>
                             {transaction.type === 'income' ? '+' : '-'}
@@ -3023,7 +3040,7 @@ const TransactionListComponent: React.FC<{
                                        e.stopPropagation();
                                        toggleRecurringExpand(transaction.id);
                                      }}
-                                     className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                                     className={`p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors ${THEME_ACTION_HOVER_PAUSE_CLASS}`}
                                    >
                                      <TransactionActionExpandGlyph expanded={expandedRecurringIds.has(transaction.id)} variant="recurring" size="sm" />
                                    </button>
@@ -3104,7 +3121,7 @@ const TransactionListComponent: React.FC<{
                                  <Tooltip content="Duplicate" placement="top">
                                    <button
                                      onClick={() => handleDuplicate(transaction)}
-                                     className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                     className={`p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors ${THEME_ACTION_HOVER_INCOME_CLASS}`}
                                    >
                                      <Files className="w-3.5 h-3.5" />
                                    </button>
@@ -3133,7 +3150,7 @@ const TransactionListComponent: React.FC<{
                                    setTransactionToDelete(transaction);
                                    setShowDeleteModal(true);
                                  }}
-                                 className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                 className={`p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors ${THEME_ACTION_HOVER_EXPENSE_CLASS}`}
                                >
                                  <Trash2 className="w-3.5 h-3.5" />
                                </button>
@@ -3200,7 +3217,7 @@ const TransactionListComponent: React.FC<{
                                 </div>
                                 <div>
                                   <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
-                                  <p className={`text-sm font-medium ${displayTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                  <p className={`text-sm font-medium ${displayTransaction.is_paused ? THEME_STATUS_PAUSED_TEXT_CLASS : THEME_STATUS_ACTIVE_TEXT_CLASS}`}>
                                     {displayTransaction.is_paused ? 'Paused' : 'Active'}
                                   </p>
                                 </div>
@@ -3239,7 +3256,7 @@ const TransactionListComponent: React.FC<{
                                 </div>
                                 <div className="col-span-2">
                                   <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
-                                  <p className={`text-sm font-medium ${parentTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                  <p className={`text-sm font-medium ${parentTransaction.is_paused ? THEME_STATUS_PAUSED_TEXT_CLASS : THEME_STATUS_ACTIVE_TEXT_CLASS}`}>
                                     {parentTransaction.is_paused ? 'Paused' : 'Active'}
                                   </p>
                                 </div>
@@ -3398,7 +3415,7 @@ const TransactionListComponent: React.FC<{
                             {!isTransactionListActionsLocked(transaction) && !transaction.is_recurring && (
                               <button
                                 onClick={() => handleDuplicate(transaction)}
-                                className="text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                                className={`text-gray-500 dark:text-gray-400 transition-colors ${THEME_ICON_HOVER_EMERALD_CLASS}`}
                                 title="Duplicate transaction"
                               >
                                 <Files className="w-4 h-4" />
@@ -3421,7 +3438,7 @@ const TransactionListComponent: React.FC<{
                               className={`text-gray-500 dark:text-gray-400 ${
                                 isTransactionListActionsLocked(transaction)
                                   ? 'cursor-not-allowed opacity-50'
-                                  : 'hover:text-blue-600 dark:hover:text-blue-400'
+                                  : THEME_ICON_HOVER_BLUE_CLASS
                               }`}
                               title={getTransactionListManagedElsewhereHint(transaction) ?? 'Edit'}
                               disabled={isTransactionListActionsLocked(transaction)}
@@ -3446,7 +3463,7 @@ const TransactionListComponent: React.FC<{
                             className={`text-gray-500 dark:text-gray-400 ${
                               isTransactionListActionsLocked(transaction)
                                 ? 'cursor-not-allowed opacity-50'
-                                : 'hover:text-red-600 dark:hover:text-red-400'
+                                : THEME_ICON_HOVER_RED_CLASS
                             }`}
                             title={getTransactionListManagedElsewhereHint(transaction) ?? 'Delete'}
                             disabled={isTransactionListActionsLocked(transaction)}
@@ -3490,11 +3507,11 @@ const TransactionListComponent: React.FC<{
                         <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</div>
                         <div>
                           {transaction.type === 'income' ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${CASHFLOW_INCOME_CHIP_CLASS}`}>
                               <ArrowDownRight className="w-3 h-3" /> Income
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300">
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${CASHFLOW_EXPENSE_CHIP_CLASS}`}>
                               <ArrowUpRight className="w-3 h-3" /> Expense
                             </span>
                           )}
@@ -3559,7 +3576,7 @@ const TransactionListComponent: React.FC<{
                                 </div>
                                 <div>
                                   <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
-                                  <p className={`text-sm font-medium ${displayTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                  <p className={`text-sm font-medium ${displayTransaction.is_paused ? THEME_STATUS_PAUSED_TEXT_CLASS : THEME_STATUS_ACTIVE_TEXT_CLASS}`}>
                                     {displayTransaction.is_paused ? 'Paused' : 'Active'}
                                   </p>
                                 </div>
@@ -3598,7 +3615,7 @@ const TransactionListComponent: React.FC<{
                                 </div>
                                 <div className="col-span-2">
                                   <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
-                                  <p className={`text-sm font-medium ${parentTransaction.is_paused ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                  <p className={`text-sm font-medium ${parentTransaction.is_paused ? THEME_STATUS_PAUSED_TEXT_CLASS : THEME_STATUS_ACTIVE_TEXT_CLASS}`}>
                                     {parentTransaction.is_paused ? 'Paused' : 'Active'}
                                   </p>
                                 </div>
@@ -4000,7 +4017,7 @@ const TransactionListComponent: React.FC<{
                     }}
                     className={`p-2 transition-colors touch-manipulation ${
                       (tempFilters.type !== 'all' || tempFilters.account !== 'all' || tempFilters.currency || tempFilters.dateRange.start || tempFilters.dateRange.end || tempFilters.showModifiedOnly || tempFilters.showRecurringOnly)
-                        ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 active:opacity-70'
+                        ? THEME_FILTER_APPLY_ACTIVE_CLASS
                         : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 active:opacity-70'
                     }`}
                     style={{ touchAction: 'manipulation' }}

@@ -2,7 +2,15 @@ import React from 'react';
 import { TrendingDown } from 'lucide-react';
 import { Transaction } from '../../types';
 import { formatCurrency } from '../../utils/currency';
-import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
+import { countsTowardIncomeExpenseSummaries, INCOME_EXPENSE_NET_TOOLTIP } from '../../utils/transactionUtils';
+import {
+  CASHFLOW_EXPENSE_TEXT_CLASS,
+  CASHFLOW_INCOME_TEXT_CLASS,
+  THEME_ACCENT_TEXT_CLASS,
+  THEME_BRAND_GRADIENT_TEXT_CLASS,
+  THEME_MUTED_CAPTION_CLASS,
+} from '../../constants/appThemeClasses';
+import { SummaryLabelWithInfo } from '../common/SummaryLabelWithInfo';
 
 interface FinancialHealthCardProps {
   transactions: Transaction[];
@@ -27,21 +35,21 @@ export const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({
     <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
       <div className="flex items-center justify-between">
         <div className="text-left">
-          <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Net (excl. lend/borrow & inv. funding)</p>
-          <p className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontSize: '1.2rem' }}>
+          <SummaryLabelWithInfo label="Net" tooltip={INCOME_EXPENSE_NET_TOOLTIP} />
+          <p className={THEME_BRAND_GRADIENT_TEXT_CLASS} style={{ fontSize: '1.2rem' }}>
             {formatCurrency(netAmount, selectedCurrency)}
           </p>
-          <p className="text-gray-500 dark:text-gray-400" style={{ fontSize: '11px' }}>
-            <span className="text-green-600 dark:text-green-400">
+          <p className={THEME_MUTED_CAPTION_CLASS} style={{ fontSize: '11px' }}>
+            <span className={CASHFLOW_INCOME_TEXT_CLASS}>
               {formatCurrency(trueIncome, selectedCurrency)}
             </span>
             <span className="mx-1">/</span>
-            <span className="text-red-600 dark:text-red-400">
+            <span className={CASHFLOW_EXPENSE_TEXT_CLASS}>
               {formatCurrency(trueExpenses, selectedCurrency)}
             </span>
           </p>
         </div>
-        <TrendingDown className="text-blue-600" style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
+        <TrendingDown className={THEME_ACCENT_TEXT_CLASS} style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }} />
       </div>
     </div>
   );

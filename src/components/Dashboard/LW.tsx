@@ -118,11 +118,13 @@ export const LW: React.FC<LWProps> = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  const sanitizeEditorHtml = (content: string) => sanitizeHtml(content || '');
+
   // Initialize rich editor content when switching from simple to rich
   useEffect(() => {
     if (!useSimpleEditor && messageEditorRef.current && simpleText) {
       // Convert simple text to HTML when switching to rich editor
-      const htmlContent = simpleText.replace(/\n/g, '<br>');
+      const htmlContent = sanitizeEditorHtml(simpleText.replace(/\n/g, '<br>'));
       messageEditorRef.current.innerHTML = htmlContent;
       setSettings(prev => ({ ...prev, message: htmlContent }));
     }
@@ -132,8 +134,9 @@ export const LW: React.FC<LWProps> = () => {
   useEffect(() => {
     if (!useSimpleEditor && messageEditorRef.current && settings.message) {
       // Only update if the content is different to avoid infinite loops
-      if (messageEditorRef.current.innerHTML !== settings.message) {
-        messageEditorRef.current.innerHTML = settings.message;
+      const sanitizedMessage = sanitizeEditorHtml(settings.message);
+      if (messageEditorRef.current.innerHTML !== sanitizedMessage) {
+        messageEditorRef.current.innerHTML = sanitizedMessage;
       }
     }
   }, [settings.message, useSimpleEditor]);
@@ -154,11 +157,12 @@ export const LW: React.FC<LWProps> = () => {
     }
 
     try {
+      const sanitizedMessageContent = sanitizeEditorHtml(messageContent);
       // First try to update existing record
       const { data: updateData, error: updateError } = await supabase
         .from('last_wish_settings')
         .update({
-          message: messageContent,
+          message: sanitizedMessageContent,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', user.id)
@@ -175,7 +179,7 @@ export const LW: React.FC<LWProps> = () => {
             last_check_in: settings.lastCheckIn,
             recipients: settings.recipients,
             include_data: settings.includeData,
-            message: messageContent,
+            message: sanitizedMessageContent,
             is_active: settings.isActive,
             delivery_triggered: false,
             updated_at: new Date().toISOString(),
@@ -197,7 +201,7 @@ export const LW: React.FC<LWProps> = () => {
   };
 
   const handleMessageInput = (e: React.FormEvent<HTMLDivElement>) => {
-    const content = e.currentTarget.innerHTML;
+    const content = sanitizeEditorHtml(e.currentTarget.innerHTML);
     setSettings(prev => ({ ...prev, message: content }));
     setSaveStatus('unsaved');
     
@@ -218,7 +222,7 @@ export const LW: React.FC<LWProps> = () => {
       clearTimeout(autoSaveTimeoutRef.current);
     }
     
-    const content = messageEditorRef.current?.innerHTML || settings.message || '';
+    const content = sanitizeEditorHtml(messageEditorRef.current?.innerHTML || settings.message || '');
     setSaveStatus('saving');
     saveMessageToDatabase(content);
   };
@@ -325,17 +329,19 @@ These memories are my gift to you.`
       } else {
         // For rich editor, set the HTML content
         if (messageEditorRef.current) {
-          messageEditorRef.current.innerHTML = template.html;
-          setSettings(prev => ({ ...prev, message: template.html }));
+          const sanitizedTemplateHtml = sanitizeEditorHtml(template.html);
+          messageEditorRef.current.innerHTML = sanitizedTemplateHtml;
+          setSettings(prev => ({ ...prev, message: sanitizedTemplateHtml }));
           // Focus the editor after template insertion
           messageEditorRef.current.focus();
         } else {
           // Fallback: set the HTML content directly in settings
-          setSettings(prev => ({ ...prev, message: template.html }));
+          const sanitizedTemplateHtml = sanitizeEditorHtml(template.html);
+          setSettings(prev => ({ ...prev, message: sanitizedTemplateHtml }));
           // Try to find the editor element by class or ID
           const editorElement = document.querySelector('.rich-editor') as HTMLDivElement;
           if (editorElement) {
-            editorElement.innerHTML = template.html;
+            editorElement.innerHTML = sanitizedTemplateHtml;
             editorElement.focus();
           }
         }
@@ -352,7 +358,7 @@ These memories are my gift to you.`
       
       autoSaveTimeoutRef.current = setTimeout(() => {
         setSaveStatus('saving');
-        const contentToSave = useSimpleEditor ? simpleText : (messageEditorRef.current?.innerHTML || '');
+        const contentToSave = useSimpleEditor ? simpleText : sanitizeEditorHtml(messageEditorRef.current?.innerHTML || '');
         saveMessageToDatabase(contentToSave);
       }, 1000);
     }
@@ -362,8 +368,9 @@ These memories are my gift to you.`
     if (useSimpleEditor) {
       // Switching from simple to rich editor
       if (messageEditorRef.current) {
-        messageEditorRef.current.innerHTML = simpleText.replace(/\n/g, '<br>');
-        setSettings(prev => ({ ...prev, message: simpleText.replace(/\n/g, '<br>') }));
+        const sanitizedHtml = sanitizeEditorHtml(simpleText.replace(/\n/g, '<br>'));
+        messageEditorRef.current.innerHTML = sanitizedHtml;
+        setSettings(prev => ({ ...prev, message: sanitizedHtml }));
       }
     } else {
       // Switching from rich to simple editor

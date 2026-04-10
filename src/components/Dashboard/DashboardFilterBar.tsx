@@ -1,6 +1,7 @@
 import React from 'react';
-import { Settings } from 'lucide-react';
+import { ExternalLink, Heart, Quote, RefreshCw, Settings } from 'lucide-react';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
+import { OverflowMarquee } from '../common/OverflowMarquee';
 
 const PERIOD_OPTIONS = [
   { value: 'all', label: 'All Time' },
@@ -18,6 +19,11 @@ interface DashboardFilterBarProps {
   timeFilter: '1m' | '3m' | '6m' | '1y' | 'all';
   onTimeFilterChange: (v: '1m' | '3m' | '6m' | '1y' | 'all') => void;
   currencies: string[];
+  inspirationText?: string;
+  isInspirationFavorited?: boolean;
+  onRefreshInspiration?: () => void;
+  onToggleInspirationFavorite?: () => void;
+  onOpenFavoriteQuotes?: () => void;
   onOpenWidgets: () => void;
 }
 
@@ -27,6 +33,11 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
   timeFilter,
   onTimeFilterChange,
   currencies,
+  inspirationText,
+  isInspirationFavorited = false,
+  onRefreshInspiration,
+  onToggleInspirationFavorite,
+  onOpenFavoriteQuotes,
   onOpenWidgets,
 }) => {
   const hasMultipleCurrencies = currencies.length > 1;
@@ -53,6 +64,45 @@ export const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
           dropdownMenuClassName="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-600 !shadow-lg"
         />
       </div>
+      {inspirationText ? (
+        <div
+          className="hidden lg:flex min-w-0 flex-1 items-center gap-1.5 rounded-full bg-white dark:bg-gray-700 border border-blue-200 dark:border-blue-600 px-3 py-1 text-xs text-gray-700 dark:text-gray-200"
+          title={inspirationText}
+          aria-label="Daily inspiration quote"
+        >
+          <Quote className="w-3.5 h-3.5 flex-shrink-0 text-purple-500" />
+          <OverflowMarquee text={inspirationText} className="flex-1 overflow-x-auto hide-scrollbar" scrollOnOverflow />
+          <div className="ml-auto flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={onRefreshInspiration}
+              className="p-1 rounded-full hover:bg-purple-100 dark:hover:bg-purple-800/30 transition-colors"
+              title="Refresh quote"
+              aria-label="Refresh quote"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-purple-500" />
+            </button>
+            <button
+              type="button"
+              onClick={onToggleInspirationFavorite}
+              className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-800/30 transition-colors"
+              title={isInspirationFavorited ? 'Remove from favorites' : 'Add to favorites'}
+              aria-label={isInspirationFavorited ? 'Remove from favorites' : 'Add to favorites'}
+            >
+              <Heart className={`w-3.5 h-3.5 ${isInspirationFavorited ? 'text-red-500 fill-red-500' : 'text-gray-400'}`} />
+            </button>
+            <button
+              type="button"
+              onClick={onOpenFavoriteQuotes}
+              className="p-1 rounded-full hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors"
+              title="View favorite quotes"
+              aria-label="View favorite quotes"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+            </button>
+          </div>
+        </div>
+      ) : null}
       <button
         type="button"
         onClick={onOpenWidgets}

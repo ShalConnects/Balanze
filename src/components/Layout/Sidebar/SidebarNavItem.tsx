@@ -18,11 +18,12 @@ interface Props {
   isDemoPage: boolean;
   /** Muted style; parent should still route taps to upgrade when locked */
   locked?: boolean;
+  premiumBadgeText?: string;
   onNavigate: (id: string) => void;
   t: (key: string) => string;
 }
 
-export const SidebarNavItem = memo(function SidebarNavItem({ item, isActive, showLabel, isDemoPage, locked, onNavigate, t }: Props) {
+export const SidebarNavItem = memo(function SidebarNavItem({ item, isActive, showLabel, isDemoPage, locked, premiumBadgeText, onNavigate, t }: Props) {
   const Icon = item.icon;
   const padding = showLabel ? PADDING_EXPANDED : PADDING_COLLAPSED;
   const lockedCls = locked ? 'opacity-55 saturate-50' : '';
@@ -48,7 +49,7 @@ export const SidebarNavItem = memo(function SidebarNavItem({ item, isActive, sho
       {showLabel && (
         <>
           <span className={`${isActive ? 'text-gradient-primary' : ''} text-[14px] font-bold flex-1 text-left`}>{t(item.name)}</span>
-          {item.requiresPremium && <ProBadge />}
+          {item.requiresPremium && <ProBadge text={premiumBadgeText || 'Pro'} />}
           {item.isNew && (
             <span className={`${SIDEBAR_NAV_BADGE_BASE} bg-gradient-to-r from-blue-500 to-purple-500`}>New</span>
           )}

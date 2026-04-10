@@ -21,6 +21,7 @@ import { generateTransactionId } from '../../utils/transactionId';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { AmountAdjustmentModal } from '../common/AmountAdjustmentModal';
 import { parseLocalDate, getTodayLocalDateString } from '../../utils/taskDateUtils';
+import { useDescriptionSuggestionItems } from '../../hooks/useDescriptionSuggestions';
 
 
 interface PurchaseFormProps {
@@ -39,8 +40,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     fetchPurchases, 
     fetchAccounts,
     addTransaction,
-    addPurchaseCategory,
-    purchases
+    addPurchaseCategory
   } = useFinanceStore();
   const { user, profile } = useAuthStore();
   const { wrapAsync, setLoadingMessage, loadingMessage, isLoading } = useLoadingContext();
@@ -85,11 +85,17 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
 
   // Amount adjustment modal state
   const [showAmountModal, setShowAmountModal] = useState(false);
+  const [isPriceManuallyEdited, setIsPriceManuallyEdited] = useState(false);
   
   // Autocomplete state for item name
   const [showItemNameSuggestions, setShowItemNameSuggestions] = useState(false);
-  const [itemNameSuggestions, setItemNameSuggestions] = useState<string[]>([]);
+  const [isAccountManuallySelected, setIsAccountManuallySelected] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const itemSuggestionItems = useDescriptionSuggestionItems(formData.item_name, 5);
+  const itemNameSuggestions = React.useMemo(
+    () => itemSuggestionItems.map(item => item.text),
+    [itemSuggestionItems]
+  );
 
   // Reset account ID when record changes
   useEffect(() => {
@@ -101,6 +107,8 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
       } else {
         setSelectedAccountId(record.account_id || getDefaultAccountId());
       }
+      setIsAccountManuallySelected(false);
+      setIsPriceManuallyEdited(false);
     }
   }, [record?.id]);
 
@@ -201,30 +209,26 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     }
   }, [isOpen, user, purchaseCategories.length]);
 
-
-  // Generate item name suggestions
-  const generateItemNameSuggestions = (input: string) => {
-    if (!input.trim()) {
-      setItemNameSuggestions([]);
-      setShowItemNameSuggestions(false);
-      return;
+  const applyItemSuggestion = (suggestion: string) => {
+    const selected = itemSuggestionItems.find(item => item.text === suggestion);
+    setFormData(f => ({
+      ...f,
+      item_name: suggestion,
+      category: selected?.category || f.category,
+      status: (selected?.purchase_status || f.status) as '' | 'planned' | 'purchased' | 'cancelled',
+      price: !isPriceManuallyEdited && !f.price && typeof selected?.amount === 'number' && selected.amount > 0
+        ? String(selected.amount)
+        : f.price,
+    }));
+    const canApplyAccount = !!(
+      !isAccountManuallySelected &&
+      selected?.account_id &&
+      accounts.some(acc => acc.id === selected.account_id && acc.isActive && !acc.name.includes('(DPS)'))
+    );
+    if (canApplyAccount) {
+      setSelectedAccountId(selected!.account_id!);
     }
-
-    // Combine purchases and transactions for more comprehensive suggestions
-    const allSuggestions = [
-      ...purchases.map(p => p.item_name),
-      ...(useFinanceStore.getState().transactions || []).map(t => t.description)
-    ];
-
-    const suggestions = allSuggestions
-      .filter((name, index, self) => 
-        name.toLowerCase().includes(input.toLowerCase()) && 
-        self.indexOf(name) === index
-      )
-      .slice(0, 5);
-
-    setItemNameSuggestions(suggestions);
-    setShowItemNameSuggestions(suggestions.length > 0);
+    setShowItemNameSuggestions(false);
     setSelectedSuggestionIndex(-1);
   };
 
@@ -285,9 +289,9 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     });
     setTouched(t => ({ ...t, [name]: true }));
     
-    // Handle autocomplete for item name
     if (name === 'item_name') {
-      generateItemNameSuggestions(value);
+      setShowItemNameSuggestions(value.trim().length > 0);
+      setSelectedSuggestionIndex(-1);
     }
   };
 
@@ -319,10 +323,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
       case 'Enter':
         e.preventDefault();
         if (selectedSuggestionIndex >= 0) {
-          const selectedSuggestion = itemNameSuggestions[selectedSuggestionIndex];
-          setFormData(f => ({ ...f, item_name: selectedSuggestion }));
-          setShowItemNameSuggestions(false);
-          setSelectedSuggestionIndex(-1);
+          applyItemSuggestion(itemNameSuggestions[selectedSuggestionIndex]);
         }
         break;
       case 'Escape':
@@ -333,11 +334,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   };
 
   // Handle suggestion selection
-  const handleSuggestionClick = (suggestion: string) => {
-    setFormData(f => ({ ...f, item_name: suggestion }));
-    setShowItemNameSuggestions(false);
-    setSelectedSuggestionIndex(-1);
-  };
+  const handleSuggestionClick = (suggestion: string) => applyItemSuggestion(suggestion);
 
   const isFormValid = () => {
     // Check if all required fields are filled
@@ -793,7 +790,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                   }}
                   onFocus={() => {
                     if (formData.item_name.trim()) {
-                      generateItemNameSuggestions(formData.item_name);
+                      setShowItemNameSuggestions(true);
                     }
                   }}
                   className={`w-full px-4 pr-[32px] text-[14px] h-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors bg-gray-100 font-medium ${fieldErrors.item_name && touched.item_name ? 'border-red-500 ring-red-200' : 'border-gray-300'}`}
@@ -901,6 +898,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                         }))}
                       value={selectedAccountId}
                       onChange={val => {
+                        setIsAccountManuallySelected(true);
                         handleAccountChange(val);
                       }}
                       onBlur={() => {
@@ -1025,6 +1023,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                     step="0.01"
                     value={formData.price}
                     onChange={e => {
+                      setIsPriceManuallyEdited(true);
                       handleFormChange('price', e.target.value);
                     }}
                     onClick={(e) => {
@@ -1165,6 +1164,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
           currentAmount={editingPurchase.price}
           onConfirm={(newAmount) => {
             handleFormChange('price', newAmount.toString());
+            setIsPriceManuallyEdited(true);
             setShowAmountModal(false);
           }}
           currencySymbol={getCurrencySymbol(formData.status === 'planned' || excludeFromCalculation 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { TABLE_SUMMARY_CARDS_GRID } from '../common/listPage/listPageLayout';
 
 // Enhanced skeleton for account cards (mobile view) - matches real AccountCard structure
 export const AccountCardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => {
@@ -136,7 +137,7 @@ export const AccountTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) 
 // Enhanced skeleton for account summary cards - matches real summary cards structure
 export const AccountSummaryCardsSkeleton: React.FC = () => {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+    <div className={TABLE_SUMMARY_CARDS_GRID}>
       {Array.from({ length: 5 }).map((_, index) => (
         <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-3 px-4 relative overflow-hidden">
           {/* Shimmer effect */}
@@ -249,7 +250,7 @@ export const TransactionFiltersSkeleton: React.FC = () => {
 // Enhanced skeleton for transaction summary cards - matches real transaction summary structure
 export const TransactionSummaryCardsSkeleton: React.FC = () => {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+    <div className={TABLE_SUMMARY_CARDS_GRID}>
       {Array.from({ length: 5 }).map((_, index) => (
         <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-3 px-4 relative overflow-hidden">
           {/* Shimmer effect */}

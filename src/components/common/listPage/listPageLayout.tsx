@@ -1,6 +1,10 @@
 import React from 'react';
 import { Search } from 'lucide-react';
 
+/** Stat row under AccountsView / TransactionList filters (5 columns from `md`). */
+export const TABLE_SUMMARY_CARDS_GRID =
+  'grid grid-cols-2 md:grid-cols-5 gap-3 p-3';
+
 /** Shared layout tokens for Clients, Investments, and similar list pages (matches AccountsView-derived pattern). */
 export const LP = {
   stack: 'space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6',
@@ -9,9 +13,9 @@ export const LP = {
   /** Same flex row as Purchases / list toolbars (`gap-2`). */
   filterRow: 'flex flex-wrap items-center gap-2',
   summaryGrid: 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 p-2 sm:p-3 lg:p-4 min-w-0 overflow-hidden',
-  /** Business investments summary — four stat cards, full-width row on large screens. */
+  /** Business investments summary — five stat cards, full-width row on large screens. */
   investmentSummaryGrid:
-    'grid grid-cols-1 min-[400px]:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 p-2 sm:p-3 lg:p-4 min-w-0 overflow-hidden',
+    'grid grid-cols-1 min-[400px]:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 p-2 sm:p-3 lg:p-4 min-w-0 overflow-hidden',
   statCard: 'bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 sm:py-2 px-1.5 sm:px-2',
   tableOuter: 'overflow-x-auto lg:rounded-b-xl',
   tableOuterRadius: { borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' } as React.CSSProperties,

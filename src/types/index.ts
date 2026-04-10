@@ -61,6 +61,7 @@ export interface Transaction {
   business_investment_contract_id?: string | null;
   to_account_id?: string;
   transaction_id?: string;
+  note?: string | null;
   // Recurring transaction tracking fields
   next_occurrence_date?: string;
   is_paused?: boolean;

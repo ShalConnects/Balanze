@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { MAX_TRANSACTION_NOTE_LENGTH } from '../../constants/transactionNote';
 
 interface TransactionNoteModalProps {
   isOpen: boolean;
@@ -20,7 +21,6 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
   const [note, setNote] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const MAX_LENGTH = 500;
 
   useEffect(() => {
     if (isOpen) {
@@ -42,8 +42,8 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
       e.stopPropagation();
     }
     
-    if (note.length > MAX_LENGTH) {
-      toast.error(`Note cannot exceed ${MAX_LENGTH} characters`);
+    if (note.length > MAX_TRANSACTION_NOTE_LENGTH) {
+      toast.error(`Note cannot exceed ${MAX_TRANSACTION_NOTE_LENGTH} characters`);
       return;
     }
 
@@ -92,7 +92,7 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
     // Prevent Enter from submitting (allow Shift+Enter for new line)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (note.trim().length > 0 && note.length <= MAX_LENGTH) {
+      if (note.trim().length > 0 && note.length <= MAX_TRANSACTION_NOTE_LENGTH) {
         handleSave();
       }
     }
@@ -102,7 +102,7 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
 
   const hasNote = currentNote && currentNote.trim().length > 0;
   const charCount = note.length;
-  const isOverLimit = charCount > MAX_LENGTH;
+  const isOverLimit = charCount > MAX_TRANSACTION_NOTE_LENGTH;
   const canSave = !isOverLimit && (note.trim() !== (currentNote || '').trim());
 
   return (
@@ -144,7 +144,7 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
               value={note}
               onChange={(e) => {
                 const newValue = e.target.value;
-                if (newValue.length <= MAX_LENGTH) {
+                if (newValue.length <= MAX_TRANSACTION_NOTE_LENGTH) {
                   setNote(newValue);
                 }
               }}
@@ -152,13 +152,13 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
               placeholder="Enter a note for this transaction..."
               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-purple-400 focus:border-transparent resize-none min-h-[100px]"
               rows={4}
-              maxLength={MAX_LENGTH}
+              maxLength={MAX_TRANSACTION_NOTE_LENGTH}
               disabled={isLoading}
             />
             {/* Character counter */}
             <div className="flex items-center justify-between mt-1">
               <span className={`text-xs ${isOverLimit ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                {charCount}/{MAX_LENGTH} characters
+                {charCount}/{MAX_TRANSACTION_NOTE_LENGTH} characters
               </span>
             </div>
           </div>
@@ -167,7 +167,7 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
           {isOverLimit && (
             <div className="mb-4 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
               <p className="text-xs text-red-600 dark:text-red-400">
-                Note cannot exceed {MAX_LENGTH} characters. Please shorten your note.
+                Note cannot exceed {MAX_TRANSACTION_NOTE_LENGTH} characters. Please shorten your note.
               </p>
             </div>
           )}

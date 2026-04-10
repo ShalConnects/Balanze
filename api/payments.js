@@ -40,9 +40,10 @@ function json(res, status, data) {
 // --- PayPal (DRY: shared auth) ---
 // Use server env vars (PAYPAL_*) - VITE_* not available in Vercel serverless
 async function paypalAuth() {
-  const clientId = process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID;
-  const clientSecret = process.env.PAYPAL_CLIENT_SECRET || process.env.VITE_PAYPAL_CLIENT_SECRET;
-  const env = process.env.PAYPAL_ENVIRONMENT || process.env.VITE_PAYPAL_ENVIRONMENT || 'sandbox';
+  const clientId = process.env.PAYPAL_CLIENT_ID;
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+  const env = process.env.PAYPAL_ENVIRONMENT || 'sandbox';
+  if (!clientId || !clientSecret) throw new Error('PayPal credentials are not configured');
   const baseUrl = env === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
   const authRes = await fetch(`${baseUrl}/v1/oauth2/token`, {
     method: 'POST',
@@ -102,7 +103,9 @@ async function handleCreateCheckoutSession(res, body) {
   const { planId, customerEmail, successUrl, cancelUrl } = body;
   const plan = STRIPE_PRICING[planId];
   if (!plan) return json(res, 400, { error: 'Invalid plan ID' });
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || process.env.VITE_STRIPE_SECRET_KEY);
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) return json(res, 503, { error: 'Stripe is not configured' });
+  const stripe = new Stripe(stripeSecretKey);
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
     line_items: [{
@@ -276,7 +279,7 @@ async function handleGetPaddleSubscriptionDetails(res, body) {
   const userId = body?.userId;
   if (!subscriptionId) return json(res, 400, { error: 'Missing subscriptionId' });
 
-  const apiKey = process.env.PADDLE_API_KEY || process.env.PADDLE_SECRET_KEY || process.env.PADDLE_LIVE_API_KEY || process.env.VITE_PADDLE_API_KEY;
+  const apiKey = process.env.PADDLE_API_KEY || process.env.PADDLE_SECRET_KEY || process.env.PADDLE_LIVE_API_KEY;
   if (!apiKey) return json(res, 503, { error: 'Paddle API key not configured' });
 
   const apiRes = await fetch(`https://api.paddle.com/subscriptions/${encodeURIComponent(subscriptionId)}`, {
@@ -312,7 +315,12 @@ export default async function handler(req, res) {
   const body = rawBody ? (() => { try { return JSON.parse(rawBody); } catch { return {}; } })() : {};
 
   const run = async (fn) => {
-    try { await fn(); } catch (e) { json(res, 500, { error: e.message || 'Request failed' }); }
+    try {
+      await fn();
+    } catch (e) {
+      console.error('[payments-api] request failed', e);
+      json(res, 500, { error: 'Request failed' });
+    }
   };
 
   switch (path) {

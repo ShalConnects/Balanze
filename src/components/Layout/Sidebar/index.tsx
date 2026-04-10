@@ -9,6 +9,7 @@ import { triggerHapticFeedback } from '../../../utils/hapticFeedback';
 import { SIDEBAR_NAV } from './navigation';
 import { SidebarNavItem } from './SidebarNavItem';
 import { useSidebarSwipe } from './useSidebarSwipe';
+import { useLastWishSidebarCountdown } from '../../../hooks/useLastWishSidebarCountdown';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
   const { isSidebarCollapsed, toggleSidebar } = useThemeStore();
   const { profile } = useAuthStore();
   const isPremium = profile?.subscription?.plan === 'premium';
+  const lastWishCountdown = useLastWishSidebarCountdown();
   const { isMobile } = useMobileDetection();
 
   const effectiveCollapsed = isMobile ? true : isSidebarCollapsed;
@@ -102,6 +104,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
                   showLabel={showExpanded}
                   isDemoPage={isDemoPage}
                   locked={locked}
+                  premiumBadgeText={
+                    item.id === 'last-wish' && lastWishCountdown.isActive && lastWishCountdown.label
+                      ? lastWishCountdown.label
+                      : undefined
+                  }
                   onNavigate={(id) => {
                     if (item.requiresPremium && !isPremium) {
                       handleUpgrade();

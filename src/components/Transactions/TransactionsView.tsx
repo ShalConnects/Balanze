@@ -145,7 +145,7 @@ export const TransactionsView: React.FC = () => {
           </div>
           
           {/* Summary cards skeleton */}
-          <div className="p-4 relative z-10">
+          <div className="relative z-10">
             <TransactionSummaryCardsSkeleton />
           </div>
           

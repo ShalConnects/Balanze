@@ -467,7 +467,9 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         if (capacitor?.Plugins?.GoogleSignIn?.log) {
           await capacitor.Plugins.GoogleSignIn.log({ message: `[OAUTH] Is Android platform? ${isAndroid}` });
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('[OAUTH] Native logging failed:', e);
+      }
       
       console.error('[OAUTH] Is Android platform?', isAndroid);
       

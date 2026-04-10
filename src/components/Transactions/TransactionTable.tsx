@@ -9,6 +9,11 @@ import { toast } from 'sonner';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Tooltip } from '../common/Tooltip';
 import { formatTimeUTC } from '../../utils/timezoneUtils';
+import {
+  CASHFLOW_EXPENSE_TEXT_CLASS,
+  CASHFLOW_INCOME_TEXT_CLASS,
+  THEME_TRANSFER_CHIP_CLASS,
+} from '../../constants/appThemeClasses';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -217,22 +222,22 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     {isTransfer ? (
-                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200" title="Transfer">
+                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${THEME_TRANSFER_CHIP_CLASS}`} title="Transfer">
                         <ArrowUpRight className="w-4 h-4" />
                       </span>
                     ) : transaction.type === 'income' ? (
                       <div className="flex items-center justify-center" title="Income">
-                        <ArrowUpRight className="w-4 h-4 text-green-600 dark:text-green-400" />
+                        <ArrowUpRight className={`w-4 h-4 ${CASHFLOW_INCOME_TEXT_CLASS}`} />
                       </div>
                     ) : (
                       <div className="flex items-center justify-center" title="Expense">
-                        <ArrowDownRight className="w-4 h-4 text-red-600 dark:text-red-400" />
+                        <ArrowDownRight className={`w-4 h-4 ${CASHFLOW_EXPENSE_TEXT_CLASS}`} />
                       </div>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <div className="text-sm font-semibold flex items-center justify-end gap-1.5">
-                      <span className={transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                      <span className={transaction.type === 'income' ? CASHFLOW_INCOME_TEXT_CLASS : CASHFLOW_EXPENSE_TEXT_CLASS}>
                         {transaction.type === 'income' ? '+' : '-'}
                         {formatCurrency(transaction.amount, account?.currency || 'USD')}
                       </span>

@@ -39,7 +39,6 @@ import { useLoadingContext } from '../../context/LoadingContext';
 import { SkeletonCard, SkeletonChart } from '../common/Skeleton';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import { LastWishCountdownWidget } from './LastWishCountdownWidget';
-import { MotivationalQuote } from './MotivationalQuote';
 import { MobileAccordionWidget } from './MobileAccordionWidget';
 import { HabitGardenWidget } from '../Habits/HabitGardenWidget';
 import { LearningWidget } from '../Learning/LearningWidget';
@@ -58,6 +57,8 @@ import { supabase } from '../../lib/supabase';
 import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 import { UpgradeBanner } from '../common/UpgradeBanner';
 import { Purchase } from '../../types';
+import { getDailyInspirationQuote, inferDailyInspirationCategory } from '../../utils/dailyInspiration';
+import { useNotificationStore } from '../../store/notificationStore';
 
 // Constants moved outside component to prevent recreation on every render
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF6B6B'];
@@ -808,8 +809,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
   const [dashboardCurrencyFilter, setDashboardCurrencyFilter] = useState('');
   const [dashboardTimeFilter, setDashboardTimeFilter] = useState<'1m' | '3m' | '6m' | '1y' | 'all'>('all');
   const [hasInvestmentContractsInCurrency, setHasInvestmentContractsInCurrency] = useState(false);
+  const [barQuote, setBarQuote] = useState({ q: '', a: '' });
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user: authUser } = useAuthStore();
+  const {
+    addFavoriteQuote,
+    removeFavoriteQuoteByContent,
+    isQuoteFavorited,
+    loadFavoriteQuotes,
+    setCurrentUserId
+  } = useNotificationStore();
+
+  useEffect(() => {
+    if (authUser?.id) {
+      setCurrentUserId(authUser.id);
+      void loadFavoriteQuotes(authUser.id);
+    } else {
+      setCurrentUserId(null);
+    }
+  }, [authUser?.id, loadFavoriteQuotes, setCurrentUserId]);
 
   useEffect(() => {
     if (!user?.id || !dashboardCurrencyFilter) {
@@ -830,6 +849,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       cancelled = true;
     };
   }, [user?.id, dashboardCurrencyFilter]);
+
+  const refreshBarQuote = useCallback(async () => {
+    setBarQuote(await getDailyInspirationQuote());
+  }, []);
+
+  useEffect(() => {
+    void refreshBarQuote();
+    const interval = setInterval(() => {
+      void refreshBarQuote();
+    }, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [refreshBarQuote]);
+
+  const isBarQuoteFavorited = isQuoteFavorited(barQuote.q, barQuote.a);
 
   // Load user preferences - consolidated into single effect for better performance
   useEffect(() => {
@@ -1525,6 +1558,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
               timeFilter={dashboardTimeFilter}
               onTimeFilterChange={setDashboardTimeFilter}
               currencies={filteredDashboardCurrencies}
+              inspirationText={`"${barQuote.q}" — ${barQuote.a}`}
+              isInspirationFavorited={isBarQuoteFavorited}
+              onRefreshInspiration={() => { void refreshBarQuote(); }}
+              onToggleInspirationFavorite={async () => {
+                if (isBarQuoteFavorited) {
+                  await removeFavoriteQuoteByContent(barQuote.q, barQuote.a);
+                } else {
+                  await addFavoriteQuote({
+                    quote: barQuote.q,
+                    author: barQuote.a,
+                    category: inferDailyInspirationCategory(barQuote.q)
+                  });
+                }
+              }}
+              onOpenFavoriteQuotes={() => navigate('/personal-growth?tab=favorite-quotes')}
               onOpenWidgets={() => setShowSettingsPanel(true)}
             />
           </div>
@@ -1533,11 +1581,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
           {/* Dynamic widget rendering - widgets automatically fill available spaces */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 items-start auto-rows-fr">
             {visibleMainDashboardWidgets.map((widget) => widget.render())}
-          </div>
-
-          {/* Motivational Quote - Hidden on mobile, shown on desktop */}
-          <div className="hidden lg:block">
-            <MotivationalQuote enableExternalLink={true} />
           </div>
 
           {/* Recent Transactions - Hidden on mobile, shown on desktop */}

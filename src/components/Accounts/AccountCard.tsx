@@ -2,6 +2,7 @@ import React from 'react';
 import { Edit2, Trash2, Wallet } from 'lucide-react';
 import { Account, Transaction } from '../../types';
 import { getAccountColor } from '../../utils/accountIcons';
+import { accountActiveStatusDotClass } from './AccountActiveToggle';
 
 interface AccountCardProps {
   account: Account;
@@ -36,7 +37,7 @@ export const AccountCard: React.FC<AccountCardProps> = React.memo(({
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center space-x-3">
           <div 
-            className={`w-3 h-3 rounded-full ${account.isActive ? 'bg-green-500' : 'bg-gray-400'}`}
+            className={`w-3 h-3 rounded-full ${accountActiveStatusDotClass(account.isActive)}`}
             role="status"
             aria-label={account.isActive ? 'Active account' : 'Inactive account'}
           />

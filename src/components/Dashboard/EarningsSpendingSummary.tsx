@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../../utils/currency';
 import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 import { computeDateAwareTotals } from '../../utils/transactionHistoryUtils';
+import { getAnalyticsPeriodRange } from '../../utils/analyticsPeriod';
 import { useFinanceStore } from '../../store/useFinanceStore';
 
 interface EarningsSpendingSummaryProps {
@@ -17,7 +18,10 @@ interface CurrencySummary {
   earnings: number;
   spending: number;
   net: number;
+  prevNet: number;
+  netChangePct: number | null;
   accountCount: number;
+  exposurePct: number;
 }
 
 export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = ({
@@ -27,26 +31,14 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
 }) => {
   const { t } = useTranslation();
   const historyCache = useFinanceStore((s) => s.transactionHistoryCache);
+  const getPercentChange = (current: number, previous: number) => {
+    if (previous === 0) return current === 0 ? null : 100;
+    return ((current - previous) / Math.abs(previous)) * 100;
+  };
 
   // Calculate date range
-  const { startDate, endDate } = useMemo(() => {
-    const now = new Date();
-    let start: Date;
-    
-    if (period === '1m') {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-    } else if (period === '3m') {
-      start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-    } else if (period === '6m') {
-      start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    } else {
-      start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    }
-    
-    return {
-      startDate: start,
-      endDate: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
-    };
+  const { startDate, endDate, prevStartDate, prevEndDate } = useMemo(() => {
+    return getAnalyticsPeriodRange(period);
   }, [period]);
 
   // Get all currencies and calculate summaries
@@ -64,6 +56,10 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
         const d = new Date(t.date);
         return d >= startDate && d <= endDate;
       };
+      const inPrevRange = (t: any) => {
+        const d = new Date(t.date);
+        return d >= prevStartDate && d <= prevEndDate;
+      };
       const { income: earnings, expense: spending } =
         historyMap.size > 0
           ? computeDateAwareTotals(currencyTransactions, historyMap, startDate, endDate)
@@ -72,6 +68,14 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
               expense: currencyTransactions.filter((t) => inRange(t) && t.type === 'expense' && countsTowardIncomeExpenseSummaries(t)).reduce((s, t) => s + t.amount, 0),
             };
       const net = earnings - spending;
+      const { income: prevEarnings, expense: prevSpending } =
+        historyMap.size > 0
+          ? computeDateAwareTotals(currencyTransactions, historyMap, prevStartDate, prevEndDate)
+          : {
+              income: currencyTransactions.filter((t) => inPrevRange(t) && t.type === 'income' && countsTowardIncomeExpenseSummaries(t)).reduce((s, t) => s + t.amount, 0),
+              expense: currencyTransactions.filter((t) => inPrevRange(t) && t.type === 'expense' && countsTowardIncomeExpenseSummaries(t)).reduce((s, t) => s + t.amount, 0),
+            };
+      const prevNet = prevEarnings - prevSpending;
       const currencyAccounts = accounts.filter(acc => acc.currency === currency);
 
       return {
@@ -79,14 +83,24 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
         earnings,
         spending,
         net,
+        prevNet,
+        netChangePct: getPercentChange(net, prevNet),
         accountCount: currencyAccounts.length
       };
     }).sort((a, b) => Math.abs(b.net) - Math.abs(a.net)); // Sort by absolute net value
-  }, [transactions, accounts, startDate, endDate, historyCache]);
+  }, [transactions, accounts, startDate, endDate, prevStartDate, prevEndDate, historyCache]);
+
+  const currencySummariesWithExposure = useMemo(() => {
+    const totalAbsNet = currencySummaries.reduce((sum, c) => sum + Math.abs(c.net), 0);
+    return currencySummaries.map((c) => ({
+      ...c,
+      exposurePct: totalAbsNet === 0 ? 0 : (Math.abs(c.net) / totalAbsNet) * 100,
+    }));
+  }, [currencySummaries]);
 
   // Calculate totals
   const totals = useMemo(() => {
-    return currencySummaries.reduce((acc, summary) => ({
+    return currencySummariesWithExposure.reduce((acc, summary) => ({
       totalEarnings: acc.totalEarnings + summary.earnings,
       totalSpending: acc.totalSpending + summary.spending,
       totalNet: acc.totalNet + summary.net
@@ -95,7 +109,7 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
       totalSpending: 0,
       totalNet: 0
     });
-  }, [currencySummaries]);
+  }, [currencySummariesWithExposure]);
 
   // Get insights
   const insights = useMemo(() => {
@@ -103,15 +117,17 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
     const negativeCurrencies = currencySummaries.filter(c => c.net < 0);
     const highestEarner = currencySummaries.sort((a, b) => b.earnings - a.earnings)[0];
     const highestSpender = currencySummaries.sort((a, b) => b.spending - a.spending)[0];
+    const mostExposed = [...currencySummariesWithExposure].sort((a, b) => b.exposurePct - a.exposurePct)[0];
 
     return {
       positiveCurrencies,
       negativeCurrencies,
       highestEarner,
       highestSpender,
+      mostExposed,
       overallPositive: totals.totalNet > 0
     };
-  }, [currencySummaries, totals]);
+  }, [currencySummaries, currencySummariesWithExposure, totals]);
 
   if (currencySummaries.length === 0) {
     return (
@@ -215,7 +231,7 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
       {/* Currency Breakdown */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">By Currency</h3>
-        {currencySummaries.map((summary) => (
+        {currencySummariesWithExposure.map((summary) => (
           <div key={summary.currency} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
@@ -250,6 +266,12 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
                 </p>
               </div>
             </div>
+            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex items-center justify-between text-xs">
+              <span className="text-gray-500 dark:text-gray-400">Exposure: {summary.exposurePct.toFixed(1)}%</span>
+              <span className={`${summary.netChangePct === null ? 'text-gray-500 dark:text-gray-400' : summary.netChangePct >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                Net flow vs previous: {summary.netChangePct === null ? 'N/A' : `${summary.netChangePct >= 0 ? '+' : ''}${Math.round(summary.netChangePct)}%`}
+              </span>
+            </div>
           </div>
         ))}
       </div>
@@ -283,6 +305,11 @@ export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = (
             <p>
               <strong>{insights.negativeCurrencies.length}</strong> currency{insights.negativeCurrencies.length !== 1 ? 'ies need' : ' needs'}{' '}
               attention with negative net results
+            </p>
+          )}
+          {insights.mostExposed && (
+            <p>
+              Exposure is concentrated in <strong>{insights.mostExposed.currency}</strong> ({insights.mostExposed.exposurePct.toFixed(1)}% of net flow).
             </p>
           )}
         </div>

@@ -217,13 +217,14 @@ export const CurrencyAnalytics: React.FC = () => {
         </div>
       )}
 
-      {/* Content - Only show if not loading, no error, and we have data */}
+      {/* Content - Multi-currency mode */}
       {!loading && !error && !hasNoAccounts && !isSingleCurrency && (
         <div className="space-y-6">
           <CurrencyComparisonWidget
             transactions={transactions}
             accounts={accounts}
             baseCurrency={(user as any)?.local_currency || 'USD'}
+            period={selectedPeriod}
           />
           
           <EarningsSpendingSummary
@@ -231,6 +232,31 @@ export const CurrencyAnalytics: React.FC = () => {
             accounts={accounts}
             period={selectedPeriod}
           />
+        </div>
+      )}
+
+      {/* Content - Single-currency mode */}
+      {!loading && !error && !hasNoAccounts && isSingleCurrency && (
+        <div className="space-y-6">
+          <EarningsSpendingSummary
+            transactions={transactions}
+            accounts={accounts}
+            period={selectedPeriod}
+          />
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
+              Unlock multi-currency comparison
+            </h3>
+            <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
+              Add an account in another currency to compare cross-currency performance and exposure concentration.
+            </p>
+            <button
+              onClick={() => navigate('/accounts')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+            >
+              Add Multi-Currency Account
+            </button>
+          </div>
         </div>
       )}
 
@@ -258,26 +284,6 @@ export const CurrencyAnalytics: React.FC = () => {
             </div>
           )}
 
-          {/* Single Currency State */}
-          {!hasNoAccounts && isSingleCurrency && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Coins className="w-8 h-8 text-blue-500 dark:text-blue-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Single Currency Detected
-              </h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-4">
-                Currency analytics are most useful when you have accounts in multiple currencies.
-              </p>
-              <button
-                onClick={() => navigate('/accounts')}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Add Multi-Currency Account
-              </button>
-            </div>
-          )}
         </>
       )}
     </div>
