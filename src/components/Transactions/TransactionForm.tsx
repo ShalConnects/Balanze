@@ -28,6 +28,7 @@ import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { AmountAdjustmentModal } from '../common/AmountAdjustmentModal';
 import { MAX_TRANSACTION_NOTE_LENGTH } from '../../constants/transactionNote';
+import { getMonthDateRange, normalizeTransactionTitle, summarizeMonthlyTitleDuplicates, type MonthlyDuplicateSummary } from '../../utils/transactionDuplicateWarning';
 
 interface TransactionFormProps {
   accountId?: string;
@@ -48,6 +49,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const fetchAccounts = useFinanceStore(state => state.fetchAccounts);
   const addCategory = useFinanceStore(state => state.addCategory);
   const purchases = useFinanceStore(state => state.purchases);
+  const transactions = useFinanceStore(state => state.transactions);
 
   const { user } = useAuthStore();
   const { wrapAsync, setLoadingMessage, isLoading } = useLoadingContext();
@@ -133,12 +135,28 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const descriptionRef = useRef<HTMLInputElement | null>(null);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [serverDuplicateSummary, setServerDuplicateSummary] = useState<MonthlyDuplicateSummary | null>(null);
   const [isAccountManuallySelected, setIsAccountManuallySelected] = useState(false);
   const descriptionSuggestionItems = useDescriptionSuggestionItems(data.description, 8);
   const descriptionSuggestions = React.useMemo(
     () => descriptionSuggestionItems.map(item => item.text),
     [descriptionSuggestionItems]
   );
+  const suggestionDuplicateMap = React.useMemo(() => {
+    const map = new Map<string, MonthlyDuplicateSummary | null>();
+    for (const text of descriptionSuggestions) {
+      map.set(
+        text,
+        summarizeMonthlyTitleDuplicates(
+          transactions,
+          text,
+          data.date,
+          isEditMode && transactionToEdit ? transactionToEdit.id : undefined
+        )
+      );
+    }
+    return map;
+  }, [descriptionSuggestions, transactions, data.date, isEditMode, transactionToEdit]);
 
   const applyDescriptionSuggestion = React.useCallback((value: string) => {
     const selected = descriptionSuggestionItems.find(item => item.text === value);
@@ -189,6 +207,19 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     Object.keys(errors).length === 0,
     [data.account_id, data.amount, data.type, data.category, data.date, errors, isExpenseType]
   );
+
+  const localDuplicateSummary = React.useMemo(
+    () =>
+      summarizeMonthlyTitleDuplicates(
+        transactions,
+        data.description,
+        data.date,
+        isEditMode && transactionToEdit ? transactionToEdit.id : undefined
+      ),
+    [transactions, data.description, data.date, isEditMode, transactionToEdit]
+  );
+
+  const duplicateSummary = serverDuplicateSummary || localDuplicateSummary;
 
   // Helper function to calculate final amount based on mode
   const getCalculatedAmount = React.useCallback((): number | null => {
@@ -273,6 +304,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   React.useEffect(() => {
     validateForm();
   }, [validateForm]);
+
+  React.useEffect(() => {
+    setServerDuplicateSummary(null);
+  }, [data.description, data.date, isEditMode, transactionToEdit]);
 
   const getInputClasses = React.useCallback((fieldName: string) => {
     const baseClasses = "w-full px-4 py-2 text-[14px] h-10 rounded-lg border transition-colors duration-200 bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600";
@@ -735,6 +770,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     setShowCategoryModal(false);
     setShowPurchaseDetails(false);
     setShowAddAnother(false);
+    setServerDuplicateSummary(null);
     
     // Focus amount field
     setTimeout(() => {
@@ -758,6 +794,29 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     const wrappedSubmit = wrapAsync(async () => {
       setLoadingMessage(isEditMode ? 'Updating transaction...' : 'Saving transaction...'); // Show loading message for form submission
       try {
+        const normalizedTitle = normalizeTransactionTitle(data.description);
+        const monthRange = getMonthDateRange(data.date);
+        if (user && normalizedTitle && monthRange) {
+          const query = supabase
+            .from('transactions')
+            .select('id, description, date')
+            .eq('user_id', user.id)
+            .gte('date', monthRange.start)
+            .lt('date', monthRange.endExclusive);
+          const { data: serverRows } = isEditMode && transactionToEdit
+            ? await query.neq('id', transactionToEdit.id)
+            : await query;
+          const serverSummary = summarizeMonthlyTitleDuplicates(
+            (serverRows || []) as Pick<Transaction, 'id' | 'description' | 'date'>[],
+            data.description,
+            data.date
+          );
+          setServerDuplicateSummary(serverSummary);
+          if (serverSummary) {
+            showToast.warning(`Heads up: found ${serverSummary.count} matching title${serverSummary.count > 1 ? 's' : ''} in this month.`);
+          }
+        }
+
         let donation_amount: number | undefined = undefined;
 
         if (data.type === 'income' && donationValue !== undefined && !isNaN(donationValue)) {
@@ -885,6 +944,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               setShowPurchaseDetails(false);
               
               setShowAddAnother(true);
+              setServerDuplicateSummary(null);
               
               // Focus amount field
               setTimeout(() => {
@@ -1074,6 +1134,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               setShowPurchaseDetails(false);
               
               setShowAddAnother(true);
+              setServerDuplicateSummary(null);
               
               // Focus amount field
               setTimeout(() => {
@@ -1439,21 +1500,34 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                       }}
                       onMouseEnter={() => setHighlightedIndex(idx)}
                     >
-                      {(() => {
-                        const q = (data.description || '').trim();
-                        const i = s.toLowerCase().indexOf(q.toLowerCase());
-                        if (i < 0) return s;
-                        const before = s.slice(0, i);
-                        const match = s.slice(i, i + q.length);
-                        const after = s.slice(i + q.length);
-                        return (
-                          <span>
-                            {before}
-                            <span className="font-semibold text-blue-700 dark:text-blue-300">{match}</span>
-                            {after}
+                      <div className="flex items-center justify-between gap-2">
+                        {(() => {
+                          const q = (data.description || '').trim();
+                          const i = s.toLowerCase().indexOf(q.toLowerCase());
+                          if (i < 0) return <span>{s}</span>;
+                          const before = s.slice(0, i);
+                          const match = s.slice(i, i + q.length);
+                          const after = s.slice(i + q.length);
+                          return (
+                            <span>
+                              {before}
+                              <span className="font-semibold text-blue-700 dark:text-blue-300">{match}</span>
+                              {after}
+                            </span>
+                          );
+                        })()}
+                        {suggestionDuplicateMap.get(s) && (
+                          <span className="text-[11px] text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                            {(() => {
+                              const summary = suggestionDuplicateMap.get(s)!;
+                              const latest = summary.latestDate
+                                ? format(parseLocalDate(summary.latestDate) || new Date(summary.latestDate), 'MMM dd')
+                                : null;
+                              return `${summary.count}x this month${latest ? ` · latest ${latest}` : ''}`;
+                            })()}
                           </span>
-                        );
-                      })()}
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -1473,6 +1547,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                 <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1">
                   <AlertCircle className="w-4 h-4" />
                   {errors.description}
+                </span>
+              )}
+              {!errors.description && duplicateSummary && (
+                <span className="text-xs text-amber-600 absolute left-0 -bottom-5 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {`This title already exists ${duplicateSummary.count} time${duplicateSummary.count > 1 ? 's' : ''} this month${duplicateSummary.latestDate ? ` (latest ${duplicateSummary.latestDate})` : ''}.`}
                 </span>
               )}
             </div>
