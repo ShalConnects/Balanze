@@ -5,7 +5,7 @@ export const DashboardSkeleton: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row gap-6 animate-fade-in pb-24 sm:pb-12">
       {/* Main Content - Full width on mobile, flex-1 on desktop */}
-      <div className="flex-1 space-y-4 sm:space-y-5 md:space-y-6">
+      <div className="flex-1 dashboard-main-stack">
         
         {/* Multi-Currency Quick Access Skeleton - Enhanced with shimmer effect */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-3 sm:p-4 border border-blue-200 dark:border-blue-700 relative overflow-hidden">

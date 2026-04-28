@@ -169,19 +169,19 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
   };
 
   return (
-    <div className={fullWidth ? 'relative w-full' : 'relative'}>
+    <div className={fullWidth ? 'relative w-full min-w-0' : 'relative min-w-0'}>
       <button
         type="button"
         ref={buttonRef}
         disabled={disabled}
-        className={`bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 text-gray-700 dark:text-gray-100 px-4 pr-[10px] py-2 text-[14px] h-10 rounded-lg border border-blue-200/50 dark:border-blue-800/50 hover:from-blue-100 hover:via-indigo-100 hover:to-purple-100 dark:hover:from-blue-800/30 dark:hover:via-indigo-800/30 dark:hover:to-purple-800/30 transition-colors flex items-center space-x-2 ${fullWidth ? 'w-full' : ''} focus:outline-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className || ''}`}
+        className={`bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 text-gray-700 dark:text-gray-100 px-4 pr-[10px] py-2 text-[14px] h-10 rounded-lg border border-blue-200/50 dark:border-blue-800/50 hover:from-blue-100 hover:via-indigo-100 hover:to-purple-100 dark:hover:from-blue-800/30 dark:hover:via-indigo-800/30 dark:hover:to-purple-800/30 transition-colors flex items-center space-x-2 min-w-0 ${fullWidth ? 'w-full' : ''} focus:outline-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className || ''}`}
         style={style}
         onClick={handleToggle}
         aria-haspopup="listbox"
         aria-expanded={open}
         onBlur={onBlur}
       >
-        <span className={selectedOption ? '' : 'text-gray-400'}>
+        <span className={`min-w-0 truncate ${selectedOption ? '' : 'text-gray-400'}`}>
           {selectedOption && selectedOption.icon ? (
             <span className="inline-flex items-center mr-1">{selectedOption.icon}</span>
           ) : null}

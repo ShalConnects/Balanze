@@ -11,6 +11,8 @@ import { ArrowRight } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { HabitGardenWidget } from '../Habits/HabitGardenWidget';
 import { WidgetConfig } from './WidgetSettingsPanel';
+import { TaskRemindersWidget } from './TaskRemindersWidget';
+import { LearningWidget } from '../Learning/LearningWidget';
 
 interface MobileAccordionWidgetProps {
   isDemo?: boolean;
@@ -69,14 +71,25 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
     const addedIds = new Set<string>(); // Track added widget IDs to prevent duplicates
     
     // Only include last-wish if user is premium/demo AND widget is visible
+    if (isWidgetVisible('task-reminders') && !addedIds.has('task-reminders')) {
+      widgets.push({ id: 'task-reminders', visible: true, order: widgetConfig.find(w => w.id === 'task-reminders')?.order ?? 0 });
+      addedIds.add('task-reminders');
+    }
+
+    // Only include last-wish if user is premium/demo AND widget is visible
     if ((isDemo || isPremium) && isWidgetVisible('last-wish') && !addedIds.has('last-wish')) {
-      widgets.push({ id: 'last-wish', visible: true, order: widgetConfig.find(w => w.id === 'last-wish')?.order ?? 0 });
+      widgets.push({ id: 'last-wish', visible: true, order: widgetConfig.find(w => w.id === 'last-wish')?.order ?? 1 });
       addedIds.add('last-wish');
     }
     
     if (isWidgetVisible('habit-garden') && !addedIds.has('habit-garden')) {
       widgets.push({ id: 'habit-garden', visible: true, order: widgetConfig.find(w => w.id === 'habit-garden')?.order ?? 2 });
       addedIds.add('habit-garden');
+    }
+
+    if (isWidgetVisible('learning') && !addedIds.has('learning')) {
+      widgets.push({ id: 'learning', visible: true, order: widgetConfig.find(w => w.id === 'learning')?.order ?? 3 });
+      addedIds.add('learning');
     }
     
     if (isWidgetVisible('notes') && !addedIds.has('notes')) {
@@ -99,6 +112,10 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
     if ((isDemo || isPremium) && isWidgetVisible('last-wish')) {
       parts.push('Last Wish');
     }
+
+    if (isWidgetVisible('task-reminders')) {
+      parts.push('Task Reminders');
+    }
     
     parts.push('Daily Inspiration');
     
@@ -112,6 +129,10 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
     
     if (isWidgetVisible('habit-garden')) {
       parts.push('Habits');
+    }
+
+    if (isWidgetVisible('learning')) {
+      parts.push('Learning');
     }
     
     return parts.join(' • ');
@@ -196,12 +217,32 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
                   </div>
                 );
               }
+
+              if (widget.id === 'task-reminders') {
+                return (
+                  <div key={widget.id} className={borderClass}>
+                    <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+                      <TaskRemindersWidget />
+                    </div>
+                  </div>
+                );
+              }
               
               if (widget.id === 'habit-garden') {
                 return (
                   <div key={widget.id} className={borderClass}>
                     <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
                       <HabitGardenWidget />
+                    </div>
+                  </div>
+                );
+              }
+
+              if (widget.id === 'learning') {
+                return (
+                  <div key={widget.id} className={borderClass}>
+                    <div className="p-4 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20">
+                      <LearningWidget />
                     </div>
                   </div>
                 );

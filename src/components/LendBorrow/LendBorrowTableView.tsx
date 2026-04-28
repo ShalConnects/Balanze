@@ -137,6 +137,7 @@ export const LendBorrowTableView: React.FC = () => {
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customStart, setCustomStart] = useState(tableFilters.dateRange.start ? tableFilters.dateRange.start.slice(0, 10) : '');
   const [customEnd, setCustomEnd] = useState(tableFilters.dateRange.end ? tableFilters.dateRange.end.slice(0, 10) : '');
+  const autoSelectedCurrencyRef = useRef<string | null>(null);
   
   // Temporary filter state for mobile modal
   const [tempFilters, setTempFilters] = useState(tableFilters);
@@ -959,20 +960,43 @@ export const LendBorrowTableView: React.FC = () => {
     }
     return accountCurrencies;
   }, [profile?.selected_currencies, accountCurrencies]);
+  const resolvedDefaultCurrency = React.useMemo(() => {
+    if (currencyOptions.length === 0) return '';
+    const findCurrencyMatch = (candidate?: string | null) =>
+      candidate?.trim()
+        ? currencyOptions.find(c => c.toUpperCase() === candidate.trim().toUpperCase())
+        : undefined;
+    const profileCurrencyMatch = findCurrencyMatch(profile?.local_currency);
+    const selectedPrimaryCurrencyMatch = findCurrencyMatch(profile?.selected_currencies?.[0]);
+    return profileCurrencyMatch || selectedPrimaryCurrencyMatch || currencyOptions[0];
+  }, [currencyOptions, profile?.local_currency, profile?.selected_currencies]);
+  const isDefaultCurrencySelected =
+    !!tableFilters.currency &&
+    !!resolvedDefaultCurrency &&
+    tableFilters.currency.toUpperCase() === resolvedDefaultCurrency.toUpperCase();
 
   // Set default currency when component loads
   useEffect(() => {
-    if (currencyOptions.length > 0) {
-      const currentCurrency = tableFilters.currency;
-      // Set default currency if empty or if current currency is not in available options
-      if (!currentCurrency || (currentCurrency && !currencyOptions.includes(currentCurrency))) {
-        const defaultCurrency = profile?.local_currency || currencyOptions[0];
-        if (defaultCurrency) {
-          setTableFilters(prev => ({ ...prev, currency: defaultCurrency }));
-        }
-      }
+    if (currencyOptions.length === 0) return;
+
+    const currentCurrency = tableFilters.currency;
+    const shouldInitialize = !currentCurrency || !currencyOptions.includes(currentCurrency);
+
+    // Keep concerns separated:
+    // 1) initialize missing/invalid filter currency
+    // 2) upgrade from auto fallback to default currency once profile is ready
+    const shouldUpgradeAutoFallback =
+      !!resolvedDefaultCurrency &&
+      currentCurrency === autoSelectedCurrencyRef.current &&
+      currentCurrency !== resolvedDefaultCurrency;
+
+    if ((shouldInitialize || shouldUpgradeAutoFallback) && resolvedDefaultCurrency) {
+      autoSelectedCurrencyRef.current = resolvedDefaultCurrency;
+      setTableFilters(prev =>
+        prev.currency === resolvedDefaultCurrency ? prev : { ...prev, currency: resolvedDefaultCurrency }
+      );
     }
-  }, [currencyOptions, profile?.local_currency, tableFilters.currency]);
+  }, [currencyOptions, resolvedDefaultCurrency, tableFilters.currency]);
 
   // Sync tempFilters with tableFilters when mobile filter modal opens
   useEffect(() => {
@@ -1208,9 +1232,9 @@ export const LendBorrowTableView: React.FC = () => {
 
               {/* Mobile Clear Filters Button */}
               <div className="md:hidden">
-                {(tableFilters.search || (tableFilters.currency && tableFilters.currency !== (profile?.local_currency || currencyOptions[0] || '')) || tableFilters.type !== 'all' || tableFilters.status !== 'active' || (tableFilters.dateRange.start && tableFilters.dateRange.end)) && (
+                {(tableFilters.search || (tableFilters.currency && !isDefaultCurrencySelected) || tableFilters.type !== 'all' || tableFilters.status !== 'active' || (tableFilters.dateRange.start && tableFilters.dateRange.end)) && (
                   <button
-                    onClick={() => setTableFilters({ search: '', currency: profile?.local_currency || currencyOptions[0] || '', type: 'all', status: 'active', dateRange: { start: '', end: '' } })}
+                    onClick={() => setTableFilters({ search: '', currency: resolvedDefaultCurrency, type: 'all', status: 'active', dateRange: { start: '', end: '' } })}
                     className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
                     title="Clear all filters"
                   >
@@ -1235,7 +1259,7 @@ export const LendBorrowTableView: React.FC = () => {
                       }`}
                       style={tableFilters.currency ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                     >
-                      <span>{tableFilters.currency || profile?.local_currency || 'Select Currency'}</span>
+                      <span>{tableFilters.currency || resolvedDefaultCurrency || 'Select Currency'}</span>
                       <svg className="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                       </svg>
@@ -1487,9 +1511,9 @@ export const LendBorrowTableView: React.FC = () => {
                 )}
 
                 {/* Clear Filters */}
-                {(tableFilters.search || (tableFilters.currency && tableFilters.currency !== (profile?.local_currency || currencyOptions[0] || '')) || tableFilters.type !== 'all' || tableFilters.status !== 'active' || (tableFilters.dateRange.start && tableFilters.dateRange.end)) && (
+                {(tableFilters.search || (tableFilters.currency && !isDefaultCurrencySelected) || tableFilters.type !== 'all' || tableFilters.status !== 'active' || (tableFilters.dateRange.start && tableFilters.dateRange.end)) && (
                   <button
-                    onClick={() => setTableFilters({ search: '', currency: profile?.local_currency || currencyOptions[0] || '', type: 'all', status: 'active', dateRange: { start: '', end: '' } })}
+                    onClick={() => setTableFilters({ search: '', currency: resolvedDefaultCurrency, type: 'all', status: 'active', dateRange: { start: '', end: '' } })}
                     className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
                     title="Clear all filters"
                   >
@@ -2554,7 +2578,7 @@ export const LendBorrowTableView: React.FC = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setTableFilters({ search: '', currency: '', type: 'all', status: 'active', dateRange: { start: '', end: '' } });
+                        setTableFilters({ search: '', currency: resolvedDefaultCurrency, type: 'all', status: 'active', dateRange: { start: '', end: '' } });
                         setShowMobileFilterMenu(false);
                       }}
                       onTouchStart={(e) => {

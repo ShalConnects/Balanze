@@ -27,7 +27,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [currentView, setCurrentView] = useState(location.pathname.split('/')[2] || 'dashboard');
   const { isSidebarCollapsed } = useThemeStore();
   
-  const { isMobile, isVerySmall, isBrowser } = useMobileDetection();
+  const { isMobile, isVerySmall } = useMobileDetection();
   const { setIsMobileSidebarOpen } = useMobileSidebar();
   
   // Lazy load TodosWidget globally for modal access
@@ -182,7 +182,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </aside>
         )}
         {/* Main content */}
-        <div className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${
+        <div className={`flex-1 min-w-0 flex flex-col transition-all duration-300 ease-in-out ${
           !isMobile ? (effectiveCollapsed ? 'ml-16' : 'ml-52') : ''
         }`}>
           <Header 
@@ -227,7 +227,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                                             : undefined
             )}
           />
-          <main className={`flex-1 p-1 sm:p-2 lg:p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 max-w-full pb-safe-bottom ${isBrowser && isMobile ? 'browser-bottom-nav-spacing' : ''}`}>
+          <main className={`flex-1 w-full min-w-0 p-1 sm:p-2 lg:p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 max-w-full pb-safe-bottom ${isMobile ? 'browser-bottom-nav-spacing' : ''}`}>
             {children}
           </main>
         </div>

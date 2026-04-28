@@ -1481,9 +1481,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     <>
       <PullToRefreshDashboard onRefresh={handleRefresh} />
       {/* Main Dashboard Content */}
-      <div data-tour="dashboard" className="flex flex-col lg:flex-row gap-6">
+      <div data-tour="dashboard" className="flex min-w-0 flex-col lg:flex-row gap-6">
         {/* Main Content - Full width on mobile, flex-1 on desktop */}
-        <div className="flex-1 space-y-4 sm:space-y-6">
+        <div className="flex-1 min-w-0 dashboard-main-stack">
 
           {/* Upgrade Banner for Free Users */}
           <UpgradeBanner />
@@ -1522,7 +1522,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
           {/* <ClientTasksWidget /> */}
 
           {/* Currency Sections & Donations - Responsive grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 items-start auto-rows-fr">
+          <div className="dashboard-section-grid">
             {stats.byCurrency.length > 0 ? (
               stats.byCurrency.map(({ currency }) => (
                 <div key={currency} className="w-full h-full">
@@ -1580,7 +1580,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
 
           {/* Donations, Purchase, L&B, Transfer - Responsive grid */}
           {/* Dynamic widget rendering - widgets automatically fill available spaces */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 items-start auto-rows-fr">
+          <div className="dashboard-section-grid">
             {visibleMainDashboardWidgets.map((widget) => widget.render())}
           </div>
 

@@ -71,10 +71,8 @@ export const FloatingActionButton: React.FC = () => {
   const [showHabitForm, setShowHabitForm] = useState(false);
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [showInvestmentContractModal, setShowInvestmentContractModal] = useState(false);
-  const { isMobile, isBrowser } = useMobileDetection();
+  const { isMobile } = useMobileDetection();
   const { isMobileSidebarOpen } = useMobileSidebar();
-  // Detect Android for proper bottom offset
-  const isAndroid = typeof window !== 'undefined' && /Android/i.test(navigator.userAgent);
   const { 
     setShowTransactionForm, 
     showTransactionForm, 
@@ -293,13 +291,9 @@ export const FloatingActionButton: React.FC = () => {
   return (
     <>
       <div 
-        className={`fixed right-3 sm:right-4 md:right-6 z-50 flex flex-col items-end ${isMobile && isMobileSidebarOpen ? 'hidden' : ''} ${isBrowser && isMobile ? 'browser-fab-positioning' : ''}`}
+        className={`fixed right-3 sm:right-4 md:right-6 z-50 flex flex-col items-end ${isMobile && isMobileSidebarOpen ? 'hidden' : ''} ${isMobile ? 'browser-fab-positioning' : ''}`}
         style={{ 
-          bottom: isBrowser && isMobile 
-            ? undefined 
-            : isAndroid && !isBrowser
-              ? `max(3.5rem, calc(3.5rem + env(safe-area-inset-bottom, 0px)))`
-              : `max(1rem, calc(1rem + env(safe-area-inset-bottom, 0px)))`
+          bottom: isMobile ? undefined : `max(1rem, calc(1rem + env(safe-area-inset-bottom, 0px)))`
         }}
       >
         <div className="relative flex flex-col items-end">
