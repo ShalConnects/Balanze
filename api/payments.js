@@ -14,6 +14,7 @@ const PATH = {
   stripeCheckout: 'create-checkout-session',
   paddle: 'paddle-webhook',
   paddleSubscriptionDetails: 'get-paddle-subscription-details',
+  scheduleDowngrade: 'schedule-downgrade',
 };
 
 function parsePath(req) {
@@ -169,8 +170,8 @@ function buildSubscriptionPayload(data = {}, statusOverride = null) {
   const status = (statusOverride || data?.status || 'active').toLowerCase();
   const billingCycle = normalizeBillingCycle(data);
   const isMonthly = billingCycle === 'monthly';
-  const trialStart = toIso(data?.started_at || data?.current_billing_period?.starts_at);
-  const trialEnd = toIso(data?.next_billed_at || data?.current_billing_period?.ends_at || data?.trial_dates?.ends_at);
+  const periodStart = toIso(data?.current_billing_period?.starts_at || data?.started_at || data?.billing_period?.starts_at);
+  const periodEnd = toIso(data?.current_billing_period?.ends_at || data?.next_billed_at || data?.trial_dates?.ends_at || data?.billing_period?.ends_at);
   const plan = PREMIUM_STATUSES.has(status) ? 'premium' : 'free';
 
   return {
@@ -179,10 +180,12 @@ function buildSubscriptionPayload(data = {}, statusOverride = null) {
     billing_cycle: billingCycle,
     paddle_transaction_id: data?.id || null,
     paddle_subscription_id: data?.subscription_id || data?.id || null,
-    trial_started_at: status === 'trialing' ? trialStart : null,
-    trial_ends_at: status === 'trialing' ? trialEnd : null,
-    next_billing_date: trialEnd,
-    expires_at: isMonthly ? trialEnd : null,
+    trial_started_at: status === 'trialing' ? periodStart : null,
+    trial_ends_at: status === 'trialing' ? periodEnd : null,
+    current_billing_period_start: periodStart,
+    current_billing_period_end: periodEnd,
+    next_billing_date: periodEnd,
+    expires_at: isMonthly ? periodEnd : null,
     updated_at: new Date().toISOString(),
   };
 }
@@ -197,28 +200,65 @@ async function updateSubscriptionByUser(userId, subscription) {
 }
 
 async function updateSubscriptionByPaddleId(paddleSubscriptionId, subscription) {
-  if (!paddleSubscriptionId) return false;
+  if (!paddleSubscriptionId) return null;
   const { data, error } = await supabase
     .from('profiles')
     .select('id')
     .filter('subscription->>paddle_subscription_id', 'eq', paddleSubscriptionId)
     .limit(1)
     .maybeSingle();
-  if (error || !data?.id) return false;
+  if (error || !data?.id) return null;
   await updateSubscriptionByUser(data.id, subscription);
-  return true;
+  return data.id;
 }
 
-async function insertSubscriptionHistory(userId, subscription, paymentMethod = 'paddle') {
+function extractPaidAmount(data = {}) {
+  const total = data?.details?.totals?.total || data?.totals?.total || data?.amount;
+  const numeric = typeof total === 'string' ? Number.parseFloat(total) : Number(total || 0);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function extractCurrency(data = {}) {
+  return data?.details?.totals?.currency_code || data?.totals?.currency_code || data?.currency_code || 'USD';
+}
+
+function extractPeriodWindow(data = {}, fallback = {}) {
+  const start = toIso(
+    data?.billing_period?.starts_at ||
+    data?.current_billing_period?.starts_at ||
+    fallback?.trial_started_at
+  );
+  const end = toIso(
+    data?.billing_period?.ends_at ||
+    data?.current_billing_period?.ends_at ||
+    data?.next_billed_at ||
+    fallback?.next_billing_date ||
+    fallback?.trial_ends_at
+  );
+  return { start, end };
+}
+
+async function insertSubscriptionHistory(userId, subscription, paymentMethod = 'paddle', amount = 0, currency = 'USD') {
   if (!userId) return;
+  if (paymentMethod.startsWith('paddle:')) {
+    const { data: existing, error: existingError } = await supabase
+      .from('subscription_history')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('payment_method', paymentMethod)
+      .limit(1)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (existing?.id) return;
+  }
   const { error } = await supabase.from('subscription_history').insert({
     user_id: userId,
     plan_name: subscription.plan,
     status: PREMIUM_STATUSES.has(subscription.status) ? 'active' : 'cancelled',
     start_date: subscription.trial_started_at || new Date().toISOString(),
     end_date: subscription.trial_ends_at || subscription.expires_at || null,
-    amount_paid: 0,
-    currency: 'USD',
+    amount_paid: amount,
+    currency,
     payment_method: paymentMethod,
   });
   if (error) throw error;
@@ -234,14 +274,27 @@ async function handlePaddleEvent(eventType, data) {
   const statusOverride = isTransactionEvent ? 'active' : null;
   const subscription = buildSubscriptionPayload(data, statusOverride);
   const paddleSubId = subscription.paddle_subscription_id;
-
-  if (userId) {
-    await updateSubscriptionByUser(userId, subscription);
-    await insertSubscriptionHistory(userId, subscription);
-    return;
+  let resolvedUserId = userId;
+  if (!resolvedUserId) {
+    resolvedUserId = await updateSubscriptionByPaddleId(paddleSubId, subscription);
+  } else {
+    await updateSubscriptionByUser(resolvedUserId, subscription);
   }
 
-  await updateSubscriptionByPaddleId(paddleSubId, subscription);
+  if (isTransactionEvent && resolvedUserId) {
+    const { start, end } = extractPeriodWindow(data, subscription);
+    const amount = extractPaidAmount(data);
+    const currency = extractCurrency(data);
+    const historySnapshot = {
+      ...subscription,
+      status: 'active',
+      trial_started_at: start,
+      trial_ends_at: end,
+      expires_at: end,
+    };
+    const txnRef = data?.id ? `paddle:${data.id}` : 'paddle';
+    await insertSubscriptionHistory(resolvedUserId, historySnapshot, txnRef, amount, currency);
+  }
 }
 
 async function handlePaddleWebhook(req, res, rawBody) {
@@ -264,9 +317,9 @@ function normalizePaddleSubscriptionDetails(data = {}) {
     status: data?.status || null,
     trial_started_at: data?.status === 'trialing' ? periodStart : null,
     trial_ends_at: data?.status === 'trialing' ? periodEnd : null,
-    next_billing_date: periodEnd,
     current_billing_period_start: periodStart,
     current_billing_period_end: periodEnd,
+    next_billing_date: periodEnd,
     customer_email: data?.customer?.email || null,
     customer_country: data?.customer?.address?.country_code || null,
     payment_method_brand: data?.collection_mode === 'manual' ? 'manual' : (data?.billing_details?.payment_method?.type || null),
@@ -279,7 +332,7 @@ async function handleGetPaddleSubscriptionDetails(res, body) {
   const userId = body?.userId;
   if (!subscriptionId) return json(res, 400, { error: 'Missing subscriptionId' });
 
-  const apiKey = process.env.PADDLE_API_KEY || process.env.PADDLE_SECRET_KEY || process.env.PADDLE_LIVE_API_KEY;
+  const apiKey = process.env.PADDLE_API_KEY || process.env.PADDLE_SECRET_KEY || process.env.PADDLE_LIVE_API_KEY || process.env.VITE_PADDLE_API_KEY;
   if (!apiKey) return json(res, 503, { error: 'Paddle API key not configured' });
 
   const apiRes = await fetch(`https://api.paddle.com/subscriptions/${encodeURIComponent(subscriptionId)}`, {
@@ -307,6 +360,73 @@ async function handleGetPaddleSubscriptionDetails(res, body) {
   json(res, 200, { details });
 }
 
+async function handleScheduleDowngrade(res, body) {
+  const userId = body?.userId;
+  if (!userId) return json(res, 400, { error: 'Missing userId' });
+  if (!supabase) return json(res, 503, { error: 'Server configuration error' });
+
+  const { data: profileData, error: profileError } = await supabase
+    .from('profiles')
+    .select('subscription')
+    .eq('id', userId)
+    .maybeSingle();
+  if (profileError || !profileData?.subscription) return json(res, 404, { error: 'Profile not found' });
+
+  const current = profileData.subscription || {};
+  const paddleSubscriptionId = current?.paddle_subscription_id;
+  if (!paddleSubscriptionId) return json(res, 400, { error: 'No Paddle subscription ID on profile' });
+
+  const apiKey =
+    process.env.PADDLE_API_KEY ||
+    process.env.PADDLE_SECRET_KEY ||
+    process.env.PADDLE_LIVE_API_KEY ||
+    process.env.VITE_PADDLE_API_KEY;
+  if (!apiKey) return json(res, 503, { error: 'Paddle API key not configured' });
+
+  const cancelRes = await fetch(`https://api.paddle.com/subscriptions/${encodeURIComponent(paddleSubscriptionId)}/cancel`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ effective_from: 'next_billing_period' }),
+  });
+  const cancelPayload = await cancelRes.json();
+  if (!cancelRes.ok) {
+    const msg = cancelPayload?.error?.detail || cancelPayload?.error?.message || cancelPayload?.error || 'Failed to schedule Paddle cancellation';
+    throw new Error(msg);
+  }
+
+  const effectiveDate = current?.current_billing_period_end || current?.next_billing_date || null;
+  const nextSubscription = {
+    ...current,
+    plan: 'premium',
+    status: 'active',
+    scheduled_downgrade_at: effectiveDate,
+    downgrade_requested_at: new Date().toISOString(),
+    downgrade_plan: 'free',
+    updated_at: new Date().toISOString(),
+  };
+  await updateSubscriptionByUser(userId, nextSubscription);
+  await insertSubscriptionHistory(
+    userId,
+    {
+      ...nextSubscription,
+      trial_started_at: current?.current_billing_period_start || null,
+      trial_ends_at: effectiveDate,
+      expires_at: effectiveDate,
+    },
+    'downgrade_scheduled',
+    0,
+    'USD'
+  );
+
+  json(res, 200, {
+    status: 'scheduled',
+    effective_date: effectiveDate,
+  });
+}
+
 // --- Router ---
 export default async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
@@ -319,7 +439,11 @@ export default async function handler(req, res) {
       await fn();
     } catch (e) {
       console.error('[payments-api] request failed', e);
-      json(res, 500, { error: 'Request failed' });
+      const message =
+        (typeof e?.message === 'string' && e.message.trim()) ||
+        (typeof e === 'string' && e.trim()) ||
+        'Request failed';
+      json(res, 500, { error: message });
     }
   };
 
@@ -329,6 +453,7 @@ export default async function handler(req, res) {
     case PATH.stripeCheckout: return run(() => handleCreateCheckoutSession(res, body));
     case PATH.paddle: return run(() => handlePaddleWebhook(req, res, rawBody));
     case PATH.paddleSubscriptionDetails: return run(() => handleGetPaddleSubscriptionDetails(res, body));
+    case PATH.scheduleDowngrade: return run(() => handleScheduleDowngrade(res, body));
     default: return json(res, 404, { error: 'Unknown payment path' });
   }
 }

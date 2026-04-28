@@ -15,6 +15,7 @@ import { MotivationalQuote } from '../components/Dashboard/MotivationalQuote';
 import { MobileAccordionWidget } from '../components/Dashboard/MobileAccordionWidget';
 import { toast } from 'sonner';
 import { MainLayout } from '../components/Layout/MainLayout';
+import { formatAppDateTime, formatAppMonthShort } from '../utils/timezoneUtils';
 
 // Mock data generators
 const generateMockAccounts = () => [
@@ -1277,13 +1278,7 @@ const MockRecentTransactions: React.FC = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">{formatTransactionDescription(transaction.description)}</p>
                   <p className="text-xs text-gray-500">
-                    {new Date(transaction.created_at).toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric', 
-                      hour: 'numeric', 
-                      minute: '2-digit',
-                      hour12: true 
-                    })}
+                    {formatAppDateTime(transaction.created_at)}
                   </p>
                 </div>
               </div>
@@ -1855,7 +1850,7 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
       const date = new Date();
       date.setMonth(date.getMonth() - i);
       return {
-        month: date.toLocaleString('default', { month: 'short' }),
+        month: formatAppMonthShort(date),
         income: 0,
         expenses: 0
       };

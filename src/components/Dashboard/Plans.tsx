@@ -5,6 +5,7 @@ import { initializePaddle, Paddle } from '@paddle/paddle-js';
 import { toast } from 'react-hot-toast';
 import { DowngradeConfirmationModal } from '../common/DowngradeConfirmationModal';
 import { supabase } from '../../lib/supabase';
+import { formatAppDateTime } from '../../utils/timezoneUtils';
 
 interface Plan {
   id: string;
@@ -88,6 +89,7 @@ export const Plans: React.FC = () => {
   const [loading, setLoading] = useState<string | null>(null); // Track which button is loading
   const [paddle, setPaddle] = useState<Paddle | null>(null);
   const [showDowngradeModal, setShowDowngradeModal] = useState(false);
+  const [downgradeError, setDowngradeError] = useState<string | null>(null);
 
   // Paddle configuration
   const PADDLE_VENDOR_ID = import.meta.env.VITE_PADDLE_VENDOR_ID;
@@ -128,12 +130,12 @@ export const Plans: React.FC = () => {
       return;
     }
 
+    setDowngradeError(null);
     setShowDowngradeModal(true);
   };
 
   const confirmDowngrade = async () => {
     setLoading('free');
-    setShowDowngradeModal(false);
 
     try {
 
@@ -144,11 +146,33 @@ export const Plans: React.FC = () => {
 
       // For lifetime subscribers, request immediate downgrade
 
-      
-      const { data, error } = await supabase.rpc('downgrade_user_subscription', {
-        user_uuid: user.id,
-        is_lifetime: isLifetimeSubscriber
-      });
+      let data: any = null;
+      let error: any = null;
+      if (isLifetimeSubscriber) {
+        const rpcResult = await supabase.rpc('downgrade_user_subscription', {
+          user_uuid: user.id,
+          is_lifetime: true
+        });
+        data = rpcResult.data;
+        error = rpcResult.error;
+      } else {
+        const response = await fetch('/api/payments?path=schedule-downgrade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id }),
+        });
+        let payload: any = {};
+        try {
+          payload = await response.json();
+        } catch {
+          payload = {};
+        }
+        if (!response.ok) {
+          error = { message: payload?.error || 'Failed to schedule downgrade' };
+        } else {
+          data = payload;
+        }
+      }
 
 
 
@@ -161,6 +185,8 @@ export const Plans: React.FC = () => {
 
 
       if (status === 'immediate') {
+        setDowngradeError(null);
+        setShowDowngradeModal(false);
         toast.success('Downgrade to Free plan completed. Changes have taken effect immediately.');
         // Reload to refresh profile state
         setLoading(null);
@@ -169,26 +195,32 @@ export const Plans: React.FC = () => {
       }
 
       if (status === 'scheduled') {
+        setDowngradeError(null);
+        setShowDowngradeModal(false);
 
         const effective = data?.effective_date ? new Date(data.effective_date) : null;
-        const when = effective ? effective.toLocaleString() : 'the end of your current billing period';
+        const when = effective ? formatAppDateTime(effective) : 'the end of your current billing period';
 
         toast.success(`Downgrade to Free plan initiated. Changes will take effect at ${when}.`);
         setLoading(null);
         return;
       }
 
+      setDowngradeError(null);
+      setShowDowngradeModal(false);
       toast.success('Downgrade request submitted.');
       setLoading(null);
     } catch (err) {
-
-      toast.error('Unable to process downgrade. Please contact support.');
+      const message = (err as any)?.message || 'Unable to process downgrade. Please contact support.';
+      toast.error(message);
+      setDowngradeError(message);
       setLoading(null);
     }
   };
 
   const cancelDowngrade = () => {
     setShowDowngradeModal(false);
+    setDowngradeError(null);
     toast.info('Downgrade cancelled.');
   };
 
@@ -466,6 +498,7 @@ export const Plans: React.FC = () => {
         onConfirm={confirmDowngrade}
         isLoading={loading === 'free'}
         isLifetimeSubscriber={isLifetimeSubscriber}
+        errorMessage={downgradeError}
       />
 
     </div>

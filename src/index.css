@@ -935,6 +935,11 @@
 
 /* Mobile sidebar improvements */
 @layer components {
+  /* Shared stat grid for dashboard summary cards */
+  .dashboard-stat-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2;
+  }
+
   /* Mobile sidebar improvements */
   .sidebar-mobile {
     @apply fixed left-0 top-0 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 z-[99999] transform transition-all duration-300 ease-in-out;
@@ -1082,14 +1087,19 @@ body.sidebar-open {
 
 /* Browser-specific FAB positioning fixes */
 @media (max-width: 768px) {
+  :root {
+    --mobile-browser-fab-offset: calc(1.5rem + 96px);
+  }
+
   /* Only apply to browsers, not mobile apps */
   .browser-fab-positioning {
-    bottom: max(calc(1.5rem + 40px), calc(1.5rem + 40px + env(safe-area-inset-bottom, 0px))) !important;
+    bottom: max(var(--mobile-browser-fab-offset), calc(var(--mobile-browser-fab-offset) + env(safe-area-inset-bottom, 0px))) !important;
   }
   
   /* Browser-specific bottom navigation spacing */
   .browser-bottom-nav-spacing {
-    padding-bottom: 40px !important;
+    /* Reserve space for both bottom nav and floating action button footprint */
+    padding-bottom: max(40px, calc(40px + var(--mobile-browser-fab-offset) + env(safe-area-inset-bottom, 0px))) !important;
   }
 }
 

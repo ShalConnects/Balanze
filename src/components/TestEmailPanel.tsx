@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { mockEmailService } from '../lib/mockEmailService';
+import { formatAppTime } from '../utils/timezoneUtils';
 
 const TestEmailPanel: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -67,7 +68,7 @@ const TestEmailPanel: React.FC = () => {
                     {email.subject}
                   </span>
                   <span className="text-xs text-gray-500">
-                    {email.timestamp.toLocaleTimeString()}
+                    {formatAppTime(email.timestamp)}
                   </span>
                 </div>
                 <div className="text-xs text-gray-600 mb-1">

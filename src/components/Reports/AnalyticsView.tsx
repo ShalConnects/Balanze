@@ -39,6 +39,7 @@ import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
 import { format, startOfMonth, endOfMonth, subMonths, eachMonthOfInterval, parseISO } from 'date-fns';
 import { getTodayLocalDateString, toBusinessDateString } from '../../utils/taskDateUtils';
+import { formatAppDate, formatAppDateTime, formatAppMonthDay } from '../../utils/timezoneUtils';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { detectUserContext } from '../../utils/humorContext';
 import { HumorEngine } from '../../utils/humorEngine';
@@ -266,7 +267,7 @@ export const AnalyticsView: React.FC = () => {
       // For PDF, create a simple text-based report
       const pdfContent = `
 ANALYTICS REPORT
-Generated: ${new Date().toLocaleString()}
+Generated: ${formatAppDateTime(new Date())}
 Currency: ${selectedCurrency}
 Period: ${selectedPeriod}
 
@@ -983,12 +984,12 @@ ${accounts.map(a =>
             <XAxis 
               dataKey="date" 
               tick={{ fontSize: 12 }} 
-              tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              tickFormatter={(value) => formatAppMonthDay(value)}
             />
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip 
               formatter={(value: any) => [formatCurrency(value, selectedCurrency), 'Amount']} 
-              labelFormatter={(label) => new Date(label).toLocaleDateString()}
+              labelFormatter={(label) => formatAppDate(label)}
               contentStyle={{
                 backgroundColor: 'white',
                 border: '1px solid #e5e7eb',
@@ -1337,7 +1338,7 @@ ${accounts.map(a =>
                     ? 'border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40'
                     : 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
-                title={`${item.person} — ${formatCurrency(item.amount, selectedCurrency)} — Due ${item.dueDate.toLocaleDateString()}`}
+                title={`${item.person} — ${formatCurrency(item.amount, selectedCurrency)} — Due ${formatAppDate(item.dueDate)}`}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{item.icon}</span>

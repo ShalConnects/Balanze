@@ -29,6 +29,7 @@ import { DEFAULT_INCLUDE_DATA, normalizeIncludeData } from '../../../lib/lastWis
 import { fetchBusinessInvestmentContracts } from '../../lib/businessInvestmentService';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 import { ENTRY_TYPE_LABELS, type InvestmentContract } from '../../types/businessInvestment';
+import { formatAppDate, formatAppDateTime } from '../../utils/timezoneUtils';
 
 interface LWProps {
   setActiveTab?: (tab: string) => void;
@@ -1381,13 +1382,7 @@ These memories are my gift to you.`
                   <button
                     onClick={() => {
                       if (deliveryData) {
-                        const deliveryDate = new Date(deliveryData.deliveredAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        });
+                        const deliveryDate = formatAppDateTime(deliveryData.deliveredAt);
                         const recipientsList = deliveryData.recipients.map(r => r.email).join(', ');
                         toast.success(
                           <div className="space-y-1">
@@ -2442,21 +2437,13 @@ const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
   
   const userName = userProfile?.fullName || user?.email || 'User';
   const userFirstName = getFirstName(userProfile?.fullName, user?.email);
-  const currentDate = new Date().toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
+  const currentDate = formatAppDate(new Date());
 
   // Format date helper
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'N/A';
     try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+      return formatAppDate(dateString);
     } catch {
       return 'N/A';
     }

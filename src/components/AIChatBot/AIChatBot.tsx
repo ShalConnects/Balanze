@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { getAIResponse } from '../../lib/aiChatService';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { formatAppTime } from '../../utils/timezoneUtils';
 
 interface Message {
   id: string;
@@ -382,7 +383,7 @@ export const AIChatBot: React.FC<AIChatBotProps> = ({
                     {message.role === 'assistant' ? formatMessageContent(message.content) : message.content}
                   </div>
                   <p className={`mt-2 opacity-70 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {formatAppTime(message.timestamp)}
                   </p>
                 </div>
               </div>

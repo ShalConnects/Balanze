@@ -4,6 +4,7 @@
 import { FilterState, SortConfig, ExportOptions, ExportResult, FilterSummary } from '../types/export';
 import { formatTransactionDescription } from './transactionDescriptionFormatter';
 import { getTodayLocalDateString } from './taskDateUtils';
+import { formatAppDate, formatAppDateTime, formatAppExportDateTime } from './timezoneUtils';
 
 /**
  * Generate a smart filename based on active filters
@@ -150,8 +151,8 @@ export const generateFilterSummary = (
   }
   
   if (filters.dateRange.start && filters.dateRange.end) {
-    const startDate = new Date(filters.dateRange.start).toLocaleDateString();
-    const endDate = new Date(filters.dateRange.end).toLocaleDateString();
+    const startDate = formatAppDate(filters.dateRange.start);
+    const endDate = formatAppDate(filters.dateRange.end);
     activeFilters.push(`Date Range: ${startDate} - ${endDate}`);
   }
   
@@ -203,7 +204,7 @@ export const formatTransactionForExport = (transaction: any, accounts: any[]): a
   const isTransfer = transaction.tags?.includes('transfer') || transaction.tags?.includes('dps_transfer');
   
   return [
-    new Date(transaction.date).toLocaleDateString(),
+    formatAppDate(transaction.date),
     formatTransactionDescription(transaction.description || ''),
     transaction.category || '',
     account?.name || 'Unknown',
@@ -232,7 +233,7 @@ export const exportToCSV = async (options: ExportOptions): Promise<ExportResult>
       const summaryHeader = '\n\n# Export Summary\n';
       const filterInfo = summary.activeFilters.map(filter => `# ${filter}`).join('\n');
       const recordCount = `# Records: ${summary.recordCount}`;
-      const exportDate = `# Exported: ${new Date().toLocaleString()}`;
+      const exportDate = `# Exported: ${formatAppExportDateTime()}`;
       
       // Add financial summary
       const financialSummary = `\n# Financial Summary:\n` +
@@ -287,7 +288,7 @@ export const exportToPDF = async (options: ExportOptions): Promise<ExportResult>
     // Add export metadata
     let yPosition = 30;
     doc.setFontSize(10);
-    doc.text(`Exported: ${new Date().toLocaleString()}`, 14, yPosition);
+    doc.text(`Exported: ${formatAppExportDateTime()}`, 14, yPosition);
     yPosition += 6;
     doc.text(`Records: ${transactions.length}`, 14, yPosition);
     
@@ -385,7 +386,7 @@ export const exportToHTML = async (options: ExportOptions): Promise<ExportResult
       html += `
         <div class="summary">
           <h3>Export Summary</h3>
-          <p><strong>Exported:</strong> ${new Date().toLocaleString()}</p>
+          <p><strong>Exported:</strong> ${formatAppDateTime(new Date())}</p>
           <p><strong>Records:</strong> ${summary.recordCount}</p>
           ${summary.activeFilters.length > 0 ? `
             <p><strong>Applied Filters:</strong></p>

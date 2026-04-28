@@ -1,5 +1,6 @@
 import type { Client, Order, Invoice, Task } from '../types/client';
 import type { AppUser } from '../store/authStore';
+import { formatAppDate } from '../utils/timezoneUtils';
 
 export type EmailType = 
   | 'follow-up' 
@@ -350,7 +351,7 @@ function replacePlaceholders(
       if (context.overdueInvoices[0]) {
         email = email.replace(/\[Invoice Number\]/g, context.overdueInvoices[0].invoice_number);
         const dueDate = new Date(context.overdueInvoices[0].due_date);
-        email = email.replace(/\[Due Date\]/g, dueDate.toLocaleDateString());
+        email = email.replace(/\[Due Date\]/g, formatAppDate(dueDate));
       }
     }
     

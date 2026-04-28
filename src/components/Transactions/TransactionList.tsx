@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 // import 'react-datepicker/dist/react-datepicker.css';
 import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 import { parseISO } from 'date-fns';
+import { toBusinessDateString } from '../../utils/taskDateUtils';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { TABLE_SUMMARY_CARDS_GRID } from '../common/listPage/listPageLayout';
 import { Tooltip } from '../common/Tooltip';
@@ -151,8 +152,8 @@ const TransactionListComponent: React.FC<{
     const first = new Date(today.getFullYear(), today.getMonth(), 1);
     const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     return {
-      start: first.toISOString().slice(0, 10),
-      end: last.toISOString().slice(0, 10)
+      start: toBusinessDateString(first),
+      end: toBusinessDateString(last)
     };
   };
 
@@ -1081,6 +1082,27 @@ const TransactionListComponent: React.FC<{
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showSuggestions]);
 
+  const isModifiedWithinWindow = (updatedAt?: string | null, days?: number) => {
+    if (!updatedAt || !days) return false;
+    const modifiedDate = new Date(updatedAt);
+    const now = new Date();
+    if (days === 1) {
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      return modifiedDate >= startOfToday && modifiedDate < endOfToday;
+    }
+    if (days === 7) {
+      const day = now.getDay();
+      const diffToMonday = (day === 0 ? -6 : 1) - day;
+      const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+      const endOfWeek = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + 7);
+      return modifiedDate >= startOfWeek && modifiedDate < endOfWeek;
+    }
+    const cutoffDate = new Date(now);
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    return modifiedDate >= cutoffDate;
+  };
+
   // Enhanced filtering with fuzzy search
   const filteredTransactions = useMemo(() => {
     // If a record is selected via deep link, prioritize showing only that record
@@ -1109,6 +1131,12 @@ const TransactionListComponent: React.FC<{
             const txDate = new Date(t.date);
             const startDate = new Date(filters.dateRange.start);
             const endDate = new Date(filters.dateRange.end);
+            const filterType = getDateFilterType();
+            const includeByRecentModification =
+              (filterType === 'today' || filterType === 'week') &&
+              t.updated_at &&
+              t.updated_at !== t.created_at &&
+              isModifiedWithinWindow(t.updated_at, filterType === 'today' ? 1 : 7);
             
             // For "this month" filter, use the same logic as Dashboard
             if (filters.dateRange.start === new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10) &&
@@ -1121,10 +1149,10 @@ const TransactionListComponent: React.FC<{
               const utcStartDate = new Date(localStartDate.getTime() - (localStartDate.getTimezoneOffset() * 60000));
               const utcEndDate = new Date(localEndDate.getTime() - (localEndDate.getTimezoneOffset() * 60000) + (24 * 60 * 60 * 1000) - 1);
               
-              if (txDate < utcStartDate || txDate > utcEndDate) return false;
+              if ((txDate < utcStartDate || txDate > utcEndDate) && !includeByRecentModification) return false;
             } else {
               // For other date ranges, use the original logic
-              if (txDate < startDate || txDate > endDate) return false;
+              if ((txDate < startDate || txDate > endDate) && !includeByRecentModification) return false;
             }
           }
         }
@@ -1132,10 +1160,7 @@ const TransactionListComponent: React.FC<{
         // New: Filter by recently modified transactions
         if (filters.showModifiedOnly) {
           if (!t.updated_at || t.updated_at === t.created_at) return false; // Only show transactions that have been modified
-          const modifiedDate = new Date(t.updated_at);
-          const cutoffDate = new Date();
-          cutoffDate.setDate(cutoffDate.getDate() - filters.recentlyModifiedDays);
-          if (modifiedDate < cutoffDate) return false;
+          if (!isModifiedWithinWindow(t.updated_at, filters.recentlyModifiedDays)) return false;
         }
         
         return true;
@@ -1228,8 +1253,8 @@ const TransactionListComponent: React.FC<{
     let start = '', end = '';
     switch (preset) {
       case 'today':
-        start = today.toISOString().slice(0, 10);
-        end = today.toISOString().slice(0, 10);
+        start = toBusinessDateString(today);
+        end = toBusinessDateString(today);
         break;
       case 'thisWeek': {
         const day = today.getDay();
@@ -1238,29 +1263,29 @@ const TransactionListComponent: React.FC<{
         monday.setDate(today.getDate() + diffToMonday);
         const sunday = new Date(monday);
         sunday.setDate(monday.getDate() + 6);
-        start = monday.toISOString().slice(0, 10);
-        end = sunday.toISOString().slice(0, 10);
+        start = toBusinessDateString(monday);
+        end = toBusinessDateString(sunday);
         break;
       }
       case 'thisMonth': {
         const first = new Date(today.getFullYear(), today.getMonth(), 1);
         const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        start = first.toISOString().slice(0, 10);
-        end = last.toISOString().slice(0, 10);
+        start = toBusinessDateString(first);
+        end = toBusinessDateString(last);
         break;
       }
       case 'lastMonth': {
         const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const last = new Date(today.getFullYear(), today.getMonth(), 0);
-        start = first.toISOString().slice(0, 10);
-        end = last.toISOString().slice(0, 10);
+        start = toBusinessDateString(first);
+        end = toBusinessDateString(last);
         break;
       }
       case 'thisYear': {
         const first = new Date(today.getFullYear(), 0, 1);
         const last = new Date(today.getFullYear(), 11, 31);
-        start = first.toISOString().slice(0, 10);
-        end = last.toISOString().slice(0, 10);
+        start = toBusinessDateString(first);
+        end = toBusinessDateString(last);
         break;
       }
       case 'allTime':
@@ -1682,7 +1707,7 @@ const TransactionListComponent: React.FC<{
                 }}
                 type="button"
               >
-                <span>{filters.showModifiedOnly ? `Modified (${filters.recentlyModifiedDays}d)` : 'All Transactions'}</span>
+                <span>{filters.showModifiedOnly ? (filters.recentlyModifiedDays === 1 ? 'Modified Today' : filters.recentlyModifiedDays === 7 ? 'Modified This Week' : `Modified (${filters.recentlyModifiedDays}d)`) : 'All Transactions'}</span>
                 <svg className="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
@@ -1723,7 +1748,7 @@ const TransactionListComponent: React.FC<{
                       setShowModifiedMenu(false); 
                     }}
                   >
-                    Modified (7 days)
+                    Modified This Week
                   </button>
                   <button 
                     className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100" 
@@ -4325,7 +4350,7 @@ const TransactionListComponent: React.FC<{
                       : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}
                 >
-                  7 Days
+                  This Week
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setTempFilters({ ...tempFilters, showModifiedOnly: true, recentlyModifiedDays: 30 }); }}

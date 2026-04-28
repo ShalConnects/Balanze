@@ -29,6 +29,7 @@ import { generateHelpCenterPageStructuredData, injectStructuredData } from '../l
 import { generateMetaTags, generateMetaTagsHTML, generateArticleJsonLd } from '../lib/metaOptimizer';
 import { trackArticleView, trackInternalLinkClick, trackTimeOnPage as ga4TrackTimeOnPage, initializeGA4 } from '../lib/ga4Integration';
 import { sanitizeHtml } from '../lib/sanitize';
+import { formatAppDate } from '../utils/timezoneUtils';
 
 interface KBArticle {
   slug: string;
@@ -6244,7 +6245,7 @@ export default function KBArticlePage() {
               </div>
               <div className="flex items-center gap-1">
                 <Tag className="w-4 h-4" />
-                Last updated {new Date(article.lastUpdated).toLocaleDateString()}
+                Last updated {formatAppDate(article.lastUpdated)}
               </div>
               {article.author && (
                 <span>By {article.author}</span>
@@ -6299,7 +6300,7 @@ export default function KBArticlePage() {
               </div>
               <div className="flex items-center gap-1">
                 <Tag className="w-4 h-4" />
-                Last updated {new Date(article.lastUpdated).toLocaleDateString()}
+                Last updated {formatAppDate(article.lastUpdated)}
               </div>
               {article.author && (
                 <span>By {article.author}</span>

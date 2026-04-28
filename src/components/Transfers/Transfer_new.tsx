@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Plus, Search, ChevronUp, ChevronDown, Filter, TrendingUp, ArrowRight, Eye, X } from 'lucide-react';
 import { format } from 'date-fns';
-import { formatTimeUTC } from '../../utils/timezoneUtils';
+import { formatTimeUTC, formatAppDate, formatAppMonthDay } from '../../utils/timezoneUtils';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
@@ -923,7 +923,7 @@ export const Transfer_new: React.FC = () => {
                          >
                            <td className="px-6" style={{ paddingTop: '1.2rem', paddingBottom: '1.2rem' }}>
                              <div className="text-sm text-gray-900 dark:text-white">
-                               {new Date(transfer.date).toLocaleDateString()}
+                              {formatAppDate(transfer.date)}
                              </div>
                            </td>
                            <td className="px-6 text-center" style={{ paddingTop: '1.2rem', paddingBottom: '1.2rem' }}>
@@ -978,10 +978,7 @@ export const Transfer_new: React.FC = () => {
                                         transfer.type === 'dps' ? 'DPS' : 'In-Account'}
                                      </span>
                                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                                       {new Date(transfer.transferTime || transfer.date).toLocaleDateString('en-US', { 
-                                         month: 'short', 
-                                         day: 'numeric' 
-                                       })} • {formatTimeUTC(transfer.created_at || transfer.transferTime || transfer.date, 'h:mm a')}
+                                      {formatAppMonthDay(transfer.transferTime || transfer.date)} • {formatTimeUTC(transfer.created_at || transfer.transferTime || transfer.date, 'h:mm a')}
                                      </span>
                                    </div>
                                  </div>
@@ -1078,7 +1075,7 @@ export const Transfer_new: React.FC = () => {
                      <div className="flex items-center justify-between mb-3 gap-1">
                        <div className="flex items-center space-x-1 flex-1 min-w-0">
                          <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                           {new Date(transfer.date).toLocaleDateString()}
+                          {formatAppDate(transfer.date)}
                          </div>
                          <svg 
                            className={`w-3 h-3 text-gray-400 transition-transform flex-shrink-0 ${isRowExpanded(transfer.id) ? 'rotate-90' : ''}`} 
@@ -1142,10 +1139,7 @@ export const Transfer_new: React.FC = () => {
                                transfer.type === 'dps' ? 'DPS' : 'In-Account'}
                             </span>
                             <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {new Date(transfer.transferTime || transfer.date).toLocaleDateString('en-US', { 
-                                month: 'short', 
-                                day: 'numeric' 
-                              })} • {formatTimeUTC(transfer.created_at || transfer.transferTime || transfer.date, 'h:mm a')}
+                              {formatAppMonthDay(transfer.transferTime || transfer.date)} • {formatTimeUTC(transfer.created_at || transfer.transferTime || transfer.date, 'h:mm a')}
                             </span>
                           </div>
                         </div>

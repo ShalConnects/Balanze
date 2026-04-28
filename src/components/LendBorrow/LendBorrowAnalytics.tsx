@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { formatCurrency } from '../../utils/currency';
+import { formatAppDate } from '../../utils/timezoneUtils';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
 import { 
@@ -211,11 +212,7 @@ export const LendBorrowAnalytics: React.FC = () => {
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    });
+    return formatAppDate(date);
   };
 
   const getDaysUntilDue = (dueDate: Date) => {

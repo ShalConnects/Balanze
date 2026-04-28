@@ -32,6 +32,7 @@ import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { countsTowardIncomeExpenseSummaries, groupTransactionsByDate } from '../../utils/transactionUtils';
 import { formatCurrency } from '../../utils/currency';
 import { getTodayLocalDateString, toBusinessDateString } from '../../utils/taskDateUtils';
+import { formatAppDate } from '../../utils/timezoneUtils';
 import { TABLE_SUMMARY_CARDS_GRID } from '../common/listPage/listPageLayout';
 
 export const AccountsView: React.FC = () => {
@@ -513,7 +514,7 @@ export const AccountsView: React.FC = () => {
     const csvContent = [
       headers.join(','),
       ...accountTransactions.map(t => [
-        new Date(t.date).toLocaleDateString(),
+        formatAppDate(t.date),
         `"${t.description}"`,
         `"${t.category}"`,
         t.type,

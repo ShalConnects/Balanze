@@ -370,9 +370,9 @@ export const PurchaseOverviewCard: React.FC<PurchaseOverviewCardProps> = ({
       )}
       
       {/* Header - Responsive layout */}
-      <div className="flex items-center justify-between mb-2 pr-8">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 pr-8">
         {/* Left side - Info button */}
-        <div className="flex items-center gap-2 flex-1">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Purchases</h2>
           <DashboardWidgetInfo title="Purchases" ariaLabel="Show purchases info">
             {purchasesInfoBody}
@@ -380,7 +380,7 @@ export const PurchaseOverviewCard: React.FC<PurchaseOverviewCardProps> = ({
         </div>
         
         {/* Right side - Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-shrink-0 items-center gap-3">
           <Link 
             to="/purchases" 
             className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200 whitespace-nowrap"
@@ -392,7 +392,7 @@ export const PurchaseOverviewCard: React.FC<PurchaseOverviewCardProps> = ({
       </div>
       
       {/* Purchase Stats Cards - Responsive grid */}
-      <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-0 flex-1">
+      <div className="dashboard-stat-grid gap-3 sm:gap-4 mb-0 flex-1">
         <StatCard
           title="Planned"
           value={totalPlannedPurchases.toString()}

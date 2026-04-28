@@ -7,6 +7,7 @@ interface DowngradeConfirmationModalProps {
   onConfirm: () => void;
   isLoading?: boolean;
   isLifetimeSubscriber?: boolean;
+  errorMessage?: string | null;
 }
 
 export const DowngradeConfirmationModal: React.FC<DowngradeConfirmationModalProps> = ({
@@ -14,7 +15,8 @@ export const DowngradeConfirmationModal: React.FC<DowngradeConfirmationModalProp
   onClose,
   onConfirm,
   isLoading = false,
-  isLifetimeSubscriber = false
+  isLifetimeSubscriber = false,
+  errorMessage = null
 }) => {
   if (!isOpen) return null;
 
@@ -86,6 +88,11 @@ export const DowngradeConfirmationModal: React.FC<DowngradeConfirmationModalProp
           </div>
 
           {/* Actions */}
+          {errorMessage && (
+            <div className="mb-3 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+              {errorMessage}
+            </div>
+          )}
           <div className="flex gap-3">
             <button
               onClick={onClose}

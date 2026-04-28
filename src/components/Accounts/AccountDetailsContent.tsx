@@ -3,6 +3,7 @@ import { Account, Transaction } from '../../types';
 import { groupTransactionsByDate } from '../../utils/transactionUtils';
 import { formatCurrency } from '../../utils/currency';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
+import { formatAppDate } from '../../utils/timezoneUtils';
 import { AccountAllTimeSummaryRow } from './AccountAllTimeSummaryRow';
 import { AccountInfoPanel } from './AccountInfoPanel';
 
@@ -90,7 +91,7 @@ export const AccountDetailsContent: React.FC<AccountDetailsContentProps> = ({
                         {group.map(t => (
                           <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/80">
                             <td className="px-1 sm:px-2 py-2 text-xs text-gray-900 dark:text-gray-100 hidden sm:table-cell">
-                              {new Date(t.date).toLocaleDateString()}
+                              {formatAppDate(t.date)}
                             </td>
                             <td className="px-1 sm:px-2 py-2 text-xs font-medium text-gray-900 dark:text-gray-100 min-w-0 max-w-[120px] sm:max-w-none truncate">
                               {formatTransactionDescription(t.description)}

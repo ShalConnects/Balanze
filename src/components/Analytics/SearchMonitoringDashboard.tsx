@@ -14,6 +14,7 @@ import {
 import { runSearchHealthCheck, SearchHealthReport } from '../../utils/searchHealthCheck';
 import { runSearchTests, TestSuite } from '../../utils/searchTestSuite';
 import { searchAnalytics } from '../../utils/searchAnalytics';
+import { formatAppDateTime } from '../../utils/timezoneUtils';
 
 interface SearchMonitoringDashboardProps {
   className?: string;
@@ -286,7 +287,7 @@ export const SearchMonitoringDashboard: React.FC<SearchMonitoringDashboardProps>
             {/* Last Update */}
             {lastUpdate && (
               <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-                Last updated: {lastUpdate.toLocaleString()}
+                Last updated: {formatAppDateTime(lastUpdate)}
               </div>
             )}
           </>

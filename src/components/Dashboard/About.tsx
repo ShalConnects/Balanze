@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuthStore } from '../../store/authStore';
+import { formatAppDate } from '../../utils/timezoneUtils';
 
 export const About: React.FC = () => {
   const { user } = useAuthStore();
@@ -13,7 +14,7 @@ export const About: React.FC = () => {
         <div><span className="font-semibold">Role:</span> {user.role}</div>
         <div><span className="font-semibold">Plan:</span> {user.subscription.plan}</div>
         <div><span className="font-semibold">Subscription Status:</span> {user.subscription.status}</div>
-        <div><span className="font-semibold">Valid Until:</span> {user.subscription.validUntil ? new Date(user.subscription.validUntil).toLocaleDateString() : 'N/A'}</div>
+        <div><span className="font-semibold">Valid Until:</span> {user.subscription.validUntil ? formatAppDate(user.subscription.validUntil) : 'N/A'}</div>
       </div>
     </div>
   );

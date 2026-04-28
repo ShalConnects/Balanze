@@ -20,6 +20,7 @@ import { SearchSkeleton } from '../common/SearchSkeleton';
 import { formatCurrency } from '../../utils/currency';
 import { fetchBusinessInvestmentContracts } from '../../lib/businessInvestmentService';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
+import { formatAppDate } from '../../utils/timezoneUtils';
 
 // Date formatting utility
 const formatSearchDate = (dateString: string): string => {
@@ -34,11 +35,7 @@ const formatSearchDate = (dateString: string): string => {
   if (diffInDays < 7) return `${diffInDays} days ago`;
   if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
   
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric', 
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined 
-  });
+  return date.getFullYear() !== now.getFullYear() ? formatAppDate(date) : format(date, 'MMM dd');
 };
 
 

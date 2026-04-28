@@ -238,7 +238,7 @@ export const InvestmentSummaryCard: React.FC<InvestmentSummaryCardProps> = ({ fi
         </div>
       </div>
 
-      <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3 sm:gap-4 flex-1">
+      <div className="dashboard-stat-grid gap-3 sm:gap-4 flex-1">
         <div className="min-w-0 w-full">
           <StatCard title="Active contracts" value={String(summary.activeCount)} color="blue" />
         </div>

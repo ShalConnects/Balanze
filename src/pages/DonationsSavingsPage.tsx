@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { getPreference, setPreference } from '../lib/userPreferences';
 import { useRecordSelection } from '../hooks/useRecordSelection';
 import { SelectionFilter } from '../components/common/SelectionFilter';
-import { formatDateUTC } from '../utils/timezoneUtils';
+import { formatDateUTC, formatAppExportDateTime } from '../utils/timezoneUtils';
 // PDF libraries loaded dynamically to reduce initial bundle size
 // import jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable';
@@ -643,7 +643,7 @@ const DonationsSavingsPage: React.FC = () => {
       // Add export metadata
       let yPosition = 30;
       doc.setFontSize(10);
-      doc.text(`Exported: ${new Date().toLocaleString()}`, 14, yPosition);
+      doc.text(`Exported: ${formatAppExportDateTime()}`, 14, yPosition);
       yPosition += 6;
       doc.text(`Records: ${data.length}`, 14, yPosition);
       

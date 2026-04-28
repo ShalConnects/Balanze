@@ -11,6 +11,7 @@ import { generateInternalLinkingSuggestions } from '../lib/kbSitemap';
 import { searchService, SEARCH_CONFIGS, highlightMatches, SearchResult } from '../utils/searchService';
 import clsx from 'clsx';
 import { getTodayLocalDateString } from '../utils/taskDateUtils';
+import { formatAppDate } from '../utils/timezoneUtils';
 
 interface KBArticle {
   slug: string;
@@ -249,7 +250,7 @@ const UserBubble: React.FC<UserBubbleProps> = ({ userName, userEmail, userPicUrl
     if (diffInHours < 1) return 'Just now';
     if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`;
     if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`;
-    return date.toLocaleDateString();
+    return formatAppDate(date);
   };
 
   return (

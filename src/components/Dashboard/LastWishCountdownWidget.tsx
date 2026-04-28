@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
+import { formatAppDate } from '../../utils/timezoneUtils';
 import { 
   AlertTriangle, 
   Clock, 
@@ -186,7 +187,7 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
           
           setCountdown({
             daysLeft: Math.max(0, daysLeft),
-            nextCheckIn: nextCheckIn.toLocaleDateString(),
+            nextCheckIn: formatAppDate(nextCheckIn),
             isOverdue,
             urgencyLevel,
             progressPercentage,
@@ -403,11 +404,7 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
         <div className="text-center">
           <h3 className="font-bold text-lg sm:text-xl text-green-900 dark:text-green-100 mb-2">Last Wish Delivered</h3>
           <p className="text-sm text-green-700 dark:text-green-300 mb-3">
-            Delivered <span className="font-bold">{new Date(deliveryData.deliveredAt).toLocaleDateString('en-US', { 
-              month: 'short', 
-              day: 'numeric',
-              year: 'numeric'
-            })}</span> to <span className="font-bold">{deliveryData.deliveryCount}</span> recipient{deliveryData.deliveryCount !== 1 ? 's' : ''}
+            Delivered <span className="font-bold">{formatAppDate(deliveryData.deliveredAt)}</span> to <span className="font-bold">{deliveryData.deliveryCount}</span> recipient{deliveryData.deliveryCount !== 1 ? 's' : ''}
           </p>
 
           {/* Action Button */}

@@ -15,6 +15,7 @@ import { InvestmentGoals } from '../components/Investments/InvestmentGoals';
 import { InvestmentTransactionForm } from '../components/Investments/InvestmentTransactionForm';
 import { useAuthStore } from '../store/authStore';
 import { useSearchParams } from 'react-router-dom';
+import { formatAppDate } from '../utils/timezoneUtils';
 
 type InvestmentTab = 'dashboard' | 'assets' | 'transactions' | 'goals' | 'analytics';
 
@@ -240,7 +241,7 @@ export const Investments: React.FC = () => {
                               {transaction.transaction_type === 'buy' ? 'Bought' : 'Sold'} {transaction.quantity} shares
                             </p>
                             <p className="text-sm text-gray-500">
-                              {new Date(transaction.transaction_date).toLocaleDateString()} • 
+                              {formatAppDate(transaction.transaction_date)} • 
                               {transaction.currency} {transaction.total_amount.toFixed(2)}
                             </p>
                           </div>

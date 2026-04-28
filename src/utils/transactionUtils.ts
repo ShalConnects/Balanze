@@ -1,5 +1,6 @@
 import { format, differenceInDays } from 'date-fns';
 import { Transaction, Account } from '../types';
+import { formatAppDate, formatAppTime } from './timezoneUtils';
 export { calculateNextOccurrence, getUpcomingOccurrences } from '../../lib/recurringUtils.js';
 
 const isToday = (d: Date) => format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
@@ -245,25 +246,15 @@ export const getAccountName = (accountId: string, accounts: Account[]): string =
 };
 
 export const formatTransactionDate = (date: string, format: 'short' | 'long' | 'time' = 'short'): string => {
-    const transactionDate = new Date(date);
-    
     switch (format) {
         case 'short':
-            return transactionDate.toLocaleDateString();
+            return formatAppDate(date);
         case 'long':
-            return transactionDate.toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
+            return formatAppDate(date);
         case 'time':
-            return transactionDate.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            return formatAppTime(date);
         default:
-            return transactionDate.toLocaleDateString();
+            return formatAppDate(date);
     }
 };
 

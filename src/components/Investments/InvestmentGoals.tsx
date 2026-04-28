@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { InvestmentGoal, InvestmentGoalInput } from '../../types/investment';
 import { formatCurrency } from '../../utils/currency';
+import { formatAppDate } from '../../utils/timezoneUtils';
 import { SkeletonCard } from '../common/Skeleton';
 
 interface InvestmentGoalsProps {
@@ -220,7 +221,7 @@ export const InvestmentGoals: React.FC<InvestmentGoalsProps> = ({
                     <span className={`font-medium ${
                       isOverdue ? 'text-red-600' : daysRemaining !== null && daysRemaining <= 30 ? 'text-yellow-600' : 'text-gray-900'
                     }`}>
-                      {new Date(goal.target_date).toLocaleDateString()}
+                      {formatAppDate(goal.target_date)}
                     </span>
                   </div>
                   {daysRemaining !== null && (

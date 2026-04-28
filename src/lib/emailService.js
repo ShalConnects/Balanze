@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { formatAppDate } from '../utils/timezoneUtils';
 
 // Initialize Supabase client (will be overridden if passed as parameter)
 let supabase = createClient(
@@ -256,11 +257,7 @@ function createEmailContent(user, settings, userData) {
 
         <div class="footer">
           <p>This is an automated delivery from the Last Wish system. Please handle this information with care and respect for ${user.email}'s privacy.</p>
-          <p>Delivery Date: ${new Date().toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}</p>
+          <p>Delivery Date: ${formatAppDate(new Date())}</p>
         </div>
       </div>
     </body>

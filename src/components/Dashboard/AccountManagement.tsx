@@ -13,6 +13,7 @@ import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { Link } from 'react-router-dom';
 import { getTodayLocalDateString } from '../../utils/taskDateUtils';
+import { formatAppDate } from '../../utils/timezoneUtils';
 
 interface AccountManagementProps {
   hideTitle?: boolean;
@@ -84,12 +85,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
   
   // Format registration date
   const formatRegistrationDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    return formatAppDate(dateString);
   };
 
   const registrationDate = user?.created_at ? formatRegistrationDate(user.created_at) : null;
@@ -295,7 +291,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
         startY: y,
         head: [["Date", "Description", "Category", "Account", "Type", "Amount"]],
         body: transactions.map(tx => [
-          new Date(tx.date).toLocaleDateString(),
+          formatAppDate(tx.date),
           tx.description,
           tx.category,
           accounts.find(a => a.id === tx.account_id)?.name || '',
@@ -313,7 +309,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
         startY: y,
         head: [["Date", "Item", "Category", "Amount", "Account"]],
         body: purchases.map(p => [
-          new Date(p.purchase_date).toLocaleDateString(),
+          formatAppDate(p.purchase_date),
           p.item_name || '',
           p.category,
           p.price,
@@ -344,7 +340,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ hideTitle 
         body: donationSavingRecords.filter(r => r.type === 'donation').map(r => [
           r.type,
           r.amount,
-          r.created_at ? new Date(r.created_at).toLocaleDateString() : '',
+          r.created_at ? formatAppDate(r.created_at) : '',
           r.note || ''
         ]),
         styles: { fontSize: 9 },

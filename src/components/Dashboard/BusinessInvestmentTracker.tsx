@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ChevronUp, Plus, Pencil, Trash2, Wallet, TrendingUp, TrendingDown, Landmark, X, Filter, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '../../utils/currency';
+import { formatAppDate } from '../../utils/timezoneUtils';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
@@ -487,8 +488,8 @@ export const BusinessInvestmentTracker: React.FC = () => {
       <div className="space-y-3 min-w-0">
         <div className={contractMetaRowClass}>
           <span className="break-words">
-            Initial principal: {formatAmount(contract.principal, contract.currency)} · Start: {new Date(contract.start_date).toLocaleDateString()}
-            {contract.end_date ? ` · End: ${new Date(contract.end_date).toLocaleDateString()}` : ''}
+            Initial principal: {formatAmount(contract.principal, contract.currency)} · Start: {formatAppDate(contract.start_date)}
+            {contract.end_date ? ` · End: ${formatAppDate(contract.end_date)}` : ''}
           </span>
           <span className="break-words sm:max-w-[min(100%,24rem)]">Funding: {fundingAccountName}</span>
         </div>
@@ -537,7 +538,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-gray-800 dark:text-gray-200 break-words">
-                      {ENTRY_TYPE_LABELS[entry.type]} — {new Date(entry.date).toLocaleDateString()}
+                      {ENTRY_TYPE_LABELS[entry.type]} — {formatAppDate(entry.date)}
                     </p>
                     {entry.note && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 break-words">{entry.note}</p>}
                   </div>
@@ -941,9 +942,9 @@ export const BusinessInvestmentTracker: React.FC = () => {
                                 <div className={contractMetaRowClass}>
                                   <span className="break-words">
                                     Deployed: {formatAmount(getEffectivePrincipal(contract), contract.currency)} · Start:{' '}
-                                    {new Date(contract.start_date).toLocaleDateString()}
+                                    {formatAppDate(contract.start_date)}
                                     {contract.end_date
-                                      ? ` · End: ${new Date(contract.end_date).toLocaleDateString()}`
+                                      ? ` · End: ${formatAppDate(contract.end_date)}`
                                       : ''}
                                   </span>
                                 </div>
@@ -1034,9 +1035,9 @@ export const BusinessInvestmentTracker: React.FC = () => {
                             <div className={`${contractMetaRowClass} mt-0.5`}>
                               <span className="break-words">
                                 Deployed: {formatAmount(getEffectivePrincipal(contract), contract.currency)} · Start:{' '}
-                                {new Date(contract.start_date).toLocaleDateString()}
+                                {formatAppDate(contract.start_date)}
                                 {contract.end_date
-                                  ? ` · End: ${new Date(contract.end_date).toLocaleDateString()}`
+                                  ? ` · End: ${formatAppDate(contract.end_date)}`
                                   : ''}
                               </span>
                               <span className="break-words">Funding: {fundingAccountName}</span>

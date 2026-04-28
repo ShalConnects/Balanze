@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle, Clock, ArrowUpRight, ArrowDownLeft, Plus } 
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { LendBorrow } from '../../types/index';
+import { formatAppDate } from '../../utils/timezoneUtils';
 
 const getStatusColor = (status: LendBorrow['status']) => {
   switch (status) {
@@ -30,7 +31,7 @@ const getTypeIcon = (type: LendBorrow['type']) => {
 
 const formatDate = (date: string | undefined) => {
   if (!date) return '';
-  return new Date(date).toLocaleDateString();
+  return formatAppDate(date);
 };
 
 export const LendBorrowReminders: React.FC = () => {

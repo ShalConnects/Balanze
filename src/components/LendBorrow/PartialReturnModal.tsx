@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
 import { Loader } from '../common/Loader';
 import { getCurrencySymbol } from '../../utils/currency';
+import { formatAppDate } from '../../utils/timezoneUtils';
 
 interface PartialReturnModalProps {
   isOpen: boolean;
@@ -179,7 +180,7 @@ export const PartialReturnModal: React.FC<PartialReturnModalProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    return formatAppDate(dateString);
   };
 
   if (!isOpen) return null;

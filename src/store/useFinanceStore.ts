@@ -3374,8 +3374,9 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           method.includes('paddle') ? 'paddle' :
           method.includes('paypal') ? 'paypal' :
           sub.payment_method || 'N/A';
+        const paddleTxnId = method.startsWith('paddle:') ? sub.payment_method?.split(':')[1] : null;
         const providerTransactionId = method.includes('paddle')
-          ? (profile?.subscription as any)?.paddle_subscription_id || sub.id
+          ? paddleTxnId || (profile?.subscription as any)?.paddle_subscription_id || sub.id
           : sub.id;
         return {
         id: sub.id,

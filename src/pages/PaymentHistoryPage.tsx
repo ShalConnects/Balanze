@@ -30,6 +30,7 @@ import { toast } from 'react-hot-toast';
 // import autoTable from 'jspdf-autotable';
 import { Link } from 'react-router-dom';
 import { useMobileDetection } from '../hooks/useMobileDetection';
+import { formatAppDate, formatAppDateTime } from '../utils/timezoneUtils';
 
 export const PaymentHistoryPage: React.FC = () => {
   const { paymentTransactions, loading, fetchPaymentTransactions, getPaymentHistoryStats } = useFinanceStore();
@@ -175,13 +176,7 @@ export const PaymentHistoryPage: React.FC = () => {
 
   // Format date
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatAppDateTime(dateString);
   };
 
   // Export to PDF
@@ -200,7 +195,7 @@ export const PaymentHistoryPage: React.FC = () => {
     doc.text('Payment History Report', 14, y);
     y += 8;
     doc.setFontSize(12);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, y);
+    doc.text(`Generated on: ${formatAppDate(new Date())}`, 14, y);
     doc.text(`Total Transactions: ${filteredTransactions.length}`, 14, y + 6);
     doc.text(`Total Amount: ${formatCurrency(filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0))}`, 14, y + 12);
     y += 25;

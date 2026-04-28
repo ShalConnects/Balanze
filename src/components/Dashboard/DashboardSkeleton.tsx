@@ -110,7 +110,7 @@ export const DashboardSkeleton: React.FC = () => {
                 <div className="h-4 sm:h-5 md:h-6 bg-gray-200 dark:bg-gray-700 rounded w-32 sm:w-40 animate-pulse"></div>
                 <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-12 sm:w-16 animate-pulse flex-shrink-0"></div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3 md:gap-4 mb-0 flex-1">
+              <div className="dashboard-stat-grid gap-2 sm:gap-3 md:gap-4 mb-0 flex-1">
                 <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-2 sm:p-3">
                   <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 sm:w-20 mb-1 sm:mb-2 animate-pulse"></div>
                   <div className="h-4 sm:h-5 md:h-6 bg-gray-200 dark:bg-gray-700 rounded w-12 sm:w-16 animate-pulse"></div>
@@ -131,7 +131,7 @@ export const DashboardSkeleton: React.FC = () => {
                 <div className="h-4 sm:h-5 md:h-6 bg-gray-200 dark:bg-gray-700 rounded w-32 sm:w-40 animate-pulse"></div>
                 <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-12 sm:w-16 animate-pulse flex-shrink-0"></div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3 md:gap-4 mb-0 flex-1">
+              <div className="dashboard-stat-grid gap-2 sm:gap-3 md:gap-4 mb-0 flex-1">
                 <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-2 sm:p-3">
                   <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 sm:w-20 mb-1 sm:mb-2 animate-pulse"></div>
                   <div className="h-4 sm:h-5 md:h-6 bg-gray-200 dark:bg-gray-700 rounded w-12 sm:w-16 animate-pulse"></div>
@@ -152,7 +152,7 @@ export const DashboardSkeleton: React.FC = () => {
                 <div className="h-4 sm:h-5 md:h-6 bg-gray-200 dark:bg-gray-700 rounded w-32 sm:w-40 animate-pulse"></div>
                 <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-12 sm:w-16 animate-pulse flex-shrink-0"></div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3 md:gap-4 mb-0 flex-1">
+              <div className="dashboard-stat-grid gap-2 sm:gap-3 md:gap-4 mb-0 flex-1">
                 <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-2 sm:p-3">
                   <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 sm:w-20 mb-1 sm:mb-2 animate-pulse"></div>
                   <div className="h-4 sm:h-5 md:h-6 bg-gray-200 dark:bg-gray-700 rounded w-12 sm:w-16 animate-pulse"></div>
@@ -173,7 +173,7 @@ export const DashboardSkeleton: React.FC = () => {
                 <div className="h-4 sm:h-5 md:h-6 bg-gray-200 dark:bg-gray-700 rounded w-32 sm:w-40 animate-pulse"></div>
                 <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-12 sm:w-16 animate-pulse flex-shrink-0"></div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3 md:gap-4 mb-0 flex-1">
+              <div className="dashboard-stat-grid gap-2 sm:gap-3 md:gap-4 mb-0 flex-1">
                 <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-2 sm:p-3">
                   <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 sm:w-20 mb-1 sm:mb-2 animate-pulse"></div>
                   <div className="h-4 sm:h-5 md:h-6 bg-gray-200 dark:bg-gray-700 rounded w-12 sm:w-16 animate-pulse"></div>

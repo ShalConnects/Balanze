@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { AchievementNotification as AchievementNotificationType } from '../../types/achievement';
 import { X, Trophy, TrendingUp } from 'lucide-react';
+import { formatAppTime } from '../../utils/timezoneUtils';
 
 interface AchievementNotificationProps {
   notification: AchievementNotificationType;
@@ -145,7 +146,7 @@ export const AchievementNotification: React.FC<AchievementNotificationProps> = (
               <div className="text-right">
                 <div className="text-xs text-white/80">Earned</div>
                 <div className="text-xs text-white/70">
-                  {new Date().toLocaleTimeString()}
+                  {formatAppTime(new Date())}
                 </div>
               </div>
             )}

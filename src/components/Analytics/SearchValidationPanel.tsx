@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Play, CheckCircle, XCircle, Clock, AlertTriangle, Download, RefreshCw } from 'lucide-react';
 import { runSearchTests, TestSuite, TestResult } from '../../utils/searchTestSuite';
 import { getTodayLocalDateString } from '../../utils/taskDateUtils';
+import { formatAppDateTime } from '../../utils/timezoneUtils';
 
 interface SearchValidationPanelProps {
   className?: string;
@@ -291,7 +292,7 @@ Generated on: ${new Date().toISOString()}
             {lastRun && (
               <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Last run: {lastRun.toLocaleString()}
+                  Last run: {formatAppDateTime(lastRun)}
                 </p>
               </div>
             )}

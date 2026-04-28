@@ -10,6 +10,7 @@ import { DeleteConfirmationModal } from '../components/common/DeleteConfirmation
 import KBSearch from '../components/KBSearch';
 import Breadcrumb from '../components/Breadcrumb';
 import { Footer } from '../components/Layout/Footer';
+import { formatAppDate } from '../utils/timezoneUtils';
 
 const PublicHelpCenter: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -187,7 +188,7 @@ const PublicHelpCenter: React.FC = () => {
                 <div className="hidden md:flex items-center gap-2 flex-shrink-0">
                   <div className="text-right">
                     <div className="text-sm text-blue-100 dark:text-blue-200">Last updated</div>
-                    <div className="font-semibold">{new Date().toLocaleDateString()}</div>
+                    <div className="font-semibold">{formatAppDate(new Date())}</div>
                   </div>
                 </div>
               </div>

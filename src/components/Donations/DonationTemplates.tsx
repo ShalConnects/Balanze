@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Plus, Edit, Trash2, Copy, Heart, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatAppDate } from '../../utils/timezoneUtils';
 
 interface DonationTemplate {
   id: string;
@@ -272,7 +273,7 @@ export const DonationTemplates: React.FC<DonationTemplatesProps> = ({
 
               <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                 <span>Used {template.usage_count} times</span>
-                <span>{new Date(template.created_at).toLocaleDateString()}</span>
+                <span>{formatAppDate(template.created_at)}</span>
               </div>
             </div>
           ))}

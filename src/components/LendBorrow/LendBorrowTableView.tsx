@@ -22,7 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { formatCurrencyCompact } from '../../utils/currency';
 import { getTodayLocalDateString } from '../../utils/taskDateUtils';
-import { formatDateUTC } from '../../utils/timezoneUtils';
+import { formatDateUTC, formatAppDate } from '../../utils/timezoneUtils';
 // DatePicker loaded dynamically to reduce initial bundle size
 // import DatePicker from 'react-datepicker';
 // import 'react-datepicker/dist/react-datepicker.css';
@@ -1840,7 +1840,7 @@ export const LendBorrowTableView: React.FC = () => {
                           </td>
                           <td className="px-6 py-[0.5rem] text-center">
                             <div className="text-sm text-gray-900 dark:text-white font-medium">
-                              {new Date(record.due_date).toLocaleDateString()}
+                              {formatAppDate(record.due_date)}
                             </div>
                             {record.due_date && (
                               <div className={`text-xs font-medium mt-1 ${
@@ -2233,7 +2233,7 @@ export const LendBorrowTableView: React.FC = () => {
                         const isOverdue = record.status === 'active' && dueDate < today;
                         return (
                           <div className={isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-600 dark:text-gray-400'}>
-                            Due: {dueDate.toLocaleDateString()}
+                            Due: {formatAppDate(dueDate)}
                           </div>
                         );
                       })()}
@@ -2320,8 +2320,8 @@ export const LendBorrowTableView: React.FC = () => {
                           <div><span className="font-medium">Type:</span> {record.type === 'lend' ? 'Lend' : 'Borrow'}</div>
                           <div><span className="font-medium">Amount:</span> {formatCurrency(record.amount, record.currency)}</div>
                           <div><span className="font-medium">Currency:</span> {record.currency}</div>
-                          <div><span className="font-medium">Date:</span> {record.created_at ? (isNaN(new Date(record.created_at).getTime()) ? 'No date' : new Date(record.created_at).toLocaleDateString()) : 'No date'}</div>
-                          <div><span className="font-medium">Due Date:</span> {record.due_date ? (isNaN(new Date(record.due_date).getTime()) ? 'No date' : new Date(record.due_date).toLocaleDateString()) : 'No date'}</div>
+                          <div><span className="font-medium">Date:</span> {record.created_at ? (isNaN(new Date(record.created_at).getTime()) ? 'No date' : formatAppDate(record.created_at)) : 'No date'}</div>
+                          <div><span className="font-medium">Due Date:</span> {record.due_date ? (isNaN(new Date(record.due_date).getTime()) ? 'No date' : formatAppDate(record.due_date)) : 'No date'}</div>
                         </div>
                       </div>
 

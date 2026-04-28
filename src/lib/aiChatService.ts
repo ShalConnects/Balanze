@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { formatAppMonthLong } from '../utils/timezoneUtils';
 
 // Request cache to prevent duplicate requests
 interface CacheEntry {
@@ -519,7 +520,7 @@ async function gatherUserContext(userId: string, forceRefresh: boolean = false):
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthNum = date.getMonth();
       const year = date.getFullYear();
-      const monthName = date.toLocaleString('default', { month: 'long' });
+      const monthName = formatAppMonthLong(date);
       
       const monthExpenses = expenseTransactions
         .filter((t: any) => {

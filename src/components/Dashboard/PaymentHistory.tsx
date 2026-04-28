@@ -25,6 +25,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { formatAppDate, formatAppDateTime } from '../../utils/timezoneUtils';
 import { Link } from 'react-router-dom';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 
@@ -53,7 +54,7 @@ interface PaymentHistoryProps {
 
 export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = false }) => {
   const { paymentTransactions, loading, fetchPaymentTransactions } = useFinanceStore();
-  const { user, profile } = useAuthStore();
+  const { user, profile, setUserAndProfile } = useAuthStore();
   const [filteredTransactions, setFilteredTransactions] = useState<PaymentTransaction[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -69,6 +70,27 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
   useEffect(() => {
     fetchPaymentTransactions();
   }, [fetchPaymentTransactions]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, profile_picture, local_currency, selected_currencies, default_account_id, subscription')
+        .eq('id', user.id)
+        .single();
+      if (error || !data) return;
+      setUserAndProfile(user, {
+        id: data.id,
+        fullName: data.full_name,
+        profilePicture: data.profile_picture,
+        local_currency: data.local_currency,
+        selected_currencies: data.selected_currencies,
+        default_account_id: data.default_account_id,
+        subscription: data.subscription,
+      } as any);
+    })();
+  }, [user?.id, setUserAndProfile]);
 
   // Fetch payment methods with transaction stats
   const loadPaymentMethods = useCallback(async () => {
@@ -216,22 +238,14 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     if (Number.isNaN(date.getTime())) return 'N/A';
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    return formatAppDate(date);
   };
 
   const formatDateOnly = (dateString?: string | null) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     if (Number.isNaN(date.getTime())) return 'N/A';
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    return formatAppDate(date);
   };
 
   // Export to PDF
@@ -244,7 +258,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
     doc.text('Payment History', 14, y);
     y += 8;
     doc.setFontSize(12);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, y);
+    doc.text(`Generated on: ${formatAppDateTime(new Date())}`, 14, y);
     y += 15;
 
     // Transactions table
@@ -307,7 +321,10 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
     : 'Monthly';
   const trialStart = mergedSubscription?.trial_started_at;
   const trialEnd = mergedSubscription?.trial_ends_at;
+  const periodStart = mergedSubscription?.current_billing_period_start;
+  const periodEnd = mergedSubscription?.current_billing_period_end;
   const nextBilling = mergedSubscription?.next_billing_date || mergedSubscription?.expires_at || mergedSubscription?.validUntil;
+  const isTrialing = status === 'trialing';
   const statusBadgeClass = status === 'trialing'
     ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
     : status === 'active'
@@ -364,12 +381,12 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ hideTitle = fals
           </div>
           <div className={`mt-3 grid gap-2 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
             <div className="rounded-md bg-gray-50 dark:bg-gray-700/40 px-3 py-2">
-              <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Trial started</p>
-              <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDateOnly(trialStart)}</p>
+              <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{isTrialing ? 'Trial started' : 'Period start'}</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDateOnly(isTrialing ? trialStart : periodStart)}</p>
             </div>
             <div className="rounded-md bg-gray-50 dark:bg-gray-700/40 px-3 py-2">
-              <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Trial ends</p>
-              <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDateOnly(trialEnd)}</p>
+              <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{isTrialing ? 'Trial ends' : 'Period end'}</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDateOnly(isTrialing ? trialEnd : periodEnd)}</p>
             </div>
             <div className="rounded-md bg-gray-50 dark:bg-gray-700/40 px-3 py-2">
               <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Next billing</p>

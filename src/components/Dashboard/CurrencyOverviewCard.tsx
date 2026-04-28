@@ -379,12 +379,12 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
       {/* Mobile-optimized header */}
       <div className="mb-0">
         {/* Amount row */}
-        <div className="flex flex-row items-center justify-between gap-1.5 sm:gap-2 md:gap-3 mb-1 min-w-0">
-           <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+        <div className="mb-1 flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+           <div className="flex w-full min-w-0 items-center gap-1.5 sm:flex-1 sm:gap-2">
              <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
                {currency}{totalAccountCount > 0 ? ` (${totalAccountCount})` : ''}:
              </span>
-             <span className="text-xs sm:text-sm font-bold tabular-nums text-gray-900 dark:text-white" title={formatCurrency(regularAccountsTotal + dpsTotal, currency)}>
+             <span className="min-w-0 truncate text-xs sm:text-sm font-bold tabular-nums text-gray-900 dark:text-white" title={formatCurrency(regularAccountsTotal + dpsTotal, currency)}>
                {formatCurrency(regularAccountsTotal + dpsTotal, currency)}
              </span>
              {/* Info button with account count - positioned immediately after total amount */}
@@ -472,7 +472,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
            </div>
           
           {/* Right side: Period selector */}
-          <div className="flex items-center gap-[0.1rem] flex-shrink-0 w-auto justify-end">
+          <div className="flex w-full items-center justify-end gap-[0.1rem] self-end sm:w-auto sm:flex-shrink-0 sm:self-auto">
             {/* Period selector - compact for mobile */}
             <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
               <CustomDropdown
@@ -495,7 +495,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
       </div>
       
       {/* Mobile-optimized stats grid */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 flex-1">
+      <div className="dashboard-stat-grid gap-2 sm:gap-3 flex-1">
         <div className="w-full min-w-0 relative">
           <StatCard
             title={

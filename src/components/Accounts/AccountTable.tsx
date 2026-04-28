@@ -4,6 +4,7 @@ import { Account, Transaction } from '../../types';
 import { getAccountColor } from '../../utils/accountIcons';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { getAccountAllTimeSummary } from '../../utils/transactionUtils';
+import { formatAppDate } from '../../utils/timezoneUtils';
 import { AccountActiveToggle } from './AccountActiveToggle';
 
 interface AccountTableProps {
@@ -287,7 +288,7 @@ export const AccountTable: React.FC<AccountTableProps> = React.memo(({
                               <div><span className="font-medium">Total Donated:</span> {formatCurrency(totalDonated, account.currency)}</div>
                             </>
                           )}
-                          <div><span className="font-medium">Last Transaction:</span> {accountTransactions.length > 0 ? new Date(accountTransactions[accountTransactions.length - 1].date).toLocaleDateString() : 'None'}</div>
+                          <div><span className="font-medium">Last Transaction:</span> {accountTransactions.length > 0 ? formatAppDate(accountTransactions[accountTransactions.length - 1].date) : 'None'}</div>
                         </div>
                       </div>
 

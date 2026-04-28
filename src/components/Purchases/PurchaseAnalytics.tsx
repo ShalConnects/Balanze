@@ -4,6 +4,7 @@ import { formatCurrency } from '../../utils/currency';
 import { CustomDropdown } from './CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
 import { toBusinessDateString } from '../../utils/taskDateUtils';
+import { formatAppDate, formatAppMonthDay } from '../../utils/timezoneUtils';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -321,12 +322,12 @@ export const PurchaseAnalytics: React.FC = () => {
             <XAxis 
               dataKey="date" 
               tick={{ fontSize: 12 }} 
-              tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              tickFormatter={(value) => formatAppMonthDay(value)}
             />
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip 
               formatter={(value: any) => [formatCurrencyWithSymbol(value), 'Amount']} 
-              labelFormatter={(label) => new Date(label).toLocaleDateString()}
+              labelFormatter={(label) => formatAppDate(label)}
               contentStyle={{
                 backgroundColor: 'white',
                 border: '1px solid #e5e7eb',

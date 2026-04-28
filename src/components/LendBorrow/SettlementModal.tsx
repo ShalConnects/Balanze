@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
 import { getCurrencySymbol } from '../../utils/currency';
 import { supabase } from '../../lib/supabase';
+import { formatAppDate } from '../../utils/timezoneUtils';
 
 interface SettlementModalProps {
   record: LendBorrow;
@@ -377,7 +378,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    return formatAppDate(dateString);
   };
 
   return (

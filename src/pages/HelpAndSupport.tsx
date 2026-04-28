@@ -10,6 +10,7 @@ import ArticleTourManager from '../components/ArticleTourManager';
 import TourSuggestionEngine from '../components/TourSuggestionEngine';
 import { useAuthStore } from '../store/authStore';
 import { useFinanceStore } from '../store/useFinanceStore';
+import { formatAppDate } from '../utils/timezoneUtils';
 
 
 
@@ -195,7 +196,7 @@ const HelpAndSupport: React.FC = () => {
             <div className="hidden md:flex items-center gap-2">
               <div className="text-right">
                 <div className="text-sm text-blue-100 dark:text-blue-200">Last updated</div>
-                <div className="font-semibold">{new Date().toLocaleDateString()}</div>
+                <div className="font-semibold">{formatAppDate(new Date())}</div>
               </div>
             </div>
           </div>

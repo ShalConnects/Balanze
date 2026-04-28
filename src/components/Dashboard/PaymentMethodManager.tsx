@@ -20,6 +20,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { PaymentMethodSetupModal } from '../common/PaymentMethodSetupModal';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
+import { formatAppDate } from '../../utils/timezoneUtils';
 
 interface PaymentMethod {
   id: string;
@@ -391,7 +392,7 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
                       )}
                       
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Added {new Date(method.created_at).toLocaleDateString()}
+                        Added {formatAppDate(method.created_at)}
                       </div>
                     </div>
                   </div>
@@ -457,7 +458,7 @@ export const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ hide
                   ? (profile?.subscription?.billing_cycle === 'lifetime' 
                       ? 'No billing - Lifetime access' 
                       : profile?.subscription?.next_billing_date 
-                        ? `Next billing: ${new Date(profile.subscription.next_billing_date).toLocaleDateString()}`
+                        ? `Next billing: ${formatAppDate(profile.subscription.next_billing_date)}`
                         : 'Monthly billing on the 15th')
                   : 'No active subscription'
                 }

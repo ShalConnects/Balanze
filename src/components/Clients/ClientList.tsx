@@ -31,6 +31,7 @@ import {
   formatKnownSinceDate,
   CLIENT_STATUS_OPTIONS
 } from '../../utils/clientUtils';
+import { formatAppDate } from '../../utils/timezoneUtils';
 import {
   LP,
   LP_SEARCH_ACTIVE_STYLE,
@@ -1892,7 +1893,7 @@ export const ClientList: React.FC = () => {
                                                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                                                     {task.due_date ? (
                                                       <span className={`text-xs lg:text-[10px] ${isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
-                                                        {isOverdue ? `Overdue ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''}` : `Due: ${new Date(task.due_date).toLocaleDateString()}`}
+                                                        {isOverdue ? `Overdue ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''}` : `Due: ${formatAppDate(task.due_date)}`}
                                                       </span>
                                                     ) : (
                                                       <span className="text-xs lg:text-[10px] text-gray-400 dark:text-gray-500 italic">
@@ -1952,7 +1953,7 @@ export const ClientList: React.FC = () => {
                                                   </div>
                                                   {task.completed_date && (
                                                     <div className="text-xs text-gray-400 mt-0.5">
-                                                      {new Date(task.completed_date).toLocaleDateString()}
+                                                      {formatAppDate(task.completed_date)}
                                                     </div>
                                                   )}
                                                 </div>
@@ -2460,7 +2461,7 @@ export const ClientList: React.FC = () => {
                                               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                                 {task.due_date ? (
                                                   <span className={isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'}>
-                                                    {isOverdue ? `Overdue ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''}` : `Due: ${new Date(task.due_date).toLocaleDateString()}`}
+                                                    {isOverdue ? `Overdue ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''}` : `Due: ${formatAppDate(task.due_date)}`}
                                                   </span>
                                                 ) : (
                                                   <span className="text-xs text-gray-400 dark:text-gray-500 italic">

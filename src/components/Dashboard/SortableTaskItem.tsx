@@ -5,6 +5,7 @@ import { AlertCircle, ChevronDown, ChevronUp, GripVertical, Edit2, Trash2, Circl
 import { Task } from '../../types/client';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { useTouchDevice } from '../../hooks/useTouchDevice';
+import { formatAppDate, formatAppMonthDay } from '../../utils/timezoneUtils';
 
 interface SortableTaskItemProps {
   task: Task;
@@ -276,8 +277,8 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
           {task.due_date && (
               <div className="text-[8px] sm:text-[9px] md:text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap flex-shrink-0">
                 {isTouchDevice 
-                  ? new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                  : new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  ? formatAppMonthDay(task.due_date)
+                  : formatAppDate(task.due_date)
                 }
             </div>
           )}
@@ -465,7 +466,7 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
           <div className="text-xs text-gray-700 dark:text-gray-300 space-y-1">
             <div><span className="font-medium">Task:</span> {task.title}</div>
             {task.due_date && (
-              <div><span className="font-medium">Due Date:</span> {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+              <div><span className="font-medium">Due Date:</span> {formatAppDate(task.due_date)}</div>
             )}
             <div><span className="font-medium">Priority:</span> {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}</div>
             <div><span className="font-medium">Client:</span> {clientName}</div>

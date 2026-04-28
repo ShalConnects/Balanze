@@ -6,6 +6,7 @@
 import { Invoice } from '../types/client';
 import { getCurrencySymbol } from './currency';
 import { getTodayLocalDateString } from './taskDateUtils';
+import { formatAppDate, formatAppDateTime } from './timezoneUtils';
 
 export interface InvoicePDFOptions {
   invoice: Invoice;
@@ -90,11 +91,7 @@ export const generateInvoicePDF = async (options: InvoicePDFOptions): Promise<{ 
     const formatDate = (dateString: string): string => {
       try {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
+        return formatAppDate(date);
       } catch {
         return dateString;
       }
@@ -407,7 +404,7 @@ export const generateInvoicePDF = async (options: InvoicePDFOptions): Promise<{ 
         { align: 'center' }
       );
       doc.text(
-        `Generated on ${new Date().toLocaleDateString()}`,
+        `Generated on ${formatAppDateTime(new Date())}`,
         margin,
         doc.internal.pageSize.getHeight() - 10
       );
@@ -537,11 +534,7 @@ export const generateInvoicePDFBlob = async (
     const formatDate = (dateString: string): string => {
       try {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
+        return formatAppDate(date);
       } catch {
         return dateString;
       }
