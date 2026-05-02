@@ -10,17 +10,9 @@ const AuthCallback: React.FC = () => {
 
   useEffect(() => {
     const handleCallback = async () => {
-      console.log('[AUTH_CALLBACK] ========== AUTH CALLBACK PAGE LOADED ==========');
       try {
-        console.log('[AUTH_CALLBACK] 🔄 AuthCallback Debug Info:');
-        console.log('[AUTH_CALLBACK] - Current URL:', window.location.href);
-        console.log('[AUTH_CALLBACK] - URL Search Params:', window.location.search);
-        console.log('[AUTH_CALLBACK] - URL Hash:', window.location.hash);
-        console.log('[AUTH_CALLBACK] - Hash length:', window.location.hash?.length || 0);
-        console.log('[AUTH_CALLBACK] - Search length:', window.location.search?.length || 0);
         
         // Check for OAuth errors in URL parameters (both query and hash)
-        console.log('[AUTH_CALLBACK] 🔍 Checking for OAuth errors...');
         const urlParams = new URLSearchParams(window.location.search);
         const hashParams = window.location.hash ? new URLSearchParams(window.location.hash.substring(1)) : null;
         
@@ -33,17 +25,9 @@ const AuthCallback: React.FC = () => {
           return;
         }
         
-        console.log('[AUTH_CALLBACK] ✅ No errors found in URL');
-        console.log('[AUTH_CALLBACK] 🔄 Getting session from Supabase...');
         // Get the current session after OAuth redirect
         const { data, error: sessionError } = await supabase.auth.getSession();
         
-        console.log('[AUTH_CALLBACK] 📥 Session response received:');
-        console.log('[AUTH_CALLBACK] - Has session?', !!data?.session);
-        console.log('[AUTH_CALLBACK] - Has user?', !!data?.session?.user);
-        console.log('[AUTH_CALLBACK] - User ID:', data?.session?.user?.id);
-        console.log('[AUTH_CALLBACK] - User email:', data?.session?.user?.email);
-        console.log('[AUTH_CALLBACK] - Session error?', !!sessionError);
         if (sessionError) {
           console.error('[AUTH_CALLBACK] ❌ Session Error:', sessionError);
         }

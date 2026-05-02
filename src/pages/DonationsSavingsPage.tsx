@@ -14,6 +14,7 @@ import { getPreference, setPreference } from '../lib/userPreferences';
 import { useRecordSelection } from '../hooks/useRecordSelection';
 import { SelectionFilter } from '../components/common/SelectionFilter';
 import { formatDateUTC, formatAppExportDateTime } from '../utils/timezoneUtils';
+import { resolveDefaultCurrency } from '../utils/usePreferredCurrency';
 // PDF libraries loaded dynamically to reduce initial bundle size
 // import jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable';
@@ -237,10 +238,7 @@ const DonationsSavingsPage: React.FC = () => {
   // Set default currency filter to user's preferred currency if available and valid
   useEffect(() => {
     if (!filterCurrency && recordCurrencies.length > 0) {
-      // Prefer local_currency if available in selected currencies, else first available
-      const defaultCurrency = profile?.local_currency && recordCurrencies.includes(profile.local_currency)
-        ? profile.local_currency
-        : recordCurrencies[0];
+      const defaultCurrency = resolveDefaultCurrency(recordCurrencies, profile?.local_currency);
       setFilterCurrency(defaultCurrency);
     }
   }, [profile, recordCurrencies, filterCurrency, availableCurrencies]);
@@ -296,7 +294,6 @@ const DonationsSavingsPage: React.FC = () => {
 
   // Function to restore donations widget to dashboard
   const handleShowDonationsSavingsWidgetFromPage = useCallback(async () => {
-    console.log('Restoring Donations & Savings widget to dashboard');
     setIsRestoringWidget(true);
     
     try {
@@ -306,7 +303,6 @@ const DonationsSavingsPage: React.FC = () => {
       // Update local state
       setIsDonationsSavingsWidgetHidden(false);
       
-      console.log('Donations & Savings widget restored, new state:', false);
     } finally {
       setIsRestoringWidget(false);
     }
@@ -1284,7 +1280,6 @@ const DonationsSavingsPage: React.FC = () => {
             <div className="hidden">
             </div>
           </div>
-
 
 
           {/* Recent Activity Timeline - Hidden */}

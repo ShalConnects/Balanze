@@ -111,7 +111,6 @@ export const Investments: React.FC = () => {
 
   const handleEditAsset = (asset: any) => {
     // TODO: Implement edit asset functionality
-    console.log('Edit asset:', asset);
   };
 
   const handleDeleteAsset = async (assetId: string) => {
@@ -125,7 +124,6 @@ export const Investments: React.FC = () => {
 
   const handleEditGoal = (goal: any) => {
     // TODO: Implement edit goal functionality
-    console.log('Edit goal:', goal);
   };
 
   const handleDeleteGoal = async (goalId: string) => {
@@ -175,7 +173,6 @@ export const Investments: React.FC = () => {
             onAddAsset={() => setShowAssetForm(true)}
             onEditAsset={handleEditAsset}
             onDeleteAsset={handleDeleteAsset}
-            onViewAsset={(asset) => console.log('View asset:', asset)}
           />
         );
       

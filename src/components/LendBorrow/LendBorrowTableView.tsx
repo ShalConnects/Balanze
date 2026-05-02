@@ -276,7 +276,6 @@ export const LendBorrowTableView: React.FC = () => {
 
   // Function to restore Lend & Borrow widget to dashboard
   const handleShowLendBorrowWidgetFromPage = useCallback(async () => {
-    console.log('Restoring Lend & Borrow widget to dashboard');
     setIsRestoringWidget(true);
     
     try {
@@ -286,7 +285,6 @@ export const LendBorrowTableView: React.FC = () => {
       // Update local state
       setIsLendBorrowWidgetHidden(false);
       
-      console.log('Lend & Borrow widget restored, new state:', false);
     } finally {
       setIsRestoringWidget(false);
     }

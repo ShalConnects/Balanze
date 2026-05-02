@@ -115,11 +115,9 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
 
     const handleRefresh = async () => {
         if (refreshLock.current || isRefreshing) {
-            console.log('🔄 Refresh already in progress, skipping...');
             return;
         }
         
-        console.log('🚀 Starting refresh process...');
         const startTime = Date.now();
         refreshLock.current = true;
         setIsRefreshing(true);
@@ -140,7 +138,6 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
         try {
             // Add overall timeout to prevent infinite refreshing
             const overallTimeout = setTimeout(() => {
-                console.log('⏰ Overall refresh timeout reached (15 seconds)');
                 refreshLock.current = false;
                 setIsRefreshing(false);
                 complete();
@@ -157,24 +154,19 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
             ];
             
             // Start all steps immediately
-            console.log('📋 Starting all refresh steps...');
             refreshFunctions.forEach(({ id }) => {
-                console.log(`🔄 Starting step: ${id}`);
                 startStep(id);
             });
             
             // Execute all functions in parallel with timeout protection
-            console.log('⚡ Executing all functions in parallel...');
             const results = await Promise.allSettled(
                 refreshFunctions.map(async ({ fn, id }) => {
                     const functionStartTime = Date.now();
-                    console.log(`🚀 Starting function: ${id}`);
                     
                     try {
                         // Add 8-second timeout per function
                         const timeoutPromise = new Promise((_, reject) => {
                             setTimeout(() => {
-                                console.log(`⏰ Timeout for function: ${id}`);
                                 reject(new Error('Function timeout'));
                             }, 8000);
                         });
@@ -192,21 +184,18 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
                         ]);
                         
                         const functionDuration = Date.now() - functionStartTime;
-                        console.log(`✅ Function ${id} completed in ${functionDuration}ms`);
                         
                         if (result.success) {
                             completeStep(id);
                             announceRefresh(`Completed: ${id}`, 'polite');
                             return { success: true, id };
                         } else {
-                            console.log(`❌ Function ${id} failed:`, result.error);
                             failStep(id, result.error?.message || 'Unknown error');
                             announceRefresh(`Failed: ${id} - ${result.error?.message || 'Unknown error'}`, 'assertive');
                             return { success: false, id, error: result.error };
                         }
                     } catch (error) {
                         const functionDuration = Date.now() - functionStartTime;
-                        console.log(`💥 Function ${id} threw error after ${functionDuration}ms:`, error);
                         failStep(id, error?.message || 'Unknown error');
                         announceRefresh(`Failed: ${id} - ${error?.message || 'Unknown error'}`, 'assertive');
                         return { success: false, id, error };
@@ -215,8 +204,6 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
             );
             
             const totalDuration = Date.now() - startTime;
-            console.log(`🎉 All refresh functions completed in ${totalDuration}ms`);
-            console.log('📊 Results:', results);
             
             window.dispatchEvent(new CustomEvent('dataRefreshed'));
             complete();
@@ -229,7 +216,6 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
             triggerHapticFeedback('success');
         } catch (error) {
             const totalDuration = Date.now() - startTime;
-            console.log(`💥 Refresh failed after ${totalDuration}ms:`, error);
             complete();
             
             recordRefreshError(error instanceof Error ? error.message : 'Unknown error');
@@ -244,7 +230,6 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
             }
             setIsRefreshing(false);
             refreshLock.current = false;
-            console.log('🏁 Refresh process finished');
         }
     };
 

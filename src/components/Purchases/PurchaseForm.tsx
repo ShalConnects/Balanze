@@ -233,7 +233,6 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   };
 
 
-
   // Validation logic
   const validateForm = (dataOverride?: typeof formData, accountIdOverride?: string) => {
     const data = dataOverride || formData;
@@ -389,7 +388,6 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   };
 
   const handleSubmit = wrapAsync(async () => {
-    console.log('🔍 PurchaseForm handleSubmit called');
     if (isLoading || isSubmittingRef.current) return;
     
     // Set submission flag to prevent double submission
@@ -570,7 +568,6 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                 throw new Error('Selected account is not active');
               }
               
-              console.log('🔍 PurchaseForm creating transaction first...');
               try {
                 // Generate transaction_id for the transaction
                 const transactionId = generateTransactionId();
@@ -593,15 +590,12 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                   .single();
                 
                 if (transactionError) {
-                  console.log('❌ Transaction creation failed:', transactionError);
                   throw new Error(transactionError.message);
                 }
                 
-                console.log('✅ Transaction created with ID:', transactionData.id);
                 createdTransactionId = transactionData.id;
                 
                 // Then create the purchase with the transaction_id
-                console.log('🔍 PurchaseForm creating purchase with transaction_id...');
                 await addPurchase({
                   item_name: formData.item_name,
                   category: formData.category,
@@ -615,10 +609,8 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                   transaction_id: transactionData.id
                 });
                 
-                console.log('✅ PurchaseForm purchase created with transaction link');
                 toast.success('Purchase added successfully!');
               } catch (error) {
-                console.log('❌ PurchaseForm error:', error);
                 // Don't cleanup here - let outer catch handle it to avoid double cleanup
                 throw error; // Re-throw to be caught by the outer try-catch
               }
@@ -652,7 +644,6 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
         if (createdTransactionId) {
           try {
             await supabase.from('transactions').delete().eq('id', createdTransactionId);
-            console.log('🧹 Cleaned up orphaned transaction:', createdTransactionId);
           } catch (cleanupError) {
             console.error('❌ Failed to cleanup orphaned transaction:', cleanupError);
           }

@@ -135,7 +135,6 @@ function AppContent() {
   };
   
 
-
   // Initialize theme on app load
   useEffect(() => {
     if (isDarkMode) {
@@ -201,7 +200,6 @@ function AppContent() {
     
     return () => {};
   }, []);
-
 
 
   useEffect(() => {
@@ -389,14 +387,8 @@ function AppContent() {
         
         // Check if this is the OAuth callback
         if (url && url.includes('/auth/callback')) {
-          console.log('[DEEPLINK] ✅ This is an OAuth callback URL');
           try {
-            console.log('[DEEPLINK] 🔄 Parsing URL...');
             const urlObj = new URL(url);
-            console.log('[DEEPLINK] - URL host:', urlObj.host);
-            console.log('[DEEPLINK] - URL pathname:', urlObj.pathname);
-            console.log('[DEEPLINK] - URL hash:', urlObj.hash ? `${urlObj.hash.substring(0, 50)}...` : 'NONE');
-            console.log('[DEEPLINK] - URL search:', urlObj.search ? `${urlObj.search.substring(0, 50)}...` : 'NONE');
             
             // Supabase OAuth uses hash fragments (#access_token=...) not query params
             // Parse hash fragment if present
@@ -406,50 +398,29 @@ function AppContent() {
             
             // Check hash fragment first (Supabase standard)
             if (urlObj.hash) {
-              console.log('[DEEPLINK] 🔍 Parsing hash fragment...');
               const hashParams = new URLSearchParams(urlObj.hash.substring(1)); // Remove '#'
               accessToken = hashParams.get('access_token');
               refreshToken = hashParams.get('refresh_token');
               error = hashParams.get('error') || hashParams.get('error_description');
-              console.log('[DEEPLINK] Hash params parsed:');
-              console.log('[DEEPLINK] - Has access_token?', !!accessToken);
-              console.log('[DEEPLINK] - Has refresh_token?', !!refreshToken);
-              console.log('[DEEPLINK] - Error?', error);
             } else {
-              console.log('[DEEPLINK] ⚠️ No hash fragment in URL');
             }
             
             // Fallback to query params (some OAuth flows use these)
             if (!accessToken && !refreshToken && !error) {
-              console.log('[DEEPLINK] 🔍 Checking query params as fallback...');
               accessToken = urlObj.searchParams.get('access_token');
               refreshToken = urlObj.searchParams.get('refresh_token');
               error = urlObj.searchParams.get('error') || urlObj.searchParams.get('error_description');
-              console.log('[DEEPLINK] Query params parsed:');
-              console.log('[DEEPLINK] - Has access_token?', !!accessToken);
-              console.log('[DEEPLINK] - Has refresh_token?', !!refreshToken);
-              console.log('[DEEPLINK] - Error?', error);
             }
             
-            console.log('[DEEPLINK] 📊 Final token status:', { 
-              hasAccessToken: !!accessToken, 
-              hasRefreshToken: !!refreshToken, 
-              error,
-              accessTokenLength: accessToken?.length || 0,
-              refreshTokenLength: refreshToken?.length || 0
-            });
             
             if (error) {
               console.error('[DEEPLINK] ❌ OAuth error from deep link:', error);
-              console.log('[DEEPLINK] 🔄 Navigating to /auth with error...');
               // Navigate to auth page with error
               window.location.href = '/auth?error=oauth_failed';
               return;
             }
             
             if (accessToken && refreshToken) {
-              console.log('[DEEPLINK] ✅ OAuth tokens found in URL');
-              console.log('[DEEPLINK] 🔄 Setting Supabase session...');
               // Set the session with tokens
               const { data, error: sessionError } = await supabase.auth.setSession({
                 access_token: accessToken,
@@ -458,40 +429,23 @@ function AppContent() {
               
               if (sessionError) {
                 console.error('[DEEPLINK] ❌ Error setting session:', sessionError);
-                console.log('[DEEPLINK] 🔄 Navigating to /auth with session error...');
                 window.location.href = '/auth?error=session_failed';
                 return;
               }
               
-              console.log('[DEEPLINK] ✅ Session set successfully');
-              console.log('[DEEPLINK] - Has user data?', !!data.user);
-              console.log('[DEEPLINK] - User ID:', data.user?.id);
-              console.log('[DEEPLINK] - User email:', data.user?.email);
               
               if (data.user) {
-                console.log('[DEEPLINK] ✅ User authenticated via deep link');
-                console.log('[DEEPLINK] 🔄 Setting user and profile...');
                 const { setUserAndProfile } = useAuthStore.getState();
                 await setUserAndProfile(data.user, null);
-                console.log('[DEEPLINK] ✅ User and profile set');
-                console.log('[DEEPLINK] 🔄 Navigating to /dashboard...');
                 // Navigate to dashboard
                 window.location.href = '/dashboard';
               } else {
                 console.error('[DEEPLINK] ❌ No user data after setting session');
-                console.log('[DEEPLINK] 🔄 Navigating to /auth with no_user error...');
                 window.location.href = '/auth?error=no_user';
               }
             } else {
               // Fallback: Navigate to /auth/callback route with the full URL
               // The AuthCallback component has logic to handle OAuth callbacks
-              console.log('[DEEPLINK] ⚠️ No tokens found in URL params');
-              console.log('[DEEPLINK] 📋 URL details:', { 
-                hash: urlObj.hash ? `${urlObj.hash.substring(0, 100)}...` : 'NONE', 
-                search: urlObj.search ? `${urlObj.search.substring(0, 100)}...` : 'NONE',
-                fullUrl: url.substring(0, 200) + '...'
-              });
-              console.log('[DEEPLINK] 🔄 Redirecting to /auth/callback route...');
               
               // Preserve the hash and search params when navigating
               let callbackUrl = '/auth/callback';
@@ -502,24 +456,17 @@ function AppContent() {
                 callbackUrl += (urlObj.hash ? '' : urlObj.search);
               }
               
-              console.log('[DEEPLINK] Final callback URL:', callbackUrl.substring(0, 200) + '...');
               window.location.href = callbackUrl;
             }
           } catch (error) {
             console.error('[DEEPLINK] ❌ Error handling deep link:', error);
             console.error('[DEEPLINK] Error details:', error instanceof Error ? error.message : String(error));
-            console.log('[DEEPLINK] 🔄 Navigating to /auth with callback_failed error...');
             window.location.href = '/auth?error=callback_failed';
           }
         } else if (url && url.includes('/auth/reset-password')) {
           // Handle password reset deep link
-          console.log('[DEEPLINK] ✅ This is a password reset URL');
           try {
             const urlObj = new URL(url);
-            console.log('[DEEPLINK] 🔄 Processing password reset deep link...');
-            console.log('[DEEPLINK] - URL pathname:', urlObj.pathname);
-            console.log('[DEEPLINK] - URL hash:', urlObj.hash ? `${urlObj.hash.substring(0, 50)}...` : 'NONE');
-            console.log('[DEEPLINK] - URL search:', urlObj.search ? `${urlObj.search.substring(0, 50)}...` : 'NONE');
             
             // Password reset URLs can have tokens in hash or query params
             let accessToken: string | null = null;
@@ -538,10 +485,6 @@ function AppContent() {
               refreshToken = urlObj.searchParams.get('refresh_token');
             }
             
-            console.log('[DEEPLINK] 📊 Password reset token status:', { 
-              hasAccessToken: !!accessToken,
-              hasRefreshToken: !!refreshToken
-            });
             
             // Navigate to reset password page, preserving tokens
             let resetPasswordUrl = '/auth/reset-password';
@@ -551,7 +494,6 @@ function AppContent() {
               resetPasswordUrl += urlObj.search;
             }
             
-            console.log('[DEEPLINK] 🔄 Navigating to reset password page...');
             window.location.href = resetPasswordUrl;
           } catch (error) {
             console.error('[DEEPLINK] ❌ Error handling password reset deep link:', error);
@@ -559,7 +501,6 @@ function AppContent() {
             window.location.href = '/auth?error=reset_failed';
           }
         } else {
-          console.log('[DEEPLINK] ⚠️ URL received but not a recognized auth callback:', url);
         }
       };
       
@@ -590,11 +531,9 @@ function AppContent() {
       console.error('[DEEPLINK] ✅ Deep link listener setup complete');
       
       return () => {
-        console.log('[DEEPLINK] 🧹 Cleaning up deep link listener...');
         listener.then(l => l.remove()).catch(() => {});
       };
     } else {
-      console.log('[DEEPLINK] ⚠️ Not Android platform - skipping deep link setup');
     }
   }, []);
 

@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 import { parseISO } from 'date-fns';
 import { toBusinessDateString } from '../../utils/taskDateUtils';
+import { resolveDefaultCurrency } from '../../utils/usePreferredCurrency';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { TABLE_SUMMARY_CARDS_GRID } from '../common/listPage/listPageLayout';
 import { Tooltip } from '../common/Tooltip';
@@ -147,14 +148,34 @@ const TransactionListComponent: React.FC<{
   const [isSearching, setIsSearching] = useState(false);
 
   // Get this month date range for default
-  const getThisMonthDateRange = () => {
-    const today = new Date();
-    const first = new Date(today.getFullYear(), today.getMonth(), 1);
-    const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const getPresetDateRanges = (baseDate = new Date()) => {
+    const day = baseDate.getDay();
+    const diffToMonday = (day === 0 ? -6 : 1) - day;
+    const monday = new Date(baseDate);
+    monday.setDate(baseDate.getDate() + diffToMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const firstOfMonth = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+    const lastOfMonth = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0);
+    const firstOfLastMonth = new Date(baseDate.getFullYear(), baseDate.getMonth() - 1, 1);
+    const lastOfLastMonth = new Date(baseDate.getFullYear(), baseDate.getMonth(), 0);
+    const firstOfYear = new Date(baseDate.getFullYear(), 0, 1);
+    const lastOfYear = new Date(baseDate.getFullYear(), 11, 31);
+    const today = toBusinessDateString(baseDate);
     return {
-      start: toBusinessDateString(first),
-      end: toBusinessDateString(last)
+      allTime: { start: '', end: '' },
+      today: { start: today, end: today },
+      thisWeek: { start: toBusinessDateString(monday), end: toBusinessDateString(sunday) },
+      thisMonth: { start: toBusinessDateString(firstOfMonth), end: toBusinessDateString(lastOfMonth) },
+      lastMonth: { start: toBusinessDateString(firstOfLastMonth), end: toBusinessDateString(lastOfLastMonth) },
+      thisYear: { start: toBusinessDateString(firstOfYear), end: toBusinessDateString(lastOfYear) }
     };
+  };
+  const isSameDateRange = (range: { start: string; end: string }, preset: { start: string; end: string }) =>
+    range.start === preset.start && range.end === preset.end;
+
+  const getThisMonthDateRange = () => {
+    return getPresetDateRanges().thisMonth;
   };
 
   // Function to get readable date range label
@@ -163,59 +184,25 @@ const TransactionListComponent: React.FC<{
       return 'All Time';
     }
 
-    const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const presets = getPresetDateRanges();
 
-    // Check if it's today
-    if (filters.dateRange.start === todayStr && filters.dateRange.end === todayStr) {
+    if (isSameDateRange(filters.dateRange, presets.today)) {
       return 'Today';
     }
 
-    // Check if it's this week
-    const day = today.getDay();
-    const diffToMonday = (day === 0 ? -6 : 1) - day;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + diffToMonday);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    
-    const mondayStr = monday.toISOString().slice(0, 10);
-    const sundayStr = sunday.toISOString().slice(0, 10);
-    
-    if (filters.dateRange.start === mondayStr && filters.dateRange.end === sundayStr) {
+    if (isSameDateRange(filters.dateRange, presets.thisWeek)) {
       return 'This Week';
     }
 
-    // Check if it's this month
-    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    
-    const firstOfMonthStr = firstOfMonth.toISOString().slice(0, 10);
-    const lastOfMonthStr = lastOfMonth.toISOString().slice(0, 10);
-    
-    if (filters.dateRange.start === firstOfMonthStr && filters.dateRange.end === lastOfMonthStr) {
+    if (isSameDateRange(filters.dateRange, presets.thisMonth)) {
       return 'This Month';
     }
 
-    // Check if it's last month
-    const firstOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const lastOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-    
-    const firstOfLastMonthStr = firstOfLastMonth.toISOString().slice(0, 10);
-    const lastOfLastMonthStr = lastOfLastMonth.toISOString().slice(0, 10);
-    
-    if (filters.dateRange.start === firstOfLastMonthStr && filters.dateRange.end === lastOfLastMonthStr) {
+    if (isSameDateRange(filters.dateRange, presets.lastMonth)) {
       return 'Last Month';
     }
 
-    // Check if it's this year
-    const firstOfYear = new Date(today.getFullYear(), 0, 1);
-    const lastOfYear = new Date(today.getFullYear(), 11, 31);
-    
-    const firstOfYearStr = firstOfYear.toISOString().slice(0, 10);
-    const lastOfYearStr = lastOfYear.toISOString().slice(0, 10);
-    
-    if (filters.dateRange.start === firstOfYearStr && filters.dateRange.end === lastOfYearStr) {
+    if (isSameDateRange(filters.dateRange, presets.thisYear)) {
       return 'This Year';
     }
 
@@ -229,48 +216,21 @@ const TransactionListComponent: React.FC<{
       return 'allTime';
     }
 
-    const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const presets = getPresetDateRanges();
 
-    // Check if it's today
-    if (filters.dateRange.start === todayStr && filters.dateRange.end === todayStr) {
+    if (isSameDateRange(filters.dateRange, presets.today)) {
       return 'today';
     }
 
-    // Check if it's this week
-    const day = today.getDay();
-    const diffToMonday = (day === 0 ? -6 : 1) - day;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + diffToMonday);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    
-    const mondayStr = monday.toISOString().slice(0, 10);
-    const sundayStr = sunday.toISOString().slice(0, 10);
-    
-    if (filters.dateRange.start === mondayStr && filters.dateRange.end === sundayStr) {
+    if (isSameDateRange(filters.dateRange, presets.thisWeek)) {
       return 'week';
     }
 
-    // Check if it's this month
-    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    
-    const firstOfMonthStr = firstOfMonth.toISOString().slice(0, 10);
-    const lastOfMonthStr = lastOfMonth.toISOString().slice(0, 10);
-    
-    if (filters.dateRange.start === firstOfMonthStr && filters.dateRange.end === lastOfMonthStr) {
+    if (isSameDateRange(filters.dateRange, presets.thisMonth)) {
       return 'month';
     }
 
-    // Check if it's this year
-    const firstOfYear = new Date(today.getFullYear(), 0, 1);
-    const lastOfYear = new Date(today.getFullYear(), 11, 31);
-    
-    const firstOfYearStr = firstOfYear.toISOString().slice(0, 10);
-    const lastOfYearStr = lastOfYear.toISOString().slice(0, 10);
-    
-    if (filters.dateRange.start === firstOfYearStr && filters.dateRange.end === lastOfYearStr) {
+    if (isSameDateRange(filters.dateRange, presets.thisYear)) {
       return 'year';
     }
 
@@ -285,8 +245,8 @@ const TransactionListComponent: React.FC<{
     switch (filterType) {
       case 'today':
         return {
-          start: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1).toISOString().slice(0, 10),
-          end: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1).toISOString().slice(0, 10),
+          start: toBusinessDateString(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)),
+          end: toBusinessDateString(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)),
           label: 'yesterday'
         };
       case 'week':
@@ -299,24 +259,24 @@ const TransactionListComponent: React.FC<{
         const lastWeekSunday = new Date(lastWeekMonday);
         lastWeekSunday.setDate(lastWeekMonday.getDate() + 6);
         return {
-          start: lastWeekMonday.toISOString().slice(0, 10),
-          end: lastWeekSunday.toISOString().slice(0, 10),
+          start: toBusinessDateString(lastWeekMonday),
+          end: toBusinessDateString(lastWeekSunday),
           label: 'last week'
         };
       case 'month':
         const firstOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const lastOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
         return {
-          start: firstOfLastMonth.toISOString().slice(0, 10),
-          end: lastOfLastMonth.toISOString().slice(0, 10),
+          start: toBusinessDateString(firstOfLastMonth),
+          end: toBusinessDateString(lastOfLastMonth),
           label: 'last month'
         };
       case 'year':
         const firstOfLastYear = new Date(today.getFullYear() - 1, 0, 1);
         const lastOfLastYear = new Date(today.getFullYear() - 1, 11, 31);
         return {
-          start: firstOfLastYear.toISOString().slice(0, 10),
-          end: lastOfLastYear.toISOString().slice(0, 10),
+          start: toBusinessDateString(firstOfLastYear),
+          end: toBusinessDateString(lastOfLastYear),
           label: 'last year'
         };
       case 'custom':
@@ -327,8 +287,8 @@ const TransactionListComponent: React.FC<{
         const comparisonEnd = new Date(currentStart.getTime() - 1);
         const comparisonStart = new Date(comparisonEnd.getTime() - (rangeLength * 24 * 60 * 60 * 1000));
         return {
-          start: comparisonStart.toISOString().slice(0, 10),
-          end: comparisonEnd.toISOString().slice(0, 10),
+          start: toBusinessDateString(comparisonStart),
+          end: toBusinessDateString(comparisonEnd),
           label: 'previous period'
         };
       default:
@@ -795,7 +755,11 @@ const TransactionListComponent: React.FC<{
 
 
   // Always use a valid currency code for formatting
-  const selectedCurrency = filters.currency || accountCurrencies[0] || 'USD';
+  const resolvedDefaultCurrency = React.useMemo(() => {
+    return resolveDefaultCurrency(currencyOptions, profile?.local_currency);
+  }, [profile?.local_currency, currencyOptions]);
+
+  const selectedCurrency = filters.currency || resolvedDefaultCurrency || 'USD';
 
   // Lifetime totals strictly by selected currency (unaffected by filters)
   const lifetimeTotalsByCurrency = useMemo(() => {
@@ -815,12 +779,12 @@ const TransactionListComponent: React.FC<{
     return totals;
   }, [activeTransactions, selectedCurrency, accounts]);
 
-  // Set default currency filter to user's local_currency if available and valid
+  // Set default currency filter to a resolved valid default
   React.useEffect(() => {
-    if (!filters.currency && profile?.local_currency && accountCurrencies.includes(profile.local_currency)) {
-      setFilters(f => ({ ...f, currency: profile.local_currency || '' }));
+    if (!filters.currency && resolvedDefaultCurrency) {
+      setFilters(f => ({ ...f, currency: resolvedDefaultCurrency }));
     }
-  }, [profile, accountCurrencies, filters.currency]);
+  }, [resolvedDefaultCurrency, filters.currency]);
 
   // Click outside handler for currency menu
   React.useEffect(() => {
@@ -1139,8 +1103,8 @@ const TransactionListComponent: React.FC<{
               isModifiedWithinWindow(t.updated_at, filterType === 'today' ? 1 : 7);
             
             // For "this month" filter, use the same logic as Dashboard
-            if (filters.dateRange.start === new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10) &&
-                filters.dateRange.end === new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10)) {
+            const thisMonthRange = getPresetDateRanges(today).thisMonth;
+            if (isSameDateRange(filters.dateRange, thisMonthRange)) {
               // This is "this month" filter - use same timezone logic as Dashboard
               const localStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
               const localEndDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -1251,46 +1215,29 @@ const TransactionListComponent: React.FC<{
     }
     setShowCustomModal(false);
     let start = '', end = '';
+    const presets = getPresetDateRanges(today);
     switch (preset) {
       case 'today':
-        start = toBusinessDateString(today);
-        end = toBusinessDateString(today);
+        ({ start, end } = presets.today);
         break;
       case 'thisWeek': {
-        const day = today.getDay();
-        const diffToMonday = (day === 0 ? -6 : 1) - day;
-        const monday = new Date(today);
-        monday.setDate(today.getDate() + diffToMonday);
-        const sunday = new Date(monday);
-        sunday.setDate(monday.getDate() + 6);
-        start = toBusinessDateString(monday);
-        end = toBusinessDateString(sunday);
+        ({ start, end } = presets.thisWeek);
         break;
       }
       case 'thisMonth': {
-        const first = new Date(today.getFullYear(), today.getMonth(), 1);
-        const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        start = toBusinessDateString(first);
-        end = toBusinessDateString(last);
+        ({ start, end } = presets.thisMonth);
         break;
       }
       case 'lastMonth': {
-        const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const last = new Date(today.getFullYear(), today.getMonth(), 0);
-        start = toBusinessDateString(first);
-        end = toBusinessDateString(last);
+        ({ start, end } = presets.lastMonth);
         break;
       }
       case 'thisYear': {
-        const first = new Date(today.getFullYear(), 0, 1);
-        const last = new Date(today.getFullYear(), 11, 31);
-        start = toBusinessDateString(first);
-        end = toBusinessDateString(last);
+        ({ start, end } = presets.thisYear);
         break;
       }
       case 'allTime':
-        start = '';
-        end = '';
+        ({ start, end } = presets.allTime);
         break;
       default:
         break;
@@ -1535,7 +1482,7 @@ const TransactionListComponent: React.FC<{
                   }`}
                   style={filters.currency ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                 >
-                  <span>{filters.currency === '' ? (currencyOptions[0] || '') : filters.currency}</span>
+                  <span>{filters.currency || resolvedDefaultCurrency}</span>
                   <svg className="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                   </svg>
@@ -1841,7 +1788,7 @@ const TransactionListComponent: React.FC<{
                 </div>
               </>
             )}
-            {(filters.search || filters.type !== 'all' || filters.account !== 'all' || (filters.currency && filters.currency !== (profile?.local_currency || 'USD')) || getDateRangeLabel() !== 'This Month' || filters.showModifiedOnly || filters.showRecurringOnly) && (
+            {(filters.search || filters.type !== 'all' || filters.account !== 'all' || (filters.currency && filters.currency !== (resolvedDefaultCurrency || 'USD')) || getDateRangeLabel() !== 'This Month' || filters.showModifiedOnly || filters.showRecurringOnly) && (
               <button
                 onClick={() => setFilters({ search: '', type: 'all', account: 'all', currency: '', dateRange: getThisMonthDateRange(), showModifiedOnly: false, recentlyModifiedDays: 7, showRecurringOnly: false, pagination: { ...filters.pagination, currentPage: 1 } })}
                 className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
@@ -4226,9 +4173,7 @@ const TransactionListComponent: React.FC<{
                 <button
                   onClick={(e) => { 
                     e.stopPropagation(); 
-                    const today = new Date();
-                    const todayStr = today.toISOString().slice(0, 10);
-                    setTempFilters({ ...tempFilters, dateRange: { start: todayStr, end: todayStr } }); 
+                    setTempFilters({ ...tempFilters, dateRange: getPresetDateRanges().today }); 
                   }}
                   className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                     tempFilters.dateRange.start && tempFilters.dateRange.end && tempFilters.dateRange.start === tempFilters.dateRange.end
@@ -4241,34 +4186,14 @@ const TransactionListComponent: React.FC<{
                 <button
                   onClick={(e) => { 
                     e.stopPropagation(); 
-                    const today = new Date();
-                    const day = today.getDay();
-                    const diffToMonday = (day === 0 ? -6 : 1) - day;
-                    const monday = new Date(today);
-                    monday.setDate(today.getDate() + diffToMonday);
-                    const sunday = new Date(monday);
-                    sunday.setDate(monday.getDate() + 6);
                     setTempFilters({ 
                       ...tempFilters, 
-                      dateRange: { 
-                        start: monday.toISOString().slice(0, 10), 
-                        end: sunday.toISOString().slice(0, 10) 
-                      } 
+                      dateRange: getPresetDateRanges().thisWeek
                     }); 
                   }}
                   className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                     tempFilters.dateRange.start && tempFilters.dateRange.end && 
-                    (() => {
-                      const today = new Date();
-                      const day = today.getDay();
-                      const diffToMonday = (day === 0 ? -6 : 1) - day;
-                      const monday = new Date(today);
-                      monday.setDate(today.getDate() + diffToMonday);
-                      const sunday = new Date(monday);
-                      sunday.setDate(monday.getDate() + 6);
-                      return tempFilters.dateRange.start === monday.toISOString().slice(0, 10) && 
-                             tempFilters.dateRange.end === sunday.toISOString().slice(0, 10);
-                    })()
+                    isSameDateRange(tempFilters.dateRange, getPresetDateRanges().thisWeek)
                       ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
                       : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}
@@ -4278,26 +4203,14 @@ const TransactionListComponent: React.FC<{
                 <button
                   onClick={(e) => { 
                     e.stopPropagation(); 
-                    const today = new Date();
-                    const first = new Date(today.getFullYear(), today.getMonth(), 1);
-                    const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
                     setTempFilters({ 
                       ...tempFilters, 
-                      dateRange: { 
-                        start: first.toISOString().slice(0, 10), 
-                        end: last.toISOString().slice(0, 10) 
-                      } 
+                      dateRange: getPresetDateRanges().thisMonth
                     }); 
                   }}
                   className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                     tempFilters.dateRange.start && tempFilters.dateRange.end && 
-                    (() => {
-                      const today = new Date();
-                      const first = new Date(today.getFullYear(), today.getMonth(), 1);
-                      const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                      return tempFilters.dateRange.start === first.toISOString().slice(0, 10) && 
-                             tempFilters.dateRange.end === last.toISOString().slice(0, 10);
-                    })()
+                    isSameDateRange(tempFilters.dateRange, getPresetDateRanges().thisMonth)
                       ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
                       : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}

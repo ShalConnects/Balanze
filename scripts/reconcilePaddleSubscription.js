@@ -55,7 +55,6 @@ async function main() {
     });
   if (historyError) throw historyError;
 
-  console.log(JSON.stringify({ ok: true, userId, paddleSubscriptionId, subscription }, null, 2));
 }
 
 main().catch((err) => {

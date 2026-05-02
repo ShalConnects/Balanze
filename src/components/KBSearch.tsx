@@ -495,7 +495,6 @@ export default function KBSearch({ className }: KBSearchProps) {
       const searchResult = filteredArticles.find(a => a.slug === article.slug);
       if (searchResult) {
         // This would be enhanced to track the specific search event
-        console.log('Article clicked from search:', article.title);
       }
     }
   };

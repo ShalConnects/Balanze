@@ -3,13 +3,11 @@ const CACHE_NAME = 'balanze-v1';
 
 // Install event - cache critical resources
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing...');
   self.skipWaiting();
 });
 
 // Activate event
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating...');
   event.waitUntil(self.clients.claim());
 });
 

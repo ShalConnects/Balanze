@@ -472,7 +472,6 @@ export default async function handler(req, res) {
     const year = req.body?.year || new Date().getFullYear() - 1;
     const batchSize = req.body?.batchSize || 10;
     
-    console.log(`Starting year summary email campaign for year ${year}...`);
     
     // Get all users
     const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
@@ -489,7 +488,6 @@ export default async function handler(req, res) {
       });
     }
     
-    console.log(`Found ${users.users.length} users. Processing in batches of ${batchSize}...`);
     
     const results = {
       total: users.users.length,
@@ -501,7 +499,6 @@ export default async function handler(req, res) {
     // Process in batches
     for (let i = 0; i < users.users.length; i += batchSize) {
       const batch = users.users.slice(i, i + batchSize);
-      console.log(`Processing batch ${Math.floor(i / batchSize) + 1} (users ${i + 1}-${Math.min(i + batchSize, users.users.length)})...`);
       
       // Process batch in parallel
       const batchResults = await Promise.allSettled(
@@ -525,7 +522,6 @@ export default async function handler(req, res) {
         }
       });
       
-      console.log(`Batch complete. Progress: ${results.sent} sent, ${results.failed} failed`);
       
       // Small delay between batches to avoid overwhelming the system
       if (i + batchSize < users.users.length) {
@@ -533,7 +529,6 @@ export default async function handler(req, res) {
       }
     }
     
-    console.log(`Year summary campaign complete! Sent: ${results.sent}, Failed: ${results.failed}`);
     
     return res.status(200).json({
       success: true,

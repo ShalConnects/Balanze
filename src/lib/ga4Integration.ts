@@ -66,7 +66,6 @@ class GA4Tracker {
     this.isInitialized = true;
     
     if (this.config.debug) {
-      console.log('🔍 GA4 initialized with config:', this.config);
     }
   }
 
@@ -81,7 +80,6 @@ class GA4Tracker {
     });
 
     if (this.config.debug) {
-      console.log('📊 GA4 Page View:', { pagePath, pageTitle });
     }
   }
 
@@ -214,7 +212,6 @@ class GA4Tracker {
     window.gtag('event', eventName, eventPayload);
 
     if (this.config.debug) {
-      console.log('📈 GA4 Event:', eventName, eventPayload);
     }
   }
 
@@ -227,7 +224,6 @@ class GA4Tracker {
     });
 
     if (this.config.debug) {
-      console.log('👤 GA4 User Properties:', properties);
     }
   }
 
@@ -240,7 +236,6 @@ class GA4Tracker {
     });
 
     if (this.config.debug) {
-      console.log('📏 GA4 Custom Dimensions:', dimensions);
     }
   }
 

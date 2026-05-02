@@ -68,12 +68,6 @@ class SEOAnalyticsTracker {
     // Send to analytics service (in production, this would be your analytics API)
     this.sendToAnalytics('internal_link_click', click);
     
-    console.log('🔗 Internal link tracked:', {
-      from: sourceSlug,
-      to: targetSlug,
-      text: linkText,
-      context: linkContext
-    });
   }
 
   // Track page views
@@ -215,7 +209,6 @@ class SEOAnalyticsTracker {
     // In production, this would send to your analytics service
     // For now, we'll just log it
     if (import.meta.env.DEV) {
-      console.log(`📊 SEO Analytics: ${event}`, data);
     }
     
     // Example: Send to Google Analytics, Mixpanel, or your custom analytics

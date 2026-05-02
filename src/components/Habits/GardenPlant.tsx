@@ -44,13 +44,6 @@ export const GardenPlant: React.FC<GardenPlantProps> = ({ habit, size = 'md' }) 
   const stage = getPlantStage(displayStreak);
   const colorClasses = getColorClasses(habit.color);
   
-  console.log(`[GardenPlant] Habit "${habit.title}" (${habit.id}):`, {
-    currentStreak: streak,
-    bestStreakInLast14Days,
-    displayStreak,
-    dying,
-    stage
-  });
 
   const sizeClasses = {
     sm: 'w-12 h-12',

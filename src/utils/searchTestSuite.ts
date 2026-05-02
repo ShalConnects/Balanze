@@ -31,7 +31,6 @@ class SearchTestSuite {
     const startTime = performance.now();
     this.testResults = [];
 
-    console.log('🔍 Starting Search Test Suite...');
 
     // Test unified search service
     await this.testUnifiedSearchService();
@@ -67,7 +66,6 @@ class SearchTestSuite {
       totalDuration
     };
 
-    console.log(`✅ Search Test Suite Complete: ${passedTests}/${this.testResults.length} tests passed in ${totalDuration.toFixed(2)}ms`);
     
     return suite;
   }
@@ -469,7 +467,6 @@ class SearchTestSuite {
         details: result
       });
       
-      console.log(`✅ ${testName} - ${duration.toFixed(2)}ms`);
     } catch (error) {
       const duration = performance.now() - startTime;
       

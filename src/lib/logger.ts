@@ -33,15 +33,13 @@ class Logger {
   }
 
   debug(message: string, ...args: any[]): void {
-    if (this.shouldLog('debug')) {
-      console.debug(`[DEBUG] ${message}`, ...args);
-    }
+    void message;
+    void args;
   }
 
   info(message: string, ...args: any[]): void {
-    if (this.shouldLog('info')) {
-      console.info(`[INFO] ${message}`, ...args);
-    }
+    void message;
+    void args;
   }
 
   warn(message: string, ...args: any[]): void {

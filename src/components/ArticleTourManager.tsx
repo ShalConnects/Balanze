@@ -23,12 +23,10 @@ interface TourOption {
 
 // Generate tour options from help center articles
 function generateTourOptions(): TourOption[] {
-  console.log('ArticleTourManager: Generating tour options...');
   const options: TourOption[] = [];
   
   // Getting Started tours
   if (MOCK_ARTICLES['getting-started-guide']) {
-    console.log('ArticleTourManager: Found getting-started-guide article');
     options.push({
       id: 'getting-started',
       title: 'Getting Started with Balanze',
@@ -40,7 +38,6 @@ function generateTourOptions(): TourOption[] {
       estimatedTime: '5-10 min'
     });
   } else {
-    console.log('ArticleTourManager: getting-started-guide article NOT found');
   }
 
   // Account Management tours
@@ -99,23 +96,18 @@ function generateTourOptions(): TourOption[] {
     });
   }
 
-  console.log('ArticleTourManager: Generated', options.length, 'tour options:', options);
   return options;
 }
 
 export default function ArticleTourManager({ className = '' }: ArticleTourManagerProps) {
-  console.log('ArticleTourManager: Component rendering...');
   const [selectedTour, setSelectedTour] = useState<string | null>(null);
   const [showTour, setShowTour] = useState(false);
   const [tourOptions] = useState<TourOption[]>(generateTourOptions());
   const navigate = useNavigate();
 
-  console.log('ArticleTourManager: Tour options state:', tourOptions);
 
   const handleStartTour = (tourId: string) => {
-    console.log('ArticleTourManager: Starting tour', tourId);
     const tour = tourOptions.find(t => t.id === tourId);
-    console.log('ArticleTourManager: Tour details', tour);
     setSelectedTour(tourId);
     setShowTour(true);
   };
@@ -222,11 +214,6 @@ export default function ArticleTourManager({ className = '' }: ArticleTourManage
       {/* Article-Based Tour Component */}
       {showTour && selectedTour && (
         <>
-          {console.log('ArticleTourManager: Rendering ArticleBasedTour with:', {
-            showTour,
-            selectedTour,
-            articleSlug: tourOptions.find(t => t.id === selectedTour)?.articleSlug
-          })}
           <ArticleBasedTour
             articleSlug={tourOptions.find(t => t.id === selectedTour)?.articleSlug}
             isOpen={showTour}

@@ -50,7 +50,6 @@ async function main() {
       String(latest?.payment_method || '').toLowerCase().includes('downgrade'),
   };
 
-  console.log(JSON.stringify({ userId, profileData, historyData, diagnostics }, null, 2));
 }
 
 main().catch((error) => {

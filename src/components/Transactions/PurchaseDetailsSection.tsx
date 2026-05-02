@@ -130,13 +130,11 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
   // Handle native file picker for Android
   const handleNativeFileUpload = async () => {
     try {
-      console.log('[FilePicker] Starting file picker...');
       const result = await FilePicker.pickFiles({
         multiple: false,
         types: ['application/pdf', 'image/*', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain'],
         readData: true
       });
-      console.log('[FilePicker] File picker result:', result);
 
       if (result.files && result.files.length > 0) {
         const pickedFile = result.files[0];

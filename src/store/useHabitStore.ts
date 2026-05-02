@@ -731,14 +731,9 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       .map(c => normalizeDate(c.completion_date))
       .sort((a, b) => b.getTime() - a.getTime()); // Most recent first
 
-    console.log(`[isDying] Habit ${habitId}:`, {
-      totalCompletions: habitCompletions.length,
-      habitCompletions: habitCompletions.map(d => toBusinessDateString(d))
-    });
 
     // Never show as dying if there are no completions at all
     if (habitCompletions.length === 0) {
-      console.log(`[isDying] Habit ${habitId}: No completions, returning false`);
       return false;
     }
 
@@ -751,15 +746,9 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       d => d.getTime() >= fourteenDaysAgo.getTime()
     );
 
-    console.log(`[isDying] Habit ${habitId}:`, {
-      today: toBusinessDateString(today),
-      fourteenDaysAgo: toBusinessDateString(fourteenDaysAgo),
-      hasRecentActivity
-    });
 
     // Never show as dying if there's no recent activity (older than 14 days)
     if (!hasRecentActivity) {
-      console.log(`[isDying] Habit ${habitId}: No recent activity (14+ days), returning false`);
       return false;
     }
 
@@ -772,15 +761,9 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       (today.getTime() - mostRecentCompletion.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    console.log(`[isDying] Habit ${habitId}:`, {
-      currentStreak,
-      mostRecentCompletion: toBusinessDateString(mostRecentCompletion),
-      daysSinceLastCompletion
-    });
 
     // Safeguard: If completion is in the future (shouldn't happen, but handle gracefully)
     if (daysSinceLastCompletion < 0) {
-      console.log(`[isDying] Habit ${habitId}: Future date detected, returning false`);
       return false;
     }
 
@@ -792,14 +775,11 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
     if (currentStreak === 0) {
       // If streak is 0 and last completion was yesterday or earlier, streak is broken
       result = daysSinceLastCompletion >= 1;
-      console.log(`[isDying] Habit ${habitId}: Streak is 0, daysSinceLastCompletion=${daysSinceLastCompletion}, result=${result}`);
     } else {
       // For low streaks (1-2), show as dying if missing 2+ days
       result = currentStreak < 3 && daysSinceLastCompletion >= 2;
-      console.log(`[isDying] Habit ${habitId}: Streak=${currentStreak}, daysSinceLastCompletion=${daysSinceLastCompletion}, result=${result}`);
     }
 
-    console.log(`[isDying] Habit ${habitId}: Final result = ${result}`);
     return result;
   },
 

@@ -1041,7 +1041,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Message and userId are required' });
     }
 
-    console.log('Processing chat request:', { message: message.substring(0, 50), userId });
 
     // Gather user context
     const userContext = await gatherUserContext(userId);
@@ -1051,10 +1050,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to gather user context' });
     }
 
-    console.log('User context gathered:', {
-      accountCount: userContext.accounts.length,
-      transactionCount: userContext.transactions.length,
-    });
 
     // Generate response using rule-based system
     let response;

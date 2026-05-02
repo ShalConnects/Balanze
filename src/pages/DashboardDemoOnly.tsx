@@ -1802,7 +1802,6 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
   useEffect(() => {
     if (dashboardLoading && user) {
       const timeoutId = setTimeout(() => {
-        console.log('Dashboard: Force clearing loading state after timeout');
         setDashboardLoading(false);
       }, 10000);
       

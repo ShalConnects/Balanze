@@ -269,7 +269,6 @@ export function saveSitemapToFile(
     const sitemapPath = path.join(publicDir, filename);
     
     fs.writeFileSync(sitemapPath, sitemapContent, 'utf8');
-    console.log(`✅ Sitemap saved to: ${sitemapPath}`);
   } else {
     // Browser environment - download the file
     const blob = new Blob([sitemapContent], { type: 'application/xml' });

@@ -347,7 +347,6 @@ export class UnifiedSearchService {
    */
   trackResultClick(result: any, itemType: string, itemId: string, itemTitle: string): void {
     // Fallback implementation - no analytics tracking
-    console.log('Search result clicked:', { itemType, itemId, itemTitle });
   }
 
   /**
@@ -355,7 +354,6 @@ export class UnifiedSearchService {
    */
   trackSuggestionUsage(originalQuery: string, suggestion: string): void {
     // Fallback implementation - no analytics tracking
-    console.log('Suggestion used:', { originalQuery, suggestion });
   }
 }
 

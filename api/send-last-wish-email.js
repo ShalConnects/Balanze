@@ -1609,7 +1609,6 @@ async function createPDFFromHTML(user, recipient, data, settings) {
   let browser;
   let puppeteer;
   try {
-    console.log('[PDF] Starting Puppeteer PDF generation...');
     // Dynamically import puppeteer-core (lighter, no bundled Chromium)
     puppeteer = await import('puppeteer-core').then(m => m.default).catch(() => null);
     if (!puppeteer) {
@@ -1654,12 +1653,6 @@ async function createPDFFromHTML(user, recipient, data, settings) {
           }
         });
         
-        console.log('[PDF] Using @sparticuz/chromium for Vercel:', {
-          executablePath: executablePath ? (executablePath.length > 100 ? '...' + executablePath.slice(-100) : executablePath) : 'NOT SET',
-          argsCount: chromiumArgs.length,
-          hasExecutable: !!executablePath,
-          chromiumType: typeof chromium
-        });
         
         if (!executablePath) {
           throw new Error('Failed to get chromium executable path from @sparticuz/chromium');
@@ -1681,7 +1674,6 @@ async function createPDFFromHTML(user, recipient, data, settings) {
       // Check if CHROME_PATH is explicitly set
       if (process.env.CHROME_PATH) {
         executablePath = process.env.CHROME_PATH;
-        console.log('[PDF] Using Chrome from CHROME_PATH:', executablePath);
       } else {
         // Try common Chrome/Chromium locations
         const { existsSync } = await import('fs');
@@ -1697,7 +1689,6 @@ async function createPDFFromHTML(user, recipient, data, settings) {
         for (const path of possiblePaths) {
           if (existsSync(path)) {
             executablePath = path;
-            console.log('[PDF] Using system Chrome:', executablePath);
             break;
           }
         }
@@ -1762,7 +1753,6 @@ async function createPDFFromHTML(user, recipient, data, settings) {
       footerTemplate: '<div style="font-size: 8px; color: #6b7280; width: 100%; text-align: center; padding: 10px;"><span class="pageNumber"></span> of <span class="totalPages"></span> | Generated: ' + new Date().toLocaleDateString() + ' | Balanze Last Wish System | Method: HTML-to-PDF</div>'
     });
     
-    console.log('[PDF] PDF generated successfully, size:', pdfBuffer.length, 'bytes');
     await browser.close();
     return pdfBuffer;
   } catch (error) {
@@ -2049,10 +2039,7 @@ function createPDFHTMLContent(user, recipient, data, settings) {
 export async function createPDFBuffer(user, recipient, data, settings) {
   // Use PDFKit directly for reliable PDF generation on all platforms (including Vercel)
   // Puppeteer is disabled due to library dependency issues in serverless environments
-  console.log('[PDF] Generating PDF using PDFKit (reliable on all platforms)...');
   const pdfBuffer = await createPDFBufferLegacy(user, recipient, data, settings);
-  console.log('[PDF] ✅ Successfully generated PDF using PDFKit');
-  console.log('[PDF] PDF size:', pdfBuffer.length, 'bytes');
   return pdfBuffer;
 }
 
@@ -3023,7 +3010,6 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
   };
 
   if (isTargetUser) {
-    console.log(`[SEND-DATA-TO-RECIPIENT] 🎯 Starting for target user, recipient: ${recipient.name} (${recipient.email})`);
   }
 
   // Validate recipient email before attempting to send
@@ -3040,7 +3026,6 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
   }
 
   if (isTargetUser) {
-    console.log(`[SEND-DATA-TO-RECIPIENT] ✅ Email validated successfully`);
   }
 
   // Use retry mechanism for sending email
@@ -3048,41 +3033,30 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
     async () => {
   try {
     if (isTargetUser) {
-      console.log(`[SEND-DATA-TO-RECIPIENT] Filtering data based on settings...`);
     }
     
     // Filter data based on user preferences
     const filteredData = filterDataBySettings(userData, normalizeIncludeData(settings.include_data));
 
     if (isTargetUser) {
-      console.log(`[SEND-DATA-TO-RECIPIENT] Creating email content...`);
     }
 
     // Create email content
     const emailContent = createEmailContent(user, recipient, filteredData, settings, isTestMode);
 
     if (isTargetUser) {
-      console.log(`[SEND-DATA-TO-RECIPIENT] Generating PDF...`);
     }
 
     // Generate PDF
     const pdfBuffer = await createPDFBuffer(user, recipient, filteredData, settings);
 
     if (isTargetUser) {
-      console.log(`[SEND-DATA-TO-RECIPIENT] PDF generated, size: ${pdfBuffer.length} bytes`);
     }
 
     // Get user's display name for subject
     const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || user.email;
 
     if (isTargetUser) {
-      console.log(`[SEND-DATA-TO-RECIPIENT] Preparing email:`, {
-        from: process.env.SMTP_USER,
-        to: recipient.email,
-        subject: `${isTestMode ? '🧪 Test - ' : ''}Last Wish Delivery from ${userName}`,
-        hasPDF: !!pdfBuffer,
-        pdfSize: pdfBuffer?.length || 0
-      });
     }
 
     // Send email
@@ -3101,16 +3075,11 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
     };
 
     if (isTargetUser) {
-      console.log(`[SEND-DATA-TO-RECIPIENT] 📤 Sending email via SMTP...`);
     }
 
     const result = await transporter.sendMail(mailOptions);
 
     if (isTargetUser) {
-      console.log(`[SEND-DATA-TO-RECIPIENT] ✅ Email sent successfully!`, {
-        messageId: result.messageId,
-        response: result.response
-      });
     }
 
         // Log successful delivery
@@ -3186,8 +3155,6 @@ async function sendLastWishEmail(userId, testMode = false) {
   const isTargetUser = userId === TARGET_USER_ID;
 
   if (isTargetUser) {
-    console.log(`[SEND-LAST-WISH-EMAIL] 🎯 STARTING for target user: ${userId}`);
-    console.log(`[SEND-LAST-WISH-EMAIL] Test mode: ${testMode}`);
   }
 
   try {
@@ -3205,12 +3172,10 @@ async function sendLastWishEmail(userId, testMode = false) {
     }
 
     if (isTargetUser) {
-      console.log(`[SEND-LAST-WISH-EMAIL] ✅ SMTP transporter is configured`);
     }
 
     // Get user's Last Wish settings with retry
     if (isTargetUser) {
-      console.log(`[SEND-LAST-WISH-EMAIL] Fetching settings for target user...`);
     }
     
     // First, atomically mark as triggered to prevent duplicate sends
@@ -3233,7 +3198,6 @@ async function sendLastWishEmail(userId, testMode = false) {
     // If no rows were updated, it means delivery_triggered was already true
     if (!lockData || lockData.length === 0) {
       if (isTargetUser) {
-        console.log(`[SEND-LAST-WISH-EMAIL] ⚠️ Settings already marked as triggered, skipping to prevent duplicates`);
       }
       return {
         success: false,
@@ -3258,14 +3222,6 @@ async function sendLastWishEmail(userId, testMode = false) {
     }
         
         if (isTargetUser) {
-          console.log(`[SEND-LAST-WISH-EMAIL] ✅ Settings found:`, {
-            is_enabled: data.is_enabled,
-            is_active: data.is_active,
-            delivery_triggered: data.delivery_triggered,
-            recipient_count: data.recipients?.length || 0,
-            check_in_frequency: data.check_in_frequency,
-            last_check_in: data.last_check_in
-          });
         }
         
         return data;
@@ -3326,7 +3282,6 @@ async function sendLastWishEmail(userId, testMode = false) {
 
     // Gather user data with error logging
     if (isTargetUser) {
-      console.log(`[SEND-LAST-WISH-EMAIL] Gathering user data...`);
     }
     
     let userData;
@@ -3334,13 +3289,6 @@ async function sendLastWishEmail(userId, testMode = false) {
       userData = await gatherUserData(userId);
       
       if (isTargetUser) {
-        console.log(`[SEND-LAST-WISH-EMAIL] ✅ User data gathered:`, {
-          accounts: userData.accounts?.length || 0,
-          transactions: userData.transactions?.length || 0,
-          purchases: userData.purchases?.length || 0,
-          lendBorrow: userData.lendBorrow?.length || 0,
-          savings: userData.donationSavings?.length || 0
-        });
       }
     } catch (dataError) {
       if (isTargetUser) {
@@ -3356,23 +3304,16 @@ async function sendLastWishEmail(userId, testMode = false) {
     // Send emails to all valid recipients
     const results = [];
     if (isTargetUser) {
-      console.log(`[SEND-LAST-WISH-EMAIL] Starting to send emails to ${recipientsToSend.length} recipient(s)...`);
     }
 
     for (const recipient of recipientsToSend) {
       if (isTargetUser) {
-        console.log(`[SEND-LAST-WISH-EMAIL] 📧 Sending email to: ${recipient.name} (${recipient.email})`);
       }
       
       try {
       const result = await sendDataToRecipient(user.user, recipient, userData, settings, testMode);
       
       if (isTargetUser) {
-        console.log(`[SEND-LAST-WISH-EMAIL] Email result for ${recipient.email}:`, {
-          success: result.success,
-          messageId: result.messageId,
-          error: result.error
-        });
       }
       
       results.push({
@@ -3443,7 +3384,6 @@ async function sendLastWishEmail(userId, testMode = false) {
     const duration = Date.now() - startTime;
 
     // Log summary
-    console.log(`[Last Wish] Delivery completed for user ${userId}: ${successCount} successful, ${failCount} failed (${duration}ms)`);
 
     return {
       success: true,

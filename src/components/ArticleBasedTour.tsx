@@ -93,12 +93,8 @@ function extractTourStepsFromArticle(article: any): TourStep[] {
 
 // Generate tour steps from article content
 function generateTourFromArticle(articleSlug: string): Step[] {
-  console.log('ArticleBasedTour: Looking for article:', articleSlug);
-  console.log('ArticleBasedTour: Available articles:', Object.keys(MOCK_ARTICLES));
   const article = MOCK_ARTICLES[articleSlug];
-  console.log('ArticleBasedTour: Found article:', article);
   if (!article) {
-    console.log('ArticleBasedTour: Article not found for slug:', articleSlug);
     return [];
   }
 
@@ -166,7 +162,6 @@ export default function ArticleBasedTour({
   // HIDDEN - Return null to hide component
   return null;
   
-  console.log('ArticleBasedTour: Component props:', { articleSlug, isOpen, customSteps });
   const [run, setRun] = useState(false);
   const [steps, setSteps] = useState<Step[]>([]);
   const [tourKey, setTourKey] = useState(0);
@@ -179,7 +174,6 @@ export default function ArticleBasedTour({
         tourSteps = customSteps;
       } else if (articleSlug) {
         tourSteps = generateTourFromArticle(articleSlug);
-        console.log('ArticleBasedTour: Generated steps for', articleSlug, tourSteps);
       }
       
       if (tourSteps.length > 0) {
@@ -187,9 +181,7 @@ export default function ArticleBasedTour({
         setRun(true);
         setTourKey(prev => prev + 1);
         trackOnboardingStep(articleSlug || 'article-tour', 'tour_start');
-        console.log('ArticleBasedTour: Starting tour with', tourSteps.length, 'steps');
       } else {
-        console.log('ArticleBasedTour: No tour steps found for', articleSlug);
         setRun(false);
       }
     } else {

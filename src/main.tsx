@@ -29,12 +29,10 @@ if ('serviceWorker' in navigator) {
   const isCapacitor = (window as any).Capacitor || (window as any).CapacitorWeb;
   
   if (isCapacitor) {
-    console.log('[Service Worker] Skipped - running in Capacitor app');
     // Unregister any existing service workers immediately
     navigator.serviceWorker.getRegistrations().then((registrations) => {
       for (const registration of registrations) {
         registration.unregister().then(() => {
-          console.log('[Service Worker] Unregistered existing service worker');
         });
       }
     });
@@ -43,7 +41,6 @@ if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js')
         .then((registration) => {
-          console.log('[Service Worker] Registered successfully');
         })
         .catch((error) => {
           console.error('[Service Worker] Registration failed:', error);

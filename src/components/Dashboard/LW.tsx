@@ -151,7 +151,6 @@ export const LW: React.FC<LWProps> = () => {
   };
 
 
-
   const saveMessageToDatabase = async (messageContent: string) => {
     if (!user) {
       return;
@@ -651,7 +650,6 @@ These memories are my gift to you.`
   const downloadTestLastWishPdf = async () => {
     if (!user) return;
     const logPrefix = '[Last Wish Test PDF]';
-    console.log(logPrefix, 'click — starting', { userId: user.id });
     setTestPdfLoading(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -661,7 +659,6 @@ These memories are my gift to you.`
         toast.error('Please sign in again.');
         return;
       }
-      console.log(logPrefix, 'POST /api/generate-last-wish-test-pdf');
       const res = await fetch('/api/generate-last-wish-test-pdf', {
         method: 'POST',
         headers: {
@@ -670,10 +667,8 @@ These memories are my gift to you.`
         },
       });
       const ct = res.headers.get('Content-Type') || '';
-      console.log(logPrefix, 'response', { ok: res.ok, status: res.status, contentType: ct });
       if (res.ok && ct.includes('application/pdf')) {
         const blob = await res.blob();
-        console.log(logPrefix, 'success — blob size (bytes)', blob.size);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -994,7 +989,6 @@ These memories are my gift to you.`
       toast.error('Failed to add recipient');
     }
   };
-
 
 
   const removeRecipient = async (id: string) => {

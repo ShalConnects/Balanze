@@ -321,12 +321,10 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   closeUpgradeModal: () => set({ upgradeModal: { isOpen: false, type: 'limit', feature: '', currentUsage: { current: 0, limit: 0, type: '' } } }),
 
   fetchAccounts: async () => {
-    console.log('[fetchAccounts] CALLED', { timestamp: new Date().toISOString(), stackTrace: new Error().stack });
     set({ loading: true, error: null });
     
     const { user } = useAuthStore.getState();
     if (!user) {
-      console.log('[fetchAccounts] No user - returning early');
       return set({ loading: false, error: 'Not authenticated' });
     }
     
@@ -365,7 +363,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
 
     set({ accounts, loading: false });
-    console.log('[fetchAccounts] COMPLETED', { accountCount: accounts.length, timestamp: new Date().toISOString() });
     
     // Mock data (commented out):
     // const mockAccounts = [...];
@@ -524,11 +521,9 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   },
   
   updateAccount: async (id, updates) => {
-    console.log('[updateAccount] START', { id, updates, timestamp: new Date().toISOString() });
     
     // Check if this is a simple update (like isActive toggle) that shouldn't trigger global loading
     const isSimpleUpdate = Object.keys(updates).length === 1 && 'isActive' in updates;
-    console.log('[updateAccount] Update type', { isSimpleUpdate, updates });
     
     try {
       // Only set global loading for complex updates that might take longer
@@ -586,14 +581,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       delete supabaseUpdates.isActive;
 
 
-
       // If DPS is being enabled and there's no savings account linked
       if (updates.has_dps && !currentAccount.has_dps) {
-        console.log('Enabling DPS on existing account:', {
-          accountName: currentAccount.name,
-          dps_initial_balance,
-          currency: currentAccount.currency
-        });
         
         // Check if a DPS savings account already exists
         if (currentAccount.dps_savings_account_id) {
@@ -657,16 +646,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
                             updates.dps_fixed_amount !== undefined ||
                             updates.dps_savings_account_id !== undefined;
 
-      console.log('[updateAccount] Update strategy', { hasDpsChanges, updates });
 
       if (hasDpsChanges) {
         // DPS changes may affect multiple accounts, so refetch all
-        console.log('[updateAccount] DPS changes detected - calling fetchAccounts()');
         await get().fetchAccounts();
-        console.log('[updateAccount] fetchAccounts() completed');
       } else {
         // Simple updates (like isActive toggle) - update local state immediately
-        console.log('[updateAccount] Simple update - updating local state only (no refetch)');
         
         // Show toast notification for isActive toggle
         if (typeof updates.isActive !== 'undefined') {
@@ -691,14 +676,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
               if (updates.currency !== undefined) updatedAccount.currency = updates.currency;
               if (updates.description !== undefined) updatedAccount.description = updates.description;
               if (updates.initial_balance !== undefined) updatedAccount.initial_balance = updates.initial_balance;
-              console.log('[updateAccount] Account updated in state', { id, oldState: account, newState: updatedAccount });
               return updatedAccount;
             }
             return account;
           });
           return { accounts: updatedAccounts, loading: isSimpleUpdate ? get().loading : false };
         });
-        console.log('[updateAccount] Local state updated successfully');
       }
     } catch (err: any) {
       console.error('[updateAccount] ERROR', { id, updates, error: err });
@@ -712,7 +695,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       
       throw err;
     } finally {
-      console.log('[updateAccount] END', { id, timestamp: new Date().toISOString() });
     }
   },
 
@@ -961,7 +943,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     notes: string;
     attachments: PurchaseAttachment[];
   }) => {
-    console.log('🔄 [Store] updateTransaction called', { id, transaction, purchaseDetails });
     const currentState = get();
     const originalTransaction = currentState.transactions.find(t => t.id === id);
     
@@ -971,11 +952,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       return;
     }
 
-    console.log('🔄 [Store] Original transaction found', {
-      id: originalTransaction.id,
-      currentNote: originalTransaction.note,
-      newNote: transaction.note
-    });
     
     // Check if only note field is being updated
     const isNoteOnlyUpdate = Object.keys(transaction).length === 1 && 'note' in transaction;
@@ -989,17 +965,11 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         t.id === id ? optimisticTransaction : t
       );
       
-      console.log('🔄 [Store] Applying optimistic update', {
-        transactionId: optimisticTransaction.id,
-        note: optimisticTransaction.note
-      });
       
       // Update UI instantly - no loading state for better UX
       set({ transactions: optimisticTransactions, error: null });
       
-      console.log('🔄 [Store] Optimistic update applied, proceeding with database update');
     } else {
-      console.log('🔄 [Store] Note-only update: skipping optimistic update to prevent remount');
     }
     
     try {
@@ -1048,16 +1018,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         transactionChanged = currentNote !== serverNote;
         
         if (!transactionChanged) {
-          console.log('🔄 [Store] Note-only update: note unchanged, skipping state update', {
-            transactionId: id,
-            note: serverNote
-          });
         } else {
-          console.log('🔄 [Store] Note-only update: updating state with server response', {
-            transactionId: id,
-            oldNote: currentNote,
-            newNote: serverNote
-          });
         }
       } else {
         // For other updates, do full comparison
@@ -1075,20 +1036,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         const serverUpdatedTransactions = stateAfterOptimistic.transactions.map(t => 
           t.id === id ? updatedTransaction : t
         );
-        console.log('🔄 [Store] Setting server updated transactions', {
-          transactionId: id,
-          arrayLength: serverUpdatedTransactions.length,
-          isNewArray: serverUpdatedTransactions !== stateAfterOptimistic.transactions,
-          noteField: updatedTransaction.note,
-          isNoteOnlyUpdate
-        });
         set({ transactions: serverUpdatedTransactions, error: null });
-        console.log('🔄 [Store] Store state updated - this will trigger re-renders');
       } else {
-        console.log('🔄 [Store] Transaction unchanged, skipping state update', {
-          transactionId: id,
-          isNoteOnlyUpdate
-        });
       }
       
       // Background operations that don't affect immediate UI
@@ -1117,7 +1066,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
               if (error) {
                 console.error('Error updating purchase record:', error);
               } else {
-                console.log('✅ Purchase record updated successfully');
               }
             })
         );
@@ -1553,7 +1501,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       // Only apply mismatch detection if profile subscription data is fully loaded
       if (profile?.subscription?.plan !== undefined) {
         if (!isPremium && hasCurrencyMismatch) {
-          console.log(`Currency mismatch detected for free user. Updating categories from ${data[0]?.currency || 'unknown'} to ${userCurrency}`);
           
           // Update existing categories to match user's currency
           const { error: updateError } = await supabase
@@ -1571,10 +1518,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
             return;
           }
         } else if (isPremium && hasCurrencyMismatch) {
-          console.log(`Premium user detected with mixed currencies. Preserving existing currency mix.`);
         }
       } else {
-        console.log(`Profile subscription data not fully loaded yet. Skipping currency mismatch detection.`);
       }
       
       set({ categories: data || [], loading: false });
@@ -2231,21 +2176,18 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   },
 
   addPurchase: async (purchase: Omit<Purchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-    console.log('🔍 addPurchase called with:', purchase);
     set({ loading: true, error: null });
     
     const { user } = useAuthStore.getState();
     if (!user) return set({ loading: false, error: 'Not authenticated' });
 
     try {
-      console.log('🔍 Inserting purchase into database...');
       const { error } = await supabase.from('purchases').insert({
         ...purchase,
         user_id: user.id,
       });
 
       if (error) {
-        console.log('❌ Database error:', error);
         // Re-throw plan-related errors so they can be handled by the UI
         if (error.message && (
           error.message.includes('ACCOUNT_LIMIT_EXCEEDED') ||
@@ -2255,25 +2197,21 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           error.message.includes('PURCHASE_LIMIT_EXCEEDED') ||
           error.message.includes('FEATURE_NOT_AVAILABLE')
         )) {
-          console.log('🚫 Plan limit error - rethrowing:', error.message);
           set({ loading: false }); // Reset loading state before re-throwing
           throw error; // Re-throw plan-related errors
         }
         
         const errorMessage = error.message ? error.message : 'An unknown error occurred.';
-        console.log('❌ Generic database error:', errorMessage);
         set({ loading: false, error: errorMessage });
         return;
       }
 
-      console.log('✅ Purchase inserted successfully!');
       // Add a small delay to ensure the loading animation is visible
       await new Promise(resolve => setTimeout(resolve, 500));
 
       await get().fetchPurchases();
       set({ loading: false });
     } catch (err: any) {
-      console.log('❌ Exception caught in addPurchase:', err);
       // Re-throw plan-related errors so they can be handled by the UI
       if (err.message && (
         err.message.includes('ACCOUNT_LIMIT_EXCEEDED') ||
@@ -2283,12 +2221,10 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         err.message.includes('PURCHASE_LIMIT_EXCEEDED') ||
         err.message.includes('FEATURE_NOT_AVAILABLE')
       )) {
-        console.log('🚫 Plan limit error in catch - rethrowing:', err.message);
         set({ loading: false }); // Reset loading state before re-throwing
         throw err; // Re-throw plan-related errors
       }
       
-      console.log('❌ Generic exception error:', err.message);
       set({ error: err.message || 'Failed to add purchase', loading: false });
     }
   },
@@ -2463,7 +2399,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       // Only apply mismatch detection if profile subscription data is fully loaded
       if (profile?.subscription?.plan !== undefined) {
         if (!isPremium && hasCurrencyMismatch) {
-          console.log(`Currency mismatch detected in purchase categories for free user. Updating from ${data[0]?.currency || 'unknown'} to ${userCurrency}`);
           
           // Update existing purchase categories to match user's currency
           const { error: updateError } = await supabase
@@ -2481,10 +2416,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
             return;
           }
         } else if (isPremium && hasCurrencyMismatch) {
-          console.log(`Premium user detected with mixed purchase category currencies. Preserving existing currency mix.`);
         }
       } else {
-        console.log(`Profile subscription data not fully loaded yet. Skipping purchase category currency mismatch detection.`);
       }
     }
 

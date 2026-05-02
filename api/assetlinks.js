@@ -3,7 +3,6 @@
 
 export default async function handler(req, res) {
   // Log that this function is being called (for debugging)
-  console.log('Assetlinks API called:', req.url);
   // Only allow GET requests
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -21,8 +20,6 @@ export default async function handler(req, res) {
   const fingerprint = 'D2159A1A3BB2D76DCC6D8F39A14BB7E8E67310757D9E0936C38331E913EFE3C7';
   
   // Log the fingerprint for debugging
-  console.log('SHA-256 fingerprint:', fingerprint);
-  console.log('Fingerprint length:', fingerprint.length);
   
   const assetlinksData = [
     {
@@ -40,7 +37,6 @@ export default async function handler(req, res) {
   const assetlinksJson = JSON.stringify(assetlinksData, null, 2);
   
   // Log the JSON to verify format
-  console.log('Generated JSON:', assetlinksJson);
   
   // Ensure no BOM - create buffer explicitly without BOM
   const buffer = Buffer.from(assetlinksJson, 'utf8');

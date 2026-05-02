@@ -21,13 +21,11 @@ export default async function handler(req, res) {
     const TARGET_USER_ID = 'd1fe3ccc-3c57-4621-866a-6d0643137d53';
     const TARGET_EMAIL = 'salauddin.kader406@gmail.com';
     
-    console.log(`[LAST-WISH-PUBLIC] Starting check at ${new Date().toISOString()}`);
     
     // Check for overdue users
     let overdueUsers = [];
     
     try {
-      console.log(`[LAST-WISH-PUBLIC] Calling check_overdue_last_wish() RPC function...`);
       const { data, error } = await supabase.rpc('check_overdue_last_wish');
       
       if (error) {
@@ -35,7 +33,6 @@ export default async function handler(req, res) {
         throw error;
       }
       
-      console.log(`[LAST-WISH-PUBLIC] RPC returned:`, JSON.stringify(data, null, 2));
       
       if (Array.isArray(data)) {
         overdueUsers = data;
@@ -45,10 +42,8 @@ export default async function handler(req, res) {
       
       // Check if target user is in the list
       const targetUserFound = overdueUsers.some(u => u.user_id === TARGET_USER_ID);
-      console.log(`[LAST-WISH-PUBLIC] Target user ${TARGET_EMAIL} (${TARGET_USER_ID}) found in overdue list: ${targetUserFound}`);
       if (targetUserFound) {
         const targetUser = overdueUsers.find(u => u.user_id === TARGET_USER_ID);
-        console.log(`[LAST-WISH-PUBLIC] Target user details:`, JSON.stringify(targetUser, null, 2));
       }
     } catch (rpcError) {
       console.error(`[LAST-WISH-PUBLIC] RPC failed, using fallback query. Error:`, rpcError);
@@ -71,12 +66,10 @@ export default async function handler(req, res) {
         throw directError;
       }
       
-      console.log(`[LAST-WISH-PUBLIC] Fallback query found ${directData?.length || 0} active users`);
       
       // Check if target user is in direct data
       const targetUserInDirect = directData?.find(r => r.user_id === TARGET_USER_ID);
       if (targetUserInDirect) {
-        console.log(`[LAST-WISH-PUBLIC] Target user found in direct query:`, JSON.stringify(targetUserInDirect, null, 2));
       }
       
       // Calculate overdue users manually
@@ -88,13 +81,6 @@ export default async function handler(req, res) {
           const isOverdue = now > nextCheckIn;
           
           if (record.user_id === TARGET_USER_ID) {
-            console.log(`[LAST-WISH-PUBLIC] Target user overdue check:`, {
-              lastCheckIn: lastCheckIn.toISOString(),
-              nextCheckIn: nextCheckIn.toISOString(),
-              now: now.toISOString(),
-              isOverdue,
-              hoursOverdue: isOverdue ? (now - nextCheckIn) / (1000 * 60 * 60) : 0
-            });
           }
           
           return isOverdue;
@@ -112,32 +98,26 @@ export default async function handler(req, res) {
           };
         });
       
-      console.log(`[LAST-WISH-PUBLIC] After filtering, ${overdueUsers.length} overdue users found`);
     }
 
     // Process overdue users and send emails
     const emailResults = [];
     
-    console.log(`[LAST-WISH-PUBLIC] Processing ${overdueUsers.length} overdue users...`);
     
     for (const user of overdueUsers) {
       const isTargetUser = user.user_id === TARGET_USER_ID;
       
       if (isTargetUser) {
-        console.log(`[LAST-WISH-PUBLIC] 🎯 PROCESSING TARGET USER: ${TARGET_EMAIL} (${TARGET_USER_ID})`);
-        console.log(`[LAST-WISH-PUBLIC] User data:`, JSON.stringify(user, null, 2));
       }
       
       try {
         if (isTargetUser) {
-          console.log(`[LAST-WISH-PUBLIC] Importing send-last-wish-email handler...`);
         }
         
         // Import the email sending function from the API
         const { default: sendLastWishEmailHandler } = await import('./send-last-wish-email.js');
         
         if (isTargetUser) {
-          console.log(`[LAST-WISH-PUBLIC] Handler imported successfully, creating mock request/response...`);
         }
         
         // Create a mock request/response for the email handler
@@ -155,7 +135,6 @@ export default async function handler(req, res) {
             json: (data) => {
               emailResult = { statusCode: code, ...data };
               if (isTargetUser) {
-                console.log(`[LAST-WISH-PUBLIC] Email handler response:`, JSON.stringify(emailResult, null, 2));
               }
             }
           }),
@@ -164,19 +143,16 @@ export default async function handler(req, res) {
         };
         
         if (isTargetUser) {
-          console.log(`[LAST-WISH-PUBLIC] Calling email handler for target user...`);
         }
         
         // Call the email handler
         await sendLastWishEmailHandler(mockReq, mockRes);
         
         if (isTargetUser) {
-          console.log(`[LAST-WISH-PUBLIC] Email handler completed. Result:`, JSON.stringify(emailResult, null, 2));
         }
         
         if (emailResult && emailResult.success) {
           if (isTargetUser) {
-            console.log(`[LAST-WISH-PUBLIC] ✅ Email sent successfully for target user!`);
           }
           
           emailResults.push({
@@ -189,7 +165,6 @@ export default async function handler(req, res) {
           // No need to update here to avoid race conditions
         } else if (emailResult && emailResult.skipped) {
           if (isTargetUser) {
-            console.log(`[LAST-WISH-PUBLIC] ⚠️ Email skipped (already triggered) for target user`);
           }
           
           emailResults.push({
@@ -229,10 +204,8 @@ export default async function handler(req, res) {
     
     const targetUserResult = emailResults.find(r => r.user_id === TARGET_USER_ID);
     if (targetUserResult) {
-      console.log(`[LAST-WISH-PUBLIC] 🎯 FINAL RESULT FOR TARGET USER:`, JSON.stringify(targetUserResult, null, 2));
     }
     
-    console.log(`[LAST-WISH-PUBLIC] Summary: ${overdueUsers.length} overdue, ${successfulEmails} sent, ${failedEmails} failed`);
     
     res.status(200).json({ 
       success: true, 

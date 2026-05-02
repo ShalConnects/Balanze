@@ -45,14 +45,12 @@ export const AccountsView: React.FC = () => {
 
   // Debug: Track page reloads
   React.useEffect(() => {
-    console.log('[AccountsView] Component mounted/updated', { timestamp: new Date().toISOString() });
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       console.warn('[AccountsView] PAGE RELOAD DETECTED - beforeunload event', { timestamp: new Date().toISOString() });
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      console.log('[AccountsView] Component unmounting', { timestamp: new Date().toISOString() });
     };
   }, []);
   const [showAccountForm, setShowAccountForm] = useState(false);
@@ -632,9 +630,7 @@ export const AccountsView: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    console.log('[AccountsView] useEffect triggered', { user: user?.id, fetchAccountsCallback });
     if (user) {
-      console.log('[AccountsView] Calling fetchAccountsCallback from useEffect');
       fetchAccountsCallback();
     }
   }, [user, fetchAccountsCallback]);
@@ -652,7 +648,6 @@ export const AccountsView: React.FC = () => {
     return accountCurrencies;
   }, [profile?.selected_currencies, accountCurrencies]);
   const accountTypes = Array.from(new Set(accounts.map(a => a.type)));
-
 
 
   // Enhanced search suggestions
@@ -1338,7 +1333,6 @@ export const AccountsView: React.FC = () => {
     <div>
       {/* Header */}
       {/* Only keep the header at the top-level layout, remove this one from the body */}
-
 
 
       {/* Unified Table View - New Section */}
@@ -2247,7 +2241,6 @@ export const AccountsView: React.FC = () => {
               </tbody>
             </table>
             </div>
-
 
 
             {/* Mobile/Tablet Stacked Table View */}

@@ -462,7 +462,6 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
     setSaving(false);
     if (!error && updated && updated[0]) {
       const updatedTask = updated[0];
-      console.log('🔄 Updating local state...');
       
       // Update task in state
       const updatedTasks = tasks.map(t => {

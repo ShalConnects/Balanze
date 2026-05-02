@@ -220,7 +220,6 @@ export const Transfer_new: React.FC = () => {
 
   // Handle restoring Transfer widget from the page
   const handleRestoreTransferWidgetFromPage = async () => {
-    console.log('Restoring Transfer widget to dashboard');
     setIsRestoringTransferWidget(true);
     
     try {
@@ -468,7 +467,6 @@ export const Transfer_new: React.FC = () => {
 
     return filtered;
   }, [transfers, tableFilters, sortConfig]);
-
 
 
   // Click outside handlers for dropdowns

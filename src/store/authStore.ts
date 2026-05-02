@@ -273,7 +273,6 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       }
       
 
-      
       if (data === true) {
 
         
@@ -363,7 +362,6 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       }
       
 
-      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -400,7 +398,6 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       }
 
 
-      
       // Auto-confirm user for better UX - no email confirmation required
       // Use setUserAndProfile to fetch the profile (required for WelcomeModal check)
       const { setUserAndProfile } = get();
@@ -575,9 +572,6 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
           }
         });
         
-        console.log('📤 Supabase OAuth Response:');
-        console.log('- Data:', data);
-        console.log('- Error:', error);
 
         if (error) {
           // Provide user-friendly error messages
