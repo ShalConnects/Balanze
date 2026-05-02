@@ -806,9 +806,6 @@ export const ClientList: React.FC = () => {
             />
           ) : null}
 
-          {/* Client Tasks Widget - kept separate from table */}
-          <ClientTasksWidget skipInitialFetch={ORCHESTRATE_CLIENT_TASKS} />
-          
           {/* Unified Filters and Table */}
           <div className={LP.card}>
             {/* Filters Section */}
@@ -1214,6 +1211,10 @@ export const ClientList: React.FC = () => {
                   </>
                 );
               })()}
+            </div>
+
+            <div className="px-3 lg:px-4 pb-3 lg:pb-4">
+              <ClientTasksWidget skipInitialFetch={ORCHESTRATE_CLIENT_TASKS} />
             </div>
 
             {/* Table Section */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Loader2, AlertCircle } from 'lucide-react';
 import { useClientStore } from '../../store/useClientStore';
 import { Task, TaskInput } from '../../types/client';
@@ -17,7 +17,7 @@ interface TaskFormProps {
 }
 
 export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, task, clientId }) => {
-  const { addTask, updateTask, loading, error } = useClientStore();
+  const { addTask, updateTask, loading, error, clients, fetchClients } = useClientStore();
   const { isMobile } = useMobileDetection();
   const [formData, setFormData] = useState<TaskInput>({
     client_id: clientId || '',
@@ -46,6 +46,23 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, task, clien
     { label: 'Completed', value: 'completed' },
     { label: 'Cancelled', value: 'cancelled' },
   ];
+
+  const clientOptions = useMemo(
+    () =>
+      clients
+        .filter((client) => client.status === 'active')
+        .map((client) => ({
+        label: client.company_name ? `${client.name} (${client.company_name})` : client.name,
+        value: client.id,
+        })),
+    [clients]
+  );
+
+  useEffect(() => {
+    if (isOpen && clients.length === 0) {
+      void fetchClients();
+    }
+  }, [isOpen, clients.length, fetchClients]);
 
   useEffect(() => {
     if (task) {
@@ -162,6 +179,26 @@ export const TaskForm: React.FC<TaskFormProps> = ({ isOpen, onClose, task, clien
             )}
 
             <div className="space-y-7">
+              {!clientId && (
+                <div className="relative">
+                  <CustomDropdown
+                    options={clientOptions}
+                    value={formData.client_id || ''}
+                    onChange={(value) => handleFieldChange('client_id', value)}
+                    onBlur={() => handleBlur('client_id')}
+                    placeholder="Client *"
+                    disabled={loading}
+                    fullWidth={true}
+                  />
+                  {errors.client_id && (touched.client_id || formSubmitted) && (
+                    <span className="text-xs text-red-600 absolute left-0 -bottom-5 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.client_id}
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* Title - Full Width */}
               <div className="relative">
                 <input

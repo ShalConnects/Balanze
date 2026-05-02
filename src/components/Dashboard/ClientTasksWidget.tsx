@@ -35,7 +35,7 @@ export const ClientTasksWidget: React.FC<ClientTasksWidgetProps> = ({
 }) => {
   const { tasks, clients, loading: clientsLoading, fetchTasks, fetchClients, updateTask, updateTaskPositions, deleteTask, error, tasksLoading } = useClientStore();
   const [statusMenuOpen, setStatusMenuOpen] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(true); // Default to expanded
+  const [isExpanded, setIsExpanded] = useState(false); // Default to collapsed
   const [isDraggingTask, setIsDraggingTask] = useState<string | null>(null);
   const [optimisticTasks, setOptimisticTasks] = useState<Task[] | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -369,9 +369,7 @@ export const ClientTasksWidget: React.FC<ClientTasksWidgetProps> = ({
   return (
     <div className="w-full max-w-full min-w-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-md sm:rounded-lg p-1 sm:p-1.5 md:p-2 shadow-sm transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 overflow-hidden">
       {/* Header */}
-      <div 
-        className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-1"
-      >
+      <div className="flex items-center justify-between gap-1">
         <div 
           className="flex items-center gap-1 sm:gap-1 flex-1 min-w-0 cursor-pointer"
           onClick={() => setIsExpanded(!isExpanded)}
@@ -397,35 +395,31 @@ export const ClientTasksWidget: React.FC<ClientTasksWidgetProps> = ({
           </button>
         </div>
 
-        {/* Collapsed State Indicators - Desktop (right side badges) */}
+        {/* Collapsed state indicators (same row across mobile/desktop) */}
         {!isExpanded && (
-          <div className="hidden md:flex items-center gap-0.5 flex-wrap">
+          <div className="flex items-center gap-0.5 overflow-x-auto whitespace-nowrap pl-1">
             {stats.overdue > 0 && (
               <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[9px] sm:text-[10px] font-semibold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 shadow-sm">
                 <AlertCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                <span className="hidden lg:inline">{stats.overdue} Overdue</span>
-                <span className="lg:hidden">{stats.overdue}</span>
+                <span>{stats.overdue} Overdue</span>
               </span>
             )}
             {stats.dueToday > 0 && (
               <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[9px] sm:text-[10px] font-semibold bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 shadow-sm">
                 <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                <span className="hidden lg:inline">{stats.dueToday} Due Today</span>
-                <span className="lg:hidden">{stats.dueToday}</span>
+                <span>{stats.dueToday} Due Today</span>
               </span>
             )}
             {stats.urgent > 0 && (
               <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[9px] sm:text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-sm">
                 <Flame className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                <span className="hidden lg:inline">{stats.urgent} Urgent</span>
-                <span className="lg:hidden">{stats.urgent}</span>
+                <span>{stats.urgent} Urgent</span>
               </span>
             )}
             {stats.dueThisWeek > 0 && (
               <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[9px] sm:text-[10px] font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-sm">
                 <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                <span className="hidden lg:inline">{stats.dueThisWeek} Due This Week</span>
-                <span className="lg:hidden">{stats.dueThisWeek}</span>
+                <span>{stats.dueThisWeek} Due This Week</span>
               </span>
             )}
           </div>
@@ -455,38 +449,6 @@ export const ClientTasksWidget: React.FC<ClientTasksWidgetProps> = ({
           <p className="text-[9px] sm:text-[10px] text-red-700 dark:text-red-300">
             {error}
           </p>
-        </div>
-      )}
-
-      {/* Collapsed State Summary - Mobile (below title) */}
-      {!isExpanded && (
-        <div className="sm:hidden mt-0.5 text-[9px] text-gray-600 dark:text-gray-400">
-          {stats.overdue > 0 || stats.dueToday > 0 || stats.urgent > 0 || stats.dueThisWeek > 0 ? (
-            <div className="flex items-center gap-0.5 flex-wrap">
-              {stats.overdue > 0 && (
-                <span className="text-red-600 dark:text-red-400 font-semibold">
-                  {stats.overdue} overdue
-                </span>
-              )}
-              {stats.dueToday > 0 && (
-                <span className="text-orange-600 dark:text-orange-400 font-semibold">
-                  {stats.dueToday} due today
-                </span>
-              )}
-              {stats.urgent > 0 && (
-                <span className="text-amber-600 dark:text-amber-400 font-semibold">
-                  {stats.urgent} urgent
-                </span>
-              )}
-              {stats.dueThisWeek > 0 && (
-                <span className="text-blue-600 dark:text-blue-400 font-medium">
-                  {stats.dueThisWeek} due this week
-                </span>
-              )}
-            </div>
-          ) : (
-            <span>No urgent or overdue tasks</span>
-          )}
         </div>
       )}
 
@@ -580,7 +542,7 @@ export const ClientTasksWidget: React.FC<ClientTasksWidgetProps> = ({
               ) : (
                 /* Tablet/Desktop: Horizontal Layout */
                 <div 
-                  className="overflow-x-auto overflow-y-auto pb-2 pt-1 sm:pt-1.5 md:pt-2 max-h-[calc(100vh-220px)] md:max-h-[500px] lg:max-h-[550px] xl:max-h-[600px] snap-x snap-mandatory"
+                  className="overflow-x-auto overflow-y-auto pb-0 pt-0 max-h-[calc(100vh-220px)] md:max-h-[500px] lg:max-h-[550px] xl:max-h-[600px] snap-x snap-mandatory"
                   style={{ 
                     scrollbarWidth: 'thin',
                     WebkitOverflowScrolling: 'touch',

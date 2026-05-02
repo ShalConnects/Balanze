@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, CreditCard, TrendingUp, ArrowLeftRight, ShoppingBag, Handshake, Sprout, BookOpen, Sparkles, Home } from 'lucide-react';
+import { Plus, CreditCard, TrendingUp, ArrowLeftRight, ShoppingBag, Handshake, Sprout, BookOpen, Sparkles, Home, CheckSquare } from 'lucide-react';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 import { CLIENTS_FEATURE_ICON } from '../../lib/clientFeatureIcon';
 import { useFinanceStore } from '../../store/useFinanceStore';
@@ -10,6 +10,7 @@ import { AccountForm } from '../Accounts/AccountForm';
 import { TransactionForm } from '../Transactions/TransactionForm';
 import { BulkTransactionForm } from '../Transactions/BulkTransactionForm';
 import { ClientForm } from '../Clients/ClientForm';
+import { TaskForm } from '../Tasks/TaskForm';
 import { LendBorrowForm } from '../LendBorrow/LendBorrowForm';
 import { HabitForm } from '../Habits/HabitForm';
 import { CourseForm } from '../Learning/CourseForm';
@@ -71,6 +72,7 @@ export const FloatingActionButton: React.FC = () => {
   const [showHabitForm, setShowHabitForm] = useState(false);
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [showInvestmentContractModal, setShowInvestmentContractModal] = useState(false);
+  const [showTaskForm, setShowTaskForm] = useState(false);
   const { isMobile } = useMobileDetection();
   const { isMobileSidebarOpen } = useMobileSidebar();
   const { 
@@ -195,6 +197,10 @@ export const FloatingActionButton: React.FC = () => {
     setShowCourseForm(true);
   }, []);
 
+  const handleAddClientTask = React.useCallback(() => {
+    setShowTaskForm(true);
+  }, []);
+
   const handleCourseSuccess = React.useCallback(() => {
     setShowCourseForm(false);
   }, []);
@@ -219,6 +225,7 @@ export const FloatingActionButton: React.FC = () => {
       { label: 'Lent & Borrow', icon: Handshake, color: 'bg-indigo-600', onClick: () => handleAction(() => setShowLendBorrowForm(true)), delay: '100ms' },
       { label: 'Add investment contract', icon: INVESTMENTS_FEATURE_ICON, color: 'bg-sky-600', onClick: () => handleAction(() => setShowInvestmentContractModal(true)), delay: '95ms' },
       { label: 'Add Client', icon: CLIENTS_FEATURE_ICON, color: 'bg-teal-600', onClick: () => handleAction(() => setShowClientForm(true)), delay: '75ms' },
+      { label: 'Add Client Task', icon: CheckSquare, color: 'bg-indigo-600', onClick: () => handleAction(handleAddClientTask), delay: '70ms' },
     ];
 
     const personalGrowth = [
@@ -251,6 +258,7 @@ export const FloatingActionButton: React.FC = () => {
     handleAddPurchase,
     handleAddHabit,
     handleAddCourse,
+    handleAddClientTask,
     setShowLendBorrowForm,
     setShowInvestmentContractModal,
     setShowAccountFormLocal,
@@ -429,6 +437,13 @@ export const FloatingActionButton: React.FC = () => {
           course={null}
           onClose={() => setShowCourseForm(false)} 
           onSuccess={handleCourseSuccess}
+        />
+      )}
+
+      {showTaskForm && (
+        <TaskForm
+          isOpen={showTaskForm}
+          onClose={() => setShowTaskForm(false)}
         />
       )}
 

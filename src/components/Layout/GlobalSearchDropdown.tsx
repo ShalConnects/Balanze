@@ -21,6 +21,8 @@ import { formatCurrency } from '../../utils/currency';
 import { fetchBusinessInvestmentContracts } from '../../lib/businessInvestmentService';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 import { formatAppDate } from '../../utils/timezoneUtils';
+import { GLOBAL_SEARCH_PREFIX_HINTS, parseGlobalSearchQuery } from '../../utils/globalSearchScope';
+import { format } from 'date-fns';
 
 // Date formatting utility
 const formatSearchDate = (dateString: string): string => {
@@ -275,6 +277,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       if (account.name?.toLowerCase().includes(queryLower)) {
         suggestions.push(account.name);
       }
+      if (account.type?.toLowerCase().includes(queryLower)) {
+        suggestions.push(account.type);
+      }
     });
     
     // Get suggestions from purchases
@@ -302,6 +307,12 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       if (client.company_name?.toLowerCase().includes(queryLower)) {
         suggestions.push(client.company_name);
       }
+      if (client.email?.toLowerCase().includes(queryLower)) {
+        suggestions.push(client.email);
+      }
+      if (client.phone?.toLowerCase().includes(queryLower)) {
+        suggestions.push(client.phone);
+      }
     });
     
     // Get suggestions from tasks
@@ -309,12 +320,18 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       if (task.title?.toLowerCase().includes(queryLower)) {
         suggestions.push(task.title);
       }
+      if (task.description?.toLowerCase().includes(queryLower)) {
+        suggestions.push(task.description);
+      }
     });
     
     // Get suggestions from invoices
     (invoices || []).forEach(invoice => {
       if (invoice.invoice_number?.toLowerCase().includes(queryLower)) {
         suggestions.push(invoice.invoice_number);
+      }
+      if (invoice.notes?.toLowerCase().includes(queryLower)) {
+        suggestions.push(invoice.notes);
       }
     });
     
@@ -357,9 +374,10 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     searchTimeoutRef.current = setTimeout(() => {
       setDebouncedSearch(search);
       setIsSearching(false);
+      const parsedSearch = parseGlobalSearchQuery(search).query;
       // Generate suggestions for autocomplete
-      if (search && search.length >= 2) {
-        const suggestions = generateSearchSuggestions(search);
+      if (parsedSearch && parsedSearch.length >= 2) {
+        const suggestions = generateSearchSuggestions(parsedSearch);
         setSearchSuggestions(suggestions);
         setShowSuggestions(suggestions.length > 0);
       } else {
@@ -568,34 +586,55 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       return searchCache.get(cacheKey);
     }
 
+    const { scope, query } = parseGlobalSearchQuery(debouncedSearch);
     // Single string for Fuse (Bitap). Concatenating synonym lists made the pattern
     // too long and effectively matched almost nothing.
-    const fuseQuery = debouncedSearch.toLowerCase().trim();
+    const fuseQuery = query.toLowerCase().trim();
+    const inScope = (target: string) => scope === 'all' || scope === target;
+    if (!fuseQuery) {
+      return {
+        fuzzyTransactions: [],
+        fuzzyAccounts: [],
+        fuzzyTransfers: [],
+        fuzzyPurchases: [],
+        fuzzyLendBorrow: [],
+        fuzzyDonations: [],
+        fuzzyClients: [],
+        fuzzyTasks: [],
+        fuzzyInvoices: [],
+        fuzzyHabits: [],
+        fuzzyCourses: [],
+        fuzzyInvestments: [],
+      };
+    }
 
-    const invMerged = [
-      ...fuseInvAssets.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_asset' as const })),
-      ...fuseInvTransactions.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_transaction' as const })),
-      ...fuseInvGoals.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_goal' as const })),
-      ...fuseInvCategories.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_category' as const })),
-      ...fuseBusinessInvestmentContracts.search(fuseQuery).map(r => ({ ...r, invKind: 'business_investment_contract' as const })),
-    ].sort((a, b) => {
+    const invMerged = (inScope('investments')
+      ? [
+          ...fuseInvAssets.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_asset' as const })),
+          ...fuseInvTransactions.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_transaction' as const })),
+          ...fuseInvGoals.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_goal' as const })),
+          ...fuseInvCategories.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_category' as const })),
+          ...fuseBusinessInvestmentContracts.search(fuseQuery).map(r => ({ ...r, invKind: 'business_investment_contract' as const })),
+        ]
+      : []
+    ).sort((a, b) => {
       const ta = new Date((a.item as { transaction_date?: string; created_at?: string }).transaction_date || a.item.created_at || 0).getTime();
       const tb = new Date((b.item as { transaction_date?: string; created_at?: string }).transaction_date || b.item.created_at || 0).getTime();
       return tb - ta;
     });
 
     const results = {
-      fuzzyTransactions: fuseTransactions.search(fuseQuery),
-      fuzzyAccounts: fuseAccounts.search(fuseQuery),
-      fuzzyTransfers: fuseTransfers.search(fuseQuery),
-      fuzzyPurchases: fusePurchases.search(fuseQuery),
-      fuzzyLendBorrow: fuseLendBorrow.search(fuseQuery),
-      fuzzyDonations: fuseDonations.search(fuseQuery),
-      fuzzyClients: fuseClients.search(fuseQuery),
-      fuzzyTasks: fuseTasks.search(fuseQuery),
-      fuzzyInvoices: fuseInvoices.search(fuseQuery),
-      fuzzyHabits: fuseHabits.search(fuseQuery),
-      fuzzyCourses: fuseCourses.search(fuseQuery),
+      fuzzyTransactions: inScope('transactions') ? fuseTransactions.search(fuseQuery) : [],
+      fuzzyAccounts: inScope('accounts') ? fuseAccounts.search(fuseQuery) : [],
+      fuzzyTransfers: inScope('transfers') ? fuseTransfers.search(fuseQuery) : [],
+      fuzzyPurchases: inScope('purchases') ? fusePurchases.search(fuseQuery) : [],
+      fuzzyLendBorrow: inScope('lendBorrow') ? fuseLendBorrow.search(fuseQuery) : [],
+      fuzzyDonations: inScope('donations') ? fuseDonations.search(fuseQuery) : [],
+      fuzzyClients: inScope('clients') ? fuseClients.search(fuseQuery) : [],
+      fuzzyTasks: inScope('tasks') ? fuseTasks.search(fuseQuery) : [],
+      fuzzyInvoices: inScope('invoices') ? fuseInvoices.search(fuseQuery) : [],
+      fuzzyHabits: inScope('habits') ? fuseHabits.search(fuseQuery) : [],
+      fuzzyCourses: inScope('courses') ? fuseCourses.search(fuseQuery) : [],
       fuzzyInvestments: invMerged,
     };
 
@@ -922,6 +961,29 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
             ))}
           </div>
         )}
+        <div className="mt-3">
+          <div className="text-xs text-gray-400 dark:text-gray-500 mb-2">Try scoped search</div>
+          <div className="flex flex-wrap gap-2">
+            {GLOBAL_SEARCH_PREFIX_HINTS.map(prefix => (
+              <button
+                key={prefix}
+                className="px-2 py-1 rounded-full text-xs border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setGlobalSearchTerm(prefix);
+                  setTimeout(() => inputRef.current?.focus(), 10);
+                }}
+              >
+                {prefix}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
