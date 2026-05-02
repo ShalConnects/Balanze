@@ -12,7 +12,7 @@ export const InvestmentListSkeleton: React.FC = () => (
   <div className={`${LP.stack} animate-fade-in`}>
     <div className={`${LP.card} relative overflow-hidden pb-[13px] lg:pb-0`}>
       <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-      <div className={`${LP.filterHeader} relative z-10`}>
+      <div className={`${LP.investmentFilterHeader} relative z-10`}>
         <ClientFiltersSkeleton />
       </div>
       <div className="p-4 relative z-10">

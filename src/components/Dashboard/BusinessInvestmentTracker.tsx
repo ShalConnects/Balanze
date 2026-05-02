@@ -1,18 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, ChevronUp, Plus, Pencil, Trash2, Wallet, TrendingUp, TrendingDown, Landmark, X, Filter, Info } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Pencil, Trash2, Wallet, TrendingUp, TrendingDown, Landmark, X, Filter, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '../../utils/currency';
 import { formatAppDate } from '../../utils/timezoneUtils';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
-import { CustomDropdown } from '../Purchases/CustomDropdown';
 import {
   accountsToTransactionDropdownOptions,
   prepareAccountsForTransactionDropdown,
   resolveDefaultAccountIdForTransactionDropdown
 } from '../../utils/transactionAccountDropdown';
-import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
-import { parseLocalDate } from '../../utils/taskDateUtils';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 import {
   LP,
@@ -41,26 +38,17 @@ import { getContractStats, getEffectivePrincipal } from '../../utils/businessInv
 import { entryPostingDescription, entryPostingTransactionType } from '../../utils/businessInvestmentEntryPosting';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { BusinessInvestmentContractModal } from './BusinessInvestmentContractModal';
+import { BusinessInvestmentUpdateModal, type ContractUpdateFormState } from './BusinessInvestmentUpdateModal';
 
 type SortField = 'title' | 'funding_account_name' | 'status';
 type SortDirection = 'asc' | 'desc';
-const dateInputClass = 'bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400';
-const compactInputClass = 'w-full pl-8 pr-2 py-1.5 text-[13px] h-8 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400 transition-colors border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800';
-const compactDateShellClass =
-  'flex items-center bg-gray-50 dark:bg-gray-800 px-3 pr-[10px] text-[13px] h-8 rounded-md border border-gray-300 dark:border-gray-700';
-const compactTextareaClass =
-  'w-full px-3 py-2 text-[13px] rounded-md border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400';
-const compactDropdownClass =
-  'px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700';
-const defaultEntryForm = {
+const defaultEntryForm: ContractUpdateFormState = {
   contract_id: '',
   type: 'profit' as EntryType,
   amount: '',
   date: '',
   note: ''
 };
-const formatDateYmd = (date: Date | null) =>
-  date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '';
 
 const contractMetaRowClass =
   'flex min-w-0 flex-col gap-1.5 text-xs text-gray-500 dark:text-gray-400 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2 sm:gap-y-0';
@@ -81,7 +69,7 @@ const CONTRACT_UPDATE_SECTION_HINT =
   'Record profit, loss, principal return, or capital contribution (reinvest). Optionally post a linked transaction: profit and principal returned as income; loss and capital contribution as expense — pick any cash account.';
 
 const CONTRACT_UPDATE_TOOLTIP_PANEL_CLASS =
-  'absolute left-0 top-full z-50 mt-2 w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-gray-200 bg-white p-2.5 text-[10px] leading-snug text-gray-700 shadow-xl animate-fadein dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 sm:mt-2 sm:w-72 sm:p-3 sm:text-xs sm:leading-snug';
+  'absolute right-0 top-full z-50 mt-2 w-[min(18rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] rounded-lg border border-gray-200 bg-white p-2.5 text-[10px] leading-snug text-gray-700 shadow-xl animate-fadein dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 sm:mt-2 sm:w-72 sm:max-w-[calc(100vw-1.5rem)] sm:p-3 sm:text-xs sm:leading-snug';
 
 /** Same disclosure chevron as AccountsView (row expand). */
 function ContractRowChevron({ expanded }: { expanded: boolean }) {
@@ -113,7 +101,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | ContractStatus>('all');
   const [sortField, setSortField] = useState<SortField>('title');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [isContractUpdateOpen, setIsContractUpdateOpen] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showContractUpdateTooltip, setShowContractUpdateTooltip] = useState(false);
   const [showContractUpdateInfoMobile, setShowContractUpdateInfoMobile] = useState(false);
   const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
@@ -283,6 +271,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
     [accounts, userDefaultCurrency, postingAccountId]
   );
   const fundingAccountNameMap = useMemo(() => new Map(accounts.map((account) => [account.id, account.name])), [accounts]);
+  const hasActiveContracts = contractOptions.length > 0;
   const getFundingAccountName = (contract: InvestmentContract) =>
     fundingAccountNameMap.get(contract.funding_account_id) || contract.funding_account_name || 'Unknown';
   const editingContract = useMemo(
@@ -299,6 +288,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
   };
   const hasVisibleFilters =
     searchTerm.trim().length > 0 || statusFilter !== 'all' || currencyFilterActive;
+  const updateActionTitle = hasActiveContracts ? 'Update' : 'Add a contract first';
   const mobileFilterApplyActive =
     (showCurrencyFilter && tempMobileFilters.summaryCurrency !== filterCurrency) ||
     tempMobileFilters.status !== statusFilter;
@@ -388,6 +378,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
         )
       );
       setEntryForm((prev) => ({ ...prev, amount: '', date: '', note: '' }));
+      setShowUpdateModal(false);
 
       if (postEntryAsTransaction && postingAccountId && user) {
         const postingAcc = accounts.find((a) => a.id === postingAccountId);
@@ -471,14 +462,11 @@ export const BusinessInvestmentTracker: React.FC = () => {
   };
   const isContractRowExpanded = (contractId: string) => expandedContractIds.has(contractId);
 
-  const toggleContractUpdateSection = () => setIsContractUpdateOpen((prev) => !prev);
-
   useEffect(() => {
-    if (isContractUpdateOpen) {
-      setShowContractUpdateTooltip(false);
-      setShowContractUpdateInfoMobile(false);
-    }
-  }, [isContractUpdateOpen]);
+    if (!showUpdateModal) return;
+    setShowContractUpdateTooltip(false);
+    setShowContractUpdateInfoMobile(false);
+  }, [showUpdateModal]);
 
   const renderContractDetails = (contract: InvestmentContract) => {
     const stats = getContractStats(contract);
@@ -590,146 +578,8 @@ export const BusinessInvestmentTracker: React.FC = () => {
             hint="The page will still work, but saved contracts may be incomplete."
           />
         ) : null}
-      {contracts.length > 0 && (
-        <div className={LP.card}>
-          <div
-            className="flex w-full cursor-pointer flex-wrap items-center gap-x-2 gap-y-2 py-2 px-4 sm:flex-nowrap sm:gap-1"
-            onClick={toggleContractUpdateSection}
-          >
-            <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2 sm:min-h-0 sm:gap-1">
-              <h3 className="min-w-0 flex-1 text-left text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 sm:flex-none sm:line-clamp-none sm:text-base">
-                Add Contract Update
-              </h3>
-              {!isContractUpdateOpen ? (
-                <div className="relative flex shrink-0 items-center">
-                  <button
-                    type="button"
-                    className="touch-manipulation rounded-full p-2 transition-colors hover:bg-gray-100 focus:bg-gray-100 focus:outline-none sm:p-1 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
-                    aria-label="About Add Contract Update"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onMouseEnter={() => !isMobile && setShowContractUpdateTooltip(true)}
-                    onMouseLeave={() => !isMobile && setShowContractUpdateTooltip(false)}
-                    onFocus={() => !isMobile && setShowContractUpdateTooltip(true)}
-                    onBlur={() => !isMobile && setShowContractUpdateTooltip(false)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (isMobile) setShowContractUpdateInfoMobile(true);
-                      else setShowContractUpdateTooltip((v) => !v);
-                    }}
-                  >
-                    <Info className="h-4 w-4 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300" />
-                  </button>
-                  {showContractUpdateTooltip && !isMobile ? (
-                    <div className={CONTRACT_UPDATE_TOOLTIP_PANEL_CLASS} role="tooltip">
-                      {CONTRACT_UPDATE_SECTION_HINT}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleContractUpdateSection();
-              }}
-              className="ml-auto flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 sm:ml-0 sm:h-9 sm:w-9 dark:text-gray-400 dark:hover:bg-gray-700"
-              aria-expanded={isContractUpdateOpen}
-              aria-label={isContractUpdateOpen ? 'Collapse section' : 'Expand section'}
-            >
-              {isContractUpdateOpen ? (
-                <ChevronDown className="h-5 w-5 sm:h-4 sm:w-4" />
-              ) : (
-                <ChevronRight className="h-5 w-5 sm:h-4 sm:w-4" />
-              )}
-            </button>
-          </div>
-          {isContractUpdateOpen && (
-            <form
-              onSubmit={handleAddEntry}
-              className="space-y-3 border-t border-gray-200 p-2 pt-3 dark:border-gray-700 sm:p-3 sm:pt-4 md:p-4"
-            >
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5">
-                <CustomDropdown
-                  value={entryForm.contract_id}
-                  onChange={(value) => setEntryForm((prev) => ({ ...prev, contract_id: value }))}
-                  options={contractOptions}
-                  placeholder="Contract"
-                  className={compactDropdownClass}
-                />
-                <CustomDropdown
-                  value={entryForm.type}
-                  onChange={(value) => setEntryForm((prev) => ({ ...prev, type: value as EntryType }))}
-                  options={entryTypeOptions}
-                  placeholder="Type"
-                  className={compactDropdownClass}
-                />
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={entryForm.amount}
-                  onChange={(e) => setEntryForm((prev) => ({ ...prev, amount: e.target.value }))}
-                  placeholder="Amount"
-                  className={compactInputClass}
-                  required
-                />
-                <div className={compactDateShellClass}>
-                  <DatePicker
-                    selected={parseLocalDate(entryForm.date)}
-                    onChange={(date) => setEntryForm((prev) => ({ ...prev, date: formatDateYmd(date) }))}
-                    placeholderText="Entry date *"
-                    dateFormat="yyyy-MM-dd"
-                    className={dateInputClass}
-                    todayButton="Today"
-                    isClearable
-                    autoComplete="off"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="flex h-10 w-full min-h-10 items-center justify-center rounded-md bg-gradient-primary px-3 text-xs text-white transition-colors hover:bg-gradient-primary-hover sm:h-8 sm:min-h-0 sm:w-auto sm:px-2 sm:text-[13px] md:px-3 touch-manipulation"
-                >
-                  Add Entry
-                </button>
-              </div>
-              <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-2">
-                <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 text-xs text-gray-700 dark:text-gray-300 sm:min-h-0 sm:text-[13px]">
-                  <input
-                    type="checkbox"
-                    checked={postEntryAsTransaction}
-                    onChange={(e) => setPostEntryAsTransaction(e.target.checked)}
-                    className="rounded border-gray-300 dark:border-gray-600"
-                  />
-                  Post transaction to account
-                </label>
-                <CustomDropdown
-                  value={postingAccountId}
-                  onChange={setPostingAccountId}
-                  options={postingAccountOptions}
-                  placeholder="Select account *"
-                  disabled={!postEntryAsTransaction}
-                  className={compactDropdownClass}
-                  fullWidth
-                />
-                <p className="text-[11px] leading-snug text-gray-500 dark:text-gray-400 lg:col-span-2">
-                  Profit and principal returned → income. Loss and capital contribution → expense.
-                </p>
-              </div>
-              <textarea
-                value={entryForm.note}
-                onChange={(e) => setEntryForm((prev) => ({ ...prev, note: e.target.value }))}
-                placeholder="Optional note for this update"
-                rows={2}
-                className={`${compactTextareaClass} min-h-[4.5rem] sm:min-h-0`}
-              />
-            </form>
-          )}
-        </div>
-      )}
-
       <div className={LP.card}>
-        <div className={LP.filterHeader}>
+        <div className={LP.investmentFilterHeader}>
           <div className={LP.filterRow} style={{ marginBottom: 0 }}>
             <ListPageFilterSearchField
               value={searchTerm}
@@ -749,6 +599,32 @@ export const BusinessInvestmentTracker: React.FC = () => {
               >
                 <Filter className="w-4 h-4" />
               </button>
+            </div>
+
+            <div className="md:hidden">
+              <div className="inline-flex items-center rounded-md">
+                <button
+                  type="button"
+                  onClick={() => setShowUpdateModal(true)}
+                  disabled={!hasActiveContracts}
+                  className="px-2 py-1.5 rounded-l-md transition-colors flex items-center justify-center gap-1 text-[13px] h-8 bg-gradient-primary text-white hover:bg-gradient-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={updateActionTitle}
+                  aria-label={updateActionTitle}
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  <span className="hidden sm:inline">Update</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={!hasActiveContracts}
+                  className="h-8 px-1.5 rounded-r-md border-l border-white/20 bg-gradient-primary text-white transition-colors hover:bg-gradient-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="About Update"
+                  title="About Update"
+                  onClick={() => setShowContractUpdateInfoMobile(true)}
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
 
             <div className="md:hidden">
@@ -789,6 +665,36 @@ export const BusinessInvestmentTracker: React.FC = () => {
             </div>
             <div className="flex-grow" />
             <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="relative hidden md:inline-flex items-center rounded-md">
+                <button
+                  type="button"
+                  onClick={() => setShowUpdateModal(true)}
+                  disabled={!hasActiveContracts}
+                  className="px-2 sm:px-3 py-1.5 h-8 rounded-l-md transition-colors flex items-center space-x-1 sm:space-x-1.5 text-xs sm:text-[13px] bg-gradient-primary text-white hover:bg-gradient-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={updateActionTitle}
+                >
+                  <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>Update</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={!hasActiveContracts}
+                  className="h-8 px-1.5 rounded-r-md border-l border-white/20 bg-gradient-primary text-white transition-colors hover:bg-gradient-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="About Update"
+                  onMouseEnter={() => setShowContractUpdateTooltip(true)}
+                  onMouseLeave={() => setShowContractUpdateTooltip(false)}
+                  onFocus={() => setShowContractUpdateTooltip(true)}
+                  onBlur={() => setShowContractUpdateTooltip(false)}
+                  onClick={() => setShowContractUpdateTooltip((v) => !v)}
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+                {showContractUpdateTooltip ? (
+                  <div className={CONTRACT_UPDATE_TOOLTIP_PANEL_CLASS} role="tooltip">
+                    {CONTRACT_UPDATE_SECTION_HINT}
+                  </div>
+                ) : null}
+              </div>
               <button
                 type="button"
                 onClick={() => openAddContractModal()}
@@ -1155,31 +1061,48 @@ export const BusinessInvestmentTracker: React.FC = () => {
         }}
       />
 
-      {showContractUpdateInfoMobile && isMobile ? (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 pb-[env(safe-area-inset-bottom,0px)] sm:items-center sm:p-4">
+      <BusinessInvestmentUpdateModal
+        open={showUpdateModal}
+        onClose={() => setShowUpdateModal(false)}
+        entryForm={entryForm}
+        setEntryForm={setEntryForm}
+        contractOptions={contractOptions}
+        entryTypeOptions={entryTypeOptions}
+        postEntryAsTransaction={postEntryAsTransaction}
+        setPostEntryAsTransaction={setPostEntryAsTransaction}
+        postingAccountId={postingAccountId}
+        setPostingAccountId={setPostingAccountId}
+        postingAccountOptions={postingAccountOptions}
+        onSubmit={handleAddEntry}
+      />
+
+      {showContractUpdateInfoMobile ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowContractUpdateInfoMobile(false)} aria-hidden />
           <div
-            className="relative max-h-[min(85vh,100%)] w-full max-w-md animate-fadein overflow-y-auto overscroll-contain rounded-t-2xl border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-900 sm:rounded-lg sm:p-5 touch-manipulation"
+            className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col min-h-0"
             role="dialog"
             aria-labelledby="contract-update-info-title"
           >
-            <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
               <div
                 id="contract-update-info-title"
-                className="pr-2 text-base font-semibold leading-snug text-gray-900 dark:text-white"
+                className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white"
               >
-                Add Contract Update
+                Update
               </div>
               <button
                 type="button"
                 onClick={() => setShowContractUpdateInfoMobile(false)}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
                 aria-label="Close"
               >
-                <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
-            <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-300">{CONTRACT_UPDATE_SECTION_HINT}</p>
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1 min-h-0 overscroll-contain">
+              <p className="text-sm sm:text-base leading-relaxed text-gray-700 dark:text-gray-300">{CONTRACT_UPDATE_SECTION_HINT}</p>
+            </div>
           </div>
         </div>
       ) : null}

@@ -3,7 +3,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Task } from '../../types/client';
 import { SortableTaskItem } from './SortableTaskItem';
-import { isTaskOverdue } from '../../utils/taskDateUtils';
+import { isTaskOverdue, isTaskDueToday } from '../../utils/taskDateUtils';
 
 interface KanbanColumnProps {
   id: string;
@@ -18,9 +18,12 @@ interface KanbanColumnProps {
   onStatusChange: (taskId: string, newStatus: Task['status']) => void;
   onTaskClick: (task: Task) => void;
   onTaskDelete: (taskId: string) => void;
+  onQuickComplete: (taskId: string) => void;
+  onQuickPostpone: (task: Task) => void;
   color: string;
   isDraggingTask?: string | null;
   maxVisibleTasks?: number;
+  isMobileView?: boolean;
 }
 
 const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
@@ -36,9 +39,12 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
   onStatusChange,
   onTaskClick,
   onTaskDelete,
+  onQuickComplete,
+  onQuickPostpone,
   color,
   isDraggingTask = null,
   maxVisibleTasks,
+  isMobileView = false,
 }) => {
   const { setNodeRef, isOver } = useDroppable({
     id,
@@ -65,7 +71,7 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
       {/* Droppable Area */}
       <div
         ref={setNodeRef}
-        className={`flex-1 min-h-[180px] sm:min-h-[180px] md:min-h-[180px] ${maxVisibleTasks === 3 ? 'max-h-[180px] sm:max-h-[200px] md:max-h-[220px]' : 'max-h-[300px] sm:max-h-[350px] md:max-h-[400px] lg:max-h-[450px] xl:max-h-[500px]'} rounded-md sm:rounded-lg p-1 sm:p-1.5 md:p-2 transition-colors overflow-y-auto ${
+        className={`flex-1 min-h-[180px] sm:min-h-[180px] md:min-h-[180px] ${isMobileView ? 'max-h-none overflow-visible' : maxVisibleTasks === 3 ? 'max-h-[180px] sm:max-h-[200px] md:max-h-[220px]' : 'max-h-[300px] sm:max-h-[350px] md:max-h-[400px] lg:max-h-[450px] xl:max-h-[500px] overflow-y-auto'} rounded-md sm:rounded-lg p-1 sm:p-1.5 md:p-2 transition-colors ${
           isOver
             ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-600 border-dashed'
             : 'bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700'
@@ -78,6 +84,7 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
               tasks.map((task) => {
                 const clientName = getClientName(task.client_id);
                 const isOverdue = isTaskOverdue(task.due_date, task.status);
+                const isDueToday = isTaskDueToday(task.due_date, task.status);
 
                 return (
                   <SortableTaskItem
@@ -85,6 +92,7 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
                     task={task}
                     clientName={clientName}
                     isOverdue={isOverdue}
+                    isDueToday={isDueToday}
                     getPriorityColor={getPriorityColor}
                     getStatusColor={getStatusColor}
                     statusMenuOpen={statusMenuOpen}
@@ -93,6 +101,8 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
                     onStatusChange={onStatusChange}
                     onTaskClick={onTaskClick}
                     onTaskDelete={onTaskDelete}
+                    onQuickComplete={onQuickComplete}
+                    onQuickPostpone={onQuickPostpone}
                     isUpdating={isDraggingTask === task.id}
                   />
                 );

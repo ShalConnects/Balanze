@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { AlertCircle, ChevronDown, ChevronUp, Edit2, Trash2, CircleDot } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronUp, Edit2, Trash2, CircleDot, Calendar, Check } from 'lucide-react';
 import { Task } from '../../types/client';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { useTouchDevice } from '../../hooks/useTouchDevice';
+import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { formatAppDate, formatAppMonthDay } from '../../utils/timezoneUtils';
 
 interface TaskItemProps {
   task: Task;
   clientName: string;
   isOverdue: boolean;
+  isDueToday: boolean;
   getPriorityColor: (priority: Task['priority']) => string;
   getStatusColor: (status: Task['status']) => string;
   statusMenuOpen: string | null;
@@ -17,12 +19,15 @@ interface TaskItemProps {
   onStatusChange: (taskId: string, newStatus: Task['status']) => void;
   onTaskClick: (task: Task) => void;
   onTaskDelete: (taskId: string) => void;
+  onQuickComplete: (taskId: string) => void;
+  onQuickPostpone: (task: Task) => void;
 }
 
 const TaskItemComponent: React.FC<TaskItemProps> = ({
   task,
   clientName,
   isOverdue,
+  isDueToday,
   getPriorityColor,
   getStatusColor,
   statusMenuOpen,
@@ -31,6 +36,8 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
   onStatusChange,
   onTaskClick,
   onTaskDelete,
+  onQuickComplete,
+  onQuickPostpone,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showActions, setShowActions] = useState(false);
@@ -39,6 +46,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
   const [menuPositionLeft, setMenuPositionLeft] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top?: number; bottom?: number; left?: number; right?: number } | null>(null);
   const isTouchDevice = useTouchDevice();
+  const { isMobile } = useMobileDetection();
   const taskItemRef = useRef<HTMLDivElement>(null);
   const lastToggleTimeRef = useRef<number>(0);
 
@@ -92,7 +100,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
         const menuHeight = menuRect.height > 0 ? menuRect.height : 50;
         const menuWidth = menuRect.width > 0 ? menuRect.width : 220;
         
-        if (isTouchDevice) {
+        if (isMobile) {
           const spaceBelow = viewportHeight - taskRect.bottom;
           const spaceAbove = taskRect.top;
           setMenuPositionAbove(spaceBelow < menuHeight && spaceAbove > menuHeight);
@@ -176,6 +184,16 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
     e.stopPropagation();
     onStatusClick(task.id);
   };
+  
+  const handleQuickComplete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onQuickComplete(task.id);
+  };
+
+  const handleQuickPostpone = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onQuickPostpone(task);
+  };
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (isTouchDevice) {
@@ -211,20 +229,37 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
                 <span className="sm:hidden">!</span>
               </span>
             )}
+            {!isOverdue && isDueToday && (
+              <span className="text-[9px] sm:text-[9px] text-orange-600 dark:text-orange-400 flex items-center gap-0.5">
+                <Calendar className="w-3 h-3 sm:w-3 sm:h-3" />
+                <span className="hidden sm:inline">Today</span>
+                <span className="sm:hidden">T</span>
+              </span>
+            )}
+            <button
+              onClick={handleStatusClick}
+              className="inline-flex items-center text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+              title="Change status"
+              aria-label="Change status"
+            >
+              <CircleDot className="w-3 h-3 sm:w-3 sm:h-3" />
+            </button>
           </div>
           </div>
           <div className="flex items-center justify-between gap-1.5 sm:gap-1 mb-1 sm:mb-0.5">
             <div className="text-[10px] sm:text-[9px] md:text-[10px] text-gray-500 dark:text-gray-400 truncate flex-1 min-w-0">
             {clientName}
           </div>
-          {task.due_date && (
-              <div className="text-[10px] sm:text-[9px] md:text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap flex-shrink-0">
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {task.due_date && (
+              <div className="text-[10px] sm:text-[9px] md:text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">
                 {isTouchDevice 
                   ? formatAppMonthDay(task.due_date)
                   : formatAppDate(task.due_date)
                 }
-            </div>
-          )}
+              </div>
+            )}
+          </div>
           </div>
           
           {/* Expanded Details */}
@@ -298,6 +333,20 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
           onClick={(e) => e.stopPropagation()}
         >
           <button
+            onClick={handleQuickComplete}
+            className="p-1.5 sm:p-0.5 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors rounded min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center touch-manipulation"
+            title="Mark completed"
+          >
+            <Check className="w-4 h-4 sm:w-3 sm:h-3" />
+          </button>
+          <button
+            onClick={handleQuickPostpone}
+            className="p-1.5 sm:p-0.5 text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors rounded min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center touch-manipulation"
+            title="Postpone by 1 day"
+          >
+            <Calendar className="w-4 h-4 sm:w-3 sm:h-3" />
+          </button>
+          <button
             onClick={handleStatusClick}
             className="p-1.5 sm:p-0.5 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors rounded min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center touch-manipulation"
             title="Change status"
@@ -324,7 +373,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
       {/* Status Menu */}
       {statusMenuOpen === task.id && (
         <>
-          {isTouchDevice && (
+          {isMobile && (
             <div 
               className="fixed inset-0 bg-black/50 z-40"
               onClick={(e) => {
@@ -336,13 +385,13 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
           
           <div 
             ref={statusMenuRef}
-            className={`${isTouchDevice ? 'fixed bottom-0 left-0 right-0 z-50 rounded-t-xl shadow-2xl' : 'fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-0.5 px-0.5'} flex items-center gap-0.5 flex-wrap ${
-              isTouchDevice 
+            className={`${isMobile ? 'fixed bottom-0 left-0 right-0 z-50 rounded-t-xl shadow-2xl' : 'fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-0.5 px-0.5'} flex items-center gap-0.5 flex-wrap ${
+              isMobile 
                 ? 'bg-white dark:bg-gray-800 p-4 pb-safe-bottom animate-slide-up'
                 : ''
             }`}
             style={
-              !isTouchDevice 
+              !isMobile 
                 ? {
                     ...menuPosition,
                     maxWidth: 'min(calc(100vw - 1rem), 220px)'
@@ -351,7 +400,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
             }
             onClick={(e) => e.stopPropagation()}
           >
-            {isTouchDevice && (
+            {isMobile && (
               <div className="w-full mb-3">
                 <div className="w-12 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-2"></div>
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white text-center mb-3">
@@ -359,7 +408,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
                 </h3>
               </div>
             )}
-            <div className={`${isTouchDevice ? 'w-full grid grid-cols-1 gap-2' : 'flex items-center gap-0.5 flex-wrap'}`}>
+            <div className={`${isMobile ? 'w-full grid grid-cols-1 gap-2' : 'flex items-center gap-0.5 flex-wrap'}`}>
               {[
                 { label: 'In Progress', value: 'in_progress' },
                 { label: 'Waiting on Client', value: 'waiting_on_client' },
@@ -373,15 +422,15 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
                     e.stopPropagation();
                     onStatusChange(task.id, statusOption.value as Task['status']);
                   }}
-                  className={`${isTouchDevice 
+                  className={`${isMobile 
                     ? 'w-full px-4 py-3 text-sm font-medium rounded-lg text-left transition-colors' 
                     : 'px-1 py-1 sm:px-1 sm:py-0.5 text-[8px] sm:text-[9px] md:text-[10px] rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap min-h-[32px] sm:min-h-0'
                   } ${
                     task.status === statusOption.value
-                      ? isTouchDevice
+                      ? isMobile
                         ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-2 border-blue-300 dark:border-blue-600'
                         : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                      : isTouchDevice
+                      : isMobile
                         ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600'
                         : 'text-gray-700 dark:text-gray-300'
                   }`}
@@ -428,6 +477,7 @@ export const TaskItem = React.memo(TaskItemComponent, (prevProps, nextProps) => 
     prevProps.task.priority === nextProps.task.priority &&
     prevProps.clientName === nextProps.clientName &&
     prevProps.isOverdue === nextProps.isOverdue &&
+    prevProps.isDueToday === nextProps.isDueToday &&
     prevProps.statusMenuOpen === nextProps.statusMenuOpen
   );
 });

@@ -444,6 +444,7 @@ export const SEARCH_CONFIGS = {
     keys: [
       { name: 'description', weight: 0.4 },
       { name: 'category', weight: 0.25 },
+      { name: 'note', weight: 0.15 },
       { name: 'tags', weight: 0.15 },
       { name: 'transaction_id', weight: 0.1 },
       { name: 'type', weight: 0.1 }

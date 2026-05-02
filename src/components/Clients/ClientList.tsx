@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Plus, Edit2, Trash2, Building2, Mail, Phone, MapPin, Tag, X, Filter, Eye, ShoppingCart, ChevronUp, ChevronDown, Info, ChevronRight, Copy, AlertCircle, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useClientStore } from '../../store/useClientStore';
-import { Client, getNeedsFollowUp } from '../../types/client';
+import { getNeedsFollowUp } from '../../types/client';
+import type { Client, Task, TaskStatus } from '../../types/client';
 import { ClientForm } from './ClientForm';
 import { TaskForm } from '../Tasks/TaskForm';
 import { InvoiceForm } from '../Invoices/InvoiceForm';
@@ -26,7 +27,6 @@ import { Tooltip } from '../common/Tooltip';
 import { 
   getInvoiceStatusColor, 
   getPaymentStatusColor, 
-  getTaskPriorityColor, 
   getTaskStatusColor,
   formatKnownSinceDate,
   CLIENT_STATUS_OPTIONS
@@ -43,9 +43,31 @@ import {
   ListPageMobileFilterSection,
   ListPageMobileFilterChip
 } from '../common/listPage/listPageLayout';
-import { isTaskOverdue, getDaysOverdue } from '../../utils/taskDateUtils';
+import { isTaskOverdue } from '../../utils/taskDateUtils';
 import { getTagSuggestionPool } from '../../utils/clientTagSuggestions';
 import { CLIENTS_FEATURE_ICON } from '../../lib/clientFeatureIcon';
+
+type ClientTaskSummary = {
+  active: number;
+  overdue: number;
+  waitingOnClient: number;
+  topTask: Task | null;
+};
+
+const TASK_STATUS_OPTIONS: Array<{ label: string; value: TaskStatus }> = [
+  { label: 'In Progress', value: 'in_progress' },
+  { label: 'Waiting on Client', value: 'waiting_on_client' },
+  { label: 'Waiting on Me', value: 'waiting_on_me' },
+  { label: 'Completed', value: 'completed' },
+  { label: 'Cancelled', value: 'cancelled' },
+];
+
+const EMPTY_TASK_SUMMARY: Readonly<ClientTaskSummary> = Object.freeze({
+  active: 0,
+  overdue: 0,
+  waitingOnClient: 0,
+  topTask: null,
+});
 
 // Tag Management Component
 interface ClientTagManagerProps {
@@ -154,6 +176,7 @@ ClientTagManager.displayName = 'ClientTagManager';
 
 export const ClientList: React.FC = () => {
   const navigate = useNavigate();
+  const ORCHESTRATE_CLIENT_TASKS = true;
   const {
     clients,
     orders,
@@ -268,6 +291,7 @@ export const ClientList: React.FC = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [taskClientId, setTaskClientId] = useState<string | null>(null);
+  const [taskWidgetClientId, setTaskWidgetClientId] = useState<string | null>(null);
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   const [invoiceClientId, setInvoiceClientId] = useState<string | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
@@ -297,6 +321,17 @@ export const ClientList: React.FC = () => {
   
   // Loading states for individual clients
   const [loadingClientData, setLoadingClientData] = useState<Set<string>>(new Set());
+  const hasFetchedTasksRef = useRef(false);
+
+  const ensureTasksLoaded = useCallback(async () => {
+    if (hasFetchedTasksRef.current) return;
+    hasFetchedTasksRef.current = true;
+    try {
+      await fetchTasks();
+    } catch {
+      hasFetchedTasksRef.current = false;
+    }
+  }, [fetchTasks]);
 
   // Update tempFilters when mobile menu opens
   useEffect(() => {
@@ -343,6 +378,12 @@ export const ClientList: React.FC = () => {
       isMounted = false;
     };
   }, []); // Empty dependency array - only run once on mount
+
+  // Keep task loading in ClientList to avoid duplicated widget fetches.
+  useEffect(() => {
+    if (!ORCHESTRATE_CLIENT_TASKS) return;
+    void ensureTasksLoaded();
+  }, [ORCHESTRATE_CLIENT_TASKS, ensureTasksLoaded]);
   
   // Lazy load tasks and invoices when a client row is expanded
   // Only fetch once when the first client is expanded (fetchTasks/fetchInvoices get all data)
@@ -362,7 +403,7 @@ export const ClientList: React.FC = () => {
         // Fetch all tasks and invoices once (they're cached in the store)
         // This is more efficient than fetching per-client since we need all data anyway
         await Promise.all([
-          fetchTasks(),
+          ensureTasksLoaded(),
           fetchInvoices()
         ]);
         
@@ -377,7 +418,7 @@ export const ClientList: React.FC = () => {
     };
     
     loadClientData();
-  }, [expandedRows.size, loadedClientData.size, loadingClientData.size, fetchTasks, fetchInvoices]);
+  }, [expandedRows.size, loadedClientData.size, loadingClientData.size, ensureTasksLoaded, fetchInvoices]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -457,10 +498,42 @@ export const ClientList: React.FC = () => {
       tableFilters.needsFollowUp
   );
 
-  // Check if there are active tasks (same logic as ClientTasksWidget)
-  const hasActiveTasks = useMemo(() => {
-    const allActiveTasks = tasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled');
-    return allActiveTasks.length > 0;
+  const clientTaskSummaryByClient = useMemo(() => {
+    const summary = new Map<string, ClientTaskSummary>();
+    const priorityOrder: Record<Task['priority'], number> = {
+      urgent: 0,
+      high: 1,
+      medium: 2,
+      low: 3
+    };
+    const getDueTime = (task: Task) =>
+      task.due_date ? new Date(task.due_date).getTime() : Number.POSITIVE_INFINITY;
+    const shouldReplaceTopTask = (candidate: Task, current: Task) => {
+      const candidateOverdue = isTaskOverdue(candidate.due_date, candidate.status);
+      const currentOverdue = isTaskOverdue(current.due_date, current.status);
+      if (candidateOverdue !== currentOverdue) return candidateOverdue;
+
+      const candidateDueTime = getDueTime(candidate);
+      const currentDueTime = getDueTime(current);
+      if (candidateDueTime !== currentDueTime) return candidateDueTime < currentDueTime;
+
+      const priorityDiff = priorityOrder[candidate.priority] - priorityOrder[current.priority];
+      if (priorityDiff !== 0) return priorityDiff < 0;
+
+      return new Date(candidate.created_at).getTime() > new Date(current.created_at).getTime();
+    };
+
+    tasks.forEach((task) => {
+      if (task.status === 'completed' || task.status === 'cancelled') return;
+      const current = summary.get(task.client_id) || { ...EMPTY_TASK_SUMMARY };
+      summary.set(task.client_id, {
+        active: current.active + 1,
+        overdue: current.overdue + (isTaskOverdue(task.due_date, task.status) ? 1 : 0),
+        waitingOnClient: current.waitingOnClient + (task.status === 'waiting_on_client' ? 1 : 0),
+        topTask: !current.topTask || shouldReplaceTopTask(task, current.topTask) ? task : current.topTask
+      });
+    });
+    return summary;
   }, [tasks]);
 
   // Memoized client financial calculations
@@ -515,6 +588,16 @@ export const ClientList: React.FC = () => {
       : <ChevronDown className="w-4 h-4 text-blue-600" />;
   };
 
+  const getTaskStatusLabel = (status: TaskStatus) =>
+    status.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+  const handleTaskStatusUpdate = (taskId: string, status: TaskStatus, clientId?: string) => {
+    updateTask(taskId, { status });
+    setTaskStatusMenuOpen(null);
+  };
+
+  const toolbarIconClassName = 'w-4 h-4';
+
   const clientsEmptyBody = (
     <>
       <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
@@ -541,6 +624,9 @@ export const ClientList: React.FC = () => {
   };
 
   const isRowExpanded = (clientId: string) => expandedRows.has(clientId);
+  const toggleTaskWidgetClient = (clientId: string) => {
+    setTaskWidgetClientId((current) => (current === clientId ? null : clientId));
+  };
 
   const handleEdit = (client: Client) => {
     setEditingClient(client);
@@ -681,7 +767,7 @@ export const ClientList: React.FC = () => {
           <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
           
           {/* Filters skeleton */}
-          <div className={`${LP.filterHeader} relative z-10`}>
+          <div className={`${LP.clientFilterHeader} relative z-10`}>
             <ClientFiltersSkeleton />
           </div>
           
@@ -719,14 +805,14 @@ export const ClientList: React.FC = () => {
               hint="The page will still work, but client data may be incomplete. Please check your database connection or run the migration."
             />
           ) : null}
-          
-          {/* Client Tasks Widget - Outside table */}
-          <ClientTasksWidget />
+
+          {/* Client Tasks Widget - kept separate from table */}
+          <ClientTasksWidget skipInitialFetch={ORCHESTRATE_CLIENT_TASKS} />
           
           {/* Unified Filters and Table */}
-          <div className={LP.card} style={hasActiveTasks ? { marginTop: '15px' } : undefined}>
+          <div className={LP.card}>
             {/* Filters Section */}
-            <div className={LP.filterHeader}>
+            <div className={LP.clientFilterHeader}>
               <div className={LP.filterRow} style={{ marginBottom: 0 }}>
                 <ListPageFilterSearchField
                   value={tableFilters.search}
@@ -744,31 +830,32 @@ export const ClientList: React.FC = () => {
                   />
                 )}
 
-                {/* Mobile Filter Button + Follow-up */}
-                <div className="md:hidden flex items-center gap-1">
-                    <button
-                      onClick={() => setShowMobileFilterMenu(true)}
-                      className={listPageMobileFilterIconButtonClass(
-                        !!(tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag)
-                      )}
-                      style={
-                        tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag
-                          ? LP_SEARCH_ACTIVE_STYLE
-                          : undefined
-                      }
-                      title="Filters"
-                    >
-                      <Filter className="w-4 h-4" />
-                    </button>
+                {/* Mobile Filter Button */}
+                <div className="md:hidden">
+                  <button
+                    onClick={() => setShowMobileFilterMenu(true)}
+                    className={listPageMobileFilterIconButtonClass(
+                      !!(tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag)
+                    )}
+                    style={
+                      tableFilters.currency || tableFilters.status !== 'active' || tableFilters.source || tableFilters.tag
+                        ? LP_SEARCH_ACTIVE_STYLE
+                        : undefined
+                    }
+                    title="Filters"
+                  >
+                    <Filter className={toolbarIconClassName} />
+                  </button>
+                </div>
+                <div className="md:hidden">
                   <button
                     onClick={() => setTableFilters({ ...tableFilters, needsFollowUp: !tableFilters.needsFollowUp })}
-                    className={`p-1.5 h-8 w-8 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 rounded-md flex items-center justify-center transition-colors touch-manipulation ${
-                      tableFilters.needsFollowUp ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
-                    }`}
+                    className={listPageMobileFilterIconButtonClass(tableFilters.needsFollowUp)}
+                    style={tableFilters.needsFollowUp ? LP_SEARCH_ACTIVE_STYLE : undefined}
                     title={tableFilters.needsFollowUp ? 'Show all' : 'Needs follow-up'}
                     aria-label="Follow-up filter"
                   >
-                    <Bell className={`w-4 h-4 ${tableFilters.needsFollowUp ? 'fill-current' : ''}`} />
+                    <Bell className={toolbarIconClassName} />
                   </button>
                 </div>
 
@@ -797,7 +884,7 @@ export const ClientList: React.FC = () => {
                     title={canCreateClient() ? "Add Client" : "Client limit reached"}
                     aria-label="Add Client"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className={toolbarIconClassName} />
                   </button>
                 </div>
 
@@ -947,7 +1034,7 @@ export const ClientList: React.FC = () => {
                     style={tableFilters.needsFollowUp ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                     title={tableFilters.needsFollowUp ? 'Show all clients' : 'Show only clients needing follow-up'}
                   >
-                    <Bell className={`w-3.5 h-3.5 ${tableFilters.needsFollowUp ? 'text-blue-600 dark:text-blue-400' : ''}`} />
+                    <Bell className={`${toolbarIconClassName} ${tableFilters.needsFollowUp ? 'text-blue-600 dark:text-blue-400' : ''}`} />
                     <span>Follow-up</span>
                   </button>
 
@@ -961,7 +1048,7 @@ export const ClientList: React.FC = () => {
                 
                 <div className="flex-grow" />
                 {/* Action Buttons in filter row */}
-                <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="hidden md:flex items-center gap-1.5 sm:gap-2">
                   <button
                     onClick={() => {
                       if (!canCreateClient()) {
@@ -992,7 +1079,7 @@ export const ClientList: React.FC = () => {
             </div>
 
             {/* Summary Cards - matching AccountsView pattern */}
-            <div className={LP.summaryGrid}>
+            <div className={LP.clientSummaryGrid}>
               {(() => {
                 const activeClients = filteredClients.filter(c => c.status === 'active');
                 const inactiveClients = filteredClients.filter(c => c.status === 'inactive');
@@ -1203,31 +1290,6 @@ export const ClientList: React.FC = () => {
                                     <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">
                                       {client.name}
                                     </div>
-                                    {(() => {
-                                      const clientTasks = getTasksByClient(client.id);
-                                      const activeTasks = clientTasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled');
-                                      const overdueTasks = clientTasks.filter(task => isTaskOverdue(task.due_date, task.status));
-                                      const hasOverdue = overdueTasks.length > 0;
-                                      if (activeTasks.length > 0) {
-                                        return (
-                                          <span 
-                                            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium border ${
-                                              hasOverdue
-                                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
-                                                : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800'
-                                            }`}
-                                            title={hasOverdue 
-                                              ? `${overdueTasks.length} overdue task${overdueTasks.length !== 1 ? 's' : ''}, ${activeTasks.length} active task${activeTasks.length !== 1 ? 's' : ''}`
-                                              : `${activeTasks.length} active task${activeTasks.length !== 1 ? 's' : ''}`
-                                            }
-                                          >
-                                            {hasOverdue && <AlertCircle className="w-2.5 h-2.5" />}
-                                            {activeTasks.length}
-                                          </span>
-                                        );
-                                      }
-                                      return null;
-                                    })()}
                                     <Tooltip content={getNeedsFollowUp(client) ? 'Clear follow-up' : 'Mark for follow-up'}>
                                       <button
                                         type="button"
@@ -1464,18 +1526,6 @@ export const ClientList: React.FC = () => {
                             </td>
                             <td className="px-3 sm:px-4 lg:px-6 py-2 sm:py-[0.6rem] lg:py-[0.7rem] text-center">
                               <div className="flex items-center justify-center gap-2">
-                                <Tooltip content="Edit" placement="top">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEdit(client);
-                                    }}
-                                    className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-                                    aria-label={`Edit ${client.name} client`}
-                                  >
-                                    <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                  </button>
-                                </Tooltip>
                                 <Tooltip content="Create Task" placement="top">
                                   <button
                                     onClick={(e) => {
@@ -1487,6 +1537,18 @@ export const ClientList: React.FC = () => {
                                     aria-label={`Create task for ${client.name}`}
                                   >
                                     <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                  </button>
+                                </Tooltip>
+                                <Tooltip content="Edit" placement="top">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEdit(client);
+                                    }}
+                                    className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                    aria-label={`Edit ${client.name} client`}
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                   </button>
                                 </Tooltip>
                                 <Tooltip content={client.notes && client.notes.trim().length > 0 ? "View Note" : "Add Note"} placement="top">
@@ -1844,12 +1906,6 @@ export const ClientList: React.FC = () => {
                                   
                                   {/* Tasks */}
                                   <div className="space-y-2 sm:space-y-3">
-                                    {loadingClientData.has(client.id) && !loadedClientData.has(client.id) ? (
-                                      <div className="text-center py-4 text-gray-400 dark:text-gray-500 text-xs">
-                                        Loading tasks...
-                                      </div>
-                                    ) : (
-                                      <>
                                     <div className="flex items-center justify-between gap-2">
                                       <h4 className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">Tasks</h4>
                                       <button
@@ -1865,104 +1921,21 @@ export const ClientList: React.FC = () => {
                                         <span className="sm:hidden">Create</span>
                                       </button>
                                     </div>
-                                    <div className="text-[11px] sm:text-xs lg:text-[11px] text-gray-600 dark:text-gray-300 space-y-1.5 sm:space-y-2">
-                                      {(() => {
-                                        const clientTasks = getTasksByClient(client.id);
-                                        
-                                        if (clientTasks.length === 0) {
-                                          return <div className="text-gray-400 italic text-[11px] lg:text-[11px]">No tasks yet</div>;
-                                        }
-                                        
-                                        return clientTasks
-                                          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                                          .slice(0, 5)
-                                          .map((task) => {
-                                            // Check if task is overdue
-                                            const isOverdue = isTaskOverdue(task.due_date, task.status);
-                                            const daysOverdue = getDaysOverdue(task.due_date, task.status);
-                                            
-                                            return (
-                                              <div key={task.id} className={`flex justify-between items-start p-2 rounded-md ${isOverdue ? 'bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50' : 'bg-gray-50 dark:bg-gray-800/50'}`}>
-                                                <div className="flex-1 min-w-0">
-                                                  <div className="font-medium truncate text-xs sm:text-sm lg:text-[11px]">{task.title}</div>
-                                                  {task.description && (
-                                                    <div className="text-gray-500 dark:text-gray-400 text-xs lg:text-[10px] mt-0.5 line-clamp-2 lg:line-clamp-1">
-                                                      {task.description}
-                                                    </div>
-                                                  )}
-                                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                                    {task.due_date ? (
-                                                      <span className={`text-xs lg:text-[10px] ${isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
-                                                        {isOverdue ? `Overdue ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''}` : `Due: ${formatAppDate(task.due_date)}`}
-                                                      </span>
-                                                    ) : (
-                                                      <span className="text-xs lg:text-[10px] text-gray-400 dark:text-gray-500 italic">
-                                                        No due date
-                                                      </span>
-                                                    )}
-                                                    {isOverdue && (
-                                                      <span className="text-xs lg:text-[10px] px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 font-medium">
-                                                        Overdue
-                                                      </span>
-                                                    )}
-                                                    <span className={`text-xs lg:text-[10px] font-medium ${getTaskPriorityColor(task.priority)}`}>
-                                                      {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                                                    </span>
-                                                  </div>
-                                                </div>
-                                                <div className="ml-2 text-right relative">
-                                                  <div className="relative">
-                                                    <button
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setTaskStatusMenuOpen(taskStatusMenuOpen === task.id ? null : task.id);
-                                                      }}
-                                                      className={`text-xs lg:text-[10px] font-medium px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${getTaskStatusColor(task.status)}`}
-                                                    >
-                                                      {task.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                                    </button>
-                                                    {taskStatusMenuOpen === task.id && (
-                                                      <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg min-w-[160px] max-w-[calc(100vw-2rem)]">
-                                                        {[
-                                                          { label: 'In Progress', value: 'in_progress' },
-                                                          { label: 'Waiting on Client', value: 'waiting_on_client' },
-                                                          { label: 'Waiting on Me', value: 'waiting_on_me' },
-                                                          { label: 'Completed', value: 'completed' },
-                                                          { label: 'Cancelled', value: 'cancelled' },
-                                                        ].map((statusOption) => (
-                                                          <button
-                                                            key={statusOption.value}
-                                                            onClick={(e) => {
-                                                              e.stopPropagation();
-                                                              updateTask(task.id, { status: statusOption.value as any });
-                                                              setTaskStatusMenuOpen(null);
-                                                              // Refresh all tasks to ensure data consistency
-                                                              fetchTasks();
-                                                            }}
-                                                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                                                              task.status === statusOption.value
-                                                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                                                                : 'text-gray-700 dark:text-gray-300'
-                                                            }`}
-                                                          >
-                                                            {statusOption.label}
-                                                          </button>
-                                                        ))}
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                  {task.completed_date && (
-                                                    <div className="text-xs text-gray-400 mt-0.5">
-                                                      {formatAppDate(task.completed_date)}
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              </div>
-                                            );
-                                          });
-                                      })()}
-                                    </div>
-                                    </>
+                                    {loadingClientData.has(client.id) && !loadedClientData.has(client.id) ? (
+                                      <div className="text-center py-4 text-gray-400 dark:text-gray-500 text-xs">
+                                        Loading tasks...
+                                      </div>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setTaskWidgetClientId(client.id);
+                                        }}
+                                        className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                                      >
+                                        Open task widget
+                                      </button>
                                     )}
                                   </div>
                                   
@@ -1993,6 +1966,8 @@ export const ClientList: React.FC = () => {
                   <div className="space-y-3 sm:space-y-4 px-3 sm:px-4">
                     {filteredClients.map((client) => {
                       const financialData = clientFinancialData.get(client.id);
+                      const taskSummary = clientTaskSummaryByClient.get(client.id) || EMPTY_TASK_SUMMARY;
+                      const hasOverdueTasks = taskSummary.overdue > 0;
                       if (!financialData) return null;
                       return (
                         <div
@@ -2006,31 +1981,25 @@ export const ClientList: React.FC = () => {
                                 <div className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">
                                   {client.name}
                                 </div>
-                                {(() => {
-                                  const clientTasks = getTasksByClient(client.id);
-                                  const activeTasks = clientTasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled');
-                                  const overdueTasks = clientTasks.filter(task => isTaskOverdue(task.due_date, task.status));
-                                  const hasOverdue = overdueTasks.length > 0;
-                                  if (activeTasks.length > 0) {
-                                    return (
-                                      <span 
-                                        className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium border ${
-                                          hasOverdue
-                                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
-                                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800'
-                                        }`}
-                                        title={hasOverdue 
-                                          ? `${overdueTasks.length} overdue task${overdueTasks.length !== 1 ? 's' : ''}, ${activeTasks.length} active task${activeTasks.length !== 1 ? 's' : ''}`
-                                          : `${activeTasks.length} active task${activeTasks.length !== 1 ? 's' : ''}`
-                                        }
-                                      >
-                                        {hasOverdue && <AlertCircle className="w-2.5 h-2.5" />}
-                                        {activeTasks.length}
-                                      </span>
-                                    );
-                                  }
-                                  return null;
-                                })()}
+                                {taskSummary.active > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleTaskWidgetClient(client.id)}
+                                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium border ${
+                                      hasOverdueTasks
+                                        ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
+                                        : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800'
+                                    } ${taskWidgetClientId === client.id ? 'ring-1 ring-blue-500 dark:ring-blue-400' : ''}`}
+                                    title={hasOverdueTasks
+                                      ? `${taskSummary.overdue} overdue task${taskSummary.overdue !== 1 ? 's' : ''}, ${taskSummary.active} active task${taskSummary.active !== 1 ? 's' : ''}`
+                                      : `${taskSummary.active} active task${taskSummary.active !== 1 ? 's' : ''}`
+                                    }
+                                    aria-label={`Filter task widget for ${client.name}`}
+                                  >
+                                    {hasOverdueTasks && <AlertCircle className="w-2.5 h-2.5" />}
+                                    {taskSummary.active}
+                                  </button>
+                                )}
                               </div>
                               {client.company_name && (
                                 <>
@@ -2439,88 +2408,16 @@ export const ClientList: React.FC = () => {
                                       <span className="sm:hidden">Create</span>
                                     </button>
                                   </div>
-                                  <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 space-y-1.5 sm:space-y-2">
-                                    {(() => {
-                                      const clientTasks = getTasksByClient(client.id);
-                                      
-                                      if (clientTasks.length === 0) {
-                                        return <div className="text-gray-400 italic text-xs">No tasks yet</div>;
-                                      }
-                                      
-                                      return clientTasks
-                                        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                                        .slice(0, 3)
-                                        .map((task) => {
-                                          // Check if task is overdue
-                                          const isOverdue = isTaskOverdue(task.due_date, task.status);
-                                          const daysOverdue = getDaysOverdue(task.due_date, task.status);
-                                          
-                                          return (
-                                            <div key={task.id} className={`p-1.5 rounded text-xs ${isOverdue ? 'bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50' : 'bg-gray-50 dark:bg-gray-800/50'}`}>
-                                              <div className="font-medium truncate">{task.title}</div>
-                                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                                {task.due_date ? (
-                                                  <span className={isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'}>
-                                                    {isOverdue ? `Overdue ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''}` : `Due: ${formatAppDate(task.due_date)}`}
-                                                  </span>
-                                                ) : (
-                                                  <span className="text-xs text-gray-400 dark:text-gray-500 italic">
-                                                    No due date
-                                                  </span>
-                                                )}
-                                                {isOverdue && (
-                                                  <span className="px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 font-medium">
-                                                    Overdue
-                                                  </span>
-                                                )}
-                                                <span className={`font-medium ${getTaskPriorityColor(task.priority)}`}>
-                                                  {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                                                </span>
-                                                <div className="relative">
-                                                  <button
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      setTaskStatusMenuOpen(taskStatusMenuOpen === task.id ? null : task.id);
-                                                    }}
-                                                    className={`font-medium px-2 py-0.5 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${getTaskStatusColor(task.status)}`}
-                                                  >
-                                                    {task.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                                  </button>
-                                                  {taskStatusMenuOpen === task.id && (
-                                                    <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg min-w-[160px] max-w-[calc(100vw-2rem)]">
-                                                      {[
-                                                        { label: 'In Progress', value: 'in_progress' },
-                                                        { label: 'Waiting on Client', value: 'waiting_on_client' },
-                                                        { label: 'Waiting on Me', value: 'waiting_on_me' },
-                                                        { label: 'Completed', value: 'completed' },
-                                                        { label: 'Cancelled', value: 'cancelled' },
-                                                      ].map((statusOption) => (
-                                                        <button
-                                                          key={statusOption.value}
-                                                          onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            updateTask(task.id, { status: statusOption.value as any });
-                                                            setTaskStatusMenuOpen(null);
-                                                            fetchTasks(client.id);
-                                                          }}
-                                                          className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                                                            task.status === statusOption.value
-                                                              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                                                              : 'text-gray-700 dark:text-gray-300'
-                                                          }`}
-                                                        >
-                                                          {statusOption.label}
-                                                        </button>
-                                                      ))}
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          );
-                                        });
-                                    })()}
-                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setTaskWidgetClientId(client.id);
+                                    }}
+                                    className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                                  >
+                                    Open task widget
+                                  </button>
                                 </div>
 
                                 {/* AI Email Suggestions */}
@@ -2543,6 +2440,36 @@ export const ClientList: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {taskWidgetClientId && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px]"
+            onClick={() => setTaskWidgetClientId(null)}
+            aria-label="Close tasks panel"
+          />
+          <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 shadow-2xl">
+            <div className="h-full overflow-y-auto p-2 sm:p-3">
+              <div className="sticky top-0 z-10 -mx-2 sm:-mx-3 mb-2 px-2 sm:px-3 py-1.5 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={() => setTaskWidgetClientId(null)}
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200/70 dark:hover:bg-gray-800 transition-colors"
+                  aria-label="Close tasks panel"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <ClientTasksWidget
+                focusedClientId={taskWidgetClientId}
+                onClearFocus={() => setTaskWidgetClientId(null)}
+                skipInitialFetch={ORCHESTRATE_CLIENT_TASKS}
+              />
+            </div>
+          </aside>
+        </>
+      )}
 
       {/* Client Form Modal */}
       <ClientForm

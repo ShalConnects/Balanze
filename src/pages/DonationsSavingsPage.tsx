@@ -913,7 +913,7 @@ const DonationsSavingsPage: React.FC = () => {
                       )}
                     </button>
                   )}
-                  <div className="relative hidden md:block" ref={exportMenuRef}>
+                  <div className="relative" ref={exportMenuRef}>
                     <button
                       onClick={() => {
                         if (isAndroidApp) {

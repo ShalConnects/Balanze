@@ -1,16 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { AlertCircle, ChevronDown, ChevronUp, GripVertical, Edit2, Trash2, CircleDot } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronUp, GripVertical, Edit2, Trash2, CircleDot, Calendar, Check } from 'lucide-react';
 import { Task } from '../../types/client';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { useTouchDevice } from '../../hooks/useTouchDevice';
+import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { formatAppDate, formatAppMonthDay } from '../../utils/timezoneUtils';
 
 interface SortableTaskItemProps {
   task: Task;
   clientName: string;
   isOverdue: boolean;
+  isDueToday: boolean;
   getPriorityColor: (priority: Task['priority']) => string;
   getStatusColor: (status: Task['status']) => string;
   statusMenuOpen: string | null;
@@ -19,6 +21,8 @@ interface SortableTaskItemProps {
   onStatusChange: (taskId: string, newStatus: Task['status']) => void;
   onTaskClick: (task: Task) => void;
   onTaskDelete: (taskId: string) => void;
+  onQuickComplete: (taskId: string) => void;
+  onQuickPostpone: (task: Task) => void;
   isUpdating?: boolean;
 }
 
@@ -26,6 +30,7 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
   task,
   clientName,
   isOverdue,
+  isDueToday,
   getPriorityColor,
   getStatusColor,
   statusMenuOpen,
@@ -34,6 +39,8 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
   onStatusChange,
   onTaskClick,
   onTaskDelete,
+  onQuickComplete,
+  onQuickPostpone,
   isUpdating = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -43,6 +50,7 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
   const [menuPositionLeft, setMenuPositionLeft] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top?: number; bottom?: number; left?: number; right?: number } | null>(null);
   const isTouchDevice = useTouchDevice();
+  const { isMobile } = useMobileDetection();
   const taskItemRef = useRef<HTMLDivElement>(null);
   const lastToggleTimeRef = useRef<number>(0);
 
@@ -115,7 +123,7 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
         const menuHeight = menuRect.height > 0 ? menuRect.height : 50;
         const menuWidth = menuRect.width > 0 ? menuRect.width : 220;
         
-        if (isTouchDevice) {
+        if (isMobile) {
           // Mobile: Use absolute positioning
           const spaceBelow = viewportHeight - taskRect.bottom;
           const spaceAbove = taskRect.top;
@@ -197,11 +205,13 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setShowActions(false);
     onTaskClick(task);
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setShowActions(false);
     setShowDeleteModal(true);
   };
 
@@ -212,14 +222,38 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
 
   const handleStatusClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setShowActions(false);
     onStatusClick(task.id);
   };
+  
+  const handleQuickComplete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowActions(false);
+    onQuickComplete(task.id);
+  };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleQuickPostpone = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowActions(false);
+    onQuickPostpone(task);
+  };
+
+  const handleTouchStart = () => {
     if (isTouchDevice) {
-      setShowActions(true);
+      setShowActions((prev) => !prev);
     }
   };
+
+  useEffect(() => {
+    if (!isTouchDevice || !showActions) return;
+    const handleOutsideTouch = (event: TouchEvent) => {
+      if (taskItemRef.current && !taskItemRef.current.contains(event.target as Node)) {
+        setShowActions(false);
+      }
+    };
+    document.addEventListener('touchstart', handleOutsideTouch);
+    return () => document.removeEventListener('touchstart', handleOutsideTouch);
+  }, [isTouchDevice, showActions]);
 
   // Combine refs for sortable and scroll-into-view
   const combinedRef = (node: HTMLDivElement | null) => {
@@ -234,6 +268,9 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
       className={`relative bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all group w-full max-w-full ${
         isDragging ? 'shadow-lg scale-105' : 'shadow-sm'
       } ${isUpdating ? 'opacity-75' : ''}`}
+      onClick={() => {
+        if (!isDragging && !isUpdating) onTaskClick(task);
+      }}
       onMouseEnter={() => !isTouchDevice && setShowActions(true)}
       onMouseLeave={() => !isTouchDevice && setShowActions(false)}
       onTouchStart={handleTouchStart}
@@ -268,20 +305,37 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
                 <span className="sm:hidden">!</span>
               </span>
             )}
+            {!isOverdue && isDueToday && (
+              <span className="text-[8px] sm:text-[9px] text-orange-600 dark:text-orange-400 flex items-center gap-0.5">
+                <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                <span className="hidden sm:inline">Today</span>
+                <span className="sm:hidden">T</span>
+              </span>
+            )}
+            <button
+              onClick={handleStatusClick}
+              className="inline-flex items-center text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+              title="Change status"
+              aria-label="Change status"
+            >
+              <CircleDot className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+            </button>
           </div>
           </div>
           <div className="flex items-center justify-between gap-1 mb-0.5">
             <div className="text-[8px] sm:text-[9px] md:text-[10px] text-gray-500 dark:text-gray-400 truncate flex-1 min-w-0">
             {clientName}
           </div>
-          {task.due_date && (
-              <div className="text-[8px] sm:text-[9px] md:text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap flex-shrink-0">
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {task.due_date && (
+              <div className="text-[8px] sm:text-[9px] md:text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">
                 {isTouchDevice 
                   ? formatAppMonthDay(task.due_date)
                   : formatAppDate(task.due_date)
                 }
-            </div>
-          )}
+              </div>
+            )}
+          </div>
           </div>
           
           {/* Expanded Details */}
@@ -357,6 +411,20 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
           onClick={(e) => e.stopPropagation()}
         >
           <button
+            onClick={handleQuickComplete}
+            className="p-1.5 sm:p-0.5 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors rounded min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center touch-manipulation"
+            title="Mark completed"
+          >
+            <Check className="w-4 h-4 sm:w-3 sm:h-3" />
+          </button>
+          <button
+            onClick={handleQuickPostpone}
+            className="p-1.5 sm:p-0.5 text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors rounded min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center touch-manipulation"
+            title="Postpone by 1 day"
+          >
+            <Calendar className="w-4 h-4 sm:w-3 sm:h-3" />
+          </button>
+          <button
             onClick={handleStatusClick}
             className="p-1.5 sm:p-0.5 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors rounded min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center touch-manipulation"
             title="Change status"
@@ -384,7 +452,7 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
       {statusMenuOpen === task.id && (
         <>
           {/* Mobile: Bottom Sheet Overlay */}
-          {isTouchDevice && (
+          {isMobile && (
             <div 
               className="fixed inset-0 bg-black/50 z-40"
               onClick={(e) => {
@@ -397,13 +465,13 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
           {/* Status Menu */}
           <div 
             ref={statusMenuRef}
-            className={`${isTouchDevice ? 'fixed bottom-0 left-0 right-0 z-50 rounded-t-xl shadow-2xl' : 'fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-0.5 px-0.5'} flex items-center gap-0.5 flex-wrap ${
-              isTouchDevice 
+            className={`${isMobile ? 'fixed bottom-0 left-0 right-0 z-50 rounded-t-xl shadow-2xl' : 'fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-0.5 px-0.5'} flex items-center gap-0.5 flex-wrap ${
+              isMobile 
                 ? 'bg-white dark:bg-gray-800 p-4 pb-safe-bottom animate-slide-up'
                 : ''
             }`}
             style={
-              !isTouchDevice 
+              !isMobile 
                 ? {
                     ...menuPosition,
                     maxWidth: 'min(calc(100vw - 1rem), 220px)'
@@ -412,7 +480,7 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
             }
             onClick={(e) => e.stopPropagation()}
           >
-            {isTouchDevice && (
+            {isMobile && (
               <div className="w-full mb-3">
                 <div className="w-12 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-2"></div>
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white text-center mb-3">
@@ -420,7 +488,7 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
                 </h3>
               </div>
             )}
-            <div className={`${isTouchDevice ? 'w-full grid grid-cols-1 gap-2' : 'flex items-center gap-0.5 flex-wrap'}`}>
+            <div className={`${isMobile ? 'w-full grid grid-cols-1 gap-2' : 'flex items-center gap-0.5 flex-wrap'}`}>
               {[
                 { label: 'In Progress', value: 'in_progress' },
                 { label: 'Waiting on Client', value: 'waiting_on_client' },
@@ -434,15 +502,15 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
                     e.stopPropagation();
                     onStatusChange(task.id, statusOption.value as Task['status']);
                   }}
-                  className={`${isTouchDevice 
+                  className={`${isMobile 
                     ? 'w-full px-4 py-3 text-sm font-medium rounded-lg text-left transition-colors' 
                     : 'px-1 py-1 sm:px-1 sm:py-0.5 text-[8px] sm:text-[9px] md:text-[10px] rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap min-h-[32px] sm:min-h-0'
                   } ${
                     task.status === statusOption.value
-                      ? isTouchDevice
+                      ? isMobile
                         ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-2 border-blue-300 dark:border-blue-600'
                         : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                      : isTouchDevice
+                      : isMobile
                         ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600'
                         : 'text-gray-700 dark:text-gray-300'
                   }`}
@@ -491,6 +559,7 @@ export const SortableTaskItem = React.memo(SortableTaskItemComponent, (prevProps
     prevProps.task.priority === nextProps.task.priority &&
     prevProps.clientName === nextProps.clientName &&
     prevProps.isOverdue === nextProps.isOverdue &&
+    prevProps.isDueToday === nextProps.isDueToday &&
     prevProps.statusMenuOpen === nextProps.statusMenuOpen &&
     prevProps.isUpdating === nextProps.isUpdating
   );

@@ -1042,7 +1042,7 @@ const TransactionListComponent: React.FC<{
     const suggestions = searchService.getSuggestions(
       transactions,
       searchQuery,
-      ['description', 'transaction_id', 'category'],
+      ['description', 'transaction_id', 'category', 'note'],
       5
     );
 
@@ -2999,8 +2999,7 @@ const TransactionListComponent: React.FC<{
                         {/* Note Display */}
                         {transaction.note && transaction.note.trim().length > 0 && (
                           <Tooltip content={transaction.note} placement="top">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 cursor-help">
-                              <FileText className="w-2.5 h-2.5" />
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 cursor-help">
                               {transaction.note}
                             </span>
                           </Tooltip>

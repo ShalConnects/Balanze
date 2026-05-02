@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ChevronDown, ChevronUp, AlertCircle, Flame, Calendar, List, Columns } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertCircle, Flame, Calendar } from 'lucide-react';
 import { useClientStore } from '../../store/useClientStore';
 import { Task } from '../../types/client';
-import { StatCard } from './StatCard';
-import { SortableTaskItem } from './SortableTaskItem';
-import { TaskItem } from './TaskItem';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskForm } from '../Tasks/TaskForm';
-import { getTodayNormalized, normalizeTaskDate, isTaskOverdue, isTaskDueToday, isTaskDueThisWeek } from '../../utils/taskDateUtils';
+import { getTodayNormalized, normalizeTaskDate, isTaskOverdue, isTaskDueToday, isTaskDueThisWeek, toBusinessDateString } from '../../utils/taskDateUtils';
 import { showToast } from '../../lib/toast';
 import { useTouchDevice } from '../../hooks/useTouchDevice';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
@@ -23,25 +20,22 @@ import {
 import {
   sortableKeyboardCoordinates,
   arrayMove,
-  SortableContext,
-  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 
-export const ClientTasksWidget: React.FC = () => {
+interface ClientTasksWidgetProps {
+  focusedClientId?: string | null;
+  onClearFocus?: () => void;
+  skipInitialFetch?: boolean;
+}
+
+export const ClientTasksWidget: React.FC<ClientTasksWidgetProps> = ({
+  focusedClientId = null,
+  onClearFocus,
+  skipInitialFetch = false
+}) => {
   const { tasks, clients, loading: clientsLoading, fetchTasks, fetchClients, updateTask, updateTaskPositions, deleteTask, error, tasksLoading } = useClientStore();
   const [statusMenuOpen, setStatusMenuOpen] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(true); // Default to expanded
-  const [activeTab, setActiveTab] = useState<'in_progress' | 'waiting_on_client' | 'waiting_on_me'>('in_progress');
-  const [viewMode, setViewMode] = useState<'list' | 'kanban'>(() => {
-    // Load from localStorage
-    const saved = localStorage.getItem('clientTasksViewMode');
-    // Migrate 'grid' to 'list' if found
-    if (saved === 'grid') {
-      localStorage.setItem('clientTasksViewMode', 'list');
-      return 'list';
-    }
-    return (saved === 'list' || saved === 'kanban') ? saved : 'list';
-  });
   const [isDraggingTask, setIsDraggingTask] = useState<string | null>(null);
   const [optimisticTasks, setOptimisticTasks] = useState<Task[] | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -51,15 +45,11 @@ export const ClientTasksWidget: React.FC = () => {
   const statusMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (skipInitialFetch) return;
     fetchTasks();
     fetchClients();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Save view mode preference to localStorage
-  useEffect(() => {
-    localStorage.setItem('clientTasksViewMode', viewMode);
-  }, [viewMode]);
+  }, [skipInitialFetch]);
 
   // Close status menu when clicking outside
   useEffect(() => {
@@ -75,48 +65,77 @@ export const ClientTasksWidget: React.FC = () => {
   // Use optimistic tasks if available, otherwise use store tasks
   const displayTasks = optimisticTasks || tasks;
   
-  // Filter out completed tasks
-  const allActiveTasks = displayTasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled');
+  // Filter out completed tasks and optionally scope to one client
+  const allActiveTasks = useMemo(
+    () => displayTasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled'),
+    [displayTasks]
+  );
+  const visibleActiveTasks = useMemo(
+    () => (focusedClientId ? allActiveTasks.filter(task => task.client_id === focusedClientId) : allActiveTasks),
+    [allActiveTasks, focusedClientId]
+  );
+  const focusedClientName = useMemo(
+    () => (focusedClientId ? clients.find(c => c.id === focusedClientId)?.name : null),
+    [clients, focusedClientId]
+  );
 
   // Calculate statistics
   const stats = useMemo(() => {
-    const urgent = allActiveTasks.filter(t => t.priority === 'urgent').length;
-    const overdue = allActiveTasks.filter(t => isTaskOverdue(t.due_date, t.status)).length;
-    const dueToday = allActiveTasks.filter(t => isTaskDueToday(t.due_date, t.status)).length;
-    const dueThisWeek = allActiveTasks.filter(t => isTaskDueThisWeek(t.due_date, t.status)).length;
+    const urgent = visibleActiveTasks.filter(t => t.priority === 'urgent').length;
+    const overdue = visibleActiveTasks.filter(t => isTaskOverdue(t.due_date, t.status)).length;
+    const dueToday = visibleActiveTasks.filter(t => isTaskDueToday(t.due_date, t.status)).length;
+    const dueThisWeek = visibleActiveTasks.filter(t => isTaskDueThisWeek(t.due_date, t.status)).length;
 
     return {
-      total: allActiveTasks.length,
+      total: visibleActiveTasks.length,
       urgent,
       overdue,
       dueToday,
       dueThisWeek
     };
-  }, [allActiveTasks]);
+  }, [visibleActiveTasks]);
 
   // Group tasks by status for Kanban columns and sort by position
   const tasksByStatus = useMemo(() => {
+    const priorityOrder: Record<Task['priority'], number> = {
+      urgent: 0,
+      high: 1,
+      medium: 2,
+      low: 3
+    };
+    const compareByUrgency = (a: Task, b: Task) => {
+      const aOverdue = isTaskOverdue(a.due_date, a.status);
+      const bOverdue = isTaskOverdue(b.due_date, b.status);
+      if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+      const aToday = isTaskDueToday(a.due_date, a.status);
+      const bToday = isTaskDueToday(b.due_date, b.status);
+      if (aToday !== bToday) return aToday ? -1 : 1;
+      const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+      if (priorityDiff !== 0) return priorityDiff;
+      return (a.position || 0) - (b.position || 0);
+    };
+
     const grouped = {
-      in_progress: allActiveTasks
+      in_progress: visibleActiveTasks
         .filter(t => t.status === 'in_progress')
-        .sort((a, b) => (a.position || 0) - (b.position || 0)),
-      waiting_on_client: allActiveTasks
+        .sort(compareByUrgency),
+      waiting_on_client: visibleActiveTasks
         .filter(t => t.status === 'waiting_on_client')
-        .sort((a, b) => (a.position || 0) - (b.position || 0)),
-      waiting_on_me: allActiveTasks
+        .sort(compareByUrgency),
+      waiting_on_me: visibleActiveTasks
         .filter(t => t.status === 'waiting_on_me')
-        .sort((a, b) => (a.position || 0) - (b.position || 0))
+        .sort(compareByUrgency)
     };
     return grouped;
-  }, [allActiveTasks]);
+  }, [visibleActiveTasks]);
 
   // Group tasks by priority for breakdown
   const tasksByPriority = useMemo(() => ({
-    urgent: allActiveTasks.filter(t => t.priority === 'urgent'),
-    high: allActiveTasks.filter(t => t.priority === 'high'),
-    medium: allActiveTasks.filter(t => t.priority === 'medium'),
-    low: allActiveTasks.filter(t => t.priority === 'low')
-  }), [allActiveTasks]);
+    urgent: visibleActiveTasks.filter(t => t.priority === 'urgent'),
+    high: visibleActiveTasks.filter(t => t.priority === 'high'),
+    medium: visibleActiveTasks.filter(t => t.priority === 'medium'),
+    low: visibleActiveTasks.filter(t => t.priority === 'low')
+  }), [visibleActiveTasks]);
 
   // Drag and drop sensors
   // Use activationConstraint to distinguish between click (edit) and drag (reorder)
@@ -145,7 +164,7 @@ export const ClientTasksWidget: React.FC = () => {
     const overId = over.id as string;
 
     // Find the task being dragged
-    const task = allActiveTasks.find(t => t.id === taskId);
+    const task = visibleActiveTasks.find(t => t.id === taskId);
     if (!task) {
       setIsDraggingTask(null);
       return;
@@ -156,11 +175,11 @@ export const ClientTasksWidget: React.FC = () => {
     const sourceColumnIndex = sourceColumnTasks.findIndex(t => t.id === taskId);
     
     // Check if overId is a task ID (within-column reorder) or column ID (column change)
-    const isOverTask = allActiveTasks.some(t => t.id === overId);
+    const isOverTask = visibleActiveTasks.some(t => t.id === overId);
     
     if (isOverTask && overId !== taskId) {
       // Within-column reordering: overId is another task in the same or different column
-      const targetTask = allActiveTasks.find(t => t.id === overId);
+      const targetTask = visibleActiveTasks.find(t => t.id === overId);
       if (!targetTask) {
         setIsDraggingTask(null);
         return;
@@ -202,8 +221,7 @@ export const ClientTasksWidget: React.FC = () => {
       } else {
         // Different status - treat as column change
         const newStatus = targetTask.status;
-        const targetColumnTasks = tasksByStatus[newStatus as keyof typeof tasksByStatus] || [];
-        const newPosition = targetColumnTasks.length + 1;
+        const newPosition = allActiveTasks.filter(t => t.status === newStatus).length + 1;
 
         // Optimistic update
         const optimisticUpdate = tasks.map(t => 
@@ -240,8 +258,7 @@ export const ClientTasksWidget: React.FC = () => {
     }
 
     // Calculate new position (add to end of target column)
-    const targetColumnTasks = tasksByStatus[newStatus as keyof typeof tasksByStatus] || [];
-    const newPosition = targetColumnTasks.length + 1;
+    const newPosition = allActiveTasks.filter(t => t.status === newStatus).length + 1;
 
     // Optimistic update
     const optimisticUpdate = tasks.map(t => 
@@ -299,10 +316,6 @@ export const ClientTasksWidget: React.FC = () => {
   const handleStatusChange = async (taskId: string, newStatus: Task['status']) => {
     await updateTask(taskId, { status: newStatus });
     setStatusMenuOpen(null);
-    // Switch to the appropriate tab if in list view and the new status is one of our active tabs
-    if (viewMode === 'list' && (newStatus === 'in_progress' || newStatus === 'waiting_on_client' || newStatus === 'waiting_on_me')) {
-      setActiveTab(newStatus);
-    }
     // Note: fetchTasks() removed - updateTask already updates the store optimistically
   };
 
@@ -336,11 +349,22 @@ export const ClientTasksWidget: React.FC = () => {
     }
   };
 
+  const handleQuickComplete = async (taskId: string) => {
+    await updateTask(taskId, { status: 'completed' });
+  };
+
+  const handleQuickPostpone = async (task: Task) => {
+    const baseDate = task.due_date ? normalizeTaskDate(task.due_date) : getTodayNormalized();
+    const nextDate = new Date(baseDate);
+    nextDate.setDate(nextDate.getDate() + 1);
+    await updateTask(task.id, { due_date: toBusinessDateString(nextDate) });
+  };
+
   // Early returns - must be after all hooks
   if (tasksLoading && tasks.length === 0 && !error) return null;
-  if (allActiveTasks.length === 0) return null;
+  if (visibleActiveTasks.length === 0 && !focusedClientId) return null;
   // Avoid "Unknown Client": wait for clients when we have tasks that need names
-  if (allActiveTasks.length > 0 && clients.length === 0 && clientsLoading) return null;
+  if (visibleActiveTasks.length > 0 && clients.length === 0 && clientsLoading) return null;
 
   return (
     <div className="w-full max-w-full min-w-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-md sm:rounded-lg p-1 sm:p-1.5 md:p-2 shadow-sm transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 overflow-hidden">
@@ -353,7 +377,7 @@ export const ClientTasksWidget: React.FC = () => {
           onClick={() => setIsExpanded(!isExpanded)}
         >
           <h2 className="text-xs sm:text-xs md:text-sm font-bold text-gray-900 dark:text-white truncate">
-            Client Tasks ({allActiveTasks.length})
+            {focusedClientName ? `${focusedClientName} Tasks` : 'Client Tasks'} ({visibleActiveTasks.length})
           </h2>
           
           <button
@@ -373,42 +397,6 @@ export const ClientTasksWidget: React.FC = () => {
           </button>
         </div>
 
-        {/* View Mode Toggle - Only show when expanded */}
-        {isExpanded && (
-          <div className="flex items-center gap-1 bg-white/50 dark:bg-gray-800/50 rounded-md p-1 border border-gray-200 dark:border-gray-700">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setViewMode('list');
-              }}
-              className={`p-1.5 sm:p-1.5 rounded transition-colors min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center touch-manipulation ${
-                viewMode === 'list'
-                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-              title="List view"
-              aria-label="List view"
-            >
-              <List className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setViewMode('kanban');
-              }}
-              className={`p-1.5 sm:p-1.5 rounded transition-colors min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center touch-manipulation ${
-                viewMode === 'kanban'
-                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-              title="Kanban view"
-              aria-label="Kanban view"
-            >
-              <Columns className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-            </button>
-          </div>
-        )}
-        
         {/* Collapsed State Indicators - Desktop (right side badges) */}
         {!isExpanded && (
           <div className="hidden md:flex items-center gap-0.5 flex-wrap">
@@ -443,6 +431,23 @@ export const ClientTasksWidget: React.FC = () => {
           </div>
         )}
       </div>
+
+      {focusedClientId && (
+        <div className="mt-1 flex items-center justify-between gap-2 px-1">
+          <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 truncate">
+            Showing tasks for {focusedClientName || 'selected client'}
+          </p>
+          {onClearFocus ? (
+            <button
+              type="button"
+              onClick={onClearFocus}
+              className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap"
+            >
+              Show all
+            </button>
+          ) : null}
+        </div>
+      )}
 
       {/* Error Message */}
       {error && (
@@ -488,148 +493,7 @@ export const ClientTasksWidget: React.FC = () => {
       {/* Content Views */}
       {isExpanded && (
         <div className="mt-1 sm:mt-1.5 max-w-full overflow-hidden">
-          {/* List View - 3 Sections Side-by-Side */}
-          {viewMode === 'list' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5 md:gap-3 lg:gap-4">
-              {/* In Progress Section */}
-              <div className="flex flex-col min-h-[180px] sm:min-h-[200px] md:min-h-[220px] lg:min-h-[240px]">
-                <div className="mb-1.5 sm:mb-2 px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-2 rounded-md bg-blue-50/50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-[10px] sm:text-xs font-semibold text-blue-700 dark:text-blue-300 truncate">
-                      In Progress
-                    </h3>
-                    <span className="text-[9px] sm:text-[10px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-800 px-1.5 sm:px-2 py-0.5 rounded-full flex-shrink-0">
-                      {tasksByStatus.in_progress.length}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto min-h-0 max-h-[160px] sm:max-h-[180px] md:max-h-[200px] lg:max-h-[220px] pr-1" style={{ scrollbarWidth: 'thin' }}>
-                  <div className="space-y-1 sm:space-y-1.5">
-                    {tasksByStatus.in_progress.length > 0 ? (
-                      tasksByStatus.in_progress.map((task) => {
-                        const clientName = getClientName(task.client_id);
-                        const isOverdue = isTaskOverdue(task.due_date, task.status);
-
-                        return (
-                          <TaskItem
-                            key={task.id}
-                            task={task}
-                            clientName={clientName}
-                            isOverdue={isOverdue}
-                            getPriorityColor={getPriorityColor}
-                            getStatusColor={getStatusColor}
-                            statusMenuOpen={statusMenuOpen}
-                            statusMenuRef={statusMenuRef}
-                            onStatusClick={handleStatusClick}
-                            onStatusChange={handleStatusChange}
-                            onTaskClick={handleTaskClick}
-                            onTaskDelete={handleTaskDelete}
-                          />
-                        );
-                      })
-                    ) : (
-                      <div className="text-center py-4 sm:py-6 text-gray-400 dark:text-gray-500 text-[9px] sm:text-[10px] md:text-xs">
-                        No tasks
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Waiting on Client Section */}
-              <div className="flex flex-col min-h-[180px] sm:min-h-[200px] md:min-h-[220px] lg:min-h-[240px]">
-                <div className="mb-1.5 sm:mb-2 px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-2 rounded-md bg-yellow-50/50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-[10px] sm:text-xs font-semibold text-yellow-700 dark:text-yellow-300 truncate">
-                      Waiting on Client
-                    </h3>
-                    <span className="text-[9px] sm:text-[10px] font-semibold text-yellow-700 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-800 px-1.5 sm:px-2 py-0.5 rounded-full flex-shrink-0">
-                      {tasksByStatus.waiting_on_client.length}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto min-h-0 max-h-[160px] sm:max-h-[180px] md:max-h-[200px] lg:max-h-[220px] pr-1" style={{ scrollbarWidth: 'thin' }}>
-                  <div className="space-y-1 sm:space-y-1.5">
-                    {tasksByStatus.waiting_on_client.length > 0 ? (
-                      tasksByStatus.waiting_on_client.map((task) => {
-                        const clientName = getClientName(task.client_id);
-                        const isOverdue = isTaskOverdue(task.due_date, task.status);
-
-                        return (
-                          <TaskItem
-                            key={task.id}
-                            task={task}
-                            clientName={clientName}
-                            isOverdue={isOverdue}
-                            getPriorityColor={getPriorityColor}
-                            getStatusColor={getStatusColor}
-                            statusMenuOpen={statusMenuOpen}
-                            statusMenuRef={statusMenuRef}
-                            onStatusClick={handleStatusClick}
-                            onStatusChange={handleStatusChange}
-                            onTaskClick={handleTaskClick}
-                            onTaskDelete={handleTaskDelete}
-                          />
-                        );
-                      })
-                    ) : (
-                      <div className="text-center py-4 sm:py-6 text-gray-400 dark:text-gray-500 text-[9px] sm:text-[10px] md:text-xs">
-                        No tasks
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Waiting on Me Section */}
-              <div className="flex flex-col min-h-[180px] sm:min-h-[200px] md:min-h-[220px] lg:min-h-[240px]">
-                <div className="mb-1.5 sm:mb-2 px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-2 rounded-md bg-purple-50/50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-[10px] sm:text-xs font-semibold text-purple-700 dark:text-purple-300 truncate">
-                      Waiting on Me
-                    </h3>
-                    <span className="text-[9px] sm:text-[10px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-800 px-1.5 sm:px-2 py-0.5 rounded-full flex-shrink-0">
-                      {tasksByStatus.waiting_on_me.length}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto min-h-0 max-h-[160px] sm:max-h-[180px] md:max-h-[200px] lg:max-h-[220px] pr-1" style={{ scrollbarWidth: 'thin' }}>
-                  <div className="space-y-1 sm:space-y-1.5">
-                    {tasksByStatus.waiting_on_me.length > 0 ? (
-                      tasksByStatus.waiting_on_me.map((task) => {
-                        const clientName = getClientName(task.client_id);
-                        const isOverdue = isTaskOverdue(task.due_date, task.status);
-
-                        return (
-                          <TaskItem
-                            key={task.id}
-                            task={task}
-                            clientName={clientName}
-                            isOverdue={isOverdue}
-                            getPriorityColor={getPriorityColor}
-                            getStatusColor={getStatusColor}
-                            statusMenuOpen={statusMenuOpen}
-                            statusMenuRef={statusMenuRef}
-                            onStatusClick={handleStatusClick}
-                            onStatusChange={handleStatusChange}
-                            onTaskClick={handleTaskClick}
-                            onTaskDelete={handleTaskDelete}
-                          />
-                        );
-                      })
-                    ) : (
-                      <div className="text-center py-4 sm:py-6 text-gray-400 dark:text-gray-500 text-[9px] sm:text-[10px] md:text-xs">
-                        No tasks
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Kanban View */}
-          {viewMode === 'kanban' && (
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -660,9 +524,12 @@ export const ClientTasksWidget: React.FC = () => {
                       onStatusChange={handleStatusChange}
                       onTaskClick={handleTaskClick}
                       onTaskDelete={handleTaskDelete}
+                      onQuickComplete={handleQuickComplete}
+                      onQuickPostpone={handleQuickPostpone}
                       color="bg-blue-50 dark:bg-blue-900/20"
                       isDraggingTask={isDraggingTask}
                       maxVisibleTasks={3}
+                      isMobileView={isMobile}
                     />
 
                     {/* Waiting on Client Column */}
@@ -679,9 +546,12 @@ export const ClientTasksWidget: React.FC = () => {
                       onStatusChange={handleStatusChange}
                       onTaskClick={handleTaskClick}
                       onTaskDelete={handleTaskDelete}
+                      onQuickComplete={handleQuickComplete}
+                      onQuickPostpone={handleQuickPostpone}
                       color="bg-yellow-50 dark:bg-yellow-900/20"
                       isDraggingTask={isDraggingTask}
                       maxVisibleTasks={3}
+                      isMobileView={isMobile}
                     />
 
                     {/* Waiting on Me Column */}
@@ -698,9 +568,12 @@ export const ClientTasksWidget: React.FC = () => {
                       onStatusChange={handleStatusChange}
                       onTaskClick={handleTaskClick}
                       onTaskDelete={handleTaskDelete}
+                      onQuickComplete={handleQuickComplete}
+                      onQuickPostpone={handleQuickPostpone}
                       color="bg-purple-50 dark:bg-purple-900/20"
                       isDraggingTask={isDraggingTask}
                       maxVisibleTasks={3}
+                      isMobileView={isMobile}
                     />
                   </div>
                 </div>
@@ -732,9 +605,12 @@ export const ClientTasksWidget: React.FC = () => {
                       onStatusChange={handleStatusChange}
                       onTaskClick={handleTaskClick}
                       onTaskDelete={handleTaskDelete}
+                      onQuickComplete={handleQuickComplete}
+                      onQuickPostpone={handleQuickPostpone}
                       color="bg-blue-50 dark:bg-blue-900/20"
                       isDraggingTask={isDraggingTask}
                       maxVisibleTasks={3}
+                      isMobileView={isMobile}
                     />
 
                     {/* Waiting on Client Column */}
@@ -751,9 +627,12 @@ export const ClientTasksWidget: React.FC = () => {
                       onStatusChange={handleStatusChange}
                       onTaskClick={handleTaskClick}
                       onTaskDelete={handleTaskDelete}
+                      onQuickComplete={handleQuickComplete}
+                      onQuickPostpone={handleQuickPostpone}
                       color="bg-yellow-50 dark:bg-yellow-900/20"
                       isDraggingTask={isDraggingTask}
                       maxVisibleTasks={3}
+                      isMobileView={isMobile}
                     />
 
                     {/* Waiting on Me Column */}
@@ -770,15 +649,17 @@ export const ClientTasksWidget: React.FC = () => {
                       onStatusChange={handleStatusChange}
                       onTaskClick={handleTaskClick}
                       onTaskDelete={handleTaskDelete}
+                      onQuickComplete={handleQuickComplete}
+                      onQuickPostpone={handleQuickPostpone}
                       color="bg-purple-50 dark:bg-purple-900/20"
                       isDraggingTask={isDraggingTask}
                       maxVisibleTasks={3}
+                      isMobileView={isMobile}
                     />
                   </div>
                 </div>
               )}
             </DndContext>
-          )}
         </div>
       )}
 
