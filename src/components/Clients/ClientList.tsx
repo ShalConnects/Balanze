@@ -1269,6 +1269,8 @@ export const ClientList: React.FC = () => {
                         const isSelected = selectedId === client.id;
                         const isFromSearchSelection = isFromSearch && isSelected;
                         const financialData = clientFinancialData.get(client.id);
+                        const taskSummary = clientTaskSummaryByClient.get(client.id) || EMPTY_TASK_SUMMARY;
+                        const hasOverdueTasks = taskSummary.overdue > 0;
                         
                         return (
                           <React.Fragment key={client.id}>
@@ -1291,6 +1293,28 @@ export const ClientList: React.FC = () => {
                                     <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">
                                       {client.name}
                                     </div>
+                                    {taskSummary.active > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleTaskWidgetClient(client.id);
+                                        }}
+                                        className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium border ${
+                                          hasOverdueTasks
+                                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
+                                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800'
+                                        } ${taskWidgetClientId === client.id ? 'ring-1 ring-blue-500 dark:ring-blue-400' : ''}`}
+                                        title={hasOverdueTasks
+                                          ? `${taskSummary.overdue} overdue task${taskSummary.overdue !== 1 ? 's' : ''}, ${taskSummary.active} active task${taskSummary.active !== 1 ? 's' : ''}`
+                                          : `${taskSummary.active} active task${taskSummary.active !== 1 ? 's' : ''}`
+                                        }
+                                        aria-label={`Filter task widget for ${client.name}`}
+                                      >
+                                        {hasOverdueTasks && <AlertCircle className="w-2.5 h-2.5" />}
+                                        {taskSummary.active}
+                                      </button>
+                                    )}
                                     <Tooltip content={getNeedsFollowUp(client) ? 'Clear follow-up' : 'Mark for follow-up'}>
                                       <button
                                         type="button"
