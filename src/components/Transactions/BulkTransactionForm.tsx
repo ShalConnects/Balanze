@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
-import { supabase } from '../../lib/supabase';
 import { showToast } from '../../lib/toast';
 import { logTransactionEvent } from '../../lib/auditLogging';
 import { generateTransactionId } from '../../utils/transactionId';

@@ -5,23 +5,14 @@ import { formatAppDate } from '../../utils/timezoneUtils';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
 import { 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
-  Calendar, 
   Handshake,
   CheckCircle,
-  Clock,
-  XCircle,
   AlertTriangle,
-  Sparkles,
-  ChevronDown,
   ThumbsUp,
   ThumbsDown,
   Trophy,
   Award,
   Star,
-  Plus,
   CreditCard
 } from 'lucide-react';
 import {
@@ -31,10 +22,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
+  ResponsiveContainer
 } from 'recharts';
 
 // Dummy data for demonstration

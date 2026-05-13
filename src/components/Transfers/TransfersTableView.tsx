@@ -1,24 +1,21 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, ArrowRight, Search, ChevronUp, ChevronDown, Filter, Copy, X } from 'lucide-react';
+import { Plus, ArrowRight, Search, ChevronUp, ChevronDown, Filter, X } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
 import { formatCurrency } from '../../utils/currency';
 import { formatTimeUTC } from '../../utils/timezoneUtils';
 import { supabase } from '../../lib/supabase';
-import { formatTransactionId } from '../../utils/transactionId';
 import { toast } from 'sonner';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
-import { SelectionFilter } from '../common/SelectionFilter';
+import { useSelectionSearchSync } from '../../hooks/useSelectionSearchSync';
 import { searchService } from '../../utils/searchService';
+import { normalizeSearchText } from '../../utils/searchText';
+import { TRANSFER_SEARCH_CONFIG } from '../../utils/transferSearchConfig';
 import { TransferModal } from './TransferModal';
 import { DPSTransferModal } from './DPSTransferModal';
 import { Dialog } from '@headlessui/react';
-import { TransferSummaryCards } from './TransferSummaryCards';
-import { TransferFilters } from './TransferFilters';
-import { TransferTable } from './TransferTable';
-import { TransferMobileView } from './TransferMobileView';
 
 // Move calculateRunningBalance outside of the component to avoid hooks issues
 function calculateRunningBalance(accountId: string, upToDate: string, accounts: any[], allTransactions: any[]) {
@@ -75,6 +72,15 @@ export const TransfersTableView: React.FC = () => {
     key: string;
     direction: 'asc' | 'desc';
   } | null>(null);
+  useSelectionSearchSync({
+    hasSelection,
+    isFromSearch,
+    selectedRecord,
+    searchValue: tableFilters.search,
+    onSearchChange: (value) => setTableFilters(prev => ({ ...prev, search: value })),
+    clearSelection,
+    getSelectedSearchValue: (record) => record.note || record.fromAccount?.name || record.toAccount?.name || record.type,
+  });
 
   // Dropdown menu states
   const [showTypeMenu, setShowTypeMenu] = useState(false);
@@ -226,20 +232,13 @@ export const TransfersTableView: React.FC = () => {
     let filtered = allTransfers;
 
     // Apply search filter
-    if (tableFilters.search && tableFilters.search.trim()) {
+    const normalizedSearch = normalizeSearchText(tableFilters.search);
+    if (normalizedSearch) {
       const searchResults = searchService.search(
         filtered,
-        tableFilters.search,
+        normalizedSearch,
         'transfers',
-        { 
-          threshold: 0.3,
-          keys: [
-            { name: 'fromAccount.name', weight: 0.3 },
-            { name: 'toAccount.name', weight: 0.3 },
-            { name: 'note', weight: 0.2 },
-            { name: 'type', weight: 0.2 }
-          ]
-        },
+        TRANSFER_SEARCH_CONFIG,
         { limit: 1000 }
       );
       filtered = searchResults.map(result => result.item);
@@ -431,15 +430,6 @@ export const TransfersTableView: React.FC = () => {
                   />
                 </div>
               </div>
-
-              {/* Selection Filter */}
-              {hasSelection && selectedRecord && (
-                <SelectionFilter
-                  label="Selected"
-                  value={selectedRecord.fromAccount?.name || 'Transfer'}
-                  onClear={clearSelection}
-                />
-              )}
 
               {/* Mobile Filter Button */}
               <div className="md:hidden">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, Edit2, Info, PlusCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export interface MobileCardProps {
   id: string;

@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Search, ChevronUp, ChevronDown, Filter, TrendingUp, ArrowRight, Eye, X } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, Search, ChevronUp, ChevronDown, Filter, ArrowRight, Eye, X } from 'lucide-react';
 import { formatTimeUTC, formatAppDate, formatAppMonthDay } from '../../utils/timezoneUtils';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { supabase } from '../../lib/supabase';
@@ -11,7 +10,10 @@ import { TransferModal } from './TransferModal';
 import { DPSTransferModal } from './DPSTransferModal';
 import { Dialog } from '@headlessui/react';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
-import { SelectionFilter } from '../common/SelectionFilter';
+import { useSelectionSearchSync } from '../../hooks/useSelectionSearchSync';
+import { searchService } from '../../utils/searchService';
+import { normalizeSearchText } from '../../utils/searchText';
+import { TRANSFER_SEARCH_CONFIG } from '../../utils/transferSearchConfig';
 // import { useTranslation } from 'react-i18next';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { TransferFiltersSkeleton, TransferSummaryCardSkeleton, TransferTableSkeleton, TransferMobileCardSkeleton } from './TransfersSkeleton';
@@ -59,6 +61,7 @@ export const Transfer_new: React.FC = () => {
 
   // Record selection functionality
   const {
+    selectedRecord,
     selectedId,
     isFromSearch,
     selectedRecordRef,
@@ -106,6 +109,16 @@ export const Transfer_new: React.FC = () => {
     key: string;
     direction: 'asc' | 'desc';
   } | null>(null);
+  useSelectionSearchSync({
+    hasSelection,
+    isFromSearch,
+    selectedId,
+    selectedRecord,
+    searchValue: tableFilters.search,
+    onSearchChange: (value) => setTableFilters(prev => ({ ...prev, search: value })),
+    clearSelection,
+    getSelectedSearchValue: (record) => record.note || record.fromAccount?.name || record.toAccount?.name || 'Transfer',
+  });
 
    // Dropdown menu states
    const [showTypeMenu, setShowTypeMenu] = useState(false);
@@ -411,13 +424,16 @@ export const Transfer_new: React.FC = () => {
     let filtered = allTransfers;
 
      // Search filter
-     if (tableFilters.search) {
-       const searchLower = tableFilters.search.toLowerCase();
-       filtered = filtered.filter(transfer =>
-         transfer.fromAccount?.name?.toLowerCase().includes(searchLower) ||
-         transfer.toAccount?.name?.toLowerCase().includes(searchLower) ||
-         transfer.fromAmount?.toString().includes(searchLower)
+     const normalizedSearch = normalizeSearchText(tableFilters.search);
+     if (normalizedSearch) {
+       const searchResults = searchService.search(
+         filtered,
+         normalizedSearch,
+         'transfers',
+         TRANSFER_SEARCH_CONFIG,
+         { limit: 1000 }
        );
+       filtered = searchResults.map(result => result.item);
      }
 
      // Type filter
@@ -466,7 +482,7 @@ export const Transfer_new: React.FC = () => {
     }
 
     return filtered;
-  }, [transfers, tableFilters, sortConfig]);
+  }, [allTransfers, tableFilters, sortConfig]);
 
 
   // Click outside handlers for dropdowns
@@ -580,15 +596,6 @@ export const Transfer_new: React.FC = () => {
                   />
                 </div>
               </div>
-
-               {/* Selection Filter */}
-               {hasSelection && (
-                 <SelectionFilter
-                   label="Selected"
-                   value="Transfer"
-                   onClear={clearSelection}
-                 />
-               )}
 
                {/* Mobile Action Buttons - Enhanced Layout */}
                <div className="flex items-center gap-1 md:hidden">

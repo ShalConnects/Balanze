@@ -3,9 +3,8 @@ import TrendChart from './charts/TrendChart';
 import BudgetChart from './charts/BudgetChart';
 import SankeyView from './charts/SankeyView';
 import GoalsPanel from './GoalsPanel';
-import { chartColors } from '../styles/colors';
-import { format, differenceInDays, startOfMonth, endOfMonth } from 'date-fns';
-import { Download, Calendar } from 'lucide-react';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { Download } from 'lucide-react';
 
 interface KPIData {
   availableCash: number;

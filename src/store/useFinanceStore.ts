@@ -16,8 +16,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
 import { showToast } from '../lib/toast';
-import { createNotification } from '../lib/notifications';
-import { logTransactionEvent, createAuditLog } from '../lib/auditLogging';
+import { createAuditLog } from '../lib/auditLogging';
 
 // Unified timestamp helper for audit fields (UTC ISO)
 function getLocalISOString() {

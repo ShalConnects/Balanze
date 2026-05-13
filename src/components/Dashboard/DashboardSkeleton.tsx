@@ -1,5 +1,5 @@
 import React from 'react';
-import { Skeleton, SkeletonCard, SkeletonChart, SkeletonMobileCard, SkeletonStaggered } from '../common/Skeleton';
+import { SkeletonStaggered } from '../common/Skeleton';
 
 export const DashboardSkeleton: React.FC = () => {
   return (

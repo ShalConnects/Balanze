@@ -1,7 +1,6 @@
 import React from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { useFinanceStore } from '../../store/useFinanceStore';
-import { supabase } from '../../lib/supabase';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { 
   Users, 

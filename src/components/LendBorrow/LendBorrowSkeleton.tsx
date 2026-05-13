@@ -1,5 +1,4 @@
 import React from 'react';
-import { Skeleton } from '../common/Skeleton';
 
 // Enhanced skeleton for lend/borrow cards (mobile view) - matches real LendBorrowCard structure
 export const LendBorrowCardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => {

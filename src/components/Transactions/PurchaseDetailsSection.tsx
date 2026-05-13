@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Upload, X, FileText, Image, File } from 'lucide-react';
-import { useFinanceStore } from '../../store/useFinanceStore';
 import { PurchaseAttachment } from '../../types';
 // Quill editor loaded dynamically to reduce initial bundle size
 // import ReactQuill from 'react-quill';

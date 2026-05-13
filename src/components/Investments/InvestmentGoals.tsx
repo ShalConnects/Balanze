@@ -4,14 +4,12 @@ import {
   Plus, 
   Edit, 
   Trash2, 
-  Calendar, 
-  DollarSign,
-  TrendingUp,
+  Calendar,
   CheckCircle,
   Pause,
   Play
 } from 'lucide-react';
-import { InvestmentGoal, InvestmentGoalInput } from '../../types/investment';
+import { InvestmentGoal } from '../../types/investment';
 import { formatCurrency } from '../../utils/currency';
 import { formatAppDate } from '../../utils/timezoneUtils';
 import { SkeletonCard } from '../common/Skeleton';

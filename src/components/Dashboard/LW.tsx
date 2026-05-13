@@ -18,7 +18,6 @@ import {
   Handshake,
   MessageSquare,
   FileText,
-  TrendingUp,
   Download,
   Loader2
 } from 'lucide-react';

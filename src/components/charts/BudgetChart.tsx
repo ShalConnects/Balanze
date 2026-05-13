@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { BarChart3 } from 'lucide-react';
-import { chartColors, getCategoryColor, getAccessibleTextColor } from '../../styles/colors';
+import { chartColors, getCategoryColor } from '../../styles/colors';
 
 interface BudgetDataPoint {
   category: string;

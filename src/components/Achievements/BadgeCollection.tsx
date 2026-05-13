@@ -3,7 +3,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { BadgeCollectionProps, AchievementCategory, AchievementRarity } from '../../types/achievement';
-import { Badge } from './Badge';
 import { Filter, Trophy, Star, Award, Crown, Sparkles } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 

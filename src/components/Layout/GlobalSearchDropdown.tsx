@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, DollarSign, Users, CheckSquare, FileText, Sprout, BookOpen, TrendingUp, CreditCard, ShoppingBag, Handshake } from 'lucide-react';
+import { Search, DollarSign, Users, CheckSquare, FileText, Sprout, BookOpen, CreditCard, ShoppingBag, Handshake } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useClientStore } from '../../store/useClientStore';
 import { useHabitStore } from '../../store/useHabitStore';
@@ -133,7 +133,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     inputRef.current?.blur();
     
     // Get the correct ID based on item type
-    let itemId = item?.id;
+    const itemId = item?.id;
     
     
     switch (type) {
@@ -207,6 +207,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   };
 
   useEffect(() => {
+    let isMounted = true;
     // Fetch transfer data for the Transfers tab
     const fetchTransfers = async () => {
       // Fetch regular transfers
@@ -220,11 +221,15 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         .from('dps_transfers')
         .select('*')
         .order('date', { ascending: false });
+      if (!isMounted) return;
       setTransfers(transferData || []);
       setDpsTransfers(dpsData || []);
     };
     fetchTransfers();
-  }, [search]);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Fetch lend & borrow records when component loads
   useEffect(() => {
@@ -471,78 +476,117 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   ];
   // Removed unused filteredTransfers - now using fuzzy search
 
-  const financeFuzzyKeys: Array<{ name: string; weight: number }> = [
-    { name: 'description', weight: 0.4 },
-    { name: 'category', weight: 0.25 },
-    { name: 'tags', weight: 0.15 },
-    { name: 'transaction_id', weight: 0.1 },
-    { name: 'name', weight: 0.4 },
-    { name: 'type', weight: 0.15 },
-    { name: 'currency', weight: 0.05 },
-  ];
-  const fuseTransactions = createGlobalFuseIndex(transactions, financeFuzzyKeys);
-  const fuseAccounts = createGlobalFuseIndex(accounts, financeFuzzyKeys);
-  const fuseTransfers = createGlobalFuseIndex(allTransfers, financeFuzzyKeys);
-  const fusePurchases = createGlobalFuseIndex(purchases, [
-    { name: 'item_name', weight: 0.4 },
-    { name: 'category', weight: 0.25 },
-    { name: 'notes', weight: 0.15 },
-    { name: 'status', weight: 0.1 },
-    { name: 'price', weight: 0.1 },
-  ]);
-  const fuseLendBorrow = createGlobalFuseIndex(lendBorrowRecords, [
-    { name: 'person_name', weight: 0.4 },
-    { name: 'type', weight: 0.25 },
-    { name: 'notes', weight: 0.15 },
-    { name: 'status', weight: 0.1 },
-    { name: 'currency', weight: 0.1 },
-  ]);
-  const fuseDonations = createGlobalFuseIndex(donationSavingRecords, [
-    { name: 'type', weight: 0.4 },
-    { name: 'note', weight: 0.3 },
-    { name: 'status', weight: 0.2 },
-    { name: 'mode', weight: 0.1 },
-  ]);
-  const fuseClients = createGlobalFuseIndex(clients, [
-    { name: 'name', weight: 0.35 },
-    { name: 'company_name', weight: 0.25 },
-    { name: 'email', weight: 0.15 },
-    { name: 'source', weight: 0.1 },
-    { name: 'tags', weight: 0.1 },
-    { name: 'phone', weight: 0.05 },
-  ]);
-  const fuseTasks = createGlobalFuseIndex(tasks, [
-    { name: 'title', weight: 0.4 },
-    { name: 'description', weight: 0.25 },
-    { name: 'status', weight: 0.15 },
-    { name: 'priority', weight: 0.1 },
-  ]);
-  const fuseInvoices = createGlobalFuseIndex(invoices, [
-    { name: 'invoice_number', weight: 0.35 },
-    { name: 'status', weight: 0.15 },
-    { name: 'total', weight: 0.1 },
-    { name: 'notes', weight: 0.1 },
-    { name: 'payment_status', weight: 0.05 },
-  ]);
-  const fuseHabits = createGlobalFuseIndex(habits, [
-    { name: 'title', weight: 0.5 },
-    { name: 'description', weight: 0.3 },
-  ]);
-  const fuseCourses = createGlobalFuseIndex(courses, [
-    { name: 'name', weight: 0.5 },
-    { name: 'description', weight: 0.3 },
-  ]);
-  const fuseInvAssets = createGlobalFuseIndex(investmentAssets, GLOBAL_SEARCH_INV_ASSET_KEYS);
-  const fuseInvTransactions = createGlobalFuseIndex(
+  const {
+    fuseTransactions,
+    fuseAccounts,
+    fuseTransfers,
+    fusePurchases,
+    fuseLendBorrow,
+    fuseDonations,
+    fuseClients,
+    fuseTasks,
+    fuseInvoices,
+    fuseHabits,
+    fuseCourses,
+    fuseInvAssets,
+    fuseInvTransactions,
+    fuseInvGoals,
+    fuseInvCategories,
+    fuseBusinessInvestmentContracts,
+  } = useMemo(() => {
+    const financeFuzzyKeys: Array<{ name: string; weight: number }> = [
+      { name: 'description', weight: 0.4 },
+      { name: 'category', weight: 0.25 },
+      { name: 'tags', weight: 0.15 },
+      { name: 'transaction_id', weight: 0.1 },
+      { name: 'name', weight: 0.4 },
+      { name: 'type', weight: 0.15 },
+      { name: 'currency', weight: 0.05 },
+    ];
+
+    return {
+      fuseTransactions: createGlobalFuseIndex(transactions, financeFuzzyKeys),
+      fuseAccounts: createGlobalFuseIndex(accounts, financeFuzzyKeys),
+      fuseTransfers: createGlobalFuseIndex(allTransfers, financeFuzzyKeys),
+      fusePurchases: createGlobalFuseIndex(purchases, [
+        { name: 'item_name', weight: 0.4 },
+        { name: 'category', weight: 0.25 },
+        { name: 'notes', weight: 0.15 },
+        { name: 'status', weight: 0.1 },
+        { name: 'price', weight: 0.1 },
+      ]),
+      fuseLendBorrow: createGlobalFuseIndex(lendBorrowRecords, [
+        { name: 'person_name', weight: 0.4 },
+        { name: 'type', weight: 0.25 },
+        { name: 'notes', weight: 0.15 },
+        { name: 'status', weight: 0.1 },
+        { name: 'currency', weight: 0.1 },
+      ]),
+      fuseDonations: createGlobalFuseIndex(donationSavingRecords, [
+        { name: 'type', weight: 0.4 },
+        { name: 'note', weight: 0.3 },
+        { name: 'status', weight: 0.2 },
+        { name: 'mode', weight: 0.1 },
+      ]),
+      fuseClients: createGlobalFuseIndex(clients, [
+        { name: 'name', weight: 0.35 },
+        { name: 'company_name', weight: 0.25 },
+        { name: 'email', weight: 0.15 },
+        { name: 'source', weight: 0.1 },
+        { name: 'tags', weight: 0.1 },
+        { name: 'phone', weight: 0.05 },
+      ]),
+      fuseTasks: createGlobalFuseIndex(tasks, [
+        { name: 'title', weight: 0.4 },
+        { name: 'description', weight: 0.25 },
+        { name: 'status', weight: 0.15 },
+        { name: 'priority', weight: 0.1 },
+      ]),
+      fuseInvoices: createGlobalFuseIndex(invoices, [
+        { name: 'invoice_number', weight: 0.35 },
+        { name: 'status', weight: 0.15 },
+        { name: 'total', weight: 0.1 },
+        { name: 'notes', weight: 0.1 },
+        { name: 'payment_status', weight: 0.05 },
+      ]),
+      fuseHabits: createGlobalFuseIndex(habits, [
+        { name: 'title', weight: 0.5 },
+        { name: 'description', weight: 0.3 },
+      ]),
+      fuseCourses: createGlobalFuseIndex(courses, [
+        { name: 'name', weight: 0.5 },
+        { name: 'description', weight: 0.3 },
+      ]),
+      fuseInvAssets: createGlobalFuseIndex(investmentAssets, GLOBAL_SEARCH_INV_ASSET_KEYS),
+      fuseInvTransactions: createGlobalFuseIndex(
+        investmentTransactionsForSearch,
+        GLOBAL_SEARCH_INV_TX_KEYS
+      ),
+      fuseInvGoals: createGlobalFuseIndex(investmentGoals, GLOBAL_SEARCH_INV_GOAL_KEYS),
+      fuseInvCategories: createGlobalFuseIndex(investmentCategories, GLOBAL_SEARCH_INV_CATEGORY_KEYS),
+      fuseBusinessInvestmentContracts: createGlobalFuseIndex(
+        businessInvestmentContracts,
+        GLOBAL_SEARCH_BUSINESS_CONTRACT_KEYS
+      ),
+    };
+  }, [
+    transactions,
+    accounts,
+    allTransfers,
+    purchases,
+    lendBorrowRecords,
+    donationSavingRecords,
+    clients,
+    tasks,
+    invoices,
+    habits,
+    courses,
+    investmentAssets,
     investmentTransactionsForSearch,
-    GLOBAL_SEARCH_INV_TX_KEYS
-  );
-  const fuseInvGoals = createGlobalFuseIndex(investmentGoals, GLOBAL_SEARCH_INV_GOAL_KEYS);
-  const fuseInvCategories = createGlobalFuseIndex(investmentCategories, GLOBAL_SEARCH_INV_CATEGORY_KEYS);
-  const fuseBusinessInvestmentContracts = createGlobalFuseIndex(
+    investmentGoals,
+    investmentCategories,
     businessInvestmentContracts,
-    GLOBAL_SEARCH_BUSINESS_CONTRACT_KEYS
-  );
+  ]);
 
   // Memoized search results with caching
   const searchResults = useMemo(() => {
@@ -789,7 +833,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   // Highlight helper
   function highlight(text: string, matches: any[]): React.ReactNode {
     if (!matches || matches.length === 0) return text;
-    let result: React.ReactNode[] = [];
+    const result: React.ReactNode[] = [];
     let lastIdx = 0;
     for (const match of matches) {
       const { indices } = match;

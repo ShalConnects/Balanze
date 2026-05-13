@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { X, Calendar, RefreshCw, Pause, Play, Hash, Infinity, ArrowRight, Repeat, SkipForward } from 'lucide-react';
+import { X, Calendar, RefreshCw, Pause, Play, Hash, Infinity as InfinityIcon, ArrowRight, Repeat, SkipForward } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { format } from 'date-fns';
 import { formatCurrency } from '../../utils/currency';
@@ -30,29 +30,23 @@ export const RecurringTransactionDetailsModal: React.FC<RecurringTransactionDeta
   const [isForcing, setIsForcing] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
 
-  if (!isOpen || !transaction) return null;
-
-  // Determine if this is a parent recurring transaction or a child instance
-  const isParentRecurring = transaction.is_recurring;
+  const tx = transaction;
   const parentTransaction = useMemo(() => {
-    if (!isParentRecurring && transaction.parent_recurring_id) {
-      return allTransactions.find(t => t.id === transaction.parent_recurring_id);
-    }
-    return null;
-  }, [transaction, allTransactions, isParentRecurring]);
+    if (!tx || tx.is_recurring || !tx.parent_recurring_id) return null;
+    return allTransactions.find((t) => t.id === tx.parent_recurring_id) ?? null;
+  }, [tx, allTransactions]);
 
-  // Get all child instances if this is a parent recurring transaction
   const childInstances = useMemo(() => {
-    if (isParentRecurring) {
-      return allTransactions
-        .filter(t => t.parent_recurring_id === transaction.id)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Most recent first
-    }
-    return [];
-  }, [isParentRecurring, transaction, allTransactions]);
+    if (!tx?.is_recurring) return [];
+    return allTransactions
+      .filter((t) => t.parent_recurring_id === tx.id)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [tx, allTransactions]);
 
-  // The transaction to display details for
-  const displayTransaction = isParentRecurring ? transaction : (parentTransaction || transaction);
+  if (!isOpen || !tx) return null;
+
+  const isParentRecurring = tx.is_recurring;
+  const displayTransaction = isParentRecurring ? tx : parentTransaction || tx;
 
   if (!displayTransaction) return null;
 
@@ -221,7 +215,7 @@ export const RecurringTransactionDetailsModal: React.FC<RecurringTransactionDeta
                     {displayTransaction.recurring_end_date ? (
                       <Calendar className="w-5 h-5 text-gray-400 dark:text-gray-500 mt-0.5" />
                     ) : (
-                      <Infinity className="w-5 h-5 text-gray-400 dark:text-gray-500 mt-0.5" />
+                      <InfinityIcon className="w-5 h-5 text-gray-400 dark:text-gray-500 mt-0.5" />
                     )}
                     <div>
                       <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">End Date</p>

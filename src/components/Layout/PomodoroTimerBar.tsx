@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Timer, Play, Pause, Square, X, Minimize2, Maximize2 } from 'lucide-react';
+import { Timer, Play, Pause, Square, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAllTasksModalStore } from '../../store/useAllTasksModalStore';
 

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Loader2, Plus, Trash2, Calculator, Edit2 } from 'lucide-react';
+import { X, Save, Loader2, Plus, Trash2, Edit2 } from 'lucide-react';
 import { useClientStore } from '../../store/useClientStore';
 import { Order, OrderInput, OrderItemInput } from '../../types/client';
 import { Loader } from '../common/Loader';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
-import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 
 interface OrderFormProps {

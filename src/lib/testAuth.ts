@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import { User } from '@supabase/supabase-js';
 
 // Test user credentials for development
 const TEST_USERS = {

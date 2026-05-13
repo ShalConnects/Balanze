@@ -1,10 +1,10 @@
 // src/pages/AdminPage.tsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Eye, Edit3 } from 'lucide-react';
+import { ArrowLeft, Eye, Edit3 } from 'lucide-react';
 import ArticleEditor from '../components/admin/ArticleEditor';
 import { sanitizeHtml } from '../lib/sanitize';
-import { KBArticle, TableOfContentsItem } from '../data/articles';
+import { KBArticle } from '../data/articles';
 import { getTodayLocalDateString } from '../utils/taskDateUtils';
 
 // Import the current article data

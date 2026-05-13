@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PiggyBank, Target, TrendingUp, Plus, Calendar, DollarSign, AlertTriangle } from 'lucide-react';
+import { PiggyBank, Plus, Calendar, DollarSign } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { formatCurrency } from '../../utils/currency';
 import { SavingsGoal } from '../../types';

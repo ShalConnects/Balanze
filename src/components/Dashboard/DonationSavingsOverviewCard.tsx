@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Heart, TrendingUp, ArrowRight, X, Clock, Calendar } from 'lucide-react';
+import { ArrowRight, X } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
 import { StatCard } from './StatCard';

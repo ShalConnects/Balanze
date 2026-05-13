@@ -3,7 +3,7 @@ import { Dialog } from '@headlessui/react';
 import { ArrowLeftRight, X } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useLoadingContext } from '../../context/LoadingContext';
-import { AccountsPageSkeleton, AccountFormSkeleton } from './AccountsPageSkeleton';
+import { AccountsPageSkeleton } from './AccountsPageSkeleton';
 import { AccountFilters } from './AccountFilters';
 import { AccountSummaryCards } from './AccountSummaryCards';
 import { AccountTable } from './AccountTable';

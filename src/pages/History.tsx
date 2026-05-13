@@ -6,7 +6,7 @@ import { formatDateUTC, formatTimeUTC } from '../utils/timezoneUtils';
 import { useAuthStore } from '../store/authStore';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { useClientStore } from '../store/useClientStore';
-import { HistorySkeleton, HistoryMobileSkeleton, HistoryShimmerSkeleton } from '../components/History/HistorySkeleton';
+import { HistorySkeleton, HistoryMobileSkeleton } from '../components/History/HistorySkeleton';
 import {
   DollarSign,
   CreditCard,
@@ -23,22 +23,14 @@ import {
   Edit,
   Trash2,
   Filter,
-  Download,
   Activity,
-  BarChart3,
   RefreshCw,
-  Eye,
-  EyeOff,
   ChevronDown,
   ChevronRight,
   AlertCircle,
-  CheckCircle,
-  XCircle,
   FileText,
   ShoppingBag,
-  ArrowUpDown,
   ChevronUp,
-  Mail,
   Target,
   Users,
   CheckSquare
@@ -224,7 +216,7 @@ export const History: React.FC = () => {
         .order('created_at', { ascending: false })
         .limit(200);
       
-      let logsData = data || [];
+      const logsData = data || [];
       
       // Deduplicate logs
       const transactionKeys = new Set();

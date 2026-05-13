@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, BookOpen } from 'lucide-react';
+import { ArrowLeft, Plus, BookOpen } from 'lucide-react';
 import { useCourseStore } from '../../store/useCourseStore';
-import { Course, CourseModule } from '../../types';
+import { CourseModule } from '../../types';
 import { ModuleForm } from './ModuleForm';
 import { ModuleItem } from './ModuleItem';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';

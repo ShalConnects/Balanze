@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen, Clock, Tag } from 'lucide-react';
-import { getRelatedArticlesByCluster, TOPIC_CLUSTERS } from '../data/articles';
+import { getRelatedArticlesByCluster } from '../data/articles';
 
 interface RelatedArticlesProps {
   currentSlug: string;

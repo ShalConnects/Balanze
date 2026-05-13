@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   CreditCard, 
-  Calendar, 
   Filter, 
   Download, 
   Search, 
@@ -11,15 +10,11 @@ import {
   XCircle, 
   AlertTriangle,
   DollarSign,
-  FileText,
-  ExternalLink,
   Eye,
   EyeOff,
   ArrowLeft,
   RefreshCw,
-  TrendingUp,
-  BarChart3,
-  Settings
+  TrendingUp
 } from 'lucide-react';
 import { getTodayLocalDateString } from '../utils/taskDateUtils';
 import { useFinanceStore } from '../store/useFinanceStore';

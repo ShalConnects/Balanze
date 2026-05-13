@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, Wallet, Target, Handshake, PiggyBank, Bell, Shield, Heart,
   Check, ChevronDown, ChevronUp, Star, ArrowRight, BarChart3, PieChart,
-  Users, Globe, Mail, Phone, Facebook, Twitter, Instagram, Linkedin, Github, ArrowUp, Moon, Sun, LogOut, Menu, X,
-  Zap, MessageSquare, Download, Settings, CreditCard, Smartphone, Clock, AlertCircle, Repeat, Building2
+  Users, Globe, ArrowUp, Moon, Sun, LogOut, Menu, X,
+  Zap, MessageSquare, Download, Settings, CreditCard, Smartphone, AlertCircle, Repeat, Building2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';

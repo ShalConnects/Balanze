@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Edit2, Trash2, Copy, ArrowUpRight, ArrowDownRight, Calendar, Tag, Info, Link, FileText } from 'lucide-react';
 import { Transaction, Account } from '../../types';
-import { formatCurrency } from '../../utils/accountUtils';
 import { format } from 'date-fns';
 import { LendBorrowInfoModal } from './LendBorrowInfoModal';
 import { TransactionNoteModal } from './TransactionNoteModal';

@@ -5,15 +5,13 @@ import {
   BarChart3, 
   Target, 
   Wallet,
-  PieChart,
-  LineChart
+  PieChart
 } from 'lucide-react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { InvestmentDashboard } from '../components/Investments/InvestmentDashboard';
 import { AssetManagement } from '../components/Investments/AssetManagement';
 import { InvestmentGoals } from '../components/Investments/InvestmentGoals';
 import { InvestmentTransactionForm } from '../components/Investments/InvestmentTransactionForm';
-import { useAuthStore } from '../store/authStore';
 import { useSearchParams } from 'react-router-dom';
 import { formatAppDate } from '../utils/timezoneUtils';
 

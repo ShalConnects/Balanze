@@ -1,17 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, 
-  Link as LinkIcon, 
   TrendingUp, 
   Target, 
   CheckCircle, 
-  AlertCircle,
-  ExternalLink,
-  BookOpen,
-  Tag
+  AlertCircle
 } from 'lucide-react';
 import { analyzeContentForInternalLinks, suggestContentImprovements } from '../lib/internalLinking';
-import { getRelatedArticlesByCluster, TOPIC_CLUSTERS } from '../data/articles';
 
 interface SEOOptimizerProps {
   content: string;

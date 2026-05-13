@@ -487,7 +487,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
             const transactionData = {
               account_id: selectedAccountId,
               amount: finalPriceForTransaction,
-              type: 'expense' as 'expense',
+              type: 'expense' as const,
               category: formData.category,
               description: formData.item_name,
               date: formData.purchase_date,

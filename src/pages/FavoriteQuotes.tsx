@@ -4,8 +4,9 @@ import { useNotificationStore } from '../store/notificationStore';
 import { useAuthStore } from '../store/authStore';
 import { format } from 'date-fns';
 import { useRecordSelection } from '../hooks/useRecordSelection';
-import { SelectionFilter } from '../components/common/SelectionFilter';
+import { useSelectionSearchSync } from '../hooks/useSelectionSearchSync';
 import { searchService } from '../utils/searchService';
+import { normalizeSearchText } from '../utils/searchText';
 import { QuoteSummaryCards } from '../components/Quotes/QuoteSummaryCards';
 import { QuoteMobileView } from '../components/Quotes/QuoteMobileView';
 import { QuotePageSkeleton } from '../components/Quotes/QuoteSkeleton';
@@ -191,6 +192,7 @@ export const FavoriteQuotes: React.FC = () => {
   // Record selection functionality
   const {
     selectedRecord,
+    selectedId,
     isFromSearch,
     clearSelection,
     hasSelection
@@ -199,14 +201,19 @@ export const FavoriteQuotes: React.FC = () => {
     recordIdField: 'id',
     scrollToRecord: true
   });
+  useSelectionSearchSync({
+    hasSelection,
+    isFromSearch,
+    selectedId,
+    selectedRecord,
+    searchValue: tableFilters.search,
+    onSearchChange: (value) => setTableFilters(prev => ({ ...prev, search: value })),
+    clearSelection,
+    getSelectedSearchValue: (record) => record.quote,
+  });
 
   // Filter quotes based on search
   const filteredQuotes = useMemo(() => {
-    // If a record is selected via deep link, prioritize showing only that record
-    if (hasSelection && isFromSearch && selectedRecord) {
-      return [selectedRecord];
-    }
-
     // First apply basic filters
     let filtered = favoriteQuotes.filter(quote => {
       const matchesCategory = tableFilters.category === '' || quote.category === tableFilters.category;
@@ -214,10 +221,11 @@ export const FavoriteQuotes: React.FC = () => {
     });
 
     // Apply fuzzy search if search term exists
-    if (tableFilters.search && tableFilters.search.trim()) {
+    const normalizedSearch = normalizeSearchText(tableFilters.search);
+    if (normalizedSearch) {
       const searchResults = searchService.search(
         filtered,
-        tableFilters.search,
+        normalizedSearch,
         'quotes',
         { 
           threshold: 0.3,
@@ -235,7 +243,7 @@ export const FavoriteQuotes: React.FC = () => {
     }
 
     return filtered;
-  }, [favoriteQuotes, tableFilters, hasSelection, isFromSearch, selectedRecord]);
+  }, [favoriteQuotes, tableFilters]);
 
   // Sort filtered quotes for table display only
   const filteredQuotesForTable = useMemo(() => {
@@ -317,15 +325,6 @@ export const FavoriteQuotes: React.FC = () => {
           {/* Filters Section */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1" style={{ marginBottom: 0 }}>
-              {/* Selection Filter */}
-              {hasSelection && selectedRecord && (
-                <SelectionFilter
-                  label="Selected"
-                  value={selectedRecord.quote || 'Quote'}
-                  onClear={clearSelection}
-                />
-              )}
-
               {/* Search Field */}
               <div>
                 <div className="relative">

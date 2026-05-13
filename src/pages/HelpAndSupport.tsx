@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
-import { toast } from 'sonner';
 import { Helmet } from 'react-helmet-async';
 import { 
   LifeBuoy
 } from 'lucide-react';
 import ProductTour from '../components/ProductTour';
 import KBSearch from '../components/KBSearch';
-import ArticleTourManager from '../components/ArticleTourManager';
-import TourSuggestionEngine from '../components/TourSuggestionEngine';
 import { useAuthStore } from '../store/authStore';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { formatAppDate } from '../utils/timezoneUtils';

@@ -25,7 +25,7 @@ import {
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Purchase } from '../../types';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { toast } from 'sonner';
 import { formatCurrencyCompact } from '../../utils/currency';
@@ -42,12 +42,13 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { Loader } from '../common/Loader';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
-import { SelectionFilter } from '../common/SelectionFilter';
+import { useSelectionSearchSync } from '../../hooks/useSelectionSearchSync';
 import { getDefaultAccountId } from '../../utils/defaultAccount';
 import { sanitizeHtml } from '../../lib/sanitize';
 import { generateTransactionId } from '../../utils/transactionId';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { getTodayLocalDateString } from '../../utils/taskDateUtils';
+import { normalizeSearchText, includesNormalized } from '../../utils/searchText';
 
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { CategoryModal } from '../common/CategoryModal';
@@ -451,6 +452,16 @@ export const PurchaseTracker: React.FC = () => {
     key: string;
     direction: 'asc' | 'desc';
   } | null>(null);
+  useSelectionSearchSync({
+    hasSelection,
+    isFromSearch,
+    selectedId,
+    selectedRecord,
+    searchValue: filters.search,
+    onSearchChange: (value) => setFilters(prev => ({ ...prev, search: value })),
+    clearSelection,
+    getSelectedSearchValue: (record) => record.item_name,
+  });
 
   const [formData, setFormData] = useState({
     item_name: '',
@@ -662,15 +673,11 @@ export const PurchaseTracker: React.FC = () => {
 
   // Filter purchases
   const filteredPurchases = useMemo(() => {
-    // If a record is selected via deep link, prioritize showing only that record
-    if (hasSelection && isFromSearch && selectedRecord) {
-      return [selectedRecord];
-    }
-
-
+    const normalizedSearch = normalizeSearchText(filters.search);
     return purchases.filter(purchase => {
-      const matchesSearch = purchase.item_name.toLowerCase().includes(filters.search.toLowerCase()) ||
-                           purchase.notes?.toLowerCase().includes(filters.search.toLowerCase());
+      const matchesSearch = !normalizedSearch ||
+        includesNormalized(purchase.item_name, normalizedSearch) ||
+        includesNormalized(purchase.notes, normalizedSearch);
       const matchesCategory = filters.category === 'all' || purchase.category === filters.category;
       const matchesPriority = filters.priority === 'all' || purchase.priority === filters.priority;
       const matchesCurrency = filters.currency === '' || purchase.currency === filters.currency;
@@ -690,7 +697,7 @@ export const PurchaseTracker: React.FC = () => {
 
       return matchesSearch && matchesCategory && matchesPriority && matchesCurrency && matchesStatus && matchesDate;
     });
-  }, [purchases, filters, hasSelection, isFromSearch, selectedRecord]);
+  }, [purchases, filters]);
 
   // For analytics cards, use the table filter currency (calculate early for useMemo hooks)
   const analyticsCurrency = filters.currency || profile?.local_currency || profile?.selected_currencies?.[0] || '';
@@ -1790,15 +1797,6 @@ export const PurchaseTracker: React.FC = () => {
               />
             </div>
           </div>
-
-          {/* Selection Filter */}
-          {hasSelection && selectedRecord && (
-            <SelectionFilter
-              label="Selected"
-              value={selectedRecord.item_name || 'Purchase'}
-              onClear={clearSelection}
-            />
-          )}
 
           {/* Mobile Filter and Add Purchase Buttons */}
           <div className="md:hidden flex items-center gap-2">

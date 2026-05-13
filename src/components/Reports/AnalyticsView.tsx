@@ -31,7 +31,6 @@ import {
   ThumbsDown,
   ChevronDown,
   Check,
-  DollarSign,
   Wallet,
   Coins
 } from 'lucide-react';

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Skeleton } from '../common/Skeleton';
 
 // Enhanced skeleton for purchase cards (mobile view) - matches real PurchaseCard structure
 export const PurchaseCardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => {

@@ -123,6 +123,7 @@ export type BusinessInvestmentContractDetailsPatch = {
   start_date: string;
   end_date: string | null;
   note: string | null;
+  status?: ContractStatus;
 };
 
 export async function updateBusinessInvestmentContractDetails(id: string, patch: BusinessInvestmentContractDetailsPatch): Promise<void> {
@@ -132,7 +133,8 @@ export async function updateBusinessInvestmentContractDetails(id: string, patch:
       title: patch.title,
       start_date: patch.start_date,
       end_date: patch.end_date,
-      note: patch.note
+      note: patch.note,
+      ...(patch.status !== undefined ? { status: patch.status } : {})
     })
     .eq('id', id);
   if (error) throw error;

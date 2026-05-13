@@ -1,14 +1,13 @@
 // src/components/KBSearch.tsx
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Search, BookOpen, ExternalLink, Clock, Tag, Home, Sun, Moon, User, X, History, TrendingUp, ThumbsUp, ThumbsDown, Clock as ClockIcon } from 'lucide-react';
+import { Search, BookOpen, ExternalLink, Clock, Tag, Home, Sun, Moon, X, History, TrendingUp, Clock as ClockIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { trackHelpCenter } from '../lib/analytics';
 import { useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 import { getUserReadingHistory, getUserArticleStats } from '../lib/articleHistory';
-import { generateInternalLinkingSuggestions } from '../lib/kbSitemap';
-import { searchService, SEARCH_CONFIGS, highlightMatches, SearchResult } from '../utils/searchService';
+import { searchService, SEARCH_CONFIGS } from '../utils/searchService';
 import clsx from 'clsx';
 import { getTodayLocalDateString } from '../utils/taskDateUtils';
 import { formatAppDate } from '../utils/timezoneUtils';

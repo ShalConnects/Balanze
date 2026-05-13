@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, DollarSign, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { LendBorrowInstallment } from '../../types';
 import { format } from 'date-fns';

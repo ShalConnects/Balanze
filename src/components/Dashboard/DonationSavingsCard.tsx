@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Heart, TrendingUp } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useAuthStore } from '../../store/authStore';

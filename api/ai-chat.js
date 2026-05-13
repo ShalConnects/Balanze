@@ -109,7 +109,6 @@ async function gatherUserContext(userId) {
     });
 
     // Calculate savings goals progress
-    const now = new Date();
     const savingsGoalsProgress = savingsGoals.map(goal => {
       const targetAmount = parseFloat(goal.target_amount) || 0;
       const currentAmount = parseFloat(goal.current_amount) || 0;

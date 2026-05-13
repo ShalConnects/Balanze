@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Check, X as XIcon, Edit2, Trash2, Plus } from 'lucide-react';
+import { Check, Edit2, Trash2, Plus } from 'lucide-react';
 import { Habit } from '../../types/habit';
 import { useHabitStore } from '../../store/useHabitStore';
 import { format, startOfWeek, addDays, isToday } from 'date-fns';

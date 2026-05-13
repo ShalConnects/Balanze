@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  LifeBuoy, Mail, Facebook, Twitter, Instagram, Linkedin, Github, 
+  LifeBuoy, 
   LogOut, Menu, X, BookOpen, ArrowRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

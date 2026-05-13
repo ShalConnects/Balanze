@@ -4,7 +4,6 @@ import { useSearchParams } from 'react-router-dom';
 import { useClientStore } from '../../store/useClientStore';
 import { Order } from '../../types/client';
 import { OrderForm } from './OrderForm';
-import { Loader } from '../common/Loader';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { format } from 'date-fns';

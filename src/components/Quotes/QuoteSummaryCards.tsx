@@ -1,6 +1,5 @@
 import React from 'react';
 import { Heart, TrendingUp } from 'lucide-react';
-import { StatCard } from '../Dashboard/StatCard';
 
 interface QuoteSummaryCardsProps {
   filteredQuotes: any[];

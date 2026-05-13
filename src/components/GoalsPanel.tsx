@@ -252,7 +252,7 @@ const GoalsPanel: React.FC<GoalsPanelProps> = ({
   const [sortBy, setSortBy] = useState<'progress' | 'deadline' | 'amount'>('progress');
 
   const filteredAndSortedGoals = useMemo(() => {
-    let filtered = filter === 'all' ? goals : goals.filter(g => g.category === filter);
+    const filtered = filter === 'all' ? goals : goals.filter(g => g.category === filter);
     
     return filtered.sort((a, b) => {
       switch (sortBy) {

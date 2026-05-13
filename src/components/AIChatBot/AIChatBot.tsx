@@ -20,6 +20,34 @@ interface AIChatBotProps {
   showFloatingButton?: boolean;
 }
 
+const CHAT_RESPONSE_HEADER_PREFIXES = [
+  '📊',
+  '💰',
+  '📈',
+  '📉',
+  '💵',
+  '🎯',
+  '🔥',
+  '⚡',
+  '🚨',
+  '💡',
+  '🌍',
+  '✅',
+  '⚠️',
+  '🕐',
+  '🤝',
+  '📅',
+  '💸',
+  '🏦',
+  '📝',
+  '📋'
+] as const;
+
+function isChatResponseHeaderLine(line: string): boolean {
+  const t = line.trim();
+  return t.length > 5 && CHAT_RESPONSE_HEADER_PREFIXES.some((p) => t.startsWith(p));
+}
+
 export const AIChatBot: React.FC<AIChatBotProps> = ({ 
   isOpen: externalIsOpen, 
   onOpenChange,
@@ -228,7 +256,7 @@ export const AIChatBot: React.FC<AIChatBotProps> = ({
         );
       }
       // Format headers (lines with emojis followed by text)
-      if (/^[📊💰📈📉💵🎯🔥⚡🚨💡🌍✅⚠️🕐🤝📅💸🏦📝📋]/.test(line.trim()) && line.length > 5) {
+      if (isChatResponseHeaderLine(line)) {
         return (
           <div key={index} className="font-semibold mt-3 mb-1 text-base">
             {line}

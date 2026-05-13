@@ -4,7 +4,7 @@ import { useHabitStore } from '../../store/useHabitStore';
 import { useAuthStore } from '../../store/authStore';
 import { HabitForm } from './HabitForm';
 import { useNavigate } from 'react-router-dom';
-import { format, isToday, startOfWeek } from 'date-fns';
+import { format } from 'date-fns';
 
 interface HabitGardenWidgetProps {
   isAccordionExpanded?: boolean;

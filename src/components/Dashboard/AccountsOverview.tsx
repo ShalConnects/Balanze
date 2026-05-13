@@ -1,7 +1,5 @@
 import React from 'react';
 import { useFinanceStore } from '../../store/useFinanceStore';
-import { Account } from '../../types';
-import { getAccountIcon, getAccountColor } from '../../utils/accountIcons';
 import { formatCurrency } from '../../utils/currency';
 import { CreditCard } from 'lucide-react';
 

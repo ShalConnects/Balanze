@@ -1,7 +1,7 @@
 // PDF libraries loaded dynamically to reduce initial bundle size
 // import jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable';
-import { FilterState, SortConfig, ExportOptions, ExportResult, FilterSummary } from '../types/export';
+import { FilterState, ExportOptions, ExportResult, FilterSummary } from '../types/export';
 import { formatTransactionDescription } from './transactionDescriptionFormatter';
 import { getTodayLocalDateString } from './taskDateUtils';
 import { formatAppDate, formatAppDateTime, formatAppExportDateTime } from './timezoneUtils';

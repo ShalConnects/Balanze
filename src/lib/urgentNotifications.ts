@@ -1,8 +1,5 @@
 import { supabase } from './supabase';
-import { createNotification, createFinancialNotification } from './notifications';
-import { useAuthStore } from '../store/authStore';
-import { useFinanceStore } from '../store/useFinanceStore';
-import { LendBorrow } from '../types/index';
+import { createNotification } from './notifications';
 import { formatCurrency } from '../utils/currency';
 import { toBusinessDateString } from '../utils/taskDateUtils';
 

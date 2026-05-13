@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { AlertCircle, Flame, Calendar, CheckCircle, Edit2, Eye, ArrowRight, ChevronUp, ChevronDown } from 'lucide-react';
+import { CheckCircle, Eye, ArrowRight, ChevronUp, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useClientStore } from '../../store/useClientStore';
 import { Task } from '../../types/client';

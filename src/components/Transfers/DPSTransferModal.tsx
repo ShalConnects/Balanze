@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Dialog } from '@headlessui/react';
 import { X } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
-import { Account } from '../../types';
 import { generateTransactionId, createSuccessMessage } from '../../utils/transactionId';
 import { toast } from 'sonner';
 import { formatCurrency } from '../../utils/currency';

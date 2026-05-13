@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check, EyeOff, FileText, X, History } from 'lucide-react';
 import { Transaction } from '../../types/index';
@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 // import DatePicker from 'react-datepicker';
 // import 'react-datepicker/dist/react-datepicker.css';
 import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
-import { parseISO } from 'date-fns';
 import { toBusinessDateString } from '../../utils/taskDateUtils';
 import { resolveDefaultCurrency } from '../../utils/usePreferredCurrency';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
@@ -23,17 +22,17 @@ import { SummaryLabelWithInfo } from '../common/SummaryLabelWithInfo';
 // import jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable';
 import { useAuthStore } from '../../store/authStore';
-import { searchService, SEARCH_CONFIGS, highlightMatches } from '../../utils/searchService';
+import { searchService, SEARCH_CONFIGS } from '../../utils/searchService';
 
 import { useLoadingContext } from '../../context/LoadingContext';
 import { useNavigate } from 'react-router-dom';
-import { useRecordSelection } from '../../hooks/useRecordSelection';
-import { SelectionFilter } from '../common/SelectionFilter';
 import { LendBorrowInfoModal } from './LendBorrowInfoModal';
 import { TransactionNoteModal } from './TransactionNoteModal';
 import { TransactionEditHistory } from './TransactionEditHistory';
 import { useExport } from '../../hooks/useExport';
+import { useSelectionSearchSync } from '../../hooks/useSelectionSearchSync';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
+import { normalizeSearchText } from '../../utils/searchText';
 import { FinancialHealthCard } from './FinancialHealthCard';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { countsTowardIncomeExpenseSummaries, isLendBorrowTransaction } from '../../utils/transactionUtils';
@@ -142,9 +141,7 @@ const TransactionListComponent: React.FC<{
     }
   });
 
-  // Enhanced search state
-  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  // Search input visual feedback state
   const [isSearching, setIsSearching] = useState(false);
 
   // Get this month date range for default
@@ -460,6 +457,16 @@ const TransactionListComponent: React.FC<{
     key: string;
     direction: 'asc' | 'desc';
   } | null>({ key: 'date', direction: 'desc' });
+  useSelectionSearchSync({
+    hasSelection,
+    isFromSearch,
+    selectedId,
+    selectedRecord,
+    searchValue: filters.search,
+    onSearchChange: (value) => setFilters(prev => ({ ...prev, search: value })),
+    clearSelection,
+    getSelectedSearchValue: (record) => record.description,
+  });
 
   // Reset to page 1 when filters, search, or sort changes (but not when pagination changes)
   const prevFiltersRef = useRef(filters);
@@ -995,56 +1002,19 @@ const TransactionListComponent: React.FC<{
     toast.success('Amount copied to clipboard');
   };
 
-  // Enhanced search suggestions
-  const generateSearchSuggestions = useCallback((searchQuery: string) => {
-    if (!searchQuery || searchQuery.length < 2) {
-      setSearchSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    const suggestions = searchService.getSuggestions(
-      transactions,
-      searchQuery,
-      ['description', 'transaction_id', 'category', 'note'],
-      5
-    );
-
-    setSearchSuggestions(suggestions);
-    setShowSuggestions(suggestions.length > 0);
-  }, [transactions]);
-
-  // Debounced search with loading state
+  // Debounced search indicator
   useEffect(() => {
     if (filters.search.trim()) {
       setIsSearching(true);
       const timeoutId = setTimeout(() => {
         setIsSearching(false);
-        generateSearchSuggestions(filters.search);
       }, 300);
 
       return () => clearTimeout(timeoutId);
     } else {
       setIsSearching(false);
-      setSearchSuggestions([]);
-      setShowSuggestions(false);
     }
-  }, [filters.search, generateSearchSuggestions]);
-
-  // Close suggestions when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showSuggestions) {
-        const target = event.target as Element;
-        if (!target.closest('.transaction-search-suggestions')) {
-          setShowSuggestions(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showSuggestions]);
+  }, [filters.search]);
 
   const isModifiedWithinWindow = (updatedAt?: string | null, days?: number) => {
     if (!updatedAt || !days) return false;
@@ -1069,11 +1039,6 @@ const TransactionListComponent: React.FC<{
 
   // Enhanced filtering with fuzzy search
   const filteredTransactions = useMemo(() => {
-    // If a record is selected via deep link, prioritize showing only that record
-    if (hasSelection && isFromSearch && selectedRecord) {
-      return [selectedRecord];
-    }
-
     const today = new Date();
     
     // First filter out transfers and apply basic filters
@@ -1131,10 +1096,11 @@ const TransactionListComponent: React.FC<{
       });
 
     // Apply fuzzy search if search term exists
-    if (filters.search && filters.search.trim()) {
+    const normalizedSearch = normalizeSearchText(filters.search);
+    if (normalizedSearch) {
       const searchResults = searchService.search(
         filtered,
-        filters.search,
+        normalizedSearch,
         'transactions',
         SEARCH_CONFIGS.transactions,
         { limit: 1000 }
@@ -1146,7 +1112,7 @@ const TransactionListComponent: React.FC<{
     
     // Apply sorting
     return sortData(filtered);
-  }, [transactions, filters, sortConfig, accounts, allAccountsForLookup, hasSelection, isFromSearch, selectedRecord]);
+  }, [transactions, filters, sortConfig, accounts, allAccountsForLookup]);
 
   // Pagination logic
   const paginationInfo = useMemo(() => {
@@ -1327,11 +1293,6 @@ const TransactionListComponent: React.FC<{
                   type="text"
                   value={filters.search}
                   onChange={e => setFilters({ ...filters, search: e.target.value })}
-                  onFocus={() => {
-                    if (filters.search && searchSuggestions.length > 0) {
-                      setShowSuggestions(true);
-                    }
-                  }}
                   className={`w-full pl-8 pr-2 py-1.5 text-[13px] h-8 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400 transition-colors ${
                     filters.search 
                       ? 'border-blue-300 dark:border-blue-600' 
@@ -1340,41 +1301,8 @@ const TransactionListComponent: React.FC<{
                   style={filters.search ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                   placeholder="Search transactions…"
                 />
-                
-                {/* Search Suggestions Dropdown */}
-                {false && showSuggestions && searchSuggestions.length > 0 && (
-                  <div className="transaction-search-suggestions absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
-                    {searchSuggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        onClick={() => {
-                          setFilters({ ...filters, search: suggestion });
-                          setShowSuggestions(false);
-                          
-                          // Track suggestion usage
-                          searchService.trackSuggestionUsage(filters.search, suggestion);
-                        }}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-600 last:border-b-0"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Search className="w-3 h-3 text-gray-400" />
-                          <span className="truncate">{suggestion}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
-
-            {/* Selection Filter */}
-            {hasSelection && selectedRecord && (
-              <SelectionFilter
-                label="Selected"
-                value={selectedRecord.description || 'Transaction'}
-                onClear={clearSelection}
-              />
-            )}
 
             {/* Mobile Filter Button */}
             <div className="md:hidden">

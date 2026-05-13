@@ -9,7 +9,6 @@ import { CustomDropdown } from '../Purchases/CustomDropdown';
 // import DatePicker from 'react-datepicker';
 // import 'react-datepicker/dist/react-datepicker.css';
 import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
-import { parseISO, format } from 'date-fns';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getAllCurrencies, getCurrencyName } from '../../utils/currencies';
 import { getCurrencySymbol } from '../../utils/currency';

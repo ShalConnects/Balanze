@@ -2,7 +2,6 @@ import React from 'react';
 import { Edit2, Trash2, Plus, Info, ChevronRight } from 'lucide-react';
 import { Account, Transaction } from '../../types';
 import { getAccountColor } from '../../utils/accountIcons';
-import { AccountCard } from './AccountCard';
 import { formatCurrency } from '../../utils/accountUtils';
 import { accountActiveStatusDotClass } from './AccountActiveToggle';
 

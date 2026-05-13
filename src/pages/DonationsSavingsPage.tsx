@@ -12,9 +12,10 @@ import { DeleteConfirmationModal } from '../components/common/DeleteConfirmation
 import { toast } from 'sonner';
 import { getPreference, setPreference } from '../lib/userPreferences';
 import { useRecordSelection } from '../hooks/useRecordSelection';
-import { SelectionFilter } from '../components/common/SelectionFilter';
+import { useSelectionSearchSync } from '../hooks/useSelectionSearchSync';
 import { formatDateUTC, formatAppExportDateTime } from '../utils/timezoneUtils';
 import { resolveDefaultCurrency } from '../utils/usePreferredCurrency';
+import { normalizeSearchText, includesNormalized } from '../utils/searchText';
 // PDF libraries loaded dynamically to reduce initial bundle size
 // import jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable';
@@ -113,6 +114,17 @@ const DonationsSavingsPage: React.FC = () => {
     records: donationSavingRecords,
     recordIdField: 'id',
     scrollToRecord: true
+  });
+  useSelectionSearchSync({
+    hasSelection,
+    isFromSearch,
+    selectedId,
+    selectedRecord,
+    searchValue: searchTerm,
+    onSearchChange: setSearchTerm,
+    clearSelection,
+    getSelectedSearchValue: (record) =>
+      record.note || record.custom_transaction_id || record.transaction_id || record.type,
   });
 
   // Refs for dropdown menus
@@ -509,21 +521,21 @@ const DonationsSavingsPage: React.FC = () => {
   };
 
   const filteredRecords = React.useMemo(() => {
-    // If a record is selected via deep link, prioritize showing only that record
-    if (hasSelection && isFromSearch && selectedRecord) {
-      return [selectedRecord];
-    }
-
+    const transactionDisplayIdById = new Map(
+      transactions.map(t => [t.id, t.transaction_id || ''])
+    );
+    const normalizedSearch = normalizeSearchText(searchTerm);
     const filtered = sortedRecords.filter(record => {
-      const displayTransactionId = transactions.find(t => t.id === record.transaction_id)?.transaction_id || '';
+      const displayTransactionId = transactionDisplayIdById.get(record.transaction_id) || '';
       const manualTransactionId = record.custom_transaction_id || '';
-      const matchesSearch = searchTerm === '' || 
-        (record.note?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        ((record.transaction_id || '').toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (displayTransactionId.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (`#${displayTransactionId}`.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (manualTransactionId.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (`#${manualTransactionId}`.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesSearch =
+        !normalizedSearch ||
+        includesNormalized(record.note, normalizedSearch) ||
+        includesNormalized(record.transaction_id || '', normalizedSearch) ||
+        includesNormalized(displayTransactionId, normalizedSearch) ||
+        includesNormalized(`#${displayTransactionId}`, normalizedSearch) ||
+        includesNormalized(manualTransactionId, normalizedSearch) ||
+        includesNormalized(`#${manualTransactionId}`, normalizedSearch);
       const matchesMode = filterMode === 'all' || record.mode === filterMode;
       const matchesStatus = filterStatus === 'all' || record.status === filterStatus;
       
@@ -531,7 +543,7 @@ const DonationsSavingsPage: React.FC = () => {
     });
     
     return sortData(filtered);
-  }, [sortedRecords, searchTerm, filterMode, filterStatus, sortConfig, transactions, hasSelection, isFromSearch, selectedRecord]);
+  }, [sortedRecords, searchTerm, filterMode, filterStatus, sortConfig, transactions]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -869,15 +881,6 @@ const DonationsSavingsPage: React.FC = () => {
                     />
                   </div>
                 </div>
-
-                {/* Selection Filter */}
-                {hasSelection && selectedRecord && (
-                  <SelectionFilter
-                    label="Selected"
-                    value={selectedRecord.type === 'donation' ? 'Donation' : 'Saving'}
-                    onClear={clearSelection}
-                  />
-                )}
 
                 {/* Mobile Filter and Export Buttons */}
                 <div className="md:hidden flex items-center gap-2">

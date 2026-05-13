@@ -1,19 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   CreditCard, 
-  Calendar, 
   Filter, 
   Download, 
   Search, 
-  ChevronDown, 
-  ChevronUp,
+  ChevronDown,
   CheckCircle, 
   Clock, 
   XCircle, 
   AlertTriangle,
   DollarSign,
-  FileText,
-  ExternalLink,
   Eye,
   EyeOff,
   Wallet
@@ -26,7 +22,6 @@ import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatAppDate, formatAppDateTime } from '../../utils/timezoneUtils';
-import { Link } from 'react-router-dom';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 interface PaymentTransaction {

@@ -3,17 +3,14 @@ import {
   CreditCard, 
   Plus, 
   Trash2, 
-  Edit, 
   Shield, 
-  CheckCircle, 
-  AlertCircle,
+  CheckCircle,
   Eye,
   EyeOff,
   Calendar,
   DollarSign,
   CreditCard as CardIcon,
-  Banknote,
-  Smartphone
+  Banknote
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';

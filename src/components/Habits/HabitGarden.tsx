@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Sprout } from 'lucide-react';
 import { useHabitStore } from '../../store/useHabitStore';
 import { Habit } from '../../types/habit';
@@ -7,12 +7,11 @@ import { HabitWeekView } from './HabitWeekView';
 import { HabitStatsTable } from './HabitStatsTable';
 import { Loader } from '../common/Loader';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
-import { PointsDisplay } from './PointsDisplay';
 import { HabitStatsDashboard } from './HabitStatsDashboard';
 import { AchievementModal } from './AchievementModal';
 import { CelebrationAnimation } from './CelebrationAnimation';
 import { GardenPlant } from './GardenPlant';
-import { startOfWeek, addDays, format, subDays } from 'date-fns';
+import { startOfWeek, format, subDays } from 'date-fns';
 import { useAuthStore } from '../../store/authStore';
 
 export const HabitGarden: React.FC = () => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronDown, Calendar, FileText, TrendingUp, Sparkles } from 'lucide-react';
+import { ChevronDown, Calendar, Sparkles } from 'lucide-react';
 import { LastWishCountdownWidget } from './LastWishCountdownWidget';
 // NotesWidget and TodosWidget loaded dynamically to reduce initial bundle size
 // import { NotesWidget } from './NotesWidget';

@@ -10,10 +10,7 @@
  * This is an additive change - existing types remain unchanged.
  */
 
-import type { Task as StandaloneTask } from './index';
-import type { Task as ClientTask, TaskPriority, TaskStatus } from './client';
-import type { Habit } from './habit';
-import type { CourseModule } from './index';
+import type { TaskPriority, TaskStatus } from './client';
 
 /**
  * Type discriminator for different taskable types

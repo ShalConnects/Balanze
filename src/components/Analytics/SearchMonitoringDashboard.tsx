@@ -7,13 +7,10 @@ import {
   Clock, 
   Search, 
   BarChart3,
-  RefreshCw,
-  Download,
-  Settings
+  RefreshCw
 } from 'lucide-react';
 import { runSearchHealthCheck, SearchHealthReport } from '../../utils/searchHealthCheck';
 import { runSearchTests, TestSuite } from '../../utils/searchTestSuite';
-import { searchAnalytics } from '../../utils/searchAnalytics';
 import { formatAppDateTime } from '../../utils/timezoneUtils';
 
 interface SearchMonitoringDashboardProps {

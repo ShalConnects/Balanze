@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Dialog } from '@headlessui/react';
-import { Plus, Edit2, Trash2, DollarSign, PlusCircle, Search, ArrowLeft, Wallet, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown, X, Loader2, ArrowLeftRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, PlusCircle, Search, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown, X, Loader2, ArrowLeftRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { AccountForm } from './AccountForm';
@@ -11,26 +11,23 @@ import { DPSTransferModal } from '../Transfers/DPSTransferModal';
 import { Account } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import { generateTransactionId, createSuccessMessage } from '../../utils/transactionId';
+import { generateTransactionId } from '../../utils/transactionId';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
-import { getAccountIcon, getAccountColor } from '../../utils/accountIcons';
+import { getAccountColor } from '../../utils/accountIcons';
 import { useAuthStore } from '../../store/authStore';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { AccountCardSkeleton, AccountTableSkeleton, AccountSummaryCardsSkeleton, AccountFiltersSkeleton } from './AccountSkeleton';
-import { CurrencyPortfolioSummary } from './CurrencyPortfolioSummary';
-import { AccountSummaryCards } from './AccountSummaryCards';
 import { AccountExpandedInlineDetails } from './AccountExpandedInlineDetails';
 import { AccountDpsInfoModal, AccountDpsInfoTrigger } from './AccountDpsInfoModal';
 import { AccountActiveToggle } from './AccountActiveToggle';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
-import { SelectionFilter } from '../common/SelectionFilter';
+import { useSelectionSearchSync } from '../../hooks/useSelectionSearchSync';
 import { searchService, SEARCH_CONFIGS } from '../../utils/searchService';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
-import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { normalizeSearchText } from '../../utils/searchText';
 import { countsTowardIncomeExpenseSummaries, groupTransactionsByDate } from '../../utils/transactionUtils';
-import { formatCurrency } from '../../utils/currency';
 import { getTodayLocalDateString, toBusinessDateString } from '../../utils/taskDateUtils';
 import { formatAppDate } from '../../utils/timezoneUtils';
 import { TABLE_SUMMARY_CARDS_GRID } from '../common/listPage/listPageLayout';
@@ -125,9 +122,7 @@ export const AccountsView: React.FC = () => {
     localStorage.setItem('accountFilters', JSON.stringify(tableFilters));
   }, [tableFilters]);
 
-  // Enhanced search state
-  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  // Search input visual feedback state
   const [isSearching, setIsSearching] = useState(false);
   
   // Add sorting state
@@ -135,6 +130,16 @@ export const AccountsView: React.FC = () => {
     key: string;
     direction: 'asc' | 'desc';
   } | null>(null);
+  useSelectionSearchSync({
+    hasSelection,
+    isFromSearch,
+    selectedId,
+    selectedRecord,
+    searchValue: tableFilters.search,
+    onSearchChange: (value) => setTableFilters(prev => ({ ...prev, search: value })),
+    clearSelection,
+    getSelectedSearchValue: (record) => record.name,
+  });
   
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(false);
   const [showTypeMenu, setShowTypeMenu] = useState(false);
@@ -650,64 +655,22 @@ export const AccountsView: React.FC = () => {
   const accountTypes = Array.from(new Set(accounts.map(a => a.type)));
 
 
-  // Enhanced search suggestions
-  const generateSearchSuggestions = useCallback((searchQuery: string) => {
-    if (!searchQuery || searchQuery.length < 2) {
-      setSearchSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    const suggestions = searchService.getSuggestions(
-      accounts,
-      searchQuery,
-      ['name', 'description', 'type'],
-      5
-    );
-
-    setSearchSuggestions(suggestions);
-    setShowSuggestions(suggestions.length > 0);
-  }, [accounts]);
-
-  // Debounced search with loading state
+  // Debounced search indicator
   useEffect(() => {
     if (tableFilters.search.trim()) {
       setIsSearching(true);
       const timeoutId = setTimeout(() => {
         setIsSearching(false);
-        generateSearchSuggestions(tableFilters.search);
       }, 300);
 
       return () => clearTimeout(timeoutId);
     } else {
       setIsSearching(false);
-      setSearchSuggestions([]);
-      setShowSuggestions(false);
     }
-  }, [tableFilters.search, generateSearchSuggestions]);
-
-  // Close suggestions when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showSuggestions) {
-        const target = event.target as Element;
-        if (!target.closest('.account-search-suggestions')) {
-          setShowSuggestions(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showSuggestions]);
+  }, [tableFilters.search]);
 
   // Enhanced filtering with fuzzy search
   const filteredAccounts = useMemo(() => {
-    // If a record is selected via deep link, prioritize showing only that record
-    if (hasSelection && isFromSearch && selectedRecord) {
-      return [selectedRecord];
-    }
-
     // First apply basic filters
     let filtered = accounts.filter(account => {
       // Filter out DPS savings accounts (accounts that are linked to other accounts)
@@ -734,10 +697,11 @@ export const AccountsView: React.FC = () => {
     });
 
     // Apply fuzzy search if search term exists
-    if (tableFilters.search && tableFilters.search.trim()) {
+    const normalizedSearch = normalizeSearchText(tableFilters.search);
+    if (normalizedSearch) {
       const searchResults = searchService.search(
         filtered,
-        tableFilters.search,
+        normalizedSearch,
         'accounts',
         SEARCH_CONFIGS.accounts,
         { limit: 1000 }
@@ -748,7 +712,7 @@ export const AccountsView: React.FC = () => {
     }
 
     return filtered;
-  }, [accounts, tableFilters, hasSelection, isFromSearch, selectedRecord, profile?.selected_currencies]);
+  }, [accounts, tableFilters, profile?.selected_currencies]);
 
   // Sort filtered accounts for table display only
   const filteredAccountsForTable = useMemo(() => {
@@ -1004,7 +968,7 @@ export const AccountsView: React.FC = () => {
         setDpsDeleteContext(null);
       } else {
         // Find cash account for the same currency (before any operations)
-        let cashAccount = accounts.find(a => a.type === 'cash' && a.currency === dpsCurrency);
+        const cashAccount = accounts.find(a => a.type === 'cash' && a.currency === dpsCurrency);
         let cashAccountId: string | null = null;
         let cashAccountUserId: string | null = null;
         
@@ -1358,11 +1322,6 @@ export const AccountsView: React.FC = () => {
                       type="text"
                       value={tableFilters.search}
                       onChange={(e) => setTableFilters({ ...tableFilters, search: e.target.value })}
-                      onFocus={() => {
-                        if (tableFilters.search && searchSuggestions.length > 0) {
-                          setShowSuggestions(true);
-                        }
-                      }}
                       className={`w-full pl-8 pr-2 py-1.5 text-[13px] h-8 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400 transition-colors ${
                         tableFilters.search 
                           ? 'border-blue-300 dark:border-blue-600' 
@@ -1371,41 +1330,8 @@ export const AccountsView: React.FC = () => {
                       style={tableFilters.search ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
                       placeholder="Search accounts..."
                     />
-                    
-                    {/* Search Suggestions Dropdown */}
-                    {false && showSuggestions && searchSuggestions.length > 0 && (
-                      <div className="account-search-suggestions absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
-                        {searchSuggestions.map((suggestion, index) => (
-                          <button
-                            key={index}
-                            onClick={() => {
-                              setTableFilters({ ...tableFilters, search: suggestion });
-                              setShowSuggestions(false);
-                              
-                              // Track suggestion usage
-                              searchService.trackSuggestionUsage(tableFilters.search, suggestion);
-                            }}
-                            className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-600 last:border-b-0"
-                          >
-                            <div className="flex items-center gap-2">
-                              <Search className="w-3 h-3 text-gray-400" />
-                              <span className="truncate">{suggestion}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
-
-                {/* Selection Filter */}
-                {hasSelection && selectedRecord && (
-                  <SelectionFilter
-                    label="Selected"
-                    value={selectedRecord.name || 'Account'}
-                    onClear={clearSelection}
-                  />
-                )}
 
                 {/* Mobile Filter Button */}
                 <div className="md:hidden">

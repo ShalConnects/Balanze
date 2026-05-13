@@ -1,8 +1,24 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Pencil, Trash2, Wallet, TrendingUp, TrendingDown, Landmark, X, Filter, Info } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Pencil,
+  Trash2,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  Landmark,
+  X,
+  Filter,
+  Info,
+  Ban,
+  PlayCircle
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '../../utils/currency';
 import { formatAppDate } from '../../utils/timezoneUtils';
+import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
 import {
@@ -36,8 +52,9 @@ import {
 import { TRANSACTION_ORIGIN_BUSINESS_INVESTMENT } from '../../lib/transactionListLock';
 import { getContractStats, getEffectivePrincipal } from '../../utils/businessInvestmentStats';
 import { entryPostingDescription, entryPostingTransactionType } from '../../utils/businessInvestmentEntryPosting';
-import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { businessInvestmentStatusConfirmCopy } from '../../utils/businessInvestmentStatusConfirm';
 import { BusinessInvestmentContractModal } from './BusinessInvestmentContractModal';
+import { InvestmentContractEntriesTimeline } from './InvestmentContractEntriesTimeline';
 import { BusinessInvestmentUpdateModal, type ContractUpdateFormState } from './BusinessInvestmentUpdateModal';
 
 type SortField = 'title' | 'funding_account_name' | 'status';
@@ -111,10 +128,10 @@ export const BusinessInvestmentTracker: React.FC = () => {
     status: 'all' as 'all' | ContractStatus
   });
   const [contractIdToDelete, setContractIdToDelete] = useState<string | null>(null);
+  const [pendingContractStatus, setPendingContractStatus] = useState<{ id: string; next: ContractStatus } | null>(null);
 
   const { accounts, addTransaction, fetchTransactions, fetchAccounts } = useFinanceStore();
   const { user, profile } = useAuthStore();
-  const { isMobile } = useMobileDetection();
   const userDefaultCurrency = profile?.local_currency?.trim() || 'USD';
   const formatAmount = (amount: number, currency: string) => formatCurrency(amount, currency || userDefaultCurrency);
 
@@ -243,6 +260,12 @@ export const BusinessInvestmentTracker: React.FC = () => {
     () => contracts.find((c) => c.id === contractIdToDelete)?.title,
     [contracts, contractIdToDelete]
   );
+  const pendingStatusConfirmModal = useMemo(() => {
+    const p = pendingContractStatus;
+    if (!p) return null;
+    const name = contracts.find((c) => c.id === p.id)?.title ?? '';
+    return businessInvestmentStatusConfirmCopy(p.next, name);
+  }, [pendingContractStatus, contracts]);
   const contractOptions = useMemo(
     () =>
       contracts
@@ -272,8 +295,11 @@ export const BusinessInvestmentTracker: React.FC = () => {
   );
   const fundingAccountNameMap = useMemo(() => new Map(accounts.map((account) => [account.id, account.name])), [accounts]);
   const hasActiveContracts = contractOptions.length > 0;
-  const getFundingAccountName = (contract: InvestmentContract) =>
-    fundingAccountNameMap.get(contract.funding_account_id) || contract.funding_account_name || 'Unknown';
+  const getFundingAccountName = useCallback(
+    (contract: InvestmentContract) =>
+      fundingAccountNameMap.get(contract.funding_account_id) || contract.funding_account_name || 'Unknown',
+    [fundingAccountNameMap]
+  );
   const editingContract = useMemo(
     () => (editingContractId ? contracts.find((c) => c.id === editingContractId) : undefined),
     [contracts, editingContractId]
@@ -310,7 +336,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
       if (sortField === 'funding_account_name') return getFundingAccountName(a).localeCompare(getFundingAccountName(b)) * direction;
       return a.title.localeCompare(b.title) * direction;
     });
-  }, [visibleContracts, debouncedSearch, statusFilter, sortField, sortDirection, fundingAccountNameMap]);
+  }, [visibleContracts, debouncedSearch, statusFilter, sortField, sortDirection, getFundingAccountName]);
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -354,8 +380,8 @@ export const BusinessInvestmentTracker: React.FC = () => {
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     const amount = Number(entryForm.amount);
-    if (!entryForm.contract_id || !amount || amount <= 0 || !entryForm.date) {
-      toast.error('Please complete contract, type, amount, and date');
+    if (!entryForm.contract_id || !amount || amount <= 0) {
+      toast.error('Please select a contract, type, and amount');
       return;
     }
     if (!selectedContract) return;
@@ -364,11 +390,13 @@ export const BusinessInvestmentTracker: React.FC = () => {
       return;
     }
 
+    const entryDate = entryForm.date.trim() || getTodayLocalDateString();
+
     try {
       const newEntry = await insertBusinessInvestmentEntry(entryForm.contract_id, {
         type: entryForm.type,
         amount,
-        date: entryForm.date,
+        date: entryDate,
         note: entryForm.note.trim() || undefined
       });
 
@@ -392,7 +420,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
             type: entryPostingTransactionType(entryForm.type),
             amount,
             description: entryPostingDescription(entryForm.type, selectedContract.title, entryForm.note),
-            date: entryForm.date,
+            date: entryDate,
             category: 'Investment',
             is_recurring: false,
             origin: TRANSACTION_ORIGIN_BUSINESS_INVESTMENT,
@@ -440,17 +468,25 @@ export const BusinessInvestmentTracker: React.FC = () => {
       toast.error('Failed to remove entry');
     }
   };
-  const toggleContractStatus = async (contractId: string) => {
+  const queueContractStatusChange = (contractId: string) => {
     const row = contracts.find((c) => c.id === contractId);
     if (!row) return;
-    const next = row.status === 'active' ? 'closed' : 'active';
-    try {
-      await updateBusinessInvestmentContractStatus(contractId, next);
-      setContracts((prev) => prev.map((c) => (c.id === contractId ? { ...c, status: next } : c)));
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to update status');
-    }
+    setPendingContractStatus({ id: contractId, next: row.status === 'active' ? 'closed' : 'active' });
+  };
+
+  const confirmPendingContractStatus = () => {
+    const p = pendingContractStatus;
+    if (!p) return;
+    void (async () => {
+      try {
+        await updateBusinessInvestmentContractStatus(p.id, p.next);
+        setContracts((prev) => prev.map((c) => (c.id === p.id ? { ...c, status: p.next } : c)));
+        toast.success(p.next === 'closed' ? 'Contract ended' : 'Contract reopened');
+      } catch (err) {
+        console.error(err);
+        toast.error(p.next === 'closed' ? 'Failed to end contract' : 'Failed to reopen contract');
+      }
+    })();
   };
   const toggleRowExpansion = (contractId: string) => {
     setExpandedContractIds((prev) => {
@@ -512,48 +548,18 @@ export const BusinessInvestmentTracker: React.FC = () => {
           </div>
         </div>
         {contract.note && <p className="text-xs text-gray-600 dark:text-gray-400">{contract.note}</p>}
-        <div className="space-y-1.5">
+        <div>
           {contract.entries.length === 0 ? (
             <p className="text-xs text-gray-500 dark:text-gray-400">No updates yet.</p>
           ) : (
-            contract.entries
-              .slice()
-              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-              .map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex flex-col gap-2 rounded-lg bg-gray-50 dark:bg-gray-700/30 p-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-gray-800 dark:text-gray-200 break-words">
-                      {ENTRY_TYPE_LABELS[entry.type]} — {formatAppDate(entry.date)}
-                    </p>
-                    {entry.note && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 break-words">{entry.note}</p>}
-                  </div>
-                  <div className="flex shrink-0 items-center justify-end gap-2">
-                    <p
-                      className={`text-xs font-semibold tabular-nums ${
-                        entry.type === 'loss'
-                          ? 'text-red-600'
-                          : entry.type === 'capital_contribution'
-                            ? 'text-amber-600 dark:text-amber-500'
-                            : 'text-green-600'
-                      }`}
-                    >
-                      {entry.type === 'loss' || entry.type === 'capital_contribution' ? '-' : '+'}
-                      {formatAmount(entry.amount, contract.currency)}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => removeEntry(contract.id, entry.id)}
-                      className={entryRemoveIconButtonClass}
-                      aria-label="Remove entry"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))
+            <InvestmentContractEntriesTimeline
+              entries={contract.entries}
+              currency={contract.currency}
+              formatAmount={formatAmount}
+              formatDate={formatAppDate}
+              removeButtonClassName={entryRemoveIconButtonClass}
+              onRemoveEntry={(entryId) => removeEntry(contract.id, entryId)}
+            />
           )}
         </div>
       </div>
@@ -869,11 +875,17 @@ export const BusinessInvestmentTracker: React.FC = () => {
                           >
                             <button
                               type="button"
-                              onClick={() => void toggleContractStatus(contract.id)}
-                              className={`px-2.5 py-1 text-xs rounded-full ${
+                              onClick={() => queueContractStatusChange(contract.id)}
+                              title={contract.status === 'active' ? 'Click to close contract' : 'Click to reopen contract'}
+                              aria-label={
                                 contract.status === 'active'
-                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                                  : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                  ? 'Status Active. Click to close this contract.'
+                                  : 'Status Closed. Click to reopen this contract.'
+                              }
+                              className={`px-2.5 py-1 text-xs rounded-full cursor-pointer transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-900 ${
+                                contract.status === 'active'
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:ring-2 hover:ring-green-300/80 dark:hover:ring-green-600/50'
+                                  : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-500'
                               }`}
                             >
                               {contract.status === 'active' ? 'Active' : 'Closed'}
@@ -881,6 +893,19 @@ export const BusinessInvestmentTracker: React.FC = () => {
                           </td>
                           <td className="px-3 sm:px-4 lg:px-6 py-2 sm:py-[0.6rem] lg:py-[0.7rem]" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-center gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => queueContractStatusChange(contract.id)}
+                                className={rowActionIconButtonClass}
+                                title={contract.status === 'active' ? 'End contract' : 'Reopen contract'}
+                                aria-label={contract.status === 'active' ? 'End contract' : 'Reopen contract'}
+                              >
+                                {contract.status === 'active' ? (
+                                  <Ban className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                ) : (
+                                  <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                )}
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => openEditContractModal(contract)}
@@ -957,16 +982,35 @@ export const BusinessInvestmentTracker: React.FC = () => {
                       >
                         <button
                           type="button"
-                          onClick={() => void toggleContractStatus(contract.id)}
-                          className={`px-2.5 py-1 text-xs rounded-full ${
+                          onClick={() => queueContractStatusChange(contract.id)}
+                          title={contract.status === 'active' ? 'Tap to close contract' : 'Tap to reopen contract'}
+                          aria-label={
                             contract.status === 'active'
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                              : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                              ? 'Status Active. Tap to close this contract.'
+                              : 'Status Closed. Tap to reopen this contract.'
+                          }
+                          className={`shrink-0 px-2.5 py-1 text-xs rounded-full cursor-pointer transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-900 ${
+                            contract.status === 'active'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:ring-2 hover:ring-green-300/80 dark:hover:ring-green-600/50'
+                              : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-500'
                           }`}
                         >
                           {contract.status === 'active' ? 'Active' : 'Closed'}
                         </button>
                         <div className="flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => queueContractStatusChange(contract.id)}
+                            className={rowActionIconButtonClass}
+                            title={contract.status === 'active' ? 'End contract' : 'Reopen contract'}
+                            aria-label={contract.status === 'active' ? 'End contract' : 'Reopen contract'}
+                          >
+                            {contract.status === 'active' ? (
+                              <Ban className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            ) : (
+                              <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            )}
+                          </button>
                           <button
                             type="button"
                             onClick={() => openEditContractModal(contract)}
@@ -1054,7 +1098,14 @@ export const BusinessInvestmentTracker: React.FC = () => {
           setContracts((prev) =>
             prev.map((c) =>
               c.id === payload.id
-                ? { ...c, title: payload.title, start_date: payload.start_date, end_date: payload.end_date, note: payload.note }
+                ? {
+                    ...c,
+                    title: payload.title,
+                    start_date: payload.start_date,
+                    end_date: payload.end_date,
+                    note: payload.note,
+                    status: payload.status
+                  }
                 : c
             )
           );
@@ -1106,6 +1157,21 @@ export const BusinessInvestmentTracker: React.FC = () => {
           </div>
         </div>
       ) : null}
+
+      <DeleteConfirmationModal
+        isOpen={pendingContractStatus !== null}
+        onClose={() => setPendingContractStatus(null)}
+        onConfirm={confirmPendingContractStatus}
+        title={pendingStatusConfirmModal?.title ?? ''}
+        message={pendingStatusConfirmModal?.message ?? ''}
+        recordDetails={
+          pendingStatusConfirmModal?.recordTitle ? (
+            <p className="text-sm font-medium text-gray-900 dark:text-white">{pendingStatusConfirmModal.recordTitle}</p>
+          ) : undefined
+        }
+        confirmLabel={pendingStatusConfirmModal?.confirmLabel ?? 'Confirm'}
+        cancelLabel="Cancel"
+      />
 
       <DeleteConfirmationModal
         isOpen={contractIdToDelete !== null}

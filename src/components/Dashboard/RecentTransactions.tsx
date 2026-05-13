@@ -1,7 +1,5 @@
 import React from 'react';
-import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, EyeOff } from 'lucide-react';
-import { Transaction } from '../../types/index';
-import { format } from 'date-fns';
+import { ArrowUpRight, ArrowDownRight, EyeOff } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { getCurrencySymbol } from '../../utils/currency';

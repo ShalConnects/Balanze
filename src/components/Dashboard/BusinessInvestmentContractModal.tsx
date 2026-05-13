@@ -11,10 +11,19 @@ import {
   resolveDefaultAccountIdForTransactionDropdown
 } from '../../utils/transactionAccountDropdown';
 import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
-import { parseLocalDate } from '../../utils/taskDateUtils';
+import { parseLocalDate, getTodayLocalDateString } from '../../utils/taskDateUtils';
 import { insertBusinessInvestmentContract, updateBusinessInvestmentContractDetails } from '../../lib/businessInvestmentService';
 import { TRANSACTION_ORIGIN_BUSINESS_INVESTMENT } from '../../lib/transactionListLock';
-import type { InvestmentContract } from '../../types/businessInvestment';
+import type { ContractStatus, InvestmentContract } from '../../types/businessInvestment';
+import {
+  invModalDateInputClass as dateInputClass,
+  invModalInputClass as modalInputClass,
+  invModalDateShellClass as modalDateShellClass,
+  invModalFormGridClass,
+  invModalFormFooterClass,
+  invModalCancelBtnClass,
+  invModalSubmitBtnClass
+} from './businessInvestmentModalFormTokens';
 
 const defaultContractForm = {
   title: '',
@@ -22,21 +31,18 @@ const defaultContractForm = {
   funding_account_id: '',
   start_date: '',
   end_date: '',
-  note: ''
+  note: '',
+  status: 'active' as ContractStatus
 };
 
 const formatDateYmd = (date: Date | null) =>
   date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '';
 
+/** Trimmed start date, or today (local) when empty — not used for end_date. */
+const resolveContractStartDateYmd = (raw: string) => raw.trim() || getTodayLocalDateString();
+
 const PRINCIPAL_COMMIT_HINT =
   'Committed principal cannot be changed after saving. If the amount is wrong, adjust the linked expense transaction or delete this contract and add it again.';
-
-const dateInputClass =
-  'bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400';
-const modalInputClass =
-  'w-full px-4 py-2 text-[14px] h-10 rounded-lg border transition-colors bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600';
-const modalDateShellClass =
-  'flex items-center bg-gray-100 dark:bg-gray-700 px-3 pr-[10px] text-[14px] h-10 rounded-lg border border-gray-200 dark:border-gray-600';
 
 export interface BusinessInvestmentContractModalProps {
   open: boolean;
@@ -49,6 +55,7 @@ export interface BusinessInvestmentContractModalProps {
     start_date: string;
     end_date?: string;
     note?: string;
+    status: ContractStatus;
   }) => void;
 }
 
@@ -93,14 +100,16 @@ export const BusinessInvestmentContractModal: React.FC<BusinessInvestmentContrac
         title: editingContract.title,
         principal: String(editingContract.principal),
         funding_account_id: editingContract.funding_account_id,
-        start_date: editingContract.start_date,
+        start_date: editingContract.start_date?.trim() ? editingContract.start_date : resolveContractStartDateYmd(''),
         end_date: editingContract.end_date ?? '',
-        note: editingContract.note ?? ''
+        note: editingContract.note ?? '',
+        status: editingContract.status
       });
     } else {
       setContractForm({
         ...defaultContractForm,
-        funding_account_id: resolveDefaultAccountIdForTransactionDropdown(basePreparedAccounts, profile)
+        funding_account_id: resolveDefaultAccountIdForTransactionDropdown(basePreparedAccounts, profile),
+        start_date: resolveContractStartDateYmd('')
       });
     }
     setCreatePrincipalExpense(false);
@@ -110,8 +119,8 @@ export const BusinessInvestmentContractModal: React.FC<BusinessInvestmentContrac
   const handleAddContract = async (e: React.FormEvent) => {
     e.preventDefault();
     const principal = Number(contractForm.principal);
-    if (!contractForm.title.trim() || !contractForm.funding_account_id || !principal || principal <= 0 || !contractForm.start_date) {
-      toast.error('Please complete contract title, account, principal, and start date');
+    if (!contractForm.title.trim() || !contractForm.funding_account_id || !principal || principal <= 0) {
+      toast.error('Please complete contract title, account, and principal');
       return;
     }
 
@@ -126,6 +135,8 @@ export const BusinessInvestmentContractModal: React.FC<BusinessInvestmentContrac
       return;
     }
 
+    const startDate = resolveContractStartDateYmd(contractForm.start_date);
+
     try {
       const newContract = await insertBusinessInvestmentContract({
         title: contractForm.title.trim(),
@@ -133,8 +144,8 @@ export const BusinessInvestmentContractModal: React.FC<BusinessInvestmentContrac
         currency: fundingAccount.currency || 'USD',
         funding_account_id: fundingAccount.id,
         funding_account_name: fundingAccount.name,
-        start_date: contractForm.start_date,
-        end_date: contractForm.end_date || undefined,
+        start_date: startDate,
+        end_date: contractForm.end_date.trim() ? contractForm.end_date : undefined,
         status: 'active',
         note: contractForm.note.trim() || undefined
       });
@@ -172,23 +183,26 @@ export const BusinessInvestmentContractModal: React.FC<BusinessInvestmentContrac
   const handleUpdateContractDetails = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingContract) return;
-    if (!contractForm.title.trim() || !contractForm.start_date) {
-      toast.error('Please complete title and start date');
+    if (!contractForm.title.trim()) {
+      toast.error('Please complete title');
       return;
     }
+    const startDate = resolveContractStartDateYmd(contractForm.start_date);
     try {
       await updateBusinessInvestmentContractDetails(editingContract.id, {
         title: contractForm.title.trim(),
-        start_date: contractForm.start_date,
+        start_date: startDate,
         end_date: contractForm.end_date.trim() ? contractForm.end_date : null,
-        note: contractForm.note.trim() ? contractForm.note.trim() : null
+        note: contractForm.note.trim() ? contractForm.note.trim() : null,
+        status: contractForm.status
       });
       onUpdated?.({
         id: editingContract.id,
         title: contractForm.title.trim(),
-        start_date: contractForm.start_date,
+        start_date: startDate,
         end_date: contractForm.end_date.trim() || undefined,
-        note: contractForm.note.trim() || undefined
+        note: contractForm.note.trim() || undefined,
+        status: contractForm.status
       });
       onClose();
       toast.success('Contract updated');
@@ -220,7 +234,7 @@ export const BusinessInvestmentContractModal: React.FC<BusinessInvestmentContrac
           onSubmit={isEditingContract ? handleUpdateContractDetails : handleAddContract}
           className="p-4 sm:p-5 overflow-y-auto flex-1 min-h-0 overscroll-contain"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-[1.15rem] gap-y-[1.20rem] sm:gap-y-[1.40rem]">
+          <div className={invModalFormGridClass}>
             <input
               type="text"
               value={contractForm.title}
@@ -264,6 +278,18 @@ export const BusinessInvestmentContractModal: React.FC<BusinessInvestmentContrac
                 <div className="flex items-center px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
                   Currency: {editingContract?.currency ?? selectedFundingAccount?.currency ?? '-'}
                 </div>
+                <CustomDropdown
+                  value={contractForm.status}
+                  onChange={(value) =>
+                    setContractForm((prev) => ({ ...prev, status: value as ContractStatus }))
+                  }
+                  options={[
+                    { value: 'active', label: 'Active' },
+                    { value: 'closed', label: 'Closed' }
+                  ]}
+                  placeholder="Status"
+                  fullWidth
+                />
               </>
             ) : (
               <>
@@ -304,6 +330,11 @@ export const BusinessInvestmentContractModal: React.FC<BusinessInvestmentContrac
               />
             </div>
           </div>
+          {isEditingContract ? (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 sm:mt-2.5">
+              Status matches the badge in your list. Closed contracts cannot receive new profit/loss entries until reopened.
+            </p>
+          ) : null}
           <textarea
             value={contractForm.note}
             onChange={(e) => setContractForm((prev) => ({ ...prev, note: e.target.value }))}
@@ -322,18 +353,11 @@ export const BusinessInvestmentContractModal: React.FC<BusinessInvestmentContrac
               Also create expense transaction for principal from funding account
             </label>
           ) : null}
-          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 mt-4 sm:mt-5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm sm:text-base touch-manipulation"
-            >
+          <div className={invModalFormFooterClass}>
+            <button type="button" onClick={onClose} className={invModalCancelBtnClass}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors flex items-center justify-center min-w-[80px] text-sm sm:text-base touch-manipulation"
-            >
+            <button type="submit" className={invModalSubmitBtnClass}>
               {isEditingContract ? 'Save changes' : 'Save Contract'}
             </button>
           </div>

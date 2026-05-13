@@ -4,9 +4,7 @@ import {
   getFavoriteQuotes, 
   addFavoriteQuote as addFavoriteQuoteToDB, 
   removeFavoriteQuote as removeFavoriteQuoteFromDB,
-  removeFavoriteQuoteByContent,
-  isQuoteFavorited as isQuoteFavoritedInDB,
-  FavoriteQuote as DBFavoriteQuote 
+  removeFavoriteQuoteByContent 
 } from '../lib/favoriteQuotesService';
 
 export interface Notification {

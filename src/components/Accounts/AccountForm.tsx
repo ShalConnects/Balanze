@@ -1,21 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, AlertCircle, Eye, EyeOff, Info } from 'lucide-react';
+import { X, AlertCircle, Info } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { Account } from '../../types';
-import { generateTransactionId, createSuccessMessage } from '../../utils/transactionId';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
-import { Loader } from '../common/Loader';
 import { showToast } from '../../lib/toast';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { validateAccount, ACCOUNT_TYPES, CURRENCY_OPTIONS, getAccountTypeDisplayName } from '../../utils/accountUtils';
 import { useUpgradeModal } from '../../hooks/useUpgradeModal';
 import { UpgradeModal } from '../common/UpgradeModal';
-import { getAccountIcon } from '../../utils/accountIcons';
-import { Tooltip } from '../common/Tooltip';
-import { CreditCard, Wallet, PiggyBank, Building } from 'lucide-react';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 
 interface AccountFormProps {

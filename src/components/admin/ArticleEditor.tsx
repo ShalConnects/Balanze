@@ -1,6 +1,6 @@
 // src/components/admin/ArticleEditor.tsx
 import { useState } from 'react';
-import { KBArticle, TableOfContentsItem, ARTICLE_SECTIONS, TOC_TEMPLATES, buildArticleContent, getTOCByTemplate } from '../../data/articles';
+import { KBArticle, TableOfContentsItem, TOC_TEMPLATES, getTOCByTemplate } from '../../data/articles';
 
 interface ArticleEditorProps {
   article: KBArticle;

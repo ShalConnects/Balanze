@@ -1,5 +1,5 @@
 import React from 'react';
-import { SkeletonMobileCard, SkeletonStaggered, SkeletonMobileFilters, SkeletonMobileSummaryCards } from '../common/Skeleton';
+import { SkeletonMobileCard, SkeletonMobileFilters, SkeletonMobileSummaryCards } from '../common/Skeleton';
 
 // Enhanced skeleton for donation cards (mobile view) - matches real DonationCard structure
 export const DonationCardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => {

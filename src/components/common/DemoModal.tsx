@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, ArrowLeft, ArrowRight } from 'lucide-react';
+import { X, ArrowRight } from 'lucide-react';
 // DashboardDemoOnly loaded dynamically to reduce initial bundle size
 // import { DashboardDemoOnly } from '../../pages/DashboardDemoOnly';
 

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Info } from 'lucide-react';
+import { TrendingUp, ArrowUpRight, ArrowDownRight, Info } from 'lucide-react';
 import { formatCurrency } from '../../utils/currency';
 import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 import { getAnalyticsPeriodLabel, getAnalyticsPeriodRange } from '../../utils/analyticsPeriod';

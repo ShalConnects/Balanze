@@ -11,7 +11,7 @@ import { supabase } from '../../lib/supabase';
 import { ArrowRight, Info, RefreshCw, X } from 'lucide-react';
 import { getSuggestedRate, formatExchangeRate, isValidExchangeRate } from '../../utils/exchangeRate';
 import { toast } from 'sonner';
-import { generateTransactionId, createSuccessMessage, TRANSACTION_TYPES } from '../../utils/transactionId';
+import { generateTransactionId, createSuccessMessage } from '../../utils/transactionId';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { Loader } from '../common/Loader';
 import { useMobileDetection } from '../../hooks/useMobileDetection';

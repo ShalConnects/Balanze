@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { qualitativeCategories, getCategoryColor } from '../../styles/colors';
+import { getCategoryColor } from '../../styles/colors';
 
 interface FlowData {
   source: string;

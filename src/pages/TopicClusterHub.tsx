@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, ArrowRight, TrendingUp, Users, CreditCard, BarChart3, Settings, Star } from 'lucide-react';
+import { BookOpen, ArrowRight, TrendingUp, CreditCard, BarChart3, Settings, Star } from 'lucide-react';
 
 interface TopicCluster {
   id: string;

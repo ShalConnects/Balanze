@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, ReactNode } from 'react';
-import { Menu, Bell, Search, Sun, Moon, User, Settings, LogOut, ArrowLeftRight, LifeBuoy, Globe, Heart, Quote, X, BookOpen, Sparkles, RefreshCw, Trophy, Edit3, Calculator } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Menu, Bell, Search, Sun, Moon, LogOut, ArrowLeftRight, LifeBuoy, Heart, X, BookOpen, Sparkles, RefreshCw, Edit3, Calculator } from 'lucide-react';
 import { format, isToday, isThisWeek } from 'date-fns';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useThemeStore } from '../../store/themeStore';
@@ -7,7 +7,7 @@ import { useAuthStore } from '../../store/authStore';
 import { NotificationDropdown } from './NotificationDropdown';
 import { useNotificationsStore } from '../../store/notificationsStore';
 import { ProfileEditModal } from './ProfileEditModal';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { GlobalSearchDropdown } from './GlobalSearchDropdown';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { supabase } from '../../lib/supabase';

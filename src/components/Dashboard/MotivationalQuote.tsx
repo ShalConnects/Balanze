@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Quote, RefreshCw, Heart, Bookmark, ExternalLink, X } from 'lucide-react';
+import { Quote, RefreshCw, Heart, ExternalLink, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNotificationStore } from '../../store/notificationStore';
 import { useAuthStore } from '../../store/authStore';

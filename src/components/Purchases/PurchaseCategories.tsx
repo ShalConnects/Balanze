@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Edit, Trash2, DollarSign, Palette } from 'lucide-react';
+import { Plus, Edit, Trash2, Palette } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { PurchaseCategory } from '../../types';
 import { CategoryModal } from '../common/CategoryModal';

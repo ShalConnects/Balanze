@@ -1,4 +1,4 @@
-import { getInternalLinks, getRelatedArticlesByCluster, TOPIC_CLUSTERS } from '../data/articles';
+import { getRelatedArticlesByCluster, TOPIC_CLUSTERS } from '../data/articles';
 
 export interface InternalLinkSuggestion {
   text: string;

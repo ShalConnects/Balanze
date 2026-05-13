@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Star, Zap, Check, ArrowUpRight, Users, Globe, BarChart3, Heart, Download, Settings } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PayPalPaymentModal } from './PayPalPaymentModal';
 

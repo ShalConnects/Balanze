@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Save, Loader2, AlertCircle } from 'lucide-react';
+import { X, Loader2, AlertCircle } from 'lucide-react';
 import { useClientStore } from '../../store/useClientStore';
 import { Client, ClientInput } from '../../types/client';
 import { getTagSuggestionPool } from '../../utils/clientTagSuggestions';

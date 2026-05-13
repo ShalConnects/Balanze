@@ -2,8 +2,17 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
-import { parseLocalDate } from '../../utils/taskDateUtils';
+import { parseLocalDate, toBusinessDateString } from '../../utils/taskDateUtils';
 import type { EntryType } from '../../types/businessInvestment';
+import {
+  invModalDateInputClass,
+  invModalInputClass,
+  invModalDateShellClass,
+  invModalFormGridClass,
+  invModalFormFooterClass,
+  invModalCancelBtnClass,
+  invModalSubmitBtnClass
+} from './businessInvestmentModalFormTokens';
 
 export interface ContractUpdateFormState {
   contract_id: string;
@@ -33,20 +42,6 @@ interface BusinessInvestmentUpdateModalProps {
   onSubmit: (e: React.FormEvent) => Promise<void>;
 }
 
-const dateInputClass =
-  'bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400';
-const compactInputClass =
-  'w-full pl-8 pr-2 py-1.5 text-[13px] h-8 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400 transition-colors border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800';
-const compactDateShellClass =
-  'flex items-center bg-gray-50 dark:bg-gray-800 px-3 pr-[10px] text-[13px] h-8 rounded-md border border-gray-300 dark:border-gray-700';
-const compactTextareaClass =
-  'w-full px-3 py-2 text-[13px] rounded-md border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400';
-const compactDropdownClass =
-  'px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700';
-
-const formatDateYmd = (date: Date | null) =>
-  date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '';
-
 export const BusinessInvestmentUpdateModal: React.FC<BusinessInvestmentUpdateModalProps> = ({
   open,
   onClose,
@@ -71,27 +66,27 @@ export const BusinessInvestmentUpdateModal: React.FC<BusinessInvestmentUpdateMod
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Update Contract</h3>
+          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Record contract update</h3>
           <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1">
             <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-3 p-4 sm:p-5 overflow-y-auto flex-1 min-h-0 overscroll-contain">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5">
+        <form onSubmit={onSubmit} className="p-4 sm:p-5 overflow-y-auto flex-1 min-h-0 overscroll-contain">
+          <div className={invModalFormGridClass}>
             <CustomDropdown
               value={entryForm.contract_id}
               onChange={(value) => setEntryForm((prev) => ({ ...prev, contract_id: value }))}
               options={contractOptions}
               placeholder="Contract"
-              className={compactDropdownClass}
+              fullWidth
             />
             <CustomDropdown
               value={entryForm.type}
               onChange={(value) => setEntryForm((prev) => ({ ...prev, type: value as EntryType }))}
               options={entryTypeOptions}
               placeholder="Type"
-              className={compactDropdownClass}
+              fullWidth
             />
             <input
               type="number"
@@ -100,30 +95,27 @@ export const BusinessInvestmentUpdateModal: React.FC<BusinessInvestmentUpdateMod
               value={entryForm.amount}
               onChange={(e) => setEntryForm((prev) => ({ ...prev, amount: e.target.value }))}
               placeholder="Amount"
-              className={compactInputClass}
+              className={invModalInputClass}
               required
             />
-            <div className={compactDateShellClass}>
+            <div className={invModalDateShellClass}>
               <DatePicker
                 selected={parseLocalDate(entryForm.date)}
-                onChange={(date) => setEntryForm((prev) => ({ ...prev, date: formatDateYmd(date) }))}
-                placeholderText="Entry date *"
+                onChange={(date) =>
+                  setEntryForm((prev) => ({ ...prev, date: date ? toBusinessDateString(date) : '' }))
+                }
+                placeholderText="Entry date"
                 dateFormat="yyyy-MM-dd"
-                className={dateInputClass}
+                className={invModalDateInputClass}
                 todayButton="Today"
                 isClearable
                 autoComplete="off"
               />
             </div>
-            <button
-              type="submit"
-              className="flex h-10 w-full min-h-10 items-center justify-center rounded-md bg-gradient-primary px-3 text-xs text-white transition-colors hover:bg-gradient-primary-hover sm:h-8 sm:min-h-0 sm:w-auto sm:px-2 sm:text-[13px] md:px-3 touch-manipulation"
-            >
-              Add Entry
-            </button>
           </div>
-          <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-2">
-            <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 text-xs text-gray-700 dark:text-gray-300 sm:min-h-0 sm:text-[13px]">
+
+          <div className="mt-3 space-y-3 sm:mt-4">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
               <input
                 type="checkbox"
                 checked={postEntryAsTransaction}
@@ -138,20 +130,29 @@ export const BusinessInvestmentUpdateModal: React.FC<BusinessInvestmentUpdateMod
               options={postingAccountOptions}
               placeholder="Select account *"
               disabled={!postEntryAsTransaction}
-              className={compactDropdownClass}
               fullWidth
             />
-            <p className="text-[11px] leading-snug text-gray-500 dark:text-gray-400 lg:col-span-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               Profit and principal returned → income. Loss and capital contribution → expense.
             </p>
           </div>
+
           <textarea
             value={entryForm.note}
             onChange={(e) => setEntryForm((prev) => ({ ...prev, note: e.target.value }))}
             placeholder="Optional note for this update"
             rows={2}
-            className={`${compactTextareaClass} min-h-[4.5rem] sm:min-h-0`}
+            className={`${invModalInputClass} min-h-[80px] mt-3 sm:mt-4`}
           />
+
+          <div className={invModalFormFooterClass}>
+            <button type="button" onClick={onClose} className={invModalCancelBtnClass}>
+              Cancel
+            </button>
+            <button type="submit" className={invModalSubmitBtnClass}>
+              Add entry
+            </button>
+          </div>
         </form>
       </div>
     </div>

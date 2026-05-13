@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, Star, Flame, Target, TrendingUp, Award } from 'lucide-react';
+import { Trophy, Star, Flame, Target, TrendingUp } from 'lucide-react';
 import { useHabitStore } from '../../store/useHabitStore';
 import { PointsDisplay } from './PointsDisplay';
 import { LevelProgress } from './LevelProgress';

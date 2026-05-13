@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  TrendingUp, Wallet, Target, Handshake, PiggyBank, Bell, Shield, Heart,
-  Check, ChevronDown, ChevronUp, Star, ArrowRight, BarChart3, PieChart,
-  Users, Globe, Mail, Phone, Facebook, Twitter, Instagram, Linkedin, Github, ArrowUp, Moon, Sun, LogOut, Menu, X, RefreshCw, Clock, CreditCard
+import { Shield, Heart,
+  Check,
+  Users, Moon, Sun, Menu, X, RefreshCw, Clock, CreditCard
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import InteractiveBackground from '../components/InteractiveBackground';

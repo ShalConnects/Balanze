@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
-import { Plus, Edit2, Trash2, DollarSign, Info, PlusCircle, InfoIcon, Search, ArrowLeft, Wallet, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, Handshake, Eye, X, Pen } from 'lucide-react';
+import { Plus, Edit2, Trash2, Info, Search, ChevronUp, ChevronDown, Filter, CheckCircle, Handshake, Eye, X, Pen } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { LendBorrowForm } from './LendBorrowForm';
 import { SettlementModal } from './SettlementModal';
@@ -8,21 +8,20 @@ import { SettledRecordInfoModal } from './SettledRecordInfoModal';
 import { LendBorrow, LendBorrowReturn } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import { generateTransactionId, createSuccessMessage } from '../../utils/transactionId';
-import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { Tooltip } from '../common/Tooltip';
 import { useAuthStore } from '../../store/authStore';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { LendBorrowCardSkeleton, LendBorrowTableSkeleton, LendBorrowSummaryCardsSkeleton, LendBorrowFiltersSkeleton } from './LendBorrowSkeleton';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
-import { SelectionFilter } from '../common/SelectionFilter';
+import { useSelectionSearchSync } from '../../hooks/useSelectionSearchSync';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useTranslation } from 'react-i18next';
 import { getPreference, setPreference } from '../../lib/userPreferences';
 import { formatCurrencyCompact } from '../../utils/currency';
 import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 import { formatDateUTC, formatAppDate } from '../../utils/timezoneUtils';
+import { normalizeSearchText, includesNormalized } from '../../utils/searchText';
 // DatePicker loaded dynamically to reduce initial bundle size
 // import DatePicker from 'react-datepicker';
 // import 'react-datepicker/dist/react-datepicker.css';
@@ -128,6 +127,16 @@ export const LendBorrowTableView: React.FC = () => {
     key: string;
     direction: 'asc' | 'desc';
   } | null>(null);
+  useSelectionSearchSync({
+    hasSelection,
+    isFromSearch,
+    selectedId,
+    selectedRecord: selectedRecordFromHook,
+    searchValue: tableFilters.search,
+    onSearchChange: (value) => setTableFilters(prev => ({ ...prev, search: value })),
+    clearSelection,
+    getSelectedSearchValue: (record) => record.person_name,
+  });
   
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(false);
   const [showTypeMenu, setShowTypeMenu] = useState(false);
@@ -459,9 +468,9 @@ export const LendBorrowTableView: React.FC = () => {
 
   // Filter and sort records
   const filteredRecords = useMemo(() => {
-    let filtered = lendBorrowRecords.filter(record => {
-      const matchesSearch = !tableFilters.search || 
-        record.person_name.toLowerCase().includes(tableFilters.search.toLowerCase());
+    const normalizedSearch = normalizeSearchText(tableFilters.search);
+    const filtered = lendBorrowRecords.filter(record => {
+      const matchesSearch = !normalizedSearch || includesNormalized(record.person_name, normalizedSearch);
       
       const matchesCurrency = !tableFilters.currency || record.currency === tableFilters.currency;
       
@@ -1165,15 +1174,6 @@ export const LendBorrowTableView: React.FC = () => {
                   />
                 </div>
               </div>
-
-              {/* Selection Filter */}
-              {hasSelection && selectedRecord && (
-                <SelectionFilter
-                  label="Selected"
-                  value={selectedRecord.person_name || 'Record'}
-                  onClear={clearSelection}
-                />
-              )}
 
               {/* Mobile Filter Button */}
               <div className="md:hidden">

@@ -2,14 +2,9 @@
 // Manages achievement state and integrates with existing user actions
 
 import { create } from 'zustand';
-import { 
-  Achievement, 
-  UserAchievement, 
-  AchievementProgress, 
-  UserAchievementSummary,
+import {
   AchievementStore,
-  AchievementAction,
-  AchievementNotification
+  AchievementAction
 } from '../types/achievement';
 import { achievementService } from '../lib/achievementService';
 import { useAuthStore } from './authStore';

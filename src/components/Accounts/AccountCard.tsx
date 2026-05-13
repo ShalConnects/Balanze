@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit2, Trash2, Wallet } from 'lucide-react';
+import { Edit2, Trash2 } from 'lucide-react';
 import { Account, Transaction } from '../../types';
 import { getAccountColor } from '../../utils/accountIcons';
 import { accountActiveStatusDotClass } from './AccountActiveToggle';

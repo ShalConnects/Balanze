@@ -245,7 +245,7 @@ export const SearchAnalyticsDashboard: React.FC<SearchAnalyticsDashboardProps> =
             
             {performanceInsights.slowSearches.length > 0 && (
               <div className="mb-4">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Slow Searches (>500ms)</h4>
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Slow Searches (over 500ms)</h4>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
                   {performanceInsights.slowSearches.length} searches took longer than 500ms
                 </div>

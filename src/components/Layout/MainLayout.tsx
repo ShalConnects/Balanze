@@ -1,16 +1,8 @@
 import React, { useState, useEffect, ReactNode, useRef } from 'react';
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { GlobalSearchDropdown } from './GlobalSearchDropdown';
 import { PomodoroTimerBar } from './PomodoroTimerBar';
-import { Dashboard } from '../Dashboard/Dashboard';
-import { AccountsView } from '../Accounts/AccountsView';
-import { TransactionsView } from '../Transactions/TransactionsView';
-import { ReportsView } from '../Reports/ReportsView';
-import { Settings } from '../Dashboard/Settings';
-import { About } from '../Dashboard/About';
-import { HeaderQuote } from '../Dashboard/HeaderQuote';
 import { useThemeStore } from '../../store/themeStore';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useMobileSidebar } from '../../context/MobileSidebarContext';

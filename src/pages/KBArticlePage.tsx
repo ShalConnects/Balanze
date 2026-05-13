@@ -9,7 +9,6 @@ import {
   ThumbsUp, 
   ThumbsDown, 
   BookOpen,
-  ExternalLink,
   Copy,
   Check,
   Menu,
@@ -24,10 +23,10 @@ import clsx from 'clsx';
 import { useThemeStore } from '../store/themeStore';
 import RelatedArticles from '../components/RelatedArticles';
 import Breadcrumb from '../components/Breadcrumb';
-import { trackInternalLink, trackPageView, trackTimeOnPage, trackExitPage } from '../lib/seoAnalytics';
+import { trackPageView, trackTimeOnPage, trackExitPage } from '../lib/seoAnalytics';
 import { generateHelpCenterPageStructuredData, injectStructuredData } from '../lib/structuredData';
 import { generateMetaTags, generateMetaTagsHTML, generateArticleJsonLd } from '../lib/metaOptimizer';
-import { trackArticleView, trackInternalLinkClick, trackTimeOnPage as ga4TrackTimeOnPage, initializeGA4 } from '../lib/ga4Integration';
+import { trackArticleView, trackTimeOnPage as ga4TrackTimeOnPage, initializeGA4 } from '../lib/ga4Integration';
 import { sanitizeHtml } from '../lib/sanitize';
 import { formatAppDate } from '../utils/timezoneUtils';
 

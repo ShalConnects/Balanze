@@ -2,7 +2,6 @@ import React from 'react';
 import { Flame, TrendingUp } from 'lucide-react';
 import { Habit } from '../../types/habit';
 import { useHabitStore } from '../../store/useHabitStore';
-import { startOfWeek } from 'date-fns';
 
 interface HabitStatsProps {
   habit: Habit;

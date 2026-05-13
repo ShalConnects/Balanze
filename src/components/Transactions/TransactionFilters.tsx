@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Search, Filter, Calendar, X } from 'lucide-react';
-import { Transaction, Account, Category } from '../../types';
+import { Account, Category } from '../../types';
 // DatePicker loaded dynamically to reduce initial bundle size
 // import DatePicker from 'react-datepicker';
 // import 'react-datepicker/dist/react-datepicker.css';

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Building2, Mail, Phone, MapPin, Tag, X, Filter, Eye, ShoppingCart, ChevronUp, ChevronDown, Info, ChevronRight, Copy, AlertCircle, Bell } from 'lucide-react';
+import { Plus, Edit2, Trash2, Building2, Mail, Phone, MapPin, Tag, X, Filter, Eye, ChevronUp, ChevronDown, Copy, AlertCircle, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useClientStore } from '../../store/useClientStore';
 import { getNeedsFollowUp } from '../../types/client';
@@ -10,7 +10,7 @@ import { InvoiceForm } from '../Invoices/InvoiceForm';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
-import { SelectionFilter } from '../common/SelectionFilter';
+import { useSelectionSearchSync } from '../../hooks/useSelectionSearchSync';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { toast } from 'sonner';
 import { 
@@ -26,12 +26,10 @@ import { getCurrencySymbol } from '../../utils/currency';
 import { Tooltip } from '../common/Tooltip';
 import { 
   getInvoiceStatusColor, 
-  getPaymentStatusColor, 
-  getTaskStatusColor,
+  getPaymentStatusColor,
   formatKnownSinceDate,
   CLIENT_STATUS_OPTIONS
 } from '../../utils/clientUtils';
-import { formatAppDate } from '../../utils/timezoneUtils';
 import {
   LP,
   LP_SEARCH_ACTIVE_STYLE,
@@ -46,6 +44,7 @@ import {
 import { isTaskOverdue } from '../../utils/taskDateUtils';
 import { getTagSuggestionPool } from '../../utils/clientTagSuggestions';
 import { CLIENTS_FEATURE_ICON } from '../../lib/clientFeatureIcon';
+import { normalizeSearchText, includesNormalized } from '../../utils/searchText';
 
 type ClientTaskSummary = {
   active: number;
@@ -454,12 +453,14 @@ export const ClientList: React.FC = () => {
 
   // Filter clients based on tableFilters (using debounced search)
   const filteredClients = useMemo(() => {
+    const normalizedSearch = normalizeSearchText(debouncedSearch);
     let filtered = clients.filter((client) => {
-      const matchesSearch = !debouncedSearch || 
-        client.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        client.email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        client.phone?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        client.company_name?.toLowerCase().includes(debouncedSearch.toLowerCase());
+      const matchesSearch =
+        !normalizedSearch ||
+        includesNormalized(client.name, normalizedSearch) ||
+        includesNormalized(client.email, normalizedSearch) ||
+        includesNormalized(client.phone, normalizedSearch) ||
+        includesNormalized(client.company_name, normalizedSearch);
 
       const matchesStatus = tableFilters.needsFollowUp || tableFilters.status === 'all' || client.status === tableFilters.status;
       const matchesCurrency = !tableFilters.currency || client.default_currency === tableFilters.currency;
@@ -488,6 +489,16 @@ export const ClientList: React.FC = () => {
 
     return filtered;
   }, [clients, debouncedSearch, tableFilters.status, tableFilters.currency, tableFilters.tag, tableFilters.needsFollowUp, sortConfig]);
+  useSelectionSearchSync({
+    hasSelection,
+    isFromSearch,
+    selectedId,
+    selectedRecord,
+    searchValue: tableFilters.search,
+    onSearchChange: (value) => setTableFilters(prev => ({ ...prev, search: value })),
+    clearSelection,
+    getSelectedSearchValue: (record) => record.name,
+  });
 
   const hasClientListFilters = Boolean(
     tableFilters.search ||
@@ -817,15 +828,6 @@ export const ClientList: React.FC = () => {
                   placeholder="Search clients..."
                   pending={searchPending}
                 />
-
-                {/* Selection Filter */}
-                {hasSelection && selectedRecord && (
-                  <SelectionFilter
-                    label="Selected"
-                    value={selectedRecord.name || 'Client'}
-                    onClear={clearSelection}
-                  />
-                )}
 
                 {/* Mobile Filter Button */}
                 <div className="md:hidden">

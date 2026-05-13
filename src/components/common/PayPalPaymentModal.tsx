@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CreditCard, Lock, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Lock, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { initializePayPal, createPayPalOrder, handlePayPalApproval } from '../../lib/paypal';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';

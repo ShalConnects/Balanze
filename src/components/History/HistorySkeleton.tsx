@@ -1,5 +1,4 @@
 import React from 'react';
-import { Skeleton, SkeletonCard, SkeletonTable } from '../common/Skeleton';
 
 // Statistics cards skeleton - matches real statistics structure (5 cards)
 export const HistoryStatisticsSkeleton: React.FC = () => {

@@ -312,14 +312,6 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
                 <span className="sm:hidden">T</span>
               </span>
             )}
-            <button
-              onClick={handleStatusClick}
-              className="inline-flex items-center text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
-              title="Change status"
-              aria-label="Change status"
-            >
-              <CircleDot className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-            </button>
           </div>
           </div>
           <div className="flex items-center justify-between gap-1 mb-0.5">

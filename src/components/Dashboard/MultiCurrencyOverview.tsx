@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight, Info, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency } from '../../utils/currency';
-import { getExchangeRate, calculateConvertedAmount } from '../../utils/exchangeRate';
+import { getExchangeRate } from '../../utils/exchangeRate';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 

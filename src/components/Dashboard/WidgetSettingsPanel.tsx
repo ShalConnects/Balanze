@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, GripVertical, Eye, EyeOff, RotateCcw, X } from 'lucide-react';
+import { GripVertical, Eye, EyeOff, RotateCcw, X } from 'lucide-react';
 import Modal from 'react-modal';
 
 export interface WidgetConfig {

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Mail, Facebook, Twitter, Instagram, Linkedin, Github, 
   LogOut, Menu, X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  TrendingUp, Wallet, Target, Handshake, PiggyBank, Bell, Shield, Heart,
-  Check, ChevronDown, ChevronUp, Star, ArrowRight, BarChart3, PieChart,
-  Users, Globe, Mail, Phone, Facebook, Twitter, Instagram, Linkedin, Github, ArrowUp, Moon, Sun, LogOut, Menu, X, ArrowLeft, Calendar, Clock, User
+import { Facebook, Twitter, Linkedin, Moon, Sun, LogOut, Menu, X, ArrowLeft, Calendar, Clock, User
 } from 'lucide-react';
 import InteractiveBackground from '../components/InteractiveBackground';
 import { useThemeStore } from '../store/themeStore';

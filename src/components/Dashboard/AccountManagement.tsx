@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, AlertTriangle, Download, UserX, Shield, CheckCircle, XCircle, User, CreditCard, ShoppingBag, TrendingUp, Globe, Edit3, Calendar, LogOut, ArrowRight, HandCoins, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertTriangle, Download, UserX, Shield, CheckCircle, User, CreditCard, ShoppingBag, TrendingUp, Globe, Edit3, Calendar, LogOut, ArrowRight, HandCoins, ChevronDown, ChevronUp } from 'lucide-react';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { useAuthStore } from '../../store/authStore';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { generateTransactionId, createSuccessMessage } from '../../utils/transactionId';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ProfileEditModal } from '../Layout/ProfileEditModal';

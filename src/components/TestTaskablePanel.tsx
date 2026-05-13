@@ -18,7 +18,7 @@ import type {
 } from '../types/taskable';
 import { useClientStore } from '../store/useClientStore';
 import { useCourseStore } from '../store/useCourseStore';
-import { CheckCircle2, Circle, Clock, AlertCircle, X, Plus, RefreshCw } from 'lucide-react';
+import { CheckCircle2, Circle, AlertCircle, X, Plus, RefreshCw } from 'lucide-react';
 
 export const TestTaskablePanel: React.FC = () => {
   const {

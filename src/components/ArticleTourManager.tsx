@@ -1,10 +1,9 @@
 // src/components/ArticleTourManager.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, Play, Target, Users, TrendingUp, Settings } from 'lucide-react';
 import ArticleBasedTour from './ArticleBasedTour';
 import { MOCK_ARTICLES } from '../pages/KBArticlePage';
-import { TOPIC_CLUSTERS } from '../data/articles';
 
 interface ArticleTourManagerProps {
   className?: string;

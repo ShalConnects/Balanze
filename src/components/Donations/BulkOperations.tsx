@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckSquare, Square, Trash2, Download, Edit, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { CheckSquare, Square, Trash2, Download, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface BulkOperationsProps {

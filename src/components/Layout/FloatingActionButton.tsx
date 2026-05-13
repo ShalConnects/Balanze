@@ -18,12 +18,9 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PurchaseForm } from '../Purchases/PurchaseForm';
 import { toast } from 'sonner';
-import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { LendBorrowInput } from '../../types/index';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useMobileSidebar } from '../../context/MobileSidebarContext';
-import { AIChatBot } from '../AIChatBot/AIChatBot';
 import { BusinessInvestmentContractModal } from '../Dashboard/BusinessInvestmentContractModal';
 
 // Define the props for our new ActionButton component.

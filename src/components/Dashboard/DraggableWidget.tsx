@@ -14,11 +14,6 @@ export const DraggableWidget: React.FC<DraggableWidgetProps> = ({
   children,
   className = '',
 }) => {
-  // Return null if children is null to avoid empty space
-  if (children === null || children === undefined) {
-    return null;
-  }
-
   const {
     attributes,
     listeners,
@@ -27,6 +22,10 @@ export const DraggableWidget: React.FC<DraggableWidgetProps> = ({
     transition,
     isDragging,
   } = useSortable({ id });
+
+  if (children === null || children === undefined) {
+    return null;
+  }
 
   const style = {
     transform: CSS.Transform.toString(transform),

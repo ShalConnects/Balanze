@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Plus, 
   Filter, 
@@ -7,11 +7,10 @@ import {
   TrendingUp, 
   TrendingDown,
   Eye,
-  EyeOff,
   MoreVertical,
   DollarSign
 } from 'lucide-react';
-import { InvestmentAsset, InvestmentFilters, AssetPerformance } from '../../types/investment';
+import { InvestmentAsset, InvestmentFilters } from '../../types/investment';
 import { formatCurrency } from '../../utils/currency';
 import { SkeletonCard } from '../common/Skeleton';
 import { ListPageFilterSearchField } from '../common/listPage/listPageLayout';

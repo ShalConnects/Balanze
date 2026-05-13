@@ -1,7 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, X, Save, Calendar, DollarSign, ChevronDown, ChevronUp } from 'lucide-react';
-import { format, subDays, subMonths, subYears, startOfDay, endOfDay } from 'date-fns';
-import { Tooltip } from '../common/Tooltip';
+import { Search, Filter, X, Save, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface FilterPreset {
   id: string;

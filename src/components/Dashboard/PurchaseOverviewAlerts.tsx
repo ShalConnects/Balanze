@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Clock, DollarSign, TrendingUp, Calendar, Wallet, Tag } from 'lucide-react';
+import { TrendingUp, Calendar, Wallet, Tag } from 'lucide-react';
 import { Purchase, Account } from '../../types';
 import { formatCurrency } from '../../utils/currency';
 

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Skeleton, SkeletonCard, SkeletonTable } from '../common/Skeleton';
 
 // Transfer card skeleton - matches real transfer card structure
 export const TransferCardSkeleton: React.FC = () => {

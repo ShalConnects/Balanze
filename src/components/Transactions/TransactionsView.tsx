@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Filter, Download, Search, TrendingUp, TrendingDown, ArrowLeftRight } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
-import { TransactionForm } from './TransactionForm';
 import { TransactionList } from './TransactionList';
 import { Transaction } from '../../types';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import { useExport } from '../../hooks/useExport';
 import { 
   TransactionTableSkeleton, 
@@ -14,7 +11,6 @@ import {
   TransactionFiltersSkeleton 
 } from '../Accounts/AccountSkeleton';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
-import { SelectionFilter } from '../common/SelectionFilter';
 
 export const TransactionsView: React.FC = () => {
   const { transactions, accounts, categories, loading, error, globalSearchTerm, fetchTransactions, fetchCategories, fetchPurchaseCategories, purchaseCategories } = useFinanceStore();

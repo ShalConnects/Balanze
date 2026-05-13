@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
   PieChart, 
   Target, 
   Plus,
@@ -11,8 +9,8 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react';
-import { PieChart as RechartsPieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { InvestmentDashboardStats, InvestmentAsset, InvestmentGoal, InvestmentTransaction } from '../../types/investment';
+import { PieChart as RechartsPieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { InvestmentDashboardStats } from '../../types/investment';
 import { formatCurrency } from '../../utils/currency';
 import { SkeletonCard } from '../common/Skeleton';
 

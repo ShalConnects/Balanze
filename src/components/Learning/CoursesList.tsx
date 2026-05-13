@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, BookOpen, ChevronRight, Edit2, Trash2, Search, ChevronUp, ChevronDown, CheckCircle2, Circle, Eye } from 'lucide-react';
+import { Plus, BookOpen, Edit2, Trash2, Search, ChevronUp, ChevronDown, CheckCircle2, Circle, Eye } from 'lucide-react';
 import { useCourseStore } from '../../store/useCourseStore';
 import { Course, CourseModule } from '../../types';
 import { CourseForm } from './CourseForm';
@@ -7,7 +7,7 @@ import { CourseDetail } from './CourseDetail';
 import { ModuleForm } from './ModuleForm';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { useAuthStore } from '../../store/authStore';
-import { getPreference, setPreference } from '../../lib/userPreferences';
+import { setPreference } from '../../lib/userPreferences';
 import { toast } from 'sonner';
 
 export const CoursesList: React.FC = () => {

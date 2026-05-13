@@ -6,23 +6,12 @@ import { useAuthStore } from '../../store/authStore';
 import { toBusinessDateString } from '../../utils/taskDateUtils';
 import { formatAppDate, formatAppMonthDay } from '../../utils/timezoneUtils';
 import { 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
-  Calendar, 
   ShoppingBag,
-  CheckCircle,
-  Clock,
-  XCircle,
   AlertTriangle,
   Sparkles,
-  BarChart3,
-  Target,
-  Zap,
   Download
 } from 'lucide-react';
 import {
-  LineChart,
   Line,
   XAxis,
   YAxis,
@@ -33,11 +22,9 @@ import {
   Pie,
   Cell,
   Area,
-  ComposedChart,
-  BarChart,
-  Bar
+  ComposedChart
 } from 'recharts';
-import { addMonths, format, getDaysInMonth, startOfMonth, getDay, isSameDay, subMonths, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+import { startOfMonth, subMonths } from 'date-fns';
 
 export const PurchaseAnalytics: React.FC = () => {
   const { getMultiCurrencyPurchaseAnalytics, purchases, getActiveAccounts } = useFinanceStore();

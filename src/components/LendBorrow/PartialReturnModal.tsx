@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, AlertCircle, Calendar, AlertTriangle } from 'lucide-react';
+import { X, AlertCircle, Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { LendBorrow, LendBorrowReturn } from '../../types/index';
