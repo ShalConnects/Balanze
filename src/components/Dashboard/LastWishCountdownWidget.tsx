@@ -2,6 +2,13 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
 import { formatAppDate } from '../../utils/timezoneUtils';
+import {
+  LAST_WISH_CHECKIN_DAY_MS,
+  lastWishNextCheckInMs,
+  lastWishRemainingMs,
+  lastWishIsFinalDayWindow,
+  lastWishDisplayHms,
+} from '../../lib/lastWishCheckInCountdown';
 import { 
   AlertTriangle, 
   Clock, 
@@ -140,59 +147,37 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
         }
         
         if (data.last_check_in) {
-          const lastCheckIn = new Date(data.last_check_in);
-          const now = new Date();
-          
-          // Calculate next check-in time based on frequency (in days)
-          const nextCheckIn = new Date(lastCheckIn.getTime() + data.check_in_frequency * 24 * 60 * 60 * 1000);
-          const totalTimeLeft = nextCheckIn.getTime() - now.getTime();
-          const daysLeft = Math.ceil(totalTimeLeft / (1000 * 60 * 60 * 24));
-          const isOverdue = daysLeft < 0;
-          
-          // Check if we're in the final hour (less than 24 hours remaining)
-          const isFinalHour = totalTimeLeft > 0 && totalTimeLeft <= 24 * 60 * 60 * 1000;
-          
-          // Calculate time data for display when less than 24 hours remaining
-          let finalHourTimeData = null;
-          if (totalTimeLeft >= 0 && totalTimeLeft <= 24 * 60 * 60 * 1000) {
-            const totalHours = Math.floor(totalTimeLeft / (1000 * 60 * 60));
-            const totalMinutes = Math.floor((totalTimeLeft % (1000 * 60 * 60)) / (1000 * 60));
-            const totalSeconds = Math.floor((totalTimeLeft % (1000 * 60)) / 1000);
-            
-            finalHourTimeData = {
-              hours: totalHours,
-              minutes: totalMinutes,
-              seconds: totalSeconds
-            };
-          }
-          
-          // Calculate urgency level
+          const nextMs = lastWishNextCheckInMs(data.last_check_in, data.check_in_frequency);
+          const totalTimeLeft = lastWishRemainingMs(nextMs, Date.now());
+          const ceilDays = Math.ceil(totalTimeLeft / LAST_WISH_CHECKIN_DAY_MS);
+          const isOverdue = totalTimeLeft < 0;
+          const isFinalHour = lastWishIsFinalDayWindow(totalTimeLeft);
+          const timeLeft = lastWishDisplayHms(totalTimeLeft) ?? undefined;
+
           let urgencyLevel: 'safe' | 'warning' | 'critical' | 'overdue' = 'safe';
           if (isOverdue) {
             urgencyLevel = 'overdue';
           } else if (isFinalHour) {
             urgencyLevel = 'critical';
-          } else if (daysLeft <= 3) {
+          } else if (ceilDays <= 3) {
             urgencyLevel = 'critical';
-          } else if (daysLeft <= 7) {
+          } else if (ceilDays <= 7) {
             urgencyLevel = 'warning';
           }
-          
-          // Calculate progress percentage (0-100)
-          const totalDays = data.check_in_frequency;
-          const daysElapsed = totalDays - daysLeft;
-          // Show 99% progress when in final 24 hours
-          const progressPercentage = isFinalHour ? 99 : Math.max(0, Math.min(100, (daysElapsed / totalDays) * 100));
-          
-          
+
+          const totalDuration = data.check_in_frequency * LAST_WISH_CHECKIN_DAY_MS;
+          const progressPercentage = isFinalHour
+            ? 99
+            : Math.max(0, Math.min(100, ((totalDuration - Math.max(0, totalTimeLeft)) / totalDuration) * 100));
+
           setCountdown({
-            daysLeft: Math.max(0, daysLeft),
-            nextCheckIn: formatAppDate(nextCheckIn),
+            daysLeft: Math.max(0, ceilDays),
+            nextCheckIn: formatAppDate(new Date(nextMs)),
             isOverdue,
             urgencyLevel,
             progressPercentage,
             isFinalHour,
-            timeLeft: finalHourTimeData || undefined
+            timeLeft,
           });
           
           // Trigger immediate check if overdue and not already triggered
@@ -238,49 +223,32 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
             .single();
           
           if (!error && data && data.last_check_in) {
-            const lastCheckIn = new Date(data.last_check_in);
-            const now = new Date();
-            
-            // Handle both 5-minute testing (-5) and normal days
-            // Calculate next check-in time based on frequency (in days)
-            const nextCheckIn = new Date(lastCheckIn.getTime() + data.check_in_frequency * 24 * 60 * 60 * 1000);
-            const totalTimeLeft = nextCheckIn.getTime() - now.getTime();
+            const nextMs = lastWishNextCheckInMs(data.last_check_in, data.check_in_frequency);
+            const totalTimeLeft = lastWishRemainingMs(nextMs, Date.now());
             const isOverdue = totalTimeLeft < 0;
-            
-            // Calculate time components
-            const totalHours = Math.floor(Math.abs(totalTimeLeft) / (1000 * 60 * 60));
-            const totalMinutes = Math.floor((Math.abs(totalTimeLeft) % (1000 * 60 * 60)) / (1000 * 60));
-            const totalSeconds = Math.floor((Math.abs(totalTimeLeft) % (1000 * 60)) / 1000);
-            
-            // Check if we're in the final hour (less than 24 hours remaining)
-            const isFinalHour = totalTimeLeft > 0 && totalTimeLeft <= 24 * 60 * 60 * 1000;
-            
-            // Calculate urgency level
+            const isFinalHour = lastWishIsFinalDayWindow(totalTimeLeft);
+            const timeLeft = lastWishDisplayHms(totalTimeLeft) ?? undefined;
+
             let urgencyLevel: 'safe' | 'warning' | 'critical' | 'overdue' = 'safe';
             if (isOverdue) {
               urgencyLevel = 'overdue';
             } else if (isFinalHour) {
               urgencyLevel = 'critical';
             } else {
-              const daysLeft = Math.ceil(totalTimeLeft / (1000 * 60 * 60 * 24));
-              if (daysLeft <= 3) {
-                urgencyLevel = 'critical';
-              } else if (daysLeft <= 7) {
-                urgencyLevel = 'warning';
-              }
+              const dLeft = Math.ceil(totalTimeLeft / LAST_WISH_CHECKIN_DAY_MS);
+              if (dLeft <= 3) urgencyLevel = 'critical';
+              else if (dLeft <= 7) urgencyLevel = 'warning';
             }
-            
-            // Calculate progress percentage
-            const totalDuration = data.check_in_frequency * 24 * 60 * 60 * 1000; // Convert days to milliseconds
-            
+
+            const totalDuration = data.check_in_frequency * LAST_WISH_CHECKIN_DAY_MS;
             const elapsed = totalDuration - Math.max(0, totalTimeLeft);
-            // Show 99% progress when less than 24 hours remaining
-            const progressPercentage = (totalTimeLeft >= 0 && totalTimeLeft <= 24 * 60 * 60 * 1000) ? 99 : Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
-            
-            // Calculate days left for display
-            const daysLeft = Math.max(0, Math.ceil(totalTimeLeft / (1000 * 60 * 60 * 24)));
-            
-            // Update countdown state
+            const progressPercentage =
+              totalTimeLeft >= 0 && totalTimeLeft <= LAST_WISH_CHECKIN_DAY_MS
+                ? 99
+                : Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
+
+            const daysLeft = Math.max(0, Math.ceil(totalTimeLeft / LAST_WISH_CHECKIN_DAY_MS));
+
             setCountdown(prev => prev ? {
               ...prev,
               daysLeft,
@@ -288,7 +256,7 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
               urgencyLevel,
               progressPercentage,
               isFinalHour,
-              timeLeft: { hours: totalHours, minutes: totalMinutes, seconds: totalSeconds }
+              timeLeft,
             } : null);
 
             // Trigger immediate check if overdue and not already triggered
@@ -481,12 +449,12 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
          <div className="flex flex-col gap-3">
            {/* Single status indicator */}
            <div className="flex items-center justify-center">
-             {(countdown.timeLeft && countdown.daysLeft < 1) && (
+             {(countdown.isFinalHour && !countdown.isOverdue && countdown.timeLeft) && (
                <span className="px-3 py-1 bg-red-500 text-white text-sm font-bold rounded-full animate-pulse shadow-lg">
                  FINAL HOUR
                </span>
              )}
-             {!(countdown.timeLeft && countdown.daysLeft < 1) && (countdown.urgencyLevel === 'critical' || countdown.urgencyLevel === 'overdue') && (
+             {!(countdown.isFinalHour && !countdown.isOverdue && countdown.timeLeft) && (countdown.urgencyLevel === 'critical' || countdown.urgencyLevel === 'overdue') && (
                <span className="px-3 py-1 bg-orange-500 text-white text-sm font-bold rounded-full animate-pulse shadow-lg">
                  URGENT
                </span>
@@ -496,16 +464,16 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
            {/* Countdown display */}
            <div className="text-center">
              <p className={`text-2xl font-bold ${colors.text} mb-1`}>
-               {countdown.timeLeft && countdown.daysLeft < 1
+               {countdown.timeLeft
                  ? `${countdown.timeLeft.hours.toString().padStart(2, '0')}:${countdown.timeLeft.minutes.toString().padStart(2, '0')}:${countdown.timeLeft.seconds.toString().padStart(2, '0')}`
                  : `${countdown.daysLeft} days`
                }
              </p>
              <p className={`text-sm ${colors.text} opacity-80`}>
-               {countdown.timeLeft && countdown.daysLeft < 1 ? '' : 'until check-in'}
+               {countdown.timeLeft ? '' : 'until check-in'}
              </p>
              <p className={`text-sm font-medium ${colors.text} mt-1`}>
-               {countdown.timeLeft && countdown.daysLeft < 1 ? 'Check in now!' : 'Stay active to keep your data safe'}
+               {countdown.timeLeft ? 'Check in now!' : 'Stay active to keep your data safe'}
              </p>
            </div>
          </div>
@@ -521,7 +489,7 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
           <div 
             className={`h-2 rounded-full transition-all duration-1000 ease-out ${
-              (countdown.timeLeft && countdown.daysLeft < 1) ? 'bg-red-600 animate-pulse' : colors.progress
+              countdown.timeLeft ? 'bg-red-600 animate-pulse' : colors.progress
             } progress-animate`}
             style={{ 
               width: `${countdown.progressPercentage}%`,
@@ -529,7 +497,7 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
             } as React.CSSProperties}
           />
         </div>
-        {(countdown.timeLeft && countdown.daysLeft < 1) && (
+        {countdown.timeLeft && (
           <div className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium text-center">
             ⚠️ Check in now to prevent data delivery
           </div>

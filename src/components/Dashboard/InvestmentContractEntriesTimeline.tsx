@@ -44,6 +44,7 @@ export function InvestmentContractEntriesTimeline({
     () => (pendingEntryId ? sorted.find((e) => e.id === pendingEntryId) : undefined),
     [pendingEntryId, sorted]
   );
+  const pendingHasLinkedTx = Boolean(pendingEntry?.linked_transaction_id);
 
   if (sorted.length === 0 && !pendingEntryId) return null;
 
@@ -159,8 +160,12 @@ export function InvestmentContractEntriesTimeline({
           const id = pendingEntryId;
           if (id) onRemoveEntry(id);
         }}
-        title="Remove this update?"
-        message="This removes the entry from the contract history. This cannot be undone."
+        title={pendingHasLinkedTx ? 'Remove entry and linked transaction?' : 'Remove this update?'}
+        message={
+          pendingHasLinkedTx
+            ? 'This removes the contract history entry and deletes the linked cash transaction. Balances will update. This cannot be undone.'
+            : 'This removes the entry from the contract history. This cannot be undone.'
+        }
         recordDetails={
           pendingEntry ? (
             <div className="space-y-1 text-xs text-gray-800 dark:text-gray-200 sm:text-sm">

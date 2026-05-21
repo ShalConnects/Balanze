@@ -109,6 +109,8 @@ interface FinanceStore {
     attachments: PurchaseAttachment[];
   }) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  /** Resolves `transactions.id` by public `transaction_id` then runs deleteTransaction (purchases + refresh). */
+  deleteTransactionByPublicId: (publicTransactionId: string) => Promise<void>;
   fetchTransactionEditHistory: (transactionId: string) => Promise<{ rows: TransactionHistoryEntry[]; error: string | null }>;
   fetchTransactionEditHistoryBulk: (transactionIds: string[]) => Promise<void>;
   fetchAmountEditDeltaSummary: (
@@ -1136,6 +1138,18 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       get().fetchPurchases()
     ]);
     set({ loading: false });
+  },
+
+  deleteTransactionByPublicId: async (publicTransactionId: string) => {
+    const { user } = useAuthStore.getState();
+    if (!user?.id || !publicTransactionId) return;
+    const { data } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('transaction_id', String(publicTransactionId))
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (data?.id) await get().deleteTransaction(data.id);
   },
 
   fetchTransactionEditHistory: async (transactionId: string) => {

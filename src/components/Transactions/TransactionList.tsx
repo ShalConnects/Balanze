@@ -28,6 +28,8 @@ import { useLoadingContext } from '../../context/LoadingContext';
 import { useNavigate } from 'react-router-dom';
 import { LendBorrowInfoModal } from './LendBorrowInfoModal';
 import { TransactionNoteModal } from './TransactionNoteModal';
+import { EXPENSE_NOTE_OPEN_TX_KEY } from '../../constants/expenseNote';
+import { ShoppingListNavButton } from './ShoppingListNavButton';
 import { TransactionEditHistory } from './TransactionEditHistory';
 import { useExport } from '../../hooks/useExport';
 import { useSelectionSearchSync } from '../../hooks/useSelectionSearchSync';
@@ -528,6 +530,14 @@ const TransactionListComponent: React.FC<{
       }
     }
   }, []);
+
+  useEffect(() => {
+    const pendingId = sessionStorage.getItem(EXPENSE_NOTE_OPEN_TX_KEY);
+    if (!pendingId || !transactions.length) return;
+    sessionStorage.removeItem(EXPENSE_NOTE_OPEN_TX_KEY);
+    const tx = transactions.find((t) => t.id === pendingId);
+    if (tx) setNoteModalTransaction(tx);
+  }, [transactions]);
   
   const [expandedRecurringIds, setExpandedRecurringIds] = useState<Set<string>>(new Set());
   const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<string>>(new Set());
@@ -1320,6 +1330,10 @@ const TransactionListComponent: React.FC<{
               </button>
             </div>
 
+            <div className="md:hidden">
+              <ShoppingListNavButton />
+            </div>
+
             {/* Mobile Download Button */}
             <div className="md:hidden">
               <div className="relative" ref={exportMenuRef}>
@@ -1842,7 +1856,9 @@ const TransactionListComponent: React.FC<{
                   </>
                 )}
               </div>
-              <div className="hidden md:block relative" ref={exportMenuRef}>
+              <div className="hidden md:flex items-center gap-1.5">
+                <ShoppingListNavButton />
+              <div className="relative" ref={exportMenuRef}>
                 <button
                   onClick={() => {
                     if (isExporting) return; // Prevent execution when exporting
@@ -1900,6 +1916,7 @@ const TransactionListComponent: React.FC<{
                     </button>
                   </div>
                 )}
+              </div>
               </div>
               <button
                 onClick={() => {

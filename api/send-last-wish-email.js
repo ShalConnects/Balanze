@@ -4,46 +4,9 @@ import PDFDocument from 'pdfkit';
 import { normalizeIncludeData } from '../lib/lastWishIncludeData.js';
 import { fetchActiveBusinessContractsWithEntries } from '../lib/lastWishBusinessInvestmentsServer.js';
 import { sumAmountsByCurrency } from '../lib/lastWishSummaryRollups.js';
-
-const BIZ_ENTRY_LABELS = {
-  profit: 'Profit',
-  loss: 'Loss',
-  principal_return: 'Principal returned',
-  capital_contribution: 'Capital contribution'
-};
-
-function htmlEsc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-/** @param {Array<{ title: string, principal: number|string, currency?: string, funding_account_name?: string, start_date?: string, end_date?: string, note?: string, entries?: Array<{ type: string, amount: number|string, date: string, note?: string }> }>} contracts */
-function renderBusinessInvestmentContractsHtml(contracts, formatCurrencyWithSymbol, dark = false) {
-  if (!contracts?.length) return '';
-  const cardBg = dark ? '#1f2937' : '#f9fafb';
-  const border = dark ? '#374151' : '#e5e7eb';
-  const sub = dark ? '#9ca3af' : '#6b7280';
-  const fd = (d) => (d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A');
-  return contracts.map((c) => {
-    const cur = c.currency || 'USD';
-    const pr = parseFloat(c.principal) || 0;
-    const rows = (c.entries || []).slice(0, 20).map((e) =>
-      `<tr><td style="padding:4px 8px;border-bottom:1px solid ${border};">${htmlEsc(BIZ_ENTRY_LABELS[e.type] || e.type || '')}</td>` +
-      `<td style="padding:4px 8px;border-bottom:1px solid ${border};">${fd(e.date)}</td>` +
-      `<td style="padding:4px 8px;border-bottom:1px solid ${border};">${formatCurrencyWithSymbol(parseFloat(e.amount) || 0, cur)}</td>` +
-      `<td style="padding:4px 8px;border-bottom:1px solid ${border};">${htmlEsc((e.note || '').slice(0, 48))}</td></tr>`
-    ).join('');
-    return `<div style="background:${cardBg};border:1px solid ${border};border-radius:8px;padding:14px;margin-bottom:14px;">` +
-      `<div style="font-weight:600;margin-bottom:8px;">${htmlEsc(c.title)}</div>` +
-      `<div style="font-size:13px;color:${sub};">Principal: ${formatCurrencyWithSymbol(pr, cur)}` +
-      (c.funding_account_name ? ` · Funding: ${htmlEsc(c.funding_account_name)}` : '') +
-      `</div>` +
-      `<div style="font-size:13px;color:${sub};margin-top:4px;">${fd(c.start_date)}${c.end_date ? ` – ${fd(c.end_date)}` : ''}</div>` +
-      (c.note ? `<p style="font-size:13px;color:${sub};margin:8px 0 0 0;">${htmlEsc(c.note)}</p>` : '') +
-      (rows ? `<table style="width:100%;margin-top:10px;font-size:12px;border-collapse:collapse;"><thead><tr>` +
-        `<th style="text-align:left;padding:4px 8px;">Type</th><th style="text-align:left;">Date</th><th style="text-align:left;">Amount</th><th style="text-align:left;">Note</th></tr></thead><tbody>${rows}</tbody></table>` : '') +
-      `</div>`;
-  }).join('');
-}
+import { filterOrphanDpsSavingsAccounts } from '../lib/lastWishAccountFilter.js';
+import { renderBusinessInvestmentContractsHtml, BIZ_ENTRY_LABELS } from '../lib/lastWishBusinessContractsRender.js';
+import { drawBusinessContractDetails } from '../lib/lastWishPdfBusinessContracts.js';
 
 let transporter = null;
 if (process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -406,6 +369,10 @@ export async function gatherUserData(userId) {
       data.businessInvestmentContracts = [];
     }
 
+  if (data.accounts?.length) {
+    data.accounts = filterOrphanDpsSavingsAccounts(data.accounts);
+  }
+
   return data;
   } catch (error) {
     await logError('gatherUserData', error, { ...metadata, fatal: true });
@@ -653,7 +620,8 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
   });
 
   // Calculate Lent & Borrow metrics (active and overdue records)
-  const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active' || lb.status === 'overdue');
+  const allLendBorrow = data.lendBorrow || [];
+  const activeLendBorrow = allLendBorrow.filter(lb => lb.status === 'active' || lb.status === 'overdue');
   const activeLent = activeLendBorrow.filter(lb => lb.type === 'lend' || lb.type === 'lent');
   const activeBorrowed = activeLendBorrow.filter(lb => lb.type === 'borrow' || lb.type === 'borrowed');
   
@@ -1337,8 +1305,8 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
                   <span class="summary-row-value negative">${Object.keys(borrowedByCurrency).length > 0 ? Object.entries(borrowedByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</span>
                 </div>
                 <div class="summary-row">
-                  <span class="summary-row-label">Active Records: </span>
-                  <span class="summary-row-value">${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}</span>
+                  <span class="summary-row-label">Records: </span>
+                  <span class="summary-row-value">${allLendBorrow.length} record${allLendBorrow.length !== 1 ? 's' : ''}</span>
                 </div>
               </div>
               ${'investmentAssets' in data ? `
@@ -1365,7 +1333,6 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
                   <span class="summary-row-label">Contracts: </span>
                   <span class="summary-row-value">${metrics.activeBusinessContractCount} active</span>
                 </div>
-                ${businessContracts.length > 0 ? renderBusinessInvestmentContractsHtml(businessContracts, formatCurrencyWithSymbol, true) : ''}
               </div>
               ` : ''}
             </div>
@@ -1465,13 +1432,14 @@ function generateCSVExport(data, settings) {
   // Accounts Section
   if (data.accounts && data.accounts.length > 0) {
     csvRows.push('=== BANK ACCOUNTS ===');
-    csvRows.push('Name,Type,Balance,Currency,Account Number,Institution');
+    csvRows.push('Name,Type,Balance,Currency,Status,Account Number,Institution');
     data.accounts.forEach(acc => {
       csvRows.push([
         escapeCSV(acc.name || 'N/A'),
         escapeCSV(acc.type || 'N/A'),
         escapeCSV(acc.calculated_balance || 0),
         escapeCSV(acc.currency || 'USD'),
+        escapeCSV(acc.is_active === false ? 'inactive' : 'active'),
         escapeCSV(acc.account_number || 'N/A'),
         escapeCSV(acc.institution || 'N/A')
       ].join(','));
@@ -1570,7 +1538,7 @@ function generateCSVExport(data, settings) {
   }
 
   if (data.businessInvestmentContracts && data.businessInvestmentContracts.length > 0) {
-    csvRows.push('=== BUSINESS INVESTMENT CONTRACTS (ACTIVE) ===');
+    csvRows.push('=== BUSINESS INVESTMENT CONTRACTS ===');
     csvRows.push('Title,Principal,Currency,Funding Account,Start Date,End Date,Status,Note');
     data.businessInvestmentContracts.forEach((c) => {
       csvRows.push([
@@ -1798,7 +1766,8 @@ function createPDFHTMLContent(user, recipient, data, settings) {
   });
   
   // Calculate lend/borrow
-  const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active' || lb.status === 'overdue');
+  const allLendBorrow = data.lendBorrow || [];
+  const activeLendBorrow = allLendBorrow.filter(lb => lb.status === 'active' || lb.status === 'overdue');
   const activeLent = activeLendBorrow.filter(lb => lb.type === 'lend' || lb.type === 'lent');
   const activeBorrowed = activeLendBorrow.filter(lb => lb.type === 'borrow' || lb.type === 'borrowed');
   
@@ -1822,7 +1791,7 @@ function createPDFHTMLContent(user, recipient, data, settings) {
     return `${symbol}${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
   
-  const accountsWithBalance = (data.accounts || []).filter(acc => parseFloat(acc.calculated_balance) !== 0);
+  const deliveryAccounts = data.accounts || [];
   const businessContracts = data.businessInvestmentContracts || [];
   
   return `<!DOCTYPE html>
@@ -1954,11 +1923,11 @@ function createPDFHTMLContent(user, recipient, data, settings) {
         return html;
       })()}
     </div>
-    <p><strong>Total Accounts:</strong> ${accountsWithBalance.length}</p>
+    <p><strong>Total Accounts:</strong> ${deliveryAccounts.length}</p>
     <p><strong>Currencies:</strong> ${Object.keys(assetsByCurrency).join(', ') || 'N/A'}</p>
     <p><strong>Total Lent:</strong> ${Object.keys(lentByCurrency).length > 0 ? Object.entries(lentByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</p>
     <p><strong>Total Borrowed:</strong> ${Object.keys(borrowedByCurrency).length > 0 ? Object.entries(borrowedByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</p>
-    <p><strong>Active Records:</strong> ${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}</p>
+    <p><strong>Records:</strong> ${allLendBorrow.length} record${allLendBorrow.length !== 1 ? 's' : ''}</p>
     ${'investmentAssets' in data ? `<p><strong>Investment portfolio:</strong> ${Object.keys(metrics.investmentTotalsByCurrency).length > 0 ? Object.entries(metrics.investmentTotalsByCurrency).map(([c, a]) => formatCurrencyWithSymbol(a, c)).join(', ') : formatCurrencyWithSymbol(0, 'USD')} <span style="color:#6b7280;">(${metrics.investmentAssetCount} asset${metrics.investmentAssetCount !== 1 ? 's' : ''})</span></p>` : ''}
     ${'businessInvestmentContracts' in data ? `<p><strong>Active business contracts (principal):</strong> ${Object.keys(metrics.businessPrincipalByCurrency).length > 0 ? Object.entries(metrics.businessPrincipalByCurrency).map(([c, a]) => formatCurrencyWithSymbol(a, c)).join(', ') : formatCurrencyWithSymbol(0, 'USD')} <span style="color:#6b7280;">(${metrics.activeBusinessContractCount} active)</span></p>` : ''}
   </div>
@@ -1970,7 +1939,7 @@ function createPDFHTMLContent(user, recipient, data, settings) {
     </div>
   ` : ''}
   
-  ${accountsWithBalance.length > 0 ? `
+  ${deliveryAccounts.length > 0 ? `
     <div style="page-break-before: always;" class="section">
       <div class="section-title">Accounts</div>
       <table>
@@ -1980,16 +1949,18 @@ function createPDFHTMLContent(user, recipient, data, settings) {
             <th>Type</th>
             <th>Balance</th>
             <th>Currency</th>
+            <th>Status</th>
             <th>Description</th>
           </tr>
         </thead>
         <tbody>
-          ${accountsWithBalance.map(acc => `
+          ${deliveryAccounts.map(acc => `
             <tr>
               <td>${acc.name || 'N/A'}</td>
               <td>${acc.type || 'N/A'}</td>
               <td>${formatCurrencyWithSymbol(parseFloat(acc.calculated_balance) || 0, acc.currency || 'USD')}</td>
               <td>${acc.currency || 'USD'}</td>
+              <td>${acc.is_active === false ? 'Inactive' : 'Active'}</td>
               <td>${(acc.description || '').substring(0, 50) || 'N/A'}</td>
             </tr>
           `).join('')}
@@ -1998,7 +1969,7 @@ function createPDFHTMLContent(user, recipient, data, settings) {
     </div>
   ` : ''}
   
-  ${activeLendBorrow.length > 0 ? `
+  ${allLendBorrow.length > 0 ? `
     <div class="section" style="page-break-before: always; page-break-after: avoid;">
       <div class="section-title">Lend/Borrow Records</div>
       <table>
@@ -2008,12 +1979,13 @@ function createPDFHTMLContent(user, recipient, data, settings) {
             <th>Person/Entity</th>
             <th>Amount</th>
             <th>Currency</th>
+            <th>Status</th>
             <th>Due Date</th>
             <th>Notes</th>
           </tr>
         </thead>
         <tbody>
-          ${activeLendBorrow.map(lb => {
+          ${allLendBorrow.map(lb => {
             const type = lb.type === 'lent' || lb.type === 'lend' ? 'Lent' : 
                          lb.type === 'borrowed' || lb.type === 'borrow' ? 'Borrowed' : 
                          lb.type || 'N/A';
@@ -2023,6 +1995,7 @@ function createPDFHTMLContent(user, recipient, data, settings) {
                 <td>${lb.person_name || lb.person || lb.entity || 'N/A'}</td>
                 <td>${formatCurrencyWithSymbol(parseFloat(lb.amount) || 0, lb.currency || 'USD')}</td>
                 <td>${lb.currency || 'USD'}</td>
+                <td>${lb.status || 'N/A'}</td>
                 <td>${lb.due_date ? new Date(lb.due_date).toLocaleDateString() : 'N/A'}</td>
                 <td>${(lb.notes || '').substring(0, 40) || 'N/A'}</td>
               </tr>
@@ -2449,11 +2422,9 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       let tocY = doc.y;
       const tocItems = [];
       
-      // Filter accounts to exclude zero balances
-      const accountsWithBalance = (data.accounts || []).filter(acc => parseFloat(acc.calculated_balance) !== 0);
-      
-      // Filter lend/borrow to active and overdue records
-      const activeLendBorrow = (data.lendBorrow || []).filter(lb => lb.status === 'active' || lb.status === 'overdue');
+      const deliveryAccounts = data.accounts || [];
+      const allLendBorrow = data.lendBorrow || [];
+      const activeLendBorrow = allLendBorrow.filter(lb => lb.status === 'active' || lb.status === 'overdue');
       
       // Filter investment assets
       const investmentAssets = (data.investmentAssets || []).filter(asset => 
@@ -2472,8 +2443,8 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       tocItems.push({ title: 'Financial Summary', page: tocPageNum });
       tocPageNum++;
       
-      if (accountsWithBalance.length > 0) {
-        const currencies = [...new Set(accountsWithBalance.map(acc => acc.currency || 'USD'))];
+      if (deliveryAccounts.length > 0) {
+        const currencies = [...new Set(deliveryAccounts.map(acc => acc.currency || 'USD'))];
         currencies.forEach((currency) => {
           tocItems.push({ title: `Accounts - ${currency}`, page: tocPageNum });
           tocPageNum++;
@@ -2495,7 +2466,7 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         tocPageNum++;
       }
       
-      if (activeLendBorrow.length > 0) {
+      if (allLendBorrow.length > 0) {
         tocItems.push({ title: 'Lend/Borrow Records', page: tocPageNum });
       }
       
@@ -2728,7 +2699,7 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       
       doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
         .text('Active Records:', 60, currentLendBorrowY);
-      const activeRecordsText = `${activeLendBorrow.length} record${activeLendBorrow.length !== 1 ? 's' : ''}`;
+      const activeRecordsText = `${allLendBorrow.length} record${allLendBorrow.length !== 1 ? 's' : ''}`;
       doc.fillColor('#374151').fontSize(11).font('Helvetica')
         .text(String(activeRecordsText), 180, currentLendBorrowY);
       
@@ -2755,13 +2726,9 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         );
       }
       
-      // BANK ACCOUNTS SECTION (Grouped by Currency, Excluding Zero Balances)
-      // accountsWithBalance already declared above for TOC
-      
-      if (accountsWithBalance.length > 0) {
-        // Group accounts by currency
+      if (deliveryAccounts.length > 0) {
         const accountsByCurrency = {};
-        accountsWithBalance.forEach(acc => {
+        deliveryAccounts.forEach(acc => {
           const currency = acc.currency || 'USD';
           if (!accountsByCurrency[currency]) {
             accountsByCurrency[currency] = [];
@@ -2788,20 +2755,22 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
             acc.name || 'Unnamed Account',
             acc.type || 'N/A',
             formatCurrency(parseFloat(acc.calculated_balance) || 0, currency),
+            acc.is_active === false ? 'Inactive' : 'Active',
             acc.description || 'N/A'
           ]);
           
           if (accountRows.length > 0) {
             drawTable(
-              ['Account Name', 'Type', 'Balance', 'Description'],
+              ['Account Name', 'Type', 'Balance', 'Status', 'Description'],
               accountRows,
               doc.y,
               {
                 columnWidths: [
-                  (doc.page.width - 100) * 0.25,
-                  (doc.page.width - 100) * 0.15,
-                  (doc.page.width - 100) * 0.20,
-                  (doc.page.width - 100) * 0.40
+                  (doc.page.width - 100) * 0.22,
+                  (doc.page.width - 100) * 0.12,
+                  (doc.page.width - 100) * 0.18,
+                  (doc.page.width - 100) * 0.10,
+                  (doc.page.width - 100) * 0.38
                 ],
                 textColor: '#000000' // Ensure black text for visibility
               }
@@ -2853,46 +2822,14 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         currentPageNum = addPageWithHeader();
         pageNumbers.set('businessInvestmentContracts', currentPageNum);
         doc.fillColor('#000000').fontSize(20).font('Helvetica-Bold')
-          .text('Business investment contracts (active)', 50, 80);
+          .text('Business investment contracts', 50, 80);
         doc.moveDown(1);
-        const bicRows = businessInvestmentContracts.map((c) => [
-          (c.title || 'N/A').substring(0, 40),
-          formatCurrency(parseFloat(c.principal) || 0, c.currency || 'USD'),
-          c.currency || 'USD',
-          c.start_date ? formatDate(c.start_date) : 'N/A',
-          c.end_date ? formatDate(c.end_date) : '—',
-          (c.funding_account_name || 'N/A').substring(0, 28),
-          (c.note || '').substring(0, 30) || 'N/A'
-        ]);
-        drawTable(
-          ['Title', 'Principal', 'Currency', 'Start', 'End', 'Funding', 'Notes'],
-          bicRows,
-          doc.y,
-          { columnWidths: [0.22, 0.14, 0.10, 0.12, 0.12, 0.16, 0.14].map((w) => (doc.page.width - 100) * w), fontSize: 8 }
-        );
-        const entryRowsFlat = [];
-        businessInvestmentContracts.forEach((c) => {
-          (c.entries || []).forEach((e) => {
-            entryRowsFlat.push([
-              (c.title || '').substring(0, 24),
-              BIZ_ENTRY_LABELS[e.type] || e.type || '',
-              e.date ? formatDate(e.date) : 'N/A',
-              formatCurrency(parseFloat(e.amount) || 0, c.currency || 'USD'),
-              (e.note || '').substring(0, 28) || 'N/A'
-            ]);
-          });
+        drawBusinessContractDetails(doc, businessInvestmentContracts, {
+          formatCurrency,
+          formatDate,
+          drawTable,
+          addPageWithHeader
         });
-        if (entryRowsFlat.length > 0) {
-          doc.moveDown(1.5);
-          doc.fillColor('#000000').fontSize(14).font('Helvetica-Bold').text('Contract entries', 50, doc.y);
-          doc.moveDown(0.8);
-          drawTable(
-            ['Contract', 'Type', 'Date', 'Amount', 'Note'],
-            entryRowsFlat,
-            doc.y,
-            { columnWidths: [0.22, 0.18, 0.14, 0.18, 0.28].map((w) => (doc.page.width - 100) * w), fontSize: 8 }
-          );
-        }
       }
       
       // SAVINGS & DONATION RECORDS SECTION
@@ -2935,8 +2872,7 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         );
       }
       
-      // LEND/BORROW SECTION (Only Active/Unsettled Records)
-      if (activeLendBorrow.length > 0) {
+      if (allLendBorrow.length > 0) {
         currentPageNum = addPageWithHeader();
         pageNumbers.set('lendBorrow', currentPageNum);
         
@@ -2944,7 +2880,7 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
           .text('Lend/Borrow Records', 50, 80);
         doc.moveDown(1);
         
-        const lendBorrowRows = activeLendBorrow.map(lb => {
+        const lendBorrowRows = allLendBorrow.map(lb => {
           const type = lb.type === 'lent' || lb.type === 'lend' ? 'Lent' : 
                        lb.type === 'borrowed' || lb.type === 'borrow' ? 'Borrowed' : 
                        lb.type || 'N/A';
@@ -2957,23 +2893,25 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
             formatCurrency(parseFloat(lb.amount) || 0, lb.currency || 'USD'),
             formatCurrency(returnedAmount, lb.currency || 'USD'),
             lb.currency || 'USD',
+            lb.status || 'N/A',
             lb.due_date ? formatDate(lb.due_date) : 'N/A',
             (lb.notes || '').substring(0, 40)
           ];
         });
         
         drawTable(
-          ['Type', 'Person/Entity', 'Amount', 'Returned', 'Currency', 'Due Date', 'Notes'],
+          ['Type', 'Person/Entity', 'Amount', 'Returned', 'Currency', 'Status', 'Due Date', 'Notes'],
           lendBorrowRows,
           doc.y,
           {
             columnWidths: [
-              (doc.page.width - 100) * 0.10,
-              (doc.page.width - 100) * 0.18,
-              (doc.page.width - 100) * 0.14,
-              (doc.page.width - 100) * 0.14,
-              (doc.page.width - 100) * 0.10,
+              (doc.page.width - 100) * 0.09,
+              (doc.page.width - 100) * 0.16,
               (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.12,
+              (doc.page.width - 100) * 0.08,
+              (doc.page.width - 100) * 0.10,
+              (doc.page.width - 100) * 0.11,
               (doc.page.width - 100) * 0.22
             ],
             fontSize: 8,

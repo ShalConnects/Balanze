@@ -22,6 +22,7 @@ type DbEntry = {
   amount: string | number;
   date: string;
   note: string | null;
+  linked_transaction_id?: string | null;
 };
 
 function mapEntry(row: DbEntry): InvestmentEntry {
@@ -30,7 +31,8 @@ function mapEntry(row: DbEntry): InvestmentEntry {
     type: row.type as EntryType,
     amount: Number(row.amount),
     date: row.date,
-    note: row.note ?? undefined
+    note: row.note ?? undefined,
+    linked_transaction_id: row.linked_transaction_id ?? undefined
   };
 }
 
@@ -172,5 +174,10 @@ export async function insertBusinessInvestmentEntry(
 
 export async function deleteBusinessInvestmentEntry(entryId: string): Promise<void> {
   const { error } = await supabase.from('business_investment_entries').delete().eq('id', entryId);
+  if (error) throw error;
+}
+
+export async function setBusinessInvestmentEntryLinkedTransaction(entryId: string, linked_transaction_id: string): Promise<void> {
+  const { error } = await supabase.from('business_investment_entries').update({ linked_transaction_id }).eq('id', entryId);
   if (error) throw error;
 }

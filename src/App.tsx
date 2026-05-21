@@ -41,6 +41,9 @@ const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const RefundPolicy = lazy(() => import('./pages/RefundPolicy'));
 const AccountsView = lazy(() => import('./components/Accounts/AccountsView').then(m => ({ default: m.AccountsView })));
 const TransactionsView = lazy(() => import('./components/Transactions/TransactionsView').then(m => ({ default: m.TransactionsView })));
+const GlobalShoppingListPage = lazy(() =>
+  import('./components/Transactions/GlobalShoppingListPage').then((m) => ({ default: m.GlobalShoppingListPage }))
+);
 const TransfersView = lazy(() => import('./components/Transfers/TransfersView').then(m => ({ default: m.TransfersView })));
 const TransfersTableView = lazy(() => import('./components/Transfers/TransfersTableView').then(m => ({ default: m.TransfersTableView })));
 const Transfer_new = lazy(() => import('./components/Transfers/Transfer_new').then(m => ({ default: m.Transfer_new })));
@@ -742,6 +745,7 @@ function AppContent() {
           
           <Route path="/accounts" element={<ProtectedRoute><AccountsView /></ProtectedRoute>} />
           <Route path="/transactions" element={<ProtectedRoute><TransactionsView /></ProtectedRoute>} />
+          <Route path="/shopping-list" element={<ProtectedRoute><GlobalShoppingListPage /></ProtectedRoute>} />
           <Route path="/transfers" element={<ProtectedRoute><Transfer_new /></ProtectedRoute>} />
           <Route path="/transfers-table" element={<ProtectedRoute><TransfersTableView /></ProtectedRoute>} />
           <Route path="/transfers-new" element={<ProtectedRoute><TransfersView /></ProtectedRoute>} />

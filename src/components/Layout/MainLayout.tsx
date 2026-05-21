@@ -112,6 +112,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'dashboard': return 'Dashboard';
       case 'accounts': return 'Accounts';
       case 'transactions': return 'Transactions';
+      case 'shopping-list': return 'Global Shopping List';
       case 'transfers': return 'Transfer History';
       case 'analytics': return 'Analytics';
       case 'purchases': return 'Purchases';
@@ -188,7 +189,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   ? 'Manage your financial accounts'
                   : currentView === 'transactions'
                     ? 'Track and manage all your financial transactions'
-                    : currentView === 'transfers'
+                    : currentView === 'shopping-list'
+                      ? 'All items and notes from your transactions in one place'
+                      : currentView === 'transfers'
                       ? 'Track and manage all your money transfers between accounts'
                       : currentView === 'purchases'
                         ? 'Track and manage all your purchases.'

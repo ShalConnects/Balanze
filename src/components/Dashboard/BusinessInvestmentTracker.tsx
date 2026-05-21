@@ -47,6 +47,7 @@ import {
   deleteBusinessInvestmentEntry,
   fetchBusinessInvestmentContracts,
   insertBusinessInvestmentEntry,
+  setBusinessInvestmentEntryLinkedTransaction,
   updateBusinessInvestmentContractStatus
 } from '../../lib/businessInvestmentService';
 import { TRANSACTION_ORIGIN_BUSINESS_INVESTMENT } from '../../lib/transactionListLock';
@@ -130,7 +131,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
   const [contractIdToDelete, setContractIdToDelete] = useState<string | null>(null);
   const [pendingContractStatus, setPendingContractStatus] = useState<{ id: string; next: ContractStatus } | null>(null);
 
-  const { accounts, addTransaction, fetchTransactions, fetchAccounts } = useFinanceStore();
+  const { accounts, addTransaction, deleteTransactionByPublicId, fetchTransactions, fetchAccounts } = useFinanceStore();
   const { user, profile } = useAuthStore();
   const userDefaultCurrency = profile?.local_currency?.trim() || 'USD';
   const formatAmount = (amount: number, currency: string) => formatCurrency(amount, currency || userDefaultCurrency);
@@ -414,7 +415,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
           if (postingAcc && postingAcc.currency !== selectedContract.currency) {
             toast.warning('Account currency differs from contract currency');
           }
-          await addTransaction({
+          const posted = await addTransaction({
             user_id: user.id,
             account_id: postingAccountId,
             type: entryPostingTransactionType(entryForm.type),
@@ -426,6 +427,21 @@ export const BusinessInvestmentTracker: React.FC = () => {
             origin: TRANSACTION_ORIGIN_BUSINESS_INVESTMENT,
             business_investment_contract_id: selectedContract.id
           });
+          if (posted?.transaction_id) {
+            await setBusinessInvestmentEntryLinkedTransaction(newEntry.id, posted.transaction_id);
+            setContracts((prev) =>
+              prev.map((c) =>
+                c.id === entryForm.contract_id
+                  ? {
+                      ...c,
+                      entries: c.entries.map((e) =>
+                        e.id === newEntry.id ? { ...e, linked_transaction_id: posted.transaction_id } : e
+                      )
+                    }
+                  : c
+              )
+            );
+          }
           toast.success('Transaction posted');
         } catch (error) {
           console.error('Investment entry transaction failed:', error);
@@ -456,7 +472,9 @@ export const BusinessInvestmentTracker: React.FC = () => {
     }
   };
   const removeEntry = async (contractId: string, entryId: string) => {
+    const linked = contracts.find((c) => c.id === contractId)?.entries.find((e) => e.id === entryId)?.linked_transaction_id;
     try {
+      if (linked) await deleteTransactionByPublicId(linked);
       await deleteBusinessInvestmentEntry(entryId);
       setContracts((prev) =>
         prev.map((contract) =>

@@ -27,7 +27,12 @@ import { useDescriptionSuggestionItems } from '../../hooks/useDescriptionSuggest
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { AmountAdjustmentModal } from '../common/AmountAdjustmentModal';
-import { MAX_TRANSACTION_NOTE_LENGTH } from '../../constants/transactionNote';
+import { TransactionEditHistorySection } from './TransactionEditHistory';
+import {
+  MAX_TRANSACTION_NOTE_LENGTH,
+  TRANSACTION_NOTE_PLACEHOLDER,
+  shouldShowTransactionNoteCounter,
+} from '../../constants/transactionNote';
 import { getMonthDateRange, normalizeTransactionTitle, summarizeMonthlyTitleDuplicates, type MonthlyDuplicateSummary } from '../../utils/transactionDuplicateWarning';
 
 interface TransactionFormProps {
@@ -1589,9 +1594,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           </div>
 
           <div className="w-full mt-2 sm:mt-1">
-            <label htmlFor="transaction-note" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-              Note <span className="text-gray-400 font-normal">(optional)</span>
-            </label>
             <textarea
               id="transaction-note"
               name="note"
@@ -1605,11 +1607,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               maxLength={MAX_TRANSACTION_NOTE_LENGTH}
               rows={2}
               className={`${getInputClasses('note')} min-h-[4.25rem] resize-y py-2`}
-              placeholder="Private note for this transaction…"
+              placeholder={TRANSACTION_NOTE_PLACEHOLDER}
             />
-            <div className="flex justify-end mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
-              {transactionNote.length}/{MAX_TRANSACTION_NOTE_LENGTH}
-            </div>
+            {shouldShowTransactionNoteCounter(transactionNote.length) && (
+              <p className="flex justify-end mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                {transactionNote.length}/{MAX_TRANSACTION_NOTE_LENGTH}
+              </p>
+            )}
             {errors.note && (touched.note || formSubmitted) && (
               <span className="text-xs text-red-600 mt-0.5 flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5" />
@@ -1827,6 +1831,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               attachments={purchaseAttachments}
               onAttachmentsChange={setPurchaseAttachments}
               showPriority={true}
+            />
+          )}
+
+          {isEditMode && transactionToEdit && (
+            <TransactionEditHistorySection
+              transaction={transactionToEdit}
+              currency={currency}
+              currentAmount={amountNumber || transactionToEdit.amount}
             />
           )}
 

@@ -14,6 +14,8 @@ export interface InvestmentEntry {
   amount: number;
   date: string;
   note?: string;
+  /** `transactions.transaction_id` when this entry was posted from the tracker */
+  linked_transaction_id?: string | null;
 }
 
 export interface InvestmentContract {

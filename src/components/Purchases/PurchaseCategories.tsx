@@ -6,6 +6,7 @@ import { CategoryModal } from '../common/CategoryModal';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { useAuthStore } from '../../store/authStore';
 import { sortPurchaseCategoriesByCurrency } from '../../utils/categoryFiltering';
+import { formatCurrency } from '../../utils/currency';
 import { showToast } from '../../lib/toast';
 
 interface PurchaseCategoriesProps {
@@ -107,13 +108,6 @@ export const PurchaseCategories: React.FC<PurchaseCategoriesProps> = ({ hideTitl
         showToast.error('Failed to delete category');
       }
     }
-  };
-
-  const formatCurrency = (amount: number, currency: string = 'USD') => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-    }).format(amount);
   };
 
   if (loading) {
