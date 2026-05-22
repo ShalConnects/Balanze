@@ -4,6 +4,9 @@ import { ShoppingBasket } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { fetchRecentItemCount } from '../../lib/expenseNoteService';
 
+const headerBtnClass =
+  'relative p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center flex-shrink-0';
+
 export const ShoppingListNavButton: React.FC<{ className?: string }> = ({ className = '' }) => {
   const navigate = useNavigate();
   const { user } = useAuthStore();

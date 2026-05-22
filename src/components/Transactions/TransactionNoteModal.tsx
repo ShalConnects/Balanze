@@ -4,10 +4,10 @@ import { toast } from 'sonner';
 import { useAuthStore } from '../../store/authStore';
 import { MAX_TRANSACTION_NOTE_LENGTH } from '../../constants/transactionNote';
 import { EXPENSE_NOTE_RAW_MAX } from '../../constants/expenseNote';
-import { ExpenseNoteParseHint, ExpenseNoteParsedPreviewTable } from './expenseNoteCompactUi';
+import { ExpenseNoteLoadingCaption, ExpenseNoteParseHint, ExpenseNoteParsedPreviewTable } from './expenseNoteCompactUi';
 import {
   deleteExpenseNoteDocument,
-  loadExpenseNoteDocument,
+  fetchExpenseNoteRawText,
   saveExpenseNoteDocument,
   searchExpenseNoteItems,
 } from '../../lib/expenseNoteService';
@@ -36,7 +36,7 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
   const { user } = useAuthStore();
   const [rawText, setRawText] = useState('');
   const [loading, setLoading] = useState(false);
-  const [bootLoading, setBootLoading] = useState(false);
+  const [hydrating, setHydrating] = useState(false);
   const [suggestions, setSuggestions] = useState<{ id: string; display_name: string; category_name?: string }[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const suggestTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -46,22 +46,24 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
 
   const load = useCallback(async () => {
     if (!user?.id) return;
-    setBootLoading(true);
+    setHydrating(true);
     try {
-      const doc = await loadExpenseNoteDocument(user.id, transactionId);
-      setRawText(doc?.rawText ?? currentNote ?? '');
+      const raw = await fetchExpenseNoteRawText(user.id, transactionId);
+      setRawText(raw ?? currentNote ?? '');
     } catch {
       setRawText(currentNote || '');
     } finally {
-      setBootLoading(false);
+      setHydrating(false);
     }
   }, [user?.id, transactionId, currentNote]);
 
   useEffect(() => {
-    if (isOpen) {
-      load();
-      setTimeout(() => textareaRef.current?.focus(), 100);
-    }
+    if (!isOpen) return;
+    setRawText('');
+    setSuggestions([]);
+    void load();
+    const t = setTimeout(() => textareaRef.current?.focus(), 100);
+    return () => clearTimeout(t);
   }, [isOpen, load]);
 
   const refreshSuggestions = (text: string, caret: number) => {
@@ -160,60 +162,55 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
             </button>
           </div>
 
-          {bootLoading ? (
-            <div className="py-8 text-center text-sm text-gray-500 animate-pulse">Loading…</div>
-          ) : (
-            <>
-              <div className="mb-2 relative">
-                <label className="text-xs font-medium text-gray-500 uppercase mb-1 block">Items (comma-separated)</label>
-                <textarea
-                  ref={textareaRef}
-                  value={rawText}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v.length <= EXPENSE_NOTE_RAW_MAX) {
-                      setRawText(v);
-                      refreshSuggestions(v, e.target.selectionStart ?? v.length);
-                    }
-                  }}
-                  onClick={(e) => refreshSuggestions(rawText, e.currentTarget.selectionStart ?? 0)}
-                  onKeyUp={(e) => refreshSuggestions(rawText, e.currentTarget.selectionStart ?? 0)}
-                  placeholder="Toast 43, Egg 12 138, Chicken 218x160"
-                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none min-h-[88px]"
-                  rows={3}
-                  disabled={loading}
-                />
-                {suggestions.length > 0 && (
-                  <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-36 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg">
-                    {suggestions.map((s) => (
-                      <li key={s.id}>
-                        <button
-                          type="button"
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            applySuggestion(s.display_name);
-                          }}
-                        >
-                          {s.display_name}
-                          {s.category_name && <span className="text-gray-400 ml-1">· {s.category_name}</span>}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <span className={`text-xs mt-1 block ${isOverLimit ? 'text-red-500' : 'text-gray-500'}`}>
-                  {charCount}/{MAX_TRANSACTION_NOTE_LENGTH}
-                </span>
-                <ExpenseNoteParseHint lines={parsedLines} className="mt-1" />
-              </div>
+          <div className="mb-2 relative">
+            <label className="text-xs font-medium text-gray-500 uppercase mb-1 block">Items (comma-separated)</label>
+            <ExpenseNoteLoadingCaption active={hydrating} className="mb-1.5" />
+            <textarea
+              ref={textareaRef}
+              value={rawText}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v.length <= EXPENSE_NOTE_RAW_MAX) {
+                  setRawText(v);
+                  refreshSuggestions(v, e.target.selectionStart ?? v.length);
+                }
+              }}
+              onClick={(e) => refreshSuggestions(rawText, e.currentTarget.selectionStart ?? 0)}
+              onKeyUp={(e) => refreshSuggestions(rawText, e.currentTarget.selectionStart ?? 0)}
+              placeholder="Toast 43, Egg 12 138, Chicken 218x160"
+              className={`w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none min-h-[88px] ${hydrating ? 'opacity-60 animate-pulse' : ''}`}
+              rows={3}
+              disabled={loading || hydrating}
+            />
+            {suggestions.length > 0 && !hydrating && (
+              <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-36 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg">
+                {suggestions.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        applySuggestion(s.display_name);
+                      }}
+                    >
+                      {s.display_name}
+                      {s.category_name && <span className="text-gray-400 ml-1">· {s.category_name}</span>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <span className={`text-xs mt-1 block ${isOverLimit ? 'text-red-500' : 'text-gray-500'}`}>
+              {charCount}/{MAX_TRANSACTION_NOTE_LENGTH}
+            </span>
+            {!hydrating && <ExpenseNoteParseHint lines={parsedLines} className="mt-1" />}
+          </div>
 
-              {parsedLines.length > 0 && (
-                <div className="mb-3">
-                  <ExpenseNoteParsedPreviewTable lines={parsedLines} lineTotal={lineTotal} />
-                </div>
-              )}
-            </>
+          {!hydrating && parsedLines.length > 0 && (
+            <div className="mb-3">
+              <ExpenseNoteParsedPreviewTable lines={parsedLines} lineTotal={lineTotal} />
+            </div>
           )}
 
           <div className="flex items-center justify-between gap-2 mt-4">
@@ -232,7 +229,7 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={loading || isOverLimit || bootLoading}
+                disabled={loading || isOverLimit || hydrating}
                 className="px-4 py-2 text-sm text-white bg-gradient-primary rounded-lg disabled:opacity-50"
               >
                 {loading ? 'Saving…' : 'Save'}

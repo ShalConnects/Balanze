@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Menu, Bell, Search, Sun, Moon, LogOut, ArrowLeftRight, LifeBuoy, Heart, X, BookOpen, Sparkles, RefreshCw, Edit3, Calculator } from 'lucide-react';
 import { format, isToday, isThisWeek } from 'date-fns';
 import { useFinanceStore } from '../../store/useFinanceStore';
@@ -9,6 +9,7 @@ import { useNotificationsStore } from '../../store/notificationsStore';
 import { ProfileEditModal } from './ProfileEditModal';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GlobalSearchDropdown } from './GlobalSearchDropdown';
+import { ShoppingListNavButton } from '../Transactions/ShoppingListNavButton';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { supabase } from '../../lib/supabase';
 import { useTranslation } from 'react-i18next';
@@ -288,6 +289,12 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showUserMenu, showLanguageMenu]);
 
+  const closeSearch = useCallback((clearTerm = true) => {
+    setShowSearchOverlay(false);
+    setIsSearchFocused(false);
+    if (clearTerm) setGlobalSearchTerm('');
+  }, [setGlobalSearchTerm]);
+
   // Handle click outside to close dropdown (desktop: input + dropdown; mobile: whole overlay panel + backdrop)
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -297,9 +304,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
         if (searchOverlayPanelRef.current.contains(target)) {
           return;
         }
-        setShowSearchOverlay(false);
-        setIsSearchFocused(false);
-        setGlobalSearchTerm('');
+        closeSearch();
         return;
       }
 
@@ -307,8 +312,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
         if (dropdownRef.current && dropdownRef.current.contains(target)) {
           return;
         }
-        setIsSearchFocused(false);
-        setGlobalSearchTerm('');
+        closeSearch();
       }
     }
     if (isSearchFocused || showSearchOverlay) {
@@ -317,14 +321,13 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
       document.removeEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isSearchFocused, showSearchOverlay, setGlobalSearchTerm]);
+  }, [isSearchFocused, showSearchOverlay, closeSearch]);
 
   // Handle escape key to close search overlay
   useEffect(() => {
     function handleEscapeKey(event: KeyboardEvent) {
       if (event.key === 'Escape' && showSearchOverlay) {
-        setShowSearchOverlay(false);
-        setIsSearchFocused(false);
+        closeSearch();
       }
     }
     
@@ -333,7 +336,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
     }
     
     return () => document.removeEventListener('keydown', handleEscapeKey);
-  }, [showSearchOverlay]);
+  }, [showSearchOverlay, closeSearch]);
 
   // Update profile menu position on scroll/resize
   useEffect(() => {
@@ -394,12 +397,6 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
     setTimeout(() => {
       searchInputRef.current?.focus();
     }, 100);
-  };
-
-  const handleCloseSearch = () => {
-    setShowSearchOverlay(false);
-    setIsSearchFocused(false);
-    setGlobalSearchTerm('');
   };
 
   return (
@@ -525,7 +522,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
                 isFocused={isSearchFocused} 
                 inputRef={searchInputRef} 
                 dropdownRef={dropdownRef}
-                onClose={() => setIsSearchFocused(false)}
+                onClose={() => closeSearch(false)}
               />
             </div>
             
@@ -782,7 +779,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
                 ref={searchInputRef}
               />
               <button
-                onClick={handleCloseSearch}
+                onClick={() => closeSearch()}
                 className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ml-2"
               >
                 <X className="w-5 h-5 text-gray-500 dark:text-gray-300" />
@@ -792,7 +789,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
               isFocused={isSearchFocused} 
               inputRef={searchInputRef} 
               dropdownRef={dropdownRef}
-              onClose={() => setIsSearchFocused(false)}
+              onClose={() => closeSearch(false)}
               isOverlay={true}
             />
           </div>

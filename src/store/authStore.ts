@@ -3,7 +3,7 @@ import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { userPreferencesManager } from '../lib/userPreferences';
 import { favoriteQuotesService } from '../lib/favoriteQuotesService';
-import { saveRememberedEmail, clearRememberedEmail, saveRememberMePreference } from '../utils/authStorage';
+import { saveRememberedEmail, clearRememberedEmail, saveRememberMePreference, markPersistentLogin } from '../utils/authStorage';
 import { Browser } from '@capacitor/browser';
 import { Capacitor } from '@capacitor/core';
 import { googleSignIn } from '../lib/googleSignIn';
@@ -529,6 +529,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             
             if (sessionData?.user) {
               console.error('[OAUTH] ✅ Supabase authentication successful');
+              markPersistentLogin();
               const { setUserAndProfile } = get();
               await setUserAndProfile(sessionData.user, null);
               set({ isLoading: false });

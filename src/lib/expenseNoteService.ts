@@ -6,7 +6,6 @@ import {
   lineDisplayAmount,
   looksLikeItemListNote,
   normalizeExpenseItemName,
-  parseExpenseNoteSegment,
   parseExpenseNoteText,
 } from '../utils/expenseNoteParser';
 import { detectCategorySlug } from '../utils/shoppingCategory';
@@ -20,18 +19,31 @@ import type {
   ParsedExpenseNoteLine,
 } from '../types/expenseNote';
 
+const rawTextByTx = new Map<string, string | null>();
+const categoriesByUser = new Map<string, ExpenseNoteCategory[]>();
+
+const setRawTextCache = (transactionId: string, raw: string | null) => rawTextByTx.set(transactionId, raw);
+
 async function ensureCategories(userId: string): Promise<ExpenseNoteCategory[]> {
+  const cached = categoriesByUser.get(userId);
+  if (cached) return cached;
+
   const { data: existing } = await supabase
     .from('expense_note_categories')
     .select('id, slug, name, sort_order')
     .eq('user_id', userId)
     .order('sort_order');
-  if (existing?.length) return existing;
+  if (existing?.length) {
+    categoriesByUser.set(userId, existing);
+    return existing;
+  }
 
   const rows = SHOPPING_CATEGORY_SEEDS.map((c) => ({ user_id: userId, ...c, is_system: true }));
   const { data, error } = await supabase.from('expense_note_categories').insert(rows).select('id, slug, name, sort_order');
   if (error) throw error;
-  return data || [];
+  const cats = data || [];
+  categoriesByUser.set(userId, cats);
+  return cats;
 }
 
 async function categoryIdBySlug(userId: string, slug: string): Promise<string | null> {
@@ -394,8 +406,23 @@ export async function mergeCatalogItem(userId: string, keepId: string, removeId:
   if (error) throw error;
 }
 
-function mapDbLine(row: { name_raw: string }): ParsedExpenseNoteLine {
-  return parseExpenseNoteSegment(row.name_raw);
+export async function fetchExpenseNoteRawText(userId: string, transactionId: string): Promise<string | null> {
+  if (rawTextByTx.has(transactionId)) return rawTextByTx.get(transactionId)!;
+
+  const { data, error } = await supabase
+    .from('expense_note_documents')
+    .select('raw_text')
+    .eq('user_id', userId)
+    .eq('transaction_id', transactionId)
+    .maybeSingle();
+  if (error) throw error;
+  const raw = data?.raw_text ?? null;
+  setRawTextCache(transactionId, raw);
+  return raw;
+}
+
+export function prefetchExpenseNoteRawText(userId: string, transactionId: string) {
+  if (!rawTextByTx.has(transactionId)) void fetchExpenseNoteRawText(userId, transactionId).catch(() => {});
 }
 
 export async function loadExpenseNoteDocument(
@@ -409,20 +436,16 @@ export async function loadExpenseNoteDocument(
     .eq('transaction_id', transactionId)
     .maybeSingle();
   if (error) throw error;
-  if (!doc) return null;
-
-  const { data: lines, error: lineErr } = await supabase
-    .from('expense_note_lines')
-    .select('name_raw')
-    .eq('document_id', doc.id)
-    .order('sort_order');
-  if (lineErr) throw lineErr;
-
+  if (!doc) {
+    setRawTextCache(transactionId, null);
+    return null;
+  }
+  setRawTextCache(transactionId, doc.raw_text);
   return {
     documentId: doc.id,
     rawText: doc.raw_text,
     entryDate: doc.entry_date,
-    lines: (lines || []).map(mapDbLine),
+    lines: parseExpenseNoteText(doc.raw_text),
   };
 }
 
@@ -515,6 +538,7 @@ async function persistDocument(
     await supabase.from('expense_note_lines').delete().eq('id', existingLineIds[i]);
   }
 
+  if (transactionId) setRawTextCache(transactionId, payload.rawText);
   return payload.lines.length ? buildExpenseNoteSummary(payload.lines) : payload.rawText.trim();
 }
 
@@ -538,6 +562,7 @@ export async function deleteExpenseNoteDocument(transactionId: string): Promise<
     .maybeSingle();
   if (!data?.id) return;
   await supabase.from('expense_note_documents').delete().eq('id', data.id);
+  setRawTextCache(transactionId, null);
 }
 
 export async function fetchItemDetail(userId: string, itemId: string): Promise<ExpenseNoteItemDetail | null> {
@@ -706,6 +731,43 @@ export async function fetchRecentNoteEntries(userId: string, limit = 15): Promis
       preview: entryPreview(d.raw_text, lc),
     };
   });
+}
+
+export async function fetchItemPurchaseDates(userId: string): Promise<Map<string, string[]>> {
+  const { data, error } = await supabase
+    .from('expense_note_price_observations')
+    .select('item_id, observed_at')
+    .eq('user_id', userId)
+    .order('observed_at');
+  if (error) throw error;
+  const map = new Map<string, string[]>();
+  for (const row of data || []) {
+    const arr = map.get(row.item_id) || [];
+    arr.push(row.observed_at);
+    map.set(row.item_id, arr);
+  }
+  return map;
+}
+
+export async function markCatalogItemPurchased(userId: string, itemId: string): Promise<void> {
+  const observedAt = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('expense_note_items')
+    .select('usage_count, display_name, last_price')
+    .eq('user_id', userId)
+    .eq('id', itemId)
+    .maybeSingle();
+  if (error || !data) throw new Error('not_found');
+
+  await supabase
+    .from('expense_note_items')
+    .update({
+      usage_count: (data.usage_count || 0) + 1,
+      last_used_at: observedAt,
+      last_purchased_at: observedAt,
+    })
+    .eq('id', itemId)
+    .eq('user_id', userId);
 }
 
 /** @deprecated Use fetchGlobalShoppingItems */

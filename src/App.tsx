@@ -28,7 +28,8 @@ import WelcomeOnboarding from './components/WelcomeOnboarding';
 import { isAndroidApp } from './utils/platformDetection';
 import { isFirstLaunch } from './utils/firstLaunch';
 import { App as CapacitorApp } from '@capacitor/app';
-import { getRememberMePreference } from './utils/authStorage';
+import { markPersistentLogin } from './utils/authStorage';
+import { shouldRejectStoredSession, isConfirmedUser, syncUserFromSession } from './utils/authSession';
 import { Capacitor } from '@capacitor/core';
 import { useMobileDetection } from './hooks/useMobileDetection';
 
@@ -208,137 +209,76 @@ function AppContent() {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    
+
+    let bootstrapDone = false;
+    const finishBootstrap = () => {
+      if (!bootstrapDone) {
+        bootstrapDone = true;
+        setLoading(false);
+      }
+    };
+    const timeoutId = setTimeout(finishBootstrap, 10000);
+
+    const { setUserAndProfile } = useAuthStore.getState();
+
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (sessionStorage.getItem('registrationInProgress') === 'true') return;
 
         const currentUser = session?.user;
-        const { setUserAndProfile } = useAuthStore.getState();
-        
-        // CRITICAL: Check if we're in the middle of registration
-        const isRegistrationInProgress = sessionStorage.getItem('registrationInProgress') === 'true';
-        if (isRegistrationInProgress) {
+
+        if (event === 'INITIAL_SESSION') {
+          if (shouldRejectStoredSession()) {
+            await supabase.auth.signOut();
+            await setUserAndProfile(null, null);
+          } else {
+            await syncUserFromSession(currentUser, setUserAndProfile);
+          }
+          finishBootstrap();
           return;
         }
-        
-        // Handle different auth events
+
         switch (event) {
           case 'SIGNED_IN':
-            if (currentUser) {
-              await setUserAndProfile(currentUser, null);
-            }
-            break;
-            
           case 'USER_UPDATED':
-            if (currentUser) {
-              await setUserAndProfile(currentUser, null);
-            }
+            await syncUserFromSession(currentUser, setUserAndProfile);
             break;
-            
           case 'SIGNED_OUT': {
-            // Don't clear success message when signing out
             const currentState = useAuthStore.getState();
-            useAuthStore.setState({
-              ...currentState,
-              user: null,
-              profile: null
-            });
+            useAuthStore.setState({ ...currentState, user: null, profile: null });
             break;
           }
-            
           case 'TOKEN_REFRESHED':
-            if (currentUser && currentUser.email_confirmed_at) {
-              setUserAndProfile(currentUser, null);
-            } else if (currentUser && !currentUser.email_confirmed_at) {
+            if (isConfirmedUser(currentUser)) {
+              await setUserAndProfile(currentUser!, null);
+            } else if (currentUser) {
               const currentState = useAuthStore.getState();
-              useAuthStore.setState({
-                ...currentState,
-                user: null,
-                profile: null
-              });
+              useAuthStore.setState({ ...currentState, user: null, profile: null });
             }
-            break;
-            
-          default:
             break;
         }
       }
     );
-    
-    const initializeSession = async () => {
-      // Add a timeout to prevent infinite hanging
-      const timeoutId = setTimeout(() => {
 
-        setLoading(false);
-      }, 10000); // 10 second timeout
-      
+    (async () => {
       try {
-        // Check "Remember Me" preference - if false, clear session on app start
-        const shouldRemember = getRememberMePreference();
-        
-        // If "Remember Me" was unchecked, clear session on app start (works for both Android and web)
-        if (shouldRemember === false) {
-          await supabase.auth.signOut();
-          const { setUserAndProfile } = useAuthStore.getState();
-          setUserAndProfile(null, null);
-          setLoading(false);
-          return;
-        }
-        
-        // Check if this is an email confirmation redirect
         const urlParams = new URLSearchParams(window.location.search);
         const accessToken = urlParams.get('access_token');
         const refreshToken = urlParams.get('refresh_token');
-        
         if (accessToken && refreshToken) {
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
-            refresh_token: refreshToken
+            refresh_token: refreshToken,
           });
-          
-          if (error) {
-            // Error handling - continue with flow
-          } else if (data.user) {
-            await handleEmailConfirmation();
-          }
-        }
-        
-        // Check current session
-        const { data: { session } } = await supabase.auth.getSession();
-        const currentUser = session?.user;
-        const { setUserAndProfile } = useAuthStore.getState();
-        
-        if (currentUser && currentUser.email_confirmed_at) {
-          // Only create profile for confirmed users - wait for it to complete
-
-          try {
-          await setUserAndProfile(currentUser, null);
-
-          } catch {
-            // Continue anyway to prevent hanging
-          }
-        } else {
-          // For unconfirmed users or no user, just set null without creating profile
-
-          setUserAndProfile(null, null);
+          if (!error && data.user) await handleEmailConfirmation();
         }
       } catch {
-        // Error handling - continue with initialization
-      } finally {
-        clearTimeout(timeoutId);
-        setLoading(false);
+        // continue — INITIAL_SESSION completes bootstrap
       }
-    };
-    
-    initializeSession();
-    
-    // For web: Clear session on page unload if "Remember Me" is unchecked
+    })();
+
     const handlePageUnload = () => {
-      const shouldRemember = getRememberMePreference();
-      const isAndroid = isAndroidApp();
-      
-      // Only for web (not Android app)
-      if (!isAndroid && shouldRemember === false) {
+      if (!isAndroidApp() && shouldRejectStoredSession()) {
         // Clear Supabase session from localStorage directly (synchronous)
         // Supabase stores session with key pattern: sb-{project-ref}-auth-token
         try {
@@ -361,6 +301,7 @@ function AppContent() {
     }
     
     return () => {
+      clearTimeout(timeoutId);
       authListener.subscription.unsubscribe();
       if (!isAndroidApp()) {
         window.removeEventListener('beforeunload', handlePageUnload);
@@ -438,9 +379,9 @@ function AppContent() {
               
               
               if (data.user) {
+                markPersistentLogin();
                 const { setUserAndProfile } = useAuthStore.getState();
                 await setUserAndProfile(data.user, null);
-                // Navigate to dashboard
                 window.location.href = '/dashboard';
               } else {
                 console.error('[DEEPLINK] ❌ No user data after setting session');

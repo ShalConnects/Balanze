@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
+import { markPersistentLogin } from '../utils/authStorage';
 
 const AuthCallback: React.FC = () => {
   const navigate = useNavigate();
@@ -92,7 +93,7 @@ const AuthCallback: React.FC = () => {
             return;
           }
           
-          // Set user and profile in auth store
+          markPersistentLogin();
           await setUserAndProfile(user, null);
           
           // Redirect to dashboard

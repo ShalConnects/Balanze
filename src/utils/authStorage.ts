@@ -73,3 +73,6 @@ export const clearRememberMePreference = (): void => {
   localStorage.removeItem(REMEMBER_ME_PREFERENCE_KEY);
 };
 
+/** OAuth / persistent login — avoids stale "remember me = false" from email login */
+export const markPersistentLogin = (): void => saveRememberMePreference(true);
+

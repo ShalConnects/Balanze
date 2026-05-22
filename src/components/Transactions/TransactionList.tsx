@@ -29,13 +29,14 @@ import { useNavigate } from 'react-router-dom';
 import { LendBorrowInfoModal } from './LendBorrowInfoModal';
 import { TransactionNoteModal } from './TransactionNoteModal';
 import { EXPENSE_NOTE_OPEN_TX_KEY } from '../../constants/expenseNote';
-import { ShoppingListNavButton } from './ShoppingListNavButton';
+import { prefetchExpenseNoteRawText } from '../../lib/expenseNoteService';
 import { TransactionEditHistory } from './TransactionEditHistory';
 import { useExport } from '../../hooks/useExport';
 import { useSelectionSearchSync } from '../../hooks/useSelectionSearchSync';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { normalizeSearchText } from '../../utils/searchText';
 import { FinancialHealthCard } from './FinancialHealthCard';
+import { TransactionPeriodChangeCaption } from './TransactionPeriodChangeCaption';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { countsTowardIncomeExpenseSummaries, isLendBorrowTransaction } from '../../utils/transactionUtils';
 import { transactionHasAuditTrail } from '../../utils/transactionHistoryUtils';
@@ -121,7 +122,11 @@ const TransactionListComponent: React.FC<{
   const accounts = getActiveAccounts(); // For filtering dropdowns, keep active accounts
   const allAccountsForLookup = allAccounts; // Use all accounts for lookups to show inactive account info
   const activeTransactions = getActiveTransactions();
-  const { profile } = useAuthStore();
+  const { profile, user } = useAuthStore();
+  const prefetchExpenseNote = (transactionId: string) => {
+    const uid = user?.id ?? profile?.id;
+    if (uid) prefetchExpenseNoteRawText(uid, transactionId);
+  };
   const { wrapAsync, setLoadingMessage } = useLoadingContext();
   const navigate = useNavigate();
   const { usageStats, isFreePlan, isPremiumPlan } = usePlanFeatures();
@@ -536,7 +541,10 @@ const TransactionListComponent: React.FC<{
     if (!pendingId || !transactions.length) return;
     sessionStorage.removeItem(EXPENSE_NOTE_OPEN_TX_KEY);
     const tx = transactions.find((t) => t.id === pendingId);
-    if (tx) setNoteModalTransaction(tx);
+    if (tx) {
+      prefetchExpenseNote(tx.id);
+      setNoteModalTransaction(tx);
+    }
   }, [transactions]);
   
   const [expandedRecurringIds, setExpandedRecurringIds] = useState<Set<string>>(new Set());
@@ -1162,6 +1170,7 @@ const TransactionListComponent: React.FC<{
   
   const totalIncome = filteredTransactions.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = filteredTransactions.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0);
+  const summaryComparisonPeriod = getComparisonPeriod(getDateFilterType());
   const transactionCount = filteredTransactions.length;
   
   // Console log for verification - always log when transactions are present
@@ -1941,66 +1950,14 @@ const TransactionListComponent: React.FC<{
                 <p className={THEME_BRAND_GRADIENT_TEXT_CLASS} style={{ fontSize: '1.2rem' }}>
                   {formatCurrency(totalIncome, selectedCurrency)}
                 </p>
-                <p className={`${(() => {
-                    const filterType = getDateFilterType();
-                    const comparisonPeriod = getComparisonPeriod(filterType);
-                    
-                    // Calculate current period income
-                    const currentIncome = transactions.filter(t => {
-                      const transactionDate = new Date(t.date);
-                      const startDate = new Date(filters.dateRange.start);
-                      const endDate = new Date(filters.dateRange.end);
-                      return t.type === 'income' && 
-                             transactionDate >= startDate && 
-                             transactionDate <= endDate;
-                    }).reduce((sum, t) => sum + t.amount, 0);
-                    
-                    // Calculate comparison period income
-                    const comparisonIncome = transactions.filter(t => {
-                      const transactionDate = new Date(t.date);
-                      const compStartDate = new Date(comparisonPeriod.start);
-                      const compEndDate = new Date(comparisonPeriod.end);
-                      return t.type === 'income' && 
-                             transactionDate >= compStartDate && 
-                             transactionDate <= compEndDate;
-                    }).reduce((sum, t) => sum + t.amount, 0);
-                    
-                    if (comparisonIncome === 0) return THEME_MUTED_CAPTION_CLASS;
-                    
-                    const growthRate = Math.round(((currentIncome - comparisonIncome) / comparisonIncome) * 100);
-                    return growthRate > 0 ? CASHFLOW_INCOME_TEXT_CLASS : CASHFLOW_EXPENSE_TEXT_CLASS;
-                  })()}`} style={{ fontSize: '11px' }}>
-                  {(() => {
-                    const filterType = getDateFilterType();
-                    const comparisonPeriod = getComparisonPeriod(filterType);
-                    
-                    // Calculate current period income
-                    const currentIncome = transactions.filter(t => {
-                      const transactionDate = new Date(t.date);
-                      const startDate = new Date(filters.dateRange.start);
-                      const endDate = new Date(filters.dateRange.end);
-                      return t.type === 'income' && 
-                             transactionDate >= startDate && 
-                             transactionDate <= endDate;
-                    }).reduce((sum, t) => sum + t.amount, 0);
-                    
-                    // Calculate comparison period income
-                    const comparisonIncome = transactions.filter(t => {
-                      const transactionDate = new Date(t.date);
-                      const compStartDate = new Date(comparisonPeriod.start);
-                      const compEndDate = new Date(comparisonPeriod.end);
-                      return t.type === 'income' && 
-                             transactionDate >= compStartDate && 
-                             transactionDate <= compEndDate;
-                    }).reduce((sum, t) => sum + t.amount, 0);
-                    
-                    if (comparisonIncome === 0) return 'No previous data';
-                    
-                    const growthRate = Math.round(((currentIncome - comparisonIncome) / comparisonIncome) * 100);
-                    
-                    return `${growthRate > 0 ? 'Earning more' : 'Earning less'} (${Math.abs(growthRate)}% ${growthRate > 0 ? 'increase' : 'decrease'})`;
-                  })()}
-                </p>
+                <TransactionPeriodChangeCaption
+                  kind="income"
+                  transactions={transactions}
+                  rangeStart={filters.dateRange.start}
+                  rangeEnd={filters.dateRange.end}
+                  comparisonStart={summaryComparisonPeriod.start}
+                  comparisonEnd={summaryComparisonPeriod.end}
+                />
               </div>
               <span className={THEME_ACCENT_TEXT_CLASS} style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
             </div>
@@ -2012,66 +1969,14 @@ const TransactionListComponent: React.FC<{
                 <p className={THEME_BRAND_GRADIENT_TEXT_CLASS} style={{ fontSize: '1.2rem' }}>
                   {formatCurrency(totalExpense, selectedCurrency)}
                 </p>
-                <p className={`${(() => {
-                    const filterType = getDateFilterType();
-                    const comparisonPeriod = getComparisonPeriod(filterType);
-                    
-                    // Calculate current period expense
-                    const currentExpense = transactions.filter(t => {
-                      const transactionDate = new Date(t.date);
-                      const startDate = new Date(filters.dateRange.start);
-                      const endDate = new Date(filters.dateRange.end);
-                      return t.type === 'expense' && 
-                             transactionDate >= startDate && 
-                             transactionDate <= endDate;
-                    }).reduce((sum, t) => sum + t.amount, 0);
-                    
-                    // Calculate comparison period expense
-                    const comparisonExpense = transactions.filter(t => {
-                      const transactionDate = new Date(t.date);
-                      const compStartDate = new Date(comparisonPeriod.start);
-                      const compEndDate = new Date(comparisonPeriod.end);
-                      return t.type === 'expense' && 
-                             transactionDate >= compStartDate && 
-                             transactionDate <= compEndDate;
-                    }).reduce((sum, t) => sum + t.amount, 0);
-                    
-                    if (comparisonExpense === 0) return THEME_MUTED_CAPTION_CLASS;
-                    
-                    const changeRate = Math.round(((currentExpense - comparisonExpense) / comparisonExpense) * 100);
-                    return changeRate > 0 ? CASHFLOW_EXPENSE_TEXT_CLASS : CASHFLOW_INCOME_TEXT_CLASS;
-                  })()}`} style={{ fontSize: '11px' }}>
-                  {(() => {
-                    const filterType = getDateFilterType();
-                    const comparisonPeriod = getComparisonPeriod(filterType);
-                    
-                    // Calculate current period expense
-                    const currentExpense = transactions.filter(t => {
-                      const transactionDate = new Date(t.date);
-                      const startDate = new Date(filters.dateRange.start);
-                      const endDate = new Date(filters.dateRange.end);
-                      return t.type === 'expense' && 
-                             transactionDate >= startDate && 
-                             transactionDate <= endDate;
-                    }).reduce((sum, t) => sum + t.amount, 0);
-                    
-                    // Calculate comparison period expense
-                    const comparisonExpense = transactions.filter(t => {
-                      const transactionDate = new Date(t.date);
-                      const compStartDate = new Date(comparisonPeriod.start);
-                      const compEndDate = new Date(comparisonPeriod.end);
-                      return t.type === 'expense' && 
-                             transactionDate >= compStartDate && 
-                             transactionDate <= compEndDate;
-                    }).reduce((sum, t) => sum + t.amount, 0);
-                    
-                    if (comparisonExpense === 0) return 'No previous data';
-                    
-                    const changeRate = Math.round(((currentExpense - comparisonExpense) / comparisonExpense) * 100);
-                    
-                    return `${changeRate > 0 ? 'Spending more' : 'Spending less'} (${Math.abs(changeRate)}% ${changeRate > 0 ? 'increase' : 'decrease'})`;
-                  })()}
-                </p>
+                <TransactionPeriodChangeCaption
+                  kind="expense"
+                  transactions={transactions}
+                  rangeStart={filters.dateRange.start}
+                  rangeEnd={filters.dateRange.end}
+                  comparisonStart={summaryComparisonPeriod.start}
+                  comparisonEnd={summaryComparisonPeriod.end}
+                />
               </div>
               <span className={THEME_ACCENT_TEXT_CLASS} style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
             </div>
@@ -2456,6 +2361,7 @@ const TransactionListComponent: React.FC<{
                                    <button
                                      type="button"
                                      tabIndex={-1}
+                                     onPointerEnter={() => prefetchExpenseNote(transaction.id)}
                                      onMouseDown={(e) => {
                                        // Prevent opening modal if we just closed it (within 1000ms)
                                        const timeSinceLastClose = Date.now() - lastClosedModalTimeRef.current;
@@ -2978,6 +2884,7 @@ const TransactionListComponent: React.FC<{
                                <Tooltip content={transaction.note && transaction.note.trim().length > 0 ? "View/Edit note" : "Add note"} placement="top">
                                  <button
                                    type="button"
+                                   onPointerEnter={() => prefetchExpenseNote(transaction.id)}
                                    onClick={(e) => {
                                      // Prevent opening modal if we just closed it (within 500ms)
                                      const timeSinceLastClose = Date.now() - lastClosedModalTimeRef.current;

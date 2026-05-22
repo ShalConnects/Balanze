@@ -8,12 +8,15 @@ import {
   fetchExpenseNoteCategories,
   fetchGlobalShoppingItems,
   fetchItemDetail,
+  fetchItemPurchaseDates,
   fetchRecentNoteEntries,
   importExistingUserNotes,
+  markCatalogItemPurchased,
   mergeCatalogItem,
   saveQuickAddNote,
   updateCatalogItem,
 } from '../../lib/expenseNoteService';
+import { ShoppingSuggestionsPanel } from './ShoppingSuggestionsPanel';
 import { isLikelySameItem } from '../../utils/itemNameMerge';
 import { parseExpenseNoteText, sumExpenseNoteLines } from '../../utils/expenseNoteParser';
 import type { ExpenseNoteCategory, ExpenseNoteEntrySummary, ExpenseNoteItem, ExpenseNoteItemDetail } from '../../types/expenseNote';
@@ -25,6 +28,7 @@ import {
   ExpenseNoteParsedPreviewTable,
   ExpenseNoteItemDetailPanel,
   ExpenseNoteRecentTable,
+  ExpenseNoteLoadingCaption,
   ExpenseNoteSection,
 } from './expenseNoteCompactUi';
 import { paginateList } from '../../utils/paginateList';
@@ -45,6 +49,9 @@ export const GlobalShoppingListPage: React.FC = () => {
   const [savingItem, setSavingItem] = useState(false);
   const [mergingItem, setMergingItem] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
+  const [view, setView] = useState<'catalog' | 'suggestions'>('catalog');
+  const [purchaseDates, setPurchaseDates] = useState<Map<string, string[]>>(new Map());
+  const [markingId, setMarkingId] = useState<string | null>(null);
 
   const parsed = useMemo(() => parseExpenseNoteText(quickAdd), [quickAdd]);
   const lineTotal = useMemo(() => sumExpenseNoteLines(parsed), [parsed]);
@@ -84,6 +91,19 @@ export const GlobalShoppingListPage: React.FC = () => {
       cancelled = true;
     };
   }, [user?.id, load]);
+
+  useEffect(() => {
+    if (view !== 'suggestions' || !user?.id) return;
+    let cancelled = false;
+    fetchItemPurchaseDates(user.id)
+      .then((m) => {
+        if (!cancelled) setPurchaseDates(m);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [view, user?.id, items]);
 
   const mergeCandidates = useMemo(() => {
     if (!detail) return [];
@@ -177,13 +197,55 @@ export const GlobalShoppingListPage: React.FC = () => {
     }
   };
 
+  const handleMarkPurchased = async (item: ExpenseNoteItem) => {
+    if (!user?.id) return;
+    setMarkingId(item.id);
+    try {
+      await markCatalogItemPurchased(user.id, item.id);
+      await load();
+      setPurchaseDates(await fetchItemPurchaseDates(user.id));
+      toast.success(`${item.display_name} marked purchased`);
+    } catch {
+      toast.error('Failed to update item');
+    } finally {
+      setMarkingId(null);
+    }
+  };
+
+  const openItemDetail = async (id: string) => {
+    if (!user?.id) return;
+    setDetail(await fetchItemDetail(user.id, id));
+  };
+
+  const tabCls = (active: boolean) =>
+    `text-xs px-3 py-1 rounded-full ${active ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`;
+
   return (
     <div className="w-full max-w-full m-0 min-w-0">
-      {importing && (
-        <p className="text-xs text-gray-500 animate-pulse mb-3">Syncing notes from your transactions…</p>
-      )}
+      <ExpenseNoteLoadingCaption active={importing} className="mb-3" />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5 items-start md:items-stretch">
+      <div className="flex gap-2 mb-3">
+        <button type="button" className={tabCls(view === 'catalog')} onClick={() => setView('catalog')}>
+          Catalog
+        </button>
+        <button type="button" className={tabCls(view === 'suggestions')} onClick={() => setView('suggestions')}>
+          Before next shop
+        </button>
+      </div>
+
+      {view === 'suggestions' ? (
+        <ShoppingSuggestionsPanel
+          items={items}
+          purchaseDates={purchaseDates}
+          markingId={markingId}
+          onMarkPurchased={handleMarkPurchased}
+          onSelectItem={openItemDetail}
+        />
+      ) : null}
+
+      <div
+        className={`grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5 items-start md:items-stretch ${view === 'suggestions' ? 'hidden' : ''}`}
+      >
         <ExpenseNoteSection title="Recent notes" collapseOnMobile equalHeightDesktop className="order-3 md:order-1">
           {recentEntries.length > 0 ? (
             <ExpenseNoteRecentTable
@@ -256,13 +318,7 @@ export const GlobalShoppingListPage: React.FC = () => {
 
           {filtered.length > 0 ? (
             <>
-              <ExpenseNoteItemsTable
-                items={pagedItems.items}
-                onSelect={async (id) => {
-                  if (!user?.id) return;
-                  setDetail(await fetchItemDetail(user.id, id));
-                }}
-              />
+              <ExpenseNoteItemsTable items={pagedItems.items} onSelect={openItemDetail} />
               <ExpenseNoteListPager
                 page={pagedItems.page}
                 totalPages={pagedItems.totalPages}

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
-import { SHOPPING_CATEGORY_SEEDS } from '../../constants/expenseNote';
+import { Check, ChevronDown, Loader2, ShoppingBasket, X } from 'lucide-react';
+import { EXPENSE_NOTE_LOADING_LINES, SHOPPING_CATEGORY_SEEDS } from '../../constants/expenseNote';
 import { expenseNoteParseHintText, lineDisplayAmount } from '../../utils/expenseNoteParser';
+import { isAndroidApp } from '../../utils/platformDetection';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import type {
   ExpenseNoteCategory,
@@ -24,6 +25,32 @@ export const EXPENSE_NOTE_EMPTY =
 export const EXPENSE_NOTE_TOP_ROW_BODY = 'md:h-[12rem] md:min-h-[12rem] md:max-h-[12rem]';
 export const EXPENSE_NOTE_TOP_ROW_PANEL = `${EXPENSE_NOTE_PANEL} h-full min-h-0 flex flex-col overflow-hidden`;
 const EXPENSE_NOTE_CONTENT_PANEL = `${EXPENSE_NOTE_PANEL} flex flex-col min-w-0`;
+
+export const ExpenseNoteLoadingCaption: React.FC<{ active: boolean; className?: string }> = ({
+  active,
+  className = '',
+}) => {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    setIdx(0);
+    const id = setInterval(() => setIdx((i) => (i + 1) % EXPENSE_NOTE_LOADING_LINES.length), 1400);
+    return () => clearInterval(id);
+  }, [active]);
+  if (!active) return null;
+  return (
+    <p
+      role="status"
+      aria-live="polite"
+      className={`flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 ${className}`}
+    >
+      <ShoppingBasket className="w-3.5 h-3.5 shrink-0 animate-bounce" aria-hidden />
+      <span key={idx} className="animate-pulse">
+        {EXPENSE_NOTE_LOADING_LINES[idx]}
+      </span>
+    </p>
+  );
+};
 
 /** Section shell: optional mobile-only collapse; pass grid order via className. */
 export const ExpenseNoteSection: React.FC<{
@@ -261,6 +288,8 @@ export const ExpenseNoteItemsTable: React.FC<{
 
 const fieldClass =
   'w-full text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5';
+const modalIconBtn =
+  'p-2 rounded-lg transition-colors disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-800';
 
 export const ExpenseNoteItemDetailPanel: React.FC<{
   detail: ExpenseNoteItemDetail;
@@ -289,14 +318,31 @@ export const ExpenseNoteItemDetailPanel: React.FC<{
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40"
+      className={`fixed inset-0 z-50 flex justify-center p-4 bg-black/40 ${isAndroidApp() ? 'items-center' : 'items-end sm:items-center'}`}
       onClick={onClose}
     >
       <div
         className="bg-white dark:bg-gray-900 rounded-xl p-4 w-full max-w-md max-h-[70vh] overflow-y-auto space-y-3"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="font-semibold text-base">Edit item</h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-semibold text-base">Edit item</h3>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              aria-label="Save item"
+              title="Save"
+              disabled={saving || !dirty || !displayName.trim() || !categoryId}
+              onClick={() => onSave({ displayName: displayName.trim(), categoryId })}
+              className={`${modalIconBtn} text-white bg-gradient-primary hover:opacity-90`}
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+            </button>
+            <button type="button" aria-label="Close" title="Close" onClick={onClose} className={`${modalIconBtn} text-gray-500`}>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
         <label className="block space-y-1">
           <span className="text-xs text-gray-500">Name</span>
           <input
@@ -332,7 +378,7 @@ export const ExpenseNoteItemDetailPanel: React.FC<{
               type="button"
               disabled={merging || !mergeInto}
               onClick={() => onMerge(mergeInto)}
-              className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50"
+              className="h-10 px-3 text-xs flex items-center justify-center shrink-0 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50"
             >
               {merging ? 'Merging…' : 'Merge'}
             </button>
@@ -380,19 +426,6 @@ export const ExpenseNoteItemDetailPanel: React.FC<{
             </table>
           </div>
         )}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            disabled={saving || !dirty || !displayName.trim() || !categoryId}
-            onClick={() => onSave({ displayName: displayName.trim(), categoryId })}
-            className="px-3 py-1.5 text-xs text-white bg-gradient-primary rounded-lg disabled:opacity-50"
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-          <button type="button" className="px-3 py-1.5 text-xs text-gray-600" onClick={onClose}>
-            Close
-          </button>
-        </div>
       </div>
     </div>
   );

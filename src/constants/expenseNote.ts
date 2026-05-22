@@ -13,7 +13,23 @@ export const SHOPPING_CATEGORY_SEEDS = [
 export const EXPENSE_NOTE_AUTOCOMPLETE_LIMIT = 8;
 export const EXPENSE_NOTE_ITEMS_PAGE_SIZE = 50;
 
+export const DEFAULT_SHOPPING_FREQUENCY_DAYS = 7;
+export const DEFAULT_ITEM_DURATION_DAYS = 14;
+export const SHOPPING_FREQUENCY_STORAGE_KEY = 'balanze_shopping_frequency_days';
+export const SHOPPING_FREQUENCY_OPTIONS = [3, 7, 14, 21, 30] as const;
+
 export const EXPENSE_NOTE_OPEN_TX_KEY = 'expenseNoteOpenTransactionId';
+
+export const EXPENSE_NOTE_LOADING_LINES = [
+  'Loading shopping list…',
+  'Loading buying list…',
+  'Raiding the pantry database…',
+  'Teaching commas to behave…',
+  'Convincing Toast it is not bread…',
+  'Negotiating with the eggs…',
+  'Almost done — unlike real checkout lines…',
+  'Importing your past impulse buys…',
+] as const;
 
 export function queueOpenTransactionNote(transactionId: string): void {
   sessionStorage.setItem(EXPENSE_NOTE_OPEN_TX_KEY, transactionId);
