@@ -534,6 +534,8 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
             >
               <Search className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />
             </button>
+
+            <ShoppingListNavButton />
             
             {/* Theme Toggle & Notifications */}
             <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 flex-shrink-0">

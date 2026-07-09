@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { EXPENSE_NOTE_ITEMS_PAGE_SIZE, EXPENSE_NOTE_RAW_MAX, queueOpenTransactionNote } from '../../constants/expenseNote';
+import { EXPENSE_NOTE_ITEMS_PAGE_SIZE, queueOpenTransactionNote } from '../../constants/expenseNote';
 import {
   countImportableNotes,
+  deleteCatalogItem,
   fetchExpenseNoteCategories,
   fetchGlobalShoppingItems,
   fetchItemDetail,
@@ -19,6 +20,7 @@ import {
 import { ShoppingSuggestionsPanel } from './ShoppingSuggestionsPanel';
 import { isLikelySameItem } from '../../utils/itemNameMerge';
 import { parseExpenseNoteText, sumExpenseNoteLines } from '../../utils/expenseNoteParser';
+import { formatCurrency } from '../../utils/currency';
 import type { ExpenseNoteCategory, ExpenseNoteEntrySummary, ExpenseNoteItem, ExpenseNoteItemDetail } from '../../types/expenseNote';
 import {
   EXPENSE_NOTE_EMPTY,
@@ -28,18 +30,25 @@ import {
   ExpenseNoteItemDetailPanel,
   ExpenseNoteRecentTable,
   ExpenseNoteLoadingCaption,
+  ExpenseNoteQuickAddField,
   ExpenseNoteSection,
 } from './expenseNoteCompactUi';
 import { ListPager } from '../common/ListPager';
 import { paginateList } from '../../utils/paginateList';
 import { toast } from 'sonner';
 
+type ShoppingView = 'trip' | 'items';
+
 export const GlobalShoppingListPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
+  const currency = profile?.local_currency || 'USD';
+  const fmtAmount = useCallback((n: number) => formatCurrency(n, currency), [currency]);
+
   const [categories, setCategories] = useState<ExpenseNoteCategory[]>([]);
   const [items, setItems] = useState<ExpenseNoteItem[]>([]);
   const [recentEntries, setRecentEntries] = useState<ExpenseNoteEntrySummary[]>([]);
+  const [purchaseDates, setPurchaseDates] = useState<Map<string, string[]>>(new Map());
   const [filterCategory, setFilterCategory] = useState('');
   const [search, setSearch] = useState('');
   const [quickAdd, setQuickAdd] = useState('');
@@ -48,9 +57,9 @@ export const GlobalShoppingListPage: React.FC = () => {
   const [detail, setDetail] = useState<ExpenseNoteItemDetail | null>(null);
   const [savingItem, setSavingItem] = useState(false);
   const [mergingItem, setMergingItem] = useState(false);
+  const [deletingItem, setDeletingItem] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
-  const [view, setView] = useState<'catalog' | 'suggestions'>('catalog');
-  const [purchaseDates, setPurchaseDates] = useState<Map<string, string[]>>(new Map());
+  const [view, setView] = useState<ShoppingView>('items');
   const [markingId, setMarkingId] = useState<string | null>(null);
 
   const parsed = useMemo(() => parseExpenseNoteText(quickAdd), [quickAdd]);
@@ -58,15 +67,17 @@ export const GlobalShoppingListPage: React.FC = () => {
 
   const load = useCallback(async () => {
     if (!user?.id) return;
-    const [cats, rows, recent] = await Promise.all([
+    const [cats, rows, recent, dates] = await Promise.all([
       fetchExpenseNoteCategories(user.id),
-      fetchGlobalShoppingItems(user.id, filterCategory || undefined),
+      fetchGlobalShoppingItems(user.id),
       fetchRecentNoteEntries(user.id),
+      fetchItemPurchaseDates(user.id),
     ]);
     setCategories(cats);
     setItems(rows);
     setRecentEntries(recent);
-  }, [user?.id, filterCategory]);
+    setPurchaseDates(dates);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -91,19 +102,6 @@ export const GlobalShoppingListPage: React.FC = () => {
       cancelled = true;
     };
   }, [user?.id, load]);
-
-  useEffect(() => {
-    if (view !== 'suggestions' || !user?.id) return;
-    let cancelled = false;
-    fetchItemPurchaseDates(user.id)
-      .then((m) => {
-        if (!cancelled) setPurchaseDates(m);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [view, user?.id, items]);
 
   const mergeCandidates = useMemo(() => {
     if (!detail) return [];
@@ -134,12 +132,16 @@ export const GlobalShoppingListPage: React.FC = () => {
   };
 
   const filtered = useMemo(() => {
+    let list = items;
+    if (filterCategory) list = list.filter((i) => i.category_id === filterCategory);
     const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(
-      (i) => i.display_name.toLowerCase().includes(q) || i.name_normalized.includes(q)
-    );
-  }, [items, search]);
+    if (q) {
+      list = list.filter(
+        (i) => i.display_name.toLowerCase().includes(q) || i.name_normalized.includes(q)
+      );
+    }
+    return list;
+  }, [items, filterCategory, search]);
 
   useEffect(() => {
     setItemsPage(1);
@@ -182,6 +184,21 @@ export const GlobalShoppingListPage: React.FC = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!user?.id || !detail) return;
+    setDeletingItem(true);
+    try {
+      await deleteCatalogItem(user.id, detail.item.id);
+      setDetail(null);
+      await load();
+      toast.success('Item deleted');
+    } catch {
+      toast.error('Failed to delete item');
+    } finally {
+      setDeletingItem(false);
+    }
+  };
+
   const handleQuickSave = async () => {
     if (!user?.id || !quickAdd.trim()) return;
     setSaving(true);
@@ -203,7 +220,6 @@ export const GlobalShoppingListPage: React.FC = () => {
     try {
       await markCatalogItemPurchased(user.id, item.id);
       await load();
-      setPurchaseDates(await fetchItemPurchaseDates(user.id));
       toast.success(`${item.display_name} marked purchased`);
     } catch {
       toast.error('Failed to update item');
@@ -224,68 +240,76 @@ export const GlobalShoppingListPage: React.FC = () => {
     <div className="w-full max-w-full m-0 min-w-0">
       <ExpenseNoteLoadingCaption active={importing} className="mb-3" />
 
-      <div className="flex gap-2 mb-3">
-        <button type="button" className={tabCls(view === 'catalog')} onClick={() => setView('catalog')}>
-          Catalog
+      <div className="flex gap-2 mb-3" role="tablist">
+        <button type="button" role="tab" aria-selected={view === 'items'} className={tabCls(view === 'items')} onClick={() => setView('items')}>
+          My items
         </button>
-        <button type="button" className={tabCls(view === 'suggestions')} onClick={() => setView('suggestions')}>
-          Before next shop
+        <button type="button" role="tab" aria-selected={view === 'trip'} className={tabCls(view === 'trip')} onClick={() => setView('trip')}>
+          Shopping trip
         </button>
       </div>
 
-      {view === 'suggestions' ? (
+      {view === 'trip' ? (
         <ShoppingSuggestionsPanel
           items={items}
           purchaseDates={purchaseDates}
           markingId={markingId}
+          fmtAmount={fmtAmount}
           onMarkPurchased={handleMarkPurchased}
           onSelectItem={openItemDetail}
         />
-      ) : null}
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5 items-start md:items-stretch">
+          <ExpenseNoteSection title="Recent notes" collapseOnMobile equalHeightDesktop className="order-2 md:order-1">
+            {recentEntries.length > 0 ? (
+              <ExpenseNoteRecentTable entries={recentEntries} onOpenTransaction={openTransaction} />
+            ) : (
+              <p className={`${EXPENSE_NOTE_EMPTY} flex-1 flex items-center justify-center`}>
+                Add items in transaction notes like &quot;Egg 12 138&quot;
+              </p>
+            )}
+          </ExpenseNoteSection>
 
-      <div
-        className={`grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5 items-start md:items-stretch ${view === 'suggestions' ? 'hidden' : ''}`}
-      >
-        <ExpenseNoteSection title="Recent notes" collapseOnMobile equalHeightDesktop className="order-3 md:order-1">
-          {recentEntries.length > 0 ? (
-            <ExpenseNoteRecentTable
-              entries={recentEntries}
-              onOpenTransaction={openTransaction}
-            />
-          ) : (
-            <p className={`${EXPENSE_NOTE_EMPTY} flex-1 flex items-center justify-center`}>No notes yet</p>
-          )}
-        </ExpenseNoteSection>
-
-        <ExpenseNoteSection title="Quick add" equalHeightDesktop panelClassName="md:overflow-y-auto" className="order-1 md:order-2">
-            <textarea
+          <ExpenseNoteSection title="Quick add" equalHeightDesktop panelClassName="md:overflow-y-auto" className="order-1 md:order-2">
+            <ExpenseNoteQuickAddField
               value={quickAdd}
-              onChange={(e) => e.target.value.length <= EXPENSE_NOTE_RAW_MAX && setQuickAdd(e.target.value)}
+              onChange={setQuickAdd}
+              userId={user?.id}
+              disabled={saving || importing}
               placeholder="Toast 43, Egg 12 138, Potato 2kg 40"
-              className="w-full flex-1 min-h-[64px] md:min-h-0 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 resize-none"
             />
             <ExpenseNoteParseHint lines={parsed} />
-            <ExpenseNoteParsedPreviewTable lines={parsed} lineTotal={lineTotal} />
+            <ExpenseNoteParsedPreviewTable lines={parsed} lineTotal={lineTotal} fmtAmount={fmtAmount} />
             <button
               type="button"
               disabled={saving || !quickAdd.trim() || importing}
               onClick={handleQuickSave}
               className="shrink-0 w-full sm:w-auto px-3 py-1.5 text-xs text-white bg-gradient-primary rounded-lg disabled:opacity-50"
             >
-              {saving ? 'Saving…' : 'Save to global list'}
+              {saving ? 'Saving…' : 'Save to list'}
             </button>
-        </ExpenseNoteSection>
+          </ExpenseNoteSection>
 
-        <ExpenseNoteSection title="All items" titleInPanel className="order-2 md:order-3 md:col-span-2">
-          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center min-w-0">
+          <ExpenseNoteSection title="All items" titleInPanel className="order-3 md:col-span-2">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center min-w-0">
               <div className="relative w-full sm:flex-1 sm:min-w-[140px]">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search…"
-                  className="w-full pl-7 pr-2 py-1.5 sm:py-1 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                  className="w-full pl-7 pr-7 py-1.5 sm:py-1 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
                 />
+                {search && (
+                  <button
+                    type="button"
+                    aria-label="Clear search"
+                    onClick={() => setSearch('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
               <div className="flex flex-wrap gap-1.5 items-center">
                 <button
@@ -314,25 +338,32 @@ export const GlobalShoppingListPage: React.FC = () => {
                   </button>
                 ))}
               </div>
-          </div>
+            </div>
 
-          {filtered.length > 0 ? (
-            <>
-              <ExpenseNoteItemsTable items={pagedItems.items} onSelect={openItemDetail} />
-              <ListPager
-                page={pagedItems.page}
-                totalPages={pagedItems.totalPages}
-                total={pagedItems.total}
-                start={pagedItems.start}
-                end={pagedItems.end}
-                onPage={setItemsPage}
-              />
-            </>
-          ) : (
-            !importing && <p className={EXPENSE_NOTE_EMPTY}>No items yet</p>
-          )}
-        </ExpenseNoteSection>
-      </div>
+            {filtered.length > 0 ? (
+              <>
+                <ExpenseNoteItemsTable
+                  items={pagedItems.items}
+                  onSelect={openItemDetail}
+                  onMarkPurchased={handleMarkPurchased}
+                  markingId={markingId}
+                  fmtAmount={fmtAmount}
+                />
+                <ListPager
+                  page={pagedItems.page}
+                  totalPages={pagedItems.totalPages}
+                  total={pagedItems.total}
+                  start={pagedItems.start}
+                  end={pagedItems.end}
+                  onPage={setItemsPage}
+                />
+              </>
+            ) : (
+              !importing && <p className={EXPENSE_NOTE_EMPTY}>No items yet — use quick add</p>
+            )}
+          </ExpenseNoteSection>
+        </div>
+      )}
 
       {detail && (
         <ExpenseNoteItemDetailPanel
@@ -341,10 +372,13 @@ export const GlobalShoppingListPage: React.FC = () => {
           mergeCandidates={mergeCandidates}
           saving={savingItem}
           merging={mergingItem}
+          deleting={deletingItem}
           onSave={handleCatalogSave}
           onMerge={handleMerge}
+          onDelete={handleDelete}
           onOpenTransaction={openTransaction}
           onClose={() => setDetail(null)}
+          fmtAmount={fmtAmount}
         />
       )}
     </div>

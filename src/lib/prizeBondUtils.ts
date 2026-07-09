@@ -5,13 +5,21 @@ const SERIES_RE = [
   new RegExp(`${BN_CONSONANT}{2}[\u0980-\u09FF]*?([০-৯0-9]{7,12})`, 'g'),
 ];
 
-export {
+import {
   PRIZE_BOND_DENOMINATION,
   PRIZE_BOND_BATCH_SIZE,
   PRIZE_BOND_PAGE_SIZE,
   getDrawSchedule,
   isPrizeBondDrawDay,
 } from '../../lib/prizeBondShared.js';
+
+export {
+  PRIZE_BOND_DENOMINATION,
+  PRIZE_BOND_BATCH_SIZE,
+  PRIZE_BOND_PAGE_SIZE,
+  getDrawSchedule,
+  isPrizeBondDrawDay,
+};
 
 export function normalizeBondDigits(input: string): string {
   return input
@@ -103,4 +111,26 @@ export function formatBondListForPbris(numbers: string[]): string {
 
 export function winningBondIdSet(wins: { bond_id: string }[]): Set<string> {
   return new Set(wins.map((w) => w.bond_id));
+}
+
+export type PrizeBondDashboardSummary = {
+  bondCount: number;
+  faceValue: number;
+  winCount: number;
+  nextDraw: Date;
+  previousDraw: Date;
+};
+
+export function summarizePrizeBonds(
+  bonds: { denomination?: number }[],
+  wins: unknown[],
+): PrizeBondDashboardSummary {
+  const schedule = getDrawSchedule();
+  return {
+    bondCount: bonds.length,
+    faceValue: bonds.length * PRIZE_BOND_DENOMINATION,
+    winCount: wins.length,
+    nextDraw: schedule.next,
+    previousDraw: schedule.previous,
+  };
 }

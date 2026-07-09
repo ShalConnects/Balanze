@@ -7,6 +7,7 @@ import {
   buildShoppingSuggestions,
   estimateSuggestionsBudget,
   formatSuggestionsShareText,
+  shoppingTripHelpLines,
   type ShoppingSuggestion,
 } from '../../utils/shoppingSuggestions';
 import { getShoppingFrequencyDays, setShoppingFrequencyDays } from '../../utils/shoppingFrequencyPrefs';
@@ -24,13 +25,52 @@ const urgencyLabel: Record<ShoppingSuggestion['urgency'], string> = {
   ok: 'Due',
 };
 
+const SuggestionRow: React.FC<{
+  s: ShoppingSuggestion;
+  markingId: string | null;
+  onMarkPurchased: (item: ExpenseNoteItem) => void;
+  onSelectItem: (id: string) => void;
+}> = ({ s, markingId, onMarkPurchased, onSelectItem }) => {
+  const dueLabel =
+    s.daysUntilRunOut < 0
+      ? `${Math.abs(s.daysUntilRunOut)}d overdue`
+      : s.daysUntilRunOut === 0
+        ? 'today'
+        : `${s.daysUntilRunOut}d`;
+  return (
+    <li className="flex items-center gap-2 px-2 py-2 bg-white dark:bg-gray-900 text-xs">
+      <button
+        type="button"
+        title="Mark purchased"
+        disabled={markingId === s.item.id}
+        onClick={() => onMarkPurchased(s.item)}
+        className="shrink-0 p-1 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-green-50 dark:hover:bg-green-900/30 disabled:opacity-40"
+      >
+        <Check className="w-3.5 h-3.5 text-green-600" />
+      </button>
+      <button
+        type="button"
+        onClick={() => onSelectItem(s.item.id)}
+        className="flex-1 min-w-0 text-left truncate text-gray-800 dark:text-gray-200 hover:underline"
+      >
+        {s.item.display_name}
+      </button>
+      <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${urgencyClass[s.urgency]}`}>
+        {urgencyLabel[s.urgency]}
+      </span>
+      <span className="shrink-0 text-gray-500 w-14 text-right">{dueLabel}</span>
+    </li>
+  );
+};
+
 export const ShoppingSuggestionsPanel: React.FC<{
   items: ExpenseNoteItem[];
   purchaseDates: Map<string, string[]>;
   markingId: string | null;
+  fmtAmount?: (n: number) => string;
   onMarkPurchased: (item: ExpenseNoteItem) => void;
   onSelectItem: (id: string) => void;
-}> = ({ items, purchaseDates, markingId, onMarkPurchased, onSelectItem }) => {
+}> = ({ items, purchaseDates, markingId, fmtAmount, onMarkPurchased, onSelectItem }) => {
   const [frequencyDays, setFrequencyDays] = useState(getShoppingFrequencyDays);
 
   const { suggestions, nextShoppingDate } = useMemo(
@@ -39,6 +79,17 @@ export const ShoppingSuggestionsPanel: React.FC<{
   );
 
   const budget = useMemo(() => estimateSuggestionsBudget(suggestions), [suggestions]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, ShoppingSuggestion[]>();
+    for (const s of suggestions) {
+      const key = s.item.category_name || 'Other';
+      const list = map.get(key) || [];
+      list.push(s);
+      map.set(key, list);
+    }
+    return [...map.entries()];
+  }, [suggestions]);
 
   const setFrequency = (days: number) => {
     setShoppingFrequencyDays(days);
@@ -59,13 +110,6 @@ export const ShoppingSuggestionsPanel: React.FC<{
     await navigator.clipboard.writeText(text);
     toast.success('List copied to clipboard');
   };
-
-  const dueLabel = (s: ShoppingSuggestion) =>
-    s.daysUntilRunOut < 0
-      ? `${Math.abs(s.daysUntilRunOut)}d overdue`
-      : s.daysUntilRunOut === 0
-        ? 'today'
-        : `${s.daysUntilRunOut}d`;
 
   return (
     <div className={`${EXPENSE_NOTE_PANEL} space-y-3`}>
@@ -90,7 +134,7 @@ export const ShoppingSuggestionsPanel: React.FC<{
           <>
             <span className="text-gray-400">·</span>
             <span>
-              Est. <strong>{budget.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+              Est. <strong>{fmtAmount ? fmtAmount(budget) : budget.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
             </span>
           </>
         )}
@@ -106,33 +150,34 @@ export const ShoppingSuggestionsPanel: React.FC<{
         )}
       </div>
 
-      {suggestions.length > 0 ? (
-        <ul className="divide-y divide-gray-100 dark:divide-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden max-h-[min(55vh,480px)] overflow-y-auto">
-          {suggestions.map((s) => (
-            <li key={s.item.id} className="flex items-center gap-2 px-2 py-2 bg-white dark:bg-gray-900 text-xs">
-              <button
-                type="button"
-                title="Mark purchased"
-                disabled={markingId === s.item.id}
-                onClick={() => onMarkPurchased(s.item)}
-                className="shrink-0 p-1 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-green-50 dark:hover:bg-green-900/30 disabled:opacity-40"
-              >
-                <Check className="w-3.5 h-3.5 text-green-600" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onSelectItem(s.item.id)}
-                className="flex-1 min-w-0 text-left truncate text-gray-800 dark:text-gray-200 hover:underline"
-              >
-                {s.item.display_name}
-              </button>
-              <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${urgencyClass[s.urgency]}`}>
-                {urgencyLabel[s.urgency]}
-              </span>
-              <span className="shrink-0 text-gray-500 w-14 text-right">{dueLabel(s)}</span>
-            </li>
+      <details className="text-xs text-gray-500 dark:text-gray-400 rounded-lg border border-dashed border-gray-200 dark:border-gray-700 px-2.5 py-2">
+        <summary className="cursor-pointer select-none text-gray-600 dark:text-gray-300 font-medium">How this works</summary>
+        <ul className="mt-2 space-y-1 list-disc pl-4">
+          {shoppingTripHelpLines(frequencyDays).map((line) => (
+            <li key={line}>{line}</li>
           ))}
         </ul>
+      </details>
+
+      {suggestions.length > 0 ? (
+        <div className="space-y-3 max-h-[min(55vh,480px)] overflow-y-auto">
+          {grouped.map(([category, rows]) => (
+            <div key={category}>
+              <p className="text-[10px] font-medium uppercase text-gray-400 mb-1 px-1">{category}</p>
+              <ul className="divide-y divide-gray-100 dark:divide-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+                {rows.map((s) => (
+                  <SuggestionRow
+                    key={s.item.id}
+                    s={s}
+                    markingId={markingId}
+                    onMarkPurchased={onMarkPurchased}
+                    onSelectItem={onSelectItem}
+                  />
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       ) : (
         <p className={EXPENSE_NOTE_EMPTY}>
           Nothing due before your next shop. Add purchase history via transaction notes or quick add.

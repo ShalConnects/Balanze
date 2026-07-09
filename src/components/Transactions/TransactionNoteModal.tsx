@@ -4,19 +4,14 @@ import { toast } from 'sonner';
 import { useAuthStore } from '../../store/authStore';
 import { MAX_TRANSACTION_NOTE_LENGTH } from '../../constants/transactionNote';
 import { EXPENSE_NOTE_RAW_MAX } from '../../constants/expenseNote';
-import { ExpenseNoteLoadingCaption, ExpenseNoteParseHint, ExpenseNoteParsedPreviewTable } from './expenseNoteCompactUi';
+import { ExpenseNoteLoadingCaption, ExpenseNoteParseHint, ExpenseNoteParsedPreviewTable, ExpenseNoteSuggestDropdown } from './expenseNoteCompactUi';
 import {
   deleteExpenseNoteDocument,
   fetchExpenseNoteRawText,
   saveExpenseNoteDocument,
-  searchExpenseNoteItems,
 } from '../../lib/expenseNoteService';
-import {
-  buildExpenseNoteSummary,
-  getActiveExpenseNoteSegment,
-  parseExpenseNoteText,
-  sumExpenseNoteLines,
-} from '../../utils/expenseNoteParser';
+import { buildExpenseNoteSummary, parseExpenseNoteText, sumExpenseNoteLines } from '../../utils/expenseNoteParser';
+import { applyExpenseNoteSuggestion, useExpenseNoteItemSuggestions } from '../../hooks/useExpenseNoteItemSuggestions';
 
 interface TransactionNoteModalProps {
   isOpen: boolean;
@@ -37,9 +32,8 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
   const [rawText, setRawText] = useState('');
   const [loading, setLoading] = useState(false);
   const [hydrating, setHydrating] = useState(false);
-  const [suggestions, setSuggestions] = useState<{ id: string; display_name: string; category_name?: string }[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const suggestTimer = useRef<ReturnType<typeof setTimeout>>();
+  const { suggestions, refresh, clear } = useExpenseNoteItemSuggestions(user?.id);
 
   const parsedLines = useMemo(() => parseExpenseNoteText(rawText), [rawText]);
   const lineTotal = useMemo(() => sumExpenseNoteLines(parsedLines), [parsedLines]);
@@ -60,35 +54,18 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     setRawText('');
-    setSuggestions([]);
+    clear();
     void load();
     const t = setTimeout(() => textareaRef.current?.focus(), 100);
     return () => clearTimeout(t);
-  }, [isOpen, load]);
-
-  const refreshSuggestions = (text: string, caret: number) => {
-    if (!user?.id) return;
-    const segment = getActiveExpenseNoteSegment(text, caret).trim();
-    if (segment.length < 2) {
-      setSuggestions([]);
-      return;
-    }
-    clearTimeout(suggestTimer.current);
-    suggestTimer.current = setTimeout(() => {
-      searchExpenseNoteItems(user.id, segment).then(setSuggestions);
-    }, 150);
-  };
+  }, [isOpen, load, clear]);
 
   const applySuggestion = (name: string) => {
     const el = textareaRef.current;
     if (!el) return;
     const caret = el.selectionStart ?? rawText.length;
-    const before = rawText.slice(0, caret);
-    const after = rawText.slice(caret);
-    const lastComma = before.lastIndexOf(',');
-    const head = lastComma >= 0 ? before.slice(0, lastComma + 1) + ' ' : '';
-    setRawText(`${head}${name}${after.trim() ? ', ' + after.replace(/^\s*,\s*/, '') : ''}`.replace(/^\s*,\s*/, ''));
-    setSuggestions([]);
+    setRawText(applyExpenseNoteSuggestion(rawText, caret, name));
+    clear();
     setTimeout(() => el.focus(), 0);
   };
 
@@ -172,34 +149,18 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
                 const v = e.target.value;
                 if (v.length <= EXPENSE_NOTE_RAW_MAX) {
                   setRawText(v);
-                  refreshSuggestions(v, e.target.selectionStart ?? v.length);
+                  refresh(v, e.target.selectionStart ?? v.length);
                 }
               }}
-              onClick={(e) => refreshSuggestions(rawText, e.currentTarget.selectionStart ?? 0)}
-              onKeyUp={(e) => refreshSuggestions(rawText, e.currentTarget.selectionStart ?? 0)}
+              onClick={(e) => refresh(rawText, e.currentTarget.selectionStart ?? 0)}
+              onKeyUp={(e) => refresh(rawText, e.currentTarget.selectionStart ?? 0)}
               placeholder="Toast 43, Egg 12 138, Chicken 218x160"
               className={`w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none min-h-[88px] ${hydrating ? 'opacity-60 animate-pulse' : ''}`}
               rows={3}
               disabled={loading || hydrating}
             />
             {suggestions.length > 0 && !hydrating && (
-              <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-36 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg">
-                {suggestions.map((s) => (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        applySuggestion(s.display_name);
-                      }}
-                    >
-                      {s.display_name}
-                      {s.category_name && <span className="text-gray-400 ml-1">· {s.category_name}</span>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <ExpenseNoteSuggestDropdown suggestions={suggestions} onPick={applySuggestion} />
             )}
             <span className={`text-xs mt-1 block ${isOverLimit ? 'text-red-500' : 'text-gray-500'}`}>
               {charCount}/{MAX_TRANSACTION_NOTE_LENGTH}

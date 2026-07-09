@@ -30,8 +30,8 @@ function purchaseDayMsList(dates: string[]): number[] {
   return [...new Set(dates.map(dayStartMs))].sort((a, b) => a - b);
 }
 
-export function estimateDurationDays(purchaseMs: number[]): number {
-  if (purchaseMs.length < 2) return DEFAULT_ITEM_DURATION_DAYS;
+export function estimateDurationDays(purchaseMs: number[], fallbackDays = DEFAULT_ITEM_DURATION_DAYS): number {
+  if (purchaseMs.length < 2) return fallbackDays;
   const gaps: number[] = [];
   for (let i = 1; i < purchaseMs.length; i++) {
     gaps.push(Math.max(1, Math.round((purchaseMs[i]! - purchaseMs[i - 1]!) / MS_PER_DAY)));
@@ -70,7 +70,7 @@ export function buildShoppingSuggestions(
     if (!purchaseMs.length) continue;
 
     const lastMs = purchaseMs[purchaseMs.length - 1]!;
-    const durationDays = estimateDurationDays(purchaseMs);
+    const durationDays = estimateDurationDays(purchaseMs, frequencyDays);
     const runOutMs = lastMs + durationDays * MS_PER_DAY;
     if (runOutMs > nextShopMs) continue;
 
@@ -112,4 +112,15 @@ export function formatSuggestionsShareText(
     return `${tag}${s.item.display_name} (${due})`.trim();
   });
   return [`Shop by ${date}`, '', ...lines].join('\n');
+}
+
+/** Plain-language help for the shopping trip UI. */
+export function shoppingTripHelpLines(frequencyDays: number): string[] {
+  return [
+    `Items here may run out before your next shop (every ${frequencyDays} days).`,
+    'Bought more than once: we use the gap between your buys.',
+    `Bought only once: we assume about ${frequencyDays} days until we learn more.`,
+    'Out = overdue · Low = next few days · Due = before next shop.',
+    '✓ means you bought it today — updates predictions only, not transaction notes.',
+  ];
 }

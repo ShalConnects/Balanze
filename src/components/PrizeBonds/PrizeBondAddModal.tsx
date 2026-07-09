@@ -11,9 +11,10 @@ type Props = {
   onAdd: (number: string) => Promise<void>;
   onBulk: (text: string) => Promise<void>;
   onScan: (feedback: PrizeBondScanFeedback) => Promise<void>;
+  initialNumber?: string;
 };
 
-export const PrizeBondAddModal: React.FC<Props> = ({ open, onClose, userId, onAdd, onBulk, onScan }) => {
+export const PrizeBondAddModal: React.FC<Props> = ({ open, onClose, userId, onAdd, onBulk, onScan, initialNumber }) => {
   const { t } = useTranslation();
   const [input, setInput] = useState('');
   const [bulk, setBulk] = useState('');
@@ -26,8 +27,10 @@ export const PrizeBondAddModal: React.FC<Props> = ({ open, onClose, userId, onAd
       setBulk('');
       setShowBulk(false);
       setBusy(false);
+    } else if (initialNumber) {
+      setInput(initialNumber);
     }
-  }, [open]);
+  }, [open, initialNumber]);
 
   if (!open) return null;
 

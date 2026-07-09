@@ -1,7 +1,14 @@
 import type { User } from '@supabase/supabase-js';
-import { getRememberMePreference } from './authStorage';
+import { getRememberMePreference, markPersistentLogin } from './authStorage';
+import { isAndroidApp } from './platformDetection';
 
-export const shouldRejectStoredSession = () => getRememberMePreference() === false;
+/** Web only — Android stays signed in until manual sign-out */
+export const shouldRejectStoredSession = () =>
+  !isAndroidApp() && getRememberMePreference() === false;
+
+export const persistAndroidLogin = () => {
+  if (isAndroidApp()) markPersistentLogin();
+};
 
 export const isConfirmedUser = (user: User | null | undefined): boolean =>
   !!user?.email_confirmed_at;

@@ -31,3 +31,7 @@ export const GLOBAL_SEARCH_INV_GOAL_KEYS: Array<{ name: string; weight: number }
   { name: 'status', weight: 0.15 },
   { name: 'priority', weight: 0.1 },
 ];
+
+export const GLOBAL_SEARCH_PRIZE_BOND_KEYS: Array<{ name: string; weight: number }> = [
+  { name: 'bond_number', weight: 1 },
+];

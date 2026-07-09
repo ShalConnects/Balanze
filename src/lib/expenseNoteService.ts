@@ -1,6 +1,8 @@
 import { supabase } from './supabase';
 import { EXPENSE_NOTE_AUTOCOMPLETE_LIMIT, SHOPPING_CATEGORY_SEEDS } from '../constants/expenseNote';
 import { isLikelySameItem } from '../utils/itemNameMerge';
+import { getShoppingFrequencyDays } from '../utils/shoppingFrequencyPrefs';
+import { buildShoppingSuggestions } from '../utils/shoppingSuggestions';
 import {
   buildExpenseNoteSummary,
   lineDisplayAmount,
@@ -322,16 +324,18 @@ export async function fetchGlobalShoppingItems(
   }));
 }
 
-export async function fetchRecentItemCount(userId: string): Promise<number> {
-  const since = new Date();
-  since.setDate(since.getDate() - 7);
-  const { count, error } = await supabase
-    .from('expense_note_items')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('last_purchased_at', since.toISOString());
-  if (error) return 0;
-  return count ?? 0;
+export async function fetchDueShoppingCount(userId: string): Promise<number> {
+  const [items, purchaseDates] = await Promise.all([
+    fetchGlobalShoppingItems(userId),
+    fetchItemPurchaseDates(userId),
+  ]);
+  const { suggestions } = buildShoppingSuggestions(items, purchaseDates, getShoppingFrequencyDays());
+  return suggestions.filter((s) => s.urgency !== 'ok').length;
+}
+
+export async function deleteCatalogItem(userId: string, itemId: string): Promise<void> {
+  const { error } = await supabase.from('expense_note_items').delete().eq('id', itemId).eq('user_id', userId);
+  if (error) throw error;
 }
 
 /** Catalog-only: updates global item row; does not touch documents, lines, or transaction notes. */

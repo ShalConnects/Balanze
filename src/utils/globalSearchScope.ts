@@ -11,7 +11,8 @@ export type GlobalSearchScope =
   | 'tasks'
   | 'invoices'
   | 'habits'
-  | 'courses';
+  | 'courses'
+  | 'bonds';
 
 const SCOPE_PREFIXES: Record<string, GlobalSearchScope> = {
   acc: 'accounts',
@@ -31,9 +32,11 @@ const SCOPE_PREFIXES: Record<string, GlobalSearchScope> = {
   invoice: 'invoices',
   habit: 'habits',
   course: 'courses',
+  bond: 'bonds',
+  bonds: 'bonds',
 };
 
-export const GLOBAL_SEARCH_PREFIX_HINTS = ['client:', 'txn:', 'invoice:', 'invest:'] as const;
+export const GLOBAL_SEARCH_PREFIX_HINTS = ['client:', 'txn:', 'invoice:', 'invest:', 'bond:'] as const;
 
 export function parseGlobalSearchQuery(rawQuery: string): { scope: GlobalSearchScope; query: string } {
   const trimmed = rawQuery.trim();

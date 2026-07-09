@@ -3,6 +3,7 @@ import { ArrowRight, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { StatCard } from './StatCard';
+import { DashboardWidgetInfo } from './DashboardWidgetInfo';
 import { formatCurrency } from '../../utils/currency';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { getPreference, setPreference } from '../../lib/userPreferences';

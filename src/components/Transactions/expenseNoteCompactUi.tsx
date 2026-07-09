@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { Check, ChevronDown, Loader2, ShoppingBasket, X } from 'lucide-react';
-import { EXPENSE_NOTE_LOADING_LINES, SHOPPING_CATEGORY_SEEDS } from '../../constants/expenseNote';
+import React, { useEffect, useRef, useState } from 'react';
+import { Check, ChevronDown, Loader2, ShoppingBasket, Trash2, X } from 'lucide-react';
+import { EXPENSE_NOTE_LOADING_LINES, EXPENSE_NOTE_RAW_MAX, SHOPPING_CATEGORY_SEEDS } from '../../constants/expenseNote';
 import { expenseNoteParseHintText, lineDisplayAmount } from '../../utils/expenseNoteParser';
+import { applyExpenseNoteSuggestion, useExpenseNoteItemSuggestions, type ExpenseNoteSuggestItem } from '../../hooks/useExpenseNoteItemSuggestions';
 import { isAndroidApp } from '../../utils/platformDetection';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import type {
@@ -104,6 +105,70 @@ const th = 'text-left align-middle px-2 py-1.5 font-medium text-gray-500 whitesp
 const td = 'px-2 py-1.5 align-middle text-gray-800 dark:text-gray-200';
 const priceDeltaClass = (delta: number | null | undefined) =>
   delta == null ? 'text-gray-400' : delta >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600';
+const fmtAmt = (n: number, fmt?: (v: number) => string) => (fmt ? fmt(n) : n.toLocaleString());
+
+export const ExpenseNoteSuggestDropdown: React.FC<{
+  suggestions: ExpenseNoteSuggestItem[];
+  onPick: (name: string) => void;
+}> = ({ suggestions, onPick }) => (
+  <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-36 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg">
+    {suggestions.map((s) => (
+      <li key={s.id}>
+        <button
+          type="button"
+          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onPick(s.display_name);
+          }}
+        >
+          {s.display_name}
+          {s.category_name && <span className="text-gray-400 ml-1">· {s.category_name}</span>}
+        </button>
+      </li>
+    ))}
+  </ul>
+);
+
+export const ExpenseNoteQuickAddField: React.FC<{
+  value: string;
+  onChange: (v: string) => void;
+  userId?: string;
+  disabled?: boolean;
+  placeholder?: string;
+  className?: string;
+}> = ({ value, onChange, userId, disabled, placeholder, className = '' }) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { suggestions, refresh, clear } = useExpenseNoteItemSuggestions(userId);
+  const pick = (name: string) => {
+    const el = textareaRef.current;
+    const caret = el?.selectionStart ?? value.length;
+    onChange(applyExpenseNoteSuggestion(value, caret, name));
+    clear();
+    setTimeout(() => el?.focus(), 0);
+  };
+  return (
+    <div className={`relative ${className}`.trim()}>
+      <textarea
+        ref={textareaRef}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v.length <= EXPENSE_NOTE_RAW_MAX) {
+            onChange(v);
+            refresh(v, e.target.selectionStart ?? v.length);
+          }
+        }}
+        onClick={(e) => refresh(value, e.currentTarget.selectionStart ?? 0)}
+        onKeyUp={(e) => refresh(value, e.currentTarget.selectionStart ?? 0)}
+        placeholder={placeholder}
+        className="w-full flex-1 min-h-[64px] md:min-h-0 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 resize-none"
+      />
+      {suggestions.length > 0 && !disabled && <ExpenseNoteSuggestDropdown suggestions={suggestions} onPick={pick} />}
+    </div>
+  );
+};
 
 export const ExpenseNoteParseHint: React.FC<{ lines: ParsedExpenseNoteLine[]; className?: string }> = ({
   lines,
@@ -124,7 +189,8 @@ const parseRowClass = (s: ExpenseNoteParseStatus) =>
 export const ExpenseNoteParsedPreviewTable: React.FC<{
   lines: ParsedExpenseNoteLine[];
   lineTotal?: number;
-}> = ({ lines, lineTotal }) => {
+  fmtAmount?: (n: number) => string;
+}> = ({ lines, lineTotal, fmtAmount }) => {
   if (!lines.length) return null;
   const hint = expenseNoteParseHintText(lines);
   return (
@@ -149,7 +215,7 @@ export const ExpenseNoteParsedPreviewTable: React.FC<{
               <td className="px-2 py-1 text-right text-gray-600 dark:text-gray-400">
                 {line.quantityExpr ||
                   (line.quantity != null ? `${line.quantity}${line.unit || ''} → ` : '')}
-                {lineDisplayAmount(line) != null ? lineDisplayAmount(line)!.toLocaleString() : '—'}
+                {lineDisplayAmount(line) != null ? fmtAmt(lineDisplayAmount(line)!, fmtAmount) : '—'}
               </td>
             </tr>
           ))}
@@ -163,7 +229,7 @@ export const ExpenseNoteParsedPreviewTable: React.FC<{
       )}
       {lineTotal != null && lineTotal > 0 && (
         <div className="px-2 py-1 text-xs font-medium border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/30">
-          Total: {lineTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+          Total: {fmtAmt(lineTotal, fmtAmount)}
         </div>
       )}
     </div>
@@ -216,7 +282,10 @@ export const ExpenseNoteRecentTable: React.FC<{
 export const ExpenseNoteItemsTable: React.FC<{
   items: ExpenseNoteItem[];
   onSelect: (id: string) => void;
-}> = ({ items, onSelect }) => {
+  onMarkPurchased?: (item: ExpenseNoteItem) => void;
+  markingId?: string | null;
+  fmtAmount?: (n: number) => string;
+}> = ({ items, onSelect, onMarkPurchased, markingId, fmtAmount }) => {
   if (!items.length) return null;
   return (
     <div className={`${tableWrap} mt-2.5 max-h-[min(55vh,420px)] md:max-h-[min(65vh,520px)] overflow-y-auto`}>
@@ -224,6 +293,7 @@ export const ExpenseNoteItemsTable: React.FC<{
       <table className={tableMin}>
         <thead className="bg-gray-50 dark:bg-gray-900/50 sticky top-0">
           <tr>
+            {onMarkPurchased && <th className={`${th} w-8`} />}
             <th className={th}>Item</th>
             <th className={th}>Category</th>
             <th className={`${th} text-right`}>Used</th>
@@ -235,16 +305,31 @@ export const ExpenseNoteItemsTable: React.FC<{
           {items.map((item) => (
             <tr
               key={item.id}
-              className="border-t border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
-              onClick={() => onSelect(item.id)}
+              className="border-t border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50"
             >
-              <td className={td}>{item.display_name}</td>
-              <td className="px-2 py-1 text-gray-500">{item.category_name || '—'}</td>
-              <td className="px-2 py-1 text-right text-gray-500">{item.usage_count}×</td>
-              <td className="px-2 py-1 text-right text-gray-700 dark:text-gray-300">
-                {item.last_price != null ? item.last_price.toLocaleString() : '—'}
+              {onMarkPurchased && (
+                <td className="px-1 py-1 align-middle">
+                  <button
+                    type="button"
+                    title="Mark purchased"
+                    disabled={markingId === item.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMarkPurchased(item);
+                    }}
+                    className="p-1 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-green-50 dark:hover:bg-green-900/30 disabled:opacity-40"
+                  >
+                    <Check className="w-3.5 h-3.5 text-green-600" />
+                  </button>
+                </td>
+              )}
+              <td className={`${td} cursor-pointer`} onClick={() => onSelect(item.id)}>{item.display_name}</td>
+              <td className="px-2 py-1 text-gray-500 cursor-pointer" onClick={() => onSelect(item.id)}>{item.category_name || '—'}</td>
+              <td className="px-2 py-1 text-right text-gray-500 cursor-pointer" onClick={() => onSelect(item.id)}>{item.usage_count}×</td>
+              <td className="px-2 py-1 text-right text-gray-700 dark:text-gray-300 cursor-pointer" onClick={() => onSelect(item.id)}>
+                {item.last_price != null ? fmtAmt(item.last_price, fmtAmount) : '—'}
               </td>
-              <td className={`px-2 py-1 text-right ${priceDeltaClass(item.price_delta)}`}>
+              <td className={`px-2 py-1 text-right cursor-pointer ${priceDeltaClass(item.price_delta)}`} onClick={() => onSelect(item.id)}>
                 {item.price_delta != null
                   ? `${item.price_delta >= 0 ? '+' : ''}${item.price_delta}`
                   : '—'}
@@ -269,11 +354,14 @@ export const ExpenseNoteItemDetailPanel: React.FC<{
   mergeCandidates?: { label: string; value: string }[];
   saving?: boolean;
   merging?: boolean;
+  deleting?: boolean;
   onSave: (patch: { displayName: string; categoryId: string }) => void | Promise<void>;
   onMerge?: (removeId: string) => void | Promise<void>;
+  onDelete?: () => void | Promise<void>;
   onOpenTransaction?: (transactionId: string) => void;
   onClose: () => void;
-}> = ({ detail, categories, mergeCandidates, saving, merging, onSave, onMerge, onOpenTransaction, onClose }) => {
+  fmtAmount?: (n: number) => string;
+}> = ({ detail, categories, mergeCandidates, saving, merging, deleting, onSave, onMerge, onDelete, onOpenTransaction, onClose, fmtAmount }) => {
   const [displayName, setDisplayName] = useState(detail.item.display_name);
   const [categoryId, setCategoryId] = useState(detail.category?.id ?? categories[0]?.id ?? '');
   const [mergeInto, setMergeInto] = useState('');
@@ -334,6 +422,17 @@ export const ExpenseNoteItemDetailPanel: React.FC<{
           />
         </label>
         <p className="text-xs text-gray-500">Updates your global list only; past transaction notes stay unchanged.</p>
+        {onDelete && (
+          <button
+            type="button"
+            disabled={deleting || saving || merging}
+            onClick={onDelete}
+            className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1 disabled:opacity-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {deleting ? 'Deleting…' : 'Delete item'}
+          </button>
+        )}
         {mergeCandidates && mergeCandidates.length > 0 && onMerge && (
           <div className="flex flex-wrap gap-2 items-end">
             <label className="flex-1 min-w-[140px] space-y-1">
@@ -384,7 +483,7 @@ export const ExpenseNoteItemDetailPanel: React.FC<{
                         )}
                       </td>
                       <td className="px-2 py-1.5 text-right">
-                        {o.price.toLocaleString()}
+                        {fmtAmt(o.price, fmtAmount)}
                         {o.delta_from_previous != null && (
                           <span className={`ml-1 ${priceDeltaClass(o.delta_from_previous)}`}>
                             ({o.delta_from_previous >= 0 ? '+' : ''}{o.delta_from_previous})

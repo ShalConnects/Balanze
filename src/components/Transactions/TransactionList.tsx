@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check, EyeOff, FileText, X, History, ShoppingBasket } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check, EyeOff, FileText, X, History } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -30,13 +30,14 @@ import { useNavigate } from 'react-router-dom';
 import { LendBorrowInfoModal } from './LendBorrowInfoModal';
 import { TransactionNoteModal } from './TransactionNoteModal';
 import { EXPENSE_NOTE_OPEN_TX_KEY } from '../../constants/expenseNote';
-import { fetchRecentItemCount, prefetchExpenseNoteRawText } from '../../lib/expenseNoteService';
+import { prefetchExpenseNoteRawText } from '../../lib/expenseNoteService';
 import { TransactionEditHistory } from './TransactionEditHistory';
 import { useExport } from '../../hooks/useExport';
 import { useSelectionSearchSync } from '../../hooks/useSelectionSearchSync';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { normalizeSearchText } from '../../utils/searchText';
 import { FinancialHealthCard } from './FinancialHealthCard';
+import { ShoppingListNavButton } from './ShoppingListNavButton';
 import { hasActiveTableSettings, TransactionTableSettingsPanel } from './TransactionTableSettingsPanel';
 import { TransactionPeriodChangeCaption } from './TransactionPeriodChangeCaption';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
@@ -64,34 +65,6 @@ import {
   THEME_STATUS_ACTIVE_TEXT_CLASS,
   THEME_STATUS_PAUSED_TEXT_CLASS,
 } from '../../constants/appThemeClasses';
-
-function TransactionShoppingListButton({ className = '' }: { className?: string }) {
-  const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const [badge, setBadge] = useState(0);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    fetchRecentItemCount(user.id).then(setBadge).catch(() => setBadge(0));
-  }, [user?.id]);
-
-  return (
-    <button
-      type="button"
-      onClick={() => navigate('/shopping-list')}
-      className={`relative bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-2.5 py-1.5 h-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-center ${className}`}
-      title="Global shopping list"
-      aria-label="Global shopping list"
-    >
-      <ShoppingBasket className="w-4 h-4" />
-      {badge > 0 && (
-        <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 text-[10px] font-bold text-white bg-blue-600 rounded-full flex items-center justify-center">
-          {badge > 99 ? '99+' : badge}
-        </span>
-      )}
-    </button>
-  );
-}
 
 /** Actions column: Lend & Borrow uses Info; business-investment origin uses the Investments feature icon (LineChart). */
 function ManagedTransactionActionIcon({ transaction, className }: { transaction: Transaction; className: string }) {
@@ -1340,7 +1313,7 @@ const TransactionListComponent: React.FC<{
             </div>
 
             <div className="md:hidden">
-              <TransactionShoppingListButton />
+              <ShoppingListNavButton variant="toolbar" />
             </div>
 
             {/* Mobile Download Button */}
@@ -1732,7 +1705,7 @@ const TransactionListComponent: React.FC<{
                 )}
               </div>
               <div className="hidden md:flex items-center gap-1.5">
-                <TransactionShoppingListButton />
+                <ShoppingListNavButton variant="toolbar" />
               <div className="relative" ref={exportMenuRef}>
                 <button
                   onClick={() => {

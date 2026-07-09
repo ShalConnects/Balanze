@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, CreditCard, TrendingUp, ArrowLeftRight, ShoppingBag, Handshake, Sprout, BookOpen, Sparkles, Home, CheckSquare } from 'lucide-react';
+import { Plus, CreditCard, TrendingUp, ArrowLeftRight, ShoppingBag, Handshake, Sprout, BookOpen, Sparkles, Home, CheckSquare, Ticket } from 'lucide-react';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 import { CLIENTS_FEATURE_ICON } from '../../lib/clientFeatureIcon';
 import { useFinanceStore } from '../../store/useFinanceStore';
@@ -22,6 +22,8 @@ import { useAuthStore } from '../../store/authStore';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useMobileSidebar } from '../../context/MobileSidebarContext';
 import { BusinessInvestmentContractModal } from '../Dashboard/BusinessInvestmentContractModal';
+import { PrizeBondAddModalHost } from '../PrizeBonds/PrizeBondAddModalHost';
+import { investmentsBondsPath } from '../../lib/investmentsNav';
 
 // Define the props for our new ActionButton component.
 interface ActionButtonProps {
@@ -69,6 +71,7 @@ export const FloatingActionButton: React.FC = () => {
   const [showHabitForm, setShowHabitForm] = useState(false);
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [showInvestmentContractModal, setShowInvestmentContractModal] = useState(false);
+  const [showPrizeBondModal, setShowPrizeBondModal] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const { isMobile } = useMobileDetection();
   const { isMobileSidebarOpen } = useMobileSidebar();
@@ -221,6 +224,7 @@ export const FloatingActionButton: React.FC = () => {
       { label: t('dashboard.addAccount'), icon: CreditCard, color: 'bg-green-600', onClick: () => handleAction(() => setShowAccountFormLocal(true)), delay: '50ms' },
       { label: 'Lent & Borrow', icon: Handshake, color: 'bg-indigo-600', onClick: () => handleAction(() => setShowLendBorrowForm(true)), delay: '100ms' },
       { label: 'Add investment contract', icon: INVESTMENTS_FEATURE_ICON, color: 'bg-sky-600', onClick: () => handleAction(() => setShowInvestmentContractModal(true)), delay: '95ms' },
+      { label: t('prizeBond.addBond'), icon: Ticket, color: 'bg-amber-600', onClick: () => handleAction(() => setShowPrizeBondModal(true)), delay: '92ms' },
       { label: 'Add Client', icon: CLIENTS_FEATURE_ICON, color: 'bg-teal-600', onClick: () => handleAction(() => setShowClientForm(true)), delay: '75ms' },
       { label: 'Add Client Task', icon: CheckSquare, color: 'bg-indigo-600', onClick: () => handleAction(handleAddClientTask), delay: '70ms' },
     ];
@@ -258,6 +262,7 @@ export const FloatingActionButton: React.FC = () => {
     handleAddClientTask,
     setShowLendBorrowForm,
     setShowInvestmentContractModal,
+    setShowPrizeBondModal,
     setShowAccountFormLocal,
     handleTransfer,
     setShowClientForm,
@@ -448,6 +453,12 @@ export const FloatingActionButton: React.FC = () => {
         open={showInvestmentContractModal}
         onClose={() => setShowInvestmentContractModal(false)}
         onAdded={() => navigate('/investments')}
+      />
+
+      <PrizeBondAddModalHost
+        open={showPrizeBondModal}
+        onClose={() => setShowPrizeBondModal(false)}
+        onSuccess={() => navigate(investmentsBondsPath())}
       />
 
       {/* AI Chat Bot - temporarily hidden, will be enabled later */}

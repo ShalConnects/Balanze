@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, DollarSign, Users, CheckSquare, FileText, Sprout, BookOpen, CreditCard, ShoppingBag, Handshake } from 'lucide-react';
+import { Search, DollarSign, Users, CheckSquare, FileText, Sprout, BookOpen, CreditCard, ShoppingBag, Handshake, Ticket } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useClientStore } from '../../store/useClientStore';
 import { useHabitStore } from '../../store/useHabitStore';
@@ -14,15 +14,19 @@ import {
   GLOBAL_SEARCH_INV_GOAL_KEYS,
   GLOBAL_SEARCH_INV_CATEGORY_KEYS,
   GLOBAL_SEARCH_BUSINESS_CONTRACT_KEYS,
+  GLOBAL_SEARCH_PRIZE_BOND_KEYS,
 } from '../../utils/globalSearchInvestmentKeys';
 import { globalSearchCacheFingerprint } from '../../utils/globalSearchCacheFingerprint';
 import { SearchSkeleton } from '../common/SearchSkeleton';
 import { formatCurrency } from '../../utils/currency';
 import { fetchBusinessInvestmentContracts } from '../../lib/businessInvestmentService';
+import { fetchPrizeBonds } from '../../lib/prizeBondService';
+import { INVESTMENTS_BONDS_TAB } from '../../lib/investmentsNav';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 import { formatAppDate } from '../../utils/timezoneUtils';
 import { GLOBAL_SEARCH_PREFIX_HINTS, parseGlobalSearchQuery } from '../../utils/globalSearchScope';
 import { format } from 'date-fns';
+import type { PrizeBond } from '../../types/prizeBond';
 
 // Date formatting utility
 const formatSearchDate = (dateString: string): string => {
@@ -92,6 +96,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   const [transfers, setTransfers] = useState<any[]>([]);
   const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
   const [businessInvestmentContracts, setBusinessInvestmentContracts] = useState<any[]>([]);
+  const [prizeBonds, setPrizeBonds] = useState<PrizeBond[]>([]);
   const [highlightedIdx, setHighlightedIdx] = useState(0);
   const [recentSearches, setRecentSearches] = useState<string[]>(getRecentSearches());
   const [isSearching, setIsSearching] = useState(false);
@@ -201,6 +206,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       case 'business_investment_contract':
         navigate(`/investments?from=search`);
         break;
+      case 'prize_bond':
+        navigate(`/investments?tab=${INVESTMENTS_BONDS_TAB}&search=${encodeURIComponent(item.bond_number)}&from=search`);
+        break;
       default:
         break;
     }
@@ -258,6 +266,11 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     void fetchBusinessInvestmentContracts(user.id)
       .then(setBusinessInvestmentContracts)
       .catch(() => setBusinessInvestmentContracts([]));
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    void fetchPrizeBonds(user.id).then(setPrizeBonds).catch(() => setPrizeBonds([]));
   }, [user?.id]);
 
   // Generate search suggestions based on available data
@@ -360,10 +373,13 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     (businessInvestmentContracts || []).forEach(c => {
       if (c.title?.toLowerCase().includes(queryLower)) suggestions.push(c.title);
     });
+    (prizeBonds || []).forEach(b => {
+      if (b.bond_number.includes(query.trim())) suggestions.push(b.bond_number);
+    });
 
     // Remove duplicates and limit to 3 suggestions
     return [...new Set(suggestions)].slice(0, 3);
-  }, [transactions, accounts, purchases, lendBorrowRecords, clients, tasks, invoices, habits, investmentAssets, investmentGoals, investmentCategories, businessInvestmentContracts]);
+  }, [transactions, accounts, purchases, lendBorrowRecords, clients, tasks, invoices, habits, investmentAssets, investmentGoals, investmentCategories, businessInvestmentContracts, prizeBonds]);
 
   // Debounce search input for performance
   useEffect(() => {
@@ -493,6 +509,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     fuseInvGoals,
     fuseInvCategories,
     fuseBusinessInvestmentContracts,
+    fusePrizeBonds,
   } = useMemo(() => {
     const financeFuzzyKeys: Array<{ name: string; weight: number }> = [
       { name: 'description', weight: 0.4 },
@@ -568,6 +585,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         businessInvestmentContracts,
         GLOBAL_SEARCH_BUSINESS_CONTRACT_KEYS
       ),
+      fusePrizeBonds: createGlobalFuseIndex(prizeBonds, GLOBAL_SEARCH_PRIZE_BOND_KEYS),
     };
   }, [
     transactions,
@@ -586,6 +604,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     investmentGoals,
     investmentCategories,
     businessInvestmentContracts,
+    prizeBonds,
   ]);
 
   // Memoized search results with caching
@@ -623,6 +642,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       investmentGoals,
       investmentCategories,
       businessInvestmentContracts,
+      prizeBonds,
       transfers,
       dpsTransfers,
     })}`;
@@ -652,7 +672,10 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       };
     }
 
-    const invMerged = (inScope('investments')
+    const bondHits = (inScope('bonds') || inScope('investments') || scope === 'all')
+      ? fusePrizeBonds.search(fuseQuery).map(r => ({ ...r, invKind: 'prize_bond' as const }))
+      : [];
+    const invCore = inScope('investments') || scope === 'all'
       ? [
           ...fuseInvAssets.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_asset' as const })),
           ...fuseInvTransactions.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_transaction' as const })),
@@ -660,8 +683,8 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
           ...fuseInvCategories.search(fuseQuery).map(r => ({ ...r, invKind: 'investment_category' as const })),
           ...fuseBusinessInvestmentContracts.search(fuseQuery).map(r => ({ ...r, invKind: 'business_investment_contract' as const })),
         ]
-      : []
-    ).sort((a, b) => {
+      : [];
+    const invMerged = (inScope('bonds') ? bondHits : [...invCore, ...bondHits]).sort((a, b) => {
       const ta = new Date((a.item as { transaction_date?: string; created_at?: string }).transaction_date || a.item.created_at || 0).getTime();
       const tb = new Date((b.item as { transaction_date?: string; created_at?: string }).transaction_date || b.item.created_at || 0).getTime();
       return tb - ta;
@@ -709,6 +732,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     investmentGoals,
     investmentCategories,
     businessInvestmentContracts,
+    prizeBonds,
     transfers,
     dpsTransfers,
     fuseTransactions,
@@ -727,6 +751,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     fuseInvGoals,
     fuseInvCategories,
     fuseBusinessInvestmentContracts,
+    fusePrizeBonds,
     searchCache,
   ]);
 
@@ -1364,7 +1389,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
               {(showAllInvestments ? rankedInvestments : rankedInvestments.slice(0, 3)).map((res, index) => {
                 const invIdx = searchOffsets.invStart + index;
                 const matchKeys =
-                  res.invKind === 'investment_asset'
+                  res.invKind === 'prize_bond'
+                    ? ['bond_number']
+                    : res.invKind === 'investment_asset'
                     ? ['name', 'symbol', 'asset_type', 'notes']
                     : res.invKind === 'investment_goal'
                       ? ['name', 'description', 'status', 'priority']
@@ -1380,7 +1407,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                             'asset_name',
                           ];
                 const primary =
-                  res.invKind === 'investment_asset'
+                  res.invKind === 'prize_bond'
+                    ? res.item.bond_number
+                    : res.invKind === 'investment_asset'
                     ? [res.item.symbol, res.item.name].filter(Boolean).join(' · ') || res.item.name
                     : res.invKind === 'investment_goal'
                       ? res.item.name || ''
@@ -1392,7 +1421,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                           res.item.transaction_type ||
                           'Transaction';
                 const sub =
-                  res.invKind === 'investment_asset'
+                  res.invKind === 'prize_bond'
+                    ? 'Prize bond · 100 BDT'
+                    : res.invKind === 'investment_asset'
                     ? `${String(res.item.asset_type || '').replace(/_/g, ' ')} · ${formatCurrency(res.item.total_value, res.item.currency)}`
                     : res.invKind === 'investment_goal'
                       ? `${res.item.status || ''} · ${formatCurrency(res.item.current_amount, 'USD')} / ${formatCurrency(res.item.target_amount, 'USD')}`
@@ -1411,7 +1442,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-violet-100 dark:bg-violet-900/20 rounded-lg flex items-center justify-center">
-                        <INVESTMENTS_FEATURE_ICON className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                        {res.invKind === 'prize_bond'
+                          ? <Ticket className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                          : <INVESTMENTS_FEATURE_ICON className="w-4 h-4 text-violet-600 dark:text-violet-400" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
@@ -1773,6 +1806,20 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
               <Search className="w-8 h-8 mx-auto" />
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">No results found for "{search}"</p>
+            {/^\d{7}$/.test(parseGlobalSearchQuery(search).query) && (
+              <button
+                type="button"
+                className="mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                onClick={() => {
+                  const n = parseGlobalSearchQuery(search).query;
+                  setGlobalSearchTerm('');
+                  onClose();
+                  navigate(`/investments?tab=${INVESTMENTS_BONDS_TAB}&add=bond&search=${encodeURIComponent(n)}`);
+                }}
+              >
+                Add prize bond {parseGlobalSearchQuery(search).query}
+              </button>
+            )}
           </div>
         )}
       </div>

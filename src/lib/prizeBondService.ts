@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { normalizeBondNumber, parseBondNumbersFromText } from './prizeBondUtils';
+import { normalizeBondNumber, parseBondNumbersFromText, summarizePrizeBonds, type PrizeBondDashboardSummary } from './prizeBondUtils';
 import { buildScanLearnHints } from './prizeBondScanLearn';
 import { logPrizeBond } from './prizeBondScanLog';
 import type { PrizeBond, PrizeBondScanFeedback, PrizeBondWin, ScanLearnHints } from '../types/prizeBond';
@@ -32,6 +32,11 @@ export async function fetchPrizeBondWins(userId: string): Promise<PrizeBondWin[]
   const { data, error } = await supabase.from('prize_bond_wins').select('*').eq('user_id', userId).order('draw_date', { ascending: false });
   if (error) throw error;
   return (data as DbWin[]).map(mapWin);
+}
+
+export async function loadPrizeBondDashboardSummary(userId: string): Promise<PrizeBondDashboardSummary> {
+  const [bonds, wins] = await Promise.all([fetchPrizeBonds(userId), fetchPrizeBondWins(userId)]);
+  return summarizePrizeBonds(bonds, wins);
 }
 
 export async function addPrizeBond(userId: string, rawNumber: string): Promise<PrizeBond> {

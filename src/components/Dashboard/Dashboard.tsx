@@ -15,6 +15,7 @@ import { DonationSavingsOverviewCard } from './DonationSavingsOverviewCard';
 import { ClientsOverviewCard } from './ClientsOverviewCard';
 import { LearningSummaryCard } from './LearningSummaryCard';
 import { InvestmentSummaryCard } from './InvestmentSummaryCard';
+import { PrizeBondSummaryCard } from './PrizeBondSummaryCard';
 import { PurchaseOverviewCard } from './PurchaseOverviewCard';
 import { TaskRemindersWidget } from './TaskRemindersWidget';
 import { useClientStore } from '../../store/useClientStore';
@@ -123,6 +124,7 @@ const migrateWidgetConfig = (config: WidgetConfig[]): WidgetConfig[] => {
 
 const DEFAULT_MAIN_DASHBOARD_WIDGET_ORDER = [
   'investments',
+  'prize-bonds',
   'donations',
   'purchases',
   'lend-borrow',
@@ -614,6 +616,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     const saved = localStorage.getItem('showInvestmentsWidget');
     return saved !== null ? JSON.parse(saved) : true;
   });
+
+  const [showPrizeBondsWidget, setShowPrizeBondsWidget] = useState(() => {
+    const saved = localStorage.getItem('showPrizeBondsWidget');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
   
   // Get clients from store
   const clients = useClientStore((state) => state.clients);
@@ -642,6 +649,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
           setShowLearningWidget(JSON.parse(e.newValue));
         } else if (e.key === 'showInvestmentsWidget') {
           setShowInvestmentsWidget(JSON.parse(e.newValue));
+        } else if (e.key === 'showPrizeBondsWidget') {
+          setShowPrizeBondsWidget(JSON.parse(e.newValue));
         }
       } catch (error) {
         console.error(`Error parsing localStorage value for ${e.key}:`, error);
@@ -712,6 +721,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       } catch (error) {
         console.error('Error parsing showInvestmentsWidget from localStorage:', error);
       }
+
+      try {
+        const savedBonds = localStorage.getItem('showPrizeBondsWidget');
+        if (savedBonds !== null) {
+          setShowPrizeBondsWidget(JSON.parse(savedBonds));
+        }
+      } catch (error) {
+        console.error('Error parsing showPrizeBondsWidget from localStorage:', error);
+      }
     };
     
     window.addEventListener('storage', handleStorageChange);
@@ -722,6 +740,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     window.addEventListener('showClientsWidgetChanged', handleCustomStorageChange);
     window.addEventListener('showLearningWidgetChanged', handleCustomStorageChange);
     window.addEventListener('showInvestmentsWidgetChanged', handleCustomStorageChange);
+    window.addEventListener('showPrizeBondsWidgetChanged', handleCustomStorageChange);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -732,6 +751,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       window.removeEventListener('showClientsWidgetChanged', handleCustomStorageChange);
       window.removeEventListener('showLearningWidgetChanged', handleCustomStorageChange);
       window.removeEventListener('showInvestmentsWidgetChanged', handleCustomStorageChange);
+      window.removeEventListener('showPrizeBondsWidgetChanged', handleCustomStorageChange);
     };
   }, []);
   
@@ -797,6 +817,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
   const [dashboardCurrencyFilter, setDashboardCurrencyFilter] = useState('');
   const [dashboardTimeFilter, setDashboardTimeFilter] = useState<'1m' | '3m' | '6m' | '1y' | 'all'>('all');
   const [hasInvestmentContractsInCurrency, setHasInvestmentContractsInCurrency] = useState(false);
+  const [hasPrizeBonds, setHasPrizeBonds] = useState(false);
   const [barQuote, setBarQuote] = useState({ q: '', a: '' });
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -832,6 +853,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       .then(({ count, error }) => {
         if (cancelled || error) return;
         setHasInvestmentContractsInCurrency((count || 0) > 0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, dashboardCurrencyFilter]);
+
+  useEffect(() => {
+    if (!user?.id || dashboardCurrencyFilter !== 'BDT') {
+      setHasPrizeBonds(false);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from('prize_bonds')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .then(({ count, error }) => {
+        if (cancelled || error) return;
+        setHasPrizeBonds((count || 0) > 0);
       });
     return () => {
       cancelled = true;
@@ -992,6 +1032,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     }
   };
 
+  const handlePrizeBondsWidgetToggle = async (show: boolean) => {
+    setShowPrizeBondsWidget(show);
+    localStorage.setItem('showPrizeBondsWidget', JSON.stringify(show));
+    window.dispatchEvent(new CustomEvent('showPrizeBondsWidgetChanged'));
+    if (user?.id) {
+      setPreference(user.id, 'showPrizeBondsWidget', show).catch(() => {});
+    }
+  };
+
   // Handle main dashboard widget toggle from modal
   const handleMainDashboardWidgetToggle = (id: string, visible: boolean) => {
     switch (id) {
@@ -1015,6 +1064,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
         break;
       case 'investments':
         handleInvestmentsWidgetToggle(visible);
+        break;
+      case 'prize-bonds':
+        handlePrizeBondsWidgetToggle(visible);
         break;
       default:
         break;
@@ -1089,8 +1141,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       hasClientsCard: clients.length > 0,
       hasLearning: courses.length > 0,
       hasInvestments: hasInvestmentContractsInCurrency,
+      hasPrizeBonds,
     };
-  }, [storeAccounts, donationSavingRecords, dashboardCurrencyFilter, storeTransactions, purchases, isPremium, hasLendBorrowRecords, hasTransfers, clients.length, courses.length, hasInvestmentContractsInCurrency]);
+  }, [storeAccounts, donationSavingRecords, dashboardCurrencyFilter, storeTransactions, purchases, isPremium, hasLendBorrowRecords, hasTransfers, clients.length, courses.length, hasInvestmentContractsInCurrency, hasPrizeBonds]);
   
   // Check if any widget in the Purchase/LendBorrow/Transfer row will be visible
   const hasAnyWidgetVisible = useMemo(() => {
@@ -1112,6 +1165,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
         render: () => (
           <div className="w-full h-full animate-fadeIn" key="investments">
             <InvestmentSummaryCard filterCurrency={dashboardCurrencyFilter} />
+          </div>
+        )
+      });
+    }
+
+    if (widgetAvailability.hasPrizeBonds && showPrizeBondsWidget) {
+      widgets.push({
+        id: 'prize-bonds',
+        render: () => (
+          <div className="w-full h-full animate-fadeIn" key="prize-bonds">
+            <PrizeBondSummaryCard filterCurrency={dashboardCurrencyFilter} />
           </div>
         )
       });
@@ -1214,6 +1278,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     showClientsWidget,
     showLearningWidget,
     showInvestmentsWidget,
+    showPrizeBondsWidget,
     mainDashboardWidgetOrder,
     dashboardCurrencyFilter,
     dashboardTimeFilter, // Added: time filter affects widget data
@@ -1707,6 +1772,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
                   id: 'investments',
                   name: 'Investments',
                   visible: showInvestmentsWidget,
+                  available: true,
+                  order: 0,
+                };
+              }
+              if (widgetAvailability.hasPrizeBonds) {
+                widgetsMap['prize-bonds'] = {
+                  id: 'prize-bonds',
+                  name: 'Prize bonds',
+                  visible: showPrizeBondsWidget,
                   available: true,
                   order: 0,
                 };

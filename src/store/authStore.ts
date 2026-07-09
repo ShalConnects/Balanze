@@ -7,6 +7,8 @@ import { saveRememberedEmail, clearRememberedEmail, saveRememberMePreference, ma
 import { Browser } from '@capacitor/browser';
 import { Capacitor } from '@capacitor/core';
 import { googleSignIn } from '../lib/googleSignIn';
+import { isAndroidApp } from '../utils/platformDetection';
+import { persistAndroidLogin } from '../utils/authSession';
 
 export type AppUser = {
     id: string;
@@ -310,11 +312,11 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       // Handle remember me functionality
       if (rememberMe) {
         saveRememberedEmail(email);
-        saveRememberMePreference(true);
       } else {
         clearRememberedEmail();
-        saveRememberMePreference(false);
       }
+      if (isAndroidApp()) persistAndroidLogin();
+      else saveRememberMePreference(rememberMe);
       
       // Set user immediately to trigger navigation
       set({ user: data.user, isLoading: false });

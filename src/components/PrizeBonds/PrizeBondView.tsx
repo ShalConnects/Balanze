@@ -3,16 +3,17 @@ import { Plus, Ticket, Trophy, RefreshCw, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationsStore } from '../../store/notificationsStore';
 import { supabase } from '../../lib/supabase';
 import { getDrawSchedule, PRIZE_BOND_DENOMINATION, PRIZE_BOND_PAGE_SIZE, winningBondIdSet } from '../../lib/prizeBondUtils';
 import { paginateList } from '../../utils/paginateList';
 import {
-  addPrizeBond, addPrizeBondsBulk, deletePrizeBond, fetchPrizeBonds, fetchPrizeBondWins,
-  saveScanFeedback, triggerPrizeBondCheck, updatePrizeBond,
+  deletePrizeBond, fetchPrizeBonds, fetchPrizeBondWins,
+  triggerPrizeBondCheck, updatePrizeBond,
 } from '../../lib/prizeBondService';
-import type { PrizeBond, PrizeBondScanFeedback, PrizeBondWin } from '../../types/prizeBond';
+import type { PrizeBond, PrizeBondWin } from '../../types/prizeBond';
 import {
   THEME_ACCENT_TEXT_CLASS,
   THEME_BRAND_GRADIENT_TEXT_CLASS,
@@ -21,13 +22,14 @@ import {
 import { ListPager } from '../common/ListPager';
 import { LP, ListPageFilterSearchField } from '../common/listPage/listPageLayout';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
-import { PrizeBondAddModal } from './PrizeBondAddModal';
+import { PrizeBondAddModalHost } from './PrizeBondAddModalHost';
 import { logPrizeBond } from '../../lib/prizeBondScanLog';
 import { PrizeBondList } from './PrizeBondList';
 
 export const PrizeBondView: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
   const fetchNotifications = useNotificationsStore((s) => s.fetchNotifications);
   const [bonds, setBonds] = useState<PrizeBond[]>([]);
   const [wins, setWins] = useState<PrizeBondWin[]>([]);
@@ -36,6 +38,7 @@ export const PrizeBondView: React.FC = () => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [showAdd, setShowAdd] = useState(false);
+  const [addSeed, setAddSeed] = useState('');
   const [editing, setEditing] = useState<PrizeBond | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const schedule = useMemo(() => getDrawSchedule(), []);
@@ -55,6 +58,21 @@ export const PrizeBondView: React.FC = () => {
   }, [user?.id, t]);
 
   useEffect(() => { void reload(); }, [reload]);
+
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q) {
+      setSearch(q);
+      setAddSeed(q);
+    }
+    if (searchParams.get('add') === 'bond') setShowAdd(true);
+    if (q || searchParams.get('add') === 'bond') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('search');
+      next.delete('add');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const filtered = useMemo(() => {
     const q = search.trim();
@@ -78,43 +96,6 @@ export const PrizeBondView: React.FC = () => {
   const bondError = (e: unknown) => {
     const msg = (e as Error).message;
     toast.error(msg === 'DUPLICATE_BOND' ? t('prizeBond.duplicate') : t('prizeBond.invalidNumber'));
-  };
-
-  const handleAdd = async (raw: string) => {
-    if (!user?.id) return;
-    try {
-      await addPrizeBond(user.id, raw);
-      toast.success(t('prizeBond.added'));
-      await reload();
-    } catch (e) {
-      bondError(e);
-      throw e;
-    }
-  };
-
-  const handleBulk = async (raw: string) => {
-    if (!user?.id) return;
-    try {
-      const { added, skipped } = await addPrizeBondsBulk(user.id, raw);
-      toast.success(t('prizeBond.bulkResult', { added, skipped }));
-      await reload();
-    } catch {
-      toast.error(t('prizeBond.bulkError'));
-      throw new Error('BULK_FAIL');
-    }
-  };
-
-  const handleScanConfirm = async (feedback: PrizeBondScanFeedback) => {
-    if (!user?.id) return;
-    try {
-      await addPrizeBond(user.id, feedback.confirmed_number);
-      await saveScanFeedback(user.id, feedback);
-      toast.success(t('prizeBond.added'));
-      await reload();
-    } catch (e) {
-      bondError(e);
-      throw e;
-    }
   };
 
   const handleCheck = async () => {
@@ -310,10 +291,8 @@ export const PrizeBondView: React.FC = () => {
         </div>
       )}
 
-      {user?.id && (
-        <PrizeBondAddModal open={showAdd} onClose={() => setShowAdd(false)} userId={user.id}
-          onAdd={handleAdd} onBulk={handleBulk} onScan={handleScanConfirm} />
-      )}
+      <PrizeBondAddModalHost open={showAdd} onClose={() => { setShowAdd(false); setAddSeed(''); }}
+        onSuccess={reload} initialNumber={addSeed || undefined} />
 
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
