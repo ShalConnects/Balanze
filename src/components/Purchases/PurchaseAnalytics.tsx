@@ -3,6 +3,7 @@ import { useFinanceStore } from '../../store/useFinanceStore';
 import { formatCurrency } from '../../utils/currency';
 import { CustomDropdown } from './CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
+import { getProfilePreferredCurrency, syncCurrencyFilter } from '../../utils/usePreferredCurrency';
 import { toBusinessDateString } from '../../utils/taskDateUtils';
 import { formatAppDate, formatAppMonthDay } from '../../utils/timezoneUtils';
 import { 
@@ -60,12 +61,14 @@ export const PurchaseAnalytics: React.FC = () => {
 
 
 
-  // Set default currency
+  const currencyCodes = useMemo(() => currencyOptions.map(c => c.value), [currencyOptions]);
+
   useEffect(() => {
-    if (currencyOptions.length > 0 && (!selectedCurrency || !currencyOptions.find(c => c.value === selectedCurrency))) {
-      setSelectedCurrency(currencyOptions[0].value);
-    }
-  }, [currencyOptions, selectedCurrency]);
+    const next = syncCurrencyFilter(selectedCurrency, currencyCodes, getProfilePreferredCurrency(profile), {
+      fallbackCurrency: profile?.selected_currencies?.[0],
+    });
+    if (next && next !== selectedCurrency) setSelectedCurrency(next);
+  }, [currencyCodes, selectedCurrency, profile]);
 
   const formatCurrencyWithSymbol = (amount: number) => {
     return formatCurrency(amount, selectedCurrency);

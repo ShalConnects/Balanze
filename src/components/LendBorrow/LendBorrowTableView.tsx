@@ -22,6 +22,7 @@ import { formatCurrencyCompact } from '../../utils/currency';
 import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 import { formatDateUTC, formatAppDate } from '../../utils/timezoneUtils';
 import { normalizeSearchText, includesNormalized } from '../../utils/searchText';
+import { getProfilePreferredCurrency, resolveDefaultCurrency, syncCurrencyFilter } from '../../utils/usePreferredCurrency';
 // DatePicker loaded dynamically to reduce initial bundle size
 // import DatePicker from 'react-datepicker';
 // import 'react-datepicker/dist/react-datepicker.css';
@@ -967,43 +968,33 @@ export const LendBorrowTableView: React.FC = () => {
     }
     return accountCurrencies;
   }, [profile?.selected_currencies, accountCurrencies]);
-  const resolvedDefaultCurrency = React.useMemo(() => {
-    if (currencyOptions.length === 0) return '';
-    const findCurrencyMatch = (candidate?: string | null) =>
-      candidate?.trim()
-        ? currencyOptions.find(c => c.toUpperCase() === candidate.trim().toUpperCase())
-        : undefined;
-    const profileCurrencyMatch = findCurrencyMatch(profile?.local_currency);
-    const selectedPrimaryCurrencyMatch = findCurrencyMatch(profile?.selected_currencies?.[0]);
-    return profileCurrencyMatch || selectedPrimaryCurrencyMatch || currencyOptions[0];
-  }, [currencyOptions, profile?.local_currency, profile?.selected_currencies]);
+  const resolvedDefaultCurrency = React.useMemo(
+    () => resolveDefaultCurrency(currencyOptions, getProfilePreferredCurrency(profile), profile?.selected_currencies?.[0]),
+    [currencyOptions, profile]
+  );
   const isDefaultCurrencySelected =
     !!tableFilters.currency &&
     !!resolvedDefaultCurrency &&
     tableFilters.currency.toUpperCase() === resolvedDefaultCurrency.toUpperCase();
 
-  // Set default currency when component loads
   useEffect(() => {
     if (currencyOptions.length === 0) return;
-
     const currentCurrency = tableFilters.currency;
-    const shouldInitialize = !currentCurrency || !currencyOptions.includes(currentCurrency);
-
-    // Keep concerns separated:
-    // 1) initialize missing/invalid filter currency
-    // 2) upgrade from auto fallback to default currency once profile is ready
-    const shouldUpgradeAutoFallback =
-      !!resolvedDefaultCurrency &&
+    let next = syncCurrencyFilter(currentCurrency, currencyOptions, getProfilePreferredCurrency(profile), {
+      fallbackCurrency: profile?.selected_currencies?.[0],
+    });
+    if (
+      autoSelectedCurrencyRef.current &&
       currentCurrency === autoSelectedCurrencyRef.current &&
-      currentCurrency !== resolvedDefaultCurrency;
-
-    if ((shouldInitialize || shouldUpgradeAutoFallback) && resolvedDefaultCurrency) {
-      autoSelectedCurrencyRef.current = resolvedDefaultCurrency;
-      setTableFilters(prev =>
-        prev.currency === resolvedDefaultCurrency ? prev : { ...prev, currency: resolvedDefaultCurrency }
-      );
+      resolvedDefaultCurrency &&
+      next !== resolvedDefaultCurrency
+    ) {
+      next = resolvedDefaultCurrency;
     }
-  }, [currencyOptions, resolvedDefaultCurrency, tableFilters.currency]);
+    if (!next || next === currentCurrency) return;
+    autoSelectedCurrencyRef.current = next;
+    setTableFilters(prev => (prev.currency === next ? prev : { ...prev, currency: next }));
+  }, [currencyOptions, resolvedDefaultCurrency, tableFilters.currency, profile]);
 
   // Sync tempFilters with tableFilters when mobile filter modal opens
   useEffect(() => {

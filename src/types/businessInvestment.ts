@@ -1,4 +1,6 @@
 export type ContractStatus = 'active' | 'closed';
+export type ContractStatusFilter = 'all' | ContractStatus;
+export const DEFAULT_CONTRACT_STATUS_FILTER: ContractStatusFilter = 'active';
 export type EntryType = 'profit' | 'loss' | 'principal_return' | 'capital_contribution';
 
 export const ENTRY_TYPE_LABELS: Record<EntryType, string> = {

@@ -7,6 +7,7 @@ import { useThemeStore } from '../../store/themeStore';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useMobileSidebar } from '../../context/MobileSidebarContext';
 import { FloatingActionButton } from './FloatingActionButton';
+import { isInvestmentsBondsTab } from '../../lib/investmentsNav';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -107,6 +108,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   };
 
+  const investmentsTab = currentView === 'investments'
+    ? new URLSearchParams(location.search).get('tab')
+    : null;
+
   const getTitle = () => {
     switch (currentView) {
       case 'dashboard': return 'Dashboard';
@@ -118,7 +123,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'purchases': return 'Purchases';
       case 'purchase-categories': return 'Purchase Categories';
       case 'lent-borrow': return 'Lent & Borrow';
-      case 'investments': return 'Investments';
+      case 'investments': return isInvestmentsBondsTab(investmentsTab) ? 'Bonds' : 'Investments';
       case 'clients': return 'Clients';
       case 'habits': return 'Habit Garden';
       case 'orders': return 'Orders';
@@ -198,7 +203,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                         : currentView === 'lent-borrow'
                           ? 'Track and manage all your lending and borrowing activities'
                           : currentView === 'investments'
-                            ? 'Track business investment contracts and profit updates'
+                            ? (isInvestmentsBondsTab(investmentsTab)
+                              ? 'Track your Bangladesh 100 BDT prize bonds and check draw results'
+                              : 'Track business investment contracts and profit updates')
                           : currentView === 'clients'
                             ? 'Manage your clients and track their information'
                             : currentView === 'habits'

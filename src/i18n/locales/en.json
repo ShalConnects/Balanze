@@ -40,7 +40,8 @@
     "reports": "Reports",
     "savings": "Savings",
     "purchaseAnalytics": "Purchase Analytics",
-    "lendBorrowAnalytics": "L&B Analytics"
+    "lendBorrowAnalytics": "L&B Analytics",
+    "bonds": "Bonds"
   },
   
   "dashboard": {
@@ -288,5 +289,53 @@
     "JPY": "Japanese Yen",
     "CAD": "Canadian Dollar",
     "AUD": "Australian Dollar"
+  },
+
+  "prizeBond": {
+    "loading": "Loading prize bonds...",
+    "loadError": "Failed to load prize bonds",
+    "totalBonds": "Total Bonds",
+    "faceValue": "Face Value (100 BDT)",
+    "totalWins": "Wins",
+    "nextDraw": "Next Draw",
+    "previousDraw": "Previous draw",
+    "addBond": "Add Prize Bond",
+    "single": "Single entry",
+    "bulkImport": "Bulk import",
+    "checkNow": "Check Draw",
+    "numberPlaceholder": "7-digit bond number",
+    "add": "Add",
+    "bulkPlaceholder": "Paste bond numbers (comma, space, or newline separated)",
+    "import": "Import bonds",
+    "scan": "Scan bond",
+    "upload": "Upload image",
+    "search": "Search bond number...",
+    "bondNumber": "Bond Number",
+    "actions": "Actions",
+    "empty": "No prize bonds yet. Tap Add Prize Bond to get started.",
+    "winHistory": "Win History",
+    "prize": "Prize",
+    "amount": "Amount",
+    "drawDate": "Draw Date",
+    "editBond": "Edit Bond",
+    "save": "Save",
+    "deleteTitle": "Delete Bond",
+    "deleteMessage": "Remove this bond from your portfolio?",
+    "added": "Bond added",
+    "updated": "Bond updated",
+    "deleted": "Bond removed",
+    "duplicate": "This bond number already exists",
+    "invalidNumber": "Enter a valid 7-digit bond number",
+    "bulkResult": "Added {{added}} bond(s), skipped {{skipped}} duplicate(s)",
+    "bulkError": "Bulk import failed",
+    "scanResult": "Added {{count}} bond(s) from image",
+    "scanError": "Could not detect a bond number in the image",
+    "scanConfirm": "Confirm bond number",
+    "scanConfirmHint": "Edit if needed — your confirmation helps improve future scans.",
+    "scanConfirmAdd": "Add bond",
+    "checkDone": "Checked {{checked}} bond(s). {{wins}} new win(s) found.",
+    "checkError": "Draw check failed. Try again later.",
+    "deleteError": "Failed to delete bond",
+    "copied": "Bond number copied"
   }
-} 
+}

@@ -16,14 +16,14 @@ interface Props {
   isActive: boolean;
   showLabel: boolean;
   isDemoPage: boolean;
-  /** Muted style; parent should still route taps to upgrade when locked */
   locked?: boolean;
   premiumBadgeText?: string;
   onNavigate: (id: string) => void;
   t: (key: string) => string;
+  className?: string;
 }
 
-export const SidebarNavItem = memo(function SidebarNavItem({ item, isActive, showLabel, isDemoPage, locked, premiumBadgeText, onNavigate, t }: Props) {
+export const SidebarNavItem = memo(function SidebarNavItem({ item, isActive, showLabel, isDemoPage, locked, premiumBadgeText, onNavigate, t, className = '' }: Props) {
   const Icon = item.icon;
   const padding = showLabel ? PADDING_EXPANDED : PADDING_COLLAPSED;
   const lockedCls = locked ? 'opacity-55 saturate-50' : '';
@@ -36,7 +36,7 @@ export const SidebarNavItem = memo(function SidebarNavItem({ item, isActive, sho
         if (!isDemoPage) onNavigate(item.id);
       }}
       data-tour={item.id === 'accounts' ? 'accounts-nav' : undefined}
-      className={`${BASE_BTN} ${padding} ${lockedCls} ${isActive ? ACTIVE_BTN : INACTIVE_BTN}`}
+      className={`${BASE_BTN} ${padding} ${lockedCls} ${isActive ? ACTIVE_BTN : INACTIVE_BTN} ${className}`}
       title={
         !showLabel
           ? locked

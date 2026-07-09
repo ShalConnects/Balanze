@@ -23,7 +23,6 @@ import type { ExpenseNoteCategory, ExpenseNoteEntrySummary, ExpenseNoteItem, Exp
 import {
   EXPENSE_NOTE_EMPTY,
   ExpenseNoteItemsTable,
-  ExpenseNoteListPager,
   ExpenseNoteParseHint,
   ExpenseNoteParsedPreviewTable,
   ExpenseNoteItemDetailPanel,
@@ -31,6 +30,7 @@ import {
   ExpenseNoteLoadingCaption,
   ExpenseNoteSection,
 } from './expenseNoteCompactUi';
+import { ListPager } from '../common/ListPager';
 import { paginateList } from '../../utils/paginateList';
 import { toast } from 'sonner';
 
@@ -319,7 +319,7 @@ export const GlobalShoppingListPage: React.FC = () => {
           {filtered.length > 0 ? (
             <>
               <ExpenseNoteItemsTable items={pagedItems.items} onSelect={openItemDetail} />
-              <ExpenseNoteListPager
+              <ListPager
                 page={pagedItems.page}
                 totalPages={pagedItems.totalPages}
                 total={pagedItems.total}

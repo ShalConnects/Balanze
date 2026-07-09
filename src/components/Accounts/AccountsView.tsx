@@ -15,6 +15,7 @@ import { generateTransactionId } from '../../utils/transactionId';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { getAccountColor } from '../../utils/accountIcons';
 import { useAuthStore } from '../../store/authStore';
+import { getProfilePreferredCurrency, syncCurrencyFilter } from '../../utils/usePreferredCurrency';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { AccountCardSkeleton, AccountTableSkeleton, AccountSummaryCardsSkeleton, AccountFiltersSkeleton } from './AccountSkeleton';
@@ -1214,12 +1215,13 @@ export const AccountsView: React.FC = () => {
     return portal;
   }, [showDpsDeleteModal, dpsDeleteContext, isDeletingDPS, dpsDeleteError, confirmDeleteDPS, accounts, getTransactionsByAccount]);
 
-  // Set default cardCurrency to first available currency
   useEffect(() => {
-    if (accountCurrencies.length > 0 && (!cardCurrency || !accountCurrencies.includes(cardCurrency))) {
-      setCardCurrency(accountCurrencies[0]);
-    }
-  }, [accountCurrencies, cardCurrency]);
+    const options = currencyOptions.length > 0 ? currencyOptions : accountCurrencies;
+    const next = syncCurrencyFilter(cardCurrency, options, getProfilePreferredCurrency(profile), {
+      fallbackCurrency: profile?.selected_currencies?.[0],
+    });
+    if (next && next !== cardCurrency) setCardCurrency(next);
+  }, [cardCurrency, currencyOptions, accountCurrencies, profile]);
 
   // Add click outside handler for card currency menu
   useEffect(() => {

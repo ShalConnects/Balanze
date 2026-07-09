@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check, EyeOff, FileText, X, History } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check, EyeOff, FileText, X, History, ShoppingBasket } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -13,8 +13,9 @@ import { toast } from 'sonner';
 // import 'react-datepicker/dist/react-datepicker.css';
 import { LazyDatePicker as DatePicker } from '../common/LazyDatePicker';
 import { toBusinessDateString } from '../../utils/taskDateUtils';
-import { resolveDefaultCurrency } from '../../utils/usePreferredCurrency';
+import { getProfilePreferredCurrency, resolveDefaultCurrency, syncCurrencyFilter } from '../../utils/usePreferredCurrency';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
+import { ListPager } from '../common/ListPager';
 import { TABLE_SUMMARY_CARDS_GRID } from '../common/listPage/listPageLayout';
 import { Tooltip } from '../common/Tooltip';
 import { SummaryLabelWithInfo } from '../common/SummaryLabelWithInfo';
@@ -29,13 +30,14 @@ import { useNavigate } from 'react-router-dom';
 import { LendBorrowInfoModal } from './LendBorrowInfoModal';
 import { TransactionNoteModal } from './TransactionNoteModal';
 import { EXPENSE_NOTE_OPEN_TX_KEY } from '../../constants/expenseNote';
-import { prefetchExpenseNoteRawText } from '../../lib/expenseNoteService';
+import { fetchRecentItemCount, prefetchExpenseNoteRawText } from '../../lib/expenseNoteService';
 import { TransactionEditHistory } from './TransactionEditHistory';
 import { useExport } from '../../hooks/useExport';
 import { useSelectionSearchSync } from '../../hooks/useSelectionSearchSync';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { normalizeSearchText } from '../../utils/searchText';
 import { FinancialHealthCard } from './FinancialHealthCard';
+import { hasActiveTableSettings, TransactionTableSettingsPanel } from './TransactionTableSettingsPanel';
 import { TransactionPeriodChangeCaption } from './TransactionPeriodChangeCaption';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { countsTowardIncomeExpenseSummaries, isLendBorrowTransaction } from '../../utils/transactionUtils';
@@ -62,6 +64,34 @@ import {
   THEME_STATUS_ACTIVE_TEXT_CLASS,
   THEME_STATUS_PAUSED_TEXT_CLASS,
 } from '../../constants/appThemeClasses';
+
+function TransactionShoppingListButton({ className = '' }: { className?: string }) {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const [badge, setBadge] = useState(0);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    fetchRecentItemCount(user.id).then(setBadge).catch(() => setBadge(0));
+  }, [user?.id]);
+
+  return (
+    <button
+      type="button"
+      onClick={() => navigate('/shopping-list')}
+      className={`relative bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-2.5 py-1.5 h-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-center ${className}`}
+      title="Global shopping list"
+      aria-label="Global shopping list"
+    >
+      <ShoppingBasket className="w-4 h-4" />
+      {badge > 0 && (
+        <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 text-[10px] font-bold text-white bg-blue-600 rounded-full flex items-center justify-center">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
+    </button>
+  );
+}
 
 /** Actions column: Lend & Borrow uses Info; business-investment origin uses the Investments feature icon (LineChart). */
 function ManagedTransactionActionIcon({ transaction, className }: { transaction: Transaction; className: string }) {
@@ -507,15 +537,11 @@ const TransactionListComponent: React.FC<{
   }, [filters, sortConfig]);
   
   const [showTypeMenu, setShowTypeMenu] = useState(false);
-  const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showDateMenu, setShowDateMenu] = useState(false);
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(false); // <-- add state for currency menu
   const [showModifiedMenu, setShowModifiedMenu] = useState(false); // New: state for recently modified menu
-  const [showItemsPerPageMenu, setShowItemsPerPageMenu] = useState(false);
   const currencyMenuRef = useRef<HTMLDivElement>(null); // <-- add ref for click outside
-  const accountMenuRef = useRef<HTMLDivElement>(null);
   const modifiedMenuRef = useRef<HTMLDivElement>(null); // New: ref for recently modified menu
-  const itemsPerPageMenuRef = useRef<HTMLDivElement>(null);
   // State for delete confirmation modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
@@ -712,21 +738,6 @@ const TransactionListComponent: React.FC<{
     };
   }, [showColumnSettings]);
 
-  // Add click outside handler for account menu
-  React.useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
-        setShowAccountMenu(false);
-      }
-    }
-    if (showAccountMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    } else {
-      document.removeEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showAccountMenu]);
-
   // Mobile filter modal handlers
   useEffect(() => {
     if (showMobileFilterMenu) {
@@ -781,8 +792,8 @@ const TransactionListComponent: React.FC<{
 
   // Always use a valid currency code for formatting
   const resolvedDefaultCurrency = React.useMemo(() => {
-    return resolveDefaultCurrency(currencyOptions, profile?.local_currency);
-  }, [profile?.local_currency, currencyOptions]);
+    return resolveDefaultCurrency(currencyOptions, getProfilePreferredCurrency(profile));
+  }, [profile, currencyOptions]);
 
   const selectedCurrency = filters.currency || resolvedDefaultCurrency || 'USD';
 
@@ -804,29 +815,18 @@ const TransactionListComponent: React.FC<{
     return totals;
   }, [activeTransactions, selectedCurrency, accounts]);
 
-  // Set default currency filter to a resolved valid default
   React.useEffect(() => {
-    if (!filters.currency && resolvedDefaultCurrency) {
-      setFilters(f => ({ ...f, currency: resolvedDefaultCurrency }));
+    const next = syncCurrencyFilter(filters.currency, currencyOptions, getProfilePreferredCurrency(profile));
+    if (next && next !== filters.currency) {
+      setFilters(f => ({ ...f, currency: next }));
     }
-  }, [resolvedDefaultCurrency, filters.currency]);
+  }, [filters.currency, currencyOptions, profile]);
 
   // Click outside handler for currency menu
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (currencyMenuRef.current && !currencyMenuRef.current.contains(event.target as Node)) {
         setShowCurrencyMenu(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Click outside handler for transaction per page menu
-  React.useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (itemsPerPageMenuRef.current && !itemsPerPageMenuRef.current.contains(event.target as Node)) {
-        setShowItemsPerPageMenu(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -1340,7 +1340,7 @@ const TransactionListComponent: React.FC<{
             </div>
 
             <div className="md:hidden">
-              <ShoppingListNavButton />
+              <TransactionShoppingListButton />
             </div>
 
             {/* Mobile Download Button */}
@@ -1423,7 +1423,6 @@ const TransactionListComponent: React.FC<{
                   onClick={() => {
                     setShowCurrencyMenu(v => !v);
                     setShowTypeMenu(false);
-                    setShowAccountMenu(false);
                     setShowDateMenu(false);
                   }}
                   className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
@@ -1458,7 +1457,6 @@ const TransactionListComponent: React.FC<{
               <button
                   onClick={() => {
                     setShowTypeMenu(v => !v);
-                    setShowAccountMenu(false);
                     setShowDateMenu(false);
                     setShowCurrencyMenu(false);
                   }}
@@ -1488,73 +1486,6 @@ const TransactionListComponent: React.FC<{
             </div>
             </div>
 
-            {/* Recurring Filter Toggle */}
-            {isPremiumPlan && (
-              <div className="hidden md:block">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilters({ ...filters, showRecurringOnly: !filters.showRecurringOnly });
-                    setShowTypeMenu(false);
-                    setShowAccountMenu(false);
-                    setShowDateMenu(false);
-                    setShowCurrencyMenu(false);
-                  }}
-                  className={`px-3 py-1.5 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 ${
-                    filters.showRecurringOnly
-                      ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/40' 
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                  style={filters.showRecurringOnly ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
-                  title={filters.showRecurringOnly ? 'Show all transactions' : 'Show only recurring transactions'}
-                >
-                  <Repeat className={`w-3.5 h-3.5 ${filters.showRecurringOnly ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span>Recurring</span>
-                </button>
-              </div>
-            )}
-
-            <div className="hidden md:block">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAccountMenu(v => !v);
-                  setShowTypeMenu(false);
-                  setShowDateMenu(false);
-                  setShowCurrencyMenu(false);
-                }}
-                className={`px-3 py-1.5 pr-2 text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1.5 w-full ${
-                  filters.account !== 'all' 
-                    ? 'text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700' 
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700'
-                }`}
-                style={filters.account !== 'all' ? { background: 'linear-gradient(135deg, #3b82f61f 0%, #8b5cf633 100%)' } : {}}
-              >
-                <span>{filters.account === 'all' ? 'All Accounts' : getAccountName(filters.account)}</span>
-                <svg className="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-              </button>
-              {showAccountMenu && (
-                <div className="absolute left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto min-w-[180px] py-2">
-                  <button
-                    onClick={() => { setFilters({ ...filters, account: 'all' }); setShowAccountMenu(false); }}
-                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 ${filters.account === 'all' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : ''}`}
-                  >
-                    All Accounts
-                  </button>
-                  {accounts.map(account => (
-                    <button
-                      key={account.id}
-                      onClick={() => { setFilters({ ...filters, account: account.id }); setShowAccountMenu(false); }}
-                      className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 ${filters.account === account.id ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : ''}`}
-                    >
-                      {account.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            </div>
             {/* Date Preset Dropdown styled as filter button */}
             <div className="hidden md:block relative" ref={dateMenuButtonRef}>
               <button
@@ -1563,7 +1494,6 @@ const TransactionListComponent: React.FC<{
                 onClick={() => {
                   setShowPresetDropdown(v => !v);
                   setShowTypeMenu(false);
-                  setShowAccountMenu(false);
                   setShowCurrencyMenu(false);
                 }}
                 type="button"
@@ -1599,7 +1529,6 @@ const TransactionListComponent: React.FC<{
                 onClick={() => {
                   setShowModifiedMenu(v => !v);
                   setShowTypeMenu(false);
-                  setShowAccountMenu(false);
                   setShowCurrencyMenu(false);
                   setShowPresetDropdown(false);
                 }}
@@ -1762,11 +1691,11 @@ const TransactionListComponent: React.FC<{
                       ? 'bg-gray-200 dark:bg-gray-700' 
                       : 'hover:bg-gray-200 dark:hover:bg-gray-700'
                   } relative`}
-                  aria-label="Column settings"
-                  title="Column settings"
+                  aria-label="Table settings"
+                  title="Table settings"
                 >
                   <Settings className="w-3.5 h-3.5" />
-                  {Object.values(columnVisibility).filter(v => v).length < Object.keys(columnVisibility).length && (
+                  {hasActiveTableSettings(filters.account, filters.showRecurringOnly, columnVisibility) && (
                     <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-gray-800"></span>
                   )}
                 </button>
@@ -1777,7 +1706,7 @@ const TransactionListComponent: React.FC<{
                     <div 
                       className="absolute right-0 top-full mt-0 w-52 sm:w-56 md:w-60 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 flex flex-col max-h-[calc(100vh-200px)]"
                       role="menu"
-                      aria-label="Column visibility options"
+                      aria-label="Table settings"
                       style={{
                         maxWidth: 'min(calc(100vw - 2rem), 240px)'
                       }}
@@ -1785,88 +1714,25 @@ const TransactionListComponent: React.FC<{
                         e.stopPropagation();
                       }}
                       onMouseLeave={(e) => {
-                        // Don't close on mouse leave - only close on click outside
                         e.stopPropagation();
                       }}
                     >
-                    <div className="px-3 py-2.5 text-xs font-semibold text-gradient-primary uppercase border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
-                      Show Columns
-                    </div>
-                    <div className="py-1 overflow-y-auto flex-1 min-h-0">
-                      {Object.entries(columnVisibility).map(([key, visible]) => {
-                        const label = key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ')
-                        return (
-                          <label
-                            key={key}
-                            className={`flex items-center px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm cursor-pointer transition-colors duration-150 touch-manipulation ${
-                              visible 
-                                ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 hover:from-blue-100 hover:to-purple-100 dark:hover:from-blue-900/30 dark:hover:to-purple-900/30' 
-                                : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                            }`}
-                            role="menuitemcheckbox"
-                            aria-checked={visible}
-                          >
-                            <div className="relative mr-2 sm:mr-3 flex-shrink-0">
-                              <input
-                                type="checkbox"
-                                checked={visible}
-                                onChange={(e) => {
-                                  setColumnVisibility(prev => ({
-                                    ...prev,
-                                    [key]: e.target.checked
-                                  }))
-                                }}
-                                className="sr-only"
-                              />
-                              <div className={`w-4 h-4 rounded border-2 transition-all duration-150 flex items-center justify-center ${
-                                visible 
-                                  ? 'border-transparent bg-gradient-primary' 
-                                  : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
-                              }`}>
-                                {visible && (
-                                  <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                                )}
-                              </div>
-                            </div>
-                            <span className={`text-xs sm:text-sm flex-1 min-w-0 ${visible ? 'text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-600 dark:text-gray-400'}`}>{label}</span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                    <div className="border-t border-gray-200 dark:border-gray-700 px-2 py-2 flex gap-1 flex-shrink-0 bg-white dark:bg-gray-800">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const allVisible = Object.fromEntries(
-                            Object.keys(columnVisibility).map(key => [key, true])
-                          )
-                          setColumnVisibility(allVisible)
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        className="flex-1 px-2 sm:px-3 py-1.5 text-xs font-medium text-gradient-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-all duration-150 touch-manipulation"
-                      >
-                        Show All
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const allHidden = Object.fromEntries(
-                            Object.keys(columnVisibility).map(key => [key, false])
-                          )
-                          setColumnVisibility(allHidden)
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        className="flex-1 px-2 sm:px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors touch-manipulation"
-                      >
-                        Hide All
-                      </button>
-                    </div>
+                    <TransactionTableSettingsPanel
+                      account={filters.account}
+                      onAccountChange={(account) => setFilters({ ...filters, account, pagination: { ...filters.pagination, currentPage: 1 } })}
+                      accounts={accounts}
+                      showRecurringOnly={filters.showRecurringOnly}
+                      onRecurringChange={(showRecurringOnly) => setFilters({ ...filters, showRecurringOnly, pagination: { ...filters.pagination, currentPage: 1 } })}
+                      isPremiumPlan={isPremiumPlan}
+                      columnVisibility={columnVisibility}
+                      onColumnVisibilityChange={setColumnVisibility}
+                    />
                   </div>
                   </>
                 )}
               </div>
               <div className="hidden md:flex items-center gap-1.5">
-                <ShoppingListNavButton />
+                <TransactionShoppingListButton />
               <div className="relative" ref={exportMenuRef}>
                 <button
                   onClick={() => {
@@ -3482,224 +3348,21 @@ const TransactionListComponent: React.FC<{
           </div>
         </div>
 
-        {/* Pagination Controls */}
         {filteredTransactions.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 bg-white dark:bg-gray-900">
-            {/* Items info */}
-            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 text-center sm:text-left w-full sm:w-auto">
-              Showing {paginationInfo.startIndex + 1} to {Math.min(paginationInfo.endIndex, paginationInfo.totalItems)} of {paginationInfo.totalItems} transactions
-            </div>
-
-            {/* Pagination buttons */}
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-center sm:justify-end w-full sm:w-auto">
-              {/* Transaction Per Page Selector */}
-              <div className="relative" ref={itemsPerPageMenuRef}>
-                <button
-                  onClick={() => {
-                    setShowItemsPerPageMenu(v => !v);
-                  }}
-                  className="px-2 sm:px-3 py-1.5 pr-1.5 sm:pr-2 text-[12px] sm:text-[13px] h-8 rounded-md transition-colors flex items-center space-x-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 touch-manipulation"
-                  title="Transaction per page"
-                >
-                  <span className="hidden sm:inline">{filters.pagination?.itemsPerPage || 50} per page</span>
-                  <span className="sm:hidden">{filters.pagination?.itemsPerPage || 50}</span>
-                  <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-0.5 sm:ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {showItemsPerPageMenu && (
-                  <>
-                    {/* Desktop: Dropdown */}
-                    <div className="hidden sm:block absolute right-0 bottom-full mb-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 min-w-[120px]">
-                      {[20, 50, 100].map(items => (
-                        <button
-                          key={items}
-                          onClick={() => {
-                            setFilters({
-                              ...filters,
-                              pagination: {
-                                ...filters.pagination,
-                                itemsPerPage: items,
-                                currentPage: 1
-                              }
-                            });
-                            setShowItemsPerPageMenu(false);
-                          }}
-                          className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 ${
-                            (filters.pagination?.itemsPerPage || 50) === items 
-                              ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' 
-                              : ''
-                          }`}
-                        >
-                          {items} per page
-                        </button>
-                      ))}
-                    </div>
-                    {/* Mobile: Modal-style dropdown */}
-                    <div className="sm:hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-                      <div className="fixed inset-0 bg-black/50" onClick={() => setShowItemsPerPageMenu(false)} />
-                      <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg p-3 sm:p-4 w-[90vw] sm:w-80 md:w-96 max-w-md animate-fadein">
-                        <div className="flex items-center justify-between mb-3 sm:mb-4">
-                          <h3 className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-white">Transaction per page</h3>
-                          <button
-                            onClick={() => setShowItemsPerPageMenu(false)}
-                            className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
-                          >
-                            <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                          </button>
-                        </div>
-                        <div className="space-y-2">
-                          {[20, 50, 100].map(items => (
-                            <button
-                              key={items}
-                              onClick={() => {
-                                setFilters({
-                                  ...filters,
-                                  pagination: {
-                                    ...filters.pagination,
-                                    itemsPerPage: items,
-                                    currentPage: 1
-                                  }
-                                });
-                                setShowItemsPerPageMenu(false);
-                              }}
-                              className={`w-full px-4 py-2.5 text-left text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 touch-manipulation transition-colors ${
-                                (filters.pagination?.itemsPerPage || 50) === items 
-                                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' 
-                                  : ''
-                              }`}
-                            >
-                              {items} per page
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-              {/* Previous button */}
-              <button
-                onClick={() => {
-                  if (paginationInfo.currentPage > 1) {
-                    setFilters(prev => ({
-                      ...prev,
-                      pagination: {
-                        ...prev.pagination,
-                        currentPage: paginationInfo.currentPage - 1
-                      }
-                    }));
-                  }
-                }}
-                disabled={paginationInfo.currentPage === 1}
-                className={`px-2.5 sm:px-3 py-1.5 text-[12px] sm:text-[13px] h-8 rounded-md transition-colors flex items-center space-x-0.5 sm:space-x-1 touch-manipulation ${
-                  paginationInfo.currentPage === 1
-                    ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600'
-                }`}
-              >
-                <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Previous</span>
-              </button>
-
-              {/* Page numbers */}
-              <div className="flex items-center gap-1">
-                {(() => {
-                  const pages: (number | string)[] = [];
-                  const totalPages = paginationInfo.totalPages;
-                  const currentPage = paginationInfo.currentPage;
-
-                  if (totalPages <= 7) {
-                    // Show all pages if 7 or fewer
-                    for (let i = 1; i <= totalPages; i++) {
-                      pages.push(i);
-                    }
-                  } else {
-                    // Show first page
-                    pages.push(1);
-
-                    if (currentPage > 3) {
-                      pages.push('...');
-                    }
-
-                    // Show pages around current page
-                    const start = Math.max(2, currentPage - 1);
-                    const end = Math.min(totalPages - 1, currentPage + 1);
-
-                    for (let i = start; i <= end; i++) {
-                      pages.push(i);
-                    }
-
-                    if (currentPage < totalPages - 2) {
-                      pages.push('...');
-                    }
-
-                    // Show last page
-                    pages.push(totalPages);
-                  }
-
-                  return pages.map((page, index) => {
-                    if (page === '...') {
-                      return (
-                        <span key={`ellipsis-${index}`} className="px-2 text-gray-400 dark:text-gray-600">
-                          ...
-                        </span>
-                      );
-                    }
-
-                    const pageNum = page as number;
-                    const isActive = pageNum === currentPage;
-
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => {
-                          setFilters(prev => ({
-                            ...prev,
-                            pagination: {
-                              ...prev.pagination,
-                              currentPage: pageNum
-                            }
-                          }));
-                        }}
-                        className={`px-2.5 sm:px-3 py-1.5 text-[12px] sm:text-[13px] h-8 min-w-[2rem] rounded-md transition-colors touch-manipulation ${
-                          isActive
-                            ? 'bg-blue-100 border border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-200'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  });
-                })()}
-              </div>
-
-              {/* Next button */}
-              <button
-                onClick={() => {
-                  if (paginationInfo.currentPage < paginationInfo.totalPages) {
-                    setFilters(prev => ({
-                      ...prev,
-                      pagination: {
-                        ...prev.pagination,
-                        currentPage: paginationInfo.currentPage + 1
-                      }
-                    }));
-                  }
-                }}
-                disabled={paginationInfo.currentPage >= paginationInfo.totalPages}
-                className={`px-2.5 sm:px-3 py-1.5 text-[12px] sm:text-[13px] h-8 rounded-md transition-colors flex items-center space-x-0.5 sm:space-x-1 touch-manipulation ${
-                  paginationInfo.currentPage >= paginationInfo.totalPages
-                    ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600'
-                }`}
-              >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
-            </div>
-          </div>
+          <ListPager
+            page={paginationInfo.currentPage}
+            totalPages={paginationInfo.totalPages}
+            total={paginationInfo.totalItems}
+            start={paginationInfo.startIndex}
+            end={Math.min(paginationInfo.endIndex, paginationInfo.totalItems)}
+            onPage={(currentPage) => setFilters((prev) => ({ ...prev, pagination: { ...prev.pagination, currentPage } }))}
+            pageSize={filters.pagination?.itemsPerPage || 50}
+            pageSizeOptions={[20, 50, 100]}
+            onPageSizeChange={(itemsPerPage) =>
+              setFilters((prev) => ({ ...prev, pagination: { ...prev.pagination, itemsPerPage, currentPage: 1 } }))
+            }
+            itemLabel="transactions"
+          />
         )}
         
         {/* Summary Bar - Integrated with table */}

@@ -490,7 +490,6 @@ export const ClientTasksWidget: React.FC<ClientTasksWidgetProps> = ({
                       onQuickPostpone={handleQuickPostpone}
                       color="bg-blue-50 dark:bg-blue-900/20"
                       isDraggingTask={isDraggingTask}
-                      maxVisibleTasks={3}
                       isMobileView={isMobile}
                     />
 
@@ -512,7 +511,6 @@ export const ClientTasksWidget: React.FC<ClientTasksWidgetProps> = ({
                       onQuickPostpone={handleQuickPostpone}
                       color="bg-yellow-50 dark:bg-yellow-900/20"
                       isDraggingTask={isDraggingTask}
-                      maxVisibleTasks={3}
                       isMobileView={isMobile}
                     />
 
@@ -534,15 +532,14 @@ export const ClientTasksWidget: React.FC<ClientTasksWidgetProps> = ({
                       onQuickPostpone={handleQuickPostpone}
                       color="bg-purple-50 dark:bg-purple-900/20"
                       isDraggingTask={isDraggingTask}
-                      maxVisibleTasks={3}
                       isMobileView={isMobile}
                     />
                   </div>
                 </div>
               ) : (
-                /* Tablet/Desktop: Horizontal Layout */
+                /* Tablet/Desktop: Horizontal Layout — columns scroll internally */
                 <div 
-                  className="overflow-x-auto overflow-y-auto pb-0 pt-0 max-h-[calc(100vh-220px)] md:max-h-[500px] lg:max-h-[550px] xl:max-h-[600px] snap-x snap-mandatory"
+                  className="overflow-x-auto overflow-y-hidden pb-0 pt-0 max-h-[calc(100vh-220px)] md:max-h-[500px] lg:max-h-[550px] xl:max-h-[600px] snap-x snap-mandatory"
                   style={{ 
                     scrollbarWidth: 'thin',
                     WebkitOverflowScrolling: 'touch',
@@ -571,7 +568,6 @@ export const ClientTasksWidget: React.FC<ClientTasksWidgetProps> = ({
                       onQuickPostpone={handleQuickPostpone}
                       color="bg-blue-50 dark:bg-blue-900/20"
                       isDraggingTask={isDraggingTask}
-                      maxVisibleTasks={3}
                       isMobileView={isMobile}
                     />
 
@@ -593,7 +589,6 @@ export const ClientTasksWidget: React.FC<ClientTasksWidgetProps> = ({
                       onQuickPostpone={handleQuickPostpone}
                       color="bg-yellow-50 dark:bg-yellow-900/20"
                       isDraggingTask={isDraggingTask}
-                      maxVisibleTasks={3}
                       isMobileView={isMobile}
                     />
 
@@ -615,7 +610,6 @@ export const ClientTasksWidget: React.FC<ClientTasksWidgetProps> = ({
                       onQuickPostpone={handleQuickPostpone}
                       color="bg-purple-50 dark:bg-purple-900/20"
                       isDraggingTask={isDraggingTask}
-                      maxVisibleTasks={3}
                       isMobileView={isMobile}
                     />
                   </div>

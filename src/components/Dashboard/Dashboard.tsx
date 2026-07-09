@@ -44,7 +44,7 @@ import { supabase } from '../../lib/supabase';
 import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 import { UpgradeBanner } from '../common/UpgradeBanner';
 import { Purchase } from '../../types';
-import { resolveDefaultCurrency } from '../../utils/usePreferredCurrency';
+import { getProfilePreferredCurrency, syncCurrencyFilter } from '../../utils/usePreferredCurrency';
 import { getDailyInspirationQuote, inferDailyInspirationCategory } from '../../utils/dailyInspiration';
 import { useNotificationStore } from '../../store/notificationStore';
 
@@ -1063,12 +1063,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     return allAvailableCurrencies;
   }, [profile?.selected_currencies, allAvailableCurrencies]);
 
-  // Set default currency filter for dashboard
   useEffect(() => {
-    if (!dashboardCurrencyFilter && filteredDashboardCurrencies.length > 0) {
-      setDashboardCurrencyFilter(resolveDefaultCurrency(filteredDashboardCurrencies, profile?.local_currency));
-    }
-  }, [dashboardCurrencyFilter, filteredDashboardCurrencies, profile?.local_currency]);
+    const next = syncCurrencyFilter(dashboardCurrencyFilter, filteredDashboardCurrencies, getProfilePreferredCurrency(profile));
+    if (next && next !== dashboardCurrencyFilter) setDashboardCurrencyFilter(next);
+  }, [dashboardCurrencyFilter, filteredDashboardCurrencies, profile]);
 
   // Calculate widget availability
   const widgetAvailability = useMemo(() => {

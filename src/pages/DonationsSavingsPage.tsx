@@ -14,7 +14,7 @@ import { getPreference, setPreference } from '../lib/userPreferences';
 import { useRecordSelection } from '../hooks/useRecordSelection';
 import { useSelectionSearchSync } from '../hooks/useSelectionSearchSync';
 import { formatDateUTC, formatAppExportDateTime } from '../utils/timezoneUtils';
-import { resolveDefaultCurrency } from '../utils/usePreferredCurrency';
+import { getProfilePreferredCurrency, syncCurrencyFilter } from '../utils/usePreferredCurrency';
 import { normalizeSearchText, includesNormalized } from '../utils/searchText';
 // PDF libraries loaded dynamically to reduce initial bundle size
 // import jsPDF from 'jspdf';
@@ -247,13 +247,12 @@ const DonationsSavingsPage: React.FC = () => {
     }));
   }, [filterCurrency, filterDateRange]);
 
-  // Set default currency filter to user's preferred currency if available and valid
   useEffect(() => {
-    if (!filterCurrency && recordCurrencies.length > 0) {
-      const defaultCurrency = resolveDefaultCurrency(recordCurrencies, profile?.local_currency);
-      setFilterCurrency(defaultCurrency);
-    }
-  }, [profile, recordCurrencies, filterCurrency, availableCurrencies]);
+    const next = syncCurrencyFilter(filterCurrency, recordCurrencies, getProfilePreferredCurrency(profile), {
+      fallbackCurrency: profile?.selected_currencies?.[0],
+    });
+    if (next && next !== filterCurrency) setFilterCurrency(next);
+  }, [filterCurrency, recordCurrencies, profile]);
 
   useEffect(() => {
     if (user) {

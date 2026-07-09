@@ -88,6 +88,27 @@ export const formatCurrency = (amount: number, currency: string = 'USD') => {
     }
 };
 
+/** Helvetica-safe currency strings for jsPDF (falls back to "CODE amount" for non-ASCII symbols). */
+export const formatCurrencyForPdf = (amount: number, currency: string = 'USD'): string => {
+    const formatted = formatCurrency(amount, currency);
+    if (!/[^\x00-\x7F]/.test(formatted)) return formatted;
+
+    const code = currency?.trim() || 'USD';
+    const isNegative = amount < 0;
+    const absAmount = Math.abs(amount);
+    const number =
+        code === 'BDT'
+            ? absAmount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            : absAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `${isNegative ? '-' : ''}${code} ${number}`;
+};
+
+export const currencyCodeLabelForPdf = (currency: string): string => {
+    const code = currency?.trim() || 'USD';
+    const symbol = getCurrencySymbol(code);
+    return /^[\x00-\x7F]+$/.test(symbol) ? `${code} (${symbol})` : code;
+};
+
 /**
  * Format currency in compact, human-readable format for large numbers
  * Examples: ৳1.8M, ৳100.5K, ৳500.00

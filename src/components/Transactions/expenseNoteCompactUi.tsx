@@ -114,34 +114,6 @@ export const ExpenseNoteParseHint: React.FC<{ lines: ParsedExpenseNoteLine[]; cl
   return <p className={`text-xs text-amber-700 dark:text-amber-300 ${className}`.trim()}>{msg}</p>;
 };
 
-export const ExpenseNoteListPager: React.FC<{
-  page: number;
-  totalPages: number;
-  total: number;
-  start: number;
-  end: number;
-  onPage: (page: number) => void;
-}> = ({ page, totalPages, total, start, end, onPage }) => {
-  if (totalPages <= 1) return null;
-  const btn =
-    'px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-800';
-  return (
-    <div className="flex items-center justify-between gap-2 text-xs text-gray-500 mt-2">
-      <span>
-        {start + 1}–{end} of {total}
-      </span>
-      <div className="flex gap-1">
-        <button type="button" className={btn} disabled={page <= 1} onClick={() => onPage(page - 1)}>
-          Prev
-        </button>
-        <button type="button" className={btn} disabled={page >= totalPages} onClick={() => onPage(page + 1)}>
-          Next
-        </button>
-      </div>
-    </div>
-  );
-};
-
 const parseRowClass = (s: ExpenseNoteParseStatus) =>
   s === 'failed'
     ? 'bg-red-50 dark:bg-red-900/20'

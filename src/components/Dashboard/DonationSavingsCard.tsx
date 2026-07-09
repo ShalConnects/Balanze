@@ -3,6 +3,7 @@ import { Heart, TrendingUp } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
+import { getProfilePreferredCurrency, syncCurrencyFilter } from '../../utils/usePreferredCurrency';
 
 export const DonationSavingsCard: React.FC<{ t: any; formatCurrency: any }> = ({ t, formatCurrency }) => {
   const accounts = useFinanceStore(state => state.accounts);
@@ -17,27 +18,20 @@ export const DonationSavingsCard: React.FC<{ t: any; formatCurrency: any }> = ({
     return Array.from(new Set(accounts.map(a => a.currency)));
   }, [accounts]);
 
-  // Set default currency filter
-  useEffect(() => {
-    if (!filterCurrency) {
-      // First try to use profile's local currency
-      if (profile?.local_currency) {
-        setFilterCurrency(profile.local_currency);
-      }
-      // Then try profile's selected currencies
-      else if (profile?.selected_currencies && profile.selected_currencies.length > 0) {
-        setFilterCurrency(profile.selected_currencies[0]);
-      }
-      // Then try available account currencies
-      else if (recordCurrencies.length > 0) {
-      setFilterCurrency(recordCurrencies[0]);
-      }
-      // Fallback to USD if no currencies available
-      else {
-      setFilterCurrency('USD');
-      }
+  const currencyOptionsForFilter = useMemo(() => {
+    const codes = recordCurrencies;
+    if (profile?.selected_currencies?.length) {
+      return codes.filter(c => profile.selected_currencies?.includes(c));
     }
-  }, [recordCurrencies, filterCurrency, profile]);
+    return codes;
+  }, [recordCurrencies, profile?.selected_currencies]);
+
+  useEffect(() => {
+    const next = syncCurrencyFilter(filterCurrency, currencyOptionsForFilter, getProfilePreferredCurrency(profile), {
+      fallbackCurrency: profile?.selected_currencies?.[0],
+    });
+    if (next && next !== filterCurrency) setFilterCurrency(next);
+  }, [filterCurrency, currencyOptionsForFilter, profile]);
 
   // Set loading to false when we have data
   useEffect(() => {

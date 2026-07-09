@@ -4,6 +4,7 @@ import { formatCurrency } from '../../utils/currency';
 import { formatAppDate } from '../../utils/timezoneUtils';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
+import { getProfilePreferredCurrency, syncCurrencyFilter } from '../../utils/usePreferredCurrency';
 import { 
   Handshake,
   CheckCircle,
@@ -63,9 +64,8 @@ const generateDummyData = (currency: string) => {
 export const LendBorrowAnalytics: React.FC = () => {
   const { getLendBorrowAnalytics, lendBorrowRecords } = useFinanceStore();
   const { profile } = useAuthStore();
-  const [selectedCurrency, setSelectedCurrency] = useState('USD');
+  const [selectedCurrency, setSelectedCurrency] = useState('');
 
-  
   const analytics = getLendBorrowAnalytics();
   const currentCurrencyAnalytics = analytics.byCurrency?.find(a => a.currency === selectedCurrency) || analytics.byCurrency?.[0];
   
@@ -222,6 +222,22 @@ export const LendBorrowAnalytics: React.FC = () => {
   const currencyOptions = profile?.selected_currencies && profile.selected_currencies.length > 0
     ? allCurrencyOptions.filter(opt => profile.selected_currencies?.includes?.(opt.value))
     : allCurrencyOptions;
+
+  const recordCurrencies = useMemo(() => {
+    const codes = [...new Set(lendBorrowRecords.map(r => r.currency).filter(Boolean))];
+    if (profile?.selected_currencies?.length) {
+      return codes.filter(c => profile.selected_currencies?.includes(c));
+    }
+    return codes;
+  }, [lendBorrowRecords, profile?.selected_currencies]);
+
+  useEffect(() => {
+    const available = recordCurrencies.length ? recordCurrencies : currencyOptions.map(o => o.value);
+    const next = syncCurrencyFilter(selectedCurrency, available, getProfilePreferredCurrency(profile), {
+      fallbackCurrency: profile?.selected_currencies?.[0],
+    });
+    if (next && next !== selectedCurrency) setSelectedCurrency(next);
+  }, [recordCurrencies, currencyOptions, selectedCurrency, profile]);
 
   return (
     <div className="space-y-6 w-full">

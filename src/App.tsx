@@ -61,6 +61,7 @@ const LastWishPage = lazy(() => import('./pages/LastWishPage').then(m => ({ defa
 const PaymentHistoryPage = lazy(() => import('./pages/PaymentHistoryPage').then(m => ({ default: m.PaymentHistoryPage })));
 const HelpAndSupport = lazy(() => import('./pages/HelpAndSupport'));
 const Investments = lazy(() => import('./pages/BusinessInvestments').then(m => ({ default: m.BusinessInvestments })));
+import { isInvestmentsBondsTab } from './lib/investmentsNav';
 const History = lazy(() => import('./pages/History').then(m => ({ default: m.History })));
 const PublicHelpCenter = lazy(() => import('./pages/PublicHelpCenter'));
 const TopicClusterHub = lazy(() => import('./pages/TopicClusterHub'));
@@ -114,7 +115,6 @@ function AppContent() {
   const { isDarkMode } = useThemeStore();
   const handleEmailConfirmation = useAuthStore((state) => state.handleEmailConfirmation);
   const [loading, setLoading] = useState(true);
-  const initialized = useRef(false);
   const { isLoading: globalLoading, loadingMessage } = useLoadingContext();
   const { isMobile } = useMobileDetection();
   
@@ -207,9 +207,6 @@ function AppContent() {
 
 
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-
     let bootstrapDone = false;
     const finishBootstrap = () => {
       if (!bootstrapDone) {
@@ -694,6 +691,7 @@ function AppContent() {
           <Route path="/purchases" element={<ProtectedRoute><PurchaseTracker /></ProtectedRoute>} />
           <Route path="/lent-borrow" element={<ProtectedRoute><LendBorrowTableView /></ProtectedRoute>} />
           <Route path="/investments" element={<ProtectedRoute><Investments /></ProtectedRoute>} />
+          <Route path="/prize-bonds" element={<ProtectedRoute><Navigate to="/investments?tab=bonds" replace /></ProtectedRoute>} />
           <Route path="/purchase-categories" element={<ProtectedRoute><PurchaseCategories /></ProtectedRoute>} />
           <Route path="/purchase-analytics" element={<ProtectedRoute><PurchaseAnalytics /></ProtectedRoute>} />
           <Route path="/lent-borrow-analytics" element={<ProtectedRoute><LendBorrowAnalytics /></ProtectedRoute>} />

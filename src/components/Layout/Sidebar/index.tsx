@@ -34,7 +34,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, currentView,
   const effectiveCollapsed = isMobile ? true : isSidebarCollapsed;
   const showExpanded = (!isMobile && !effectiveCollapsed) || (isMobile && isOpen);
   const isDemoPage = location.pathname.includes('/dashboard-demo');
-
   const touchHandlers = useSidebarSwipe(isMobile, isOpen, onToggle);
 
   useEffect(() => {

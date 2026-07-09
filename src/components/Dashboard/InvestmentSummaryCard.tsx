@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { fetchBusinessInvestmentContracts } from '../../lib/businessInvestmentService';
 import type { InvestmentContract } from '../../types/businessInvestment';
 import { aggregateActiveInvestmentSummary } from '../../utils/businessInvestmentStats';
-import { DashboardWidgetInfo } from './DashboardWidgetInfo';
+import { getProfilePreferredCurrency } from '../../utils/usePreferredCurrency';
 
 interface InvestmentSummaryCardProps {
   filterCurrency?: string;
@@ -18,7 +18,7 @@ interface InvestmentSummaryCardProps {
 
 export const InvestmentSummaryCard: React.FC<InvestmentSummaryCardProps> = ({ filterCurrency = '' }) => {
   const { user, profile } = useAuthStore();
-  const displayCurrency = filterCurrency?.trim() || profile?.local_currency?.trim() || 'USD';
+  const displayCurrency = filterCurrency?.trim() || getProfilePreferredCurrency(profile);
   const [contracts, setContracts] = useState<InvestmentContract[]>([]);
   const [loading, setLoading] = useState(true);
   const [isHovered, setIsHovered] = useState(false);

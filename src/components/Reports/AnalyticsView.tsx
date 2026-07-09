@@ -46,6 +46,7 @@ import BudgetChart from '../charts/BudgetChart';
 import { supabase } from '../../lib/supabase';
 import { EarningsSpendingSummary } from '../Dashboard/EarningsSpendingSummary';
 import { useSearchParams } from 'react-router-dom';
+import { getProfilePreferredCurrency, syncCurrencyFilter } from '../../utils/usePreferredCurrency';
 
 export const AnalyticsView: React.FC = () => {
   const { getActiveTransactions, getDashboardStats, getActiveAccounts, purchases, lendBorrowRecords, getCategories } = useFinanceStore();
@@ -1399,6 +1400,15 @@ ${accounts.map(a =>
     }
     return stats.byCurrency;
   }, [profile?.selected_currencies, stats.byCurrency]);
+
+  const currencyCodes = useMemo(() => currencyOptions.map(c => c.currency), [currencyOptions]);
+
+  useEffect(() => {
+    const next = syncCurrencyFilter(selectedCurrency, currencyCodes, getProfilePreferredCurrency(profile), {
+      fallbackCurrency: profile?.selected_currencies?.[0],
+    });
+    if (next && next !== selectedCurrency) setSelectedCurrency(next);
+  }, [currencyCodes, selectedCurrency, profile]);
 
   // Generate trends data based on selected period and currency
   const monthlyTrendsData = useMemo(() => {

@@ -678,9 +678,22 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                     value={partialAmount || ''}
                     onChange={(e) => setPartialAmount(parseFloat(e.target.value) || 0)}
                     onBlur={handleAmountBlur}
-                    className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 ${errors.amount && touched.amount ? 'border-red-500 ring-red-200' : 'focus:ring-blue-500'} transition-colors`}
+                    className={`w-full pl-10 pr-16 py-2 border rounded-md focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 ${errors.amount && touched.amount ? 'border-red-500 ring-red-200' : 'focus:ring-blue-500'} transition-colors`}
                     placeholder={`Max: ${remainingAmount.toFixed(2)}`}
                   />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-gray-200 dark:bg-gray-600 hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 px-2 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => {
+                      setPartialAmount(Number(remainingAmount.toFixed(2)));
+                      setTouched({ amount: true });
+                      setErrors(prev => ({ ...prev, amount: undefined }));
+                    }}
+                    disabled={remainingAmount <= 0}
+                    aria-label="Fill with remaining amount"
+                  >
+                    Max
+                  </button>
                 </div>
 
                 {/* Return/Payment Date Input */}

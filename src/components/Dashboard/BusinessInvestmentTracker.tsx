@@ -3,17 +3,13 @@ import {
   ChevronDown,
   ChevronUp,
   Plus,
-  Pencil,
-  Trash2,
   Wallet,
   TrendingUp,
   TrendingDown,
   Landmark,
   X,
   Filter,
-  Info,
-  Ban,
-  PlayCircle
+  Info
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '../../utils/currency';
@@ -21,6 +17,7 @@ import { formatAppDate } from '../../utils/timezoneUtils';
 import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
+import { getProfilePreferredCurrency, resolveDefaultCurrency, syncCurrencyFilter } from '../../utils/usePreferredCurrency';
 import {
   accountsToTransactionDropdownOptions,
   prepareAccountsForTransactionDropdown,
@@ -41,7 +38,14 @@ import {
 } from '../common/listPage/listPageLayout';
 import { InvestmentListSkeleton } from '../Investments/InvestmentListSkeleton';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
-import { ENTRY_TYPE_LABELS, type ContractStatus, type EntryType, type InvestmentContract } from '../../types/businessInvestment';
+import {
+  DEFAULT_CONTRACT_STATUS_FILTER,
+  ENTRY_TYPE_LABELS,
+  type ContractStatus,
+  type ContractStatusFilter,
+  type EntryType,
+  type InvestmentContract
+} from '../../types/businessInvestment';
 import {
   deleteBusinessInvestmentContract,
   deleteBusinessInvestmentEntry,
@@ -54,7 +58,13 @@ import { TRANSACTION_ORIGIN_BUSINESS_INVESTMENT } from '../../lib/transactionLis
 import { getContractStats, getEffectivePrincipal } from '../../utils/businessInvestmentStats';
 import { entryPostingDescription, entryPostingTransactionType } from '../../utils/businessInvestmentEntryPosting';
 import { businessInvestmentStatusConfirmCopy } from '../../utils/businessInvestmentStatusConfirm';
+import {
+  downloadInvestmentAgreementPdf,
+  resolveInvestmentAgreementInput
+} from '../../utils/investmentAgreementPdf';
 import { BusinessInvestmentContractModal } from './BusinessInvestmentContractModal';
+import { BusinessInvestmentContractRowActions } from './BusinessInvestmentContractRowActions';
+import { InvestmentAgreementPreviewModal } from './InvestmentAgreementPreviewModal';
 import { InvestmentContractEntriesTimeline } from './InvestmentContractEntriesTimeline';
 import { BusinessInvestmentUpdateModal, type ContractUpdateFormState } from './BusinessInvestmentUpdateModal';
 
@@ -71,8 +81,6 @@ const defaultEntryForm: ContractUpdateFormState = {
 const contractMetaRowClass =
   'flex min-w-0 flex-col gap-1.5 text-xs text-gray-500 dark:text-gray-400 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2 sm:gap-y-0';
 
-const rowActionIconButtonClass =
-  'p-1.5 rounded text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700';
 const entryRemoveIconButtonClass =
   'min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0 p-2 sm:p-1 rounded text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 touch-manipulation';
 
@@ -116,7 +124,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
   const [postingAccountId, setPostingAccountId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | ContractStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<ContractStatusFilter>(DEFAULT_CONTRACT_STATUS_FILTER);
   const [sortField, setSortField] = useState<SortField>('title');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -126,15 +134,21 @@ export const BusinessInvestmentTracker: React.FC = () => {
   const [summaryCurrency, setSummaryCurrency] = useState('');
   const [tempMobileFilters, setTempMobileFilters] = useState({
     summaryCurrency: '',
-    status: 'all' as 'all' | ContractStatus
+    status: DEFAULT_CONTRACT_STATUS_FILTER
   });
   const [contractIdToDelete, setContractIdToDelete] = useState<string | null>(null);
   const [pendingContractStatus, setPendingContractStatus] = useState<{ id: string; next: ContractStatus } | null>(null);
+  const [agreementPdfBusyId, setAgreementPdfBusyId] = useState<string | null>(null);
+  const [previewContract, setPreviewContract] = useState<InvestmentContract | null>(null);
 
   const { accounts, addTransaction, deleteTransactionByPublicId, fetchTransactions, fetchAccounts } = useFinanceStore();
   const { user, profile } = useAuthStore();
-  const userDefaultCurrency = profile?.local_currency?.trim() || 'USD';
+  const userDefaultCurrency = getProfilePreferredCurrency(profile);
   const formatAmount = (amount: number, currency: string) => formatCurrency(amount, currency || userDefaultCurrency);
+
+  useEffect(() => {
+    fetchAccounts();
+  }, [fetchAccounts]);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,23 +206,34 @@ export const BusinessInvestmentTracker: React.FC = () => {
 
   const searchPending = searchTerm !== debouncedSearch;
 
-  /** Distinct currencies from the user's accounts; else from contracts; else profile default — no "All" row. */
   const currencyFilterCodes = useMemo(() => {
-    const fromAccounts = [...new Set(accounts.map((a) => a.currency).filter(Boolean))].sort();
+    const restrict = (codes: string[]) => {
+      const sorted = [...new Set(codes.filter(Boolean))].sort();
+      if (!profile?.selected_currencies?.length) return sorted;
+      return sorted.filter((c) => profile.selected_currencies?.includes(c));
+    };
+    const fromAccounts = restrict(accounts.map((a) => a.currency));
     if (fromAccounts.length > 0) return fromAccounts;
-    const fromContracts = [...new Set(contracts.map((c) => c.currency).filter(Boolean))].sort();
+    const fromContracts = restrict(contracts.map((c) => c.currency));
     if (fromContracts.length > 0) return fromContracts;
-    return [userDefaultCurrency];
-  }, [accounts, contracts, userDefaultCurrency]);
+    return [resolveDefaultCurrency(profile?.selected_currencies ?? [userDefaultCurrency], userDefaultCurrency)];
+  }, [accounts, contracts, userDefaultCurrency, profile?.selected_currencies]);
 
   const showCurrencyFilter = currencyFilterCodes.length > 1;
+  const defaultFilterCurrency = useMemo(
+    () => resolveDefaultCurrency(currencyFilterCodes, userDefaultCurrency, profile?.selected_currencies?.[0]),
+    [currencyFilterCodes, userDefaultCurrency, profile?.selected_currencies]
+  );
 
   useEffect(() => {
-    setSummaryCurrency((prev) => (currencyFilterCodes.includes(prev) ? prev : currencyFilterCodes[0]));
-  }, [currencyFilterCodes]);
+    const next = syncCurrencyFilter(summaryCurrency, currencyFilterCodes, userDefaultCurrency, {
+      fallbackCurrency: profile?.selected_currencies?.[0],
+    });
+    if (next && next !== summaryCurrency) setSummaryCurrency(next);
+  }, [summaryCurrency, currencyFilterCodes, userDefaultCurrency, profile?.selected_currencies]);
 
-  const filterCurrency = currencyFilterCodes.includes(summaryCurrency) ? summaryCurrency : currencyFilterCodes[0];
-  const currencyFilterActive = showCurrencyFilter && filterCurrency !== currencyFilterCodes[0];
+  const filterCurrency = currencyFilterCodes.includes(summaryCurrency) ? summaryCurrency : defaultFilterCurrency;
+  const currencyFilterActive = showCurrencyFilter && filterCurrency !== defaultFilterCurrency;
 
   useEffect(() => {
     if (!showMobileFilterMenu) return;
@@ -308,13 +333,13 @@ export const BusinessInvestmentTracker: React.FC = () => {
   const clearFilters = () => {
     setSearchTerm('');
     setDebouncedSearch('');
-    setStatusFilter('all');
+    setStatusFilter(DEFAULT_CONTRACT_STATUS_FILTER);
     setSortField('title');
     setSortDirection('asc');
-    if (showCurrencyFilter) setSummaryCurrency(currencyFilterCodes[0]);
+    if (showCurrencyFilter) setSummaryCurrency(defaultFilterCurrency);
   };
   const hasVisibleFilters =
-    searchTerm.trim().length > 0 || statusFilter !== 'all' || currencyFilterActive;
+    searchTerm.trim().length > 0 || statusFilter !== DEFAULT_CONTRACT_STATUS_FILTER || currencyFilterActive;
   const updateActionTitle = hasActiveContracts ? 'Update' : 'Add a contract first';
   const mobileFilterApplyActive =
     (showCurrencyFilter && tempMobileFilters.summaryCurrency !== filterCurrency) ||
@@ -365,6 +390,34 @@ export const BusinessInvestmentTracker: React.FC = () => {
     setEditingContractId(contract.id);
     setShowContractModal(true);
   };
+
+  const agreementInput = useMemo(
+    () => (previewContract ? resolveInvestmentAgreementInput(previewContract, profile, user) : null),
+    [previewContract, profile, user]
+  );
+
+  const handleViewAgreement = useCallback((contract: InvestmentContract) => {
+    setPreviewContract(contract);
+  }, []);
+
+  const handleDownloadAgreement = useCallback(
+    async (contract: InvestmentContract) => {
+      setAgreementPdfBusyId(contract.id);
+      try {
+        const result = await downloadInvestmentAgreementPdf(
+          resolveInvestmentAgreementInput(contract, profile, user)
+        );
+        if (result.success) toast.success('Agreement PDF downloaded');
+        else toast.error(result.error ?? 'Failed to generate PDF');
+      } catch (error) {
+        console.error('Agreement PDF download:', error);
+        toast.error('Failed to generate agreement PDF');
+      } finally {
+        setAgreementPdfBusyId(null);
+      }
+    },
+    [profile, user]
+  );
 
   const contractsEmptyBody = (
     <>
@@ -680,9 +733,9 @@ export const BusinessInvestmentTracker: React.FC = () => {
               ) : null}
               <ListPageFilterSelect
                 value={statusFilter}
-                onChange={(v) => setStatusFilter(v as 'all' | ContractStatus)}
+                onChange={(v) => setStatusFilter(v as ContractStatusFilter)}
                 options={statusFilterOptions}
-                highlight={statusFilter !== 'all'}
+                highlight={statusFilter !== DEFAULT_CONTRACT_STATUS_FILTER}
                 ariaLabel="Status"
               />
               {hasVisibleFilters ? <ListPageClearFiltersButton onClick={clearFilters} /> : null}
@@ -910,36 +963,16 @@ export const BusinessInvestmentTracker: React.FC = () => {
                             </button>
                           </td>
                           <td className="px-3 sm:px-4 lg:px-6 py-2 sm:py-[0.6rem] lg:py-[0.7rem]" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-center gap-0.5">
-                              <button
-                                type="button"
-                                onClick={() => queueContractStatusChange(contract.id)}
-                                className={rowActionIconButtonClass}
-                                title={contract.status === 'active' ? 'End contract' : 'Reopen contract'}
-                                aria-label={contract.status === 'active' ? 'End contract' : 'Reopen contract'}
-                              >
-                                {contract.status === 'active' ? (
-                                  <Ban className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                ) : (
-                                  <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                )}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => openEditContractModal(contract)}
-                                className={rowActionIconButtonClass}
-                                title="Edit contract details"
-                              >
-                                <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setContractIdToDelete(contract.id)}
-                                className={rowActionIconButtonClass}
-                                title="Delete contract"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                              </button>
+                            <div className="flex items-center justify-center">
+                              <BusinessInvestmentContractRowActions
+                                contract={contract}
+                                pdfBusy={agreementPdfBusyId === contract.id}
+                                onView={handleViewAgreement}
+                                onDownload={handleDownloadAgreement}
+                                onToggleStatus={queueContractStatusChange}
+                                onEdit={openEditContractModal}
+                                onDelete={setContractIdToDelete}
+                              />
                             </div>
                           </td>
                         </tr>
@@ -1015,37 +1048,15 @@ export const BusinessInvestmentTracker: React.FC = () => {
                         >
                           {contract.status === 'active' ? 'Active' : 'Closed'}
                         </button>
-                        <div className="flex items-center gap-0.5">
-                          <button
-                            type="button"
-                            onClick={() => queueContractStatusChange(contract.id)}
-                            className={rowActionIconButtonClass}
-                            title={contract.status === 'active' ? 'End contract' : 'Reopen contract'}
-                            aria-label={contract.status === 'active' ? 'End contract' : 'Reopen contract'}
-                          >
-                            {contract.status === 'active' ? (
-                              <Ban className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                            ) : (
-                              <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openEditContractModal(contract)}
-                            className={rowActionIconButtonClass}
-                            title="Edit contract details"
-                          >
-                            <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setContractIdToDelete(contract.id)}
-                            className={rowActionIconButtonClass}
-                            title="Delete contract"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                          </button>
-                        </div>
+                        <BusinessInvestmentContractRowActions
+                          contract={contract}
+                          pdfBusy={agreementPdfBusyId === contract.id}
+                          onView={handleViewAgreement}
+                          onDownload={handleDownloadAgreement}
+                          onToggleStatus={queueContractStatusChange}
+                          onEdit={openEditContractModal}
+                          onDelete={setContractIdToDelete}
+                        />
                       </div>
                       {isExpanded && (
                         <div
@@ -1096,7 +1107,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
             <ListPageMobileFilterChip
               key={opt.value}
               selected={tempMobileFilters.status === opt.value}
-              onClick={() => setTempMobileFilters((p) => ({ ...p, status: opt.value as 'all' | ContractStatus }))}
+              onClick={() => setTempMobileFilters((p) => ({ ...p, status: opt.value as ContractStatusFilter }))}
             >
               {opt.label}
             </ListPageMobileFilterChip>
@@ -1128,6 +1139,12 @@ export const BusinessInvestmentTracker: React.FC = () => {
             )
           );
         }}
+      />
+
+      <InvestmentAgreementPreviewModal
+        open={Boolean(previewContract)}
+        input={agreementInput}
+        onClose={() => setPreviewContract(null)}
       />
 
       <BusinessInvestmentUpdateModal

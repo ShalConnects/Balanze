@@ -9,7 +9,7 @@ export const TABLE_SUMMARY_CARDS_GRID =
 export const LP = {
   stack: 'space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6',
   card: 'bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 pb-2 sm:pb-3 lg:pb-0',
-  filterHeader: 'p-2 sm:p-3 md:p-4 border-b border-gray-200 dark:border-gray-700',
+  filterHeader: 'p-3 border-b border-gray-200 dark:border-gray-700',
   /** Investments-only filter row spacing to match Lent & Borrow mobile rhythm. */
   investmentFilterHeader: 'p-3 md:p-4 border-b border-gray-200 dark:border-gray-700',
   /** Clients-only filter row spacing to match Lent & Borrow mobile rhythm. */

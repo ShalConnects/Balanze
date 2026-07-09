@@ -13,6 +13,7 @@ import {
 import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
 import { parseLocalDate, getTodayLocalDateString } from '../../utils/taskDateUtils';
 import { insertBusinessInvestmentContract, updateBusinessInvestmentContractDetails } from '../../lib/businessInvestmentService';
+import { getProfilePreferredCurrency } from '../../utils/usePreferredCurrency';
 import { TRANSACTION_ORIGIN_BUSINESS_INVESTMENT } from '../../lib/transactionListLock';
 import type { ContractStatus, InvestmentContract } from '../../types/businessInvestment';
 import {
@@ -68,7 +69,7 @@ export const BusinessInvestmentContractModal: React.FC<BusinessInvestmentContrac
 }) => {
   const { accounts, addTransaction } = useFinanceStore();
   const { user, profile } = useAuthStore();
-  const userDefaultCurrency = profile?.local_currency?.trim() || 'USD';
+  const userDefaultCurrency = getProfilePreferredCurrency(profile);
   const [contractForm, setContractForm] = useState(defaultContractForm);
   const [createPrincipalExpense, setCreatePrincipalExpense] = useState(false);
 

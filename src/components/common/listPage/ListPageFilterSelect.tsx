@@ -16,6 +16,8 @@ type ListPageFilterSelectProps = {
   ariaLabel?: string;
   /** When true, menu panel uses max-h-48 overflow-y (currency / long lists). */
   menuScrollable?: boolean;
+  /** Open menu above the button (e.g. footer pager). */
+  dropUp?: boolean;
   className?: string;
 };
 
@@ -30,6 +32,7 @@ export function ListPageFilterSelect({
   highlight,
   ariaLabel,
   menuScrollable,
+  dropUp,
   className = ''
 }: ListPageFilterSelectProps) {
   const [open, setOpen] = useState(false);
@@ -66,7 +69,7 @@ export function ListPageFilterSelect({
       </button>
       {open && options.length > 0 ? (
         <div
-          className={`absolute left-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 min-w-full ${
+          className={`absolute left-0 ${dropUp ? 'bottom-full mb-2' : 'mt-2'} bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 min-w-full ${
             menuScrollable ? 'max-h-48 overflow-y-auto' : ''
           }`}
         >

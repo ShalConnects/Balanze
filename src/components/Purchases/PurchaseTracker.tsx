@@ -47,6 +47,7 @@ import { getDefaultAccountId } from '../../utils/defaultAccount';
 import { sanitizeHtml } from '../../lib/sanitize';
 import { generateTransactionId } from '../../utils/transactionId';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { getProfilePreferredCurrency, syncCurrencyFilter } from '../../utils/usePreferredCurrency';
 import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 import { normalizeSearchText, includesNormalized } from '../../utils/searchText';
 
@@ -627,12 +628,14 @@ export const PurchaseTracker: React.FC = () => {
 
 
 
-  // Set default currency to user's default (first account's currency)
   useEffect(() => {
-    if (availableCurrencies.length > 0 && (!selectedCurrency || !availableCurrencies.includes(selectedCurrency))) {
-      setSelectedCurrency(availableCurrencies[0]);
-    }
-  }, [availableCurrencies, selectedCurrency]);
+    const next = syncCurrencyFilter(filters.currency || selectedCurrency, availableCurrencies, getProfilePreferredCurrency(profile), {
+      fallbackCurrency: profile?.selected_currencies?.[0],
+    });
+    if (!next) return;
+    if (next !== filters.currency) setFilters(f => ({ ...f, currency: next }));
+    if (next !== selectedCurrency) setSelectedCurrency(next);
+  }, [availableCurrencies, filters.currency, selectedCurrency, profile]);
 
   // Mobile filter functionality
   useEffect(() => {
@@ -1524,31 +1527,6 @@ export const PurchaseTracker: React.FC = () => {
   // Add at the top, after useState:
   const plannedCountAll = purchases.filter(p => p.status === 'planned').length;
 
-  // --- Currency Filter: Default to user's preferred currency if available ---
-  useEffect(() => {
-    // Use selected_currencies if available, otherwise fallback to local_currency
-    const userCurrencies = profile?.selected_currencies && profile.selected_currencies.length > 0
-      ? profile.selected_currencies
-      : profile?.local_currency
-        ? [profile.local_currency]
-        : [];
-    if (
-      availableCurrencies.length > 0 &&
-      userCurrencies.length > 0 &&
-      userCurrencies.some(c => availableCurrencies.includes(c)) &&
-      (!filters.currency || !availableCurrencies.includes(filters.currency))
-    ) {
-      // Prefer primary/local_currency if present in selected, else first selected
-      const defaultCurrency = userCurrencies.includes(profile?.local_currency || '') && availableCurrencies.includes(profile?.local_currency || '')
-        ? profile?.local_currency
-        : userCurrencies.find(c => availableCurrencies.includes(c)) || availableCurrencies[0];
-      setFilters(f => ({ ...f, currency: defaultCurrency! }));
-      setSelectedCurrency(defaultCurrency!);
-    } else if (availableCurrencies.length > 0 && (!filters.currency || !availableCurrencies.includes(filters.currency))) {
-      setFilters(f => ({ ...f, currency: availableCurrencies[0] }));
-      setSelectedCurrency(availableCurrencies[0]);
-    }
-  }, [profile, availableCurrencies, filters.currency]);
 
 // --- Date Filter UI: Match Transactions Page ---
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
