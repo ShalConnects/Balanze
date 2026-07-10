@@ -130,20 +130,40 @@ export const ExpenseNoteSuggestDropdown: React.FC<{
   </ul>
 );
 
-export const ExpenseNoteQuickAddField: React.FC<{
+/** Shared note textarea with per-user shopping-item suggestions (UI only; caller owns persistence). */
+export const ExpenseNoteSuggestTextarea: React.FC<{
   value: string;
   onChange: (v: string) => void;
   userId?: string;
   disabled?: boolean;
   placeholder?: string;
   className?: string;
-}> = ({ value, onChange, userId, disabled, placeholder, className = '' }) => {
+  textareaClassName?: string;
+  maxLength?: number;
+  id?: string;
+  name?: string;
+  rows?: number;
+  onBlur?: React.FocusEventHandler<HTMLTextAreaElement>;
+}> = ({
+  value,
+  onChange,
+  userId,
+  disabled,
+  placeholder,
+  className = '',
+  textareaClassName = '',
+  maxLength,
+  id,
+  name,
+  rows,
+  onBlur,
+}) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { suggestions, refresh, clear } = useExpenseNoteItemSuggestions(userId);
-  const pick = (name: string) => {
+  const pick = (itemName: string) => {
     const el = textareaRef.current;
     const caret = el?.selectionStart ?? value.length;
-    onChange(applyExpenseNoteSuggestion(value, caret, name));
+    onChange(applyExpenseNoteSuggestion(value, caret, itemName));
     clear();
     setTimeout(() => el?.focus(), 0);
   };
@@ -151,24 +171,43 @@ export const ExpenseNoteQuickAddField: React.FC<{
     <div className={`relative ${className}`.trim()}>
       <textarea
         ref={textareaRef}
+        id={id}
+        name={name}
         value={value}
         disabled={disabled}
+        rows={rows}
+        maxLength={maxLength}
+        onBlur={onBlur}
         onChange={(e) => {
           const v = e.target.value;
-          if (v.length <= EXPENSE_NOTE_RAW_MAX) {
-            onChange(v);
-            refresh(v, e.target.selectionStart ?? v.length);
-          }
+          if (maxLength != null && v.length > maxLength) return;
+          onChange(v);
+          refresh(v, e.target.selectionStart ?? v.length);
         }}
         onClick={(e) => refresh(value, e.currentTarget.selectionStart ?? 0)}
         onKeyUp={(e) => refresh(value, e.currentTarget.selectionStart ?? 0)}
         placeholder={placeholder}
-        className="w-full flex-1 min-h-[64px] md:min-h-0 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 resize-none"
+        className={textareaClassName}
       />
       {suggestions.length > 0 && !disabled && <ExpenseNoteSuggestDropdown suggestions={suggestions} onPick={pick} />}
     </div>
   );
 };
+
+export const ExpenseNoteQuickAddField: React.FC<{
+  value: string;
+  onChange: (v: string) => void;
+  userId?: string;
+  disabled?: boolean;
+  placeholder?: string;
+  className?: string;
+}> = (props) => (
+  <ExpenseNoteSuggestTextarea
+    {...props}
+    maxLength={EXPENSE_NOTE_RAW_MAX}
+    textareaClassName="w-full flex-1 min-h-[64px] md:min-h-0 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 resize-none"
+  />
+);
 
 export const ExpenseNoteParseHint: React.FC<{ lines: ParsedExpenseNoteLine[]; className?: string }> = ({
   lines,

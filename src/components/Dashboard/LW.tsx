@@ -25,6 +25,12 @@ import { supabase } from '../../lib/supabase';
 import { sanitizeHtml } from '../../lib/sanitize';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { DEFAULT_INCLUDE_DATA, normalizeIncludeData } from '../../../lib/lastWishIncludeData.js';
+import {
+  filterActiveLendBorrow,
+  lendBorrowRemaining,
+  isLentType,
+  isBorrowedType,
+} from '../../../lib/lastWishDataFilters.js';
 import { fetchBusinessInvestmentContracts } from '../../lib/businessInvestmentService';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 import { ENTRY_TYPE_LABELS, type InvestmentContract } from '../../types/businessInvestment';
@@ -423,7 +429,7 @@ These memories are my gift to you.`
       accounts: accounts.length,
       transactions: transactions.length,
       purchases: purchases.length,
-      lendBorrow: lendBorrowRecords.length,
+      lendBorrow: filterActiveLendBorrow(lendBorrowRecords).length,
       savings: savingsGoals.length,
       businessInvestments: businessContracts.length,
       analytics: 1, // Analytics is always available (we can generate reports)
@@ -447,7 +453,8 @@ These memories are my gift to you.`
         const { data, error } = await supabase
           .from('lend_borrow')
           .select('*')
-          .eq('user_id', user.id);
+          .eq('user_id', user.id)
+          .in('status', ['active', 'overdue']);
         
         if (error) throw error;
         setLendBorrowRecords(data || []);
@@ -2389,26 +2396,20 @@ const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
     });
   }
 
-  // Calculate lent/borrowed by currency
+  // Calculate lent/borrowed by currency (active/overdue outstanding remaining)
+  const activeLendBorrow = filterActiveLendBorrow(lendBorrowRecords);
   const lentByCurrency: Record<string, number> = {};
   const borrowedByCurrency: Record<string, number> = {};
-  const activeLendBorrow = lendBorrowRecords?.filter((lb: any) => 
-    lb.status === 'active' || lb.status === 'partial'
-  ) || [];
 
-  if (includeData.lendBorrow && lendBorrowRecords) {
-    lendBorrowRecords.forEach((lb: any) => {
+  if (includeData.lendBorrow) {
+    activeLendBorrow.forEach((lb: any) => {
       const currency = lb.currency || 'USD';
-      if (lb.type === 'lent') {
-        const remaining = (lb.amount || 0) - (lb.total_returned_amount || 0);
-        if (remaining > 0) {
-          lentByCurrency[currency] = (lentByCurrency[currency] || 0) + remaining;
-        }
-      } else if (lb.type === 'borrowed') {
-        const remaining = (lb.amount || 0) - (lb.total_returned_amount || 0);
-        if (remaining > 0) {
-          borrowedByCurrency[currency] = (borrowedByCurrency[currency] || 0) + remaining;
-        }
+      const remaining = lendBorrowRemaining(lb);
+      if (remaining <= 0) return;
+      if (isLentType(lb)) {
+        lentByCurrency[currency] = (lentByCurrency[currency] || 0) + remaining;
+      } else if (isBorrowedType(lb)) {
+        borrowedByCurrency[currency] = (borrowedByCurrency[currency] || 0) + remaining;
       }
     });
   }

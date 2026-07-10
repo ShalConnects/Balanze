@@ -1,17 +1,16 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../store/authStore';
 import { MAX_TRANSACTION_NOTE_LENGTH } from '../../constants/transactionNote';
 import { EXPENSE_NOTE_RAW_MAX } from '../../constants/expenseNote';
-import { ExpenseNoteLoadingCaption, ExpenseNoteParseHint, ExpenseNoteParsedPreviewTable, ExpenseNoteSuggestDropdown } from './expenseNoteCompactUi';
+import { ExpenseNoteLoadingCaption, ExpenseNoteParseHint, ExpenseNoteParsedPreviewTable, ExpenseNoteSuggestTextarea } from './expenseNoteCompactUi';
 import {
   deleteExpenseNoteDocument,
   fetchExpenseNoteRawText,
   saveExpenseNoteDocument,
 } from '../../lib/expenseNoteService';
 import { buildExpenseNoteSummary, parseExpenseNoteText, sumExpenseNoteLines } from '../../utils/expenseNoteParser';
-import { applyExpenseNoteSuggestion, useExpenseNoteItemSuggestions } from '../../hooks/useExpenseNoteItemSuggestions';
 
 interface TransactionNoteModalProps {
   isOpen: boolean;
@@ -32,8 +31,6 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
   const [rawText, setRawText] = useState('');
   const [loading, setLoading] = useState(false);
   const [hydrating, setHydrating] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { suggestions, refresh, clear } = useExpenseNoteItemSuggestions(user?.id);
 
   const parsedLines = useMemo(() => parseExpenseNoteText(rawText), [rawText]);
   const lineTotal = useMemo(() => sumExpenseNoteLines(parsedLines), [parsedLines]);
@@ -54,20 +51,8 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     setRawText('');
-    clear();
     void load();
-    const t = setTimeout(() => textareaRef.current?.focus(), 100);
-    return () => clearTimeout(t);
-  }, [isOpen, load, clear]);
-
-  const applySuggestion = (name: string) => {
-    const el = textareaRef.current;
-    if (!el) return;
-    const caret = el.selectionStart ?? rawText.length;
-    setRawText(applyExpenseNoteSuggestion(rawText, caret, name));
-    clear();
-    setTimeout(() => el.focus(), 0);
-  };
+  }, [isOpen, load]);
 
   const handleSave = async () => {
     if (!user?.id) return;
@@ -139,29 +124,19 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
             </button>
           </div>
 
-          <div className="mb-2 relative">
+          <div className="mb-2">
             <label className="text-xs font-medium text-gray-500 uppercase mb-1 block">Items (comma-separated)</label>
             <ExpenseNoteLoadingCaption active={hydrating} className="mb-1.5" />
-            <textarea
-              ref={textareaRef}
+            <ExpenseNoteSuggestTextarea
               value={rawText}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v.length <= EXPENSE_NOTE_RAW_MAX) {
-                  setRawText(v);
-                  refresh(v, e.target.selectionStart ?? v.length);
-                }
-              }}
-              onClick={(e) => refresh(rawText, e.currentTarget.selectionStart ?? 0)}
-              onKeyUp={(e) => refresh(rawText, e.currentTarget.selectionStart ?? 0)}
-              placeholder="Toast 43, Egg 12 138, Chicken 218x160"
-              className={`w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none min-h-[88px] ${hydrating ? 'opacity-60 animate-pulse' : ''}`}
-              rows={3}
+              onChange={setRawText}
+              userId={user?.id}
               disabled={loading || hydrating}
+              maxLength={EXPENSE_NOTE_RAW_MAX}
+              rows={3}
+              placeholder="Toast 43, Egg 12 138, Chicken 218x160"
+              textareaClassName={`w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none min-h-[88px] ${hydrating ? 'opacity-60 animate-pulse' : ''}`}
             />
-            {suggestions.length > 0 && !hydrating && (
-              <ExpenseNoteSuggestDropdown suggestions={suggestions} onPick={applySuggestion} />
-            )}
             <span className={`text-xs mt-1 block ${isOverLimit ? 'text-red-500' : 'text-gray-500'}`}>
               {charCount}/{MAX_TRANSACTION_NOTE_LENGTH}
             </span>

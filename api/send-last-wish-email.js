@@ -7,6 +7,15 @@ import { sumAmountsByCurrency } from '../lib/lastWishSummaryRollups.js';
 import { filterOrphanDpsSavingsAccounts } from '../lib/lastWishAccountFilter.js';
 import { renderBusinessInvestmentContractsHtml, BIZ_ENTRY_LABELS } from '../lib/lastWishBusinessContractsRender.js';
 import { drawBusinessContractDetails } from '../lib/lastWishPdfBusinessContracts.js';
+import {
+  filterActiveLendBorrow,
+  lendBorrowRemaining,
+  lendBorrowReturned,
+  isBorrowedType,
+  isLentType,
+  rollupLendBorrowByCurrency,
+} from '../lib/lastWishDataFilters.js';
+import { isLastWishTriggerAuthorized } from '../lib/lastWishTriggerAuth.js';
 
 let transporter = null;
 if (process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -287,10 +296,10 @@ export async function gatherUserData(userId) {
       if (lendBorrowError) {
         await logError('gatherUserData', lendBorrowError, { ...metadata, table: 'lend_borrow' });
       }
-  data.lendBorrow = lendBorrow || [];
-      
-      // Fetch returns from lend_borrow_returns table and aggregate by lend_borrow_id
-      if (data.lendBorrow && data.lendBorrow.length > 0) {
+  // Active + overdue only (settled excluded from Last Wish delivery)
+      data.lendBorrow = filterActiveLendBorrow(lendBorrow);
+
+      if (data.lendBorrow.length > 0) {
         const lendBorrowIds = data.lendBorrow.map(lb => lb.id);
         try {
           const { data: returns, error: returnsError } = await supabase
@@ -302,23 +311,18 @@ export async function gatherUserData(userId) {
             await logError('gatherUserData', returnsError, { ...metadata, table: 'lend_borrow_returns' });
           }
           
-          // Aggregate returns by lend_borrow_id
           const returnsByLendBorrowId = {};
           (returns || []).forEach(ret => {
-            if (!returnsByLendBorrowId[ret.lend_borrow_id]) {
-              returnsByLendBorrowId[ret.lend_borrow_id] = 0;
-            }
-            returnsByLendBorrowId[ret.lend_borrow_id] += parseFloat(ret.amount) || 0;
+            returnsByLendBorrowId[ret.lend_borrow_id] =
+              (returnsByLendBorrowId[ret.lend_borrow_id] || 0) + (parseFloat(ret.amount) || 0);
           });
           
-          // Attach total returned amount to each lend/borrow record
           data.lendBorrow = data.lendBorrow.map(lb => ({
             ...lb,
             total_returned_amount: (parseFloat(lb.partial_return_amount) || 0) + (returnsByLendBorrowId[lb.id] || 0)
           }));
         } catch (error) {
           await logError('gatherUserData', error, { ...metadata, table: 'lend_borrow_returns' });
-          // If returns fetch fails, just use partial_return_amount
           data.lendBorrow = data.lendBorrow.map(lb => ({
             ...lb,
             total_returned_amount: parseFloat(lb.partial_return_amount) || 0
@@ -415,10 +419,10 @@ export function filterDataBySettings(userData, includeSettings) {
  */
 function calculateFinancialMetrics(data) {
   const accounts = data.accounts || [];
-  const transactions = data.transactions || [];
   const lendBorrow = data.lendBorrow || [];
   const investmentAssets = data.investmentAssets || [];
-  const activeBizContracts = (data.businessInvestmentContracts || []).filter((c) => c.status === 'active');
+  // gatherUserData already restricts business + L&B to active delivery set
+  const activeBizContracts = data.businessInvestmentContracts || [];
 
   const {
     totals: investmentTotalsByCurrency,
@@ -431,22 +435,19 @@ function calculateFinancialMetrics(data) {
     count: activeBusinessContractCount
   } = sumAmountsByCurrency(activeBizContracts, (c) => parseFloat(c.principal) || 0);
   
-  // Calculate total account balances
   const totalAssets = accounts.reduce((sum, account) => {
     return sum + (parseFloat(account.calculated_balance) || 0);
   }, 0);
   
   const investmentPortfolio = Object.values(investmentTotalsByCurrency).reduce((s, v) => s + v, 0);
   
-  // Calculate outstanding debts (borrowed amounts that are still active or overdue)
   const outstandingDebts = lendBorrow
-    .filter(lb => (lb.type === 'borrow' || lb.type === 'borrowed') && (lb.status === 'active' || lb.status === 'overdue'))
-    .reduce((sum, lb) => sum + (parseFloat(lb.amount) || 0), 0);
+    .filter(isBorrowedType)
+    .reduce((sum, lb) => sum + lendBorrowRemaining(lb), 0);
   
-  // Calculate amounts owed to user (lent amounts that are still active or overdue)
   const amountsOwed = lendBorrow
-    .filter(lb => (lb.type === 'lend' || lb.type === 'lent') && (lb.status === 'active' || lb.status === 'overdue'))
-    .reduce((sum, lb) => sum + (parseFloat(lb.amount) || 0), 0);
+    .filter(isLentType)
+    .reduce((sum, lb) => sum + lendBorrowRemaining(lb), 0);
   
   // Net worth = Total assets + Investments - Outstanding debts + Amounts owed
   const netWorth = totalAssets + investmentPortfolio - outstandingDebts + amountsOwed;
@@ -619,31 +620,9 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
     accountsByCurrency[currency] += 1;
   });
 
-  // Calculate Lent & Borrow metrics (active and overdue records)
-  const allLendBorrow = data.lendBorrow || [];
-  const activeLendBorrow = allLendBorrow.filter(lb => lb.status === 'active' || lb.status === 'overdue');
-  const activeLent = activeLendBorrow.filter(lb => lb.type === 'lend' || lb.type === 'lent');
-  const activeBorrowed = activeLendBorrow.filter(lb => lb.type === 'borrow' || lb.type === 'borrowed');
-  
-  // Calculate totals by currency for lent
-  const lentByCurrency = {};
-  activeLent.forEach(lb => {
-    const currency = lb.currency || 'USD';
-    if (!lentByCurrency[currency]) {
-      lentByCurrency[currency] = 0;
-    }
-    lentByCurrency[currency] += parseFloat(lb.amount) || 0;
-  });
-  
-  // Calculate totals by currency for borrowed
-  const borrowedByCurrency = {};
-  activeBorrowed.forEach(lb => {
-    const currency = lb.currency || 'USD';
-    if (!borrowedByCurrency[currency]) {
-      borrowedByCurrency[currency] = 0;
-    }
-    borrowedByCurrency[currency] += parseFloat(lb.amount) || 0;
-  });
+  // Calculate Lent & Borrow metrics (active/overdue outstanding remaining)
+  const { lentByCurrency, borrowedByCurrency, count: activeLendBorrowCount, active: allLendBorrow } =
+    rollupLendBorrowByCurrency(data.lendBorrow, { alreadyActive: true });
 
   const businessContracts = data.businessInvestmentContracts || [];
 
@@ -1305,8 +1284,8 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
                   <span class="summary-row-value negative">${Object.keys(borrowedByCurrency).length > 0 ? Object.entries(borrowedByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</span>
                 </div>
                 <div class="summary-row">
-                  <span class="summary-row-label">Records: </span>
-                  <span class="summary-row-value">${allLendBorrow.length} record${allLendBorrow.length !== 1 ? 's' : ''}</span>
+                  <span class="summary-row-label">Active records: </span>
+                  <span class="summary-row-value">${activeLendBorrowCount} record${activeLendBorrowCount !== 1 ? 's' : ''}</span>
                 </div>
               </div>
               ${'investmentAssets' in data ? `
@@ -1343,8 +1322,9 @@ export function createEmailContent(user, recipient, data, settings, isTestMode =
             <div class="attachment-card">
               <h3>Financial Data Attached</h3>
               <div class="file-badge">${isTestMode ? 'test-' : ''}financial-data-backup.pdf</div>
+              <div class="file-badge" style="margin-top: 8px;">${isTestMode ? 'test-' : ''}financial-data-backup.csv</div>
               <p style="margin-top: 16px; color: #9ca3af; font-size: 13px;">
-                A PDF document containing the financial records you have been designated to receive.
+                PDF and CSV with active accounts, outstanding lend/borrow, and active business contracts.
               </p>
             </div>
 
@@ -1484,13 +1464,15 @@ function generateCSVExport(data, settings) {
   
   // Lend/Borrow Section
   if (data.lendBorrow && data.lendBorrow.length > 0) {
-    csvRows.push('=== LEND/BORROW RECORDS ===');
-    csvRows.push('Type,Person/Entity,Amount,Currency,Status,Due Date,Notes');
+    csvRows.push('=== LEND/BORROW RECORDS (ACTIVE / OVERDUE) ===');
+    csvRows.push('Type,Person/Entity,Outstanding,Original,Returned,Currency,Status,Due Date,Notes');
     data.lendBorrow.forEach(lb => {
       csvRows.push([
         escapeCSV(lb.type || 'N/A'),
-        escapeCSV(lb.person || lb.entity || 'N/A'),
+        escapeCSV(lb.person_name || lb.person || lb.entity || 'N/A'),
+        escapeCSV(lendBorrowRemaining(lb)),
         escapeCSV(lb.amount || 0),
+        escapeCSV(lendBorrowReturned(lb)),
         escapeCSV(lb.currency || 'USD'),
         escapeCSV(lb.status || 'N/A'),
         escapeCSV(lb.due_date ? new Date(lb.due_date).toISOString().split('T')[0] : 'N/A'),
@@ -1538,7 +1520,7 @@ function generateCSVExport(data, settings) {
   }
 
   if (data.businessInvestmentContracts && data.businessInvestmentContracts.length > 0) {
-    csvRows.push('=== BUSINESS INVESTMENT CONTRACTS ===');
+    csvRows.push('=== BUSINESS INVESTMENT CONTRACTS (ACTIVE) ===');
     csvRows.push('Title,Principal,Currency,Funding Account,Start Date,End Date,Status,Note');
     data.businessInvestmentContracts.forEach((c) => {
       csvRows.push([
@@ -1765,25 +1747,9 @@ function createPDFHTMLContent(user, recipient, data, settings) {
     accountsByCurrency[currency] += 1;
   });
   
-  // Calculate lend/borrow
-  const allLendBorrow = data.lendBorrow || [];
-  const activeLendBorrow = allLendBorrow.filter(lb => lb.status === 'active' || lb.status === 'overdue');
-  const activeLent = activeLendBorrow.filter(lb => lb.type === 'lend' || lb.type === 'lent');
-  const activeBorrowed = activeLendBorrow.filter(lb => lb.type === 'borrow' || lb.type === 'borrowed');
-  
-  const lentByCurrency = {};
-  activeLent.forEach(lb => {
-    const currency = lb.currency || 'USD';
-    if (!lentByCurrency[currency]) lentByCurrency[currency] = 0;
-    lentByCurrency[currency] += parseFloat(lb.amount) || 0;
-  });
-  
-  const borrowedByCurrency = {};
-  activeBorrowed.forEach(lb => {
-    const currency = lb.currency || 'USD';
-    if (!borrowedByCurrency[currency]) borrowedByCurrency[currency] = 0;
-    borrowedByCurrency[currency] += parseFloat(lb.amount) || 0;
-  });
+  // Calculate lend/borrow (outstanding remaining on active/overdue)
+  const { lentByCurrency, borrowedByCurrency, count: activeLendBorrowCount, active: allLendBorrow } =
+    rollupLendBorrowByCurrency(data.lendBorrow, { alreadyActive: true });
   
   const formatCurrencyWithSymbol = (amount, currency = 'USD') => {
     const symbols = { USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', INR: '₹', CAD: '$', AUD: '$' };
@@ -1927,7 +1893,7 @@ function createPDFHTMLContent(user, recipient, data, settings) {
     <p><strong>Currencies:</strong> ${Object.keys(assetsByCurrency).join(', ') || 'N/A'}</p>
     <p><strong>Total Lent:</strong> ${Object.keys(lentByCurrency).length > 0 ? Object.entries(lentByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</p>
     <p><strong>Total Borrowed:</strong> ${Object.keys(borrowedByCurrency).length > 0 ? Object.entries(borrowedByCurrency).map(([currency, amount]) => formatCurrencyWithSymbol(amount, currency)).join(', ') : formatCurrencyWithSymbol(0, 'USD')}</p>
-    <p><strong>Records:</strong> ${allLendBorrow.length} record${allLendBorrow.length !== 1 ? 's' : ''}</p>
+    <p><strong>Records:</strong> ${activeLendBorrowCount} active record${activeLendBorrowCount !== 1 ? 's' : ''}</p>
     ${'investmentAssets' in data ? `<p><strong>Investment portfolio:</strong> ${Object.keys(metrics.investmentTotalsByCurrency).length > 0 ? Object.entries(metrics.investmentTotalsByCurrency).map(([c, a]) => formatCurrencyWithSymbol(a, c)).join(', ') : formatCurrencyWithSymbol(0, 'USD')} <span style="color:#6b7280;">(${metrics.investmentAssetCount} asset${metrics.investmentAssetCount !== 1 ? 's' : ''})</span></p>` : ''}
     ${'businessInvestmentContracts' in data ? `<p><strong>Active business contracts (principal):</strong> ${Object.keys(metrics.businessPrincipalByCurrency).length > 0 ? Object.entries(metrics.businessPrincipalByCurrency).map(([c, a]) => formatCurrencyWithSymbol(a, c)).join(', ') : formatCurrencyWithSymbol(0, 'USD')} <span style="color:#6b7280;">(${metrics.activeBusinessContractCount} active)</span></p>` : ''}
   </div>
@@ -1971,13 +1937,14 @@ function createPDFHTMLContent(user, recipient, data, settings) {
   
   ${allLendBorrow.length > 0 ? `
     <div class="section" style="page-break-before: always; page-break-after: avoid;">
-      <div class="section-title">Lend/Borrow Records</div>
+      <div class="section-title">Lend/Borrow Records (Active / Overdue)</div>
       <table>
         <thead>
           <tr>
             <th>Type</th>
             <th>Person/Entity</th>
-            <th>Amount</th>
+            <th>Outstanding</th>
+            <th>Returned</th>
             <th>Currency</th>
             <th>Status</th>
             <th>Due Date</th>
@@ -1986,14 +1953,13 @@ function createPDFHTMLContent(user, recipient, data, settings) {
         </thead>
         <tbody>
           ${allLendBorrow.map(lb => {
-            const type = lb.type === 'lent' || lb.type === 'lend' ? 'Lent' : 
-                         lb.type === 'borrowed' || lb.type === 'borrow' ? 'Borrowed' : 
-                         lb.type || 'N/A';
+            const type = isLentType(lb) ? 'Lent' : isBorrowedType(lb) ? 'Borrowed' : (lb.type || 'N/A');
             return `
               <tr>
                 <td>${type}</td>
                 <td>${lb.person_name || lb.person || lb.entity || 'N/A'}</td>
-                <td>${formatCurrencyWithSymbol(parseFloat(lb.amount) || 0, lb.currency || 'USD')}</td>
+                <td>${formatCurrencyWithSymbol(lendBorrowRemaining(lb), lb.currency || 'USD')}</td>
+                <td>${formatCurrencyWithSymbol(lendBorrowReturned(lb), lb.currency || 'USD')}</td>
                 <td>${lb.currency || 'USD'}</td>
                 <td>${lb.status || 'N/A'}</td>
                 <td>${lb.due_date ? new Date(lb.due_date).toLocaleDateString() : 'N/A'}</td>
@@ -2423,8 +2389,8 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       const tocItems = [];
       
       const deliveryAccounts = data.accounts || [];
-      const allLendBorrow = data.lendBorrow || [];
-      const activeLendBorrow = allLendBorrow.filter(lb => lb.status === 'active' || lb.status === 'overdue');
+      const { lentByCurrency, borrowedByCurrency, count: activeLendBorrowCount, active: allLendBorrow } =
+        rollupLendBorrowByCurrency(data.lendBorrow, { alreadyActive: true });
       
       // Filter investment assets
       const investmentAssets = (data.investmentAssets || []).filter(asset => 
@@ -2548,27 +2514,7 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         accountsByCurrency[currency] += 1;
       });
       
-      // Calculate lend/borrow totals
-      const activeLent = activeLendBorrow.filter(lb => lb.type === 'lend' || lb.type === 'lent');
-      const activeBorrowed = activeLendBorrow.filter(lb => lb.type === 'borrow' || lb.type === 'borrowed');
-      
-      const lentByCurrency = {};
-      activeLent.forEach(lb => {
-        const currency = lb.currency || 'USD';
-        if (!lentByCurrency[currency]) {
-          lentByCurrency[currency] = 0;
-        }
-        lentByCurrency[currency] += parseFloat(lb.amount) || 0;
-      });
-      
-      const borrowedByCurrency = {};
-      activeBorrowed.forEach(lb => {
-        const currency = lb.currency || 'USD';
-        if (!borrowedByCurrency[currency]) {
-          borrowedByCurrency[currency] = 0;
-        }
-        borrowedByCurrency[currency] += parseFloat(lb.amount) || 0;
-      });
+      // Calculate lend/borrow totals (already rolled up above)
       
       // Total Assets Section - Enhanced with boxes
       doc.fillColor('#000000').fontSize(16).font('Helvetica-Bold')
@@ -2699,7 +2645,7 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
       
       doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold')
         .text('Active Records:', 60, currentLendBorrowY);
-      const activeRecordsText = `${allLendBorrow.length} record${allLendBorrow.length !== 1 ? 's' : ''}`;
+      const activeRecordsText = `${activeLendBorrowCount} record${activeLendBorrowCount !== 1 ? 's' : ''}`;
       doc.fillColor('#374151').fontSize(11).font('Helvetica')
         .text(String(activeRecordsText), 180, currentLendBorrowY);
       
@@ -2822,7 +2768,7 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         currentPageNum = addPageWithHeader();
         pageNumbers.set('businessInvestmentContracts', currentPageNum);
         doc.fillColor('#000000').fontSize(20).font('Helvetica-Bold')
-          .text('Business investment contracts', 50, 80);
+          .text('Business investment contracts (Active)', 50, 80);
         doc.moveDown(1);
         drawBusinessContractDetails(doc, businessInvestmentContracts, {
           formatCurrency,
@@ -2877,21 +2823,16 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         pageNumbers.set('lendBorrow', currentPageNum);
         
         doc.fillColor('#000000').fontSize(20).font('Helvetica-Bold')
-          .text('Lend/Borrow Records', 50, 80);
+          .text('Lend/Borrow Records (Active / Overdue)', 50, 80);
         doc.moveDown(1);
         
         const lendBorrowRows = allLendBorrow.map(lb => {
-          const type = lb.type === 'lent' || lb.type === 'lend' ? 'Lent' : 
-                       lb.type === 'borrowed' || lb.type === 'borrow' ? 'Borrowed' : 
-                       lb.type || 'N/A';
-          // Use total_returned_amount if available (includes partial_return_amount + returns from lend_borrow_returns)
-          // Otherwise fall back to partial_return_amount for backward compatibility
-          const returnedAmount = parseFloat(lb.total_returned_amount) || parseFloat(lb.partial_return_amount) || 0;
+          const type = isLentType(lb) ? 'Lent' : isBorrowedType(lb) ? 'Borrowed' : (lb.type || 'N/A');
           return [
             type,
             lb.person_name || lb.person || lb.entity || 'N/A',
-            formatCurrency(parseFloat(lb.amount) || 0, lb.currency || 'USD'),
-            formatCurrency(returnedAmount, lb.currency || 'USD'),
+            formatCurrency(lendBorrowRemaining(lb), lb.currency || 'USD'),
+            formatCurrency(lendBorrowReturned(lb), lb.currency || 'USD'),
             lb.currency || 'USD',
             lb.status || 'N/A',
             lb.due_date ? formatDate(lb.due_date) : 'N/A',
@@ -2900,7 +2841,7 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
         });
         
         drawTable(
-          ['Type', 'Person/Entity', 'Amount', 'Returned', 'Currency', 'Status', 'Due Date', 'Notes'],
+          ['Type', 'Person/Entity', 'Outstanding', 'Returned', 'Currency', 'Status', 'Due Date', 'Notes'],
           lendBorrowRows,
           doc.y,
           {
@@ -2985,8 +2926,10 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
     if (isTargetUser) {
     }
 
-    // Generate PDF
+    // Generate PDF + CSV attachments
     const pdfBuffer = await createPDFBuffer(user, recipient, filteredData, settings);
+    const csvContent = generateCSVExport(filteredData, settings);
+    const filePrefix = isTestMode ? 'test-' : '';
 
     if (isTargetUser) {
     }
@@ -3005,9 +2948,14 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
       html: emailContent,
       attachments: [
         {
-          filename: `${isTestMode ? 'test-' : ''}financial-data-backup.pdf`,
+          filename: `${filePrefix}financial-data-backup.pdf`,
           content: pdfBuffer,
           contentType: 'application/pdf'
+        },
+        {
+          filename: `${filePrefix}financial-data-backup.csv`,
+          content: Buffer.from(csvContent, 'utf8'),
+          contentType: 'text/csv'
         }
       ]
     };
@@ -3086,11 +3034,12 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
   });
 }
 
-async function sendLastWishEmail(userId, testMode = false) {
+export async function sendLastWishEmail(userId, testMode = false) {
   const startTime = Date.now();
   const metadata = { userId, testMode };
   const TARGET_USER_ID = 'd1fe3ccc-3c57-4621-866a-6d0643137d53';
   const isTargetUser = userId === TARGET_USER_ID;
+  let deliveryLocked = false;
 
   if (isTargetUser) {
   }
@@ -3116,32 +3065,31 @@ async function sendLastWishEmail(userId, testMode = false) {
     if (isTargetUser) {
     }
     
-    // First, atomically mark as triggered to prevent duplicate sends
-    // This must happen BEFORE fetching settings to prevent race conditions
-    const { data: lockData, error: lockError } = await supabase
-      .from('last_wish_settings')
-      .update({ 
-        delivery_triggered: true,
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', userId)
-      .eq('delivery_triggered', false) // Only update if not already triggered
-      .select();
-    
-    if (lockError) {
-      await logError('sendLastWishEmail', lockError, { ...metadata, operation: 'lockSettings' });
-      throw new Error(`Failed to lock settings: ${lockError.message}`);
-    }
-    
-    // If no rows were updated, it means delivery_triggered was already true
-    if (!lockData || lockData.length === 0) {
-      if (isTargetUser) {
+    // Atomically lock delivery for real sends only (testMode must not lock)
+    if (!testMode) {
+      const { data: lockData, error: lockError } = await supabase
+        .from('last_wish_settings')
+        .update({ 
+          delivery_triggered: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .eq('delivery_triggered', false)
+        .select();
+      
+      if (lockError) {
+        await logError('sendLastWishEmail', lockError, { ...metadata, operation: 'lockSettings' });
+        throw new Error(`Failed to lock settings: ${lockError.message}`);
       }
-      return {
-        success: false,
-        message: 'Last Wish delivery already triggered for this user',
-        skipped: true
-      };
+      
+      if (!lockData || lockData.length === 0) {
+        return {
+          success: false,
+          message: 'Last Wish delivery already triggered for this user',
+          skipped: true
+        };
+      }
+      deliveryLocked = true;
     }
     
     const settings = await retryWithBackoff(
@@ -3282,6 +3230,7 @@ async function sendLastWishEmail(userId, testMode = false) {
     if (!testMode) {
       const successCount = results.filter(r => r.success).length;
       if (successCount > 0) {
+        deliveryLocked = false; // delivered — do not unlock on later errors
         try {
       await supabase
         .from('last_wish_settings')
@@ -3300,6 +3249,7 @@ async function sendLastWishEmail(userId, testMode = false) {
         }
       } else {
         // If all emails failed, reset delivery_triggered to allow retry
+        deliveryLocked = false;
         try {
           await supabase
             .from('last_wish_settings')
@@ -3336,6 +3286,16 @@ async function sendLastWishEmail(userId, testMode = false) {
 
   } catch (error) {
     const duration = Date.now() - startTime;
+    if (deliveryLocked) {
+      try {
+        await supabase
+          .from('last_wish_settings')
+          .update({ delivery_triggered: false, updated_at: new Date().toISOString() })
+          .eq('user_id', userId);
+      } catch (resetError) {
+        await logError('sendLastWishEmail', resetError, { ...metadata, operation: 'resetDeliveryTriggeredOnError' });
+      }
+    }
     await logError('sendLastWishEmail', error, {
       ...metadata,
       finalError: true,
@@ -3356,7 +3316,7 @@ export default async function handler(req, res) {
   // Add CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -3366,6 +3326,9 @@ export default async function handler(req, res) {
   }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+  if (!isLastWishTriggerAuthorized(req)) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
@@ -3383,7 +3346,7 @@ export default async function handler(req, res) {
     if (result.success) {
       res.status(200).json(result);
     } else {
-      res.status(500).json(result);
+      res.status(result.skipped ? 200 : 500).json(result);
     }
   } catch (error) {
     res.status(500).json({ 

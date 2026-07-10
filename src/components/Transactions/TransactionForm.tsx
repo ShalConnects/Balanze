@@ -33,6 +33,7 @@ import {
   TRANSACTION_NOTE_PLACEHOLDER,
   shouldShowTransactionNoteCounter,
 } from '../../constants/transactionNote';
+import { ExpenseNoteSuggestTextarea } from './expenseNoteCompactUi';
 import { getMonthDateRange, normalizeTransactionTitle, summarizeMonthlyTitleDuplicates, type MonthlyDuplicateSummary } from '../../utils/transactionDuplicateWarning';
 
 interface TransactionFormProps {
@@ -1594,20 +1595,21 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           </div>
 
           <div className="w-full mt-2 sm:mt-1">
-            <textarea
+            <ExpenseNoteSuggestTextarea
               id="transaction-note"
               name="note"
               value={transactionNote}
-              onChange={(e) => {
-                setTransactionNote(e.target.value);
+              onChange={(v) => {
+                setTransactionNote(v);
                 if (errors.note) setErrors((prev) => ({ ...prev, note: '' }));
               }}
               onBlur={handleBlur}
               disabled={isAccountHidden}
               maxLength={MAX_TRANSACTION_NOTE_LENGTH}
               rows={2}
-              className={`${getInputClasses('note')} min-h-[4.25rem] resize-y py-2`}
+              userId={user?.id}
               placeholder={TRANSACTION_NOTE_PLACEHOLDER}
+              textareaClassName={`${getInputClasses('note')} min-h-[4.25rem] resize-y py-2`}
             />
             {shouldShowTransactionNoteCounter(transactionNote.length) && (
               <p className="flex justify-end mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
