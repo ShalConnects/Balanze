@@ -91,9 +91,24 @@ export function buildShoppingSuggestions(
   return { suggestions, nextShoppingDate };
 }
 
-export function estimateSuggestionsBudget(suggestions: ShoppingSuggestion[]): number | null {
-  const prices = suggestions.map((s) => s.item.last_price).filter((p): p is number => p != null);
-  return prices.length ? prices.reduce((a, b) => a + b, 0) : null;
+export function countDueShoppingItems(
+  items: ExpenseNoteItem[],
+  purchaseDates: Map<string, string[]>,
+  frequencyDays: number
+): number {
+  return buildShoppingSuggestions(items, purchaseDates, frequencyDays).suggestions.length;
+}
+
+export function estimateSuggestionsBudget(
+  suggestions: ShoppingSuggestion[]
+): { currency: string; total: number }[] {
+  const map = new Map<string, number>();
+  for (const s of suggestions) {
+    if (s.item.last_price == null) continue;
+    const c = s.item.last_price_currency || '';
+    map.set(c, (map.get(c) || 0) + s.item.last_price);
+  }
+  return [...map.entries()].map(([currency, total]) => ({ currency, total }));
 }
 
 export function formatSuggestionsShareText(

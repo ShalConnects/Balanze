@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { EXPENSE_NOTE_ITEMS_PAGE_SIZE, queueOpenTransactionNote } from '../../constants/expenseNote';
 import {
-  countImportableNotes,
   deleteCatalogItem,
   fetchExpenseNoteCategories,
   fetchGlobalShoppingItems,
@@ -20,8 +19,10 @@ import {
 import { ShoppingSuggestionsPanel } from './ShoppingSuggestionsPanel';
 import { isLikelySameItem } from '../../utils/itemNameMerge';
 import { parseExpenseNoteText, sumExpenseNoteLines } from '../../utils/expenseNoteParser';
-import { formatCurrency } from '../../utils/currency';
-import type { ExpenseNoteCategory, ExpenseNoteEntrySummary, ExpenseNoteItem, ExpenseNoteItemDetail } from '../../types/expenseNote';
+import { getShoppingQuickCurrency, setShoppingQuickCurrency } from '../../utils/shoppingFrequencyPrefs';
+import { getProfilePreferredCurrency } from '../../utils/usePreferredCurrency';
+import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
+import type { ExpenseNoteCategory, ExpenseNoteEntrySummary, ExpenseNoteFmtAmount, ExpenseNoteItem, ExpenseNoteItemDetail } from '../../types/expenseNote';
 import {
   EXPENSE_NOTE_EMPTY,
   ExpenseNoteItemsTable,
@@ -29,21 +30,46 @@ import {
   ExpenseNoteParsedPreviewTable,
   ExpenseNoteItemDetailPanel,
   ExpenseNoteRecentTable,
-  ExpenseNoteLoadingCaption,
   ExpenseNoteQuickAddField,
   ExpenseNoteSection,
 } from './expenseNoteCompactUi';
+import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { ListPager } from '../common/ListPager';
+import { UnderlineTabBar } from '../common/UnderlineTabBar';
 import { paginateList } from '../../utils/paginateList';
+import { getShoppingListCache, setShoppingListCache } from '../../utils/shoppingListCache';
+import { setShoppingListLoading } from '../../utils/shoppingListLoading';
 import { toast } from 'sonner';
 
-type ShoppingView = 'trip' | 'items';
+type ShoppingView = 'items' | 'trip';
+
+const SHOPPING_TABS = [
+  { id: 'items' as const, label: 'My items' },
+  { id: 'trip' as const, label: 'Shopping trip' },
+];
 
 export const GlobalShoppingListPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, profile } = useAuthStore();
-  const currency = profile?.local_currency || 'USD';
-  const fmtAmount = useCallback((n: number) => formatCurrency(n, currency), [currency]);
+  const preferredCurrency = getProfilePreferredCurrency(profile);
+  const currencyCodes = useMemo(() => {
+    const selected = (profile?.selected_currencies || []).filter(Boolean);
+    return selected.length ? selected : [preferredCurrency];
+  }, [profile?.selected_currencies, preferredCurrency]);
+  const currencyOptions = useMemo(
+    () => currencyCodes.map((c) => ({ value: c, label: `${getCurrencySymbol(c)} ${c}` })),
+    [currencyCodes]
+  );
+
+  const [quickCurrency, setQuickCurrency] = useState(() => getShoppingQuickCurrency(preferredCurrency));
+  const fmtAmount = useCallback<ExpenseNoteFmtAmount>(
+    (n, cur) => formatCurrency(n, cur || preferredCurrency),
+    [preferredCurrency]
+  );
+  const fmtQuickAmount = useCallback<ExpenseNoteFmtAmount>(
+    (n, cur) => formatCurrency(n, cur || quickCurrency),
+    [quickCurrency]
+  );
 
   const [categories, setCategories] = useState<ExpenseNoteCategory[]>([]);
   const [items, setItems] = useState<ExpenseNoteItem[]>([]);
@@ -62,6 +88,13 @@ export const GlobalShoppingListPage: React.FC = () => {
   const [view, setView] = useState<ShoppingView>('items');
   const [markingId, setMarkingId] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!currencyCodes.includes(quickCurrency)) {
+      const next = getShoppingQuickCurrency(preferredCurrency);
+      setQuickCurrency(currencyCodes.includes(next) ? next : currencyCodes[0]!);
+    }
+  }, [currencyCodes, preferredCurrency, quickCurrency]);
+
   const parsed = useMemo(() => parseExpenseNoteText(quickAdd), [quickAdd]);
   const lineTotal = useMemo(() => sumExpenseNoteLines(parsed), [parsed]);
 
@@ -73,6 +106,8 @@ export const GlobalShoppingListPage: React.FC = () => {
       fetchRecentNoteEntries(user.id),
       fetchItemPurchaseDates(user.id),
     ]);
+    const snap = { categories: cats, items: rows, recentEntries: recent, purchaseDates: dates };
+    setShoppingListCache(user.id, snap);
     setCategories(cats);
     setItems(rows);
     setRecentEntries(recent);
@@ -80,20 +115,28 @@ export const GlobalShoppingListPage: React.FC = () => {
   }, [user?.id]);
 
   useEffect(() => {
+    setShoppingListLoading(importing);
+    return () => setShoppingListLoading(false);
+  }, [importing]);
+
+  useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
+    const cached = getShoppingListCache(user.id);
+    if (cached) {
+      setCategories(cached.categories);
+      setItems(cached.items);
+      setRecentEntries(cached.recentEntries);
+      setPurchaseDates(cached.purchaseDates);
+    }
+
     (async () => {
-      setImporting(true);
+      const cold = !cached;
+      if (cold) setImporting(true);
       try {
-        if ((await countImportableNotes(user.id)) > 0) {
-          const r = await importExistingUserNotes(user.id);
-          if (!cancelled && r.entries > 0) {
-            toast.success(`Imported ${r.entries} note(s) · ${r.items} items`);
-          }
-        }
-        if (!cancelled) await load();
+        await load();
       } catch {
-        if (!cancelled) toast.error('Failed to load shopping list');
+        if (!cancelled && cold) toast.error('Failed to load shopping list');
       } finally {
         if (!cancelled) setImporting(false);
       }
@@ -203,7 +246,8 @@ export const GlobalShoppingListPage: React.FC = () => {
     if (!user?.id || !quickAdd.trim()) return;
     setSaving(true);
     try {
-      await saveQuickAddNote(user.id, { rawText: quickAdd.trim(), lines: parsed });
+      setShoppingQuickCurrency(quickCurrency);
+      await saveQuickAddNote(user.id, { rawText: quickAdd.trim(), lines: parsed }, quickCurrency);
       setQuickAdd('');
       await load();
       toast.success('Items saved to your global list');
@@ -212,6 +256,11 @@ export const GlobalShoppingListPage: React.FC = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const onQuickCurrencyChange = (c: string) => {
+    setQuickCurrency(c);
+    setShoppingQuickCurrency(c);
   };
 
   const handleMarkPurchased = async (item: ExpenseNoteItem) => {
@@ -233,21 +282,14 @@ export const GlobalShoppingListPage: React.FC = () => {
     setDetail(await fetchItemDetail(user.id, id));
   };
 
-  const tabCls = (active: boolean) =>
-    `text-xs px-3 py-1 rounded-full ${active ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`;
-
   return (
     <div className="w-full max-w-full m-0 min-w-0">
-      <ExpenseNoteLoadingCaption active={importing} className="mb-3" />
-
-      <div className="flex gap-2 mb-3" role="tablist">
-        <button type="button" role="tab" aria-selected={view === 'items'} className={tabCls(view === 'items')} onClick={() => setView('items')}>
-          My items
-        </button>
-        <button type="button" role="tab" aria-selected={view === 'trip'} className={tabCls(view === 'trip')} onClick={() => setView('trip')}>
-          Shopping trip
-        </button>
-      </div>
+      <UnderlineTabBar
+        tabs={SHOPPING_TABS}
+        value={view}
+        onChange={(id) => setView(id as ShoppingView)}
+        className="mb-3"
+      />
 
       {view === 'trip' ? (
         <ShoppingSuggestionsPanel
@@ -279,15 +321,27 @@ export const GlobalShoppingListPage: React.FC = () => {
               placeholder="Toast 43, Egg 12 138, Potato 2kg 40"
             />
             <ExpenseNoteParseHint lines={parsed} />
-            <ExpenseNoteParsedPreviewTable lines={parsed} lineTotal={lineTotal} fmtAmount={fmtAmount} />
-            <button
-              type="button"
-              disabled={saving || !quickAdd.trim() || importing}
-              onClick={handleQuickSave}
-              className="shrink-0 w-full sm:w-auto px-3 py-1.5 text-xs text-white bg-gradient-primary rounded-lg disabled:opacity-50"
-            >
-              {saving ? 'Saving…' : 'Save to list'}
-            </button>
+            <ExpenseNoteParsedPreviewTable lines={parsed} lineTotal={lineTotal} fmtAmount={fmtQuickAmount} />
+            <div className="flex items-stretch gap-2">
+              <div className="w-[6.25rem] shrink-0">
+                <CustomDropdown
+                  options={currencyOptions}
+                  value={quickCurrency}
+                  onChange={onQuickCurrencyChange}
+                  disabled={saving || importing}
+                  placeholder="Currency"
+                  className="!h-8 !min-h-0 !px-2 !pr-1.5 !py-0 !text-xs"
+                />
+              </div>
+              <button
+                type="button"
+                disabled={saving || !quickAdd.trim() || importing}
+                onClick={handleQuickSave}
+                className="flex-1 min-w-0 h-8 px-3 text-xs text-white bg-gradient-primary rounded-lg disabled:opacity-50"
+              >
+                {saving ? 'Saving…' : 'Save to list'}
+              </button>
+            </div>
           </ExpenseNoteSection>
 
           <ExpenseNoteSection title="All items" titleInPanel className="order-3 md:col-span-2">

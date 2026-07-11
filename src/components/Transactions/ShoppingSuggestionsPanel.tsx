@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Check, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SHOPPING_FREQUENCY_OPTIONS } from '../../constants/expenseNote';
-import type { ExpenseNoteItem } from '../../types/expenseNote';
+import type { ExpenseNoteFmtAmount, ExpenseNoteItem } from '../../types/expenseNote';
 import {
   buildShoppingSuggestions,
   estimateSuggestionsBudget,
@@ -11,6 +11,8 @@ import {
   type ShoppingSuggestion,
 } from '../../utils/shoppingSuggestions';
 import { getShoppingFrequencyDays, setShoppingFrequencyDays } from '../../utils/shoppingFrequencyPrefs';
+import { refreshShoppingDueCountFromCache } from '../../utils/shoppingListCache';
+import { useAuthStore } from '../../store/authStore';
 import { EXPENSE_NOTE_EMPTY, EXPENSE_NOTE_PANEL } from './expenseNoteCompactUi';
 
 const urgencyClass: Record<ShoppingSuggestion['urgency'], string> = {
@@ -67,10 +69,11 @@ export const ShoppingSuggestionsPanel: React.FC<{
   items: ExpenseNoteItem[];
   purchaseDates: Map<string, string[]>;
   markingId: string | null;
-  fmtAmount?: (n: number) => string;
+  fmtAmount?: ExpenseNoteFmtAmount;
   onMarkPurchased: (item: ExpenseNoteItem) => void;
   onSelectItem: (id: string) => void;
 }> = ({ items, purchaseDates, markingId, fmtAmount, onMarkPurchased, onSelectItem }) => {
+  const userId = useAuthStore((s) => s.user?.id);
   const [frequencyDays, setFrequencyDays] = useState(getShoppingFrequencyDays);
 
   const { suggestions, nextShoppingDate } = useMemo(
@@ -78,7 +81,16 @@ export const ShoppingSuggestionsPanel: React.FC<{
     [items, purchaseDates, frequencyDays]
   );
 
-  const budget = useMemo(() => estimateSuggestionsBudget(suggestions), [suggestions]);
+  const budgets = useMemo(() => estimateSuggestionsBudget(suggestions), [suggestions]);
+
+  const budgetLabel = useMemo(() => {
+    if (!budgets.length) return null;
+    return budgets
+      .map(({ currency, total }) =>
+        fmtAmount ? fmtAmount(total, currency || undefined) : total.toLocaleString(undefined, { maximumFractionDigits: 0 })
+      )
+      .join(' · ');
+  }, [budgets, fmtAmount]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, ShoppingSuggestion[]>();
@@ -94,6 +106,7 @@ export const ShoppingSuggestionsPanel: React.FC<{
   const setFrequency = (days: number) => {
     setShoppingFrequencyDays(days);
     setFrequencyDays(days);
+    if (userId) refreshShoppingDueCountFromCache(userId);
   };
 
   const share = async () => {
@@ -130,11 +143,11 @@ export const ShoppingSuggestionsPanel: React.FC<{
             {d}d
           </button>
         ))}
-        {budget != null && (
+        {budgetLabel && (
           <>
             <span className="text-gray-400">·</span>
             <span>
-              Est. <strong>{fmtAmount ? fmtAmount(budget) : budget.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+              Est. <strong>{budgetLabel}</strong>
             </span>
           </>
         )}

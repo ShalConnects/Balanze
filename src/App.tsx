@@ -482,18 +482,13 @@ function AppContent() {
   useEffect(() => {
     if (user && !loading) {
       initializeDefaultNotifications();
-      // Add help center notification for existing users
       const { addHelpCenterNotification } = useNotificationStore.getState();
       addHelpCenterNotification();
-      
-      // Check for urgent notifications (overdue lent/borrow records)
-      urgentNotificationService.checkAndCreateUrgentNotifications(user.id);
-      
-      // Force check urgent notifications immediately (bypasses time interval)
-      urgentNotificationService.forceCheckUrgentNotifications(user.id);
-      
-      // Fetch notifications from database
-      fetchNotifications();
+
+      void (async () => {
+        await urgentNotificationService.forceCheckUrgentNotifications(user.id);
+        await fetchNotifications();
+      })();
     }
   }, [user, loading, initializeDefaultNotifications, fetchNotifications]);
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ReactNode, useRef } from 'react';
+import React, { useState, useEffect, useSyncExternalStore, ReactNode, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
@@ -8,6 +8,11 @@ import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useMobileSidebar } from '../../context/MobileSidebarContext';
 import { FloatingActionButton } from './FloatingActionButton';
 import { isInvestmentsBondsTab } from '../../lib/investmentsNav';
+import { ExpenseNoteLoadingCaption } from '../Transactions/expenseNoteCompactUi';
+import {
+  getShoppingListLoading,
+  subscribeShoppingListLoading,
+} from '../../utils/shoppingListLoading';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -19,6 +24,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const [currentView, setCurrentView] = useState(location.pathname.split('/')[2] || 'dashboard');
   const { isSidebarCollapsed } = useThemeStore();
+  const shoppingListLoading = useSyncExternalStore(
+    subscribeShoppingListLoading,
+    getShoppingListLoading,
+    () => false
+  );
   
   const { isMobile, isVerySmall } = useMobileDetection();
   const { setIsMobileSidebarOpen } = useMobileSidebar();
@@ -195,7 +205,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   : currentView === 'transactions'
                     ? 'Track and manage all your financial transactions'
                     : currentView === 'shopping-list'
-                      ? 'Track what to buy and manage items from your transaction notes'
+                      ? (
+                        <ExpenseNoteLoadingCaption active={shoppingListLoading}>
+                          Track what to buy and manage items from your transaction notes
+                        </ExpenseNoteLoadingCaption>
+                      )
                       : currentView === 'transfers'
                       ? 'Track and manage all your money transfers between accounts'
                       : currentView === 'purchases'

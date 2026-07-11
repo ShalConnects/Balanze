@@ -2,7 +2,8 @@ import { supabase } from './supabase';
 import { EXPENSE_NOTE_AUTOCOMPLETE_LIMIT, SHOPPING_CATEGORY_SEEDS } from '../constants/expenseNote';
 import { isLikelySameItem } from '../utils/itemNameMerge';
 import { getShoppingFrequencyDays } from '../utils/shoppingFrequencyPrefs';
-import { buildShoppingSuggestions } from '../utils/shoppingSuggestions';
+import { countDueShoppingItems } from '../utils/shoppingSuggestions';
+import { getShoppingListCache, setShoppingDueCount } from '../utils/shoppingListCache';
 import {
   buildExpenseNoteSummary,
   lineDisplayAmount,
@@ -83,7 +84,43 @@ async function findItemByNormOrAlias(userId: string, norm: string) {
   return (candidates || []).find((c) => isLikelySameItem(norm, c.name_normalized)) ?? null;
 }
 
-async function resolveItemId(userId: string, line: ParsedExpenseNoteLine): Promise<string | null> {
+async function resolveNoteCurrency(userId: string, transactionId?: string): Promise<string> {
+  if (transactionId) {
+    const { data: tx } = await supabase
+      .from('transactions')
+      .select('account_id')
+      .eq('id', transactionId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (tx?.account_id) {
+      const { data: acc } = await supabase
+        .from('accounts')
+        .select('currency')
+        .eq('id', tx.account_id)
+        .maybeSingle();
+      if (acc?.currency) return acc.currency;
+    }
+  }
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('local_currency')
+    .eq('id', userId)
+    .maybeSingle();
+  return profile?.local_currency || 'USD';
+}
+
+function pricePatch(line: ParsedExpenseNoteLine, currency: string, observedAt: string) {
+  const price = lineDisplayAmount(line);
+  return price != null
+    ? { last_price: price, last_price_currency: currency, last_purchased_at: observedAt }
+    : {};
+}
+
+async function resolveItemId(
+  userId: string,
+  line: ParsedExpenseNoteLine,
+  currency: string
+): Promise<string | null> {
   const norm = normalizeExpenseItemName(line.name);
   if (!norm) return null;
   const display = line.name.trim() || line.nameRaw.trim();
@@ -112,6 +149,7 @@ async function resolveItemId(userId: string, line: ParsedExpenseNoteLine): Promi
       usage_count: 1,
       last_used_at: new Date().toISOString(),
       last_price: price,
+      last_price_currency: price != null ? currency : null,
       last_purchased_at: price != null ? new Date().toISOString() : null,
     })
     .select('id')
@@ -125,7 +163,8 @@ function lineInsertRow(
   sortOrder: number,
   line: ParsedExpenseNoteLine,
   itemId: string | null,
-  observedAt: string
+  observedAt: string,
+  currency: string
 ) {
   return {
     document_id: documentId,
@@ -141,6 +180,7 @@ function lineInsertRow(
     amount_computed: line.amountComputed,
     parse_status: line.parseStatus,
     purchased_at: observedAt,
+    currency,
   };
 }
 
@@ -148,16 +188,16 @@ async function touchItemOnNewLine(
   userId: string,
   itemId: string,
   line: ParsedExpenseNoteLine,
-  observedAt: string
+  observedAt: string,
+  currency: string
 ) {
-  const price = lineDisplayAmount(line);
   const { data } = await supabase.from('expense_note_items').select('usage_count').eq('id', itemId).single();
   await supabase
     .from('expense_note_items')
     .update({
       usage_count: (data?.usage_count || 0) + 1,
       last_used_at: observedAt,
-      ...(price != null ? { last_price: price, last_purchased_at: observedAt } : {}),
+      ...pricePatch(line, currency, observedAt),
     })
     .eq('id', itemId)
     .eq('user_id', userId);
@@ -167,14 +207,14 @@ async function touchItemLastUsed(
   userId: string,
   itemId: string,
   line: ParsedExpenseNoteLine,
-  observedAt: string
+  observedAt: string,
+  currency: string
 ) {
-  const price = lineDisplayAmount(line);
   await supabase
     .from('expense_note_items')
     .update({
       last_used_at: observedAt,
-      ...(price != null ? { last_price: price, last_purchased_at: observedAt } : {}),
+      ...pricePatch(line, currency, observedAt),
     })
     .eq('id', itemId)
     .eq('user_id', userId);
@@ -185,15 +225,17 @@ async function recordPriceObservation(
   itemId: string,
   entryLineId: string,
   line: ParsedExpenseNoteLine,
-  observedAt: string
+  observedAt: string,
+  currency: string
 ) {
   const price = lineDisplayAmount(line);
   if (price == null) return;
 
   const { data: prev } = await supabase
     .from('expense_note_price_observations')
-    .select('price')
+    .select('price, currency')
     .eq('item_id', itemId)
+    .eq('currency', currency)
     .order('observed_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -204,6 +246,7 @@ async function recordPriceObservation(
     item_id: itemId,
     entry_line_id: entryLineId,
     price,
+    currency,
     quantity: line.quantity,
     line_total: line.lineTotal ?? line.amountComputed,
     observed_at: observedAt,
@@ -228,6 +271,7 @@ function mapItemRows(
     usage_count: number;
     category_id: string | null;
     last_price: number | null;
+    last_price_currency?: string | null;
   }[],
   catNames: Map<string, string>
 ): ExpenseNoteItem[] {
@@ -238,6 +282,7 @@ function mapItemRows(
     usage_count: r.usage_count,
     category_name: r.category_id ? catNames.get(r.category_id) : undefined,
     last_price: r.last_price != null ? Number(r.last_price) : null,
+    last_price_currency: r.last_price_currency ?? null,
   }));
 }
 
@@ -247,7 +292,7 @@ export async function searchExpenseNoteItems(userId: string, prefix: string): Pr
   const catNames = await categoryNameMap(userId);
   const seen = new Set<string>();
   const out: ExpenseNoteItem[] = [];
-  const itemSelect = 'id, display_name, name_normalized, usage_count, category_id, last_price';
+  const itemSelect = 'id, display_name, name_normalized, usage_count, category_id, last_price, last_price_currency';
 
   const push = (rows: Parameters<typeof mapItemRows>[0]) => {
     for (const item of mapItemRows(rows, catNames)) {
@@ -288,9 +333,9 @@ export async function fetchGlobalShoppingItems(
   const catNames = await categoryNameMap(userId);
   let q = supabase
     .from('expense_note_items')
-    .select('id, display_name, name_normalized, usage_count, category_id, last_price, last_purchased_at')
+    .select('id, display_name, name_normalized, usage_count, category_id, last_price, last_price_currency, last_purchased_at')
     .eq('user_id', userId)
-    .order('usage_count', { ascending: false });
+    .order('last_used_at', { ascending: false, nullsFirst: false });
   if (categoryId) q = q.eq('category_id', categoryId);
   const { data, error } = await q;
   if (error) throw error;
@@ -300,15 +345,17 @@ export async function fetchGlobalShoppingItems(
   const ids = items.map((r) => r.id);
   const { data: obs } = await supabase
     .from('expense_note_price_observations')
-    .select('item_id, delta_from_previous, observed_at')
+    .select('item_id, delta_from_previous, observed_at, currency')
     .in('item_id', ids)
     .order('observed_at', { ascending: false });
 
+  const currencyByItem = new Map(items.map((r) => [r.id, r.last_price_currency as string | null]));
   const deltaByItem = new Map<string, number>();
   for (const o of obs || []) {
-    if (!deltaByItem.has(o.item_id) && o.delta_from_previous != null) {
-      deltaByItem.set(o.item_id, Number(o.delta_from_previous));
-    }
+    if (deltaByItem.has(o.item_id) || o.delta_from_previous == null) continue;
+    const itemCur = currencyByItem.get(o.item_id);
+    if (itemCur && o.currency && o.currency !== itemCur) continue;
+    deltaByItem.set(o.item_id, Number(o.delta_from_previous));
   }
 
   return items.map((r) => ({
@@ -319,18 +366,26 @@ export async function fetchGlobalShoppingItems(
     category_id: r.category_id,
     category_name: r.category_id ? catNames.get(r.category_id) : undefined,
     last_price: r.last_price != null ? Number(r.last_price) : null,
+    last_price_currency: r.last_price_currency ?? null,
     last_purchased_at: r.last_purchased_at,
     price_delta: deltaByItem.get(r.id) ?? null,
   }));
 }
 
 export async function fetchDueShoppingCount(userId: string): Promise<number> {
+  const cached = getShoppingListCache(userId);
+  if (cached) {
+    const n = countDueShoppingItems(cached.items, cached.purchaseDates, getShoppingFrequencyDays());
+    setShoppingDueCount(n);
+    return n;
+  }
   const [items, purchaseDates] = await Promise.all([
     fetchGlobalShoppingItems(userId),
     fetchItemPurchaseDates(userId),
   ]);
-  const { suggestions } = buildShoppingSuggestions(items, purchaseDates, getShoppingFrequencyDays());
-  return suggestions.filter((s) => s.urgency !== 'ok').length;
+  const n = countDueShoppingItems(items, purchaseDates, getShoppingFrequencyDays());
+  setShoppingDueCount(n);
+  return n;
 }
 
 export async function deleteCatalogItem(userId: string, itemId: string): Promise<void> {
@@ -455,17 +510,27 @@ export async function loadExpenseNoteDocument(
 
 async function persistDocument(
   userId: string,
-  opts: { transactionId?: string; documentId?: string; payload: ExpenseNoteDocumentPayload; observedAt?: string }
+  opts: {
+    transactionId?: string;
+    documentId?: string;
+    payload: ExpenseNoteDocumentPayload;
+    observedAt?: string;
+    /** Quick-add only; TX notes always use the account currency. */
+    currency?: string;
+  }
 ): Promise<string> {
   const { transactionId, payload } = opts;
   const observedAt = opts.observedAt ?? new Date().toISOString();
+  const currency = transactionId
+    ? await resolveNoteCurrency(userId, transactionId)
+    : opts.currency?.trim() || (await resolveNoteCurrency(userId));
   const itemIds: (string | null)[] = [];
   for (const line of payload.lines) {
     if (line.parseStatus === 'failed' || !line.name.trim()) {
       itemIds.push(null);
       continue;
     }
-    itemIds.push(await resolveItemId(userId, line));
+    itemIds.push(await resolveItemId(userId, line, currency));
   }
 
   let documentId: string | undefined = opts.documentId;
@@ -506,25 +571,24 @@ async function persistDocument(
   for (let i = 0; i < payload.lines.length; i++) {
     const line = payload.lines[i];
     const itemId = itemIds[i];
-    const row = lineInsertRow(docId, i, line, itemId, observedAt);
+    const row = lineInsertRow(docId, i, line, itemId, observedAt, currency);
     const lineId = existingLineIds[i];
 
     if (lineId) {
       const { error } = await supabase.from('expense_note_lines').update(row).eq('id', lineId);
       if (error) throw error;
       if (itemId) {
-        await touchItemLastUsed(userId, itemId, line, observedAt);
+        await touchItemLastUsed(userId, itemId, line, observedAt, currency);
         const price = lineDisplayAmount(line);
         if (price != null) {
           const { data: obs } = await supabase
             .from('expense_note_price_observations')
-            .select('price')
+            .select('price, currency')
             .eq('entry_line_id', lineId)
             .maybeSingle();
-          if (!obs) await recordPriceObservation(userId, itemId, lineId, line, observedAt);
-          else if (Number(obs.price) !== price) {
-            await supabase.from('expense_note_price_observations').delete().eq('entry_line_id', lineId);
-            await recordPriceObservation(userId, itemId, lineId, line, observedAt);
+          if (!obs || Number(obs.price) !== price || obs.currency !== currency) {
+            if (obs) await supabase.from('expense_note_price_observations').delete().eq('entry_line_id', lineId);
+            await recordPriceObservation(userId, itemId, lineId, line, observedAt, currency);
           }
         }
       }
@@ -532,8 +596,8 @@ async function persistDocument(
       const { data: inserted, error } = await supabase.from('expense_note_lines').insert(row).select('id').single();
       if (error) throw error;
       if (itemId && inserted?.id) {
-        await touchItemOnNewLine(userId, itemId, line, observedAt);
-        await recordPriceObservation(userId, itemId, inserted.id, line, observedAt);
+        await touchItemOnNewLine(userId, itemId, line, observedAt, currency);
+        await recordPriceObservation(userId, itemId, inserted.id, line, observedAt, currency);
       }
     }
   }
@@ -554,8 +618,12 @@ export async function saveExpenseNoteDocument(
   return persistDocument(userId, { transactionId, payload });
 }
 
-export async function saveQuickAddNote(userId: string, payload: ExpenseNoteDocumentPayload): Promise<void> {
-  await persistDocument(userId, { payload });
+export async function saveQuickAddNote(
+  userId: string,
+  payload: ExpenseNoteDocumentPayload,
+  currency?: string
+): Promise<void> {
+  await persistDocument(userId, { payload, currency });
 }
 
 export async function deleteExpenseNoteDocument(transactionId: string): Promise<void> {
@@ -572,7 +640,7 @@ export async function deleteExpenseNoteDocument(transactionId: string): Promise<
 export async function fetchItemDetail(userId: string, itemId: string): Promise<ExpenseNoteItemDetail | null> {
   const { data: item, error } = await supabase
     .from('expense_note_items')
-    .select('id, display_name, name_normalized, usage_count, category_id, last_price')
+    .select('id, display_name, name_normalized, usage_count, category_id, last_price, last_price_currency')
     .eq('user_id', userId)
     .eq('id', itemId)
     .maybeSingle();
@@ -584,7 +652,7 @@ export async function fetchItemDetail(userId: string, itemId: string): Promise<E
   const { data: observations } = await supabase
     .from('expense_note_price_observations')
     .select(
-      'price, observed_at, delta_from_previous, expense_note_lines(expense_note_documents(entry_date, transaction_id, source))'
+      'price, currency, observed_at, delta_from_previous, expense_note_lines(expense_note_documents(entry_date, transaction_id, source))'
     )
     .eq('item_id', itemId)
     .order('observed_at', { ascending: false })
@@ -597,6 +665,7 @@ export async function fetchItemDetail(userId: string, itemId: string): Promise<E
       name_normalized: item.name_normalized,
       usage_count: item.usage_count,
       last_price: item.last_price != null ? Number(item.last_price) : null,
+      last_price_currency: item.last_price_currency ?? null,
     },
     category: cat,
     observations: (observations || []).map((o) => {
@@ -604,6 +673,7 @@ export async function fetchItemDetail(userId: string, itemId: string): Promise<E
         .expense_note_lines?.expense_note_documents;
       return {
         price: Number(o.price),
+        currency: o.currency ?? null,
         observed_at: o.observed_at,
         delta_from_previous: o.delta_from_previous != null ? Number(o.delta_from_previous) : null,
         transaction_id: doc?.transaction_id ?? null,

@@ -7,6 +7,9 @@ export interface ExpenseNoteCategory {
   sort_order: number;
 }
 
+/** Format amount; optional currency overrides the caller's default. */
+export type ExpenseNoteFmtAmount = (amount: number, currency?: string) => string;
+
 export interface ExpenseNoteItem {
   id: string;
   display_name: string;
@@ -15,6 +18,7 @@ export interface ExpenseNoteItem {
   category_id?: string | null;
   category_name?: string;
   last_price?: number | null;
+  last_price_currency?: string | null;
   last_purchased_at?: string | null;
   price_delta?: number | null;
 }
@@ -43,6 +47,7 @@ export interface ExpenseNoteDocumentView extends ExpenseNoteDocumentPayload {
 
 export interface ExpenseNotePriceObservation {
   price: number;
+  currency?: string | null;
   observed_at: string;
   delta_from_previous: number | null;
   transaction_id?: string | null;

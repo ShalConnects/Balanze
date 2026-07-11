@@ -8,6 +8,7 @@ import { CustomDropdown } from '../Purchases/CustomDropdown';
 import type {
   ExpenseNoteCategory,
   ExpenseNoteEntrySummary,
+  ExpenseNoteFmtAmount,
   ExpenseNoteItem,
   ExpenseNoteItemDetail,
   ExpenseNoteParseStatus,
@@ -27,10 +28,12 @@ export const EXPENSE_NOTE_TOP_ROW_BODY = 'md:h-[12rem] md:min-h-[12rem] md:max-h
 export const EXPENSE_NOTE_TOP_ROW_PANEL = `${EXPENSE_NOTE_PANEL} h-full min-h-0 flex flex-col overflow-hidden`;
 const EXPENSE_NOTE_CONTENT_PANEL = `${EXPENSE_NOTE_PANEL} flex flex-col min-w-0`;
 
-export const ExpenseNoteLoadingCaption: React.FC<{ active: boolean; className?: string }> = ({
-  active,
-  className = '',
-}) => {
+export const ExpenseNoteLoadingCaption: React.FC<{
+  active: boolean;
+  className?: string;
+  /** Shown when not loading (e.g. header subtitle). */
+  children?: React.ReactNode;
+}> = ({ active, className = '', children }) => {
   const [idx, setIdx] = useState(0);
   useEffect(() => {
     if (!active) return;
@@ -38,18 +41,18 @@ export const ExpenseNoteLoadingCaption: React.FC<{ active: boolean; className?: 
     const id = setInterval(() => setIdx((i) => (i + 1) % EXPENSE_NOTE_LOADING_LINES.length), 1400);
     return () => clearInterval(id);
   }, [active]);
-  if (!active) return null;
+  if (!active) return children ? <>{children}</> : null;
   return (
-    <p
+    <span
       role="status"
       aria-live="polite"
-      className={`flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 ${className}`}
+      className={`inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 ${className}`}
     >
       <ShoppingBasket className="w-3.5 h-3.5 shrink-0 animate-bounce" aria-hidden />
       <span key={idx} className="animate-pulse">
         {EXPENSE_NOTE_LOADING_LINES[idx]}
       </span>
-    </p>
+    </span>
   );
 };
 
@@ -75,10 +78,18 @@ export const ExpenseNoteSection: React.FC<{
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="md:hidden flex items-center justify-between gap-2 shrink-0 mb-2"
+          className="md:hidden flex items-center justify-between gap-2 shrink-0 w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-left"
         >
-          <span className={EXPENSE_NOTE_SECTION_TITLE}>{title}</span>
-          <ChevronDown className={`w-3.5 h-3.5 text-gray-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+          <span className="min-w-0">
+            <span className="block text-xs font-medium text-gray-800 dark:text-gray-200">{title}</span>
+            <span className="block text-[11px] text-gray-500 dark:text-gray-400">
+              {open ? 'Tap to hide' : 'Tap to show notes from transactions'}
+            </span>
+          </span>
+          <ChevronDown
+            className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+            aria-hidden
+          />
         </button>
       ) : null}
       {!inPanel ? <h2 className={`${EXPENSE_NOTE_SECTION_TITLE} shrink-0`}>{title}</h2> : null}
@@ -105,7 +116,8 @@ const th = 'text-left align-middle px-2 py-1.5 font-medium text-gray-500 whitesp
 const td = 'px-2 py-1.5 align-middle text-gray-800 dark:text-gray-200';
 const priceDeltaClass = (delta: number | null | undefined) =>
   delta == null ? 'text-gray-400' : delta >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600';
-const fmtAmt = (n: number, fmt?: (v: number) => string) => (fmt ? fmt(n) : n.toLocaleString());
+const fmtAmt = (n: number, fmt?: ExpenseNoteFmtAmount, currency?: string | null) =>
+  fmt ? fmt(n, currency ?? undefined) : n.toLocaleString();
 
 export const ExpenseNoteSuggestDropdown: React.FC<{
   suggestions: ExpenseNoteSuggestItem[];
@@ -228,7 +240,7 @@ const parseRowClass = (s: ExpenseNoteParseStatus) =>
 export const ExpenseNoteParsedPreviewTable: React.FC<{
   lines: ParsedExpenseNoteLine[];
   lineTotal?: number;
-  fmtAmount?: (n: number) => string;
+  fmtAmount?: ExpenseNoteFmtAmount;
 }> = ({ lines, lineTotal, fmtAmount }) => {
   if (!lines.length) return null;
   const hint = expenseNoteParseHintText(lines);
@@ -323,7 +335,7 @@ export const ExpenseNoteItemsTable: React.FC<{
   onSelect: (id: string) => void;
   onMarkPurchased?: (item: ExpenseNoteItem) => void;
   markingId?: string | null;
-  fmtAmount?: (n: number) => string;
+  fmtAmount?: ExpenseNoteFmtAmount;
 }> = ({ items, onSelect, onMarkPurchased, markingId, fmtAmount }) => {
   if (!items.length) return null;
   return (
@@ -366,7 +378,7 @@ export const ExpenseNoteItemsTable: React.FC<{
               <td className="px-2 py-1 text-gray-500 cursor-pointer" onClick={() => onSelect(item.id)}>{item.category_name || '—'}</td>
               <td className="px-2 py-1 text-right text-gray-500 cursor-pointer" onClick={() => onSelect(item.id)}>{item.usage_count}×</td>
               <td className="px-2 py-1 text-right text-gray-700 dark:text-gray-300 cursor-pointer" onClick={() => onSelect(item.id)}>
-                {item.last_price != null ? fmtAmt(item.last_price, fmtAmount) : '—'}
+                {item.last_price != null ? fmtAmt(item.last_price, fmtAmount, item.last_price_currency) : '—'}
               </td>
               <td className={`px-2 py-1 text-right cursor-pointer ${priceDeltaClass(item.price_delta)}`} onClick={() => onSelect(item.id)}>
                 {item.price_delta != null
@@ -399,7 +411,7 @@ export const ExpenseNoteItemDetailPanel: React.FC<{
   onDelete?: () => void | Promise<void>;
   onOpenTransaction?: (transactionId: string) => void;
   onClose: () => void;
-  fmtAmount?: (n: number) => string;
+  fmtAmount?: ExpenseNoteFmtAmount;
 }> = ({ detail, categories, mergeCandidates, saving, merging, deleting, onSave, onMerge, onDelete, onOpenTransaction, onClose, fmtAmount }) => {
   const [displayName, setDisplayName] = useState(detail.item.display_name);
   const [categoryId, setCategoryId] = useState(detail.category?.id ?? categories[0]?.id ?? '');
@@ -522,7 +534,7 @@ export const ExpenseNoteItemDetailPanel: React.FC<{
                         )}
                       </td>
                       <td className="px-2 py-1.5 text-right">
-                        {fmtAmt(o.price, fmtAmount)}
+                        {fmtAmt(o.price, fmtAmount, o.currency)}
                         {o.delta_from_previous != null && (
                           <span className={`ml-1 ${priceDeltaClass(o.delta_from_previous)}`}>
                             ({o.delta_from_previous >= 0 ? '+' : ''}{o.delta_from_previous})

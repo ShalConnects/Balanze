@@ -37,7 +37,6 @@ import { useSelectionSearchSync } from '../../hooks/useSelectionSearchSync';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { normalizeSearchText } from '../../utils/searchText';
 import { FinancialHealthCard } from './FinancialHealthCard';
-import { ShoppingListNavButton } from './ShoppingListNavButton';
 import { hasActiveTableSettings, TransactionTableSettingsPanel } from './TransactionTableSettingsPanel';
 import { TransactionPeriodChangeCaption } from './TransactionPeriodChangeCaption';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
@@ -1312,10 +1311,6 @@ const TransactionListComponent: React.FC<{
               </button>
             </div>
 
-            <div className="md:hidden">
-              <ShoppingListNavButton variant="toolbar" />
-            </div>
-
             {/* Mobile Download Button */}
             <div className="md:hidden">
               <div className="relative" ref={exportMenuRef}>
@@ -1705,7 +1700,6 @@ const TransactionListComponent: React.FC<{
                 )}
               </div>
               <div className="hidden md:flex items-center gap-1.5">
-                <ShoppingListNavButton variant="toolbar" />
               <div className="relative" ref={exportMenuRef}>
                 <button
                   onClick={() => {

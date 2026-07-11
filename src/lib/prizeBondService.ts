@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { normalizeBondNumber, parseBondNumbersFromText, summarizePrizeBonds, type PrizeBondDashboardSummary } from './prizeBondUtils';
 import { buildScanLearnHints } from './prizeBondScanLearn';
 import { logPrizeBond } from './prizeBondScanLog';
+import { apiUrl } from '../utils/apiUrl';
 import type { PrizeBond, PrizeBondScanFeedback, PrizeBondWin, ScanLearnHints } from '../types/prizeBond';
 
 type DbBond = { id: string; bond_number: string; denomination: number; created_at: string; updated_at: string };
@@ -79,7 +80,7 @@ export async function triggerPrizeBondCheck(accessToken: string): Promise<{ wins
   logPrizeBond('check', 'start');
   let res: Response;
   try {
-    res = await fetch('/api/prize-bond-check', {
+    res = await fetch(apiUrl('/api/prize-bond-check'), {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ scope: 'user' }),
