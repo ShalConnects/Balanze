@@ -4,7 +4,6 @@
   "framework": "vite",
   "installCommand": "npm install --legacy-peer-deps",
   "devCommand": "npm run dev",
-  "public": true,
   "headers": [
     {
       "source": "/api/(.*)",
@@ -52,7 +51,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.paddle.com https://*.paddlejs.com https://*.vercel-insights.com https://va.vercel-scripts.com; worker-src 'self' blob: data:; child-src 'self' blob: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https://*.supabase.co https://*.paddle.com https://*.paddlejs.com https://*.vercel-insights.com wss://*.supabase.co; frame-src 'self' https://*.paddle.com https://*.paddlejs.com https://sandbox-buy.paddle.com https://buy.paddle.com; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.paddle.com https://*.paddlejs.com https://*.vercel-insights.com https://va.vercel-scripts.com; worker-src 'self' blob: data:; child-src 'self' blob: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https://*.supabase.co https://*.paddle.com https://*.paddlejs.com https://*.vercel-insights.com wss://*.supabase.co; frame-src 'self' blob: https://*.paddle.com https://*.paddlejs.com https://sandbox-buy.paddle.com https://buy.paddle.com; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"
         }
       ]
     },
@@ -140,6 +139,22 @@
     {
       "path": "/api/process-recurring-transactions",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/prize-bond-check",
+      "schedule": "0 4 31 1 *"
+    },
+    {
+      "path": "/api/prize-bond-check",
+      "schedule": "0 4 30 4 *"
+    },
+    {
+      "path": "/api/prize-bond-check",
+      "schedule": "0 4 31 7 *"
+    },
+    {
+      "path": "/api/prize-bond-check",
+      "schedule": "0 4 31 10 *"
     }
   ]
 } 
