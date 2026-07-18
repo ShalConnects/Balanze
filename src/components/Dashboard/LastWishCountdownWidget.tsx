@@ -344,229 +344,227 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
   };
 
   const getUrgencyIcon = (level: string) => {
+    const cls = 'w-4 h-4';
     switch (level) {
       case 'overdue':
-        return <AlertTriangle className="w-6 h-6 text-red-500 animate-pulse" />;
+        return <AlertTriangle className={`${cls} text-red-500 animate-pulse`} />;
       case 'critical':
-        return <AlertTriangle className="w-6 h-6 text-orange-500 animate-pulse" />;
+        return <AlertTriangle className={`${cls} text-orange-500 animate-pulse`} />;
       case 'warning':
-        return <Clock className="w-6 h-6 text-yellow-500" />;
+        return <Clock className={`${cls} text-yellow-500`} />;
       default:
-        return <CheckCircle className="w-6 h-6 text-green-500" />;
+        return <CheckCircle className={`${cls} text-green-500`} />;
     }
   };
-
 
   // If delivered, show delivery status
   if (isDelivered && deliveryData) {
     return (
-      <div className="bg-gradient-to-br from-green-50 via-white to-blue-100 dark:from-green-900/40 dark:via-gray-900 dark:to-blue-900/20 rounded-2xl p-4 sm:p-5 border-2 border-green-400 dark:border-green-600">
-        {/* Icon at the top */}
-        <div className="flex justify-center mb-4">
-          <div className="w-12 h-12 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
-            <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+      <div className="bg-gradient-to-br from-green-50 via-white to-blue-100 dark:from-green-900/40 dark:via-gray-900 dark:to-blue-900/20 rounded-xl p-3 border-2 border-green-400 dark:border-green-600">
+        <div className="flex items-center gap-2.5">
+          <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-[1rem] text-green-900 dark:text-green-100 leading-tight">Last Wish Delivered</h3>
+            <p className="text-[11px] text-green-700 dark:text-green-300 mt-0.5 truncate">
+              {formatAppDate(deliveryData.deliveredAt)} · {deliveryData.deliveryCount} recipient{deliveryData.deliveryCount !== 1 ? 's' : ''}
+            </p>
           </div>
-        </div>
-        
-        {/* Content below icon */}
-        <div className="text-center">
-          <h3 className="font-bold text-lg sm:text-xl text-green-900 dark:text-green-100 mb-2">Last Wish Delivered</h3>
-          <p className="text-sm text-green-700 dark:text-green-300 mb-3">
-            Delivered <span className="font-bold">{formatAppDate(deliveryData.deliveredAt)}</span> to <span className="font-bold">{deliveryData.deliveryCount}</span> recipient{deliveryData.deliveryCount !== 1 ? 's' : ''}
-          </p>
-
-          {/* Action Button */}
           <button
             onClick={() => navigate('/last-wish')}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm font-medium shadow-sm"
+            className="flex-shrink-0 p-1.5 bg-green-600 text-white rounded-md hover:bg-green-700"
+            title="Manage settings"
+            aria-label="Manage settings"
           >
-            <Settings className="w-4 h-4" />
-            <span className="hidden sm:inline">Manage Settings</span>
-            <span className="sm:hidden">Settings</span>
+            <Settings className="w-3.5 h-3.5" />
           </button>
-
-          </div>
         </div>
+      </div>
     );
   }
 
   // If not enabled, show a minimal setup prompt
   if (!enabled || !countdown) {
     return (
-      <div className="bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 rounded-2xl p-5 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 transition-all duration-200">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
-            <FileText className="w-6 h-6 text-gray-500" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Last Wish</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              Set up automatic data sharing for your loved ones
+      <div className="bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 rounded-xl p-3 border-2 border-dashed border-gray-300 dark:border-gray-600">
+        <div className="flex items-center gap-2.5">
+          <FileText className="w-4 h-4 text-gray-500 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-[1rem] text-gray-900 dark:text-white leading-tight">Last Wish</h3>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+              Set up automatic data sharing
             </p>
-            <button
-              onClick={() => navigate('/last-wish')}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-primary text-white rounded-lg hover:bg-gradient-primary-hover transition-colors duration-200 text-sm font-medium"
-            >
-              <Settings className="w-4 h-4" />
-              Set Up Now
-            </button>
           </div>
+          <button
+            onClick={() => navigate('/last-wish')}
+            className="flex-shrink-0 px-2.5 py-1.5 bg-gradient-primary text-white rounded-md text-[0.8rem] font-medium"
+          >
+            Set Up
+          </button>
         </div>
       </div>
     );
   }
 
   const colors = getUrgencyColors(countdown.urgencyLevel);
+  const isAtRisk = countdown.urgencyLevel === 'critical' || countdown.urgencyLevel === 'overdue';
+  const statusChip =
+    countdown.isFinalHour && !countdown.isOverdue && countdown.timeLeft
+      ? { label: 'FINAL HOUR', className: 'bg-red-500 text-white animate-pulse' }
+      : countdown.urgencyLevel === 'overdue'
+        ? { label: 'OVERDUE', className: 'bg-red-500 text-white animate-pulse' }
+        : countdown.urgencyLevel === 'critical'
+          ? { label: 'URGENT', className: 'bg-orange-500 text-white animate-pulse' }
+          : countdown.urgencyLevel === 'warning'
+            ? { label: 'SOON', className: 'bg-yellow-400/90 text-yellow-950' }
+            : { label: 'SAFE', className: 'bg-green-500/15 text-green-700 dark:text-green-300' };
 
-      return (
-      <div className={`${colors.bg} rounded-2xl p-5 border-2 ${colors.border} animate-slide-in ${
+  const countdownLabel = countdown.timeLeft
+    ? `${String(countdown.timeLeft.hours).padStart(2, '0')}:${String(countdown.timeLeft.minutes).padStart(2, '0')}:${String(countdown.timeLeft.seconds).padStart(2, '0')}`
+    : `${countdown.daysLeft}d`;
+  const countdownHint = countdown.timeLeft
+    ? 'Check in now to keep data safe'
+    : 'Until next check-in';
+
+  // Circular progress (visual anchor — keeps the card from feeling empty)
+  const ringSize = 72;
+  const ringStroke = 5;
+  const ringRadius = (ringSize - ringStroke) / 2;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const ringOffset = ringCircumference * (1 - Math.min(100, Math.max(0, countdown.progressPercentage)) / 100);
+  const ringStrokeClass = countdown.timeLeft
+    ? 'stroke-red-500'
+    : countdown.urgencyLevel === 'overdue'
+      ? 'stroke-red-500'
+      : countdown.urgencyLevel === 'critical'
+        ? 'stroke-orange-500'
+        : countdown.urgencyLevel === 'warning'
+          ? 'stroke-yellow-500'
+          : 'stroke-green-500';
+
+  return (
+    <div
+      className={`${colors.bg} rounded-xl p-3.5 border-2 ${colors.border} shadow-sm animate-slide-in ${
         countdown.urgencyLevel === 'overdue' ? 'animate-pulse-urgent' : ''
-      }`}>
-             {/* Header */}
-       <div className="mb-4">
-         {/* Top row: Icon, Title, and Eye button */}
-         <div className="flex items-center justify-between mb-2">
-           <div className="flex items-center gap-3">
-             <div className="relative">
-               {getUrgencyIcon(countdown.urgencyLevel)}
-               {(countdown.urgencyLevel === 'critical' || countdown.urgencyLevel === 'overdue') && (
-                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-               )}
-             </div>
-             <h3 className={`font-bold text-lg ${colors.text}`}>
-               Last Wish Check-in
-             </h3>
-           </div>
-           <button
-             onClick={() => setShowDetails(!showDetails)}
-             className="p-2 rounded-lg bg-white/50 dark:bg-gray-800/50 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-colors duration-200"
-           >
-             <Eye className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-           </button>
-         </div>
-         
-         {/* Second row: Status and countdown */}
-         <div className="flex flex-col gap-3">
-           {/* Single status indicator */}
-           <div className="flex items-center justify-center">
-             {(countdown.isFinalHour && !countdown.isOverdue && countdown.timeLeft) && (
-               <span className="px-3 py-1 bg-red-500 text-white text-sm font-bold rounded-full animate-pulse shadow-lg">
-                 FINAL HOUR
-               </span>
-             )}
-             {!(countdown.isFinalHour && !countdown.isOverdue && countdown.timeLeft) && (countdown.urgencyLevel === 'critical' || countdown.urgencyLevel === 'overdue') && (
-               <span className="px-3 py-1 bg-orange-500 text-white text-sm font-bold rounded-full animate-pulse shadow-lg">
-                 URGENT
-               </span>
-             )}
-           </div>
-           
-           {/* Countdown display */}
-           <div className="text-center">
-             <p className={`text-2xl font-bold ${colors.text} mb-1`}>
-               {countdown.timeLeft
-                 ? `${countdown.timeLeft.hours.toString().padStart(2, '0')}:${countdown.timeLeft.minutes.toString().padStart(2, '0')}:${countdown.timeLeft.seconds.toString().padStart(2, '0')}`
-                 : `${countdown.daysLeft} days`
-               }
-             </p>
-             <p className={`text-sm ${colors.text} opacity-80`}>
-               {countdown.timeLeft ? '' : 'until check-in'}
-             </p>
-             <p className={`text-sm font-medium ${colors.text} mt-1`}>
-               {countdown.timeLeft ? 'Check in now!' : 'Stay active to keep your data safe'}
-             </p>
-           </div>
-         </div>
-       </div>
-
-      {/* Content */}
-      {/* Progress Bar */}
-      <div className="mb-4">
-        <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-2">
-          <span>Progress</span>
-          <span>{Math.round(countdown.progressPercentage)}%</span>
-        </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-          <div 
-            className={`h-2 rounded-full transition-all duration-1000 ease-out ${
-              countdown.timeLeft ? 'bg-red-600 animate-pulse' : colors.progress
-            } progress-animate`}
-            style={{ 
-              width: `${countdown.progressPercentage}%`,
-              '--progress-width': `${countdown.progressPercentage}%`
-            } as React.CSSProperties}
-          />
-        </div>
-        {countdown.timeLeft && (
-          <div className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium text-center">
-            ⚠️ Check in now to prevent data delivery
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className="relative flex-shrink-0">
+            {getUrgencyIcon(countdown.urgencyLevel)}
+            {isAtRisk && (
+              <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+            )}
           </div>
-        )}
+          <h3 className={`font-bold text-[1rem] ${colors.text} truncate`}>Last Wish</h3>
+          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold leading-none flex-shrink-0 ${statusChip.className}`}>
+            {statusChip.label}
+          </span>
+        </div>
+        <button
+          onClick={() => setShowDetails(!showDetails)}
+          className="p-1 rounded-md bg-white/60 dark:bg-gray-800/60 hover:bg-white/80 dark:hover:bg-gray-800/80 flex-shrink-0"
+          title={showDetails ? 'Hide details' : 'Show details'}
+          aria-label={showDetails ? 'Hide details' : 'Show details'}
+        >
+          <Eye className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" />
+        </button>
       </div>
 
-      {/* Quick Actions */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="relative flex-shrink-0" style={{ width: ringSize, height: ringSize }}>
+          <svg width={ringSize} height={ringSize} className="-rotate-90">
+            <circle
+              cx={ringSize / 2}
+              cy={ringSize / 2}
+              r={ringRadius}
+              fill="none"
+              strokeWidth={ringStroke}
+              className="stroke-black/10 dark:stroke-white/10"
+            />
+            <circle
+              cx={ringSize / 2}
+              cy={ringSize / 2}
+              r={ringRadius}
+              fill="none"
+              strokeWidth={ringStroke}
+              strokeLinecap="round"
+              className={`${ringStrokeClass} transition-[stroke-dashoffset] duration-700`}
+              style={{
+                strokeDasharray: ringCircumference,
+                strokeDashoffset: ringOffset,
+              }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className={`text-lg font-bold tabular-nums leading-none ${colors.text}`}>
+              {countdownLabel}
+            </span>
+            <span className={`text-[9px] font-medium mt-0.5 ${colors.text} opacity-70`}>
+              {Math.round(countdown.progressPercentage)}%
+            </span>
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-semibold ${colors.text} leading-snug`}>{countdownHint}</p>
+          <p className="mt-1 flex items-center gap-1 text-[11px] text-gray-600 dark:text-gray-400">
+            <Calendar className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate">Next: {countdown.nextCheckIn}</span>
+          </p>
+          <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+            Stay active to protect shared data
+          </p>
+        </div>
+      </div>
+
+      <div className="flex gap-1.5">
         <button
           onClick={handleCheckIn}
           disabled={checkingIn}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-            countdown.isOverdue 
-              ? 'bg-red-600 hover:bg-red-700 text-white' 
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[0.8rem] font-semibold shadow-sm transition-all ${
+            countdown.isOverdue
+              ? 'bg-red-600 hover:bg-red-700 text-white'
               : 'bg-green-600 hover:bg-green-700 text-white'
           } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           {checkingIn ? (
-            <RefreshCw className="w-4 h-4 animate-spin" />
+            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
           ) : (
-            <CheckCircle className="w-4 h-4" />
+            <CheckCircle className="w-3.5 h-3.5" />
           )}
           {checkingIn ? 'Checking In...' : 'Check In Now'}
         </button>
         <button
           onClick={() => navigate('/last-wish')}
-          className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
+          className="px-2.5 py-2 bg-gray-700/90 hover:bg-gray-800 text-white rounded-lg shadow-sm"
+          title="Settings"
+          aria-label="Last Wish settings"
         >
-          <Settings className="w-4 h-4" />
+          <Settings className="w-3.5 h-3.5" />
         </button>
       </div>
 
-
-
-      {/* Details Section */}
       {showDetails && (
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-600 dark:text-gray-400">Next Check-in:</span>
-            </div>
-            <div className="text-right font-medium text-gray-900 dark:text-white">
-              {countdown.nextCheckIn}
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-600 dark:text-gray-400">Recipients:</span>
-            </div>
-            <div className="text-right">
-              <button
-                onClick={() => navigate('/last-wish')}
-                className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"
-              >
-                Manage
-              </button>
-            </div>
-          </div>
-          
-          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+        <div className="border-t border-black/10 dark:border-white/10 pt-2 mt-3">
+          <div className="flex items-center justify-between text-[11px] gap-2">
+            <span className="flex items-center gap-1 text-gray-500">
+              <Users className="w-3 h-3" />
+              Recipients
+            </span>
             <button
               onClick={() => navigate('/last-wish')}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 text-sm font-medium"
+              className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
             >
-              <ArrowRight className="w-4 h-4" />
-              View Full Settings
+              Manage
             </button>
           </div>
+          <button
+            onClick={() => navigate('/last-wish')}
+            className="w-full mt-2 flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-[0.8rem] font-medium"
+          >
+            <ArrowRight className="w-3.5 h-3.5" />
+            View Full Settings
+          </button>
         </div>
       )}
     </div>

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { addDays, format, parseISO, startOfWeek } from 'date-fns';
+import { addDays, format, startOfWeek } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { NOTE_ICON_BTN, todayDateKey } from '../../constants/note';
+import { NOTE_ICON_BTN, parseNoteDate, todayDateKey } from '../../constants/note';
 
 interface NotesWeekStripProps {
   selectedDate: string;
@@ -16,7 +16,7 @@ export const NotesWeekStrip: React.FC<NotesWeekStripProps> = ({
 }) => {
   const today = todayDateKey();
   const weekStart = useMemo(
-    () => startOfWeek(parseISO(selectedDate), { weekStartsOn: 1 }),
+    () => startOfWeek(parseNoteDate(selectedDate), { weekStartsOn: 1 }),
     [selectedDate]
   );
   const days = useMemo(
@@ -25,7 +25,7 @@ export const NotesWeekStrip: React.FC<NotesWeekStripProps> = ({
   );
 
   const shiftWeek = (dir: number) => {
-    onSelect(format(addDays(parseISO(selectedDate), dir * 7), 'yyyy-MM-dd'));
+    onSelect(format(addDays(parseNoteDate(selectedDate), dir * 7), 'yyyy-MM-dd'));
   };
 
   return (

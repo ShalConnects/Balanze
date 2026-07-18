@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Plus, Minus } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
+import { AppModal } from './AppModal';
 
 interface AmountAdjustmentModalProps {
   isOpen: boolean;
@@ -26,11 +27,6 @@ export const AmountAdjustmentModal: React.FC<AmountAdjustmentModalProps> = ({
     if (isOpen) {
       setMode('adjust');
       setInputValue('');
-      // Focus input after modal opens
-      setTimeout(() => {
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      }, 100);
     }
   }, [isOpen, currentAmount]);
 
@@ -89,46 +85,19 @@ export const AmountAdjustmentModal: React.FC<AmountAdjustmentModalProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && isValid) {
-      handleConfirm();
-    } else if (e.key === 'Escape') {
-      onClose();
-    }
+    if (e.key === 'Enter' && isValid) handleConfirm();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[100]"
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div className="fixed inset-0 flex items-center justify-center z-[101] pointer-events-none p-3 sm:p-4">
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="amount-modal-title"
-          className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 w-full max-w-md shadow-2xl pointer-events-auto max-h-[90vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-3">
-            <h3 id="amount-modal-title" className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
-              Edit {label}
-            </h3>
-            <button
-              onClick={onClose}
-              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              aria-label="Close"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
+    <AppModal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="md"
+      zClassName="z-[100]"
+      title={`Edit ${label}`}
+      initialFocus={inputRef}
+    >
+          <div className="p-3 sm:p-4">
           {/* Current and New Amount Display */}
           <div className={`mb-3 grid gap-2 sm:gap-3 ${calculatedAmount !== null && isValid ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {/* Current Amount */}
@@ -195,6 +164,7 @@ export const AmountAdjustmentModal: React.FC<AmountAdjustmentModalProps> = ({
               inputMode="decimal"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
+              onFocus={(e) => e.target.select()}
               onKeyDown={handleKeyDown}
               className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
               placeholder={mode === 'adjust' ? 'Enter +28 or -28' : '0.00'}
@@ -277,9 +247,8 @@ export const AmountAdjustmentModal: React.FC<AmountAdjustmentModalProps> = ({
               Confirm
             </button>
           </div>
-        </div>
-      </div>
-    </>
+          </div>
+    </AppModal>
   );
 };
 

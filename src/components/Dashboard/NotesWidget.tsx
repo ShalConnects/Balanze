@@ -1,9 +1,19 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { useNotes } from '../../hooks/useNotes';
-import { NOTE_LINK, NOTE_SHELL, todayDateKey } from '../../constants/note';
+import { todayDateKey } from '../../constants/note';
 import { NoteListItem } from '../Notes/NoteListItem';
+import {
+  DASHBOARD_WIDGET_ACCORDION_BTN,
+  DASHBOARD_WIDGET_BADGE,
+  DASHBOARD_WIDGET_CONTENT,
+  DASHBOARD_WIDGET_HEADER,
+  DASHBOARD_WIDGET_HEADER_BORDER,
+  DASHBOARD_WIDGET_SHELL,
+  DASHBOARD_WIDGET_TITLE,
+  DASHBOARD_WIDGET_VIEW_ALL,
+} from '../../constants/dashboardWidget';
 
 interface NotesWidgetProps {
   isAccordionExpanded?: boolean;
@@ -37,14 +47,14 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({
   };
 
   return (
-    <div className={`${NOTE_SHELL} p-4 flex flex-col transition-all duration-300 relative group hover:border-blue-300 dark:hover:border-blue-700`}>
+    <div className={DASHBOARD_WIDGET_SHELL}>
       {todayNotes.length > 0 && onAccordionToggle && (
         <button
           onClick={(e) => {
             e.stopPropagation();
             onAccordionToggle();
           }}
-          className="absolute top-2 left-2 z-10 p-1.5 rounded-lg bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-sm opacity-100 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation transition-opacity"
+          className={DASHBOARD_WIDGET_ACCORDION_BTN}
           title={isAccordionExpanded ? 'Collapse' : 'Expand'}
           aria-label={isAccordionExpanded ? 'Collapse widget' : 'Expand widget'}
           style={{ WebkitTapHighlightColor: 'transparent' }}
@@ -57,22 +67,30 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({
         </button>
       )}
 
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">Notes</h3>
-        <button
-          type="button"
-          onClick={() => navigate('/notes')}
-          className={NOTE_LINK}
-        >
-          Open diary
+      <div
+        className={`${DASHBOARD_WIDGET_HEADER} ${
+          isAccordionExpanded ? DASHBOARD_WIDGET_HEADER_BORDER : ''
+        }`}
+      >
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <h3 className={DASHBOARD_WIDGET_TITLE}>Notes</h3>
+          {todayNotes.length > 0 && (
+            <span className={`${DASHBOARD_WIDGET_BADGE} bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300`}>
+              {todayNotes.length} today
+            </span>
+          )}
+        </div>
+        <button type="button" onClick={() => navigate('/notes')} className={DASHBOARD_WIDGET_VIEW_ALL}>
+          <span>View All</span>
+          <ArrowRight className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="mb-3">
-        <div className="bg-white/90 dark:bg-gray-800/90 border border-blue-200/60 dark:border-blue-800/60 rounded-lg p-2 flex items-center gap-2 shadow-sm">
+      <div className={`${DASHBOARD_WIDGET_CONTENT} pt-2 ${isAccordionExpanded ? '' : 'pb-2'}`}>
+        <div className="bg-white/90 dark:bg-gray-800/90 border border-blue-200/60 dark:border-blue-800/60 rounded-lg px-2 py-1.5 flex items-center gap-2">
           <input
             ref={addNoteInputRef}
-            className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+            className="flex-1 bg-transparent border-none focus:outline-none text-xs sm:text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
             placeholder="Add today's note..."
             value={noteInput}
             onChange={(e) => setNoteInput(e.target.value)}
@@ -85,7 +103,7 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({
             disabled={saving}
           />
           <button
-            className="p-1 rounded-md text-blue-600 dark:text-blue-400 hover:text-purple-600 dark:hover:text-purple-300 transition-colors flex-shrink-0 disabled:opacity-50"
+            className="p-0.5 rounded-md text-blue-600 dark:text-blue-400 hover:text-purple-600 dark:hover:text-purple-300 transition-colors flex-shrink-0 disabled:opacity-50"
             onClick={(e) => {
               e.preventDefault();
               handleAdd();
@@ -99,14 +117,16 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({
       </div>
 
       {isAccordionExpanded && (
-        <div className="space-y-2">
+        <div className={`${DASHBOARD_WIDGET_CONTENT} pb-1.5`}>
           {notesToShow.length === 0 && (
-            <div className="text-gray-400 text-sm text-center">No notes for today.</div>
+            <div className="text-gray-400 text-xs text-center py-3">No notes for today.</div>
           )}
           {notesToShow.map((note) => (
             <NoteListItem
               key={note.id}
               note={note}
+              compact
+              textRows={1}
               saving={saving}
               confirmDelete={confirmDeleteNoteId === note.id}
               onConfirmDelete={setConfirmDeleteNoteId}
@@ -118,15 +138,6 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({
               onChangeText={(id, value) => patchNote(id, { text: value }, { debounceMs: 1000 })}
             />
           ))}
-          {(todayNotes.length > 3 || notes.length > todayNotes.length) && (
-            <button
-              type="button"
-              className={`w-full ${NOTE_LINK} mt-2`}
-              onClick={() => navigate('/notes')}
-            >
-              Open diary
-            </button>
-          )}
         </div>
       )}
     </div>

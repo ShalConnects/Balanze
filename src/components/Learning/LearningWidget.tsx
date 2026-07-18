@@ -1,9 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { BookOpen, ArrowRight, Plus, ChevronUp, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ArrowRight, Plus, ChevronUp, ChevronDown } from 'lucide-react';
 import { useCourseStore } from '../../store/useCourseStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { CourseForm } from './CourseForm';
+import {
+  DASHBOARD_WIDGET_ACCORDION_BTN,
+  DASHBOARD_WIDGET_BADGE,
+  DASHBOARD_WIDGET_CONTENT,
+  DASHBOARD_WIDGET_HEADER,
+  DASHBOARD_WIDGET_HEADER_BORDER,
+  DASHBOARD_WIDGET_ROW,
+  DASHBOARD_WIDGET_SHELL,
+  DASHBOARD_WIDGET_TITLE,
+  DASHBOARD_WIDGET_VIEW_ALL,
+} from '../../constants/dashboardWidget';
 
 interface LearningWidgetProps {
   isAccordionExpanded?: boolean;
@@ -12,69 +23,96 @@ interface LearningWidgetProps {
 
 export const LearningWidget: React.FC<LearningWidgetProps> = ({
   isAccordionExpanded = true,
-  onAccordionToggle
+  onAccordionToggle,
 }) => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const {
-    courses,
-    modules,
-    loading,
-    fetchCourses,
-    fetchModules,
-  } = useCourseStore();
+  const { courses, modules, loading, fetchCourses, fetchModules } = useCourseStore();
   const [showCourseForm, setShowCourseForm] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchCourses();
-    }
+    if (user) fetchCourses();
   }, [user, fetchCourses]);
 
-  // Fetch modules for displayed courses
   useEffect(() => {
-    if (courses.length > 0) {
-      courses.slice(0, 3).forEach(course => {
-        fetchModules(course.id);
-      });
-    }
+    courses.slice(0, 3).forEach((course) => fetchModules(course.id));
   }, [courses, fetchModules]);
 
-  const handleViewAll = () => {
-    navigate('/personal-growth?tab=learning');
-  };
+  const handleViewAll = () => navigate('/personal-growth?tab=learning');
 
-  // Calculate overall progress
-  const calculateProgress = (courseId: string) => {
-    const courseModules = modules.filter(m => m.course_id === courseId);
-    if (courseModules.length === 0) return 0;
-    const completed = courseModules.filter(m => m.completed).length;
-    return Math.round((completed / courseModules.length) * 100);
-  };
+  const { displayCourses, overallProgress, courseProgress } = useMemo(() => {
+    const progressByCourse = new Map<string, { completed: number; total: number; pct: number }>();
+    for (const course of courses.slice(0, 3)) {
+      const courseModules = modules.filter((m) => m.course_id === course.id);
+      const completed = courseModules.filter((m) => m.completed).length;
+      const total = courseModules.length;
+      progressByCourse.set(course.id, {
+        completed,
+        total,
+        pct: total > 0 ? Math.round((completed / total) * 100) : 0,
+      });
+    }
+    const totalModules = modules.length;
+    const completedModules = modules.filter((m) => m.completed).length;
+    return {
+      displayCourses: courses.slice(0, 3),
+      overallProgress: totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0,
+      courseProgress: progressByCourse,
+    };
+  }, [courses, modules]);
 
-  // Show only first 3 courses in widget
-  const displayCourses = courses.slice(0, 3);
+  const accordionBtn = courses.length > 0 && onAccordionToggle && (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onAccordionToggle();
+      }}
+      className={DASHBOARD_WIDGET_ACCORDION_BTN}
+      title={isAccordionExpanded ? 'Collapse' : 'Expand'}
+      aria-label={isAccordionExpanded ? 'Collapse widget' : 'Expand widget'}
+      style={{ WebkitTapHighlightColor: 'transparent' }}
+    >
+      {isAccordionExpanded ? (
+        <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+      ) : (
+        <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+      )}
+    </button>
+  );
 
-  // Calculate overall stats
-  const totalCourses = courses.length;
-  const totalModules = modules.length;
-  const completedModules = modules.filter(m => m.completed).length;
-  const overallProgress = totalModules > 0 
-    ? Math.round((completedModules / totalModules) * 100) 
-    : 0;
+  const header = (
+    <div
+      className={`${DASHBOARD_WIDGET_HEADER} ${
+        isAccordionExpanded && courses.length > 0 ? DASHBOARD_WIDGET_HEADER_BORDER : ''
+      }`}
+    >
+      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+        <h3 className={DASHBOARD_WIDGET_TITLE}>Learning</h3>
+        {courses.length > 0 && (
+          <>
+            <span className={`${DASHBOARD_WIDGET_BADGE} bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300`}>
+              {courses.length} courses
+            </span>
+            <span className={`${DASHBOARD_WIDGET_BADGE} bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300`}>
+              {overallProgress}%
+            </span>
+          </>
+        )}
+      </div>
+      {courses.length > 0 && (
+        <button type="button" onClick={handleViewAll} className={DASHBOARD_WIDGET_VIEW_ALL}>
+          <span>View All</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-blue-500" />
-            <h3 className="font-semibold text-gray-900 dark:text-white">Learning</h3>
-          </div>
-        </div>
-        <div className="text-center py-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
+      <div className={DASHBOARD_WIDGET_SHELL}>
+        {header}
+        <div className={`${DASHBOARD_WIDGET_CONTENT} py-4 text-center text-xs text-gray-500`}>Loading...</div>
       </div>
     );
   }
@@ -82,22 +120,15 @@ export const LearningWidget: React.FC<LearningWidgetProps> = ({
   if (courses.length === 0) {
     return (
       <>
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-blue-500" />
-              <h3 className="font-semibold text-gray-900 dark:text-white">Learning</h3>
-            </div>
-          </div>
-          <div className="text-center py-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              Start tracking your learning progress
-            </p>
+        <div className={DASHBOARD_WIDGET_SHELL}>
+          {header}
+          <div className={`${DASHBOARD_WIDGET_CONTENT} text-center py-4`}>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Start tracking your learning progress</p>
             <button
               onClick={() => setShowCourseForm(true)}
-              className="px-4 py-2 bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded-lg text-sm font-medium flex items-center gap-2 mx-auto transition-colors"
+              className="px-3 py-1.5 bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded-lg text-xs font-medium inline-flex items-center gap-1.5"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               Add Course
             </button>
           </div>
@@ -117,99 +148,47 @@ export const LearningWidget: React.FC<LearningWidgetProps> = ({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 relative group">
-      {/* Toggle Button - positioned like drag handle on left side, only when courses exist */}
-      {courses.length > 0 && onAccordionToggle && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onAccordionToggle();
-          }}
-          className="absolute top-2 left-2 z-10 p-1.5 rounded-lg bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-sm opacity-100 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation transition-opacity"
-          title={isAccordionExpanded ? 'Collapse' : 'Expand'}
-          aria-label={isAccordionExpanded ? 'Collapse widget' : 'Expand widget'}
-          style={{ WebkitTapHighlightColor: 'transparent' }}
-        >
-          {isAccordionExpanded ? (
-            <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
-          ) : (
-            <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
-          )}
-        </button>
-      )}
-      <div className={`flex items-center justify-between ${isAccordionExpanded ? 'mb-3' : ''}`}>
-        <div className="flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-blue-500" />
-          <h3 className="font-semibold text-gray-900 dark:text-white">Learning</h3>
-        </div>
-        <button
-          onClick={handleViewAll}
-          className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-        >
-          View All
-          <ArrowRight className="w-3 h-3" />
-        </button>
-      </div>
-
-      {/* Content - Only show when expanded */}
+    <div className={DASHBOARD_WIDGET_SHELL}>
+      {accordionBtn}
+      {header}
       {isAccordionExpanded && (
-        <>
-          {/* Overall Stats */}
-          <div className="mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <div className="text-gray-600 dark:text-gray-400">Courses</div>
-                <div className="font-semibold text-gray-900 dark:text-white">{totalCourses}</div>
-              </div>
-              <div>
-                <div className="text-gray-600 dark:text-gray-400">Progress</div>
-                <div className="font-semibold text-gray-900 dark:text-white">{overallProgress}%</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Courses */}
-          <div className="space-y-2">
-            {displayCourses.map((course) => {
-              const progress = calculateProgress(course.id);
-              const courseModules = modules.filter(m => m.course_id === course.id);
-              const completedCount = courseModules.filter(m => m.completed).length;
-
-              return (
-                <div
-                  key={course.id}
-                  className="flex items-center justify-between p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 transition-all hover:shadow-sm"
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {course.name}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                        <span>{completedCount}/{courseModules.length} modules</span>
-                        {progress > 0 && (
-                          <>
-                            <span>•</span>
-                            <span>{progress}%</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+        <div className={DASHBOARD_WIDGET_CONTENT}>
+          {displayCourses.map((course) => {
+            const progress = courseProgress.get(course.id);
+            return (
+              <button
+                key={course.id}
+                type="button"
+                onClick={handleViewAll}
+                className={`${DASHBOARD_WIDGET_ROW} w-full text-left touch-manipulation`}
+              >
+                <div className="flex-1 min-w-0 py-1.5">
+                  <p className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate leading-snug">
+                    {course.name}
+                  </p>
+                  <p className="mt-0.5 text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400">
+                    {progress?.completed ?? 0}/{progress?.total ?? 0} modules
+                    {(progress?.pct ?? 0) > 0 && (
+                      <>
+                        <span className="text-gray-300 dark:text-gray-600"> · </span>
+                        {progress?.pct}%
+                      </>
+                    )}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-
+              </button>
+            );
+          })}
           {courses.length > 3 && (
             <button
+              type="button"
               onClick={handleViewAll}
-              className="w-full mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline text-center"
+              className="py-1.5 text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 font-medium"
             >
               +{courses.length - 3} more courses
             </button>
           )}
-        </>
+        </div>
       )}
       {showCourseForm && (
         <CourseForm

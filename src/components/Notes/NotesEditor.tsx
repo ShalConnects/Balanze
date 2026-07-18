@@ -66,7 +66,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({
                 <Star className="w-4 h-4" fill={pinned ? '#facc15' : 'none'} />
               </button>
               <NoteColorPicker value={color} disabled={saving} onChange={onChangeColor} />
-              <button type="button" className="text-gray-400 hover:text-red-500 text-lg leading-none px-0.5" onClick={onAskDelete} disabled={saving}>&times;</button>
+              <button type="button" className="text-gray-400 hover:text-red-500 text-lg leading-none px-0.5" aria-label="Delete note" onClick={onAskDelete} disabled={saving}>&times;</button>
             </div>
           )}
         </div>
@@ -78,10 +78,8 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({
           className="flex-1 w-full min-h-[200px] bg-transparent border-none resize-none focus:outline-none text-sm sm:text-base text-gray-900 dark:text-white placeholder:text-gray-400 leading-relaxed"
           disabled={saving}
         />
-        {(saving || (isNew && (title.trim() || text.trim()))) && (
-          <p className="text-[11px] text-gray-400 mt-2">Saving…</p>
-        )}
-        {isNew && !title.trim() && !text.trim() && (
+        {saving && <p className="text-[11px] text-gray-400 mt-2">Saving…</p>}
+        {isNew && !saving && !title.trim() && !text.trim() && (
           <p className="text-[11px] text-gray-400 mt-2">Start typing to create this day’s entry</p>
         )}
       </>

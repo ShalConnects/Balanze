@@ -45,9 +45,25 @@ export function useNotes() {
     return () => window.removeEventListener('dataRefreshed', onRefresh);
   }, [reload]);
 
+  const flushPending = useCallback((id: string) => {
+    const timer = debounceRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      debounceRef.current.delete(id);
+    }
+    const toSave = pendingRef.current.get(id);
+    pendingRef.current.delete(id);
+    if (!toSave) return;
+    return updateNote(id, toSave).catch(() => reload());
+  }, [reload]);
+
   useEffect(() => () => {
     debounceRef.current.forEach(clearTimeout);
     debounceRef.current.clear();
+    pendingRef.current.forEach((patch, id) => {
+      void updateNote(id, patch);
+    });
+    pendingRef.current.clear();
   }, []);
 
   const addNote = useCallback(async (input: NoteWrite) => {
@@ -66,7 +82,10 @@ export function useNotes() {
   }, [user?.id]);
 
   const applyLocal = useCallback((id: string, patch: NotePatch) => {
-    setNotes((prev) => sortNotes(prev.map((n) => (n.id === id ? { ...n, ...patch } : n))));
+    const now = new Date().toISOString();
+    setNotes((prev) =>
+      sortNotes(prev.map((n) => (n.id === id ? { ...n, ...patch, updated_at: now } : n)))
+    );
   }, []);
 
   const patchNote = useCallback(async (id: string, patch: NotePatch, opts?: { debounceMs?: number }) => {
@@ -92,19 +111,11 @@ export function useNotes() {
     if (prev) clearTimeout(prev);
     timers.set(
       id,
-      setTimeout(async () => {
-        timers.delete(id);
-        const toSave = pendingRef.current.get(id);
-        pendingRef.current.delete(id);
-        if (!toSave) return;
-        try {
-          await updateNote(id, toSave);
-        } catch {
-          await reload();
-        }
+      setTimeout(() => {
+        void flushPending(id);
       }, ms)
     );
-  }, [applyLocal, reload]);
+  }, [applyLocal, flushPending, reload]);
 
   const removeNote = useCallback(async (id: string) => {
     setSaving(true);

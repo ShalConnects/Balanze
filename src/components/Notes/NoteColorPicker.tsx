@@ -4,10 +4,11 @@ import { NOTE_COLORS, noteColorClass } from '../../constants/note';
 interface NoteColorPickerProps {
   value: string;
   disabled?: boolean;
+  compact?: boolean;
   onChange: (color: string) => void;
 }
 
-export const NoteColorPicker: React.FC<NoteColorPickerProps> = ({ value, disabled, onChange }) => {
+export const NoteColorPicker: React.FC<NoteColorPickerProps> = ({ value, disabled, compact, onChange }) => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const current = noteColorClass(value);
@@ -28,11 +29,11 @@ export const NoteColorPicker: React.FC<NoteColorPickerProps> = ({ value, disable
         title="Color"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className="w-6 h-6 rounded-full border border-black/10 dark:border-white/20 shadow-sm hover:scale-110 transition-transform disabled:opacity-50 flex items-center justify-center"
+        className={`${compact ? 'w-5 h-5' : 'w-6 h-6'} rounded-full border border-black/10 dark:border-white/20 shadow-sm hover:scale-110 transition-transform disabled:opacity-50 flex items-center justify-center`}
         aria-label="Change note color"
         aria-expanded={open}
       >
-        <span className={`block w-3.5 h-3.5 rounded-full ${current.dot}`} />
+        <span className={`block ${compact ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} rounded-full ${current.dot}`} />
       </button>
       {open && (
         <div

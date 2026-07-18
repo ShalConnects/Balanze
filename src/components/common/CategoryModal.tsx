@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import { useAuthStore } from '../../store/authStore';
-import { toast } from 'sonner';
+import { showToast } from '../../lib/toast';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { getCurrencySymbol } from '../../utils/currency';
 import { getCurrencyName } from '../../utils/currencies';
+import { AppModal } from './AppModal';
 
 export interface CategoryModalProps {
-  open: boolean;
+  /** Preferred open flag */
+  isOpen?: boolean;
+  /** @deprecated use isOpen */
+  open?: boolean;
   initialValues?: {
     category_name: string;
     description?: string;
@@ -35,6 +39,7 @@ export interface CategoryModalProps {
 // getCurrencySymbol() and getCurrencyName() from utils
 
 export const CategoryModal: React.FC<CategoryModalProps> = ({
+  isOpen,
   open,
   initialValues = {
     category_name: '',
@@ -51,6 +56,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
   title,
   isIncomeCategory = false,
 }) => {
+  const visible = isOpen ?? open ?? false;
   const { profile } = useAuthStore();
   const { isLoading } = useLoadingContext();
   
@@ -136,7 +142,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
         const errorMessage = error.message;
         
         if (errorMessage && errorMessage.includes('FEATURE_NOT_AVAILABLE') && errorMessage.includes('custom categories')) {
-          toast.error('Custom categories are a Premium feature. Upgrade to Premium to create custom categories.');
+          showToast.error('Custom categories are a Premium feature. Upgrade to Premium to create custom categories.');
           setTimeout(() => {
             window.location.href = '/settings?tab=plans';
           }, 2000);
@@ -160,23 +166,14 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
 
   const isFormValid = Object.keys(errors).length === 0;
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {title || (isEdit ? 'Edit Category' : 'Add New Category')}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            aria-label="Close form"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <AppModal
+      isOpen={visible}
+      onClose={onClose}
+      size="md"
+      zClassName="z-[100]"
+      title={title || (isEdit ? 'Edit Category' : 'Add New Category')}
+    >
         <form onSubmit={handleSubmit} className="space-y-6 px-4 py-4">
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -334,8 +331,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </AppModal>
   );
-}; 
+};
 

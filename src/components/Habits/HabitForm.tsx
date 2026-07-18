@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, AlertCircle, Sprout } from 'lucide-react';
+import { Loader2, AlertCircle, Sprout } from 'lucide-react';
 import { useHabitStore } from '../../store/useHabitStore';
 import { Habit, HabitInput, HabitColor } from '../../types/habit';
 import { Loader } from '../common/Loader';
+import { AppModal } from '../common/AppModal';
 
 interface HabitFormProps {
   isOpen: boolean;
@@ -103,47 +104,21 @@ export const HabitForm: React.FC<HabitFormProps> = ({ isOpen, onClose, habit }) 
     }
   };
 
-  if (!isOpen) return null;
-
-  const getColorPreview = (color: HabitColor) => {
-    const colorMap = {
-      yellow: 'bg-yellow-400',
-      pink: 'bg-pink-400',
-      blue: 'bg-blue-400',
-      green: 'bg-green-400',
-      orange: 'bg-orange-400',
-      purple: 'bg-purple-400',
-    };
-    return colorMap[color];
-  };
-
   return (
     <>
       <Loader isLoading={loading} message={habit ? 'Updating habit...' : 'Creating habit...'} />
-      
-      <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4" onClick={onClose}>
-        <div 
-          className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-auto max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 rounded-t-xl p-2.5 sm:p-3 flex items-center justify-between sticky top-0 z-10">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-              <Sprout className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 flex-shrink-0" />
-              <h2 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">
-                {habit ? 'Edit Habit' : 'Create Habit'}
-              </h2>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg p-1 transition-colors flex-shrink-0"
-              disabled={loading}
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Form */}
+      <AppModal
+        isOpen={isOpen}
+        onClose={onClose}
+        closeDisabled={loading}
+        size="lg"
+        title={
+          <span className="flex items-center gap-2 min-w-0">
+            <Sprout className="w-4 h-4 text-green-500 flex-shrink-0" />
+            <span className="truncate">{habit ? 'Edit Habit' : 'Create Habit'}</span>
+          </span>
+        }
+      >
           <form onSubmit={handleSubmit} className="p-3 sm:p-4">
             {/* Error Banner */}
             {error && (
@@ -248,8 +223,7 @@ export const HabitForm: React.FC<HabitFormProps> = ({ isOpen, onClose, habit }) 
               </button>
             </div>
           </form>
-        </div>
-      </div>
+      </AppModal>
     </>
   );
 };

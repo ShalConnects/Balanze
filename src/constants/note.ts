@@ -1,3 +1,8 @@
+import {
+  DASHBOARD_WIDGET_SHELL,
+  DASHBOARD_WIDGET_VIEW_ALL,
+} from './dashboardWidget';
+
 export const NOTE_COLORS = [
   { name: 'Yellow', value: 'yellow', bg: 'bg-yellow-100 dark:bg-yellow-900/30', border: 'border-yellow-300 dark:border-yellow-700', dot: 'bg-yellow-400 dark:bg-yellow-500' },
   { name: 'Pink', value: 'pink', bg: 'bg-pink-100 dark:bg-pink-900/30', border: 'border-pink-300 dark:border-pink-700', dot: 'bg-pink-400 dark:bg-pink-500' },
@@ -9,8 +14,7 @@ export const NOTE_SELECT =
   'id, user_id, title, text, color, pinned, entry_date, updated_at, created_at';
 
 /** Matches dashboard widget shells (blue → indigo → purple). */
-export const NOTE_SHELL =
-  'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200/50 dark:border-blue-800/50 shadow-sm';
+export const NOTE_SHELL = DASHBOARD_WIDGET_SHELL;
 
 export const NOTE_PRIMARY_BTN =
   'inline-flex items-center justify-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50';
@@ -21,14 +25,19 @@ export const NOTE_ICON_BTN =
 export const NOTE_FIELD =
   'w-full rounded-lg border border-blue-200 dark:border-blue-800 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-colors';
 
-export const NOTE_LINK =
-  'text-xs font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all';
+export const NOTE_LINK = DASHBOARD_WIDGET_VIEW_ALL;
 
 export const todayDateKey = (d = new Date()) => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+};
+
+/** Parse `yyyy-MM-dd` as a local calendar date (avoids UTC skew from parseISO). */
+export const parseNoteDate = (dateKey: string) => {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
 };
 
 export const noteColorClass = (color: string) =>

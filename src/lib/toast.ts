@@ -1,74 +1,42 @@
 import { toast } from 'sonner';
 
-/**
- * Unified Toast System for FinTrack
- * 
- * This replaces all the complex toast configurations with a simple, 
- * consistent API that works across the entire application.
- */
+type ToastKind = 'success' | 'error' | 'info' | 'warning';
 
-// Simple toast interface that covers all use cases
-export const showToast = {
-  success: (message: string, options?: { duration?: number }) => {
-    return toast.success(message, {
-      duration: options?.duration || 3000,
-    });
-  },
-
-  error: (message: string, options?: { duration?: number }) => {
-    return toast.error(message, {
-      duration: options?.duration || 5000,
-    });
-  },
-
-  info: (message: string, options?: { duration?: number }) => {
-    return toast.info(message, {
-      duration: options?.duration || 4000,
-    });
-  },
-
-  warning: (message: string, options?: { duration?: number }) => {
-    return toast.warning(message, {
-      duration: options?.duration || 4000,
-    });
-  },
-
-  loading: (message: string) => {
-    return toast.loading(message);
-  },
-
-  // Utility functions
-  dismiss: (toastId?: string | number) => {
-    if (toastId) {
-      toast.dismiss(toastId);
-    } else {
-      toast.dismiss();
-    }
-  },
-
+type ShowToastApi = {
+  (message: string, kind?: ToastKind): string | number;
+  success: (message: string, options?: { duration?: number }) => string | number;
+  error: (message: string, options?: { duration?: number }) => string | number;
+  info: (message: string, options?: { duration?: number }) => string | number;
+  warning: (message: string, options?: { duration?: number }) => string | number;
+  loading: (message: string) => string | number;
+  dismiss: (toastId?: string | number) => void;
   promise: <T>(
     promise: Promise<T>,
-    {
-      loading,
-      success,
-      error,
-    }: {
-      loading: string;
-      success: string;
-      error: string;
-    }
-  ) => {
-    return toast.promise(promise, {
-      loading,
-      success,
-      error,
-    });
-  }
+    messages: { loading: string; success: string; error: string }
+  ) => ReturnType<typeof toast.promise>;
 };
 
-// Export individual functions for convenience
-export const { success, error, info, warning, loading, dismiss } = showToast;
+/** Unified toast API — prefer `showToast.success(...)`; callable form kept for legacy call sites. */
+export const showToast: ShowToastApi = Object.assign(
+  (message: string, kind: ToastKind = 'info') => toast[kind](message),
+  {
+    success: (message: string, options?: { duration?: number }) =>
+      toast.success(message, { duration: options?.duration ?? 3000 }),
+    error: (message: string, options?: { duration?: number }) =>
+      toast.error(message, { duration: options?.duration ?? 5000 }),
+    info: (message: string, options?: { duration?: number }) =>
+      toast.info(message, { duration: options?.duration ?? 4000 }),
+    warning: (message: string, options?: { duration?: number }) =>
+      toast.warning(message, { duration: options?.duration ?? 4000 }),
+    loading: (message: string) => toast.loading(message),
+    dismiss: (toastId?: string | number) => (toastId != null ? toast.dismiss(toastId) : toast.dismiss()),
+    promise: <T,>(
+      promise: Promise<T>,
+      messages: { loading: string; success: string; error: string }
+    ) => toast.promise(promise, messages),
+  }
+);
 
-// Default export for easy importing
+export const { success, error, info, warning, loading, dismiss } = showToast;
 export default showToast;
 

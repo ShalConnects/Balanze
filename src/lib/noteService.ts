@@ -34,7 +34,7 @@ export async function createNote(userId: string, input: NoteWrite): Promise<Note
 export async function updateNote(id: string, patch: NotePatch): Promise<Note> {
   const { data, error } = await supabase
     .from('notes')
-    .update(patch)
+    .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select(NOTE_SELECT)
     .single();

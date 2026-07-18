@@ -25,36 +25,51 @@ import { BusinessInvestmentContractModal } from '../Dashboard/BusinessInvestment
 import { PrizeBondAddModalHost } from '../PrizeBonds/PrizeBondAddModalHost';
 import { investmentsBondsPath } from '../../lib/investmentsNav';
 
-// Define the props for our new ActionButton component.
 interface ActionButtonProps {
   icon: React.ElementType;
   label: string;
   onClick: () => void;
   color: string;
   delay: string;
+  /** Navigation items (e.g. Go to Dashboard) vs create/action items */
+  variant?: 'action' | 'nav';
+  /** Icon-only row (label kept for title/aria) */
+  iconOnly?: boolean;
 }
 
-// A single action button used in the speed dial.
-const ActionButton: React.FC<ActionButtonProps> = ({ icon: Icon, label, onClick, color, delay }) => {
+const ActionButton: React.FC<ActionButtonProps> = ({ icon: Icon, label, onClick, color, delay, variant = 'action', iconOnly = false }) => {
+  const isNav = variant === 'nav';
   return (
     <button
       onClick={onClick}
-      className="flex items-center justify-between w-full group focus:outline-none"
+      className={`flex items-center w-full group focus:outline-none ${iconOnly ? 'justify-center' : 'justify-between'}`}
       style={{ transitionDelay: delay }}
       title={label}
+      aria-label={label}
     >
-      <span className={`${color} text-white p-2 sm:p-2.5 rounded-full shadow-md flex items-center justify-center mr-2 sm:mr-3 group-hover:scale-110 transition-transform duration-200 flex-shrink-0`}>
+      <span className={`${isNav ? 'bg-white/15 ring-1 ring-inset ring-white/30' : color} text-white p-2 sm:p-2.5 rounded-full ${isNav ? '' : 'shadow-md'} flex items-center justify-center ${iconOnly ? '' : 'mr-2 sm:mr-3'} group-hover:scale-110 transition-transform duration-200 flex-shrink-0`}>
         <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
       </span>
-      <span
-        className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium shadow-sm border border-gray-700 transition-colors flex-1 min-w-0 text-left group-hover:bg-white/10 dark:group-hover:bg-gray-100/10 duration-150 truncate"
-        style={{ background: '#4c54618f', color: 'white' }}
-      >
-        {label}
-      </span>
+      {!iconOnly && (
+        <span
+          className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex-1 min-w-0 text-left duration-150 truncate ${
+            isNav
+              ? 'border border-white/25 bg-white/10 text-white/95 group-hover:bg-white/15'
+              : 'shadow-sm border border-gray-700 group-hover:bg-white/10 dark:group-hover:bg-gray-100/10'
+          }`}
+          style={isNav ? undefined : { background: '#4c54618f', color: 'white' }}
+        >
+          {label}
+        </span>
+      )}
     </button>
   );
 };
+
+const partitionActions = <T extends { variant?: 'action' | 'nav' }>(actions: T[]) => ({
+  grid: actions.filter((a) => a.variant !== 'nav'),
+  nav: actions.filter((a) => a.variant === 'nav'),
+});
 
 export const FloatingActionButton: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -215,8 +230,8 @@ export const FloatingActionButton: React.FC = () => {
     else navigate('/');
   }, [location.pathname, navigate]);
 
-  /** Financial omits "Go to Dashboard" only on `/` and `/dashboard`; all other routes prepend it (incl. demo close on `/dashboard-demo-only`). */
-  const actionsByCategory = React.useMemo(() => {
+  /** Nav item (Go to Dashboard / Close demo) is separate from create actions; omitted only on `/` and `/dashboard`. */
+  const menu = React.useMemo(() => {
     const financial = [
       { label: t('dashboard.addTransaction'), icon: TrendingUp, color: 'bg-blue-600', onClick: () => handleAction(handleAddTransaction), delay: '200ms' },
       { label: 'Add Purchase', icon: ShoppingBag, color: 'bg-orange-600', onClick: () => handleAction(handleAddPurchase), delay: '150ms' },
@@ -232,24 +247,29 @@ export const FloatingActionButton: React.FC = () => {
     const personalGrowth = [
       { label: 'Add Habit', icon: Sprout, color: 'bg-emerald-600', onClick: () => handleAction(handleAddHabit), delay: '140ms' },
       { label: 'Add Course', icon: BookOpen, color: 'bg-cyan-600', onClick: () => handleAction(handleAddCourse), delay: '130ms' },
-      { label: 'View Personal Growth', icon: Sparkles, color: 'bg-gradient-to-r from-purple-600 to-pink-600', onClick: () => handleAction(handleViewPersonalGrowth), delay: '160ms' },
+      { label: 'View Personal Growth', icon: Sparkles, color: 'bg-gradient-to-r from-purple-600 to-pink-600', onClick: () => handleAction(handleViewPersonalGrowth), delay: '160ms', variant: 'nav' as const },
     ];
 
-    const homeAction = {
-      label: location.pathname === '/dashboard-demo-only' ? 'Close demo' : 'Go to Dashboard',
-      icon: Home,
-      color: 'bg-slate-600',
-      onClick: () => handleAction(handleGoHome),
-      delay: '0ms',
+    const onDashboard = location.pathname === '/' || location.pathname === '/dashboard';
+    const navAction = onDashboard
+      ? null
+      : {
+          label: location.pathname === '/dashboard-demo-only' ? 'Close demo' : 'Go to Dashboard',
+          icon: Home,
+          color: 'bg-slate-600',
+          onClick: () => handleAction(handleGoHome),
+          delay: '0ms',
+          variant: 'nav' as const,
+          iconOnly: true,
+        };
+
+    return {
+      navAction,
+      categories: [
+        { category: 'Financial', actions: financial },
+        { category: 'Personal Growth', actions: personalGrowth },
+      ],
     };
-
-    const financialActions =
-      location.pathname === '/' || location.pathname === '/dashboard' ? financial : [homeAction, ...financial];
-
-    return [
-      { category: 'Financial', actions: financialActions },
-      { category: 'Personal Growth', actions: personalGrowth }
-    ];
   }, [
     location.pathname,
     t,
@@ -319,29 +339,28 @@ export const FloatingActionButton: React.FC = () => {
           >
             <div className="absolute bottom-full right-0 mb-2 sm:mb-4 rounded-xl sm:rounded-2xl shadow-2xl z-50 bg-gradient-primary overflow-hidden w-[calc(100vw-3rem)] max-w-[280px] sm:max-w-[440px] sm:min-w-[280px] md:min-w-[360px] lg:min-w-[440px]">
               <div className="max-h-[60vh] sm:max-h-[400px] overflow-y-auto p-3 sm:p-4 flex flex-col gap-2 sm:gap-3 custom-scrollbar">
-                {actionsByCategory.map((categoryGroup) => {
-                  const viewPersonalGrowthAction = categoryGroup.category === 'Personal Growth' 
-                    ? categoryGroup.actions.find(action => action.label === 'View Personal Growth')
-                    : null;
-                  const regularActions = categoryGroup.category === 'Personal Growth'
-                    ? categoryGroup.actions.filter(action => action.label !== 'View Personal Growth')
-                    : categoryGroup.actions;
-
+                {menu.navAction && (
+                  <div className="w-full pb-2 mb-0.5 border-b border-white/15">
+                    <ActionButton {...menu.navAction} />
+                  </div>
+                )}
+                {menu.categories.map((categoryGroup) => {
+                  const { grid, nav } = partitionActions(categoryGroup.actions);
                   return (
                     <div key={categoryGroup.category} className="flex flex-col gap-1.5 sm:gap-2">
                       <div className="text-[10px] sm:text-xs font-semibold text-white/80 uppercase tracking-wider px-1 mb-0.5 sm:mb-1">
                         {categoryGroup.category}
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
-                        {regularActions.map((action) => (
+                        {grid.map((action) => (
                           <ActionButton key={action.label} {...action} />
                         ))}
                       </div>
-                      {viewPersonalGrowthAction && (
-                        <div className="w-full mt-1 sm:mt-1.5">
-                          <ActionButton {...viewPersonalGrowthAction} />
+                      {nav.map((action) => (
+                        <div key={action.label} className="w-full mt-1 sm:mt-1.5">
+                          <ActionButton {...action} />
                         </div>
-                      )}
+                      ))}
                     </div>
                   );
                 })}

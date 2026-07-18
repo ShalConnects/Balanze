@@ -1,10 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Sprout, Plus, Check, ArrowRight, Flame, ChevronUp, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Check, ArrowRight, Flame, ChevronUp, ChevronDown } from 'lucide-react';
 import { useHabitStore } from '../../store/useHabitStore';
 import { useAuthStore } from '../../store/authStore';
 import { HabitForm } from './HabitForm';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import {
+  DASHBOARD_WIDGET_ACCORDION_BTN,
+  DASHBOARD_WIDGET_BADGE,
+  DASHBOARD_WIDGET_CONTENT,
+  DASHBOARD_WIDGET_HEADER,
+  DASHBOARD_WIDGET_HEADER_BORDER,
+  DASHBOARD_WIDGET_ROW,
+  DASHBOARD_WIDGET_SHELL,
+  DASHBOARD_WIDGET_TITLE,
+  DASHBOARD_WIDGET_VIEW_ALL,
+} from '../../constants/dashboardWidget';
 
 interface HabitGardenWidgetProps {
   isAccordionExpanded?: boolean;
@@ -13,194 +24,155 @@ interface HabitGardenWidgetProps {
 
 export const HabitGardenWidget: React.FC<HabitGardenWidgetProps> = ({
   isAccordionExpanded = true,
-  onAccordionToggle
+  onAccordionToggle,
 }) => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const {
-    habits,
-    loading,
-    fetchHabits,
-    toggleCompletion,
-    isCompleted,
-    getStreak,
-    fetchCompletions,
-  } = useHabitStore();
+  const { habits, fetchHabits, toggleCompletion, isCompleted, getStreak, fetchCompletions } =
+    useHabitStore();
 
   const [showForm, setShowForm] = useState(false);
-  const [showAll, setShowAll] = useState(false);
-
-  const today = new Date();
-  const todayStr = format(today, 'yyyy-MM-dd');
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
 
   useEffect(() => {
-    if (user) {
-      fetchHabits();
-      // Fetch today's completions
-      fetchCompletions(todayStr, todayStr);
-    }
+    if (!user) return;
+    fetchHabits();
+    fetchCompletions(todayStr, todayStr);
   }, [user, fetchHabits, fetchCompletions, todayStr]);
 
-  const handleToggle = async (habitId: string) => {
-    await toggleCompletion(habitId, todayStr);
-  };
+  const handleViewAll = () => navigate('/personal-growth?tab=habits');
 
-  const handleViewAll = () => {
-    navigate('/personal-growth?tab=habits');
-  };
+  const { completedCount, displayHabits } = useMemo(() => {
+    const completed = habits.filter((h) => isCompleted(h.id, todayStr)).length;
+    return { completedCount: completed, displayHabits: habits.slice(0, 4) };
+  }, [habits, isCompleted, todayStr]);
 
-  // Show only first 3-4 habits in widget
-  const displayHabits = habits.slice(0, 4);
+  const accordionBtn = onAccordionToggle && (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onAccordionToggle();
+      }}
+      className={DASHBOARD_WIDGET_ACCORDION_BTN}
+      title={isAccordionExpanded ? 'Collapse' : 'Expand'}
+      aria-label={isAccordionExpanded ? 'Collapse widget' : 'Expand widget'}
+      style={{ WebkitTapHighlightColor: 'transparent' }}
+    >
+      {isAccordionExpanded ? (
+        <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+      ) : (
+        <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+      )}
+    </button>
+  );
 
   if (habits.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 relative group">
-        {/* Toggle Button - positioned like drag handle on left side */}
-        {onAccordionToggle && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onAccordionToggle();
-            }}
-            className="absolute top-2 left-2 z-10 p-1.5 rounded-lg bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-sm opacity-100 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation transition-opacity"
-            title={isAccordionExpanded ? 'Collapse' : 'Expand'}
-            aria-label={isAccordionExpanded ? 'Collapse widget' : 'Expand widget'}
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            {isAccordionExpanded ? (
-              <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
-            ) : (
-              <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
-            )}
-          </button>
-        )}
-        <div className={`flex items-center justify-between ${isAccordionExpanded ? 'mb-3' : ''}`}>
-          <div className="flex items-center gap-2">
-            <Sprout className="w-5 h-5 text-green-500" />
-            <h3 className="font-semibold text-gray-900 dark:text-white">Habit Garden</h3>
-          </div>
+      <div className={DASHBOARD_WIDGET_SHELL}>
+        {accordionBtn}
+        <div className={DASHBOARD_WIDGET_HEADER}>
+          <h3 className={DASHBOARD_WIDGET_TITLE}>Habit Garden</h3>
         </div>
         {isAccordionExpanded && (
-          <div className="text-center py-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              Start building your daily habits
-            </p>
+          <div className={`${DASHBOARD_WIDGET_CONTENT} text-center py-4`}>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Start building your daily habits</p>
             <button
               onClick={() => setShowForm(true)}
-              className="px-4 py-2 bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded-lg text-sm font-medium flex items-center gap-2 mx-auto transition-colors"
+              className="px-3 py-1.5 bg-gradient-primary hover:bg-gradient-primary-hover text-white rounded-lg text-xs font-medium inline-flex items-center gap-1.5"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               Add Habit
             </button>
           </div>
         )}
-
-        {showForm && (
-          <HabitForm isOpen={showForm} onClose={() => setShowForm(false)} />
-        )}
+        {showForm && <HabitForm isOpen={showForm} onClose={() => setShowForm(false)} />}
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 relative group">
-      {/* Toggle Button - positioned like drag handle on left side */}
-      {onAccordionToggle && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onAccordionToggle();
-          }}
-          className="absolute top-2 left-2 z-10 p-1.5 rounded-lg bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-sm opacity-100 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation transition-opacity"
-          title={isAccordionExpanded ? 'Collapse' : 'Expand'}
-          aria-label={isAccordionExpanded ? 'Collapse widget' : 'Expand widget'}
-          style={{ WebkitTapHighlightColor: 'transparent' }}
-        >
-          {isAccordionExpanded ? (
-            <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
-          ) : (
-            <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
-          )}
-        </button>
-      )}
-      <div className={`flex items-center justify-between ${isAccordionExpanded ? 'mb-3' : ''}`}>
-        <div className="flex items-center gap-2">
-          <Sprout className="w-5 h-5 text-green-500" />
-          <h3 className="font-semibold text-gray-900 dark:text-white">Habit Garden</h3>
+    <div className={DASHBOARD_WIDGET_SHELL}>
+      {accordionBtn}
+      <div
+        className={`${DASHBOARD_WIDGET_HEADER} ${
+          isAccordionExpanded ? DASHBOARD_WIDGET_HEADER_BORDER : ''
+        }`}
+      >
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <h3 className={DASHBOARD_WIDGET_TITLE}>Habit Garden</h3>
+          <span
+            className={`${DASHBOARD_WIDGET_BADGE} ${
+              completedCount === habits.length
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+            }`}
+          >
+            {completedCount}/{habits.length} done
+          </span>
         </div>
-        <button
-          onClick={handleViewAll}
-          className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-        >
-          View All
-          <ArrowRight className="w-3 h-3" />
+        <button type="button" onClick={handleViewAll} className={DASHBOARD_WIDGET_VIEW_ALL}>
+          <span>View All</span>
+          <ArrowRight className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Content - Only show when expanded */}
       {isAccordionExpanded && (
-        <>
-      <div className="space-y-2">
-        {displayHabits.map((habit) => {
-          const completed = isCompleted(habit.id, todayStr);
-          const streak = getStreak(habit.id);
-          const colorClasses = {
-            yellow: completed ? 'bg-yellow-400 dark:bg-yellow-500' : 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-300 dark:border-yellow-700',
-            pink: completed ? 'bg-pink-400 dark:bg-pink-500' : 'bg-pink-100 dark:bg-pink-900/30 border-pink-300 dark:border-pink-700',
-            blue: completed ? 'bg-blue-400 dark:bg-blue-500' : 'bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700',
-            green: completed ? 'bg-green-400 dark:bg-green-500' : 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700',
-            orange: completed ? 'bg-orange-400 dark:bg-orange-500' : 'bg-orange-100 dark:bg-orange-900/30 border-orange-300 dark:border-orange-700',
-            purple: completed ? 'bg-purple-400 dark:bg-purple-500' : 'bg-purple-100 dark:bg-purple-900/30 border-purple-300 dark:border-purple-700',
-          }[habit.color] || 'bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700';
-
-          return (
-            <div
-              key={habit.id}
-              className={`flex items-center justify-between p-2 rounded-lg border ${colorClasses} transition-all hover:shadow-sm`}
-            >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
+        <div className={DASHBOARD_WIDGET_CONTENT}>
+          {displayHabits.map((habit) => {
+            const completed = isCompleted(habit.id, todayStr);
+            const streak = getStreak(habit.id);
+            return (
+              <div key={habit.id} className={DASHBOARD_WIDGET_ROW}>
                 <button
-                  onClick={() => handleToggle(habit.id)}
-                  className={`flex-shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+                  type="button"
+                  onClick={() => toggleCompletion(habit.id, todayStr)}
+                  className={`mt-1.5 flex-shrink-0 w-4 h-4 rounded-full border flex items-center justify-center touch-manipulation ${
                     completed
-                      ? 'bg-white dark:bg-gray-800 border-white dark:border-gray-800'
-                      : 'border-gray-300 dark:border-gray-600 bg-transparent'
+                      ? 'border-green-500 bg-green-500 text-white'
+                      : 'border-gray-300 dark:border-gray-600 text-gray-400 hover:border-green-500 hover:text-green-600'
                   }`}
+                  title={completed ? 'Mark incomplete' : 'Mark complete'}
+                  aria-label={`Toggle ${habit.title}`}
                 >
-                  {completed && <Check className="w-4 h-4 text-gray-900 dark:text-white" />}
+                  {completed && <Check className="w-2.5 h-2.5" />}
                 </button>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                <button
+                  type="button"
+                  onClick={handleViewAll}
+                  className="flex-1 min-w-0 py-1.5 pr-1 text-left touch-manipulation"
+                >
+                  <p
+                    className={`text-xs sm:text-sm font-medium truncate leading-snug ${
+                      completed
+                        ? 'line-through text-gray-400 dark:text-gray-500'
+                        : 'text-gray-900 dark:text-white'
+                    }`}
+                  >
                     {habit.title}
-                  </div>
+                  </p>
                   {streak > 0 && (
-                    <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
+                    <p className="mt-0.5 flex items-center gap-1 text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400">
                       <Flame className="w-3 h-3 text-orange-500" />
-                      <span>{streak} day{streak !== 1 ? 's' : ''}</span>
-                    </div>
+                      {streak}d streak
+                    </p>
                   )}
-                </div>
+                </button>
               </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {habits.length > 4 && (
-        <button
-          onClick={handleViewAll}
-          className="w-full mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline text-center"
-        >
-          +{habits.length - 4} more habits
-        </button>
-      )}
-        </>
+            );
+          })}
+          {habits.length > 4 && (
+            <button
+              type="button"
+              onClick={handleViewAll}
+              className="py-1.5 text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 font-medium"
+            >
+              +{habits.length - 4} more habits
+            </button>
+          )}
+        </div>
       )}
 
-      {showForm && (
-        <HabitForm isOpen={showForm} onClose={() => setShowForm(false)} />
-      )}
+      {showForm && <HabitForm isOpen={showForm} onClose={() => setShowForm(false)} />}
     </div>
   );
 };
-

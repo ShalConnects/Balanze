@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { BookOpen } from 'lucide-react';
 import { useNotes } from '../../hooks/useNotes';
 import {
   NOTE_PRIMARY_BTN,
   NOTE_SHELL,
+  parseNoteDate,
   todayDateKey,
 } from '../../constants/note';
 import type { Note } from '../../types/note';
@@ -23,10 +24,19 @@ export const NotesDiaryPage: React.FC = () => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const creatingRef = useRef(false);
   const selectedIdRef = useRef(selectedId);
+  const selectedDateRef = useRef(selectedDate);
   const draftRef = useRef(draft);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   draftRef.current = draft;
   selectedIdRef.current = selectedId;
+  selectedDateRef.current = selectedDate;
+
+  const clearDraftTimer = () => {
+    if (draftTimer.current) {
+      clearTimeout(draftTimer.current);
+      draftTimer.current = null;
+    }
+  };
 
   const q = search.trim().toLowerCase();
   const isToday = selectedDate === todayDateKey();
@@ -49,26 +59,23 @@ export const NotesDiaryPage: React.FC = () => {
     if (composingNew) return;
     const forDay = notes.filter((n) => n.entry_date === selectedDate);
     setConfirmDelete(false);
-    setSelectedId((prev) => {
-      if (prev && forDay.some((n) => n.id === prev)) return prev;
-      if (prev && notes.some((n) => n.id === prev)) return prev;
-      return forDay[0]?.id ?? null;
-    });
+    setSelectedId((prev) =>
+      prev && forDay.some((n) => n.id === prev) ? prev : forDay[0]?.id ?? null
+    );
   }, [selectedDate, notes, composingNew]);
 
-  useEffect(() => () => {
-    if (draftTimer.current) clearTimeout(draftTimer.current);
-  }, []);
+  useEffect(() => () => clearDraftTimer(), []);
 
   const dayLabel = useMemo(() => {
     try {
-      return format(parseISO(selectedDate), 'EEEE, MMM d, yyyy');
+      return format(parseNoteDate(selectedDate), 'EEEE, MMM d, yyyy');
     } catch {
       return selectedDate;
     }
   }, [selectedDate]);
 
   const selectDate = (date: string) => {
+    clearDraftTimer();
     setComposingNew(false);
     setSelectedDate(date);
     setListScope('day');
@@ -76,6 +83,7 @@ export const NotesDiaryPage: React.FC = () => {
   };
 
   const selectNote = (note: Note) => {
+    clearDraftTimer();
     setComposingNew(false);
     setSelectedId(note.id);
     setSelectedDate(note.entry_date);
@@ -83,6 +91,7 @@ export const NotesDiaryPage: React.FC = () => {
   };
 
   const startNew = () => {
+    clearDraftTimer();
     setComposingNew(true);
     setSelectedId(null);
     setDraft({ title: '', text: '' });
@@ -92,14 +101,15 @@ export const NotesDiaryPage: React.FC = () => {
   const createFromDraft = (next: { title: string; text: string }) => {
     if (creatingRef.current) return;
     if (!next.title.trim() && !next.text.trim()) return;
-    if (draftTimer.current) clearTimeout(draftTimer.current);
+    clearDraftTimer();
+    const entryDate = selectedDateRef.current;
     draftTimer.current = setTimeout(async () => {
       if (creatingRef.current || selectedIdRef.current) return;
       creatingRef.current = true;
       const created = await addNote({
         title: draftRef.current.title,
         text: draftRef.current.text,
-        entry_date: selectedDate,
+        entry_date: entryDate,
       });
       creatingRef.current = false;
       if (!created) return;

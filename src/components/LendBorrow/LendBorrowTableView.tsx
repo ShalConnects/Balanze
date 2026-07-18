@@ -5,6 +5,7 @@ import { useFinanceStore } from '../../store/useFinanceStore';
 import { LendBorrowForm } from './LendBorrowForm';
 import { SettlementModal } from './SettlementModal';
 import { SettledRecordInfoModal } from './SettledRecordInfoModal';
+import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { LendBorrow, LendBorrowReturn } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
@@ -902,7 +903,6 @@ export const LendBorrowTableView: React.FC = () => {
   const handleConfirmDelete = async () => {
     if (deleteConfirmationModal.record) {
       await handleDeleteRecord(deleteConfirmationModal.record.id);
-      handleCloseDeleteConfirmation();
     }
   };
 
@@ -2442,77 +2442,49 @@ export const LendBorrowTableView: React.FC = () => {
           />
         )}
 
-        {/* Delete Confirmation Modal */}
-        {deleteConfirmationModal.isOpen && deleteConfirmationModal.record && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Delete Record
-                  </h3>
-                  <button
-                    onClick={handleCloseDeleteConfirmation}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+        <DeleteConfirmationModal
+          isOpen={deleteConfirmationModal.isOpen && !!deleteConfirmationModal.record}
+          onClose={handleCloseDeleteConfirmation}
+          onConfirm={handleConfirmDelete}
+          title="Delete Record"
+          message={
+            deleteConfirmationModal.record ? (
+              <>
+                Are you sure you want to delete <strong>{deleteConfirmationModal.record.person_name}</strong>? This will update the account balance and cannot be undone.
+              </>
+            ) : undefined
+          }
+          recordDetails={
+            deleteConfirmationModal.record ? (
+              <div className="space-y-2 text-sm text-blue-700 dark:text-blue-300">
+                <div className="flex justify-between gap-4">
+                  <span>Person:</span>
+                  <span className="font-medium">{deleteConfirmationModal.record.person_name}</span>
                 </div>
-                
-                <div className="mb-4">
-                  <p className="text-gray-600 dark:text-gray-300 mb-4">
-                    Are you sure you want to delete <strong>{deleteConfirmationModal.record.person_name}</strong>? This will update the account balance and cannot be undone.
-                  </p>
-                  
-                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">Record Details:</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Person:</span>
-                        <span className="text-gray-900 dark:text-white">{deleteConfirmationModal.record.person_name}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Amount:</span>
-                        <span className="text-gray-900 dark:text-white">{formatCurrency(deleteConfirmationModal.record.amount, deleteConfirmationModal.record.currency)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Type:</span>
-                        <span className="text-gray-900 dark:text-white">{deleteConfirmationModal.record.type === 'lend' ? 'Lend' : 'Borrow'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Status:</span>
-                        <span className="text-gray-900 dark:text-white">{deleteConfirmationModal.record.status.charAt(0).toUpperCase() + deleteConfirmationModal.record.status.slice(1)}</span>
-                      </div>
-                      {deleteConfirmationModal.record.account_id && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600 dark:text-gray-400">Account:</span>
-                          <span className="text-gray-900 dark:text-white">
-                            {accounts.find(acc => acc.id === deleteConfirmationModal.record?.account_id)?.name || 'Unknown Account'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                <div className="flex justify-between gap-4">
+                  <span>Amount:</span>
+                  <span className="font-medium">{formatCurrency(deleteConfirmationModal.record.amount, deleteConfirmationModal.record.currency)}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span>Type:</span>
+                  <span className="font-medium">{deleteConfirmationModal.record.type === 'lend' ? 'Lend' : 'Borrow'}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span>Status:</span>
+                  <span className="font-medium">{deleteConfirmationModal.record.status.charAt(0).toUpperCase() + deleteConfirmationModal.record.status.slice(1)}</span>
+                </div>
+                {deleteConfirmationModal.record.account_id && (
+                  <div className="flex justify-between gap-4">
+                    <span>Account:</span>
+                    <span className="font-medium">
+                      {accounts.find(acc => acc.id === deleteConfirmationModal.record?.account_id)?.name || 'Unknown Account'}
+                    </span>
                   </div>
-                </div>
-                
-                <div className="flex justify-end space-x-3">
-                  <button
-                    onClick={handleCloseDeleteConfirmation}
-                    className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleConfirmDelete}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
-                  >
-                    Delete Record
-                  </button>
-                </div>
+                )}
               </div>
-            </div>
-          </div>
-        )}
+            ) : undefined
+          }
+        />
 
         {/* Settlement Modal */}
         {settlementModalOpen && recordToSettle && (

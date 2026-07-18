@@ -3,9 +3,20 @@ import { useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useAllTasksModalStore } from '../../store/useAllTasksModalStore';
-import { Timer, Play, Pause, RotateCcw, Settings, GripVertical, X, ChevronDown, RefreshCw, ChevronRight, Plus, ChevronUp } from 'lucide-react';
+import { Timer, Play, Pause, RotateCcw, Settings, GripVertical, X, ChevronDown, RefreshCw, ChevronRight, Plus, ChevronUp, ArrowRight } from 'lucide-react';
 import Modal from 'react-modal';
 import type { Task } from '../../types/index';
+import {
+  DASHBOARD_WIDGET_ACCORDION_BTN,
+  DASHBOARD_WIDGET_BADGE,
+  DASHBOARD_WIDGET_CONTENT,
+  DASHBOARD_WIDGET_HEADER,
+  DASHBOARD_WIDGET_HEADER_BORDER,
+  DASHBOARD_WIDGET_ROW,
+  DASHBOARD_WIDGET_SHELL,
+  DASHBOARD_WIDGET_TITLE,
+  DASHBOARD_WIDGET_VIEW_ALL,
+} from '../../constants/dashboardWidget';
 
 interface TodosWidgetProps {
   isAccordionExpanded?: boolean;
@@ -1689,19 +1700,20 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
   // Determine if we're on Dashboard - widget UI only shows on Dashboard
   const isDashboard = location.pathname === '/' || location.pathname === '/dashboard';
   
+  const openTaskCount = filteredTasksForPreview.filter((t) => !t.completed).length;
+
   return (
     <>
       {/* Widget UI - Only visible on Dashboard and when showWidgetUI is true */}
       {isDashboard && showWidgetUI && (
-    <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-blue-100 dark:from-blue-900/40 dark:via-purple-900/40 dark:to-blue-900/40 rounded-xl p-4 shadow-sm flex flex-col transition-all duration-300 relative group">
-      {/* Toggle Button - positioned like drag handle on left side, only when tasks exist */}
+    <div className={DASHBOARD_WIDGET_SHELL}>
       {tasks.length > 0 && onAccordionToggle && (
         <button
           onClick={(e) => {
             e.stopPropagation();
             onAccordionToggle();
           }}
-          className="absolute top-2 left-2 z-10 p-1.5 rounded-lg bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-sm opacity-100 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation transition-opacity"
+          className={DASHBOARD_WIDGET_ACCORDION_BTN}
           title={isAccordionExpanded ? 'Collapse' : 'Expand'}
           aria-label={isAccordionExpanded ? 'Collapse widget' : 'Expand widget'}
           style={{ WebkitTapHighlightColor: 'transparent' }}
@@ -1713,16 +1725,31 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
           )}
         </button>
       )}
-      {/* Widget Header */}
-      <div className={`mb-3 ${isAccordionExpanded ? '' : ''}`}>
-        <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">Tasks</h3>
+      <div
+        className={`${DASHBOARD_WIDGET_HEADER} ${
+          isAccordionExpanded ? DASHBOARD_WIDGET_HEADER_BORDER : ''
+        }`}
+      >
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <h3 className={DASHBOARD_WIDGET_TITLE}>Tasks</h3>
+          {filteredTasksForPreview.length > 0 && (
+            <span className={`${DASHBOARD_WIDGET_BADGE} bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300`}>
+              {openTaskCount} open
+            </span>
+          )}
+        </div>
+        {tasks.length > 0 && (
+          <button type="button" onClick={() => openModal()} className={DASHBOARD_WIDGET_VIEW_ALL}>
+            <span>View All</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
-      {/* Quick Add Task Input - Always visible */}
-      <div className="mb-3">
-        <div className="bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 rounded-lg p-2 flex items-center gap-2 shadow-sm">
+      <div className={`${DASHBOARD_WIDGET_CONTENT} pt-2 ${isAccordionExpanded ? '' : 'pb-2'}`}>
+        <div className="bg-white/90 dark:bg-gray-800/90 border border-blue-200/60 dark:border-blue-800/60 rounded-lg px-2 py-1.5 flex items-center gap-2">
           <input
             ref={addTaskInputRef}
-            className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+            className="flex-1 bg-transparent border-none focus:outline-none text-xs sm:text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
             placeholder="Add a task..."
             value={todoInput}
             onChange={e => setTodoInput(e.target.value)}
@@ -1735,7 +1762,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
             disabled={saving}
           />
           <button
-            className="p-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex-shrink-0 disabled:opacity-50"
+            className="p-0.5 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex-shrink-0 disabled:opacity-50"
             onClick={(e) => {
               e.preventDefault();
               if (todoInput.trim()) {
@@ -1749,39 +1776,47 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
           </button>
         </div>
       </div>
-      {/* Tasks List (show only first 3) - Only show when expanded */}
       {isAccordionExpanded && (
-        <div className="space-y-2">
-          {tasksToShow.length === 0 && <div className="text-gray-400 text-sm text-center">No tasks yet.</div>}
+        <div className={`${DASHBOARD_WIDGET_CONTENT} pb-1.5`}>
+          {tasksToShow.length === 0 && (
+            <div className="text-gray-400 text-xs text-center py-3">No tasks yet.</div>
+          )}
           {tasksToShow.map(task => (
-            <div key={task.id} className="bg-blue-50 dark:bg-blue-900/20 rounded p-2 flex items-center">
+            <div key={task.id} className={DASHBOARD_WIDGET_ROW}>
               {confirmDeleteTaskId === task.id ? (
-                <div className="flex-1 flex items-center gap-2">
-                  <span className="text-sm text-red-600">Delete this task?</span>
-                  <button className="px-2 py-1 text-xs bg-red-500 text-white rounded" onClick={() => deleteTask(task.id)} disabled={saving}>Delete</button>
-                  <button className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded" onClick={() => setConfirmDeleteTaskId(null)} disabled={saving}>Cancel</button>
+                <div className="flex-1 flex items-center gap-2 py-1.5">
+                  <span className="text-xs text-red-600">Delete this task?</span>
+                  <button className="px-2 py-0.5 text-[10px] bg-red-500 text-white rounded" onClick={() => deleteTask(task.id)} disabled={saving}>Delete</button>
+                  <button className="px-2 py-0.5 text-[10px] bg-gray-200 text-gray-700 rounded" onClick={() => setConfirmDeleteTaskId(null)} disabled={saving}>Cancel</button>
                 </div>
-              ) : <>
-              <input
-                type="checkbox"
-                checked={task.completed}
-                onChange={() => toggleTask(task.id, task.completed)}
-                className="mr-2"
-                disabled={saving}
-              />
-              <input
-                className={`flex-1 bg-transparent border-none focus:outline-none text-sm ${task.completed ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}
-                value={task.text}
-                onChange={e => editTask(task.id, e.target.value)}
-                disabled={saving}
-              />
-              <button className="ml-2 text-gray-400 hover:text-red-500 flex-shrink-0" onClick={() => setConfirmDeleteTaskId(task.id)} disabled={saving}>&times;</button>
-              </>}
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => toggleTask(task.id, task.completed)}
+                    disabled={saving}
+                    className={`mt-1.5 flex-shrink-0 w-4 h-4 rounded-full border flex items-center justify-center touch-manipulation ${
+                      task.completed
+                        ? 'border-green-500 bg-green-500 text-white'
+                        : 'border-gray-300 dark:border-gray-600 text-transparent'
+                    }`}
+                    aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}
+                  >
+                    {task.completed && <span className="text-[9px] leading-none text-white">✓</span>}
+                  </button>
+                  <input
+                    className={`flex-1 min-w-0 bg-transparent border-none focus:outline-none text-xs sm:text-sm py-1.5 ${
+                      task.completed ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'
+                    }`}
+                    value={task.text}
+                    onChange={e => editTask(task.id, e.target.value)}
+                    disabled={saving}
+                  />
+                  <button className="text-gray-400 hover:text-red-500 flex-shrink-0 text-base leading-none" onClick={() => setConfirmDeleteTaskId(task.id)} disabled={saving}>&times;</button>
+                </>
+              )}
             </div>
           ))}
-          {tasks.length > 0 && (
-            <button className="w-full text-gradient-primary hover:underline text-xs mt-2" onClick={() => openModal()}>View All Tasks</button>
-          )}
         </div>
       )}
       </div>

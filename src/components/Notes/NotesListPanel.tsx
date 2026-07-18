@@ -1,7 +1,7 @@
 import React from 'react';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { Plus, Search, Star } from 'lucide-react';
-import { NOTE_FIELD, NOTE_SHELL, noteColorClass } from '../../constants/note';
+import { NOTE_FIELD, NOTE_SHELL, noteColorClass, parseNoteDate } from '../../constants/note';
 import type { Note } from '../../types/note';
 
 export type NotesListScope = 'day' | 'all';
@@ -104,14 +104,16 @@ export const NotesListPanel: React.FC<NotesListPanelProps> = ({
             key={note.id}
             type="button"
             onClick={() => onSelect(note)}
-            className={`w-full text-left rounded-lg border px-2.5 py-2 ${color.bg} ${color.border}`}
+            className={`w-full text-left rounded-lg border px-2.5 py-2 ${color.bg} ${
+              active ? 'border-blue-500 dark:border-blue-400' : color.border
+            }`}
           >
             <div className="flex items-start gap-1.5">
               {note.pinned && <Star className="w-3 h-3 text-yellow-500 flex-shrink-0 mt-0.5" fill="#facc15" />}
               <div className="min-w-0 flex-1">
                 <p className={`text-xs text-gray-900 dark:text-white line-clamp-2 ${active ? 'font-semibold' : 'font-medium'}`}>{preview(note)}</p>
                 <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
-                  {format(parseISO(note.entry_date), 'MMM d, yyyy')}
+                  {format(parseNoteDate(note.entry_date), 'MMM d, yyyy')}
                 </p>
               </div>
             </div>
