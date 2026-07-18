@@ -6,7 +6,6 @@ import { format } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationsStore } from '../../store/notificationsStore';
-import { supabase } from '../../lib/supabase';
 import { getDrawSchedule, PRIZE_BOND_DENOMINATION, PRIZE_BOND_PAGE_SIZE, winningBondIdSet } from '../../lib/prizeBondUtils';
 import { paginateList } from '../../utils/paginateList';
 import {
@@ -102,19 +101,19 @@ export const PrizeBondView: React.FC = () => {
     setChecking(true);
     logPrizeBond('check', 'click', { bonds: bonds.length });
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        logPrizeBond('check', 'no-session');
-        throw new Error('NO_SESSION');
-      }
-      const result = await triggerPrizeBondCheck(session.access_token);
+      const result = await triggerPrizeBondCheck();
       logPrizeBond('check', 'done', result);
       toast.success(t('prizeBond.checkDone', { wins: result.wins_found, checked: result.bonds_checked }));
       await reload();
       if (user?.id) await fetchNotifications();
     } catch (e) {
       logPrizeBond('check', 'failed', e);
-      toast.error(t('prizeBond.checkError'));
+      const msg = (e as Error)?.message;
+      toast.error(
+        msg === 'NO_SESSION' || msg === 'Unauthorized'
+          ? 'Session expired — please sign in again'
+          : t('prizeBond.checkError')
+      );
     } finally {
       setChecking(false);
     }

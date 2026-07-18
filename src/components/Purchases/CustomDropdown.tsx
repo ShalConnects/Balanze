@@ -187,7 +187,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
           ) : null}
           {selectedOption ? selectedOption.label : (summaryMode ? placeholder : placeholder)}
         </span>
-        <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+        <svg className={`w-4 h-4 shrink-0 ${fullWidth ? 'ml-auto' : 'ml-1'}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
       </button>
       {open && (
         <>

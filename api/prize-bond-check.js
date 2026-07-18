@@ -6,19 +6,42 @@ const BATCH_SIZE = PRIZE_BOND_BATCH_SIZE;
 
 async function resolveUserId(req) {
   const cronSecret = process.env.CRON_SECRET;
-  const authHeader = req.headers.authorization || '';
+  const rawAuth = req.headers.authorization;
+  const authHeader = Array.isArray(rawAuth) ? rawAuth[0] || '' : rawAuth || '';
   const isCron = req.headers['x-vercel-cron'];
 
   if (isCron || (cronSecret && authHeader === `Bearer ${cronSecret}`)) {
     return { mode: 'cron', userId: null };
   }
 
-  const token = authHeader.replace(/^Bearer\s+/i, '');
-  if (!token || !supabase) return null;
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!token) return null;
 
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data?.user) return null;
-  return { mode: 'user', userId: data.user.id };
+  const baseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
+  const anonKey =
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_SERVICE_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!baseUrl || !anonKey) return null;
+
+  // Auth REST — more reliable than supabase-js getUser(jwt) in the Vite API shim.
+  try {
+    const resp = await fetch(`${baseUrl}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: anonKey },
+    });
+    if (!resp.ok) {
+      const body = await resp.text();
+      console.error('[prize-bond-check] auth/v1/user', resp.status, body.slice(0, 200));
+      return null;
+    }
+    const user = await resp.json();
+    if (!user?.id) return null;
+    return { mode: 'user', userId: user.id };
+  } catch (e) {
+    console.error('[prize-bond-check] auth lookup failed', e?.message || e);
+    return null;
+  }
 }
 
 async function notifyWin(userId, win) {

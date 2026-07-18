@@ -76,7 +76,7 @@ function ManagedTransactionActionIcon({ transaction, className }: { transaction:
 
 const expandGlyphSizes = { md: { lead: 'w-4 h-4', chev: 'w-3.5 h-3.5' }, sm: { lead: 'w-3.5 h-3.5', chev: 'w-3 h-3' } } as const;
 
-/** Recurring: Repeat + chevron; history: History + chevron (avoids two identical chevrons when both expanded). */
+/** Recurring: Repeat + chevron; history: History only (matches other action icons). */
 function TransactionActionExpandGlyph({
   expanded,
   variant,
@@ -87,10 +87,12 @@ function TransactionActionExpandGlyph({
   size?: keyof typeof expandGlyphSizes;
 }) {
   const { lead, chev } = expandGlyphSizes[size];
-  const Lead = variant === 'recurring' ? Repeat : History;
+  if (variant === 'history') {
+    return <History className={`${lead} flex-shrink-0`} aria-hidden />;
+  }
   return (
     <span className="inline-flex items-center justify-center gap-px" aria-hidden>
-      <Lead className={`${lead} flex-shrink-0`} />
+      <Repeat className={`${lead} flex-shrink-0`} />
       {expanded ? <ChevronUp className={`${chev} flex-shrink-0 opacity-90`} /> : <ChevronDown className={`${chev} flex-shrink-0 opacity-90`} />}
     </span>
   );
@@ -2184,7 +2186,9 @@ const TransactionListComponent: React.FC<{
                                        aria-expanded={expandedHistoryIds.has(transaction.id)}
                                        aria-label={expandedHistoryIds.has(transaction.id) ? 'Collapse edit history' : 'View edit history'}
                                        onClick={(e) => { e.stopPropagation(); toggleHistoryExpand(transaction.id); }}
-                                       className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                       className={expandedHistoryIds.has(transaction.id)
+                                         ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                                         : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"}
                                      >
                                        <TransactionActionExpandGlyph expanded={expandedHistoryIds.has(transaction.id)} variant="history" />
                                      </button>
@@ -2708,7 +2712,9 @@ const TransactionListComponent: React.FC<{
                                      aria-expanded={expandedHistoryIds.has(transaction.id)}
                                      aria-label={expandedHistoryIds.has(transaction.id) ? 'Collapse edit history' : 'View edit history'}
                                      onClick={(e) => { e.stopPropagation(); toggleHistoryExpand(transaction.id); }}
-                                     className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                     className={expandedHistoryIds.has(transaction.id)
+                                       ? "p-1.5 text-blue-600 dark:text-blue-400 rounded-md transition-colors hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                       : "p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"}
                                    >
                                      <TransactionActionExpandGlyph expanded={expandedHistoryIds.has(transaction.id)} variant="history" size="sm" />
                                    </button>
@@ -3083,7 +3089,9 @@ const TransactionListComponent: React.FC<{
                                 aria-expanded={expandedHistoryIds.has(transaction.id)}
                                 aria-label={expandedHistoryIds.has(transaction.id) ? 'Collapse edit history' : 'View edit history'}
                                 onClick={() => toggleHistoryExpand(transaction.id)}
-                                className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                className={expandedHistoryIds.has(transaction.id)
+                                  ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                                  : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"}
                                 title={expandedHistoryIds.has(transaction.id) ? 'Collapse edit history' : 'View edit history'}
                               >
                                 <TransactionActionExpandGlyph expanded={expandedHistoryIds.has(transaction.id)} variant="history" />

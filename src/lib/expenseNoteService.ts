@@ -116,11 +116,12 @@ function pricePatch(line: ParsedExpenseNoteLine, currency: string, observedAt: s
     : {};
 }
 
+/** Resolve catalog item; `isNew` means this call created it (already counted as 1×). */
 async function resolveItemId(
   userId: string,
   line: ParsedExpenseNoteLine,
   currency: string
-): Promise<string | null> {
+): Promise<{ id: string; isNew: boolean } | null> {
   const norm = normalizeExpenseItemName(line.name);
   if (!norm) return null;
   const display = line.name.trim() || line.nameRaw.trim();
@@ -133,7 +134,7 @@ async function resolveItemId(
         { onConflict: 'user_id,alias_normalized' }
       );
     }
-    return existing.id;
+    return { id: existing.id, isNew: false };
   }
 
   const catId = await categoryIdBySlug(userId, line.categorySlug || detectCategorySlug(display));
@@ -155,7 +156,7 @@ async function resolveItemId(
     .select('id')
     .single();
   if (error) throw error;
-  return data?.id ?? null;
+  return data?.id ? { id: data.id, isNew: true } : null;
 }
 
 function lineInsertRow(
@@ -184,6 +185,61 @@ function lineInsertRow(
   };
 }
 
+async function bumpItemUsage(
+  userId: string,
+  itemId: string,
+  opts: {
+    observedAt: string;
+    lastPrice?: number | null;
+    lastPriceCurrency?: string | null;
+    setPurchased?: boolean;
+  }
+) {
+  const patch = {
+    last_used_at: opts.observedAt,
+    ...(opts.lastPrice != null
+      ? {
+          last_price: opts.lastPrice,
+          last_price_currency: opts.lastPriceCurrency ?? null,
+          last_purchased_at: opts.observedAt,
+        }
+      : {}),
+    ...(opts.setPurchased ? { last_purchased_at: opts.observedAt } : {}),
+  };
+
+  const { data, error } = await supabase.rpc('bump_expense_note_item_usage', {
+    p_user_id: userId,
+    p_item_id: itemId,
+    p_observed_at: opts.observedAt,
+    p_last_price: opts.lastPrice ?? null,
+    p_last_price_currency: opts.lastPriceCurrency ?? null,
+    p_set_purchased: opts.setPurchased ?? false,
+  });
+  if (!error) {
+    if (data === false) throw new Error('not_found');
+    return;
+  }
+  // Fallback until migration 20260718120000 is applied
+  const rpcMissing =
+    error.code === 'PGRST202' || /bump_expense_note_item_usage/i.test(error.message || '');
+  if (!rpcMissing) throw error;
+
+  const { data: row, error: selErr } = await supabase
+    .from('expense_note_items')
+    .select('usage_count')
+    .eq('id', itemId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (selErr || !row) throw new Error('not_found');
+
+  const { error: updErr } = await supabase
+    .from('expense_note_items')
+    .update({ usage_count: (row.usage_count || 0) + 1, ...patch })
+    .eq('id', itemId)
+    .eq('user_id', userId);
+  if (updErr) throw updErr;
+}
+
 async function touchItemOnNewLine(
   userId: string,
   itemId: string,
@@ -191,16 +247,11 @@ async function touchItemOnNewLine(
   observedAt: string,
   currency: string
 ) {
-  const { data } = await supabase.from('expense_note_items').select('usage_count').eq('id', itemId).single();
-  await supabase
-    .from('expense_note_items')
-    .update({
-      usage_count: (data?.usage_count || 0) + 1,
-      last_used_at: observedAt,
-      ...pricePatch(line, currency, observedAt),
-    })
-    .eq('id', itemId)
-    .eq('user_id', userId);
+  const price = lineDisplayAmount(line);
+  await bumpItemUsage(userId, itemId, {
+    observedAt,
+    ...(price != null ? { lastPrice: price, lastPriceCurrency: currency } : {}),
+  });
 }
 
 async function touchItemLastUsed(
@@ -524,13 +575,13 @@ async function persistDocument(
   const currency = transactionId
     ? await resolveNoteCurrency(userId, transactionId)
     : opts.currency?.trim() || (await resolveNoteCurrency(userId));
-  const itemIds: (string | null)[] = [];
+  const resolved: ({ id: string; isNew: boolean } | null)[] = [];
   for (const line of payload.lines) {
     if (line.parseStatus === 'failed' || !line.name.trim()) {
-      itemIds.push(null);
+      resolved.push(null);
       continue;
     }
-    itemIds.push(await resolveItemId(userId, line, currency));
+    resolved.push(await resolveItemId(userId, line, currency));
   }
 
   let documentId: string | undefined = opts.documentId;
@@ -570,7 +621,7 @@ async function persistDocument(
   const docId = documentId!;
   for (let i = 0; i < payload.lines.length; i++) {
     const line = payload.lines[i];
-    const itemId = itemIds[i];
+    const itemId = resolved[i]?.id ?? null;
     const row = lineInsertRow(docId, i, line, itemId, observedAt, currency);
     const lineId = existingLineIds[i];
 
@@ -596,7 +647,10 @@ async function persistDocument(
       const { data: inserted, error } = await supabase.from('expense_note_lines').insert(row).select('id').single();
       if (error) throw error;
       if (itemId && inserted?.id) {
-        await touchItemOnNewLine(userId, itemId, line, observedAt, currency);
+        // New catalog rows already start at 1×; only bump when reusing an existing item
+        if (!resolved[i]?.isNew) {
+          await touchItemOnNewLine(userId, itemId, line, observedAt, currency);
+        }
         await recordPriceObservation(userId, itemId, inserted.id, line, observedAt, currency);
       }
     }
@@ -635,6 +689,23 @@ export async function deleteExpenseNoteDocument(transactionId: string): Promise<
   if (!data?.id) return;
   await supabase.from('expense_note_documents').delete().eq('id', data.id);
   setRawTextCache(transactionId, null);
+}
+
+/** Persist raw item text for a transaction (or clear it). Returns the denormalized summary for `transactions.note`. */
+export async function saveExpenseNoteForTransaction(
+  userId: string,
+  transactionId: string,
+  rawText: string
+): Promise<string> {
+  const trimmed = rawText.trim();
+  if (!trimmed) {
+    await deleteExpenseNoteDocument(transactionId);
+    return '';
+  }
+  return saveExpenseNoteDocument(userId, transactionId, {
+    rawText: trimmed,
+    lines: parseExpenseNoteText(trimmed),
+  });
 }
 
 export async function fetchItemDetail(userId: string, itemId: string): Promise<ExpenseNoteItemDetail | null> {
@@ -824,24 +895,10 @@ export async function fetchItemPurchaseDates(userId: string): Promise<Map<string
 }
 
 export async function markCatalogItemPurchased(userId: string, itemId: string): Promise<void> {
-  const observedAt = new Date().toISOString();
-  const { data, error } = await supabase
-    .from('expense_note_items')
-    .select('usage_count, display_name, last_price')
-    .eq('user_id', userId)
-    .eq('id', itemId)
-    .maybeSingle();
-  if (error || !data) throw new Error('not_found');
-
-  await supabase
-    .from('expense_note_items')
-    .update({
-      usage_count: (data.usage_count || 0) + 1,
-      last_used_at: observedAt,
-      last_purchased_at: observedAt,
-    })
-    .eq('id', itemId)
-    .eq('user_id', userId);
+  await bumpItemUsage(userId, itemId, {
+    observedAt: new Date().toISOString(),
+    setPurchased: true,
+  });
 }
 
 /** @deprecated Use fetchGlobalShoppingItems */

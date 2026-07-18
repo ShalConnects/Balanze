@@ -4,10 +4,12 @@ import { HabitGarden } from '../Habits/HabitGarden';
 import { CoursesList } from '../Learning/CoursesList';
 import { FavoriteQuotes } from '../../pages/FavoriteQuotes';
 import Achievements from '../../pages/Achievements';
+import { NotesDiaryPage } from '../Notes/NotesDiaryPage';
 import { UnderlineTabBar } from '../common/UnderlineTabBar';
 
 const PERSONAL_GROWTH_TABS = [
   { id: 'habits', label: 'Habits' },
+  { id: 'notes', label: 'Notes' },
   { id: 'learning', label: 'Learning' },
   { id: 'favorite-quotes', label: 'Favorite Quotes' },
   { id: 'achievements', label: 'Achievements' },
@@ -33,6 +35,7 @@ export const PersonalGrowth: React.FC = () => {
         onChange={(id) => setSearchParams({ tab: id }, { replace: true })}
       />
       {activeTab === 'habits' && <HabitGarden />}
+      {activeTab === 'notes' && <NotesDiaryPage />}
       {activeTab === 'learning' && <CoursesList />}
       {activeTab === 'favorite-quotes' && <FavoriteQuotes />}
       {activeTab === 'achievements' && <Achievements />}

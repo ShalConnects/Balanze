@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../store/authStore';
-import { supabase } from '../../lib/supabase';
 import { loadPrizeBondDashboardSummary, triggerPrizeBondCheck } from '../../lib/prizeBondService';
 import type { PrizeBondDashboardSummary } from '../../lib/prizeBondUtils';
 import { summarizePrizeBonds } from '../../lib/prizeBondUtils';
@@ -111,13 +110,16 @@ export const PrizeBondSummaryCard: React.FC<PrizeBondSummaryCardProps> = ({ filt
   const handleCheck = async () => {
     setChecking(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error('NO_SESSION');
-      const result = await triggerPrizeBondCheck(session.access_token);
+      const result = await triggerPrizeBondCheck();
       toast.success(`Checked ${result.bonds_checked} bond(s) — ${result.wins_found} new win(s)`);
       await reload();
-    } catch {
-      toast.error('Could not check draw results');
+    } catch (e) {
+      const msg = (e as Error)?.message;
+      toast.error(
+        msg === 'NO_SESSION' || msg === 'Unauthorized'
+          ? 'Session expired — please sign in again'
+          : 'Could not check draw results'
+      );
     } finally {
       setChecking(false);
     }

@@ -21,7 +21,7 @@ import { isLikelySameItem } from '../../utils/itemNameMerge';
 import { parseExpenseNoteText, sumExpenseNoteLines } from '../../utils/expenseNoteParser';
 import { getShoppingQuickCurrency, setShoppingQuickCurrency } from '../../utils/shoppingFrequencyPrefs';
 import { getProfilePreferredCurrency } from '../../utils/usePreferredCurrency';
-import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
+import { formatCurrency } from '../../utils/currency';
 import type { ExpenseNoteCategory, ExpenseNoteEntrySummary, ExpenseNoteFmtAmount, ExpenseNoteItem, ExpenseNoteItemDetail } from '../../types/expenseNote';
 import {
   EXPENSE_NOTE_EMPTY,
@@ -57,7 +57,7 @@ export const GlobalShoppingListPage: React.FC = () => {
     return selected.length ? selected : [preferredCurrency];
   }, [profile?.selected_currencies, preferredCurrency]);
   const currencyOptions = useMemo(
-    () => currencyCodes.map((c) => ({ value: c, label: `${getCurrencySymbol(c)} ${c}` })),
+    () => currencyCodes.map((c) => ({ value: c, label: c })),
     [currencyCodes]
   );
 
@@ -322,14 +322,15 @@ export const GlobalShoppingListPage: React.FC = () => {
             />
             <ExpenseNoteParseHint lines={parsed} />
             <ExpenseNoteParsedPreviewTable lines={parsed} lineTotal={lineTotal} fmtAmount={fmtQuickAmount} />
-            <div className="flex items-stretch gap-2">
-              <div className="w-[6.25rem] shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="shrink-0">
                 <CustomDropdown
                   options={currencyOptions}
                   value={quickCurrency}
                   onChange={onQuickCurrencyChange}
                   disabled={saving || importing}
                   placeholder="Currency"
+                  fullWidth={false}
                   className="!h-8 !min-h-0 !px-2 !pr-1.5 !py-0 !text-xs"
                 />
               </div>
@@ -337,7 +338,7 @@ export const GlobalShoppingListPage: React.FC = () => {
                 type="button"
                 disabled={saving || !quickAdd.trim() || importing}
                 onClick={handleQuickSave}
-                className="flex-1 min-w-0 h-8 px-3 text-xs text-white bg-gradient-primary rounded-lg disabled:opacity-50"
+                className="h-8 px-3 text-xs text-white bg-gradient-primary rounded-lg disabled:opacity-50 whitespace-nowrap"
               >
                 {saving ? 'Saving…' : 'Save to list'}
               </button>

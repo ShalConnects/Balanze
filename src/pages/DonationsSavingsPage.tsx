@@ -8,6 +8,7 @@ import { useAuthStore } from '../store/authStore';
 import { DonationCardSkeleton, DonationTableSkeleton, DonationSummaryCardsSkeleton, DonationFiltersSkeleton } from '../components/Donations/DonationSkeleton';
 import { ManualDonationModal } from '../components/common/ManualDonationModal';
 import { DonationInfoModal } from '../components/Donations/DonationInfoModal';
+import { DonationMobileCard } from '../components/Donations/DonationMobileCard';
 import { DeleteConfirmationModal } from '../components/common/DeleteConfirmationModal';
 import { toast } from 'sonner';
 import { getPreference, setPreference } from '../lib/userPreferences';
@@ -1798,7 +1799,7 @@ const DonationsSavingsPage: React.FC = () => {
           </div>
 
           {/* Mobile Card View */}
-          <div className="lg:hidden space-y-4 px-2.5">
+          <div className="lg:hidden space-y-2.5 px-2.5">
             {filteredRecords.length === 0 ? (
               <div className="py-16 text-center">
                 <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
@@ -1813,116 +1814,29 @@ const DonationsSavingsPage: React.FC = () => {
               filteredRecords.map((record) => {
                 const transaction = transactions.find(t => t.id === record.transaction_id);
                 const account = transaction ? accounts.find(a => a.id === transaction.account_id) : undefined;
-                
-                // For manual donations, extract currency from note
-                let currency = 'USD';
-                if (!record.transaction_id) {
-                  const currencyMatch = record.note?.match(/Currency:\s*([A-Z]{3})/);
-                  currency = currencyMatch ? currencyMatch[1] : 'USD';
-                } else {
-                  currency = account ? account.currency : 'USD';
-                }
-                
-                return (
-                  <div 
-                    key={record.id}
-                    id={`donation-${record.id}`}
-                    className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
-                    role="article"
-                    aria-labelledby={`donation-${record.id}`}
-                  >
-                    {/* Card Header - Item Name and Date */}
-                    <div className="flex items-center justify-between p-4 pb-2">
-                      <div className="flex-1">
-                        <div className="text-base font-medium text-gray-900 dark:text-white mb-1">
-                          {record.mode === 'fixed' ? 'Fixed' : 'Percentage'}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {formatDate(record.created_at)}
-                        </div>
-                      </div>
-                      <div>
-                        <span className={`inline-flex items-center justify-center text-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          record.status === 'donated'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                        }`}>
-                          {record.status === 'donated' ? 'Donated' : 'Pending'}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* Card Body - Amount and Details */}
-                    <div className="px-4 pb-3">
-                      <div className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-                        {`${currencySymbols[currency] || currency}${record.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        {transaction ? `#${transaction.transaction_id}` : record.custom_transaction_id ? `#${record.custom_transaction_id}` : 'Manual Donation'}
-                      </div>
-                      {!record.transaction_id && record.note && (
-                        <div className="text-xs text-gray-600 dark:text-gray-400 italic">
-                          Note: {record.note}
-                        </div>
-                      )}
-                    </div>
+                const currency = !record.transaction_id
+                  ? (record.note?.match(/Currency:\s*([A-Z]{3})/)?.[1] || 'USD')
+                  : (account?.currency || 'USD');
+                const idLabel = transaction
+                  ? `#${transaction.transaction_id}`
+                  : record.custom_transaction_id
+                    ? `#${record.custom_transaction_id}`
+                    : 'Manual Donation';
 
-                    {/* Card Footer - Actions */}
-                    <div className="flex items-center justify-between px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800">
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
-                        {!record.transaction_id && (
-                          <span 
-                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-                            role="status"
-                            aria-label="Manual donation"
-                          >
-                            Manual
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex gap-1">
-                        {record.transaction_id && (
-                          <>
-                            <button
-                              onClick={() => handleToggleStatus(record)}
-                              className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
-                              title={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
-                              aria-label={record.status === 'donated' ? "Mark as Pending" : "Mark as Donated"}
-                            >
-                              {record.status === 'donated' ? (
-                                <Clock className="w-3.5 h-3.5" />
-                              ) : (
-                                <CheckCircle className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                            <Tooltip content="Transaction-linked donation info" placement="top">
-                              <button
-                                onClick={() => setShowDonationInfo(true)}
-                                className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
-                                aria-label="Transaction-linked donation info"
-                              >
-                                <Info className="w-3.5 h-3.5" />
-                              </button>
-                            </Tooltip>
-                          </>
-                        )}
-                        {!record.transaction_id && (
-                          <Tooltip content="Delete manual donation" placement="top">
-                            <button
-                              onClick={() => {
-                                setDonationToDelete(record);
-                                setShowDeleteModal(true);
-                              }}
-                              className="p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                              aria-label="Delete manual donation"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </Tooltip>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                return (
+                  <DonationMobileCard
+                    key={record.id}
+                    record={record}
+                    currency={currency}
+                    dateLabel={formatDate(record.created_at)}
+                    idLabel={idLabel}
+                    onToggleStatus={() => handleToggleStatus(record)}
+                    onShowInfo={() => setShowDonationInfo(true)}
+                    onDelete={() => {
+                      setDonationToDelete(record);
+                      setShowDeleteModal(true);
+                    }}
+                  />
                 );
               })
             )}

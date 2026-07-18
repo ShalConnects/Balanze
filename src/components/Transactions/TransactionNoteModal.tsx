@@ -8,16 +8,20 @@ import { ExpenseNoteLoadingCaption, ExpenseNoteParseHint, ExpenseNoteParsedPrevi
 import {
   deleteExpenseNoteDocument,
   fetchExpenseNoteRawText,
-  saveExpenseNoteDocument,
+  saveExpenseNoteForTransaction,
 } from '../../lib/expenseNoteService';
 import { buildExpenseNoteSummary, parseExpenseNoteText, sumExpenseNoteLines } from '../../utils/expenseNoteParser';
 
 interface TransactionNoteModalProps {
   isOpen: boolean;
   onClose: () => void;
-  transactionId: string;
+  /** When set, loads/saves structured docs. When omitted, draft-only (parent persists after create). */
+  transactionId?: string;
   currentNote: string | undefined;
-  onSave: (note: string) => Promise<void>;
+  /** Seed raw text for draft mode (e.g. duplicate-from source). */
+  draftRawText?: string;
+  /** `note` is the summary for `transactions.note`; `rawText` is the item list. */
+  onSave: (note: string, rawText?: string) => Promise<void>;
 }
 
 export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
@@ -25,6 +29,7 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
   onClose,
   transactionId,
   currentNote,
+  draftRawText,
   onSave,
 }) => {
   const { user } = useAuthStore();
@@ -36,17 +41,21 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
   const lineTotal = useMemo(() => sumExpenseNoteLines(parsedLines), [parsedLines]);
 
   const load = useCallback(async () => {
-    if (!user?.id) return;
+    const fallback = draftRawText ?? currentNote ?? '';
+    if (!transactionId || !user?.id) {
+      setRawText(fallback);
+      return;
+    }
     setHydrating(true);
     try {
       const raw = await fetchExpenseNoteRawText(user.id, transactionId);
-      setRawText(raw ?? currentNote ?? '');
+      setRawText(raw ?? fallback);
     } catch {
-      setRawText(currentNote || '');
+      setRawText(fallback);
     } finally {
       setHydrating(false);
     }
-  }, [user?.id, transactionId, currentNote]);
+  }, [user?.id, transactionId, currentNote, draftRawText]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -54,8 +63,12 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
     void load();
   }, [isOpen, load]);
 
+  const commit = async (summary: string, raw: string) => {
+    await onSave(summary, raw);
+    onClose();
+  };
+
   const handleSave = async () => {
-    if (!user?.id) return;
     if (rawText.length > EXPENSE_NOTE_RAW_MAX) {
       toast.error(`Note cannot exceed ${EXPENSE_NOTE_RAW_MAX} characters`);
       return;
@@ -64,18 +77,15 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
     setLoading(true);
     try {
       if (!trimmed) {
-        await deleteExpenseNoteDocument(transactionId);
-        await onSave('');
-        onClose();
+        if (transactionId) await deleteExpenseNoteDocument(transactionId);
+        await commit('', '');
         toast.success('Note deleted');
         return;
       }
-      const summary = await saveExpenseNoteDocument(user.id, transactionId, {
-        rawText: trimmed,
-        lines: parsedLines,
-      });
-      await onSave(summary || buildExpenseNoteSummary(parsedLines));
-      onClose();
+      const summary = transactionId && user?.id
+        ? await saveExpenseNoteForTransaction(user.id, transactionId, trimmed)
+        : buildExpenseNoteSummary(parsedLines) || trimmed;
+      await commit(summary || buildExpenseNoteSummary(parsedLines), trimmed);
       toast.success('Note saved');
     } catch (e) {
       console.error(e);
@@ -88,9 +98,8 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
   const handleDelete = async () => {
     setLoading(true);
     try {
-      await deleteExpenseNoteDocument(transactionId);
-      await onSave('');
-      onClose();
+      if (transactionId) await deleteExpenseNoteDocument(transactionId);
+      await commit('', '');
       toast.success('Note deleted');
     } catch {
       toast.error('Failed to delete note');

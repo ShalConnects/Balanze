@@ -76,8 +76,33 @@ export async function deletePrizeBond(userId: string, id: string): Promise<void>
   if (error) throw error;
 }
 
-export async function triggerPrizeBondCheck(accessToken: string): Promise<{ wins_found: number; bonds_checked: number }> {
+function jwtExpired(accessToken: string, skewMs = 60_000): boolean {
+  try {
+    const b64 = accessToken.split('.')[1]!.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    const payload = JSON.parse(atob(padded));
+    return typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now() + skewMs;
+  } catch {
+    return true;
+  }
+}
+
+async function accessTokenForApi(): Promise<string> {
+  const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+  if (refreshed.session?.access_token) return refreshed.session.access_token;
+
+  const session = (await supabase.auth.getSession()).data.session;
+  if (session?.access_token && !jwtExpired(session.access_token)) return session.access_token;
+
+  logPrizeBond('check', 'no-session', refreshError?.message);
+  throw new Error('NO_SESSION');
+}
+
+/** Refreshes session first — stale access tokens from getSession() cause API 401. */
+export async function triggerPrizeBondCheck(): Promise<{ wins_found: number; bonds_checked: number }> {
   logPrizeBond('check', 'start');
+  const accessToken = await accessTokenForApi();
+
   let res: Response;
   try {
     res = await fetch(apiUrl('/api/prize-bond-check'), {

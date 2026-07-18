@@ -148,6 +148,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'history': return 'Activity History';
       case 'learning': return 'Learning Courses';
       case 'personal-growth': return 'Personal Growth';
+      case 'notes': return 'Notes Diary';
       default: return 'Dashboard';
     }
   };
@@ -233,7 +234,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                                     : currentView === 'learning'
                                       ? 'Track your learning progress by organizing courses into modules'
                                       : currentView === 'personal-growth'
-                                        ? 'Grow personally through habits, learning, quotes, and achievements'
+                                        ? 'Grow personally through habits, notes, learning, quotes, and achievements'
+                                        : currentView === 'notes'
+                                          ? 'Write and browse your day-to-day notes'
                                         : currentView === 'analytics'
                                           ? 'Analyze your financial data with insights and trends'
                                           : currentView === 'last-wish'

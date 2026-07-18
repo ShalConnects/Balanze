@@ -75,6 +75,7 @@ const Achievements = lazy(() => import('./pages/Achievements'));
 const HabitGarden = lazy(() => import('./components/Habits/HabitGarden').then(m => ({ default: m.HabitGarden })));
 const CoursesList = lazy(() => import('./components/Learning/CoursesList').then(m => ({ default: m.CoursesList })));
 const PersonalGrowth = lazy(() => import('./components/Dashboard/PersonalGrowth').then(m => ({ default: m.PersonalGrowth })));
+const NotesDiaryPage = lazy(() => import('./components/Notes/NotesDiaryPage').then(m => ({ default: m.NotesDiaryPage })));
 const KBArticlePage = lazy(() => import('./pages/KBArticlePage'));
 const KBSitemapPage = lazy(() => import('./pages/KBSitemapPage'));
 const KBRobotsPage = lazy(() => import('./pages/KBRobotsPage'));
@@ -694,6 +695,7 @@ function AppContent() {
           <Route path="/currency-analytics" element={<ProtectedRoute layout="bare"><Navigate to="/analytics" replace /></ProtectedRoute>} />
           <Route path="/clients" element={<ProtectedRoute><ClientList /></ProtectedRoute>} />
           <Route path="/personal-growth" element={<ProtectedRoute><PersonalGrowth /></ProtectedRoute>} />
+          <Route path="/notes" element={<ProtectedRoute><NotesDiaryPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/last-wish" element={<ProtectedRoute><LastWishPage /></ProtectedRoute>} />
           <Route path="/payment-history" element={<ProtectedRoute layout="bare"><PaymentHistoryPage /></ProtectedRoute>} />

@@ -35,6 +35,7 @@ import { useAchievementStore } from './achievementStore';
 import { userActivityService } from '../lib/userActivityService';
 import { countsTowardIncomeExpenseSummaries } from '../utils/transactionUtils';
 import {
+  TRANSACTION_HISTORY_BULK_CHUNK,
   mergeBulkTransactionHistoryIntoCache,
   toTransactionHistoryEntry,
   transactionUpdatesOrder,
@@ -1176,15 +1177,18 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   fetchTransactionEditHistoryBulk: async (transactionIds: string[]) => {
     if (!transactionIds.length) return;
     try {
-      const { data, error } = await supabase
-        .from('transaction_updates')
-        .select('id, transaction_id, field_name, old_value, new_value, updated_at, updated_by')
-        .in('transaction_id', transactionIds)
-        .order('updated_at', transactionUpdatesOrder);
-      if (error || !data) return;
-      set({
-        transactionHistoryCache: mergeBulkTransactionHistoryIntoCache(get().transactionHistoryCache, data),
-      });
+      let cache = get().transactionHistoryCache;
+      for (let i = 0; i < transactionIds.length; i += TRANSACTION_HISTORY_BULK_CHUNK) {
+        const slice = transactionIds.slice(i, i + TRANSACTION_HISTORY_BULK_CHUNK);
+        const { data, error } = await supabase
+          .from('transaction_updates')
+          .select('id, transaction_id, field_name, old_value, new_value, updated_at, updated_by')
+          .in('transaction_id', slice)
+          .order('updated_at', transactionUpdatesOrder);
+        if (error || !data) continue;
+        cache = mergeBulkTransactionHistoryIntoCache(cache, data);
+      }
+      set({ transactionHistoryCache: cache });
     } catch { /* no-op */ }
   },
 

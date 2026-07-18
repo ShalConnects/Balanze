@@ -61,10 +61,15 @@ const FIELD_LABELS: Record<string, string> = {
   tags: 'Tags',
   account_id: 'Account',
   note: 'Note',
+  saving_amount: 'Saving',
   is_recurring: 'Recurring',
+  recurring_frequency: 'Recurring frequency',
   parent_recurring_id: 'Recurring parent',
   business_investment_contract_id: 'Investment',
 };
+
+/** Chunk size for `.in('transaction_id', …)` history fetches (URL / payload safety). */
+export const TRANSACTION_HISTORY_BULK_CHUNK = 100;
 
 export function transactionHistoryFieldLabel(field: string): string {
   return FIELD_LABELS[field] || field.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -96,7 +101,8 @@ function formatTypeValue(v: string | null): string {
 export function formatHistoryFieldValue(
   field: string,
   value: string | null,
-  currency: string
+  currency: string,
+  accountNameById?: Record<string, string>
 ): string {
   if (value === null || value === '') return '—';
   if (field === 'amount') {
@@ -113,6 +119,7 @@ export function formatHistoryFieldValue(
   if (field === 'type') return formatTypeValue(value);
   if (field === 'tags') return parseTagsDisplay(value);
   if (field === 'is_recurring') return value === 'true' ? 'Yes' : value === 'false' ? 'No' : value;
+  if (field === 'account_id') return accountNameById?.[value] || value;
   return value;
 }
 

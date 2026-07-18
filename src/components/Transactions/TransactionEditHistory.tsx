@@ -27,11 +27,13 @@ export const TransactionEditHistory: React.FC<{
   hideHeader?: boolean;
 }> = ({ transactionId, currency, currentAmount, variant = 'panel', hideHeader = false }) => {
   const fetchHistory = useFinanceStore((s) => s.fetchTransactionEditHistory);
+  const accounts = useFinanceStore((s) => s.accounts);
   const { user } = useAuthStore();
   const [history, setHistory] = useState<TransactionHistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
+  const accountNameById = Object.fromEntries(accounts.map((a) => [a.id, a.name]));
 
   useEffect(() => {
     if (!transactionId) return;
@@ -110,9 +112,9 @@ export const TransactionEditHistory: React.FC<{
                     key={h.id ? String(h.id) : `${h.field_name}-${h.updated_at}`}
                     className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-gray-700 dark:text-gray-300${isAmountRow ? ' text-xs' : ''}`}
                   >
-                    <span>{formatHistoryFieldValue(h.field_name, h.old_value, currency)}</span>
+                    <span>{formatHistoryFieldValue(h.field_name, h.old_value, currency, accountNameById)}</span>
                     <span className="text-gray-400">→</span>
-                    <span>{formatHistoryFieldValue(h.field_name, h.new_value, currency)}</span>
+                    <span>{formatHistoryFieldValue(h.field_name, h.new_value, currency, accountNameById)}</span>
                     {amountDelta && (
                       <span className="text-xs text-gray-600 dark:text-gray-400">{amountDelta}</span>
                     )}

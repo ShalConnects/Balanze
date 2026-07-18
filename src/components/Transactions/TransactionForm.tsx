@@ -28,12 +28,9 @@ import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { AmountAdjustmentModal } from '../common/AmountAdjustmentModal';
 import { TransactionEditHistorySection } from './TransactionEditHistory';
-import {
-  MAX_TRANSACTION_NOTE_LENGTH,
-  TRANSACTION_NOTE_PLACEHOLDER,
-  shouldShowTransactionNoteCounter,
-} from '../../constants/transactionNote';
-import { ExpenseNoteSuggestTextarea } from './expenseNoteCompactUi';
+import { MAX_TRANSACTION_NOTE_LENGTH } from '../../constants/transactionNote';
+import { TransactionExpenseNoteField } from './TransactionExpenseNoteField';
+import { fetchExpenseNoteRawText, saveExpenseNoteForTransaction } from '../../lib/expenseNoteService';
 import { getMonthDateRange, normalizeTransactionTitle, summarizeMonthlyTitleDuplicates, type MonthlyDuplicateSummary } from '../../utils/transactionDuplicateWarning';
 
 interface TransactionFormProps {
@@ -109,6 +106,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
   const [showPurchaseDetails, setShowPurchaseDetails] = useState(false);
   const [showPurchaseNote, setShowPurchaseNote] = useState(false);
   const [transactionNote, setTransactionNote] = useState('');
+  const [expenseNoteRaw, setExpenseNoteRaw] = useState('');
 
   // Amount adjustment modal state
   const [showAmountModal, setShowAmountModal] = useState(false);
@@ -421,6 +419,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           setPurchasePriority('medium');
           setPurchaseNotes('');
           setTransactionNote(transactionToEdit.note || '');
+          setExpenseNoteRaw('');
         } else if (duplicateFrom) {
           // Initialize for duplicating a transaction
           setData({
@@ -478,6 +477,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           setPurchasePriority('medium');
           setPurchaseNotes('');
           setTransactionNote(duplicateFrom.note || '');
+          setExpenseNoteRaw('');
+          if (user?.id) {
+            void fetchExpenseNoteRawText(user.id, duplicateFrom.id).then((raw) => {
+              if (raw) setExpenseNoteRaw(raw);
+            });
+          }
         } else {
           // Initialize for new transaction
           setData({
@@ -497,6 +502,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           setRecurringEndDate(undefined);
           setPurchasePriority('medium');
           setPurchaseNotes('');
+          setExpenseNoteRaw('');
           setTransactionNote('');
         }
         
@@ -507,7 +513,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       // Reset when modal closes
       currentTransactionId.current = undefined;
     }
-  }, [isOpen, transactionToEdit, duplicateFrom, accountId]);
+  }, [isOpen, transactionToEdit, duplicateFrom, accountId, user?.id]);
 
 
   useEffect(() => {
@@ -570,6 +576,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       setShowPurchaseDetails(false);
       setPurchaseAttachments([]);
       setTransactionNote('');
+      setExpenseNoteRaw('');
       setRecurringEndDate(undefined);
       setShowAddAnother(false);
       setNewCategory({
@@ -583,8 +590,20 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     }
   }, [isOpen]);
 
-  // Debug logging for form state changes - removed to prevent infinite re-renders
+  const handleExpenseNoteCommitted = async (summary: string, rawText: string) => {
+    setTransactionNote(summary);
+    setExpenseNoteRaw(rawText);
+    if (errors.note) setErrors((prev) => ({ ...prev, note: '' }));
+    // Edit: modal already persisted the document; sync denormalized summary like the note-icon path.
+    if (transactionToEdit?.id) {
+      await updateTransaction(transactionToEdit.id, { note: summary });
+    }
+  };
 
+  const attachExpenseNoteAfterCreate = async (txDbId: string | undefined) => {
+    if (!txDbId || !user?.id || !expenseNoteRaw.trim()) return;
+    await saveExpenseNoteForTransaction(user.id, txDbId, expenseNoteRaw);
+  };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name } = e.target;
@@ -907,6 +926,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             // Log both transactions
             if (withdrawalResult) {
               await logTransactionEvent('create', { ...withdrawalData, id: withdrawalResult });
+              await attachExpenseNoteAfterCreate(withdrawalResult.id);
             }
             if (depositResult) {
               await logTransactionEvent('create', { ...depositData, id: depositResult });
@@ -942,6 +962,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               setPurchasePriority('medium');
               setPurchaseNotes('');
               setTransactionNote('');
+              setExpenseNoteRaw('');
               setPurchaseAttachments([]);
               setErrors({});
               setTouched({});
@@ -1048,6 +1069,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             // Log the new transaction
             if (result) {
               await logTransactionEvent('create', { ...transactionData, id: result.id });
+              await attachExpenseNoteAfterCreate(result.id);
               // Create donation records for income transactions
               if (data.type === 'income' && user) {
                 const modeValue = donationType === 'percent' ? donationValue : donation_amount;
@@ -1132,6 +1154,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
               setPurchasePriority('medium');
               setPurchaseNotes('');
               setTransactionNote('');
+              setExpenseNoteRaw('');
               setPurchaseAttachments([]);
               setErrors({});
               setTouched({});
@@ -1595,27 +1618,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           </div>
 
           <div className="w-full mt-2 sm:mt-1">
-            <ExpenseNoteSuggestTextarea
-              id="transaction-note"
-              name="note"
-              value={transactionNote}
-              onChange={(v) => {
-                setTransactionNote(v);
-                if (errors.note) setErrors((prev) => ({ ...prev, note: '' }));
-              }}
-              onBlur={handleBlur}
+            <TransactionExpenseNoteField
+              transactionId={transactionToEdit?.id}
+              noteSummary={transactionNote}
+              draftRawText={expenseNoteRaw}
               disabled={isAccountHidden}
-              maxLength={MAX_TRANSACTION_NOTE_LENGTH}
-              rows={2}
-              userId={user?.id}
-              placeholder={TRANSACTION_NOTE_PLACEHOLDER}
-              textareaClassName={`${getInputClasses('note')} min-h-[4.25rem] resize-y py-2`}
+              className={`${getInputClasses('note')} min-h-[4.25rem] py-2`}
+              onCommitted={handleExpenseNoteCommitted}
             />
-            {shouldShowTransactionNoteCounter(transactionNote.length) && (
-              <p className="flex justify-end mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
-                {transactionNote.length}/{MAX_TRANSACTION_NOTE_LENGTH}
-              </p>
-            )}
             {errors.note && (touched.note || formSubmitted) && (
               <span className="text-xs text-red-600 mt-0.5 flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5" />

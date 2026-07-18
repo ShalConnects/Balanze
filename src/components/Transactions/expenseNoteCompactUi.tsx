@@ -347,7 +347,7 @@ export const ExpenseNoteItemsTable: React.FC<{
             {onMarkPurchased && <th className={`${th} w-8`} />}
             <th className={th}>Item</th>
             <th className={th}>Category</th>
-            <th className={`${th} text-right`}>Used</th>
+            <th className={`${th} text-right`} title="Times logged or marked purchased">Times</th>
             <th className={`${th} text-right`}>Price</th>
             <th className={`${th} text-right`}>Δ</th>
           </tr>
