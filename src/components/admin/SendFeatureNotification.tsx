@@ -42,7 +42,7 @@ export const SendFeatureNotification: React.FC = () => {
     setResult(null);
     
     try {
-      const result = await notifyUsersAboutNewFeature(featureName, description, instructions);
+      const result = await notifyUsersAboutNewFeature(featureName, description, instructions ?? undefined);
       setResult(result);
     } catch (error) {
       setResult({

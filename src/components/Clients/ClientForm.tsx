@@ -10,7 +10,7 @@ import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { toast } from 'sonner';
 import { LazyDayPicker as DatePicker } from '../common/LazyDayPicker';
 import { format } from 'date-fns';
-import { parseLocalDate } from '../../utils/taskDateUtils';
+import { parseLocalDate, getTodayLocalDateString } from '../../utils/taskDateUtils';
 
 interface ClientFormProps {
   isOpen: boolean;
@@ -35,7 +35,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
     tax_id: '',
     website: '',
     source: '',
-    known_since: '',
+    known_since: getTodayLocalDateString(),
     status: 'active',
     default_currency: 'USD',
     tags: [],
@@ -195,7 +195,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
         tax_id: client.tax_id || '',
         website: client.website || '',
         source: client.source || '',
-        known_since: client.known_since || '',
+        known_since: client.known_since || getTodayLocalDateString(),
         status: client.status,
         default_currency: client.default_currency || 'USD',
         tags: client.tags || [],
@@ -218,7 +218,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
         tax_id: '',
         website: '',
         source: '',
-        known_since: '',
+        known_since: getTodayLocalDateString(),
         status: 'active',
         default_currency: 'USD',
         tags: [],
@@ -606,7 +606,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
               <div className="relative">
                 <CustomDropdown
                   options={statusOptions}
-                  value={formData.status}
+                  value={formData.status ?? ''}
                   onChange={(value) => handleFieldChange('status', value)}
                   placeholder="Status"
                   disabled={loading}
@@ -618,7 +618,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
               <div className="relative">
                 <CustomDropdown
                   options={currencyOptions}
-                  value={formData.default_currency}
+                  value={formData.default_currency ?? ''}
                   onChange={(value) => handleFieldChange('default_currency', value)}
                   placeholder="Default Currency"
                   disabled={loading}
@@ -717,7 +717,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ isOpen, onClose, client 
                   maxLength={2000}
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {formData.notes.length}/2000 characters
+                  {(formData.notes ?? '').length}/2000 characters
                 </p>
               </div>
 

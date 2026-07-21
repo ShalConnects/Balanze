@@ -3,7 +3,7 @@
 
 export interface SearchConfig {
   threshold?: number;
-  keys: Array<{ name: string; weight: number }>;
+  keys: ReadonlyArray<{ name: string; weight: number }>;
   includeMatches?: boolean;
   minMatchCharLength?: number;
   findAllMatches?: boolean;
@@ -127,7 +127,7 @@ export function expandQuery(query: string): string[] {
 function simpleFuzzySearch<T>(
   data: T[],
   query: string,
-  keys: Array<{ name: string; weight: number }>,
+  keys: ReadonlyArray<{ name: string; weight: number }>,
   threshold: number = 0.3
 ): SearchResult<T>[] {
   const results: SearchResult<T>[] = [];

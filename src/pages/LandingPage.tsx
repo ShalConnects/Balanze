@@ -590,7 +590,7 @@ const LandingPage: React.FC = () => {
                     width="1643"
                     height="1060"
                     style={{ aspectRatio: '1643 / 1060' }}
-                    fetchpriority="high"
+                    fetchPriority="high"
                   />
                 </picture>
               </div>

@@ -16,6 +16,7 @@ import {
   rollupLendBorrowByCurrency,
 } from '../lib/lastWishDataFilters.js';
 import { isLastWishTriggerAuthorized } from '../lib/lastWishTriggerAuth.js';
+import { applyCors } from '../lib/cors.js';
 
 let transporter = null;
 if (process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -3313,13 +3314,8 @@ export async function sendLastWishEmail(userId, testMode = false) {
 
 // Export the handler function
 export default async function handler(req, res) {
-  // Add CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+  if (!applyCors(req, res, { methods: 'GET, POST, OPTIONS', headers: 'Content-Type, Authorization' })) {
+    return;
   }
   if (!supabase) {
     return res.status(503).json({ error: 'Server configuration error' });

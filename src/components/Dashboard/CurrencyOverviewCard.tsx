@@ -363,19 +363,7 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
     compact ? `${count} acc` : `${count} account${count === 1 ? '' : 's'}`;
 
   return (
-    <div 
-      className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 h-full flex flex-col cursor-pointer group"
-      onClick={() => navigate('/analytics')}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          navigate('/analytics');
-        }
-      }}
-      aria-label={`View ${currency} currency analytics`}
-    >
+    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 h-full flex flex-col group">
       {/* Mobile-optimized header */}
       <div className="mb-0">
         {/* Amount row */}
@@ -384,9 +372,15 @@ export const CurrencyOverviewCard: React.FC<CurrencyOverviewCardProps> = ({
              <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
                {currency}{totalAccountCount > 0 ? ` (${totalAccountCount})` : ''}:
              </span>
-             <span className="min-w-0 truncate text-xs sm:text-sm font-bold tabular-nums text-gray-900 dark:text-white" title={formatCurrency(regularAccountsTotal + dpsTotal, currency)}>
+             <button
+               type="button"
+               onClick={() => navigate('/analytics')}
+               className="min-w-0 truncate text-left text-xs sm:text-sm font-bold tabular-nums text-gray-900 dark:text-white hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+               title={formatCurrency(regularAccountsTotal + dpsTotal, currency)}
+               aria-label={`View ${currency} currency analytics`}
+             >
                {formatCurrency(regularAccountsTotal + dpsTotal, currency)}
-             </span>
+             </button>
              {/* Info button with account count - positioned immediately after total amount */}
              <div className="relative flex-shrink-0">
                <button

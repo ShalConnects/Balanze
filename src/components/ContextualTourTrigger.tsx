@@ -37,7 +37,7 @@ function useUserBehavior() {
     isOnAnalytics: location.pathname === '/analytics',
     accountCount: accounts.length,
     transactionCount: transactions.length,
-    lastLogin: user?.lastLogin,
+    lastLogin: undefined as string | undefined,
   };
 }
 
@@ -181,10 +181,10 @@ export default function ContextualTourTrigger({
             </div>
             <div className="flex-1 min-w-0">
               <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
-                {activeTrigger.title}
+                {activeTrigger!.title}
               </h4>
               <p className="text-gray-600 dark:text-gray-400 text-xs mt-1">
-                {activeTrigger.description}
+                {activeTrigger!.description}
               </p>
               <div className="flex gap-2 mt-3">
                 <button
@@ -217,7 +217,7 @@ export default function ContextualTourTrigger({
       {/* Article-Based Tour */}
       {showTour && (
         <ArticleBasedTour
-          articleSlug={activeTrigger.articleSlug}
+          articleSlug={activeTrigger!.articleSlug}
           isOpen={showTour}
           onClose={handleTourClose}
         />

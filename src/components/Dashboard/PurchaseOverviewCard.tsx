@@ -1,14 +1,11 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ArrowRight, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { StatCard } from './StatCard';
 import { formatCurrency } from '../../utils/currency';
-import { useMobileDetection } from '../../hooks/useMobileDetection';
-import { getPreference, setPreference } from '../../lib/userPreferences';
+import { usePersistedToggle } from '../../hooks/usePersistedToggle';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
-import { DashboardWidgetInfo } from './DashboardWidgetInfo';
+import { DashboardCardShell } from './DashboardCardShell';
 
 interface PurchaseOverviewCardProps {
   filterCurrency?: string;
@@ -23,56 +20,13 @@ export const PurchaseOverviewCard: React.FC<PurchaseOverviewCardProps> = ({
   const purchases = useFinanceStore((state) => state.purchases);
   
   const [loading, setLoading] = useState(true);
-  const [isHovered, setIsHovered] = useState(false);
-  const [showCrossTooltip, setShowCrossTooltip] = useState(false);
-  const { isMobile } = useMobileDetection();
-  const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Widget visibility state - hybrid approach (localStorage + database)
-  const [showPurchasesWidget, setShowPurchasesWidget] = useState(() => {
-    const saved = localStorage.getItem('showPurchasesWidget');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-
-  // Listen for localStorage changes to sync with other pages
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'showPurchasesWidget' && e.newValue !== null) {
-        setShowPurchasesWidget(JSON.parse(e.newValue));
-      }
-    };
-
-    const handleCustomStorageChange = () => {
-      const saved = localStorage.getItem('showPurchasesWidget');
-      if (saved !== null) {
-        setShowPurchasesWidget(JSON.parse(saved));
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('showPurchasesWidgetChanged', handleCustomStorageChange);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('showPurchasesWidgetChanged', handleCustomStorageChange);
-    };
-  }, []);
-
-  // Load user preferences for Purchases widget visibility
-  useEffect(() => {
-    if (user?.id) {
-      const loadPreferences = async () => {
-        try {
-          const showWidget = await getPreference(user.id, 'showPurchasesWidget', true);
-          setShowPurchasesWidget(showWidget);
-          localStorage.setItem('showPurchasesWidget', JSON.stringify(showWidget));
-        } catch (error) {
-          // Keep current localStorage value if database fails
-        }
-      };
-      loadPreferences();
-    }
-  }, [user?.id]);
+  const [showPurchasesWidget, setShowPurchasesWidget] = usePersistedToggle(
+    'showPurchasesWidget',
+    true,
+    user?.id,
+    { syncFromDb: true }
+  );
 
   // Set loading to false when we have data
   useEffect(() => {
@@ -81,65 +35,9 @@ export const PurchaseOverviewCard: React.FC<PurchaseOverviewCardProps> = ({
     }
   }, [purchases]);
 
-  // Handle hover events for cross icon (desktop only)
-  const handleMouseEnter = () => {
-    if (!isMobile) {
-      setIsHovered(true);
-      setShowCrossTooltip(true);
-      
-      if (tooltipTimeoutRef.current) {
-        clearTimeout(tooltipTimeoutRef.current);
-      }
-      
-      tooltipTimeoutRef.current = setTimeout(() => {
-        setShowCrossTooltip(false);
-      }, 1000);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    if (!isMobile) {
-      setIsHovered(false);
-      setShowCrossTooltip(false);
-      
-      if (tooltipTimeoutRef.current) {
-        clearTimeout(tooltipTimeoutRef.current);
-        tooltipTimeoutRef.current = null;
-      }
-    }
-  };
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (tooltipTimeoutRef.current) {
-        clearTimeout(tooltipTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Save Purchases widget visibility preference (hybrid approach)
-  const handlePurchasesWidgetToggle = async (show: boolean) => {
-    localStorage.setItem('showPurchasesWidget', JSON.stringify(show));
-    setShowPurchasesWidget(show);
-    window.dispatchEvent(new CustomEvent('showPurchasesWidgetChanged'));
-    
-    if (user?.id) {
-      try {
-        await setPreference(user.id, 'showPurchasesWidget', show);
-        toast.success('Preference saved!', {
-          description: show ? 'Purchases widget will be shown' : 'Purchases widget hidden'
-        });
-      } catch (error) {
-        toast.error('Failed to save preference', {
-          description: 'Your preference will be saved locally only'
-        });
-      }
-    } else {
-      toast.info('Preference saved locally', {
-        description: 'Sign in to sync preferences across devices'
-      });
-    }
+  const hidePurchasesWidget = () => {
+    setShowPurchasesWidget(false);
+    toast.success('Preference saved!', { description: 'Purchases widget hidden' });
   };
 
   // Date range logic based on time filter - memoized for performance
@@ -243,6 +141,12 @@ export const PurchaseOverviewCard: React.FC<PurchaseOverviewCardProps> = ({
     recentPurchases
   } = purchaseStats;
 
+  // High-priority planned purchases, surfaced as a header badge
+  const highPriorityPlannedCount = useMemo(
+    () => filteredPurchases.filter(p => p.priority === 'high' && p.status === 'planned').length,
+    [filteredPurchases]
+  );
+
   const purchasesInfoBody = useMemo(() => {
     const cur = filterCurrency || 'USD';
     return (
@@ -312,29 +216,6 @@ export const PurchaseOverviewCard: React.FC<PurchaseOverviewCardProps> = ({
     filterCurrency,
   ]);
 
-  if (loading) {
-    return (
-      <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm border border-blue-200/50 dark:border-blue-800/50 h-full flex flex-col">
-        <div className="flex items-center justify-between mb-3">
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 flex-1">
-          <div className="w-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-            <div className="animate-pulse">
-              <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-24 mb-2"></div>
-              <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-16"></div>
-            </div>
-          </div>
-          <div className="w-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-            <div className="animate-pulse">
-              <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-24 mb-2"></div>
-              <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-16"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Don't render if no purchases
   if (purchases.length === 0) {
     return null;
@@ -346,52 +227,22 @@ export const PurchaseOverviewCard: React.FC<PurchaseOverviewCardProps> = ({
   }
 
   return (
-    <div 
-      className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative h-full flex flex-col"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+    <DashboardCardShell
+      title="Purchases"
+      viewAllTo="/purchases"
+      onHide={hidePurchasesWidget}
+      hideAriaLabel="Hide Purchases widget"
+      info={purchasesInfoBody}
+      infoAriaLabel="Show purchases info"
+      loading={loading}
+      badge={
+        highPriorityPlannedCount > 0 ? (
+          <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-400">
+            {highPriorityPlannedCount} high
+          </span>
+        ) : undefined
+      }
     >
-      {/* Hide button - hover on desktop, always visible on mobile */}
-      {(isHovered || isMobile) && (
-        <button
-          onClick={() => handlePurchasesWidgetToggle(false)}
-          className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors z-10"
-          aria-label="Hide Purchases widget"
-        >
-          <X className="w-4 h-4" />
-          {/* Tooltip - only on desktop */}
-          {showCrossTooltip && !isMobile && (
-            <div className="absolute bottom-full right-0 mb-1 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded shadow-lg whitespace-nowrap z-20">
-              Click to hide this widget
-              <div className="absolute -bottom-1 right-2 w-2 h-2 bg-gray-900 dark:bg-gray-100 rotate-45"></div>
-            </div>
-          )}
-        </button>
-      )}
-      
-      {/* Header - Responsive layout */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 pr-8">
-        {/* Left side - Info button */}
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Purchases</h2>
-          <DashboardWidgetInfo title="Purchases" ariaLabel="Show purchases info">
-            {purchasesInfoBody}
-          </DashboardWidgetInfo>
-        </div>
-        
-        {/* Right side - Controls */}
-        <div className="flex flex-shrink-0 items-center gap-3">
-          <Link 
-            to="/purchases" 
-            className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200 whitespace-nowrap"
-          >
-            <span>View All</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </div>
-      
-      {/* Purchase Stats Cards - Responsive grid */}
       <div className="dashboard-stat-grid gap-3 sm:gap-4 mb-0 flex-1">
         <StatCard
           title="Planned"
@@ -401,11 +252,9 @@ export const PurchaseOverviewCard: React.FC<PurchaseOverviewCardProps> = ({
         <StatCard
           title="Purchased"
           value={totalPurchasedItems.toString()}
-          trend="up"
           color="red"
         />
       </div>
-
-    </div>
+    </DashboardCardShell>
   );
 };

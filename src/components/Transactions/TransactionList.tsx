@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Check, EyeOff, FileText, X, History } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, EyeOff, FileText, History } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -104,7 +104,7 @@ const TransactionListComponent: React.FC<{
   selectedId?: string | null;
   isFromSearch?: boolean;
   hasSelection?: boolean;
-  selectedRecordRef?: React.RefObject<HTMLDivElement>;
+  selectedRecordRef?: React.RefObject<HTMLDivElement | HTMLTableRowElement>;
   clearSelection?: () => void;
 }> = ({ 
   transactions, 
@@ -1134,7 +1134,7 @@ const TransactionListComponent: React.FC<{
     transactions: filteredTransactions,
     accounts,
     filters,
-    sortConfig
+    sortConfig: sortConfig ?? undefined
   });
 
   // Summary card values should be based on filteredTransactions only (excluding lend/borrow transactions)
@@ -1577,7 +1577,7 @@ const TransactionListComponent: React.FC<{
                         <label className="text-xs text-gray-600 dark:text-gray-300 mb-1">Start Date</label>
                         <DatePicker
                           selected={customStart ? new Date(customStart) : null}
-                          onChange={date => setCustomStart(date ? date.toISOString().slice(0, 10) : '')}
+                          onChange={(date: Date | null) => setCustomStart(date ? date.toISOString().slice(0, 10) : '')}
                           selectsStart
                           startDate={customStart ? new Date(customStart) : null}
                           endDate={customEnd ? new Date(customEnd) : null}
@@ -1595,7 +1595,7 @@ const TransactionListComponent: React.FC<{
                         <label className="text-xs text-gray-600 dark:text-gray-300 mb-1">End Date</label>
                         <DatePicker
                           selected={customEnd ? new Date(customEnd) : null}
-                          onChange={date => setCustomEnd(date ? date.toISOString().slice(0, 10) : '')}
+                          onChange={(date: Date | null) => setCustomEnd(date ? date.toISOString().slice(0, 10) : '')}
                           selectsEnd
                           startDate={customStart ? new Date(customStart) : null}
                           endDate={customEnd ? new Date(customEnd) : null}
@@ -1996,7 +1996,7 @@ const TransactionListComponent: React.FC<{
                       <React.Fragment key={transaction.id}>
                       <tr 
                         id={`transaction-${transaction.transaction_id || transaction.id}`}
-                        ref={isSelected ? selectedRecordRef : null}
+                        ref={isSelected ? (selectedRecordRef as React.Ref<HTMLTableRowElement>) : undefined}
                         className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${
                           isSelected 
                             ? isFromSearchSelection 
@@ -2018,9 +2018,9 @@ const TransactionListComponent: React.FC<{
                             <div className="text-gray-900 dark:text-white" style={{ fontSize: '14px' }}>
                               {transactionHasAuditTrail(transaction, transactionHistoryCache) ? (
                                 <>
-                                  <div>{formatDateUTC(transaction.updated_at, 'MMM dd, yyyy')}</div>
+                                  <div>{formatDateUTC(transaction.updated_at ?? transaction.created_at, 'MMM dd, yyyy')}</div>
                                   <div className="text-xs text-gradient-primary flex items-center gap-1">
-                                    {formatTimeUTC(transaction.updated_at, 'h:mm a')}
+                                    {formatTimeUTC(transaction.updated_at ?? transaction.created_at, 'h:mm a')}
                                     <Edit2 
                                       className="w-3 h-3" 
                                       style={{
@@ -2494,7 +2494,7 @@ const TransactionListComponent: React.FC<{
                   <div 
                     key={transaction.id} 
                     id={`transaction-${transaction.transaction_id || transaction.id}`}
-                    ref={isSelected ? selectedRecordRef : null}
+                    ref={isSelected ? (selectedRecordRef as React.Ref<HTMLDivElement>) : undefined}
                     className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
                   >
                     {/* Card Header - Date, Type Badge, and Indicators */}
@@ -2517,7 +2517,7 @@ const TransactionListComponent: React.FC<{
                                 backgroundClip: 'text'
                               }}
                             />
-                            <span>{formatTimeUTC(transaction.updated_at, 'MMM dd, h:mm a')}</span>
+                            <span>{formatTimeUTC(transaction.updated_at ?? transaction.created_at, 'MMM dd, h:mm a')}</span>
                           </div>
                         )}
                       </div>
@@ -2985,7 +2985,7 @@ const TransactionListComponent: React.FC<{
                   <div 
                     key={transaction.id} 
                     id={`transaction-${transaction.transaction_id || transaction.id}`}
-                    ref={isSelected ? selectedRecordRef : null}
+                    ref={isSelected ? (selectedRecordRef as React.Ref<HTMLDivElement>) : undefined}
                     className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow ${
                       isSelected 
                         ? isFromSearchSelection 
@@ -3002,7 +3002,7 @@ const TransactionListComponent: React.FC<{
                         <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                           {formatTimeUTC(transaction.created_at, 'h:mm a')}
                           {transactionHasAuditTrail(transaction, transactionHistoryCache) && (
-                            <span className="ml-2 text-gradient-primary flex items-center" title={`Last modified: ${formatTimeUTC(transaction.updated_at, 'MMM dd, h:mm a')}`}>
+                            <span className="ml-2 text-gradient-primary flex items-center" title={`Last modified: ${formatTimeUTC(transaction.updated_at ?? transaction.created_at, 'MMM dd, h:mm a')}`}>
                               <Edit2 
                                 className="w-3 h-3" 
                                 style={{
@@ -3450,7 +3450,7 @@ const TransactionListComponent: React.FC<{
             setNoteModalTransaction(null);
           }}
           transactionId={noteModalTransaction.id}
-          currentNote={noteModalTransaction.note}
+          currentNote={noteModalTransaction.note ?? undefined}
           onSave={handleNoteSave}
         />
       )}

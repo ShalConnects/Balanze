@@ -5,8 +5,9 @@ import { useClientStore } from '../../store/useClientStore';
 import { StatCard } from './StatCard';
 import { formatCurrency } from '../../utils/currency';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
-import { getPreference, setPreference } from '../../lib/userPreferences';
+import { usePersistedToggle } from '../../hooks/usePersistedToggle';
 import { useAuthStore } from '../../store/authStore';
+import { toast } from 'sonner';
 import { DashboardWidgetInfo } from './DashboardWidgetInfo';
 
 interface ClientsSummaryWidgetProps {
@@ -33,54 +34,15 @@ export const ClientsSummaryWidget: React.FC<ClientsSummaryWidgetProps> = ({
   const [showCrossTooltip, setShowCrossTooltip] = useState(false);
   const { isMobile } = useMobileDetection();
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Widget visibility state - hybrid approach (localStorage + database)
-  const [showClientsWidget, setShowClientsWidget] = useState(() => {
-    const saved = localStorage.getItem('showClientsWidget');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  
-  // Listen for localStorage changes to sync with other pages
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'showClientsWidget' && e.newValue !== null) {
-        setShowClientsWidget(JSON.parse(e.newValue));
-      }
-    };
 
-    const handleCustomStorageChange = () => {
-      const saved = localStorage.getItem('showClientsWidget');
-      if (saved !== null) {
-        setShowClientsWidget(JSON.parse(saved));
-      }
-    };
+  const [showClientsWidget, setShowClientsWidget] = usePersistedToggle(
+    'showClientsWidget',
+    true,
+    user?.id,
+    { syncFromDb: true }
+  );
 
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('showClientsWidgetChanged', handleCustomStorageChange);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('showClientsWidgetChanged', handleCustomStorageChange);
-    };
-  }, []);
-  
   const cardRef = useRef<HTMLDivElement>(null);
-
-  // Load user preferences for Clients widget visibility
-  useEffect(() => {
-    if (user?.id) {
-      const loadPreferences = async () => {
-        try {
-          const showWidget = await getPreference(user.id, 'showClientsWidget', true);
-          setShowClientsWidget(showWidget);
-          localStorage.setItem('showClientsWidget', JSON.stringify(showWidget));
-        } catch (error) {
-          // Keep current localStorage value if database fails
-        }
-      };
-      loadPreferences();
-    }
-  }, [user?.id]);
 
   // Track if we've fetched to prevent infinite loops
   const [hasFetched, setHasFetched] = useState(false);
@@ -172,19 +134,9 @@ export const ClientsSummaryWidget: React.FC<ClientsSummaryWidgetProps> = ({
     };
   }, []);
 
-  // Save Clients widget visibility preference (hybrid approach)
-  const handleClientsWidgetToggle = async (show: boolean) => {
-    // Immediate UI update (optimistic update)
-    setShowClientsWidget(show);
-    localStorage.setItem('showClientsWidget', JSON.stringify(show));
-    window.dispatchEvent(new CustomEvent('showClientsWidgetChanged'));
-    
-    // Save to database asynchronously (non-blocking)
-    if (user?.id) {
-      setPreference(user.id, 'showClientsWidget', show).catch(() => {
-        // Silent fail - already saved locally
-      });
-    }
+  const hideClientsWidget = () => {
+    setShowClientsWidget(false);
+    toast.success('Preference saved!', { description: 'Clients widget hidden' });
   };
 
   // Date range logic based on time filter - memoized for performance
@@ -257,7 +209,7 @@ export const ClientsSummaryWidget: React.FC<ClientsSummaryWidgetProps> = ({
       .reduce((sum, i) => sum + (i.total_amount || 0), 0);
     
     const outstandingInvoices = filteredInvoices
-      .filter(i => i.payment_status !== 'paid' && i.payment_status !== 'cancelled')
+      .filter(i => i.payment_status !== 'paid')
       .length;
 
     return {
@@ -445,7 +397,7 @@ export const ClientsSummaryWidget: React.FC<ClientsSummaryWidgetProps> = ({
           </button>
           {/* Hide button */}
           <button
-            onClick={() => handleClientsWidgetToggle(false)}
+            onClick={hideClientsWidget}
             className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors touch-manipulation"
             aria-label="Hide Clients widget"
           >

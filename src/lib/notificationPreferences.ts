@@ -237,15 +237,15 @@ export class NotificationPreferencesService {
 
   // Overloaded method to accept userId and fetch preferences
   async shouldSendNotification(userId: string, notificationCategory: string, ignoreCriticalQuietHours?: boolean): Promise<boolean>;
-  shouldSendNotification(
+  async shouldSendNotification(
     preferences: NotificationPreferences,
     category: keyof NotificationPreferences,
     key: string
-  ): boolean;
+  ): Promise<boolean>;
   async shouldSendNotification(
     userIdOrPreferences: string | NotificationPreferences,
     categoryOrKey: string | keyof NotificationPreferences,
-    key?: string
+    keyOrIgnore?: string | boolean
   ): Promise<boolean> {
     // If first parameter is string (userId), fetch preferences and determine category/key
     if (typeof userIdOrPreferences === 'string') {
@@ -273,7 +273,7 @@ export class NotificationPreferencesService {
       // Original method signature
       const preferences = userIdOrPreferences;
       const category = categoryOrKey as keyof NotificationPreferences;
-      const prefKey = key as string;
+      const prefKey = keyOrIgnore as string;
       
       const categoryPrefs = preferences[category] as any;
       return categoryPrefs && categoryPrefs[prefKey] === true;

@@ -15,7 +15,7 @@ export const isConfirmedUser = (user: User | null | undefined): boolean =>
 
 export async function syncUserFromSession(
   user: User | null | undefined,
-  setUserAndProfile: (user: User | null, profile: null) => Promise<void>
+  setUserAndProfile: (user: User | null, profile: null) => void | Promise<void>
 ): Promise<void> {
   if (isConfirmedUser(user)) {
     try {

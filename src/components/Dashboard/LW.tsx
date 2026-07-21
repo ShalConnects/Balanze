@@ -95,7 +95,7 @@ export const LW: React.FC<LWProps> = () => {
     seconds: number;
   } | null>(null);
   const messageEditorRef = useRef<HTMLDivElement>(null);
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedFont, setSelectedFont] = useState('Arial');
   const [selectedFontSize, setSelectedFontSize] = useState('14');
@@ -576,7 +576,7 @@ These memories are my gift to you.`
           includeData: normalizeIncludeData(data.include_data as Partial<LWSettings['includeData']>),
           message: data.message || '',
           isActive: data.is_active || false,
-          deliveryTriggered: isDelivered,
+          deliveryTriggered: Boolean(isDelivered),
         });
         
         // Initialize simple text editor with the message content

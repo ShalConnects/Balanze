@@ -363,7 +363,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         description: transactionToEdit.description,
         tags: transactionToEdit.tags || [],
         date: toBusinessDateString(transactionToEdit.date),
-        is_recurring: transactionToEdit.is_recurring,
+        is_recurring: transactionToEdit.is_recurring ?? false,
         recurring_frequency: (transactionToEdit.recurring_frequency as 'daily' | 'weekly' | 'monthly' | 'yearly') || 'monthly'
       });
           
@@ -1651,7 +1651,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                             type="checkbox"
                             id="recurring"
                             checked={data.is_recurring}
-                            disabled={isChildTransaction}
+                            disabled={Boolean(isChildTransaction)}
                             onChange={(e) => {
                               if (!isChildTransaction) {
                                 setData({ ...data, is_recurring: e.target.checked });
@@ -1692,7 +1692,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                       </label>
                       <CustomDropdown
                         value={data.recurring_frequency}
-                        disabled={isChildTransaction}
+                        disabled={Boolean(isChildTransaction)}
                         onChange={(value: string) => {
                           if (!isChildTransaction) {
                             setData({ ...data, recurring_frequency: value as 'daily' | 'weekly' | 'monthly' | 'yearly' });
@@ -1726,7 +1726,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
                               setRecurringEndDate(date ? format(date, 'yyyy-MM-dd') : undefined);
                             }
                           }}
-                          disabled={isChildTransaction}
+                          disabled={Boolean(isChildTransaction)}
                           placeholderText="No end date (recur forever)"
                           dateFormat="yyyy-MM-dd"
                           className="bg-transparent outline-none border-none w-full cursor-pointer text-[14px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400"

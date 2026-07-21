@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { GripVertical } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { DASHBOARD_WIDGET_DRAG_BTN } from '../../constants/dashboardWidget';
 
 interface DraggableWidgetProps {
   id: string;
@@ -39,11 +40,10 @@ export const DraggableWidget: React.FC<DraggableWidgetProps> = ({
       style={style}
       className={`relative group ${className}`}
     >
-      {/* Drag Handle - always visible on mobile, appears on hover on desktop */}
       <div
         {...attributes}
         {...listeners}
-        className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-sm opacity-100 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation transition-opacity cursor-grab active:cursor-grabbing"
+        className={DASHBOARD_WIDGET_DRAG_BTN}
         title="Drag to reorder"
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
@@ -53,4 +53,3 @@ export const DraggableWidget: React.FC<DraggableWidgetProps> = ({
     </div>
   );
 };
-

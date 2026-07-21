@@ -5,8 +5,7 @@ export default function SitemapPage() {
   useEffect(() => {
     const sitemap = generateHelpCenterSitemap();
     
-    // Set content type and serve sitemap.xml content
-    document.contentType = 'application/xml';
+    // Serve sitemap.xml content
     document.body.innerHTML = `<pre>${sitemap}</pre>`;
     document.body.style.margin = '0';
     document.body.style.padding = '20px';

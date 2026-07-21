@@ -6,6 +6,8 @@ import { useAllTasksModalStore } from '../../store/useAllTasksModalStore';
 import { Star, Plus, AlertTriangle, Timer, Play, Pause, RotateCcw, Settings, GripVertical, X, ChevronDown, RefreshCw, ChevronRight } from 'lucide-react';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import Modal from 'react-modal';
+import { withoutTaskPomodoroCount } from '../../utils/pomodoroUtils';
+import { taskAccordionBody, taskAccordionShell, TASK_POMODORO_BADGE } from '../../constants/dashboardWidget';
 
 const NOTE_COLORS = [
   { name: 'Yellow', value: 'yellow', bg: 'bg-yellow-100 dark:bg-yellow-900/30', border: 'border-yellow-300 dark:border-yellow-700', dot: 'bg-yellow-400 dark:bg-yellow-500' },
@@ -30,7 +32,17 @@ interface Task {
   created_at: string;
   position?: number;
   section_override?: 'today' | 'this_week' | 'this_month' | null;
+  parent_id?: string | null;
+  due_date?: string | null;
+  subtasks?: Task[];
+  has_subtasks?: boolean;
+  completed_subtasks_count?: number;
+  total_subtasks_count?: number;
 }
+
+type DebouncedEditor = ((id: string, text: string) => void) & {
+  timeoutId?: ReturnType<typeof setTimeout>;
+};
 
 interface NotesAndTodosWidgetProps {
   isAccordionExpanded?: boolean;
@@ -250,7 +262,7 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
   };
 
   // Edit note with debounced auto-save
-  const editNote = (id: string, text: string) => {
+  const editNote: DebouncedEditor = (id: string, text: string) => {
     // Update local state immediately for responsive UI
     setNotes(notes.map(n => n.id === id ? { ...n, text } : n));
     
@@ -390,7 +402,7 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
   };
 
   // Edit task with debounced auto-save
-  const editTask = (id: string, text: string) => {
+  const editTask: DebouncedEditor = (id: string, text: string) => {
     // Update local state immediately for responsive UI
     setTasks(tasks.map(t => t.id === id ? { ...t, text } : t));
     
@@ -1131,7 +1143,7 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
           <div className="relative task-duration-container">
             <button
               onClick={() => openTaskDurationEditor(task.id)}
-              className={`text-xs px-1.5 py-0.5 rounded ${
+              className={`${TASK_POMODORO_BADGE} ${
                 taskPomodoroDurations[task.id] 
                   ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' 
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
@@ -1141,7 +1153,7 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
               {getTaskDuration(task.id)}m
             </button>
           {editingTaskDuration === task.id && (
-            <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 z-20">
+            <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 z-50">
               <div className="mb-2">
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                   <span className="text-gradient-primary">Duration (minutes)</span>
@@ -1192,6 +1204,14 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
                     Reset to Default ({pomodoroDuration}m)
                   </button>
                 )}
+                {pomodoroCounts[task.id] > 0 && (
+                  <button
+                    onClick={() => clearPomodorosForTask(task.id)}
+                    className="w-full mt-1.5 px-2 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50"
+                  >
+                    Clear pomodoros (🍅 {pomodoroCounts[task.id]})
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1201,7 +1221,7 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
         {pomodoroCounts[task.id] > 0 && 
          (pomodoroTimer?.taskId !== task.id || 
           (pomodoroTimer?.taskId === task.id && pomodoroTimer?.timeRemaining === 0 && !pomodoroTimer?.isRunning)) && (
-          <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded flex items-center gap-1">
+          <span className={`${TASK_POMODORO_BADGE} gap-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400`}>
             🍅 {pomodoroCounts[task.id]}
           </span>
         )}
@@ -1605,6 +1625,12 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
       }
     }
     
+    setEditingTaskDuration(null);
+  };
+
+  const clearPomodorosForTask = (taskId: string) => {
+    setPomodoroCounts(prev => withoutTaskPomodoroCount(prev, taskId));
+    if (pomodoroTimer?.taskId === taskId) stopPomodoro();
     setEditingTaskDuration(null);
   };
 
@@ -2055,7 +2081,7 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
             overlayClassName="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-md z-40"
             ariaHideApp={false}
           >
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 md:p-6 w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto shadow-lg relative">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 md:p-6 w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto hide-scrollbar shadow-lg relative">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">All Tasks</h2>
                 <div className="flex items-center gap-1">
@@ -2246,11 +2272,7 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
                       return (
                         <div 
                           key={key} 
-                          className={`rounded-lg overflow-hidden transition-all ${
-                            isDragOver 
-                              ? 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/40 dark:to-purple-900/40' 
-                              : ''
-                          }`}
+                          className={taskAccordionShell(isExpanded, isDragOver)}
                           onDragOver={(e) => handleSectionDragOver(e, sectionKey)}
                           onDragLeave={handleSectionDragLeave}
                           onDrop={(e) => handleSectionDrop(e, sectionKey)}
@@ -2269,9 +2291,7 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
                           </button>
                           
                           {/* Section Content */}
-                          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                            isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
-                          }`}>
+                          <div className={taskAccordionBody(isExpanded)}>
                             <div className="py-[5px] px-0 space-y-2">
                               {sectionTasks.length === 0 ? (
                                 <div 

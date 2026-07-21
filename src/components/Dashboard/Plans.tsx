@@ -156,9 +156,13 @@ export const Plans: React.FC = () => {
         data = rpcResult.data;
         error = rpcResult.error;
       } else {
+        const { data: { session } } = await supabase.auth.getSession();
         const response = await fetch('/api/payments?path=schedule-downgrade', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
           body: JSON.stringify({ userId: user.id }),
         });
         let payload: any = {};
@@ -221,7 +225,7 @@ export const Plans: React.FC = () => {
   const cancelDowngrade = () => {
     setShowDowngradeModal(false);
     setDowngradeError(null);
-    toast.info('Downgrade cancelled.');
+    toast('Downgrade cancelled.');
   };
 
   const openDirectCheckout = async (planId: string, planName: string) => {
@@ -247,8 +251,7 @@ export const Plans: React.FC = () => {
         items: [{ priceId, quantity: 1 }],
         customer: {
           email: user.email,
-          country: 'US'
-        },
+        } as { email: string },
         customData: {
           user_id: user.id,
           plan_id: planId,
@@ -261,7 +264,7 @@ export const Plans: React.FC = () => {
         },
         successUrl: window.location.origin + '/settings?tab=plans-usage&payment=success',
         cancelUrl: window.location.origin + '/settings?tab=plans-usage&payment=cancelled'
-      });
+      } as Parameters<NonNullable<Paddle['Checkout']>['open']>[0]);
       setLoading(null);
       toast.success('Checkout opened!');
 

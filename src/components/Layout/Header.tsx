@@ -136,9 +136,10 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
             { id: 'purchases', name: 'Fetching purchases' }
         ]);
         
+        let overallTimeout: ReturnType<typeof setTimeout> | undefined;
         try {
             // Add overall timeout to prevent infinite refreshing
-            const overallTimeout = setTimeout(() => {
+            overallTimeout = setTimeout(() => {
                 refreshLock.current = false;
                 setIsRefreshing(false);
                 complete();
@@ -182,7 +183,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
                                 }
                             }),
                             timeoutPromise
-                        ]);
+                        ]) as { success: boolean; error?: { message?: string } };
                         
                         const functionDuration = Date.now() - functionStartTime;
                         
@@ -195,10 +196,11 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
                             announceRefresh(`Failed: ${id} - ${result.error?.message || 'Unknown error'}`, 'assertive');
                             return { success: false, id, error: result.error };
                         }
-                    } catch (error) {
+                    } catch (error: unknown) {
                         const functionDuration = Date.now() - functionStartTime;
-                        failStep(id, error?.message || 'Unknown error');
-                        announceRefresh(`Failed: ${id} - ${error?.message || 'Unknown error'}`, 'assertive');
+                        const message = error instanceof Error ? error.message : 'Unknown error';
+                        failStep(id, message);
+                        announceRefresh(`Failed: ${id} - ${message}`, 'assertive');
                         return { success: false, id, error };
                     }
                 })
@@ -214,7 +216,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
             announceRefresh('Data refreshed successfully', 'assertive');
             
             toast.success('Data refreshed successfully');
-            triggerHapticFeedback('success');
+            triggerHapticFeedback('medium');
         } catch (error) {
             const totalDuration = Date.now() - startTime;
             complete();
@@ -223,10 +225,10 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle, title, subtitle })
             announceRefresh('Failed to refresh data', 'assertive');
             
             toast.error('Failed to refresh data');
-            triggerHapticFeedback('error');
+            triggerHapticFeedback('heavy');
         } finally {
             // Clear the overall timeout
-            if (typeof overallTimeout !== 'undefined') {
+            if (overallTimeout !== undefined) {
                 clearTimeout(overallTimeout);
             }
             setIsRefreshing(false);

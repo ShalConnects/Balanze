@@ -27,7 +27,7 @@ export interface Client {
   tax_id?: string;
   website?: string;
   source?: string;
-  known_since?: string;
+  known_since?: string | null;
   status: 'active' | 'inactive' | 'archived';
   default_currency: string;
   tags: string[];
@@ -52,7 +52,7 @@ export interface ClientInput {
   tax_id?: string;
   website?: string;
   source?: string;
-  known_since?: string;
+  known_since?: string | null;
   status?: 'active' | 'inactive' | 'archived';
   default_currency?: string;
   tags?: string[];
@@ -348,7 +348,7 @@ export interface Task {
   client_id: string;
   title: string;
   description?: string;
-  due_date?: string;
+  due_date?: string | null;
   priority: TaskPriority;
   status: TaskStatus;
   completed_date?: string;
@@ -361,7 +361,7 @@ export interface TaskInput {
   client_id: string;
   title: string;
   description?: string;
-  due_date?: string;
+  due_date?: string | null;
   priority?: TaskPriority;
   status?: TaskStatus;
   position?: number;

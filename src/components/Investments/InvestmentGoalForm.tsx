@@ -38,7 +38,7 @@ export const InvestmentGoalForm: React.FC<InvestmentGoalFormProps> = ({
       newErrors.target_amount = 'Target amount must be greater than 0';
     }
 
-    if (formData.current_amount < 0) {
+    if ((formData.current_amount ?? 0) < 0) {
       newErrors.current_amount = 'Current amount cannot be negative';
     }
 
@@ -213,16 +213,16 @@ export const InvestmentGoalForm: React.FC<InvestmentGoalFormProps> = ({
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Progress</span>
-                  <span>{((formData.current_amount / formData.target_amount) * 100).toFixed(1)}%</span>
+                  <span>{(((formData.current_amount ?? 0) / formData.target_amount) * 100).toFixed(1)}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min((formData.current_amount / formData.target_amount) * 100, 100)}%` }}
+                    style={{ width: `${Math.min(((formData.current_amount ?? 0) / formData.target_amount) * 100, 100)}%` }}
                   />
                 </div>
                 <div className="flex justify-between text-sm text-gray-600">
-                  <span>${formData.current_amount.toFixed(2)}</span>
+                  <span>${(formData.current_amount ?? 0).toFixed(2)}</span>
                   <span>${formData.target_amount.toFixed(2)}</span>
                 </div>
               </div>

@@ -285,7 +285,13 @@ export class UrgentNotificationService {
       //   .eq('status', 'planned')
       //   .not('planned_date', 'is', null);
       
-      const plannedPurchases = [];
+      const plannedPurchases: Array<{
+        planned_date: string;
+        item_name?: string;
+        id?: string;
+        price?: number;
+        currency?: string;
+      }> = [];
       const pError = null;
 
       if (pError) {
@@ -308,14 +314,14 @@ export class UrgentNotificationService {
           // Only include items that are overdue, due soon, or upcoming
           if (status === 'overdue' || status === 'due_soon' || status === 'upcoming') {
             urgentItems.push({
-              id: purchase.id,
+              id: purchase.id ?? `purchase-${purchase.planned_date}`,
               type: 'purchase',
               title: `Planned purchase: ${purchase.item_name}`,
-              message: `Planned to buy ${purchase.item_name} for ${formatCurrency(purchase.price, purchase.currency)}`,
+              message: `Planned to buy ${purchase.item_name} for ${formatCurrency(purchase.price ?? 0, purchase.currency ?? 'USD')}`,
               dueDate: purchase.planned_date,
               daysUntil,
-              amount: purchase.price,
-              currency: purchase.currency,
+              amount: purchase.price ?? 0,
+              currency: purchase.currency ?? 'USD',
               itemName: purchase.item_name,
               priority: status === 'overdue' ? 'high' : status === 'due_soon' ? 'medium' : 'low',
               status

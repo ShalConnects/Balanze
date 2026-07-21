@@ -54,7 +54,7 @@ export interface TaskableStandaloneTask extends BaseTaskable {
 export interface TaskableClientTask extends BaseTaskable {
   type: 'client_task';
   client_id: string;
-  due_date?: string;
+  due_date?: string | null;
   priority: TaskPriority;
   status: TaskStatus;
   completed_date?: string;
@@ -112,7 +112,7 @@ export interface TaskableStandaloneTaskInput extends BaseTaskableInput {
 export interface TaskableClientTaskInput extends BaseTaskableInput {
   type: 'client_task';
   client_id: string;
-  due_date?: string;
+  due_date?: string | null;
   priority?: TaskPriority;
   status?: TaskStatus;
 }

@@ -43,7 +43,7 @@ export const InvestmentAssetForm: React.FC<InvestmentAssetFormProps> = ({
       newErrors.name = 'Asset name is required';
     }
 
-    if (formData.current_price <= 0) {
+    if (formData.current_price == null || formData.current_price <= 0) {
       newErrors.current_price = 'Current price must be greater than 0';
     }
 

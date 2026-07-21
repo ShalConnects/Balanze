@@ -87,7 +87,7 @@ class AchievementService {
           await this.updateAchievementProgress(userId, achievement.id, checkResult.progress);
           progress.push(checkResult.progress);
           
-          if (checkResult.progressPercentage > 0) {
+          if ((checkResult.progressPercentage ?? 0) > 0) {
             notifications.push({
               type: 'progress_update',
               achievement,

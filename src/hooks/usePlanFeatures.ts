@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 
 interface PlanFeatures {
   max_accounts: number;
-  max_transactions: number;
+  max_transactions?: number;
+  max_transactions_per_month?: number;
   max_currencies: number;
   max_purchases: number;
   max_clients: number;
@@ -44,6 +45,12 @@ interface UsageStats {
     limit: number;
     percentage: number;
   };
+  current_month_transactions?: number;
+  max_transactions_per_month?: number;
+  percentage_used?: number;
+  transactions_remaining?: number;
+  days_remaining_in_month?: number;
+  reset_date?: string;
 }
 
 export const usePlanFeatures = () => {

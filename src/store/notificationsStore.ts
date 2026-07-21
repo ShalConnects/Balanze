@@ -99,6 +99,12 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   markAsRead: async (id: string) => {
     try {
+      const { user } = await import('../store/authStore').then(module => module.useAuthStore.getState());
+      if (!user) {
+        set({ error: 'User not authenticated' });
+        return;
+      }
+
       // Optimistic update
       set(state => {
         const notification = state.notifications.find(n => n.id === id);
@@ -114,7 +120,8 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       const { error } = await supabase
         .from('notifications')
         .update({ is_read: true })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id);
 
       if (error) {
         console.error('Error marking notification as read:', error);
@@ -178,6 +185,12 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   deleteNotification: async (id: string) => {
     try {
+      const { user } = await import('../store/authStore').then(module => module.useAuthStore.getState());
+      if (!user) {
+        set({ error: 'User not authenticated' });
+        return;
+      }
+
       // Optimistic update
       const currentState = get();
       const notificationToDelete = currentState.notifications.find(n => n.id === id);
@@ -188,10 +201,12 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         unreadCount: wasUnread ? Math.max(0, state.unreadCount - 1) : state.unreadCount
       }));
 
+      // Soft-delete to match fetchNotifications filter (.is('deleted', false))
       const { error } = await supabase
         .from('notifications')
-        .delete()
-        .eq('id', id);
+        .update({ deleted: true })
+        .eq('id', id)
+        .eq('user_id', user.id);
 
       if (error) {
         console.error('Error deleting notification:', error);

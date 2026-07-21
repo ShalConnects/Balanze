@@ -610,9 +610,9 @@ export const TransfersTableView: React.FC = () => {
               
               // Use the first transfer's currency or fallback
               const currency = sortedTransfers[0]?.fromCurrency || 'USD';
-              const currencySymbol = {
+              const currencySymbol = ({
                 USD: '$', BDT: '৳', EUR: '€', GBP: '£', JPY: '¥', ALL: 'L', INR: '₹', CAD: '$', AUD: '$'
-              }[currency] || currency;
+              } as Record<string, string>)[currency] || currency;
               
               return (
                 <>

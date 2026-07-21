@@ -1386,7 +1386,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
               Investments ({rankedInvestments.length})
             </h3>
             <div className="space-y-2">
-              {(showAllInvestments ? rankedInvestments : rankedInvestments.slice(0, 3)).map((res, index) => {
+              {(showAllInvestments ? rankedInvestments : rankedInvestments.slice(0, 3)).map((res: (typeof rankedInvestments)[number], index: number) => {
                 const invIdx = searchOffsets.invStart + index;
                 const matchKeys =
                   res.invKind === 'prize_bond'

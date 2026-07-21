@@ -97,7 +97,7 @@ export const IncomeCategories: React.FC<IncomeCategoriesProps> = ({ hideTitle = 
             await addCategory({
               name: values.category_name,
               type: 'income',
-              color: values.category_color,
+              color: values.category_color ?? '',
               icon: '',
               description: values.description,
               currency: values.currency,

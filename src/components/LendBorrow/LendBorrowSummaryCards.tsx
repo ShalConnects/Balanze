@@ -20,7 +20,7 @@ export const LendBorrowSummaryCards: React.FC<LendBorrowSummaryCardsProps> = ({
   // Calculate overdue records (active records past due date)
   const now = new Date();
   const actuallyOverdueRecords = activeRecords.filter(record => {
-    const dueDate = new Date(record.due_date);
+    const dueDate = new Date(record.due_date ?? '');
     return dueDate < now;
   });
 
@@ -63,12 +63,12 @@ export const LendBorrowSummaryCards: React.FC<LendBorrowSummaryCardsProps> = ({
   const currentYear = now.getFullYear();
   
   const thisMonthRecords = filteredRecords.filter(r => {
-    const recordDate = new Date(r.date);
+    const recordDate = new Date(r.date ?? '');
     return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
   });
   
   const lastMonthRecords = filteredRecords.filter(r => {
-    const recordDate = new Date(r.date);
+    const recordDate = new Date(r.date ?? '');
     const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
     return recordDate.getMonth() === lastMonth && recordDate.getFullYear() === lastMonthYear;

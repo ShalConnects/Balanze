@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { GripVertical, Eye, EyeOff, RotateCcw, X } from 'lucide-react';
 import Modal from 'react-modal';
+import { useUnifiedDashboardCards } from '../../hooks/useUnifiedDashboardCards';
 
 export interface WidgetConfig {
   id: string;
@@ -38,6 +39,7 @@ export const WidgetSettingsPanel: React.FC<WidgetSettingsPanelProps> = ({
   onMainDashboardWidgetToggle,
   onMainDashboardWidgetUpdate,
 }) => {
+  const [unifiedCards, setUnifiedCards] = useUnifiedDashboardCards();
   const [localWidgets, setLocalWidgets] = useState<WidgetConfig[]>(widgets);
   const [localMainDashboardWidgets, setLocalMainDashboardWidgets] = useState<MainDashboardWidget[]>(mainDashboardWidgets);
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -209,6 +211,37 @@ export const WidgetSettingsPanel: React.FC<WidgetSettingsPanelProps> = ({
         <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2 sm:mb-3 md:mb-4">
           Drag to reorder widgets or toggle visibility. Changes are saved automatically.
         </p>
+
+        <div className="flex items-center justify-between gap-3 p-2.5 sm:p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 mb-3 sm:mb-4 min-h-[44px] sm:min-h-0">
+          <div className="min-w-0">
+            <div className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">
+              Unified card layout
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              Turn off to restore classic purple gradient cards.
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={unifiedCards}
+            aria-label="Toggle unified card layout"
+            onClick={() => setUnifiedCards(!unifiedCards)}
+            className="flex-shrink-0 flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:p-1 touch-manipulation"
+          >
+            <span
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                unifiedCards ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  unifiedCards ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </span>
+          </button>
+        </div>
 
         {/* Two Column Layout: Main Dashboard Widgets (Left) and Right Sidebar Widgets (Right) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6 mb-3 sm:mb-4">

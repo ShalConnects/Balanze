@@ -363,7 +363,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
                       <div className="space-y-2">
                         <DatePicker
                           selected={filters.dateRange.start ? new Date(filters.dateRange.start) : null}
-                          onChange={(date) => updateFilter('dateRange', { 
+                          onChange={(date: Date | null) => updateFilter('dateRange', { 
                             ...filters.dateRange, 
                             start: date ? date.toISOString().slice(0, 10) : '' 
                           })}
@@ -373,7 +373,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
                         />
                         <DatePicker
                           selected={filters.dateRange.end ? new Date(filters.dateRange.end) : null}
-                          onChange={(date) => updateFilter('dateRange', { 
+                          onChange={(date: Date | null) => updateFilter('dateRange', { 
                             ...filters.dateRange, 
                             end: date ? date.toISOString().slice(0, 10) : '' 
                           })}

@@ -3,13 +3,14 @@ import { Bell, X, ExternalLink, Trophy } from 'lucide-react';
 import { useNotificationsStore } from '../../store/notificationsStore';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import type { Notification as AppNotification } from '../../types';
 
 interface NotificationDropdownProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const getNotificationIcon = (type: Notification['type'], title?: string) => {
+const getNotificationIcon = (type: AppNotification['type'], title?: string) => {
   // Check for achievement notifications by title
   if (type === 'success' && title?.includes('Achievement')) {
     return <Trophy className="w-4 h-4 text-yellow-500" />;
@@ -29,7 +30,7 @@ const getNotificationIcon = (type: Notification['type'], title?: string) => {
   }
 };
 
-const getNotificationColor = (type: Notification['type'], isRead: boolean) => {
+const getNotificationColor = (type: AppNotification['type'], isRead: boolean) => {
   // Unread notifications get blue highlight
   if (!isRead) {
     return 'border-l-blue-500 bg-blue-50 dark:bg-blue-900/10';
@@ -131,7 +132,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose]);
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = (notification: AppNotification) => {
     // Mark as read if unread
     if (!notification.is_read) {
       markAsRead(notification.id);
@@ -162,9 +163,10 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
       return;
     }
     
-    // Handle action_url if present (for future use)
-    if ((notification as any).action_url) {
-      navigate((notification as any).action_url);
+    // Handle action_url if present — only allow same-origin relative paths
+    const actionUrl = (notification as { action_url?: string }).action_url;
+    if (actionUrl && /^\/(?!\/)/.test(actionUrl)) {
+      navigate(actionUrl);
       onClose();
     }
   };

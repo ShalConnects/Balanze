@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Account, Transaction, Category, Budget, DashboardStats, SavingsGoal, Purchase, PurchaseCategory, PurchaseAnalytics, MultiCurrencyPurchaseAnalytics, PurchaseAttachment, LendBorrowAnalytics, LendBorrow } from '../types';
+import { Account, AccountInput, Transaction, Category, Budget, DashboardStats, SavingsGoal, Purchase, PurchaseCategory, PurchaseAnalytics, MultiCurrencyPurchaseAnalytics, PurchaseAttachment, LendBorrowAnalytics, LendBorrow } from '../types';
 import { DonationSavingRecord, DonationSavingAnalytics, PaymentTransaction, PaymentHistoryStats } from '../types/index';
 import { 
   InvestmentAsset, 
@@ -41,9 +41,6 @@ import {
   transactionUpdatesOrder,
   type TransactionHistoryEntry,
 } from '../utils/transactionHistoryUtils';
-
-// Extend the Account type to make calculated_balance optional for input
-type AccountInput = Omit<Account, 'calculated_balance'>;
 
 interface FinanceStore {
   accounts: Account[];
@@ -206,7 +203,7 @@ interface FinanceStore {
   }) => Promise<void>;
 
   fetchSavingsGoals: () => Promise<void>;
-  createSavingsGoal: (goal: Omit<SavingsGoal, 'id' | 'created_at' | 'current_amount'>) => Promise<void>;
+  createSavingsGoal: (goal: Omit<SavingsGoal, 'id' | 'created_at' | 'updated_at' | 'current_amount' | 'user_id' | 'savings_account_id'> & { savings_account_id?: string }) => Promise<void>;
   updateSavingsGoal: (id: string, updates: Partial<SavingsGoal>) => Promise<void>;
   deleteSavingsGoal: (id: string) => Promise<void>;
 
@@ -789,14 +786,20 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     }
 
     try {
-      // Optimized query with limit and specific date range for better performance
+      // Cover dashboard max period (1y) + 1 month buffer; row cap is a safety valve only
+      const since = new Date();
+      since.setFullYear(since.getFullYear() - 1);
+      since.setMonth(since.getMonth() - 1);
+      const sinceDate = since.toISOString().slice(0, 10);
+
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
         .eq('user_id', user.id)
+        .gte('date', sinceDate)
         .order('date', { ascending: false })
-        .limit(1000); // Limit to 1000 most recent transactions
-      
+        .limit(5000);
+
       if (error) {
         return set({ loading: false, error: error.message });
       }
@@ -1058,19 +1061,22 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           purchaseUpdateData.notes = purchaseDetails.notes;
         }
         
-        // Use the transaction's id to find linked purchases
-        backgroundOperations.push(
-          supabase
-            .from('purchases')
-            .update(purchaseUpdateData)
-            .eq('transaction_id', id)
-            .then(({ error }) => {
+        // Use the public FF transaction_id to find linked purchases
+        const publicTxnId = currentTransaction?.transaction_id;
+        if (publicTxnId) {
+          backgroundOperations.push(
+            Promise.resolve(
+              supabase
+                .from('purchases')
+                .update(purchaseUpdateData)
+                .eq('transaction_id', publicTxnId)
+            ).then(({ error }) => {
               if (error) {
                 console.error('Error updating purchase record:', error);
-              } else {
               }
             })
-        );
+          );
+        }
       }
       
       // Only refetch accounts if the transaction amount or account changed (affects balances)
@@ -1091,11 +1097,13 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       
     } catch (error) {
       console.error('Error updating transaction:', error);
-      // ROLLBACK: Revert to original state
-      set({ 
-        transactions: currentState.transactions,
-        error: 'Failed to update transaction' 
-      });
+      // ROLLBACK: Revert only this transaction to avoid clobbering concurrent edits
+      set((s) => ({
+        transactions: originalTransaction
+          ? s.transactions.map((t) => (t.id === id ? originalTransaction : t))
+          : s.transactions,
+        error: 'Failed to update transaction',
+      }));
     }
   },
   
@@ -1833,7 +1841,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         // Rollback the source transaction if destination fails
         await supabase.from('transactions')
           .delete()
-          .match({ user_id: user.id, tags: ['transfer', transferId] });
+          .eq('user_id', user.id)
+          .contains('tags', [transferId]);
         throw new Error(`Failed to create destination transaction: ${destError.message}`);
       }
 
@@ -1917,16 +1926,24 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   createSavingsGoal: async (goal) => {
     try {
       set({ loading: true, error: null });
+      const { user } = useAuthStore.getState();
+      if (!user) {
+        set({ loading: false, error: 'Not authenticated' });
+        return;
+      }
       
       // First create a new savings account
+      const sourceCurrency = get().accounts.find(a => a.id === goal.source_account_id)?.currency || 'USD';
       const { data: accountData, error: accountError } = await supabase
         .from('accounts')
         .insert([{
           name: `${goal.name} (Savings)`,
           type: 'savings',
-          balance: 0,
-          currency: (await get().accounts.find(a => a.id === goal.source_account_id))?.currency || 'USD',
-          description: goal.description
+          initial_balance: 0,
+          currency: sourceCurrency,
+          description: goal.description,
+          user_id: user.id,
+          is_active: true,
         }])
         .select()
         .single();
@@ -1938,6 +1955,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         .from('savings_goals')
         .insert([{
           ...goal,
+          user_id: user.id,
           savings_account_id: accountData.id,
           current_amount: 0
         }]);
@@ -2023,7 +2041,14 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         tags: ['transfer', transferId, goal.source_account_id, 'savings']
       });
 
-      if (destTransactionError) throw destTransactionError;
+      if (destTransactionError) {
+        await supabase
+          .from('transactions')
+          .delete()
+          .eq('user_id', user.id)
+          .contains('tags', [transferId]);
+        throw destTransactionError;
+      }
 
       // Update the goal's current amount
       const { error: updateError } = await supabase
@@ -2248,6 +2273,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
   updatePurchase: async (id: string, purchase: Partial<Purchase>) => {
     set({ loading: true, error: null });
+    const { user } = useAuthStore.getState();
+    if (!user) return set({ loading: false, error: 'Not authenticated' });
     
     // First get the current purchase to check if it has a linked transaction
     const { data: currentPurchase, error: fetchError } = await supabase
@@ -2300,7 +2327,8 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         const { error: transactionError } = await supabase
           .from('transactions')
           .update(transactionUpdateData)
-          .eq('id', currentPurchase.transaction_id);
+          .eq('transaction_id', currentPurchase.transaction_id)
+          .eq('user_id', user.id);
           
         if (transactionError) {
           console.error('Error syncing purchase changes to transaction:', transactionError);
@@ -2343,12 +2371,14 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       return set({ loading: false, error: error.message });
     }
     
-    // If purchase had a linked transaction, delete it too
+    // If purchase had a linked transaction, delete it too (purchases store public FF transaction_id)
     if (currentPurchase?.transaction_id) {
+      const { user } = useAuthStore.getState();
       const { error: transactionError } = await supabase
         .from('transactions')
         .delete()
-        .eq('id', currentPurchase.transaction_id);
+        .eq('transaction_id', String(currentPurchase.transaction_id))
+        .eq('user_id', user?.id ?? '');
         
       if (transactionError) {
         console.error('Error deleting linked transaction:', transactionError);
@@ -2656,14 +2686,13 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   },
 
   fetchAllData: async () => {
+    // Guard before setting loading — set() is sync, so checking after would always early-return
+    if (get().loading) {
+      return;
+    }
     set({ loading: true, error: null });
     
     try {
-      // Add a flag to prevent multiple simultaneous calls
-      const currentState = get();
-      if (currentState.loading) {
-        return;
-      }
       const results = await Promise.allSettled([
         get().fetchCategories(),
         get().fetchAccounts(),
@@ -2672,7 +2701,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         get().fetchPurchaseCategories(),
         get().fetchDonationSavingRecords(),
       ]);
-      
+
+      const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+      if (failures.length > 0) {
+        console.error('fetchAllData partial failures:', failures.map(f => f.reason));
+        set({ error: failures[0].reason?.message || 'Failed to load some data' });
+      }
       
       // Sync existing expense categories with purchase categories
       await get().syncExpenseCategoriesWithPurchaseCategories();
@@ -3786,11 +3820,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         acc.push({
           asset_type: asset.asset_type,
           total_value: asset.total_value,
-          count: 1
+          count: 1,
+          percentage: 0
         });
       }
       return acc;
-    }, [] as Array<{ asset_type: string; total_value: number; count: number }>);
+    }, [] as Array<{ asset_type: string; total_value: number; count: number; percentage: number }>);
 
     // Calculate percentages
     assetTypeBreakdown.forEach(item => {
@@ -3805,11 +3840,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       } else {
         acc.push({
           currency: asset.currency,
-          total_value: asset.total_value
+          total_value: asset.total_value,
+          percentage: 0
         });
       }
       return acc;
-    }, [] as Array<{ currency: string; total_value: number }>);
+    }, [] as Array<{ currency: string; total_value: number; percentage: number }>);
 
     // Calculate percentages for currency
     currencyBreakdown.forEach(item => {
@@ -3873,11 +3909,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           asset_type: asset.asset_type,
           total_value: asset.total_value,
           count: 1,
-          color: '#3B82F6' // Default color, could be enhanced
+          color: '#3B82F6', // Default color, could be enhanced
+          percentage: 0
         });
       }
       return acc;
-    }, [] as Array<{ asset_type: string; total_value: number; count: number; color: string }>);
+    }, [] as Array<{ asset_type: string; total_value: number; count: number; color: string; percentage: number }>);
 
     // Calculate percentages
     portfolioAllocation.forEach(item => {

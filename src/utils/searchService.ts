@@ -12,7 +12,7 @@ import { trackSearch, trackSearchClick, trackSuggestionClick, trackZeroResults }
 // Search configuration types
 export interface SearchConfig {
   threshold?: number;
-  keys: Array<{ name: string; weight: number }>;
+  keys: ReadonlyArray<{ name: string; weight: number }>;
   includeMatches?: boolean;
   minMatchCharLength?: number;
   findAllMatches?: boolean;
@@ -35,6 +35,7 @@ export interface SearchOptions {
   limit?: number;
   sortBy?: 'score' | 'date' | 'relevance';
   includeHighlights?: boolean;
+  filters?: Record<string, unknown>;
 }
 
 // Enhanced synonyms/aliases for comprehensive financial search
@@ -232,7 +233,7 @@ export class UnifiedSearchService {
   private simpleFuzzySearch<T>(
     data: T[],
     query: string,
-    keys: Array<{ name: string; weight: number }>,
+    keys: ReadonlyArray<{ name: string; weight: number }>,
     threshold: number = 0.3
   ): SearchResult<T>[] {
     const results: SearchResult<T>[] = [];

@@ -149,8 +149,7 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
         items: [{ priceId, quantity: 1 }],
         customer: {
           email: user.email,
-          country: 'US'
-        },
+        } as { email: string },
         customData: {
           user_id: user.id,
           plan_id: planId,
@@ -166,7 +165,7 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
         },
         successUrl: window.location.origin + '/settings?tab=plans-usage&payment=success',
         cancelUrl: window.location.origin + '/settings?tab=plans-usage&payment=cancelled'
-      });
+      } as Parameters<NonNullable<Paddle['Checkout']>['open']>[0]);
       setLoading(false);
       toast.success('Checkout opened!');
 

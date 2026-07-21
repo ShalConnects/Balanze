@@ -30,6 +30,33 @@ interface TaskRemindersWidgetProps {
   onAccordionToggle?: () => void;
 }
 
+export function getActiveReminderTasks(tasks: Task[] | null | undefined): Task[] {
+  return (tasks ?? []).filter((t) => t.status !== 'completed' && t.status !== 'cancelled');
+}
+
+/** Whether Task Reminders has content worth mounting (avoids empty DnD shell). */
+export function hasTaskRemindersContent(
+  tasks: Task[] | null | undefined,
+  tasksLoading = false
+): boolean {
+  const list = tasks ?? [];
+  if (tasksLoading && list.length === 0) return false;
+  return getActiveReminderTasks(list).length > 0;
+}
+
+/** Ensures tasks are loaded; use to gate wrappers (DraggableWidget / mobile rows). */
+export function useHasTaskRemindersContent(): boolean {
+  const tasks = useClientStore((s) => s.tasks);
+  const tasksLoading = useClientStore((s) => s.tasksLoading);
+  const fetchTasks = useClientStore((s) => s.fetchTasks);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  return hasTaskRemindersContent(tasks, tasksLoading);
+}
+
 const STATUS_LABELS: Record<Task['status'], string> = {
   in_progress: 'In Progress',
   waiting_on_client: 'Waiting on Client',
@@ -164,15 +191,11 @@ export const TaskRemindersWidget: React.FC<TaskRemindersWidgetProps> = ({
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    fetchTasks();
     fetchClients();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const allActiveTasks = useMemo(
-    () => (tasks || []).filter((t) => t.status !== 'completed' && t.status !== 'cancelled'),
-    [tasks]
-  );
+  const allActiveTasks = useMemo(() => getActiveReminderTasks(tasks), [tasks]);
 
   const clientNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -209,7 +232,7 @@ export const TaskRemindersWidget: React.FC<TaskRemindersWidgetProps> = ({
     fetchTasks();
   };
 
-  if ((tasksLoading && tasks.length === 0) || tasks.length === 0 || allActiveTasks.length === 0) {
+  if (!hasTaskRemindersContent(tasks, tasksLoading)) {
     return null;
   }
 

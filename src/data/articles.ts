@@ -426,7 +426,7 @@ export const TOPIC_CLUSTERS = {
 export const ENHANCED_ARTICLES: Record<string, Partial<KBArticle>> = {
   'getting-started-guide': {
     topicCluster: 'getting-started',
-    parentArticle: null,
+    parentArticle: undefined,
     childArticles: ['create-first-account', 'create-first-transaction'],
     seoKeywords: ['getting started with Balanze', 'Balanze beginner guide', 'how to use Balanze', 'Balanze setup guide', 'personal finance management', 'budgeting software', 'financial tracking', 'account setup', 'transaction tracking', 'financial analytics'],
     internalLinks: [

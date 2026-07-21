@@ -635,12 +635,14 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
     // Count consecutive days backwards
     let streak = 0;
     for (const completionDate of habitCompletions) {
-      if (completionDate.getTime() === checkDate.getTime()) {
+      if (!checkDate) break;
+      const currentDate = checkDate;
+      if (completionDate.getTime() === currentDate.getTime()) {
         streak++;
-        const nextDate = new Date(checkDate);
+        const nextDate: Date = new Date(currentDate);
         nextDate.setDate(nextDate.getDate() - 1);
         checkDate = nextDate;
-      } else if (completionDate.getTime() < checkDate.getTime()) {
+      } else if (completionDate.getTime() < currentDate.getTime()) {
         // We've passed the expected date, streak is broken
         break;
       }

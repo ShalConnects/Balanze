@@ -531,7 +531,6 @@ export const AccountFormSkeleton: React.FC = () => {
   );
 };
 
-// Loading overlay with spinner - matches real loading overlay
 export const AccountLoadingOverlay: React.FC<{ message?: string }> = ({ message = 'Loading accounts...' }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
@@ -552,5 +551,6 @@ export const AccountShimmer: React.FC<{ className?: string }> = ({ className = '
       <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
     </div>
   );
-}; 
+};
 
+export { AccountLoadingOverlay as LoadingOverlay };

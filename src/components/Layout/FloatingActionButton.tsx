@@ -66,7 +66,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({ icon: Icon, label, onClick,
   );
 };
 
-const partitionActions = <T extends { variant?: 'action' | 'nav' }>(actions: T[]) => ({
+const partitionActions = (actions: ActionButtonProps[]) => ({
   grid: actions.filter((a) => a.variant !== 'nav'),
   nav: actions.filter((a) => a.variant === 'nav'),
 });
@@ -232,7 +232,7 @@ export const FloatingActionButton: React.FC = () => {
 
   /** Nav item (Go to Dashboard / Close demo) is separate from create actions; omitted only on `/` and `/dashboard`. */
   const menu = React.useMemo(() => {
-    const financial = [
+    const financial: ActionButtonProps[] = [
       { label: t('dashboard.addTransaction'), icon: TrendingUp, color: 'bg-blue-600', onClick: () => handleAction(handleAddTransaction), delay: '200ms' },
       { label: 'Add Purchase', icon: ShoppingBag, color: 'bg-orange-600', onClick: () => handleAction(handleAddPurchase), delay: '150ms' },
       { label: t('dashboard.transfer'), icon: ArrowLeftRight, color: 'bg-purple-600', onClick: handleTransfer, delay: '0ms' },
@@ -244,7 +244,7 @@ export const FloatingActionButton: React.FC = () => {
       { label: 'Add Client Task', icon: CheckSquare, color: 'bg-indigo-600', onClick: () => handleAction(handleAddClientTask), delay: '70ms' },
     ];
 
-    const personalGrowth = [
+    const personalGrowth: ActionButtonProps[] = [
       { label: 'Add Habit', icon: Sprout, color: 'bg-emerald-600', onClick: () => handleAction(handleAddHabit), delay: '140ms' },
       { label: 'Add Course', icon: BookOpen, color: 'bg-cyan-600', onClick: () => handleAction(handleAddCourse), delay: '130ms' },
       { label: 'View Personal Growth', icon: Sparkles, color: 'bg-gradient-to-r from-purple-600 to-pink-600', onClick: () => handleAction(handleViewPersonalGrowth), delay: '160ms', variant: 'nav' as const },

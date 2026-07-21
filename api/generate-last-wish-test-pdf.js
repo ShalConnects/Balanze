@@ -1,17 +1,14 @@
 import { supabase } from '../lib/supabaseServer.js';
 import { normalizeIncludeData } from '../lib/lastWishIncludeData.js';
+import { applyCors } from '../lib/cors.js';
 
 function isDev() {
   return process.env.VERCEL_ENV !== 'production' && process.env.NODE_ENV !== 'production';
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+  if (!applyCors(req, res, { methods: 'POST, OPTIONS', headers: 'Content-Type, Authorization' })) {
+    return;
   }
 
   try {

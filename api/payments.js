@@ -5,6 +5,8 @@
 import crypto from 'crypto';
 import Stripe from 'stripe';
 import { supabase } from '../lib/supabaseServer.js';
+import { requireAuthUserMatchingId } from '../lib/apiAuth.js';
+import { applyCors } from '../lib/cors.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -139,7 +141,14 @@ function verifyPaddleSignature(secret, rawBody, signatureHeader) {
   if (!m) return false;
   const payload = `${m[1]}:${rawBody}`;
   const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(m[2], 'hex'), Buffer.from(expected, 'hex'));
+  try {
+    const a = Buffer.from(m[2], 'hex');
+    const b = Buffer.from(expected, 'hex');
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }
 
 const PREMIUM_STATUSES = new Set(['active', 'trialing']);
@@ -299,9 +308,13 @@ async function handlePaddleEvent(eventType, data) {
 
 async function handlePaddleWebhook(req, res, rawBody) {
   const secret = process.env.PADDLE_WEBHOOK_SECRET;
-  if (secret) {
-    const sig = req.headers['paddle-signature'];
-    if (!rawBody || !verifyPaddleSignature(secret, rawBody, sig)) return json(res, 401, { error: 'Unauthorized' });
+  if (!secret) {
+    console.error('[payments] PADDLE_WEBHOOK_SECRET is not configured');
+    return json(res, 503, { error: 'Webhook not configured' });
+  }
+  const sig = req.headers['paddle-signature'];
+  if (!rawBody || !verifyPaddleSignature(secret, rawBody, sig)) {
+    return json(res, 401, { error: 'Unauthorized' });
   }
   if (!supabase) return json(res, 503, { error: 'Server configuration error' });
   const event = rawBody ? JSON.parse(rawBody) : {};
@@ -327,10 +340,14 @@ function normalizePaddleSubscriptionDetails(data = {}) {
   };
 }
 
-async function handleGetPaddleSubscriptionDetails(res, body) {
+async function handleGetPaddleSubscriptionDetails(req, res, body) {
   const subscriptionId = body?.subscriptionId;
-  const userId = body?.userId;
+  const claimedUserId = body?.userId;
   if (!subscriptionId) return json(res, 400, { error: 'Missing subscriptionId' });
+
+  const auth = await requireAuthUserMatchingId(req, claimedUserId);
+  if (!auth.user) return json(res, auth.status || 401, { error: auth.error || 'Unauthorized' });
+  const userId = auth.user.id;
 
   const apiKey = process.env.PADDLE_API_KEY || process.env.PADDLE_SECRET_KEY || process.env.PADDLE_LIVE_API_KEY || process.env.VITE_PADDLE_API_KEY;
   if (!apiKey) return json(res, 503, { error: 'Paddle API key not configured' });
@@ -348,21 +365,27 @@ async function handleGetPaddleSubscriptionDetails(res, body) {
     throw new Error(msg);
   }
   const details = normalizePaddleSubscriptionDetails(payload?.data || {});
-  if (userId && supabase) {
+  if (supabase) {
     const { data: profileData } = await supabase
       .from('profiles')
       .select('subscription')
       .eq('id', userId)
       .maybeSingle();
+    const ownedSubId = profileData?.subscription?.paddle_subscription_id;
+    if (ownedSubId && ownedSubId !== subscriptionId) {
+      return json(res, 403, { error: 'Subscription does not belong to this user' });
+    }
     const merged = { ...(profileData?.subscription || {}), ...details };
     await updateSubscriptionByUser(userId, merged);
   }
   json(res, 200, { details });
 }
 
-async function handleScheduleDowngrade(res, body) {
-  const userId = body?.userId;
-  if (!userId) return json(res, 400, { error: 'Missing userId' });
+async function handleScheduleDowngrade(req, res, body) {
+  const claimedUserId = body?.userId;
+  const auth = await requireAuthUserMatchingId(req, claimedUserId);
+  if (!auth.user) return json(res, auth.status || 401, { error: auth.error || 'Unauthorized' });
+  const userId = auth.user.id;
   if (!supabase) return json(res, 503, { error: 'Server configuration error' });
 
   const { data: profileData, error: profileError } = await supabase
@@ -429,6 +452,9 @@ async function handleScheduleDowngrade(res, body) {
 
 // --- Router ---
 export default async function handler(req, res) {
+  if (!applyCors(req, res, { methods: 'POST, OPTIONS', headers: 'Content-Type, Authorization, Paddle-Signature' })) {
+    return;
+  }
   if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
   const path = parsePath(req);
   const rawBody = await readRawBody(req);
@@ -452,8 +478,8 @@ export default async function handler(req, res) {
     case PATH.createPayPal: return run(() => handleCreatePayPalOrder(req, res, body));
     case PATH.stripeCheckout: return run(() => handleCreateCheckoutSession(res, body));
     case PATH.paddle: return run(() => handlePaddleWebhook(req, res, rawBody));
-    case PATH.paddleSubscriptionDetails: return run(() => handleGetPaddleSubscriptionDetails(res, body));
-    case PATH.scheduleDowngrade: return run(() => handleScheduleDowngrade(res, body));
+    case PATH.paddleSubscriptionDetails: return run(() => handleGetPaddleSubscriptionDetails(req, res, body));
+    case PATH.scheduleDowngrade: return run(() => handleScheduleDowngrade(req, res, body));
     default: return json(res, 404, { error: 'Unknown payment path' });
   }
 }

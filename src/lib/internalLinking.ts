@@ -28,7 +28,7 @@ export function analyzeContentForInternalLinks(
   const contentLower = content.toLowerCase();
   
   // Get topic cluster and related articles
-  const topicCluster = TOPIC_CLUSTERS[getTopicClusterForSlug(currentSlug)];
+  const topicCluster = TOPIC_CLUSTERS[getTopicClusterForSlug(currentSlug) as keyof typeof TOPIC_CLUSTERS];
   const relatedArticles = getRelatedArticlesByCluster(currentSlug, 5);
   
   // Define keyword patterns and their target articles

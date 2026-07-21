@@ -62,7 +62,7 @@ async function findItemByNormOrAlias(userId: string, norm: string) {
     .eq('alias_normalized', norm)
     .maybeSingle();
   if (alias?.item_id) {
-    const { data } = await supabase.from('expense_note_items').select('id, usage_count, display_name, category_id, category_source').eq('id', alias.item_id).maybeSingle();
+    const { data } = await supabase.from('expense_note_items').select('id, usage_count, display_name, category_id, category_source, name_normalized').eq('id', alias.item_id).maybeSingle();
     if (data) return data;
   }
   const { data: exact } = await supabase

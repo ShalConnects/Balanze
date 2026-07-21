@@ -48,7 +48,7 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [menuPositionAbove, setMenuPositionAbove] = useState(false);
   const [menuPositionLeft, setMenuPositionLeft] = useState(false);
-  const [menuPosition, setMenuPosition] = useState<{ top?: number; bottom?: number; left?: number; right?: number } | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top?: string | number; bottom?: string | number; left?: string | number; right?: string | number } | null>(null);
   const isTouchDevice = useTouchDevice();
   const { isMobile } = useMobileDetection();
   const taskItemRef = useRef<HTMLDivElement>(null);
@@ -258,7 +258,7 @@ const SortableTaskItemComponent: React.FC<SortableTaskItemProps> = ({
   // Combine refs for sortable and scroll-into-view
   const combinedRef = (node: HTMLDivElement | null) => {
     setNodeRef(node);
-    taskItemRef.current = node;
+    (taskItemRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
   };
 
   return (

@@ -1,13 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ArrowRight, X } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
 import { StatCard } from './StatCard';
-import { Link } from 'react-router-dom';
-import { useMobileDetection } from '../../hooks/useMobileDetection';
-import { getPreference, setPreference } from '../../lib/userPreferences';
+import { usePersistedToggle } from '../../hooks/usePersistedToggle';
 import { toast } from 'sonner';
-import { DashboardWidgetInfo } from './DashboardWidgetInfo';
+import { DashboardCardShell } from './DashboardCardShell';
 
 interface DonationSavingsOverviewCardProps {
   t: (key: string, options?: any) => string;
@@ -27,16 +24,13 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
   const donationSavingRecords = useFinanceStore(state => state.donationSavingRecords);
   const { user, profile } = useAuthStore();
   const [loading, setLoading] = useState(true);
-  const [isHovered, setIsHovered] = useState(false);
-  const [showCrossTooltip, setShowCrossTooltip] = useState(false);
-  const { isMobile } = useMobileDetection();
-  const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Widget visibility state - hybrid approach (localStorage + database)
-  const [showDonationsSavingsWidget, setShowDonationsSavingsWidget] = useState(() => {
-    const saved = localStorage.getItem('showDonationsSavingsWidget');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
+  const [showDonationsSavingsWidget, setShowDonationsSavingsWidget] = usePersistedToggle(
+    'showDonationsSavingsWidget',
+    true,
+    user?.id,
+    { syncFromDb: true }
+  );
 
   // Get all unique currencies from accounts
   const recordCurrencies = useMemo(() => {
@@ -89,86 +83,9 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
     }
   }, [user, donationSavingRecords]);
 
-  // Load user preferences for Donations widget visibility
-  useEffect(() => {
-    if (user?.id) {
-      const loadPreferences = async () => {
-        try {
-          const showWidget = await getPreference(user.id, 'showDonationsSavingsWidget', true);
-          setShowDonationsSavingsWidget(showWidget);
-          localStorage.setItem('showDonationsSavingsWidget', JSON.stringify(showWidget));
-        } catch (error) {
-          // Keep current localStorage value if database fails
-        }
-      };
-      loadPreferences();
-    }
-  }, [user?.id]);
-
-  // Handle hover events for cross icon (desktop only)
-  const handleMouseEnter = () => {
-    if (!isMobile) {
-      setIsHovered(true);
-      setShowCrossTooltip(true);
-      
-      // Clear any existing timeout
-      if (tooltipTimeoutRef.current) {
-        clearTimeout(tooltipTimeoutRef.current);
-      }
-      
-      // Hide tooltip after 1 second
-      tooltipTimeoutRef.current = setTimeout(() => {
-        setShowCrossTooltip(false);
-      }, 1000);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    if (!isMobile) {
-      setIsHovered(false);
-      setShowCrossTooltip(false);
-      
-      // Clear timeout when mouse leaves
-      if (tooltipTimeoutRef.current) {
-        clearTimeout(tooltipTimeoutRef.current);
-        tooltipTimeoutRef.current = null;
-      }
-    }
-  };
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (tooltipTimeoutRef.current) {
-        clearTimeout(tooltipTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Save Donations widget visibility preference (hybrid approach)
-  const handleDonationsSavingsWidgetToggle = async (show: boolean) => {
-    // Update localStorage immediately for instant UI response
-    localStorage.setItem('showDonationsSavingsWidget', JSON.stringify(show));
-    setShowDonationsSavingsWidget(show);
-    window.dispatchEvent(new CustomEvent('showDonationsSavingsWidgetChanged'));
-    
-    // Save to database if user is authenticated
-    if (user?.id) {
-      try {
-        await setPreference(user.id, 'showDonationsSavingsWidget', show);
-        toast.success('Preference saved!', {
-          description: show ? 'Donations widget will be shown' : 'Donations widget hidden'
-        });
-      } catch (error) {
-        toast.error('Failed to save preference', {
-          description: 'Your preference will be saved locally only'
-        });
-      }
-    } else {
-      toast.info('Preference saved locally', {
-        description: 'Sign in to sync preferences across devices'
-      });
-    }
+  const hideDonationsSavingsWidget = () => {
+    setShowDonationsSavingsWidget(false);
+    toast.success('Preference saved!', { description: 'Donations widget hidden' });
   };
 
   // Helper function to check if date is within range (normalize to date only for comparison)
@@ -467,32 +384,8 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
     return account && account.currency === filterCurrency;
   });
 
-  if (loading) {
-    return (
-      <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm border border-blue-200/50 dark:border-blue-800/50 h-full flex flex-col">
-        <div className="flex items-center justify-between mb-3">
-          {/* <h2 className="text-lg font-bold text-gray-900 dark:text-white">Donations & Savings</h2> */}
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 flex-1">
-          <div className="w-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-            <div className="animate-pulse">
-              <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-24 mb-2"></div>
-              <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-16"></div>
-            </div>
-          </div>
-          <div className="w-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-            <div className="animate-pulse">
-              <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-24 mb-2"></div>
-              <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-16"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Don't render if no data
-  if (!hasDpsAccounts && !hasDonationRecords) {
+  if (!loading && !hasDpsAccounts && !hasDonationRecords) {
     return null;
   }
 
@@ -502,50 +395,15 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
   }
 
   return (
-    <div 
-      className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative h-full flex flex-col"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+    <DashboardCardShell
+      title="Donations"
+      viewAllTo="/donations"
+      onHide={hideDonationsSavingsWidget}
+      hideAriaLabel="Hide Donations widget"
+      info={donationsInfoBody}
+      infoAriaLabel="Show donations & savings info"
+      loading={loading}
     >
-      {/* Hide button - hover on desktop, always visible on mobile */}
-      {(isHovered || isMobile) && (
-        <button
-          onClick={() => handleDonationsSavingsWidgetToggle(false)}
-          className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors z-10"
-          aria-label="Hide Donations widget"
-        >
-          <X className="w-4 h-4" />
-          {/* Tooltip - only on desktop */}
-          {showCrossTooltip && !isMobile && (
-            <div className="absolute bottom-full right-0 mb-1 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded shadow-lg whitespace-nowrap z-20">
-              Click to hide this widget
-              <div className="absolute -bottom-1 right-2 w-2 h-2 bg-gray-900 dark:bg-gray-100 rotate-45"></div>
-            </div>
-          )}
-        </button>
-      )}
-      
-      {/* Header - Responsive layout */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 pr-8">
-        {/* Left side - Info button */}
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Donations</h2>
-          <DashboardWidgetInfo title="Donations" ariaLabel="Show donations & savings info">
-            {donationsInfoBody}
-          </DashboardWidgetInfo>
-        </div>
-        
-        {/* Right side - Controls */}
-        <div className="flex flex-shrink-0 items-center gap-3">
-          <Link 
-            to="/donations" 
-            className="text-sm font-medium flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-200 whitespace-nowrap"
-          >
-            <span>View All</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </div>
       <div className="dashboard-stat-grid gap-3 sm:gap-4 flex-1">
         <div className="w-full">
           <StatCard
@@ -562,7 +420,6 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
           />
         </div>
       </div>
-
-    </div>
+    </DashboardCardShell>
   );
 };

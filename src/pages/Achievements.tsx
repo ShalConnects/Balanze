@@ -28,18 +28,19 @@ const Achievements: React.FC = () => {
       fetchAchievementSummary(user.id);
       
       // Fetch total achievements count
-      supabase
-        .from('achievements')
-        .select('id', { count: 'exact', head: true })
-        .eq('is_active', true)
-        .then(({ count }) => {
+      void (async () => {
+        try {
+          const { count } = await supabase
+            .from('achievements')
+            .select('id', { count: 'exact', head: true })
+            .eq('is_active', true);
           if (count !== null) {
             setTotalAchievements(count);
           }
-        })
-        .catch((err) => {
+        } catch (err: unknown) {
           console.error('Error fetching total achievements count:', err);
-        });
+        }
+      })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]); // Zustand store functions (fetchUserAchievements, fetchAchievementSummary) are stable references

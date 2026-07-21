@@ -4,153 +4,162 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import { markPersistentLogin } from '../utils/authStorage';
 
+function normalizeUserId(value: unknown): string | null {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && value.length > 0) {
+    const first = value[0];
+    if (typeof first === 'string') return first;
+    if (first && typeof first === 'object' && 'id' in first) {
+      return String((first as { id: unknown }).id);
+    }
+  }
+  if (value && typeof value === 'object' && 'id' in value) {
+    return String((value as { id: unknown }).id);
+  }
+  return null;
+}
+
 const AuthCallback: React.FC = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const { setUserAndProfile } = useAuthStore();
 
   useEffect(() => {
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const later = (fn: () => void, ms: number) => {
+      timers.push(setTimeout(fn, ms));
+    };
+
     const handleCallback = async () => {
       try {
-        
-        // Check for OAuth errors in URL parameters (both query and hash)
         const urlParams = new URLSearchParams(window.location.search);
-        const hashParams = window.location.hash ? new URLSearchParams(window.location.hash.substring(1)) : null;
-        
-        const error = urlParams.get('error') || hashParams?.get('error') || hashParams?.get('error_description');
-        
-        if (error) {
-          console.error('[AUTH_CALLBACK] ❌ OAuth Error found:', error);
-          setError('Authentication failed. Please try again.');
-          setTimeout(() => navigate('/auth'), 3000);
+        const hashParams = window.location.hash
+          ? new URLSearchParams(window.location.hash.substring(1))
+          : null;
+
+        const oauthError =
+          urlParams.get('error') ||
+          hashParams?.get('error') ||
+          hashParams?.get('error_description');
+
+        if (oauthError) {
+          console.error('[AUTH_CALLBACK] OAuth Error:', oauthError);
+          if (!cancelled) {
+            setError('Authentication failed. Please try again.');
+            later(() => navigate('/auth'), 3000);
+          }
           return;
         }
-        
-        // Get the current session after OAuth redirect
-        const { data, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error('[AUTH_CALLBACK] ❌ Session Error:', sessionError);
-        }
-        
-        if (error) {
 
-          setError('Authentication failed. Please try again.');
-          setTimeout(() => navigate('/auth'), 3000);
+        const { data, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.error('[AUTH_CALLBACK] Session Error:', sessionError);
+          if (!cancelled) {
+            setError('Authentication failed. Please try again.');
+            later(() => navigate('/auth'), 3000);
+          }
           return;
         }
 
         if (data.session?.user) {
           const user = data.session.user;
-          
-          // CRITICAL: Check for duplicate emails before allowing OAuth login
-          try {
-            const { data: emailCheck, error: emailCheckError } = await supabase.rpc('check_email_exists', {
-              email_to_check: user.email || ''
-            });
-            
-            if (emailCheckError) {
 
+          try {
+            const { data: emailCheck, error: emailCheckError } = await supabase.rpc(
+              'check_email_exists',
+              { email_to_check: user.email || '' }
+            );
+
+            if (emailCheckError) {
               setError('Authentication verification failed. Please try again.');
-              // Sign out the OAuth user
               await supabase.auth.signOut();
-              setTimeout(() => navigate('/auth'), 3000);
+              later(() => navigate('/auth'), 3000);
               return;
             }
-            
-            // If email exists, check if it's a different user
-            if (emailCheck === true) {
-              // Get the existing user with this email
-              const { data: existingUsers, error: fetchError } = await supabase
-                .rpc('get_user_by_email', { email_to_check: user.email || '' });
-              
-              if (fetchError) {
 
+            if (emailCheck === true) {
+              const { data: existingUsers, error: fetchError } = await supabase.rpc(
+                'get_user_by_email',
+                { email_to_check: user.email || '' }
+              );
+
+              if (fetchError) {
                 setError('Authentication verification failed. Please try again.');
                 await supabase.auth.signOut();
-                setTimeout(() => navigate('/auth'), 3000);
+                later(() => navigate('/auth'), 3000);
                 return;
               }
-              
-              // If the existing user has a different ID, this is a duplicate
-              if (existingUsers && existingUsers !== user.id) {
 
-                setError('This email is already registered with a different account. Please sign in using your original login method (email/password).');
-                
-                // Sign out the OAuth user
+              const existingId = normalizeUserId(existingUsers);
+              if (existingId && existingId !== user.id) {
+                setError(
+                  'This email is already registered with a different account. Please sign in using your original login method (email/password).'
+                );
                 await supabase.auth.signOut();
-                setTimeout(() => navigate('/auth'), 5000);
+                later(() => navigate('/auth'), 5000);
                 return;
               }
             }
-            
-            // OAuth email check passed, proceeding with login
-          } catch (emailVerificationError) {
-
+          } catch {
             setError('Authentication verification failed. Please try again.');
             await supabase.auth.signOut();
-            setTimeout(() => navigate('/auth'), 3000);
+            later(() => navigate('/auth'), 3000);
             return;
           }
-          
+
+          if (cancelled) return;
           markPersistentLogin();
           await setUserAndProfile(user, null);
-          
-          // Redirect to dashboard
           navigate('/dashboard');
         } else {
-          // Check if this is a password reset callback
-          const urlParams = new URLSearchParams(window.location.search);
-          const accessToken = urlParams.get('access_token');
-          const refreshToken = urlParams.get('refresh_token');
-          
-          if (accessToken && refreshToken) {
-            // This is a password reset callback, redirect to reset password page
-            navigate('/auth/reset-password');
-          } else {
-            setError('Login was cancelled or failed.');
-            setTimeout(() => navigate('/auth'), 3000);
-          }
+          setError('No session found. Please try signing in again.');
+          later(() => navigate('/auth'), 3000);
         }
       } catch (err) {
-
-        setError('An unexpected error occurred.');
-        setTimeout(() => navigate('/auth'), 3000);
+        console.error('[AUTH_CALLBACK] Unexpected error:', err);
+        if (!cancelled) {
+          setError('An unexpected error occurred. Please try again.');
+          later(() => navigate('/auth'), 3000);
+        }
       }
     };
 
     handleCallback();
+
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
   }, [navigate, setUserAndProfile]);
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
-        <div className="text-center">
-          {error ? (
-            <>
-              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Login Failed</h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Redirecting to login page...</p>
-            </>
-          ) : (
-            <>
-              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
-              </div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Completing Login</h2>
-              <p className="text-gray-600 dark:text-gray-400">Please wait while we complete your authentication...</p>
-            </>
-          )}
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-md w-full space-y-8 p-8">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">
+              Authentication Error
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-500">
+              Redirecting to login page...
+            </p>
+          </div>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+        <p className="text-gray-600 dark:text-gray-400">Completing authentication...</p>
       </div>
     </div>
   );
 };
 
-export default AuthCallback; 
-
+export default AuthCallback;

@@ -445,6 +445,7 @@ export const PurchaseTracker: React.FC = () => {
     category: 'all',
     priority: 'all' as 'all' | 'low' | 'medium' | 'high',
     currency: '' as string,
+    status: 'all' as 'all' | 'planned' | 'purchased' | 'cancelled',
     dateRange: { start: '', end: '' }
   });
 
@@ -624,7 +625,9 @@ export const PurchaseTracker: React.FC = () => {
     }
     return accountCurrencies;
   }, [profile?.selected_currencies, accountCurrencies]);
-  const availableCurrencies = currencyOptions.length > 0 ? currencyOptions : multiCurrencyAnalytics.byCurrency.map(analytics => analytics.currency);
+  const availableCurrencies = (currencyOptions.length > 0
+    ? currencyOptions
+    : multiCurrencyAnalytics.byCurrency.map((analytics) => analytics.currency).filter((c): c is string => Boolean(c)));
 
 
 
@@ -650,6 +653,7 @@ export const PurchaseTracker: React.FC = () => {
       category: 'all',
       priority: 'all',
       currency: '',
+      status: 'all',
       dateRange: { start: '', end: '' }
     });
     setShowMobileFilterMenu(false);
@@ -2021,7 +2025,7 @@ export const PurchaseTracker: React.FC = () => {
 
             {(filters.search || filters.category !== 'all' || filters.priority !== 'all' || (filters.currency && filters.currency !== (profile?.local_currency || profile?.selected_currencies?.[0])) || getDateRangeLabel() !== 'This Month') && (
               <button
-                onClick={() => setFilters({ search: '', category: 'all', priority: 'all', currency: '', dateRange: getThisMonthDateRange() })}
+                onClick={() => setFilters({ search: '', category: 'all', priority: 'all', currency: '', status: 'all', dateRange: getThisMonthDateRange() })}
                 className="text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center"
                 title="Clear all filters"
               >
@@ -2332,7 +2336,7 @@ export const PurchaseTracker: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-2 text-center text-gray-900 dark:text-gray-100">
-                        {formatCurrency(purchase.price, purchase.currency)}
+                        {formatCurrency(purchase.price, purchase.currency ?? 'USD')}
                       </td>
                       <td className="px-6 py-2 text-center">
                         {getStatusBadge(purchase.status)}
@@ -2393,7 +2397,7 @@ export const PurchaseTracker: React.FC = () => {
                                   item_name: purchase.item_name,
                                   category: purchase.category,
                                   price: purchase.price.toString(),
-                                  currency: purchase.currency,
+                                  currency: purchase.currency ?? 'USD',
                                   purchase_date: purchase.purchase_date,
                                   status: purchase.status,
                                   priority: purchase.priority,
@@ -2503,7 +2507,7 @@ export const PurchaseTracker: React.FC = () => {
                         </div>
                       </div>
                       <div className="text-lg font-bold text-gray-900 dark:text-white">
-                        {formatCurrency(purchase.price, purchase.currency)}
+                        {formatCurrency(purchase.price, purchase.currency ?? 'USD')}
                       </div>
                     </div>
 
@@ -2582,7 +2586,7 @@ export const PurchaseTracker: React.FC = () => {
                                   item_name: purchase.item_name,
                                   category: purchase.category,
                                   price: purchase.price.toString(),
-                                  currency: purchase.currency,
+                                  currency: purchase.currency ?? 'USD',
                                   purchase_date: purchase.purchase_date,
                                   status: purchase.status,
                                   priority: purchase.priority,
@@ -2702,7 +2706,7 @@ export const PurchaseTracker: React.FC = () => {
                       </div>
                       <div className="col-span-6 sm:col-span-3 md:col-span-3">
                         <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 font-medium">
-                          {formatCurrency(purchase.price, purchase.currency)}
+                          {formatCurrency(purchase.price, purchase.currency ?? 'USD')}
                         </div>
                       </div>
                       <div className="col-span-4 sm:col-span-2 md:col-span-3">
@@ -2762,7 +2766,7 @@ export const PurchaseTracker: React.FC = () => {
                                 item_name: purchase.item_name,
                                 category: purchase.category,
                                 price: purchase.price.toString(),
-                                currency: purchase.currency,
+                                currency: purchase.currency ?? 'USD',
                                 purchase_date: purchase.purchase_date,
                                 status: purchase.status,
                                 priority: purchase.priority,
@@ -3581,7 +3585,7 @@ export const PurchaseTracker: React.FC = () => {
             </div>
             <div className="text-sm text-red-700 space-y-1">
               <div><span className="font-medium">Item:</span> {purchaseToDelete?.item_name}</div>
-              <div><span className="font-medium">Price:</span> {purchaseToDelete ? formatCurrency(purchaseToDelete.price, purchaseToDelete.currency) : ''}</div>
+              <div><span className="font-medium">Price:</span> {purchaseToDelete ? formatCurrency(purchaseToDelete.price, purchaseToDelete.currency ?? 'USD') : ''}</div>
               <div><span className="font-medium">Account:</span> {purchaseToDelete?.account_id ? accounts.find(a => a.id === purchaseToDelete.account_id)?.name || 'N/A' : 'N/A'}</div>
           </div>
           </>
@@ -3626,7 +3630,7 @@ export const PurchaseTracker: React.FC = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setFilters({ search: '', category: 'all', priority: 'all', currency: '', dateRange: { start: '', end: '' } });
+                      setFilters({ search: '', category: 'all', priority: 'all', currency: '', status: 'all', dateRange: { start: '', end: '' } });
                       setShowMobileFilterMenu(false);
                     }}
                     onTouchStart={(e) => {

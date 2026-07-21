@@ -256,7 +256,7 @@ export const SearchAnalyticsDashboard: React.FC<SearchAnalyticsDashboardProps> =
               <div className="mb-4">
                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">High Zero Result Queries</h4>
                 <div className="flex flex-wrap gap-2">
-                  {performanceInsights.highZeroResultQueries.slice(0, 5).map((query, index) => (
+                  {performanceInsights.highZeroResultQueries.slice(0, 5).map((query: string, index: number) => (
                     <span key={index} className="text-xs bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400 px-2 py-1 rounded-full">
                       {query}
                     </span>
@@ -269,7 +269,7 @@ export const SearchAnalyticsDashboard: React.FC<SearchAnalyticsDashboardProps> =
               <div className="mb-4">
                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Popular Suggestions</h4>
                 <div className="flex flex-wrap gap-2">
-                  {performanceInsights.popularSuggestionQueries.map((query, index) => (
+                  {performanceInsights.popularSuggestionQueries.map((query: string, index: number) => (
                     <span key={index} className="text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400 px-2 py-1 rounded-full">
                       {query}
                     </span>

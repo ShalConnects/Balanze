@@ -1619,15 +1619,21 @@ export async function getAIResponse(message: string, userId: string, retryCount 
       const history = getConversationHistory(userId);
       response = generateResponse(message, userContext, history);
     } else {
-      // Use API endpoint in production
+      // Use API endpoint in production — auth required; userId comes from JWT server-side
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) {
+        throw new Error('Not authenticated');
+      }
+
       const fetchResponse = await fetch('/api/ai-chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           message,
-          userId,
         }),
       });
 

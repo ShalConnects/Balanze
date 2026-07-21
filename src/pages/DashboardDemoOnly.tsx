@@ -88,7 +88,19 @@ const generateMockAccounts = () => [
   }
 ];
 
-const generateMockTransactions = () => [
+const generateMockTransactions = (): Array<{
+  id: string;
+  amount: number;
+  description: string;
+  type: 'income' | 'expense';
+  category: string;
+  date: string;
+  account_id: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+}> => [
   {
     id: '1',
     amount: 3500.00,
@@ -986,10 +998,10 @@ const useMockFinanceStore = () => {
     showAccountForm: false,
     showTransferModal: false,
     showPurchaseForm: false,
-    setShowTransactionForm: () => {},
-    setShowAccountForm: () => {},
-    setShowTransferModal: () => {},
-    setShowPurchaseForm: () => {},
+    setShowTransactionForm: (_show?: boolean) => {},
+    setShowAccountForm: (_show?: boolean) => {},
+    setShowTransferModal: (_show?: boolean) => {},
+    setShowPurchaseForm: (_show?: boolean) => {},
     loading: false,
     purchaseCategories: [
       { id: '1', name: 'Electronics', color: '#3B82F6' },
@@ -1607,7 +1619,8 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
     setShowPurchaseForm,
     purchaseCategories,
     accounts,
-    addPurchase
+    addPurchase,
+    fetchPurchases
   } = useMockFinanceStore();
   
   // Use local loading state for dashboard instead of global store loading
@@ -1778,7 +1791,7 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
           fetchCategories(),
           fetchPurchaseCategories(),
           fetchDonationSavingRecords(),
-          useFinanceStore.getState().fetchPurchases()
+          fetchPurchases()
         ]);
 
         setDashboardLoading(false);
@@ -1994,7 +2007,6 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
                   <StatCard
                     title="Purchased"
                     value={totalPurchasedItems.toString()}
-                    trend="up"
                     color="red"
                   />
                 </div>

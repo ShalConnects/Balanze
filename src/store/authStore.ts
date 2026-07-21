@@ -17,10 +17,14 @@ export type AppUser = {
     local_currency?: string;
     selected_currencies?: string[];
     default_account_id?: string;
+    role?: 'admin' | 'user';
     subscription?: {
         plan: 'free' | 'premium';
         status: 'active' | 'inactive' | 'cancelled' | 'trialing' | 'past_due' | 'expired';
         validUntil: string | null;
+        billing_cycle?: 'monthly' | 'yearly' | 'one-time' | 'lifetime';
+        next_billing_date?: string | null;
+        purchase_details?: Record<string, unknown> | null;
     };
 };
 
@@ -71,14 +75,20 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         
         if (!profile) {
             set({ user, profile: null, isLoading: true });
+            const userId = user.id;
             
             setTimeout(async () => {
+                // Abort if user signed out or switched during the delay
+                if (get().user?.id !== userId) return;
+
                 try {
                     const { data: existingProfile, error: fetchError } = await supabase
                         .from('profiles')
                         .select('*')
-                        .eq('id', user.id)
+                        .eq('id', userId)
                         .single();
+
+                    if (get().user?.id !== userId) return;
                     
                     if (existingProfile && !fetchError) {
                         const profileData: AppUser = {
@@ -88,96 +98,56 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                             local_currency: existingProfile.local_currency,
                             selected_currencies: existingProfile.selected_currencies,
                             default_account_id: existingProfile.default_account_id,
+                            role: existingProfile.role === 'admin' ? 'admin' : 'user',
                             subscription: existingProfile.subscription
                         };
                         set({ user, profile: profileData, isLoading: false });
                         return;
-                    } else if (fetchError && fetchError.code === 'PGRST116') {
-                        const newProfile: AppUser = {
-                            id: user.id,
-                            fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
-                            local_currency: undefined,
-                            selected_currencies: undefined,
-                            default_account_id: undefined,
-                            subscription: { plan: 'free', status: 'active', validUntil: null }
-                        };
-                        
-                        const { error: saveError } = await supabase
-                            .from('profiles')
-                            .upsert({
-                                id: user.id,
-                                full_name: newProfile.fullName,
-                                local_currency: null,
-                                selected_currencies: null,
-                                subscription: newProfile.subscription,
-                                created_at: new Date().toISOString(),
-                                updated_at: new Date().toISOString()
-                            }, {
-                                onConflict: 'id'
-                            });
-                        
-                        if (!saveError) {
-                            set({ user, profile: newProfile, isLoading: false });
-                        }
-                    } else {
-                        const newProfile: AppUser = {
-                            id: user.id,
-                            fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
-                            local_currency: undefined,
-                            selected_currencies: undefined,
-                            default_account_id: undefined,
-                            subscription: { plan: 'free', status: 'active', validUntil: null }
-                        };
-                        
-                        const { error: saveError } = await supabase
-                            .from('profiles')
-                            .upsert({
-                                id: user.id,
-                                full_name: newProfile.fullName,
-                                local_currency: null,
-                                selected_currencies: null,
-                                subscription: newProfile.subscription,
-                                created_at: new Date().toISOString(),
-                                updated_at: new Date().toISOString()
-                            }, {
-                                onConflict: 'id'
-                            });
-                        
-                        if (!saveError) {
-                            set({ user, profile: newProfile, isLoading: false });
-                        }
                     }
-                } catch (error) {
+
                     const newProfile: AppUser = {
-                        id: user.id,
+                        id: userId,
                         fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
                         local_currency: undefined,
                         selected_currencies: undefined,
                         default_account_id: undefined,
+                        role: 'user',
                         subscription: { plan: 'free', status: 'active', validUntil: null }
                     };
                     
-                    try {
-                        const { error: saveError } = await supabase
-                            .from('profiles')
-                            .upsert({
-                                id: user.id,
-                                full_name: newProfile.fullName,
-                                local_currency: null,
-                                selected_currencies: null,
-                                subscription: newProfile.subscription,
-                                created_at: new Date().toISOString(),
-                                updated_at: new Date().toISOString()
-                            }, {
-                                onConflict: 'id'
-                            });
-                        
-                        if (!saveError) {
-                            set({ user, profile: newProfile, isLoading: false });
-                        }
-                    } catch (saveException) {
-                        // Handle save exception
+                    const { error: saveError } = await supabase
+                        .from('profiles')
+                        .upsert({
+                            id: newProfile.id,
+                            full_name: newProfile.fullName,
+                            local_currency: null,
+                            selected_currencies: null,
+                            subscription: newProfile.subscription,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        }, {
+                            onConflict: 'id'
+                        });
+
+                    if (get().user?.id !== userId) return;
+
+                    if (!saveError) {
+                        set({ user, profile: newProfile, isLoading: false });
+                    } else {
+                        set({ user, profile: newProfile, isLoading: false });
                     }
+                } catch {
+                    if (get().user?.id !== userId) return;
+                    set({
+                        user,
+                        profile: {
+                            id: userId,
+                            fullName: user.user_metadata?.full_name || user.user_metadata?.fullName || 'User',
+                            role: 'user',
+                            subscription: { plan: 'free', status: 'active', validUntil: null }
+                        },
+                        isLoading: false
+                    });
                 }
             }, 100);
             
@@ -207,7 +177,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         .upsert(dbPayload, {
           onConflict: 'id',
         })
-        .select('id, full_name, profile_picture, local_currency, selected_currencies, default_account_id, subscription')
+        .select('id, full_name, profile_picture, local_currency, selected_currencies, default_account_id, subscription, role')
         .single();
 
       if (error) {
@@ -224,6 +194,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         local_currency: data.local_currency,
         selected_currencies: data.selected_currencies,
         default_account_id: data.default_account_id,
+        role: data.role === 'admin' ? 'admin' : 'user',
         subscription: data.subscription || get().profile?.subscription || { plan: 'free', status: 'active' },
       };
       
@@ -406,7 +377,8 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
 
       set({ 
         success: 'Account created successfully! Welcome to Balanze!',
-        error: null 
+        error: null,
+        isLoading: false
       });
 
       setTimeout(() => {

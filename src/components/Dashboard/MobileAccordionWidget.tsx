@@ -19,13 +19,15 @@ interface MobileAccordionWidgetProps {
   MockLastWishCountdownWidget?: React.ComponentType;
   MockRecentTransactions?: React.ComponentType;
   widgetConfig?: WidgetConfig[];
+  hasTaskReminders?: boolean;
 }
 
 export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({ 
   isDemo = false, 
   MockLastWishCountdownWidget,
   MockRecentTransactions,
-  widgetConfig = []
+  widgetConfig = [],
+  hasTaskReminders = true,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { profile } = useAuthStore();
@@ -70,8 +72,8 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
     const widgets = [];
     const addedIds = new Set<string>(); // Track added widget IDs to prevent duplicates
     
-    // Only include last-wish if user is premium/demo AND widget is visible
-    if (isWidgetVisible('task-reminders') && !addedIds.has('task-reminders')) {
+    // Only include task-reminders when there is content to show
+    if (hasTaskReminders && isWidgetVisible('task-reminders') && !addedIds.has('task-reminders')) {
       widgets.push({ id: 'task-reminders', visible: true, order: widgetConfig.find(w => w.id === 'task-reminders')?.order ?? 0 });
       addedIds.add('task-reminders');
     }
@@ -103,7 +105,7 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
     }
     
     return widgets.sort((a, b) => a.order - b.order);
-  }, [widgetConfig, isDemo, isPremium]);
+  }, [widgetConfig, isDemo, isPremium, hasTaskReminders]);
 
   // Generate description text based on visible widgets
   const getAccordionDescription = (): string => {
@@ -113,7 +115,7 @@ export const MobileAccordionWidget: React.FC<MobileAccordionWidgetProps> = ({
       parts.push('Last Wish');
     }
 
-    if (isWidgetVisible('task-reminders')) {
+    if (hasTaskReminders && isWidgetVisible('task-reminders')) {
       parts.push('Task Reminders');
     }
     

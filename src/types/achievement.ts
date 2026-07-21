@@ -67,7 +67,7 @@ export interface UserAchievementSummary {
   diamond_badges: number;
   rainbow_badges: number;
   total_points: number;
-  last_achievement_earned: string;
+  last_achievement_earned: string | null;
 }
 
 // Achievement action types for tracking user actions
@@ -161,4 +161,5 @@ export interface AchievementStore {
   showAchievementNotification: boolean;
   currentNotification: AchievementNotification | null;
   setShowAchievementNotification: (show: boolean) => void;
+  createAchievementNotification: (userId: string, achievement: UserAchievement) => Promise<void>;
 }

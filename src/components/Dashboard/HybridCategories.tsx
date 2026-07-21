@@ -85,11 +85,7 @@ export const HybridCategories: React.FC<HybridCategoriesProps> = ({ hideTitle = 
                   : 'text-red-600 dark:text-red-400'
               }`} />
             ) : (
-              <TrendingDown className={`w-5 h-5 ${
-                activeType === 'income' 
-                  ? 'text-green-600 dark:text-green-400' 
-                  : 'text-red-600 dark:text-red-400'
-              }`} />
+              <TrendingDown className="w-5 h-5 text-red-600 dark:text-red-400" />
             )}
           </div>
           <div>

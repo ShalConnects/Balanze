@@ -154,7 +154,7 @@ export default function PostAccountCreationTour({
       return; // Don't update stepIndex immediately
     }
 
-    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
+    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status as typeof STATUS.FINISHED)) {
       setRun(false);
       track('post_account_tour_completed', { 
         completed: status === STATUS.FINISHED,

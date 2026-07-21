@@ -508,8 +508,8 @@ export const AccountForm: React.FC<AccountFormProps> = ({ isOpen, onClose, accou
       setFormData(prev => {
         const newData = {
           ...prev,
-          dps_type: 'monthly',
-          dps_amount_type: 'fixed',
+          dps_type: 'monthly' as const,
+          dps_amount_type: 'fixed' as const,
           dps_fixed_amount: '',
           dps_initial_balance: ''
         };

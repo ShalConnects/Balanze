@@ -3,7 +3,7 @@
 export function track(eventName: string, payload: Record<string, any> = {}) {
   // TODO: wire this to Amplitude / Segment / GA
   // For now, using Vercel Analytics if available
-  if (window && window.va && window.va.track) {
+  if (typeof window !== 'undefined' && window.va && 'track' in window.va && typeof window.va.track === 'function') {
     window.va.track(eventName, payload);
   }
   

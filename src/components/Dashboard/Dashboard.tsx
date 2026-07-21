@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ArrowRight, X } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useAuthStore } from '../../store/authStore';
@@ -17,7 +17,7 @@ import { LearningSummaryCard } from './LearningSummaryCard';
 import { InvestmentSummaryCard } from './InvestmentSummaryCard';
 import { PrizeBondSummaryCard } from './PrizeBondSummaryCard';
 import { PurchaseOverviewCard } from './PurchaseOverviewCard';
-import { TaskRemindersWidget } from './TaskRemindersWidget';
+import { TaskRemindersWidget, useHasTaskRemindersContent } from './TaskRemindersWidget';
 import { useClientStore } from '../../store/useClientStore';
 import { useCourseStore } from '../../store/useCourseStore';
 // NotesWidget and TodosWidget loaded dynamically to reduce initial bundle size
@@ -40,8 +40,9 @@ import { WidgetSettingsPanel, WidgetConfig, MainDashboardWidget } from './Widget
 import { DashboardFilterBar } from './DashboardFilterBar';
 import { toast } from 'sonner';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
+import { usePersistedToggle, MAIN_WIDGET_PREF_KEYS, MainWidgetId } from '../../hooks/usePersistedToggle';
+import { useDashboardEntityFlags } from '../../hooks/useDashboardEntityFlags';
 import PullToRefreshDashboard from './PullToRefreshDashboard';
-import { supabase } from '../../lib/supabase';
 import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 import { UpgradeBanner } from '../common/UpgradeBanner';
 import { Purchase } from '../../types';
@@ -51,6 +52,11 @@ import { useNotificationStore } from '../../store/notificationStore';
 
 // Constants moved outside component to prevent recreation on every render
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF6B6B'];
+const DASHBOARD_LOADING_TIMEOUT = 8000;
+const REFRESH_TIMEOUT = 10000;
+const MAX_RETRY_ATTEMPTS = 3;
+const SPENDING_ANALYSIS_DAYS = 30;
+const TRENDS_ANALYSIS_MONTHS = 6;
 
 const getDefaultWidgets = (): WidgetConfig[] => [
   { id: 'task-reminders', name: 'Task Reminders', visible: true, order: 0 },
@@ -190,8 +196,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
   // Track retry attempts
   const [retryCount, setRetryCount] = useState(0);
   // Lazy load NotesWidget and TodosWidget to reduce initial bundle size
-  const [NotesWidget, setNotesWidget] = useState<React.ComponentType | null>(null);
-  const [TodosWidget, setTodosWidget] = useState<React.ComponentType | null>(null);
+  type DashboardWidgetProps = {
+    isAccordionExpanded?: boolean;
+    onAccordionToggle?: () => void;
+  };
+  const [NotesWidget, setNotesWidget] = useState<React.ComponentType<DashboardWidgetProps> | null>(null);
+  const [TodosWidget, setTodosWidget] = useState<React.ComponentType<DashboardWidgetProps> | null>(null);
 
   // Memoize widget config loading to prevent unnecessary localStorage reads with validation
   const loadWidgetConfig = useCallback((): WidgetConfig[] => {
@@ -495,6 +505,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     return profile?.subscription?.plan !== 'free';
   }, [profile?.subscription?.plan]);
 
+  const hasTaskReminders = useHasTaskRemindersContent();
+
   // Get visible widgets sorted by order - memoized for performance
   // Filter out premium-only widgets for free users and unloaded widgets
   const visibleWidgets = useMemo(() => {
@@ -505,6 +517,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
         
         // Filter out last-wish widget for free users
         if (w.id === 'last-wish' && !isPremium) return false;
+
+        // No active client tasks — skip shell so DnD does not leave empty space
+        if (w.id === 'task-reminders' && !hasTaskReminders) return false;
         
         // Filter out notes/todos widgets if not loaded
         if (w.id === 'notes' && !NotesWidget) return false;
@@ -524,7 +539,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       return true;
     });
   },
-    [widgetConfig, isPremium, NotesWidget, TodosWidget]
+    [widgetConfig, isPremium, hasTaskReminders, NotesWidget, TodosWidget]
   );
   
   // Check if there are any transfers in transactions
@@ -533,95 +548,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       t.tags?.some((tag: string) => tag.includes('transfer'))
     );
   }, [storeTransactions]);
-  
-  // Check if there are any DPS transfers - with caching to prevent unnecessary queries
-  const [hasDpsTransfers, setHasDpsTransfers] = useState(false);
-  const dpsTransfersCacheRef = useRef<{ userId: string | undefined; hasTransfers: boolean } | null>(null);
-  
-  useEffect(() => {
-    if (!user?.id) {
-      setHasDpsTransfers(false);
-      dpsTransfersCacheRef.current = null;
-      return;
-    }
-    
-    // Use cached value if available and user hasn't changed
-    if (dpsTransfersCacheRef.current?.userId === user.id) {
-      setHasDpsTransfers(dpsTransfersCacheRef.current.hasTransfers);
-      return;
-    }
-    
-    let isMounted = true;
-    const abortController = new AbortController();
-    
-    supabase
-      .from('dps_transfers')
-      .select('id', { count: 'exact', head: true })
-      .then(({ count, error }) => {
-        if (!isMounted || abortController.signal.aborted) return;
-        
-        if (error) {
-          console.error('Error checking DPS transfers:', error);
-          setHasDpsTransfers(false);
-          dpsTransfersCacheRef.current = { userId: user.id, hasTransfers: false };
-        } else {
-          const hasTransfers = (count || 0) > 0;
-          setHasDpsTransfers(hasTransfers);
-          dpsTransfersCacheRef.current = { userId: user.id, hasTransfers };
-        }
-      })
-      .catch((error) => {
-        if (!isMounted || abortController.signal.aborted) return;
-        console.error('Error checking DPS transfers:', error);
-        setHasDpsTransfers(false);
-        dpsTransfersCacheRef.current = { userId: user.id, hasTransfers: false };
-      });
-    
-    return () => {
-      isMounted = false;
-      abortController.abort();
-    };
-  }, [user?.id]);
-  
-  // Combined check for any transfers (regular or DPS)
+
+  const [dashboardCurrencyFilter, setDashboardCurrencyFilter] = useState('');
+  const [dashboardTimeFilter, setDashboardTimeFilter] = useState<'1m' | '3m' | '6m' | '1y' | 'all'>('all');
+
+  const {
+    hasDpsTransfers,
+    hasLendBorrowRecords,
+    hasInvestmentContracts: hasInvestmentContractsInCurrency,
+    hasPrizeBonds,
+  } = useDashboardEntityFlags(user?.id, isPremium, dashboardCurrencyFilter);
+
   const hasTransfers = hasTransfersInTransactions || hasDpsTransfers;
-  
-  // Check widget visibility from localStorage (reactive)
-  const [showLendBorrowWidget, setShowLendBorrowWidget] = useState(() => {
-    const saved = localStorage.getItem('showLendBorrowWidget');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  
-  const [showTransferWidget, setShowTransferWidget] = useState(() => {
-    const saved = localStorage.getItem('showTransferWidget');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  
-  const [showDonationsSavingsWidget, setShowDonationsSavingsWidget] = useState(() => {
-    const saved = localStorage.getItem('showDonationsSavingsWidget');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  
-  const [showClientsWidget, setShowClientsWidget] = useState(() => {
-    const saved = localStorage.getItem('showClientsWidget');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  
-  const [showLearningWidget, setShowLearningWidget] = useState(() => {
-    const saved = localStorage.getItem('showLearningWidget');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
 
-  const [showInvestmentsWidget, setShowInvestmentsWidget] = useState(() => {
-    const saved = localStorage.getItem('showInvestmentsWidget');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
+  const [showLendBorrowWidget, setShowLendBorrowWidget] = usePersistedToggle('showLendBorrowWidget', true, user?.id);
+  const [showTransferWidget, setShowTransferWidget] = usePersistedToggle('showTransferWidget', true, user?.id);
+  const [showDonationsSavingsWidget, setShowDonationsSavingsWidget] = usePersistedToggle('showDonationsSavingsWidget', true, user?.id);
+  const [showClientsWidget, setShowClientsWidget] = usePersistedToggle('showClientsWidget', true, user?.id);
+  const [showLearningWidget, setShowLearningWidget] = usePersistedToggle('showLearningWidget', true, user?.id);
+  const [showInvestmentsWidget, setShowInvestmentsWidget] = usePersistedToggle('showInvestmentsWidget', true, user?.id);
+  const [showPrizeBondsWidget, setShowPrizeBondsWidget] = usePersistedToggle('showPrizeBondsWidget', true, user?.id);
+  const [showPurchasesWidget, setShowPurchasesWidget] = usePersistedToggle('showPurchasesWidget', true, user?.id, { syncFromDb: true });
 
-  const [showPrizeBondsWidget, setShowPrizeBondsWidget] = useState(() => {
-    const saved = localStorage.getItem('showPrizeBondsWidget');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  
   // Get clients from store
   const clients = useClientStore((state) => state.clients);
   const fetchClients = useClientStore((state) => state.fetchClients);
@@ -629,195 +577,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
   // Get courses from store
   const courses = useCourseStore((state) => state.courses);
   
-  // Listen to localStorage changes for widget visibility - with error handling
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (!e.newValue) return;
-      
-      try {
-        if (e.key === 'showPurchasesWidget') {
-          setShowPurchasesWidget(JSON.parse(e.newValue));
-        } else if (e.key === 'showLendBorrowWidget') {
-          setShowLendBorrowWidget(JSON.parse(e.newValue));
-        } else if (e.key === 'showTransferWidget') {
-          setShowTransferWidget(JSON.parse(e.newValue));
-        } else if (e.key === 'showDonationsSavingsWidget') {
-          setShowDonationsSavingsWidget(JSON.parse(e.newValue));
-        } else if (e.key === 'showClientsWidget') {
-          setShowClientsWidget(JSON.parse(e.newValue));
-        } else if (e.key === 'showLearningWidget') {
-          setShowLearningWidget(JSON.parse(e.newValue));
-        } else if (e.key === 'showInvestmentsWidget') {
-          setShowInvestmentsWidget(JSON.parse(e.newValue));
-        } else if (e.key === 'showPrizeBondsWidget') {
-          setShowPrizeBondsWidget(JSON.parse(e.newValue));
-        }
-      } catch (error) {
-        console.error(`Error parsing localStorage value for ${e.key}:`, error);
-        // Keep current state on parse error
-      }
-    };
-    
-    const handleCustomStorageChange = () => {
-      try {
-        const savedPurchases = localStorage.getItem('showPurchasesWidget');
-        if (savedPurchases !== null) {
-          setShowPurchasesWidget(JSON.parse(savedPurchases));
-        }
-      } catch (error) {
-        console.error('Error parsing showPurchasesWidget from localStorage:', error);
-      }
-      
-      try {
-        const savedLendBorrow = localStorage.getItem('showLendBorrowWidget');
-        if (savedLendBorrow !== null) {
-          setShowLendBorrowWidget(JSON.parse(savedLendBorrow));
-        }
-      } catch (error) {
-        console.error('Error parsing showLendBorrowWidget from localStorage:', error);
-      }
-      
-      try {
-        const savedTransfer = localStorage.getItem('showTransferWidget');
-        if (savedTransfer !== null) {
-          setShowTransferWidget(JSON.parse(savedTransfer));
-        }
-      } catch (error) {
-        console.error('Error parsing showTransferWidget from localStorage:', error);
-      }
-      
-      try {
-        const savedDonationsSavings = localStorage.getItem('showDonationsSavingsWidget');
-        if (savedDonationsSavings !== null) {
-          setShowDonationsSavingsWidget(JSON.parse(savedDonationsSavings));
-        }
-      } catch (error) {
-        console.error('Error parsing showDonationsSavingsWidget from localStorage:', error);
-      }
-      
-      try {
-        const savedClients = localStorage.getItem('showClientsWidget');
-        if (savedClients !== null) {
-          setShowClientsWidget(JSON.parse(savedClients));
-        }
-      } catch (error) {
-        console.error('Error parsing showClientsWidget from localStorage:', error);
-      }
-      
-      try {
-        const savedLearning = localStorage.getItem('showLearningWidget');
-        if (savedLearning !== null) {
-          setShowLearningWidget(JSON.parse(savedLearning));
-        }
-      } catch (error) {
-        console.error('Error parsing showLearningWidget from localStorage:', error);
-      }
-
-      try {
-        const savedInv = localStorage.getItem('showInvestmentsWidget');
-        if (savedInv !== null) {
-          setShowInvestmentsWidget(JSON.parse(savedInv));
-        }
-      } catch (error) {
-        console.error('Error parsing showInvestmentsWidget from localStorage:', error);
-      }
-
-      try {
-        const savedBonds = localStorage.getItem('showPrizeBondsWidget');
-        if (savedBonds !== null) {
-          setShowPrizeBondsWidget(JSON.parse(savedBonds));
-        }
-      } catch (error) {
-        console.error('Error parsing showPrizeBondsWidget from localStorage:', error);
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('showPurchasesWidgetChanged', handleCustomStorageChange);
-    window.addEventListener('showLendBorrowWidgetChanged', handleCustomStorageChange);
-    window.addEventListener('showTransferWidgetChanged', handleCustomStorageChange);
-    window.addEventListener('showDonationsSavingsWidgetChanged', handleCustomStorageChange);
-    window.addEventListener('showClientsWidgetChanged', handleCustomStorageChange);
-    window.addEventListener('showLearningWidgetChanged', handleCustomStorageChange);
-    window.addEventListener('showInvestmentsWidgetChanged', handleCustomStorageChange);
-    window.addEventListener('showPrizeBondsWidgetChanged', handleCustomStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('showPurchasesWidgetChanged', handleCustomStorageChange);
-      window.removeEventListener('showLendBorrowWidgetChanged', handleCustomStorageChange);
-      window.removeEventListener('showTransferWidgetChanged', handleCustomStorageChange);
-      window.removeEventListener('showDonationsSavingsWidgetChanged', handleCustomStorageChange);
-      window.removeEventListener('showClientsWidgetChanged', handleCustomStorageChange);
-      window.removeEventListener('showLearningWidgetChanged', handleCustomStorageChange);
-      window.removeEventListener('showInvestmentsWidgetChanged', handleCustomStorageChange);
-      window.removeEventListener('showPrizeBondsWidgetChanged', handleCustomStorageChange);
-    };
-  }, []);
-  
-  // Check if user has lend_borrow records - with caching to prevent unnecessary queries
-  const [hasLendBorrowRecords, setHasLendBorrowRecords] = useState(false);
-  const lendBorrowCacheRef = useRef<{ userId: string | undefined; isPremium: boolean; hasRecords: boolean } | null>(null);
-  
-  useEffect(() => {
-    if (!isPremium || !user?.id) {
-      setHasLendBorrowRecords(false);
-      lendBorrowCacheRef.current = null;
-      return;
-    }
-    
-    // Use cached value if available and conditions haven't changed
-    if (lendBorrowCacheRef.current?.userId === user.id && 
-        lendBorrowCacheRef.current?.isPremium === isPremium) {
-      setHasLendBorrowRecords(lendBorrowCacheRef.current.hasRecords);
-      return;
-    }
-    
-    let isMounted = true;
-    const abortController = new AbortController();
-    
-    supabase
-      .from('lend_borrow')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .then(({ count, error }) => {
-        if (!isMounted || abortController.signal.aborted) return;
-        
-        if (error) {
-          console.error('Error checking lend_borrow records:', error);
-          setHasLendBorrowRecords(false);
-          lendBorrowCacheRef.current = { userId: user.id, isPremium, hasRecords: false };
-        } else {
-          const hasRecords = (count || 0) > 0;
-          setHasLendBorrowRecords(hasRecords);
-          lendBorrowCacheRef.current = { userId: user.id, isPremium, hasRecords };
-        }
-      })
-      .catch((error) => {
-        if (!isMounted || abortController.signal.aborted) return;
-        console.error('Error checking lend_borrow records:', error);
-        setHasLendBorrowRecords(false);
-        lendBorrowCacheRef.current = { userId: user.id, isPremium, hasRecords: false };
-      });
-    
-    return () => {
-      isMounted = false;
-      abortController.abort();
-    };
-  }, [isPremium, user?.id]);
-  
   // Calculate stats reactively when store data changes
-  const stats = getDashboardStats();
-  const activeAccounts = getActiveAccounts();
-  const transactions = getActiveTransactions();
-  const allTransactions = storeTransactions; // Use reactive store data
+  const stats = useMemo(() => getDashboardStats(), [storeAccounts, storeTransactions, getDashboardStats]);
+  const activeAccounts = useMemo(() => getActiveAccounts(), [storeAccounts, getActiveAccounts]);
+  const transactions = useMemo(() => getActiveTransactions(), [storeAccounts, storeTransactions, getActiveTransactions]);
+  const allTransactions = storeTransactions;
   
   const [showMultiCurrencyAnalytics, setShowMultiCurrencyAnalytics] = useState(true);
-  const [showPurchasesWidget, setShowPurchasesWidget] = useState(true);
-  const [dashboardCurrencyFilter, setDashboardCurrencyFilter] = useState('');
-  const [dashboardTimeFilter, setDashboardTimeFilter] = useState<'1m' | '3m' | '6m' | '1y' | 'all'>('all');
-  const [hasInvestmentContractsInCurrency, setHasInvestmentContractsInCurrency] = useState(false);
-  const [hasPrizeBonds, setHasPrizeBonds] = useState(false);
   const [barQuote, setBarQuote] = useState({ q: '', a: '' });
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -839,45 +605,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     }
   }, [authUser?.id, loadFavoriteQuotes, setCurrentUserId]);
 
-  useEffect(() => {
-    if (!user?.id || !dashboardCurrencyFilter) {
-      setHasInvestmentContractsInCurrency(false);
-      return;
-    }
-    let cancelled = false;
-    supabase
-      .from('business_investment_contracts')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('currency', dashboardCurrencyFilter)
-      .then(({ count, error }) => {
-        if (cancelled || error) return;
-        setHasInvestmentContractsInCurrency((count || 0) > 0);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, dashboardCurrencyFilter]);
-
-  useEffect(() => {
-    if (!user?.id || dashboardCurrencyFilter !== 'BDT') {
-      setHasPrizeBonds(false);
-      return;
-    }
-    let cancelled = false;
-    supabase
-      .from('prize_bonds')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .then(({ count, error }) => {
-        if (cancelled || error) return;
-        setHasPrizeBonds((count || 0) > 0);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, dashboardCurrencyFilter]);
-
   const refreshBarQuote = useCallback(async () => {
     setBarQuote(await getDailyInspirationQuote());
   }, []);
@@ -892,39 +619,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
 
   const isBarQuoteFavorited = isQuoteFavorited(barQuote.q, barQuote.a);
 
-  // Load user preferences - consolidated into single effect for better performance
+  // Load multi-currency analytics preference
   useEffect(() => {
     if (!user?.id) return;
-    
     let isMounted = true;
-    const abortController = new AbortController();
-    
-    const loadPreferences = async () => {
-      try {
-        // Load all preferences in parallel
-        const [showAnalytics, showWidget] = await Promise.all([
-          getPreference(user.id, 'showMultiCurrencyAnalytics', true),
-          getPreference(user.id, 'showPurchasesWidget', true)
-        ]);
-        
-        if (!isMounted || abortController.signal.aborted) return;
-        
-        setShowMultiCurrencyAnalytics(showAnalytics);
-        setShowPurchasesWidget(showWidget);
-      } catch (error) {
-        if (!isMounted || abortController.signal.aborted) return;
-        // Default to showing on error
-        console.error('Error loading user preferences:', error);
-        setShowMultiCurrencyAnalytics(true);
-        setShowPurchasesWidget(true);
-      }
-    };
-    
-    loadPreferences();
-    
+    getPreference(user.id, 'showMultiCurrencyAnalytics', true)
+      .then((showAnalytics) => {
+        if (isMounted) setShowMultiCurrencyAnalytics(showAnalytics);
+      })
+      .catch(() => {
+        if (isMounted) setShowMultiCurrencyAnalytics(true);
+      });
     return () => {
       isMounted = false;
-      abortController.abort();
     };
   }, [user?.id]);
 
@@ -938,14 +645,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
           description: show ? 'Multi-currency analytics will be shown' : 'Multi-currency analytics hidden'
         });
       } catch (error) {
-        // Still update local state even if database save fails
         setShowMultiCurrencyAnalytics(show);
         toast.error('Failed to save preference', {
           description: 'Your preference will be saved locally only'
         });
       }
     } else {
-      // Fallback to localStorage if no user
       setShowMultiCurrencyAnalytics(show);
       toast.info('Preference saved locally', {
         description: 'Sign in to sync preferences across devices'
@@ -953,124 +658,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     }
   };
 
-
-  // Toggle handlers for other widgets - Optimized for immediate UI response
-  const handleDonationsWidgetToggle = async (show: boolean) => {
-    // Immediate UI update (optimistic update)
-    setShowDonationsSavingsWidget(show);
-    localStorage.setItem('showDonationsSavingsWidget', JSON.stringify(show));
-    window.dispatchEvent(new CustomEvent('showDonationsSavingsWidgetChanged'));
-    
-    // Save to database asynchronously (non-blocking)
-    if (user?.id) {
-      setPreference(user.id, 'showDonationsSavingsWidget', show).catch(() => {
-        // Silent fail - already saved locally
-        });
-    }
-  };
-
-  const handleLendBorrowWidgetToggle = async (show: boolean) => {
-    // Immediate UI update (optimistic update)
-    setShowLendBorrowWidget(show);
-    localStorage.setItem('showLendBorrowWidget', JSON.stringify(show));
-    window.dispatchEvent(new CustomEvent('showLendBorrowWidgetChanged'));
-    
-    // Save to database asynchronously (non-blocking)
-    if (user?.id) {
-      setPreference(user.id, 'showLendBorrowWidget', show).catch(() => {
-        // Silent fail - already saved locally
-        });
-      }
-  };
-
-  const handleTransferWidgetToggle = async (show: boolean) => {
-    // Immediate UI update (optimistic update)
-    setShowTransferWidget(show);
-    localStorage.setItem('showTransferWidget', JSON.stringify(show));
-    window.dispatchEvent(new CustomEvent('showTransferWidgetChanged'));
-    
-    // Save to database asynchronously (non-blocking)
-    if (user?.id) {
-      setPreference(user.id, 'showTransferWidget', show).catch(() => {
-        // Silent fail - already saved locally
-      });
-    }
-  };
-
-  // Handle Clients widget toggle
-  const handleClientsWidgetToggle = async (show: boolean) => {
-    setShowClientsWidget(show);
-    localStorage.setItem('showClientsWidget', JSON.stringify(show));
-    window.dispatchEvent(new CustomEvent('showClientsWidgetChanged'));
-    
-    if (user?.id) {
-      setPreference(user.id, 'showClientsWidget', show).catch(() => {
-        // Silent fail - already saved locally
-      });
-    }
-  };
-
-  // Handle Learning widget toggle
-  const handleLearningWidgetToggle = async (show: boolean) => {
-    setShowLearningWidget(show);
-    localStorage.setItem('showLearningWidget', JSON.stringify(show));
-    window.dispatchEvent(new CustomEvent('showLearningWidgetChanged'));
-    
-    if (user?.id) {
-      setPreference(user.id, 'showLearningWidget', show).catch(() => {
-        // Silent fail - already saved locally
-      });
-    }
-  };
-
-  const handleInvestmentsWidgetToggle = async (show: boolean) => {
-    setShowInvestmentsWidget(show);
-    localStorage.setItem('showInvestmentsWidget', JSON.stringify(show));
-    window.dispatchEvent(new CustomEvent('showInvestmentsWidgetChanged'));
-    if (user?.id) {
-      setPreference(user.id, 'showInvestmentsWidget', show).catch(() => {});
-    }
-  };
-
-  const handlePrizeBondsWidgetToggle = async (show: boolean) => {
-    setShowPrizeBondsWidget(show);
-    localStorage.setItem('showPrizeBondsWidget', JSON.stringify(show));
-    window.dispatchEvent(new CustomEvent('showPrizeBondsWidgetChanged'));
-    if (user?.id) {
-      setPreference(user.id, 'showPrizeBondsWidget', show).catch(() => {});
-    }
-  };
-
-  // Handle main dashboard widget toggle from modal
   const handleMainDashboardWidgetToggle = (id: string, visible: boolean) => {
-    switch (id) {
-      case 'donations':
-        handleDonationsWidgetToggle(visible);
-        break;
-      case 'purchases':
-        handlePurchasesWidgetToggle(visible);
-        break;
-      case 'lend-borrow':
-        handleLendBorrowWidgetToggle(visible);
-        break;
-      case 'transfers':
-        handleTransferWidgetToggle(visible);
-        break;
-      case 'clients':
-        handleClientsWidgetToggle(visible);
-        break;
-      case 'learning':
-        handleLearningWidgetToggle(visible);
-        break;
-      case 'investments':
-        handleInvestmentsWidgetToggle(visible);
-        break;
-      case 'prize-bonds':
-        handlePrizeBondsWidgetToggle(visible);
-        break;
-      default:
-        break;
-    }
+    const key = MAIN_WIDGET_PREF_KEYS[id as MainWidgetId];
+    if (!key) return;
+    const setters: Record<string, (v: boolean) => void> = {
+      showDonationsSavingsWidget: setShowDonationsSavingsWidget,
+      showPurchasesWidget: setShowPurchasesWidget,
+      showLendBorrowWidget: setShowLendBorrowWidget,
+      showTransferWidget: setShowTransferWidget,
+      showClientsWidget: setShowClientsWidget,
+      showLearningWidget: setShowLearningWidget,
+      showInvestmentsWidget: setShowInvestmentsWidget,
+      showPrizeBondsWidget: setShowPrizeBondsWidget,
+    };
+    setters[key]?.(visible);
   };
 
   // Fetch clients on mount - with error handling
@@ -1285,11 +886,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     // t and formatCurrency are stable functions, but included for completeness
     t,
     formatCurrency
-    // Removed: handlePurchaseWidgetMouseEnter, handlePurchaseWidgetMouseLeave, 
-    // isPurchaseWidgetHovered, isMobile, showPurchaseCrossTooltip, 
-    // totalPlannedPurchases, totalPurchasedItems, totalPlannedValue, 
-    // totalPurchasedValue, recentPurchases, 
-    // handlePurchasesWidgetToggle - these don't affect visibility, only rendering
+    // Removed hover/tooltip deps — they don't affect visibility
   ]);
 
 
@@ -1351,7 +948,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
       const timeoutId = setTimeout(() => {
         setDashboardLoading(false);
         setInitialDataFetched(true);
-        setHasLoadError(true);
+        // Don't set hasLoadError — in-flight fetch may still succeed
         setLoadingMessage('');
       }, DASHBOARD_LOADING_TIMEOUT);
       
@@ -1403,13 +1000,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
   const rawAccounts = useFinanceStore((state) => state.accounts);
   
   // Debug logging for accounts and stats
-
-  // Constants for timeouts and thresholds
-  const DASHBOARD_LOADING_TIMEOUT = 8000; // 8 seconds
-  const REFRESH_TIMEOUT = 10000; // 10 seconds
-  const MAX_RETRY_ATTEMPTS = 3;
-  const SPENDING_ANALYSIS_DAYS = 30;
-  const TRENDS_ANALYSIS_MONTHS = 6;
 
   // Calculate spending breakdown data for pie chart - memoized
   const spendingData = useMemo(() => {
@@ -1874,7 +1464,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
 
         {/* Mobile Bottom Section - Accordion Layout */}
         <div className="lg:hidden dashboard-mobile-container">
-          <MobileAccordionWidget widgetConfig={widgetConfig} />
+          <MobileAccordionWidget widgetConfig={widgetConfig} hasTaskReminders={hasTaskReminders} />
         </div>
       </div>
 

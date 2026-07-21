@@ -91,6 +91,8 @@ export const formatCurrency = (amount: number, currency: string = 'USD') => {
 /** Helvetica-safe currency strings for jsPDF (falls back to "CODE amount" for non-ASCII symbols). */
 export const formatCurrencyForPdf = (amount: number, currency: string = 'USD'): string => {
     const formatted = formatCurrency(amount, currency);
+    // ASCII-only check (eslint no-control-regex: intentional range for printable ASCII)
+    // eslint-disable-next-line no-control-regex
     if (!/[^\x00-\x7F]/.test(formatted)) return formatted;
 
     const code = currency?.trim() || 'USD';
@@ -106,6 +108,7 @@ export const formatCurrencyForPdf = (amount: number, currency: string = 'USD'): 
 export const currencyCodeLabelForPdf = (currency: string): string => {
     const code = currency?.trim() || 'USD';
     const symbol = getCurrencySymbol(code);
+    // eslint-disable-next-line no-control-regex
     return /^[\x00-\x7F]+$/.test(symbol) ? `${code} (${symbol})` : code;
 };
 

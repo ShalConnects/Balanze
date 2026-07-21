@@ -13,6 +13,7 @@ import { Toaster } from 'sonner';
 import { LoadingProvider, useLoadingContext } from './context/LoadingContext';
 import { Loader } from './components/common/Loader';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AdminRoute } from './components/AdminRoute';
 import { WelcomeModal } from './components/common/WelcomeModal';
 import PostAccountCreationTour from './components/PostAccountCreationTour';
 import { AchievementIntegration } from './components/Achievements/AchievementIntegration';
@@ -61,7 +62,6 @@ const LastWishPage = lazy(() => import('./pages/LastWishPage').then(m => ({ defa
 const PaymentHistoryPage = lazy(() => import('./pages/PaymentHistoryPage').then(m => ({ default: m.PaymentHistoryPage })));
 const HelpAndSupport = lazy(() => import('./pages/HelpAndSupport'));
 const Investments = lazy(() => import('./pages/BusinessInvestments').then(m => ({ default: m.BusinessInvestments })));
-import { isInvestmentsBondsTab } from './lib/investmentsNav';
 const History = lazy(() => import('./pages/History').then(m => ({ default: m.History })));
 const PublicHelpCenter = lazy(() => import('./pages/PublicHelpCenter'));
 const TopicClusterHub = lazy(() => import('./pages/TopicClusterHub'));
@@ -70,10 +70,6 @@ const SitemapPage = lazy(() => import('./pages/SitemapPage'));
 // robots.txt is served as static file - no component needed
 const DonationsSavingsPage = lazy(() => import('./pages/DonationsSavingsPage'));
 const ZakahPage = lazy(() => import('./pages/ZakahPage').then(m => ({ default: m.ZakahPage })));
-const FavoriteQuotes = lazy(() => import('./pages/FavoriteQuotes').then(m => ({ default: m.FavoriteQuotes })));
-const Achievements = lazy(() => import('./pages/Achievements'));
-const HabitGarden = lazy(() => import('./components/Habits/HabitGarden').then(m => ({ default: m.HabitGarden })));
-const CoursesList = lazy(() => import('./components/Learning/CoursesList').then(m => ({ default: m.CoursesList })));
 const PersonalGrowth = lazy(() => import('./components/Dashboard/PersonalGrowth').then(m => ({ default: m.PersonalGrowth })));
 const NotesDiaryPage = lazy(() => import('./components/Notes/NotesDiaryPage').then(m => ({ default: m.NotesDiaryPage })));
 const KBArticlePage = lazy(() => import('./pages/KBArticlePage'));
@@ -543,7 +539,7 @@ function AppContent() {
           welcomeModalCheckRef.current = true;
           
           // Ensure profile exists - wait for it if needed
-          let currentProfile = profile;
+          let currentProfile: import('./store/authStore').AppUser | null = profile;
           if (!currentProfile) {
             // Wait up to 3 seconds for profile to be created
             for (let i = 0; i < 6; i++) {
@@ -703,9 +699,11 @@ function AppContent() {
           <Route path="/kb/:slug" element={<ProtectedRoute layout="help"><KBArticlePage /></ProtectedRoute>} />
           <Route path="/kb-sitemap.xml" element={<ProtectedRoute layout="bare"><KBSitemapPage /></ProtectedRoute>} />
           <Route path="/kb-robots.txt" element={<ProtectedRoute layout="bare"><KBRobotsPage /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute layout="bare"><AdminPage /></ProtectedRoute>} />
-          <Route path="/admin/file-rename" element={<ProtectedRoute layout="bare"><FileRenameAdmin /></ProtectedRoute>} />
-          <Route path="/test-taskable" element={<ProtectedRoute><TestTaskablePanel /></ProtectedRoute>} />
+          <Route path="/admin" element={<AdminRoute layout="bare"><AdminPage /></AdminRoute>} />
+          <Route path="/admin/file-rename" element={<AdminRoute layout="bare"><FileRenameAdmin /></AdminRoute>} />
+          {import.meta.env.DEV && (
+            <Route path="/test-taskable" element={<ProtectedRoute><TestTaskablePanel /></ProtectedRoute>} />
+          )}
           <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
           <Route path="/donations" element={<ProtectedRoute><DonationsSavingsPage /></ProtectedRoute>} />
           <Route path="/zakah" element={<ProtectedRoute><ZakahPage /></ProtectedRoute>} />

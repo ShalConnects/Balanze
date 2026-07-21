@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
-import { Plus, Edit2, Trash2, Info, Search, ChevronUp, ChevronDown, Filter, CheckCircle, Handshake, Eye, X, Pen } from 'lucide-react';
+import { Plus, Edit2, Trash2, Info, Search, ChevronUp, ChevronDown, Filter, CheckCircle, Handshake, Eye, Pen } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { LendBorrowForm } from './LendBorrowForm';
 import { SettlementModal } from './SettlementModal';
@@ -1437,7 +1437,7 @@ export const LendBorrowTableView: React.FC = () => {
                             <label className="text-xs text-gray-600 dark:text-gray-400 mb-1">Start Date</label>
                             <DatePicker
                               selected={customStart ? new Date(customStart) : null}
-                              onChange={date => setCustomStart(date ? date.toISOString().slice(0, 10) : '')}
+                              onChange={(date: Date | null) => setCustomStart(date ? date.toISOString().slice(0, 10) : '')}
                               selectsStart
                               startDate={customStart ? new Date(customStart) : null}
                               endDate={customEnd ? new Date(customEnd) : null}
@@ -1455,7 +1455,7 @@ export const LendBorrowTableView: React.FC = () => {
                             <label className="text-xs text-gray-600 dark:text-gray-400 mb-1">End Date</label>
                             <DatePicker
                               selected={customEnd ? new Date(customEnd) : null}
-                              onChange={date => setCustomEnd(date ? date.toISOString().slice(0, 10) : '')}
+                              onChange={(date: Date | null) => setCustomEnd(date ? date.toISOString().slice(0, 10) : '')}
                               selectsEnd
                               startDate={customStart ? new Date(customStart) : null}
                               endDate={customEnd ? new Date(customEnd) : null}
@@ -1853,7 +1853,7 @@ export const LendBorrowTableView: React.FC = () => {
                           </td>
                           <td className="px-6 py-[0.5rem] text-center">
                             <div className="text-sm text-gray-900 dark:text-white font-medium">
-                              {formatAppDate(record.due_date)}
+                              {record.due_date ? formatAppDate(record.due_date) : '—'}
                             </div>
                             {record.due_date && (
                               <div className={`text-xs font-medium mt-1 ${
@@ -2415,7 +2415,6 @@ export const LendBorrowTableView: React.FC = () => {
         {/* Forms and Modals */}
         {showLendBorrowForm && (
           <LendBorrowForm
-            isOpen={showLendBorrowForm}
             onClose={() => {
               setShowLendBorrowForm(false);
               setEditingRecord(null);

@@ -34,7 +34,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { setIsMobileSidebarOpen } = useMobileSidebar();
   
   // Lazy load TodosWidget globally for modal access
-  const [TodosWidget, setTodosWidget] = useState<React.ComponentType | null>(null);
+  const [TodosWidget, setTodosWidget] = useState<React.ComponentType<{
+    isAccordionExpanded?: boolean;
+    onAccordionToggle?: () => void;
+    showWidgetUI?: boolean;
+  }> | null>(null);
   
   useEffect(() => {
     if (!TodosWidget) {

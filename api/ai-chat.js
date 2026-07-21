@@ -1,4 +1,6 @@
 import { supabase } from '../lib/supabaseServer.js';
+import { requireAuthUser } from '../lib/apiAuth.js';
+import { applyCors } from '../lib/cors.js';
 
 // Helper function to format currency with commas
 function formatCurrency(amount, currency = 'USD') {
@@ -1017,13 +1019,8 @@ function generateResponse(message, context) {
 
 // Main handler function
 export default async function handler(req, res) {
-  // Add CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+  if (!applyCors(req, res, { methods: 'POST, OPTIONS', headers: 'Content-Type, Authorization' })) {
+    return;
   }
   if (!supabase) {
     return res.status(503).json({ error: 'Server configuration error' });
@@ -1034,14 +1031,23 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { message, userId } = req.body;
-
-    if (!message || !userId) {
-      return res.status(400).json({ error: 'Message and userId are required' });
+    const auth = await requireAuthUser(req);
+    if (!auth.user) {
+      return res.status(auth.status || 401).json({ error: auth.error || 'Unauthorized' });
     }
 
+    const { message } = req.body || {};
+    const userId = auth.user.id;
 
-    // Gather user context
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    if (message.length > 4000) {
+      return res.status(400).json({ error: 'Message is too long' });
+    }
+
+    // Gather user context for the authenticated user only
     const userContext = await gatherUserContext(userId);
 
     if (!userContext) {
@@ -1069,10 +1075,8 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('AI Chat error:', error);
-    console.error('Error stack:', error.stack);
     return res.status(500).json({
       error: 'An error occurred while processing your request',
-      message: error.message || 'Unknown error',
     });
   }
 }

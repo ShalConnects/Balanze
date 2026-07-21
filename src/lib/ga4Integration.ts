@@ -1,12 +1,6 @@
 // Google Analytics 4 Integration for SEO and Help Center Tracking
 // Tracks user behavior, content performance, and SEO metrics
-
-declare global {
-  interface Window {
-    gtag: (...args: any[]) => void;
-    dataLayer: any[];
-  }
-}
+// Window.gtag / Window.dataLayer declared in global.d.ts
 
 export interface GA4Event {
   event_name: string;
@@ -51,13 +45,13 @@ class GA4Tracker {
 
     // Initialize gtag
     window.dataLayer = window.dataLayer || [];
-    window.gtag = function() {
-      window.dataLayer.push(arguments);
+    window.gtag = function(...args: unknown[]) {
+      window.dataLayer!.push({ args });
     };
 
     // Configure GA4
-    window.gtag('js', new Date());
-    window.gtag('config', this.config.measurementId, {
+    window.gtag?.('js', new Date());
+    window.gtag?.('config', this.config.measurementId, {
       debug_mode: this.config.debug,
       anonymize_ip: this.config.anonymizeIp,
       cookie_domain: this.config.cookieDomain
@@ -73,7 +67,7 @@ class GA4Tracker {
   trackPageView(pagePath: string, pageTitle?: string): void {
     if (!this.isInitialized) this.initialize();
 
-    window.gtag('event', 'page_view', {
+    window.gtag?.('event', 'page_view', {
       page_path: pagePath,
       page_title: pageTitle,
       page_location: window.location.href
@@ -209,7 +203,7 @@ class GA4Tracker {
       ...eventData
     };
 
-    window.gtag('event', eventName, eventPayload);
+    window.gtag?.('event', eventName, eventPayload);
 
     if (this.config.debug) {
     }
@@ -219,7 +213,7 @@ class GA4Tracker {
   setUserProperties(properties: Record<string, any>): void {
     if (!this.isInitialized) this.initialize();
 
-    window.gtag('config', this.config.measurementId, {
+    window.gtag?.('config', this.config.measurementId, {
       user_properties: properties
     });
 
@@ -231,7 +225,7 @@ class GA4Tracker {
   setCustomDimensions(dimensions: Record<string, any>): void {
     if (!this.isInitialized) this.initialize();
 
-    window.gtag('config', this.config.measurementId, {
+    window.gtag?.('config', this.config.measurementId, {
       custom_map: dimensions
     });
 

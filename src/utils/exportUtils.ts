@@ -2,6 +2,7 @@
 // import jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable';
 import { FilterState, ExportOptions, ExportResult, FilterSummary } from '../types/export';
+export type { FilterState, ExportOptions, ExportResult, FilterSummary } from '../types/export';
 import { formatTransactionDescription } from './transactionDescriptionFormatter';
 import { getTodayLocalDateString } from './taskDateUtils';
 import { formatAppDate, formatAppDateTime, formatAppExportDateTime } from './timezoneUtils';

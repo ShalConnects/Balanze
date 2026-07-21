@@ -16,7 +16,11 @@ import {
   DASHBOARD_WIDGET_SHELL,
   DASHBOARD_WIDGET_TITLE,
   DASHBOARD_WIDGET_VIEW_ALL,
+  taskAccordionBody,
+  taskAccordionShell,
+  TASK_POMODORO_BADGE,
 } from '../../constants/dashboardWidget';
+import { withoutTaskPomodoroCount } from '../../utils/pomodoroUtils';
 
 interface TodosWidgetProps {
   isAccordionExpanded?: boolean;
@@ -1171,6 +1175,12 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
     setEditingTaskDuration(null);
   };
 
+  const clearPomodorosForTask = (taskId: string) => {
+    setPomodoroCounts(prev => withoutTaskPomodoroCount(prev, taskId));
+    if (pomodoroTimer?.taskId === taskId) stopPomodoro();
+    setEditingTaskDuration(null);
+  };
+
   // Listen for timer state changes from PomodoroTimerBar
   useEffect(() => {
     const handleTimerStateChange = () => {
@@ -1445,7 +1455,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
           <div className="relative task-duration-container">
             <button
               onClick={() => openTaskDurationEditor(task.id)}
-              className={`text-xs px-1.5 py-0.5 rounded ${
+              className={`${TASK_POMODORO_BADGE} ${
                 taskPomodoroDurations[task.id] 
                   ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' 
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
@@ -1455,7 +1465,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
               {getTaskDuration(task.id)}m
             </button>
           {editingTaskDuration === task.id && (
-            <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 z-20">
+            <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 z-50">
               <div className="mb-2">
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                   <span className="text-gradient-primary">Duration (minutes)</span>
@@ -1506,6 +1516,14 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
                     Reset to Default ({pomodoroDuration}m)
                   </button>
                 )}
+                {pomodoroCounts[task.id] > 0 && (
+                  <button
+                    onClick={() => clearPomodorosForTask(task.id)}
+                    className="w-full mt-1.5 px-2 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50"
+                  >
+                    Clear pomodoros (🍅 {pomodoroCounts[task.id]})
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1515,7 +1533,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
         {pomodoroCounts[task.id] > 0 && 
          (pomodoroTimer?.taskId !== task.id || 
           (pomodoroTimer?.taskId === task.id && pomodoroTimer?.timeRemaining === 0 && !pomodoroTimer?.isRunning)) && (
-          <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded flex items-center gap-1">
+          <span className={`${TASK_POMODORO_BADGE} gap-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400`}>
             🍅 {pomodoroCounts[task.id]}
           </span>
         )}
@@ -1834,7 +1852,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
         overlayClassName="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-md z-40"
         ariaHideApp={false}
       >
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 md:p-6 w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto shadow-lg relative">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 md:p-6 w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto hide-scrollbar shadow-lg relative">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white">All Tasks</h2>
             <div className="flex items-center gap-1">
@@ -2025,11 +2043,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
                     return (
                       <div 
                         key={key} 
-                        className={`rounded-lg overflow-hidden transition-all ${
-                          isDragOver 
-                            ? 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/40 dark:to-purple-900/40' 
-                            : ''
-                        }`}
+                        className={taskAccordionShell(isExpanded, isDragOver)}
                         onDragOver={(e) => handleSectionDragOver(e, sectionKey)}
                         onDragLeave={handleSectionDragLeave}
                         onDrop={(e) => handleSectionDrop(e, sectionKey)}
@@ -2048,9 +2062,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
                         </button>
                         
                         {/* Section Content */}
-                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                          isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
-                        }`}>
+                        <div className={taskAccordionBody(isExpanded)}>
                           <div className="py-[5px] px-0 space-y-2">
                             {sectionTasks.length === 0 ? (
                               <div 

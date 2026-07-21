@@ -441,7 +441,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = React.memo(({
              setNoteModalTransaction(null);
            }}
            transactionId={noteModalTransaction.id}
-           currentNote={noteModalTransaction.note}
+           currentNote={noteModalTransaction.note ?? undefined}
            onSave={handleNoteSave}
          />
        )}

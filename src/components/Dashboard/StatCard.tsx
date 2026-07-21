@@ -7,7 +7,6 @@ interface StatCardProps {
     changeType?: 'positive' | 'negative' | 'neutral';
     icon?: React.ReactNode;
     color?: 'blue' | 'green' | 'red' | 'gray' | 'yellow' | 'purple' | 'orange';
-    trend?: 'up' | 'down';
     insight?: React.ReactNode;
     trendGraph?: React.ReactNode;
     animated?: boolean;
@@ -21,7 +20,6 @@ export const StatCard: React.FC<StatCardProps> = ({
     changeType = 'neutral', 
     icon, 
     color = 'gray',
-    trend,
     insight,
     trendGraph,
     animated = false,
@@ -164,13 +162,6 @@ export const StatCard: React.FC<StatCardProps> = ({
                     {change && (
                         <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${changeColors[changeType]}`}>
                             {change}
-                        </div>
-                    )}
-                    {trend && false && (
-                        <div className="flex items-center mt-1">
-                            <span className={`text-xs ${trend === 'up' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                {trend === 'up' ? '↑' : '↓'}
-                            </span>
                         </div>
                     )}
                 </div>

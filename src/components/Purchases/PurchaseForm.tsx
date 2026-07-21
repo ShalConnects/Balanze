@@ -346,25 +346,13 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     
     // For planned purchases, require price as well
     if (formData.status === 'planned') {
-      let isValidPrice: boolean;
-      if (amountMode === 'adjust' && originalPrice !== null) {
-        const calculated = getCalculatedPrice();
-        isValidPrice = calculated !== null && calculated > 0;
-      } else {
-        isValidPrice = formData.price && !isNaN(Number(formData.price)) && Number(formData.price) > 0;
-      }
+      const isValidPrice = Boolean(formData.price && !isNaN(Number(formData.price)) && Number(formData.price) > 0);
       const isValid = hasRequiredFields && isValidPrice;
       return isValid;
     }
     
     if (formData.status === 'purchased') {
-      let hasValidPrice: boolean;
-      if (amountMode === 'adjust' && originalPrice !== null) {
-        const calculated = getCalculatedPrice();
-        hasValidPrice = calculated !== null && calculated > 0;
-      } else {
-        hasValidPrice = formData.price && !isNaN(Number(formData.price)) && Number(formData.price) > 0;
-      }
+      const hasValidPrice = Boolean(formData.price && !isNaN(Number(formData.price)) && Number(formData.price) > 0);
       // If excluding from calculation, account is not required
       if (excludeFromCalculation) {
         return hasRequiredFields && hasValidPrice;
@@ -473,16 +461,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
             }
             
             // Calculate final price for transaction
-            let finalPriceForTransaction: number;
-            if (amountMode === 'adjust' && originalPrice !== null) {
-              const calculated = getCalculatedPrice();
-              if (calculated === null) {
-                throw new Error('Invalid price adjustment');
-              }
-              finalPriceForTransaction = calculated;
-            } else {
-              finalPriceForTransaction = parseFloat(formData.price);
-            }
+            const finalPriceForTransaction = parseFloat(formData.price);
 
             const transactionData = {
               account_id: selectedAccountId,

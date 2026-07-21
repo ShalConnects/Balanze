@@ -17,6 +17,7 @@ export interface Account {
   donation_preference?: number | null;
   transaction_id?: string;
   position?: number;
+  bank_name?: string;
 }
 
 export interface AccountInput {
@@ -37,6 +38,8 @@ export interface AccountInput {
   dps_savings_account_id: string | null;
   dps_initial_balance?: number;
   position?: number;
+  calculated_balance?: number;
+  is_active?: boolean;
 }
 
 export interface Transaction {
@@ -48,7 +51,8 @@ export interface Transaction {
   description: string;
   date: string;
   category: string;
-  is_recurring: boolean;
+  /** Defaults to false in the database when omitted on insert */
+  is_recurring?: boolean;
   recurring_frequency?: string;
   saving_amount?: number;
   donation_amount?: number;
@@ -77,6 +81,7 @@ export interface Category {
   color: string;
   icon: string;
   currency?: string;
+  description?: string;
 }
 
 export interface Budget {
@@ -151,6 +156,8 @@ export interface Purchase {
   id: string;
   user_id: string;
   item_name: string;
+  /** Some UI surfaces use `name` as an alias for item_name */
+  name?: string;
   category: string;
   price: number;
   purchase_date: string;
@@ -159,6 +166,23 @@ export interface Purchase {
   notes?: string;
   created_at: string;
   updated_at: string;
+  currency?: string;
+  account_id?: string;
+  transaction_id?: string;
+  exclude_from_calculation?: boolean;
+}
+
+export interface PurchaseAttachment {
+  id: string;
+  purchase_id: string;
+  user_id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  file_type: string;
+  mime_type: string;
+  created_at: string;
+  file?: File;
 }
 
 export interface PurchaseCategory {
@@ -174,6 +198,7 @@ export interface PurchaseCategory {
 }
 
 export interface PurchaseAnalytics {
+  currency?: string;
   total_spent: number;
   monthly_spent: number;
   planned_count: number;
@@ -186,6 +211,11 @@ export interface PurchaseAnalytics {
     item_count: number;
     percentage: number;
   }>;
+}
+
+export interface MultiCurrencyPurchaseAnalytics {
+  byCurrency: PurchaseAnalytics[];
+  total_currencies: number;
 }
 
 export interface User {
@@ -210,6 +240,8 @@ export interface LendBorrow {
   notes?: string;
   created_at: string;
   updated_at: string;
+  /** Legacy alias used in some summary views */
+  date?: string;
   // Account integration fields
   account_id?: string;
   transaction_id?: string;
@@ -253,6 +285,16 @@ export interface LendBorrowReturn {
   notes?: string;
 }
 
+export interface LendBorrowInstallment {
+  id: string;
+  lend_borrow_id: string;
+  installment_number: number;
+  due_date: string;
+  amount: number;
+  paid_amount: number;
+  status: string;
+}
+
 // Keep the old PartialReturn type for backward compatibility
 export interface PartialReturn {
   id: string;
@@ -271,7 +313,14 @@ export interface LendBorrowAnalytics {
   active_count: number;
   settled_count: number;
   top_person?: string;
-  currency_breakdown: Array<{
+  currency_breakdown?: Array<{
+    currency: string;
+    total_lent: number;
+    total_borrowed: number;
+    outstanding_lent: number;
+    outstanding_borrowed: number;
+  }>;
+  byCurrency?: Array<{
     currency: string;
     total_lent: number;
     total_borrowed: number;

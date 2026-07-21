@@ -634,7 +634,7 @@ export const LendBorrowForm: React.FC<LendBorrowFormProps> = ({ record, onClose,
               <div className={fieldColClass}>
                 {form.affect_account_balance ? (
                   <CustomDropdown
-                    value={form.account_id}
+                    value={form.account_id ?? ''}
                     onChange={(value) => handleDropdownChange('account_id', value)}
                     options={sortedAccountOptions
                       .map(account => ({

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Upload, X, FileText, Image, File } from 'lucide-react';
+import { ChevronDown, ChevronUp, Upload, X, FileText, Image, File as FileIcon } from 'lucide-react';
 import { PurchaseAttachment } from '../../types';
 // Quill editor loaded dynamically to reduce initial bundle size
 // import ReactQuill from 'react-quill';
@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
 import { FilePicker } from '@capawesome/capacitor-file-picker';
+import { sanitizeHtml } from '../../lib/sanitize';
 
 interface PurchaseDetailsSectionProps {
   isExpanded: boolean;
@@ -63,23 +64,33 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
   // Sync notes prop to contentEditable only when it changes
   useEffect(() => {
     if (notesEditorRef.current && notesEditorRef.current.innerHTML !== notes) {
-      notesEditorRef.current.innerHTML = notes || '';
+      notesEditorRef.current.innerHTML = sanitizeHtml(notes || '');
     }
   }, [notes]);
+
+  const uploadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (uploadIntervalRef.current) clearInterval(uploadIntervalRef.current);
+    };
+  }, []);
 
   const simulateUploadProgress = (fileName: string) => {
     setCurrentUploadFile(fileName);
     setUploadProgress(0);
-    
-    const interval = setInterval(() => {
+    if (uploadIntervalRef.current) clearInterval(uploadIntervalRef.current);
+
+    uploadIntervalRef.current = setInterval(() => {
       setUploadProgress(prev => {
         if (prev >= 100) {
-          clearInterval(interval);
+          if (uploadIntervalRef.current) clearInterval(uploadIntervalRef.current);
+          uploadIntervalRef.current = null;
           setCurrentUploadFile(null);
           setUploadProgress(0);
           return 100;
         }
-        return prev + Math.random() * 15 + 5; // Random progress increment
+        return prev + Math.random() * 15 + 5;
       });
     }, 100);
   };
@@ -130,7 +141,6 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
   const handleNativeFileUpload = async () => {
     try {
       const result = await FilePicker.pickFiles({
-        multiple: false,
         types: ['application/pdf', 'image/*', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain'],
         readData: true
       });
@@ -150,17 +160,20 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
             bytes[i] = binaryString.charCodeAt(i);
           }
           fileBlob = new Blob([bytes], { type: pickedFile.mimeType || 'application/octet-stream' });
-        } else {
+        } else if (pickedFile.data != null) {
           // Already binary data
           fileBlob = new Blob([pickedFile.data], { type: pickedFile.mimeType || 'application/octet-stream' });
+        } else {
+          throw new Error('No file data returned from picker');
         }
         
         // Create File object - use a more compatible approach for Android WebView
         let file: File;
         try {
           // Try to use File constructor if available
-          if (typeof File !== 'undefined' && typeof File === 'function') {
-            file = new File([fileBlob], pickedFile.name, { type: pickedFile.mimeType || 'application/octet-stream' });
+          if (typeof globalThis.File !== 'undefined') {
+            const FileConstructor = globalThis.File;
+            file = new FileConstructor([fileBlob], pickedFile.name, { type: pickedFile.mimeType || 'application/octet-stream' });
           } else {
             throw new Error('File constructor not available');
           }
@@ -251,7 +264,7 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
     } else if (fileType === 'pdf') {
       return <FileText className="w-4 h-4" />;
     } else {
-      return <File className="w-4 h-4" />;
+      return <FileIcon className="w-4 h-4" />;
     }
   };
 

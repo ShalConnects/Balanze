@@ -526,7 +526,9 @@ const DonationsSavingsPage: React.FC = () => {
     );
     const normalizedSearch = normalizeSearchText(searchTerm);
     const filtered = sortedRecords.filter(record => {
-      const displayTransactionId = transactionDisplayIdById.get(record.transaction_id) || '';
+      const displayTransactionId = record.transaction_id
+        ? transactionDisplayIdById.get(record.transaction_id) ?? ''
+        : '';
       const manualTransactionId = record.custom_transaction_id || '';
       const matchesSearch =
         !normalizedSearch ||

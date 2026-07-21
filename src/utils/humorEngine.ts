@@ -348,7 +348,8 @@ export class HumorEngine {
   }
 
   generateGeneralMessage(): HumorMessage {
-    const { tags, totalTransactions } = this.context;
+    const { tags, details } = this.context;
+    const totalTransactions = details.totalTransactions ?? 0;
     
     if (totalTransactions === 0) {
       return {

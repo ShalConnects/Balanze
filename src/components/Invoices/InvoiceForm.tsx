@@ -175,9 +175,9 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ isOpen, onClose, invoi
 
   const calculateItemTotal = (item: InvoiceItemInput) => {
     const subtotal = item.quantity * item.unit_price;
-    const discountAmount = subtotal * (item.discount_rate / 100);
+    const discountAmount = subtotal * ((item.discount_rate ?? 0) / 100);
     const afterDiscount = subtotal - discountAmount;
-    const taxAmount = afterDiscount * (item.tax_rate / 100);
+    const taxAmount = afterDiscount * ((item.tax_rate ?? 0) / 100);
     return {
       subtotal,
       discountAmount,

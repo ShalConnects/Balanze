@@ -300,24 +300,24 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
 
     // For simple settlement (both record-only and account-linked), just mark as settled
     if (settlementMethod === 'simple') {
-      // Update record status to settled without account transaction
-      supabase
-        .from('lend_borrow')
-        .update({ 
-          status: 'settled',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', record.id)
-        .then(() => {
-          toast.success('Record marked as settled successfully!');
-          if (onRecordUpdated) {
-            onRecordUpdated();
-          }
-          onClose();
-        })
-        .catch((error) => {
+      void (async () => {
+        const { error } = await supabase
+          .from('lend_borrow')
+          .update({
+            status: 'settled',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', record.id);
+        if (error) {
           toast.error('Failed to settle record');
-        });
+          return;
+        }
+        toast.success('Record marked as settled successfully!');
+        if (onRecordUpdated) {
+          onRecordUpdated();
+        }
+        onClose();
+      })();
       return;
     }
 
@@ -687,7 +687,11 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                     onClick={() => {
                       setPartialAmount(Number(remainingAmount.toFixed(2)));
                       setTouched({ amount: true });
-                      setErrors(prev => ({ ...prev, amount: undefined }));
+                      setErrors(prev => {
+                        const next = { ...prev };
+                        delete next.amount;
+                        return next;
+                      });
                     }}
                     disabled={remainingAmount <= 0}
                     aria-label="Fill with remaining amount"

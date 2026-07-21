@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calculator, DollarSign, Calendar, FileText } from 'lucide-react';
-import { InvestmentTransactionInput, InvestmentAsset, Account } from '../../types/investment';
+import { InvestmentTransactionInput, InvestmentAsset } from '../../types/investment';
+import { Account } from '../../types';
 import { INVESTMENT_TRANSACTION_TYPES } from '../../types/investment';
 import { getTodayLocalDateString } from '../../utils/taskDateUtils';
 
@@ -72,7 +73,7 @@ export const InvestmentTransactionForm: React.FC<InvestmentTransactionFormProps>
       newErrors.price_per_share = 'Price per share must be greater than 0';
     }
 
-    if (formData.total_amount <= 0) {
+    if ((formData.total_amount ?? 0) <= 0) {
       newErrors.total_amount = 'Total amount must be greater than 0';
     }
 
@@ -390,15 +391,15 @@ export const InvestmentTransactionForm: React.FC<InvestmentTransactionFormProps>
                   <span>{formData.quantity} shares × ${formData.price_per_share}</span>
                   <span>${(formData.quantity * formData.price_per_share).toFixed(2)}</span>
                 </div>
-                {formData.fees > 0 && (
+                {(formData.fees ?? 0) > 0 && (
                   <div className="flex justify-between">
                     <span>Fees</span>
-                    <span>${formData.fees.toFixed(2)}</span>
+                    <span>${(formData.fees ?? 0).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-medium border-t border-blue-200 pt-1">
                   <span>Total</span>
-                  <span>${formData.total_amount.toFixed(2)}</span>
+                  <span>${(formData.total_amount ?? 0).toFixed(2)}</span>
                 </div>
               </div>
             </div>

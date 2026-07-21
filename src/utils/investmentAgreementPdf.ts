@@ -53,9 +53,9 @@ const pdfTable = (
 ) => ({
   theme: 'grid' as const,
   margin: { left: margin, right: margin },
-  headStyles: { fillColor: [...headColor], textColor: 255, fontStyle: 'bold' as const },
-  alternateRowStyles: { fillColor: [...BALANZE_BRAND.tableStripe] },
-  styles: { fontSize: 9, cellPadding: 3, lineColor: BALANZE_BRAND.border, lineWidth: 0.1 }
+  headStyles: { fillColor: [...headColor] as [number, number, number], textColor: 255, fontStyle: 'bold' as const },
+  alternateRowStyles: { fillColor: [...BALANZE_BRAND.tableStripe] as [number, number, number] },
+  styles: { fontSize: 9, cellPadding: 3, lineColor: [...BALANZE_BRAND.border] as [number, number, number], lineWidth: 0.1 }
 });
 
 export async function buildInvestmentAgreementDocument(
@@ -148,7 +148,7 @@ export async function buildInvestmentAgreementDocument(
       ],
       ...pdfTable(BALANZE_BRAND.blue)
     });
-    y = (doc as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
 
     if (contract.entries.length > 0) {
       autoTable(doc, {
@@ -162,7 +162,7 @@ export async function buildInvestmentAgreementDocument(
         ],
         ...pdfTable(BALANZE_BRAND.purple)
       });
-      y = (doc as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
     }
 
     writeSection(

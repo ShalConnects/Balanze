@@ -129,6 +129,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, onS
           dps_type: null,
           dps_amount_type: null,
           dps_fixed_amount: null,
+          dps_savings_account_id: null,
           is_active: true
         });
         

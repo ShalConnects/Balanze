@@ -21,7 +21,7 @@ export class AccessibilityManager {
     refreshAnnouncementDelay: 100
   };
   private isHighContrast = false;
-  private keyboardListeners: Array<{ key: string; handler: () => void }> = [];
+  private keyboardListeners: Array<{ key: string; handler: (e: KeyboardEvent) => void }> = [];
 
   private constructor() {
     this.detectHighContrast();
@@ -215,7 +215,7 @@ export class AccessibilityManager {
    */
   public cleanup(): void {
     this.keyboardListeners.forEach(({ key, handler }) => {
-      document.removeEventListener(key, handler);
+      document.removeEventListener(key, handler as EventListener);
     });
     this.keyboardListeners = [];
   }

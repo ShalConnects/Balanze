@@ -37,12 +37,12 @@ export interface FilterSummary {
   searchTerm?: string;
   transactionType?: string;
   accountName?: string;
-  currency?: string;
+  /** Display currency for financial totals (required when summarizing amounts) */
+  currency: string;
   // Financial summary fields
   totalIncome: number;
   totalExpense: number;
   netAmount: number;
   incomeCount: number;
   expenseCount: number;
-  currency: string;
 }

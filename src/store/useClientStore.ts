@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
 import { showToast } from '../lib/toast';
+import { getTodayLocalDateString } from '../utils/taskDateUtils';
 import type {
   Client,
   ClientInput,
@@ -187,9 +188,16 @@ export const useClientStore = create<ClientStore>((set, get) => ({
         return null;
       }
 
+      // Always persist a date — blank/missing known_since defaults to today
+      const knownSince =
+        typeof clientInput.known_since === 'string' && clientInput.known_since.trim() !== ''
+          ? clientInput.known_since.trim()
+          : getTodayLocalDateString();
+
       const clientData = {
         ...clientInput,
         user_id: user.id,
+        known_since: knownSince,
         status: clientInput.status || 'active',
         default_currency: clientInput.default_currency || 'USD',
         tags: clientInput.tags || [],
@@ -239,9 +247,18 @@ export const useClientStore = create<ClientStore>((set, get) => ({
   updateClient: async (id: string, updates: Partial<ClientInput>) => {
     try {
       set({ loading: true, error: null });
+      const normalizedUpdates = { ...updates } as Partial<ClientInput> & { known_since?: string | null };
+      if (Object.prototype.hasOwnProperty.call(updates, 'known_since')) {
+        const value = updates.known_since;
+        normalizedUpdates.known_since =
+          typeof value === 'string' && value.trim() !== ''
+            ? value.trim()
+            : getTodayLocalDateString();
+      }
+
       const { data, error } = await supabase
         .from('clients')
-        .update(updates)
+        .update(normalizedUpdates)
         .eq('id', id)
         .select()
         .single();
@@ -1414,9 +1431,9 @@ export const useClientStore = create<ClientStore>((set, get) => ({
 
     return {
       total_invoices: invoices.length,
-      total_amount,
-      paid_amount,
-      outstanding_amount,
+      total_amount: totalAmount,
+      paid_amount: paidAmount,
+      outstanding_amount: outstandingAmount,
       draft_count: statusCounts.draft,
       sent_count: statusCounts.sent,
       paid_count: statusCounts.paid,
@@ -1461,7 +1478,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
 
     return {
       total_orders: orders.length,
-      total_amount,
+      total_amount: totalAmount,
       pending_count: statusCounts.pending,
       processing_count: statusCounts.processing,
       completed_count: statusCounts.completed,
@@ -1597,12 +1614,12 @@ export const useClientStore = create<ClientStore>((set, get) => ({
   updateTask: async (id: string, updates: Partial<TaskInput>) => {
     try {
       set({ loading: true, error: null });
-      const normalizedUpdates: Partial<TaskInput> & { due_date?: string | null } = { ...updates };
+      const normalizedUpdates = { ...updates } as Partial<TaskInput> & { due_date?: string | null };
       if (Object.prototype.hasOwnProperty.call(updates, 'due_date')) {
         normalizedUpdates.due_date =
           typeof updates.due_date === 'string' && updates.due_date.trim() === ''
             ? null
-            : updates.due_date;
+            : (updates.due_date ?? undefined);
       }
 
       const { data, error } = await supabase

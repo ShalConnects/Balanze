@@ -1,18 +1,15 @@
 import { supabase } from '../lib/supabaseServer.js';
 import { isLastWishTriggerAuthorized } from '../lib/lastWishTriggerAuth.js';
 import { sendLastWishEmail } from './send-last-wish-email.js';
+import { applyCors } from '../lib/cors.js';
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST' && req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (!applyCors(req, res, { methods: 'GET, POST, OPTIONS', headers: 'Content-Type, Authorization' })) {
+    return;
   }
 
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
   if (!isLastWishTriggerAuthorized(req)) {
     return res.status(401).json({ error: 'Unauthorized' });

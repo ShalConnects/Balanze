@@ -21,7 +21,7 @@ interface CurrencySummary {
   prevNet: number;
   netChangePct: number | null;
   accountCount: number;
-  exposurePct: number;
+  exposurePct?: number;
 }
 
 export const EarningsSpendingSummary: React.FC<EarningsSpendingSummaryProps> = ({

@@ -6,7 +6,7 @@ import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils
 
 interface MonthlyTrendProps {
   transactions: Transaction[];
-  period: 'current' | 'last3' | 'last6' | 'last12';
+  period: 'current' | 'thisYear' | 'last3' | 'last6' | 'last12';
 }
 
 export const MonthlyTrend: React.FC<MonthlyTrendProps> = ({ transactions, period }) => {

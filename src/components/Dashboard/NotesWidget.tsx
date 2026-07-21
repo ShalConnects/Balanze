@@ -80,10 +80,12 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({
             </span>
           )}
         </div>
-        <button type="button" onClick={() => navigate('/notes')} className={DASHBOARD_WIDGET_VIEW_ALL}>
-          <span>View All</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
+        {notes.length > 0 && (
+          <button type="button" onClick={() => navigate('/notes')} className={DASHBOARD_WIDGET_VIEW_ALL}>
+            <span>View All</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       <div className={`${DASHBOARD_WIDGET_CONTENT} pt-2 ${isAccordionExpanded ? '' : 'pb-2'}`}>
@@ -119,7 +121,22 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({
       {isAccordionExpanded && (
         <div className={`${DASHBOARD_WIDGET_CONTENT} pb-1.5`}>
           {notesToShow.length === 0 && (
-            <div className="text-gray-400 text-xs text-center py-3">No notes for today.</div>
+            <div className="text-gray-400 text-xs text-center py-3">
+              {notes.length > 0 ? (
+                <>
+                  No notes for today —{' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/notes')}
+                    className={`${DASHBOARD_WIDGET_VIEW_ALL} inline-flex`}
+                  >
+                    {notes.length} older note{notes.length === 1 ? '' : 's'}
+                  </button>
+                </>
+              ) : (
+                'No notes for today.'
+              )}
+            </div>
           )}
           {notesToShow.map((note) => (
             <NoteListItem

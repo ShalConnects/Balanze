@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { formatCurrency } from '../../utils/currency';
 import { formatAppDate } from '../../utils/timezoneUtils';
@@ -14,7 +14,8 @@ import {
   Trophy,
   Award,
   Star,
-  CreditCard
+  CreditCard,
+  Eye
 } from 'lucide-react';
 import {
   BarChart,
@@ -108,7 +109,7 @@ export const LendBorrowAnalytics: React.FC = () => {
     const upcomingDue = recordsAffectingBalance
       .filter(record => record.due_date && record.due_date !== '' && record.status === 'active')
       .map(record => {
-        const dueDate = new Date(record.due_date);
+        const dueDate = new Date(record.due_date!);
         const daysDiff = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
         return {
           id: record.id,
