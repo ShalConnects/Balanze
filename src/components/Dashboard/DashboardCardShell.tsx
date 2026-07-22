@@ -4,6 +4,11 @@ import { ArrowRight, X } from 'lucide-react';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { useUnifiedDashboardCards } from '../../hooks/useUnifiedDashboardCards';
 import { DashboardWidgetInfo } from './DashboardWidgetInfo';
+import {
+  DashboardCardBadge,
+  isDashboardCardBadgeSpec,
+  type DashboardCardBadgeSpec,
+} from './DashboardCardBadge';
 
 const CLASSIC_SHELL =
   'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative h-full flex flex-col';
@@ -26,7 +31,8 @@ export type DashboardCardShellProps = {
   info?: React.ReactNode;
   infoAriaLabel?: string;
   headerExtra?: React.ReactNode;
-  badge?: React.ReactNode;
+  /** React node or compact badge spec — shell owns pill rendering. */
+  badge?: React.ReactNode | DashboardCardBadgeSpec | null;
   loading?: boolean;
   skeletonSlots?: number;
   children: React.ReactNode;
@@ -109,7 +115,7 @@ export const DashboardCardShell: React.FC<DashboardCardShellProps> = ({
           <h2 className="truncate text-base font-bold text-gray-900 dark:text-white sm:text-lg">
             {title}
           </h2>
-          {badge}
+          {isDashboardCardBadgeSpec(badge) ? <DashboardCardBadge {...badge} /> : badge}
           {info != null && (
             <DashboardWidgetInfo title={title} ariaLabel={infoAriaLabel ?? `Show ${title} info`}>
               {info}

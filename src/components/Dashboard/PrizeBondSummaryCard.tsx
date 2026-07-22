@@ -11,6 +11,7 @@ import { formatCurrency } from '../../utils/currency';
 import { usePersistedToggle } from '../../hooks/usePersistedToggle';
 import { StatCard } from './StatCard';
 import { DashboardCardShell } from './DashboardCardShell';
+import { drawSoonBadge } from './DashboardCardBadge';
 
 const WIDGET_KEY = 'showPrizeBondsWidget';
 const BDT = 'BDT';
@@ -148,6 +149,7 @@ export const PrizeBondSummaryCard: React.FC<PrizeBondSummaryCardProps> = ({ filt
       hideAriaLabel="Hide Prize bonds widget"
       info={infoBody}
       infoAriaLabel="Prize bonds widget info"
+      badge={drawSoonBadge(summary.nextDraw)}
       headerExtra={
         <button
           type="button"

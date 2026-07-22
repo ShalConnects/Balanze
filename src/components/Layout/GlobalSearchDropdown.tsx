@@ -24,7 +24,12 @@ import { fetchPrizeBonds } from '../../lib/prizeBondService';
 import { INVESTMENTS_BONDS_TAB } from '../../lib/investmentsNav';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 import { formatAppDate } from '../../utils/timezoneUtils';
-import { GLOBAL_SEARCH_PREFIX_HINTS, parseGlobalSearchQuery } from '../../utils/globalSearchScope';
+import {
+  GLOBAL_SEARCH_PREFIX_HINTS,
+  buildGlobalSearchOffsets,
+  globalSearchSectionCssOrder,
+  parseGlobalSearchQuery,
+} from '../../utils/globalSearchScope';
 import { format } from 'date-fns';
 import type { PrizeBond } from '../../types/prizeBond';
 
@@ -797,9 +802,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   const rankedInvestments = search ? fuzzyInvestments : [];
 
   const searchOffsets = useMemo(() => {
-    const L = {
-      acc: rankedAccounts.length,
+    return buildGlobalSearchOffsets({
       tx: rankedTransactions.length,
+      acc: rankedAccounts.length,
       pur: rankedPurchases.length,
       lb: rankedLendBorrow.length,
       inv: rankedInvestments.length,
@@ -810,22 +815,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       invdoc: rankedInvoices.length,
       hab: rankedHabits.length,
       cou: rankedCourses.length,
-    };
-    const s = (keys: (keyof typeof L)[]) => keys.reduce((n, k) => n + L[k], 0);
-    return {
-      accStart: 0,
-      txStart: s(['acc']),
-      purStart: s(['acc', 'tx']),
-      lbStart: s(['acc', 'tx', 'pur']),
-      invStart: s(['acc', 'tx', 'pur', 'lb']),
-      cliStart: s(['acc', 'tx', 'pur', 'lb', 'inv']),
-      trfStart: s(['acc', 'tx', 'pur', 'lb', 'inv', 'cli']),
-      donStart: s(['acc', 'tx', 'pur', 'lb', 'inv', 'cli', 'trf']),
-      tasStart: s(['acc', 'tx', 'pur', 'lb', 'inv', 'cli', 'trf', 'don']),
-      invdocStart: s(['acc', 'tx', 'pur', 'lb', 'inv', 'cli', 'trf', 'don', 'tas']),
-      habStart: s(['acc', 'tx', 'pur', 'lb', 'inv', 'cli', 'trf', 'don', 'tas', 'invdoc']),
-      couStart: s(['acc', 'tx', 'pur', 'lb', 'inv', 'cli', 'trf', 'don', 'tas', 'invdoc', 'hab']),
-    };
+    });
   }, [
     rankedAccounts.length,
     rankedTransactions.length,
@@ -927,12 +917,12 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
           const habLen = rankedHabits.length;
           const couLen = rankedCourses.length;
 
-          if (accLen > 0 && highlightedIdx >= searchOffsets.accStart && highlightedIdx < searchOffsets.txStart) {
-            item = rankedAccounts[highlightedIdx - searchOffsets.accStart]?.item;
-            itemType = 'account';
-          } else if (txLen > 0 && highlightedIdx >= searchOffsets.txStart && highlightedIdx < searchOffsets.purStart) {
+          if (txLen > 0 && highlightedIdx >= searchOffsets.txStart && highlightedIdx < searchOffsets.accStart) {
             item = rankedTransactions[highlightedIdx - searchOffsets.txStart]?.item;
             itemType = 'transaction';
+          } else if (accLen > 0 && highlightedIdx >= searchOffsets.accStart && highlightedIdx < searchOffsets.purStart) {
+            item = rankedAccounts[highlightedIdx - searchOffsets.accStart]?.item;
+            itemType = 'account';
           } else if (purLen > 0 && highlightedIdx >= searchOffsets.purStart && highlightedIdx < searchOffsets.lbStart) {
             item = rankedPurchases[highlightedIdx - searchOffsets.purStart]?.item;
             itemType = 'purchase';
@@ -1167,12 +1157,11 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Search Suggestions */}
         {showSuggestions && searchSuggestions.length > 0 && (
-          <div className="mb-6">
-            <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2 text-sm">
-              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+          <div className="mb-3">
+            <h3 className="font-medium text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1.5 text-[11px] uppercase tracking-wide">
               Suggestions
             </h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1">
               {searchSuggestions.map((suggestion, index) => (
                 <button
                   key={index}
@@ -1186,8 +1175,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
                       inputRef.current?.focus();
                     }, 10);
                   }}
-                  className="px-3 py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-600 transition-colors text-xs"
-                  style={{ fontSize: '13px', lineHeight: '18px' }}
+                  className="max-w-full truncate px-2 py-0.5 text-[11px] leading-4 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-600 transition-colors"
                 >
                   {suggestion}
                 </button>
@@ -1198,7 +1186,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Transactions Section */}
         {rankedTransactions.length > 0 && (
-          <div className="mb-6" style={{ order: 20 }}>
+          <div className="mb-6" style={{ order: globalSearchSectionCssOrder('transactions') }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
               Transactions ({rankedTransactions.length})
@@ -1248,7 +1236,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Purchases Section */}
         {rankedPurchases.length > 0 && (
-          <div className="mb-6" style={{ order: 30 }}>
+          <div className="mb-6" style={{ order: globalSearchSectionCssOrder('purchases') }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
               Purchases ({rankedPurchases.length})
@@ -1291,7 +1279,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Transfers Section */}
         {rankedTransfers.length > 0 && (
-          <div className="mb-6" style={{ order: 70 }}>
+          <div className="mb-6" style={{ order: globalSearchSectionCssOrder('transfers') }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
               Transfers ({rankedTransfers.length})
@@ -1338,7 +1326,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Accounts Section */}
         {rankedAccounts.length > 0 && (
-          <div className="mb-6" style={{ order: 10 }}>
+          <div className="mb-6" style={{ order: globalSearchSectionCssOrder('accounts') }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
               Accounts ({rankedAccounts.length})
@@ -1380,7 +1368,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         )}
 
         {rankedInvestments.length > 0 && (
-          <div className="mb-6" style={{ order: 50 }}>
+          <div className="mb-6" style={{ order: globalSearchSectionCssOrder('investments') }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-violet-500 rounded-full"></span>
               Investments ({rankedInvestments.length})
@@ -1470,7 +1458,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Lend & Borrow Section */}
         {rankedLendBorrow.length > 0 && (
-          <div className="mb-6" style={{ order: 40 }}>
+          <div className="mb-6" style={{ order: globalSearchSectionCssOrder('lendBorrow') }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-pink-500 rounded-full"></span>
               Lend & Borrow ({rankedLendBorrow.length})
@@ -1505,7 +1493,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Clients Section */}
         {rankedClients.length > 0 && (
-          <div className="mb-6" style={{ order: 60 }}>
+          <div className="mb-6" style={{ order: globalSearchSectionCssOrder('clients') }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-teal-500 rounded-full"></span>
               Clients ({rankedClients.length})
@@ -1551,7 +1539,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Tasks Section */}
         {rankedTasks.length > 0 && (
-          <div className="mb-6" style={{ order: 90 }}>
+          <div className="mb-6" style={{ order: globalSearchSectionCssOrder('tasks') }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
               Tasks ({rankedTasks.length})
@@ -1598,7 +1586,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Invoices Section */}
         {rankedInvoices.length > 0 && (
-          <div className="mb-6" style={{ order: 100 }}>
+          <div className="mb-6" style={{ order: globalSearchSectionCssOrder('invoices') }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-cyan-500 rounded-full"></span>
               Invoices ({rankedInvoices.length})
@@ -1645,7 +1633,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Donations Section */}
         {rankedDonations.length > 0 && (
-          <div className="mb-6" style={{ order: 80 }}>
+          <div className="mb-6" style={{ order: globalSearchSectionCssOrder('donations') }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
               Donations ({rankedDonations.length})
@@ -1705,7 +1693,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Habits Section */}
         {rankedHabits.length > 0 && (
-          <div className="mb-6" style={{ order: 110 }}>
+          <div className="mb-6" style={{ order: globalSearchSectionCssOrder('habits') }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
               Habits ({rankedHabits.length})
@@ -1753,7 +1741,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
         {/* Courses Section */}
         {rankedCourses.length > 0 && (
-          <div className="mb-6" style={{ order: 120 }}>
+          <div className="mb-6" style={{ order: globalSearchSectionCssOrder('courses') }}>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
               <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
               Courses ({rankedCourses.length})

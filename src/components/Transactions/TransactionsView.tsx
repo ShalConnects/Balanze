@@ -166,7 +166,6 @@ export const TransactionsView: React.FC = () => {
       {/* Transaction List */}
       <div>
         <TransactionList 
-          transactions={transactions as any}
           selectedRecord={selectedRecord}
           selectedId={selectedId}
           isFromSearch={isFromSearch}

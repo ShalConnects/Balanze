@@ -7,6 +7,7 @@ import { formatCurrency } from '../../utils/currency';
 import { usePersistedToggle } from '../../hooks/usePersistedToggle';
 import { toast } from 'sonner';
 import { DashboardCardShell } from './DashboardCardShell';
+import { countBadge } from './DashboardCardBadge';
 
 interface LendBorrowSummaryCardProps {
   filterCurrency?: string;
@@ -192,13 +193,7 @@ export const LendBorrowSummaryCard: React.FC<LendBorrowSummaryCardProps> = ({
       info={lendBorrowInfoBody}
       infoAriaLabel="Show lend & borrow info"
       loading={loading}
-      badge={
-        overdueCount > 0 ? (
-          <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-400">
-            {overdueCount} overdue
-          </span>
-        ) : undefined
-      }
+      badge={countBadge(overdueCount, 'overdue')}
     >
       <div className="dashboard-stat-grid gap-3 sm:gap-4 mb-0 flex-1">
         <div className="w-full relative">

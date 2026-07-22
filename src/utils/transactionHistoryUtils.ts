@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import { Transaction } from '../types';
 import { isBusinessInvestmentFundingExpense, isLendBorrowTransaction } from './transactionUtils';
 import { formatCurrency } from './currency';
+import { toLocalDateStringFromTimestamp } from './timezoneUtils';
 
 /** Row from `transaction_updates` — single source for store cache and UI. */
 export type TransactionHistoryEntry = {
@@ -39,7 +40,8 @@ type TransactionUpdateRow = Parameters<typeof toTransactionHistoryEntry>[0] & { 
 /** Replaces per–transaction_id slices from a bulk fetch (avoids duplicate append into cache). */
 export function mergeBulkTransactionHistoryIntoCache(
   prev: Map<string, TransactionHistoryEntry[]> | undefined,
-  rows: TransactionUpdateRow[]
+  rows: TransactionUpdateRow[],
+  requestedIds?: string[]
 ): Map<string, TransactionHistoryEntry[]> {
   const byTid = new Map<string, TransactionHistoryEntry[]>();
   for (const r of rows) {
@@ -49,6 +51,10 @@ export function mergeBulkTransactionHistoryIntoCache(
   }
   const m = new Map(prev || []);
   byTid.forEach((list, tid) => m.set(tid, list));
+  // Mark requested ids with [] so callers know fetch completed (no infinite "missing" prefetch).
+  requestedIds?.forEach((tid) => {
+    if (!m.has(tid)) m.set(tid, []);
+  });
   return m;
 }
 
@@ -181,7 +187,8 @@ export function groupTransactionHistoryForDisplay(entries: TransactionHistoryEnt
     );
 }
 
-const toDateStr = (d: Date | string) => (typeof d === 'string' ? d : d.toISOString()).split('T')[0];
+/** Local calendar day; timestamps use the same UTC→local rules as edit-history UI. */
+const toDateStr = (d: Date | string) => toLocalDateStringFromTimestamp(d);
 
 type Contrib = { date: string; amount: number; type: 'income' | 'expense' };
 
@@ -237,31 +244,69 @@ export function transactionHasAuditTrail(
   return Boolean(transaction.updated_at && transaction.updated_at !== transaction.created_at);
 }
 
+/** Sum of date-attributed contributions in [start, end] (created = full amount; amount edits = deltas). */
+export function getPeriodAttributedAmount(
+  t: Transaction,
+  history: Pick<TransactionHistoryEntry, 'field_name' | 'old_value' | 'new_value' | 'updated_at'>[],
+  startDate: string | Date,
+  endDate: string | Date
+): number {
+  const start = toDateStr(startDate);
+  const end = toDateStr(endDate);
+  return getContributions(t, history).reduce((sum, c) => {
+    const d = toDateStr(c.date);
+    return d >= start && d <= end ? sum + c.amount : sum;
+  }, 0);
+}
+
 export function computeDateAwareTotals(
   transactions: Transaction[],
   historyMap: Map<string, Pick<TransactionHistoryEntry, 'field_name' | 'old_value' | 'new_value' | 'updated_at'>[]>,
-  startDate: Date,
-  endDate: Date
+  startDate: string | Date,
+  endDate: string | Date
 ): { income: number; expense: number } {
-  const start = toDateStr(startDate);
-  const end = toDateStr(endDate);
   let income = 0;
   let expense = 0;
   const excluded = (t: Transaction) =>
     t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer')) ||
     isLendBorrowTransaction(t) ||
     isBusinessInvestmentFundingExpense(t);
-  transactions
-    .filter((t) => !excluded(t))
-    .forEach((t) => {
-      const contribs = getContributions(t, historyMap.get(t.transaction_id || '') || []);
-      contribs.forEach(({ date, amount, type }) => {
-        const d = toDateStr(date);
-        if (d >= start && d <= end) {
-          if (type === 'income') income += amount;
-          else expense += amount;
-        }
-      });
-    });
+  for (const t of transactions) {
+    if (excluded(t)) continue;
+    const amount = getPeriodAttributedAmount(
+      t,
+      historyMap.get(t.transaction_id || '') || [],
+      startDate,
+      endDate
+    );
+    if (t.type === 'income') income += amount;
+    else expense += amount;
+  }
   return { income, expense };
+}
+
+/** Amount-edit deltas in [start, end] from cached history (local calendar days). */
+export function sumAmountEditsInPeriod(
+  historyMap: Map<string, Pick<TransactionHistoryEntry, 'field_name' | 'old_value' | 'new_value' | 'updated_at'>[]>,
+  transactionIds: string[],
+  startDate: string | Date,
+  endDate: string | Date
+): { netDelta: number; editCount: number } {
+  const start = toDateStr(startDate);
+  const end = toDateStr(endDate);
+  let netDelta = 0;
+  let editCount = 0;
+  for (const tid of transactionIds) {
+    for (const h of historyMap.get(tid) || []) {
+      if (h.field_name !== 'amount') continue;
+      const d = toDateStr(h.updated_at);
+      if (d < start || d > end) continue;
+      const oldVal = parseFloat(h.old_value || '');
+      const newVal = parseFloat(h.new_value || '');
+      if (!Number.isFinite(oldVal) || !Number.isFinite(newVal)) continue;
+      netDelta += newVal - oldVal;
+      editCount += 1;
+    }
+  }
+  return { netDelta, editCount };
 }

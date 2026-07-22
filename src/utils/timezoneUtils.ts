@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import { toBusinessDateString } from './taskDateUtils';
 
 function parseUTCDateInput(date: string | Date): Date | null {
   if (!date) return null;
@@ -6,6 +7,14 @@ function parseUTCDateInput(date: string | Date): Date | null {
   const hasTimezone = /[+-]\d{2}:\d{2}$/.test(date) || date.endsWith('Z');
   const parsed = new Date(hasTimezone ? date : `${date}Z`);
   return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/** Calendar day in the user's local timezone (UTC-safe for DB timestamps). */
+export function toLocalDateStringFromTimestamp(date: string | Date | null | undefined): string {
+  if (!date) return '';
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+  const parsed = typeof date === 'string' ? parseUTCDateInput(date) : date;
+  return parsed ? toBusinessDateString(parsed) : '';
 }
 
 /**

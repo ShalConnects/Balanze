@@ -6,6 +6,7 @@ import { usePersistedToggle } from '../../hooks/usePersistedToggle';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
 import { DashboardCardShell } from './DashboardCardShell';
+import { purchaseAttentionBadge } from './DashboardCardBadge';
 
 interface PurchaseOverviewCardProps {
   filterCurrency?: string;
@@ -141,9 +142,8 @@ export const PurchaseOverviewCard: React.FC<PurchaseOverviewCardProps> = ({
     recentPurchases
   } = purchaseStats;
 
-  // High-priority planned purchases, surfaced as a header badge
-  const highPriorityPlannedCount = useMemo(
-    () => filteredPurchases.filter(p => p.priority === 'high' && p.status === 'planned').length,
+  const purchaseBadge = useMemo(
+    () => purchaseAttentionBadge(filteredPurchases),
     [filteredPurchases]
   );
 
@@ -235,13 +235,7 @@ export const PurchaseOverviewCard: React.FC<PurchaseOverviewCardProps> = ({
       info={purchasesInfoBody}
       infoAriaLabel="Show purchases info"
       loading={loading}
-      badge={
-        highPriorityPlannedCount > 0 ? (
-          <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-400">
-            {highPriorityPlannedCount} high
-          </span>
-        ) : undefined
-      }
+      badge={purchaseBadge}
     >
       <div className="dashboard-stat-grid gap-3 sm:gap-4 mb-0 flex-1">
         <StatCard

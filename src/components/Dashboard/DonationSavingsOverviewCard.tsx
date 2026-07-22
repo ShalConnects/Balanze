@@ -5,6 +5,7 @@ import { StatCard } from './StatCard';
 import { usePersistedToggle } from '../../hooks/usePersistedToggle';
 import { toast } from 'sonner';
 import { DashboardCardShell } from './DashboardCardShell';
+import { countBadge } from './DashboardCardBadge';
 
 interface DonationSavingsOverviewCardProps {
   t: (key: string, options?: any) => string;
@@ -403,6 +404,7 @@ export const DonationSavingsOverviewCard: React.FC<DonationSavingsOverviewCardPr
       info={donationsInfoBody}
       infoAriaLabel="Show donations & savings info"
       loading={loading}
+      badge={countBadge(pendingDonationsCount, 'pending')}
     >
       <div className="dashboard-stat-grid gap-3 sm:gap-4 flex-1">
         <div className="w-full">

@@ -1,3 +1,8 @@
+/** Row count + newest timestamp — shared so list/global search caches invalidate on edits. */
+export function collectionFingerprint(rows: readonly unknown[] | null | undefined): string {
+  return segment(rows);
+}
+
 /** One slice: row count + newest timestamp so global search cache invalidates when any source loads or edits. */
 function segment(rows: readonly unknown[] | null | undefined): string {
   const list = rows ?? [];

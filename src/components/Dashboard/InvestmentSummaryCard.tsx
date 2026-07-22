@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { StatCard } from './StatCard';
 import { DashboardCardShell } from './DashboardCardShell';
+import { profitBadge } from './DashboardCardBadge';
 import { formatCurrency } from '../../utils/currency';
 import { usePersistedToggle } from '../../hooks/usePersistedToggle';
 import { toast } from 'sonner';
@@ -137,6 +138,10 @@ export const InvestmentSummaryCard: React.FC<InvestmentSummaryCardProps> = ({ fi
       hideAriaLabel="Hide Investments widget"
       info={infoBody}
       infoAriaLabel="Investments widget info"
+      badge={profitBadge(
+        summary.totalProfit,
+        formatCurrency(summary.totalProfit, displayCurrency)
+      )}
     >
       <div className="dashboard-stat-grid gap-3 sm:gap-4 flex-1">
         <div className="min-w-0 w-full">

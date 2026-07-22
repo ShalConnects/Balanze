@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
 import { CourseForm } from '../Learning/CourseForm';
 import { DashboardCardShell } from './DashboardCardShell';
+import { learningNudge } from './DashboardCardBadge';
 
 interface LearningSummaryCardProps {
   filterCurrency?: string;
@@ -231,6 +232,7 @@ export const LearningSummaryCard: React.FC<LearningSummaryCardProps> = () => {
       hideAriaLabel="Hide Learning widget"
       info={learningInfoBody}
       infoAriaLabel="Show learning info"
+      badge={learningNudge(learningStats.overallProgress)}
     >
       <div className="dashboard-stat-grid gap-3 sm:gap-4 flex-1">
         <div className="w-full">

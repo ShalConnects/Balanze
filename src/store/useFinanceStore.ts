@@ -111,11 +111,6 @@ interface FinanceStore {
   deleteTransactionByPublicId: (publicTransactionId: string) => Promise<void>;
   fetchTransactionEditHistory: (transactionId: string) => Promise<{ rows: TransactionHistoryEntry[]; error: string | null }>;
   fetchTransactionEditHistoryBulk: (transactionIds: string[]) => Promise<void>;
-  fetchAmountEditDeltaSummary: (
-    transactionIds: string[],
-    startDate?: string,
-    endDate?: string
-  ) => Promise<{ netDelta: number; editCount: number; error: string | null }>;
   forceNextOccurrence: (transactionId: string) => Promise<void>;
   skipNextOccurrence: (transactionId: string) => Promise<void>;
   
@@ -1193,46 +1188,11 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           .select('id, transaction_id, field_name, old_value, new_value, updated_at, updated_by')
           .in('transaction_id', slice)
           .order('updated_at', transactionUpdatesOrder);
-        if (error || !data) continue;
-        cache = mergeBulkTransactionHistoryIntoCache(cache, data);
+        if (error) continue;
+        cache = mergeBulkTransactionHistoryIntoCache(cache, data || [], slice);
       }
       set({ transactionHistoryCache: cache });
     } catch { /* no-op */ }
-  },
-
-  fetchAmountEditDeltaSummary: async (transactionIds: string[], startDate?: string, endDate?: string) => {
-    if (!transactionIds.length) return { netDelta: 0, editCount: 0, error: null };
-    try {
-      let query = supabase
-        .from('transaction_updates')
-        .select('old_value, new_value, updated_at')
-        .eq('field_name', 'amount')
-        .in('transaction_id', transactionIds);
-
-      if (startDate) {
-        query = query.gte('updated_at', `${startDate}T00:00:00`);
-      }
-      if (endDate) {
-        query = query.lte('updated_at', `${endDate}T23:59:59.999`);
-      }
-
-      const { data, error } = await query;
-      if (error) return { netDelta: 0, editCount: 0, error: error.message };
-
-      let netDelta = 0;
-      let editCount = 0;
-      for (const row of data || []) {
-        const oldValue = Number(row.old_value);
-        const newValue = Number(row.new_value);
-        if (Number.isNaN(oldValue) || Number.isNaN(newValue)) continue;
-        netDelta += newValue - oldValue;
-        editCount += 1;
-      }
-
-      return { netDelta, editCount, error: null };
-    } catch (e: unknown) {
-      return { netDelta: 0, editCount: 0, error: e instanceof Error ? e.message : 'Failed to load amount edit summary' };
-    }
   },
 
   forceNextOccurrence: async (transactionId: string) => {

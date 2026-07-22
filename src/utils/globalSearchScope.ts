@@ -38,6 +38,58 @@ const SCOPE_PREFIXES: Record<string, GlobalSearchScope> = {
 
 export const GLOBAL_SEARCH_PREFIX_HINTS = ['client:', 'txn:', 'invoice:', 'invest:', 'bond:'] as const;
 
+/** Visual + keyboard order for result sections (transactions first). */
+export const GLOBAL_SEARCH_RESULT_SECTION_ORDER = [
+  'transactions',
+  'accounts',
+  'purchases',
+  'lendBorrow',
+  'investments',
+  'clients',
+  'transfers',
+  'donations',
+  'tasks',
+  'invoices',
+  'habits',
+  'courses',
+] as const;
+
+export type GlobalSearchResultSection = (typeof GLOBAL_SEARCH_RESULT_SECTION_ORDER)[number];
+
+export function globalSearchSectionCssOrder(section: GlobalSearchResultSection): number {
+  return (GLOBAL_SEARCH_RESULT_SECTION_ORDER.indexOf(section) + 1) * 10;
+}
+
+/** Short keys used by GlobalSearchDropdown offset math — keep in sync with GLOBAL_SEARCH_RESULT_SECTION_ORDER. */
+export const GLOBAL_SEARCH_NAV_KEYS = [
+  'tx',
+  'acc',
+  'pur',
+  'lb',
+  'inv',
+  'cli',
+  'trf',
+  'don',
+  'tas',
+  'invdoc',
+  'hab',
+  'cou',
+] as const;
+
+export type GlobalSearchNavKey = (typeof GLOBAL_SEARCH_NAV_KEYS)[number];
+
+export function buildGlobalSearchOffsets(
+  lengths: Record<GlobalSearchNavKey, number>
+): Record<`${GlobalSearchNavKey}Start`, number> {
+  let n = 0;
+  const starts = {} as Record<`${GlobalSearchNavKey}Start`, number>;
+  for (const key of GLOBAL_SEARCH_NAV_KEYS) {
+    starts[`${key}Start`] = n;
+    n += lengths[key];
+  }
+  return starts;
+}
+
 export function parseGlobalSearchQuery(rawQuery: string): { scope: GlobalSearchScope; query: string } {
   const trimmed = rawQuery.trim();
   const separatorIdx = trimmed.indexOf(':');

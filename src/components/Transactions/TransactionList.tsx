@@ -18,7 +18,6 @@ import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 import { ListPager } from '../common/ListPager';
 import { TABLE_SUMMARY_CARDS_GRID } from '../common/listPage/listPageLayout';
 import { Tooltip } from '../common/Tooltip';
-import { SummaryLabelWithInfo } from '../common/SummaryLabelWithInfo';
 // PDF libraries are loaded dynamically via exportUtils (lazy load)
 // import jsPDF from 'jspdf';
 // import autoTable from 'jspdf-autotable';
@@ -41,7 +40,7 @@ import { hasActiveTableSettings, TransactionTableSettingsPanel } from './Transac
 import { TransactionPeriodChangeCaption } from './TransactionPeriodChangeCaption';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { countsTowardIncomeExpenseSummaries, isLendBorrowTransaction } from '../../utils/transactionUtils';
-import { transactionHasAuditTrail } from '../../utils/transactionHistoryUtils';
+import { computeDateAwareTotals, sumAmountEditsInPeriod, transactionHasAuditTrail } from '../../utils/transactionHistoryUtils';
 import { formatDateUTC, formatTimeUTC } from '../../utils/timezoneUtils';
 import { getTransactionListManagedElsewhereHint, isTransactionListActionsLocked } from '../../lib/transactionListLock';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
@@ -99,7 +98,6 @@ function TransactionActionExpandGlyph({
 }
 
 const TransactionListComponent: React.FC<{ 
-  transactions: Transaction[];
   selectedRecord?: any;
   selectedId?: string | null;
   isFromSearch?: boolean;
@@ -107,7 +105,6 @@ const TransactionListComponent: React.FC<{
   selectedRecordRef?: React.RefObject<HTMLDivElement | HTMLTableRowElement>;
   clearSelection?: () => void;
 }> = ({ 
-  transactions, 
   selectedRecord, 
   selectedId, 
   isFromSearch, 
@@ -122,7 +119,9 @@ const TransactionListComponent: React.FC<{
   const [transactionToDuplicate, setTransactionToDuplicate] = useState<Transaction | undefined>();
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
-  const { getActiveAccounts, getActiveTransactions, deleteTransaction, updateTransaction, fetchTransactions, categories, purchaseCategories, accounts: allAccounts, forceNextOccurrence, transactionHistoryCache, fetchAmountEditDeltaSummary } = useFinanceStore();
+  // Store is source of truth (avoids stale props when React.memo bails out on parent).
+  const transactions = useFinanceStore((s) => s.transactions) ?? [];
+  const { getActiveAccounts, getActiveTransactions, deleteTransaction, updateTransaction, fetchTransactions, categories, purchaseCategories, accounts: allAccounts, forceNextOccurrence, transactionHistoryCache, fetchTransactionEditHistoryBulk } = useFinanceStore();
   const accounts = getActiveAccounts(); // For filtering dropdowns, keep active accounts
   const allAccountsForLookup = allAccounts; // Use all accounts for lookups to show inactive account info
   const activeTransactions = getActiveTransactions();
@@ -311,14 +310,8 @@ const TransactionListComponent: React.FC<{
   // Helper function to calculate dynamic transaction velocity
   const getTransactionVelocity = () => {
     const filterType = getDateFilterType();
-    
-    // Get transactions in the current period - use filteredTransactions to match what's displayed
-    const currentTransactions = filteredTransactions.filter(t => {
-      const transactionDate = new Date(t.date);
-      const startDate = new Date(filters.dateRange.start);
-      const endDate = new Date(filters.dateRange.end);
-      return transactionDate >= startDate && transactionDate <= endDate;
-    });
+    // Use the visible filtered set (includes today/week rows present only via edits).
+    const currentTransactions = filteredTransactions;
     
     if (currentTransactions.length === 0) {
       return { velocity: 0, unit: 'per day', text: 'No transactions' };
@@ -1141,10 +1134,26 @@ const TransactionListComponent: React.FC<{
   const allLendBorrowInFiltered = filteredTransactions.filter(t => isLendBorrowTransaction(t));
   const lendBorrowIncomeInFiltered = filteredTransactions.filter(t => t.type === 'income' && isLendBorrowTransaction(t));
   const lendBorrowExpenseInFiltered = filteredTransactions.filter(t => t.type === 'expense' && isLendBorrowTransaction(t));
-  
-  const totalIncome = filteredTransactions.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0);
-  const totalExpense = filteredTransactions.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0);
-  const summaryComparisonPeriod = getComparisonPeriod(getDateFilterType());
+
+  // Today/Week cards: new txs in range (full amount) + amount edits in range (deltas). Table still shows current amount.
+  const dateFilterType = getDateFilterType();
+  const usePeriodAttribution =
+    (dateFilterType === 'today' || dateFilterType === 'week') &&
+    !!filters.dateRange.start &&
+    !!filters.dateRange.end;
+  const historyMap = transactionHistoryCache;
+  const { income: totalIncome, expense: totalExpense } = usePeriodAttribution
+    ? computeDateAwareTotals(
+        filteredTransactions,
+        historyMap ?? new Map(),
+        filters.dateRange.start,
+        filters.dateRange.end
+      )
+    : {
+        income: filteredTransactions.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0),
+        expense: filteredTransactions.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0),
+      };
+  const summaryComparisonPeriod = getComparisonPeriod(dateFilterType);
   const transactionCount = filteredTransactions.length;
   
   // Console log for verification - always log when transactions are present
@@ -1234,42 +1243,34 @@ const TransactionListComponent: React.FC<{
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customStart, setCustomStart] = useState(filters.dateRange.start ? filters.dateRange.start.slice(0, 10) : '');
   const [customEnd, setCustomEnd] = useState(filters.dateRange.end ? filters.dateRange.end.slice(0, 10) : '');
-  const [amountEditSummary, setAmountEditSummary] = useState({ netDelta: 0, editCount: 0 });
 
   const filteredTransactionIds = useMemo(
     () => Array.from(new Set(filteredTransactions.map(t => t.transaction_id).filter((id): id is string => Boolean(id)))),
     [filteredTransactions]
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    const filterType = getDateFilterType();
-    const shouldTrackEditDelta =
-      (filterType === 'today' || filterType === 'week') &&
-      !!filters.dateRange.start &&
-      !!filters.dateRange.end &&
-      filteredTransactionIds.length > 0;
-
-    if (!shouldTrackEditDelta) {
-      setAmountEditSummary({ netDelta: 0, editCount: 0 });
-      return;
-    }
-
-    fetchAmountEditDeltaSummary(filteredTransactionIds, filters.dateRange.start, filters.dateRange.end)
-      .then((res) => {
-        if (cancelled || res.error) return;
-        setAmountEditSummary({ netDelta: res.netDelta, editCount: res.editCount });
-      });
-
-    return () => {
-      cancelled = true;
-    };
+  const amountEditCount = useMemo(() => {
+    if (!usePeriodAttribution || !historyMap) return 0;
+    return sumAmountEditsInPeriod(
+      historyMap,
+      filteredTransactionIds,
+      filters.dateRange.start,
+      filters.dateRange.end
+    ).editCount;
   }, [
-    fetchAmountEditDeltaSummary,
+    usePeriodAttribution,
+    historyMap,
     filteredTransactionIds,
     filters.dateRange.start,
     filters.dateRange.end,
   ]);
+
+  // Prefetch missing history so Today/Week cards don't flash ৳0 for edit-only rows.
+  useEffect(() => {
+    if (!usePeriodAttribution || !filteredTransactionIds.length) return;
+    const missing = filteredTransactionIds.filter((id) => !historyMap?.has(id));
+    if (missing.length) fetchTransactionEditHistoryBulk(missing);
+  }, [usePeriodAttribution, filteredTransactionIds, historyMap, fetchTransactionEditHistoryBulk]);
 
   return (
     <div className="space-y-6">
@@ -1792,6 +1793,8 @@ const TransactionListComponent: React.FC<{
                   rangeEnd={filters.dateRange.end}
                   comparisonStart={summaryComparisonPeriod.start}
                   comparisonEnd={summaryComparisonPeriod.end}
+                  currentTotal={totalIncome}
+                  historyMap={usePeriodAttribution ? historyMap : undefined}
                 />
               </div>
               <span className={THEME_ACCENT_TEXT_CLASS} style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
@@ -1811,6 +1814,8 @@ const TransactionListComponent: React.FC<{
                   rangeEnd={filters.dateRange.end}
                   comparisonStart={summaryComparisonPeriod.start}
                   comparisonEnd={summaryComparisonPeriod.end}
+                  currentTotal={totalExpense}
+                  historyMap={usePeriodAttribution ? historyMap : undefined}
                 />
               </div>
               <span className={THEME_ACCENT_TEXT_CLASS} style={{ fontSize: '1.2rem' }}>{getCurrencySymbol(selectedCurrency)}</span>
@@ -1822,42 +1827,18 @@ const TransactionListComponent: React.FC<{
                 <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Transactions</p>
                 <p className={`font-bold ${THEME_ACCENT_TEXT_CLASS}`} style={{ fontSize: '1.2rem' }}>{transactionCount}</p>
                 <p className={THEME_MUTED_CAPTION_CLASS} style={{ fontSize: '11px' }}>
-                  {(() => {
-                    const velocityData = getTransactionVelocity();
-                    return velocityData.text;
-                  })()}
+                  {usePeriodAttribution
+                    ? `${amountEditCount} amount edit${amountEditCount === 1 ? '' : 's'} ${getDateRangeLabel().toLowerCase()}`
+                    : getTransactionVelocity().text}
                 </p>
               </div>
               <span className={THEME_ACCENT_TEXT_CLASS} style={{ fontSize: '1.2rem', width: '1.2rem', height: '1.2rem' }}>#</span>
             </div>
           </div>
-          {(() => {
-            const filterType = getDateFilterType();
-            if (filterType !== 'today' && filterType !== 'week') return null;
-            const isPositive = amountEditSummary.netDelta >= 0;
-            return (
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
-                <div className="flex items-center justify-between">
-                  <div className="text-left">
-                    <SummaryLabelWithInfo
-                      label="Net Edited Change"
-                      tooltip="Sum of amount edits (new - old) within the selected timeframe."
-                    />
-                    <p className={`font-bold ${isPositive ? CASHFLOW_INCOME_TEXT_CLASS : CASHFLOW_EXPENSE_TEXT_CLASS}`} style={{ fontSize: '1.2rem' }}>
-                      {`${isPositive ? '+' : ''}${formatCurrency(amountEditSummary.netDelta, selectedCurrency)}`}
-                    </p>
-                    <p className={THEME_MUTED_CAPTION_CLASS} style={{ fontSize: '11px' }}>
-                      {`${amountEditSummary.editCount} amount edit${amountEditSummary.editCount === 1 ? '' : 's'} ${getDateRangeLabel().toLowerCase()}`}
-                    </p>
-                  </div>
-                  <History className={`w-5 h-5 ${isPositive ? CASHFLOW_INCOME_TEXT_CLASS : CASHFLOW_EXPENSE_TEXT_CLASS}`} />
-                </div>
-              </div>
-            );
-          })()}
           <FinancialHealthCard
-            transactions={filteredTransactions}
             selectedCurrency={selectedCurrency}
+            income={totalIncome}
+            expense={totalExpense}
           />
           {!isPremiumPlan && (
             <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
@@ -3815,41 +3796,5 @@ const TransactionListComponent: React.FC<{
   );
 };
 
-// Memoize to prevent remounts when transactions array reference changes but content is the same
-export const TransactionList = React.memo(TransactionListComponent, (prevProps, nextProps) => {
-  // Quick check: if array reference is the same, props are equal
-  if (prevProps.transactions === nextProps.transactions) {
-    // Still need to check other props
-    if (prevProps.selectedId === nextProps.selectedId &&
-        prevProps.isFromSearch === nextProps.isFromSearch &&
-        prevProps.hasSelection === nextProps.hasSelection &&
-        prevProps.selectedRecord === nextProps.selectedRecord) {
-      return true; // All props equal, skip re-render
-    }
-  }
-  
-  // Array reference changed - check if content is actually different
-  if (prevProps.transactions.length !== nextProps.transactions.length) {
-    return false; // Length changed, allow re-render
-  }
-  
-  // Check if any transaction changed by comparing IDs and critical fields
-  // We use a hash of ID + note + updated_at to detect changes efficiently
-  const prevHash = prevProps.transactions.map(t => `${t.id}:${t.note || ''}:${t.updated_at || ''}`).join('|');
-  const nextHash = nextProps.transactions.map(t => `${t.id}:${t.note || ''}:${t.updated_at || ''}`).join('|');
-  
-  if (prevHash !== nextHash) {
-    return false; // Content changed, allow re-render
-  }
-  
-  // Check if other props changed
-  if (prevProps.selectedId !== nextProps.selectedId ||
-      prevProps.isFromSearch !== nextProps.isFromSearch ||
-      prevProps.hasSelection !== nextProps.hasSelection ||
-      prevProps.selectedRecord !== nextProps.selectedRecord) {
-    return false; // Other props changed, allow re-render
-  }
-  
-  // Props are the same, skip re-render (prevent remount)
-  return true;
-});
+// List data is store-subscribed inside; default memo is enough for selection props.
+export const TransactionList = React.memo(TransactionListComponent);

@@ -8,6 +8,7 @@ try {
 }
 
 import { trackSearch, trackSearchClick, trackSuggestionClick, trackZeroResults } from './searchAnalytics';
+import { collectionFingerprint } from './globalSearchCacheFingerprint';
 
 // Search configuration types
 export interface SearchConfig {
@@ -210,20 +211,22 @@ export class UnifiedSearchService {
   private readonly CACHE_LIMIT = 50;
 
   /**
-   * Create or get Fuse instance for data type
+   * Create or get Fuse instance for data type (invalidates when row count / newest updated_at changes).
    */
   private getFuseInstance<T>(data: T[], dataType: string, config: SearchConfig): any {
-    const cacheKey = `${dataType}-${data.length}`;
-    
+    const cacheKey = `${dataType}-${collectionFingerprint(data)}`;
+
     if (!this.fuseInstances.has(cacheKey)) {
       if (Fuse) {
-        const fuse = new Fuse(data, config);
-        this.fuseInstances.set(cacheKey, fuse);
+        for (const k of [...this.fuseInstances.keys()]) {
+          if (k.startsWith(`${dataType}-`)) this.fuseInstances.delete(k);
+        }
+        this.fuseInstances.set(cacheKey, new Fuse(data, config));
       } else {
         throw new Error('Fuse.js not available');
       }
     }
-    
+
     return this.fuseInstances.get(cacheKey)!;
   }
 
@@ -298,9 +301,10 @@ export class UnifiedSearchService {
     }
 
     const startTime = performance.now();
+    const dataRev = collectionFingerprint(data);
 
-    // Check cache first
-    const cacheKey = `${dataType}-${query.toLowerCase()}`;
+    // Check cache first (include dataRev so edits don't return stale row snapshots)
+    const cacheKey = `${dataType}-${query.toLowerCase()}-${dataRev}`;
     if (this.searchCache.has(cacheKey)) {
       const cachedResults = this.searchCache.get(cacheKey);
       const searchTime = performance.now() - startTime;
@@ -384,6 +388,7 @@ export class UnifiedSearchService {
    */
   clearCache(): void {
     this.searchCache.clear();
+    this.fuseInstances.clear();
   }
 
   /**

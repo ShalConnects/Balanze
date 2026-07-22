@@ -6,6 +6,7 @@ import { usePersistedToggle } from '../../hooks/usePersistedToggle';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
 import { DashboardCardShell } from './DashboardCardShell';
+import { countBadge } from './DashboardCardBadge';
 
 interface ClientsOverviewCardProps {
   filterCurrency?: string;
@@ -146,6 +147,14 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
     };
   }, [clients, getOrdersByClient, getInvoicesByClient, filterCurrency, timeFilter, startDate, endDate]);
 
+  const overdueInvoiceCount = useMemo(
+    () =>
+      invoices.filter(
+        (i) => i.status === 'overdue' && (!filterCurrency || i.currency === filterCurrency)
+      ).length,
+    [invoices, filterCurrency]
+  );
+
   // Get recent clients for tooltip
   const recentClients = useMemo(() => {
     return clients
@@ -237,6 +246,7 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
       info={clientsInfoBody}
       infoAriaLabel="Show clients info"
       loading={loading}
+      badge={countBadge(overdueInvoiceCount, 'overdue')}
     >
       <div className="dashboard-stat-grid gap-3 sm:gap-4 flex-1">
         <div className="w-full">

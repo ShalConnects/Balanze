@@ -1,8 +1,7 @@
 import React from 'react';
 import { TrendingDown } from 'lucide-react';
-import { Transaction } from '../../types';
 import { formatCurrency } from '../../utils/currency';
-import { countsTowardIncomeExpenseSummaries, INCOME_EXPENSE_NET_TOOLTIP } from '../../utils/transactionUtils';
+import { INCOME_EXPENSE_NET_TOOLTIP } from '../../utils/transactionUtils';
 import {
   CASHFLOW_EXPENSE_TEXT_CLASS,
   CASHFLOW_INCOME_TEXT_CLASS,
@@ -13,23 +12,17 @@ import {
 import { SummaryLabelWithInfo } from '../common/SummaryLabelWithInfo';
 
 interface FinancialHealthCardProps {
-  transactions: Transaction[];
   selectedCurrency: string;
+  income: number;
+  expense: number;
 }
 
 export const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({
-  transactions,
-  selectedCurrency
+  selectedCurrency,
+  income,
+  expense
 }) => {
-  const trueIncome = transactions
-    .filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t))
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const trueExpenses = transactions
-    .filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t))
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const netAmount = trueIncome - trueExpenses;
+  const netAmount = income - expense;
 
   return (
     <div className="bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2">
@@ -41,11 +34,11 @@ export const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({
           </p>
           <p className={THEME_MUTED_CAPTION_CLASS} style={{ fontSize: '11px' }}>
             <span className={CASHFLOW_INCOME_TEXT_CLASS}>
-              {formatCurrency(trueIncome, selectedCurrency)}
+              {formatCurrency(income, selectedCurrency)}
             </span>
             <span className="mx-1">/</span>
             <span className={CASHFLOW_EXPENSE_TEXT_CLASS}>
-              {formatCurrency(trueExpenses, selectedCurrency)}
+              {formatCurrency(expense, selectedCurrency)}
             </span>
           </p>
         </div>
