@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { userPreferencesManager } from '../lib/userPreferences';
 import { favoriteQuotesService } from '../lib/favoriteQuotesService';
@@ -444,89 +444,33 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       console.error('[OAUTH] Is Android platform?', isAndroid);
       
       if (isAndroid && provider === 'google') {
-        // Use native Google Sign-In on Android for better UX
-        // The native picker should show with signOut + revokeAccess before sign-in
-        console.error('[OAUTH] 📱 Android detected - using native Google Sign-In');
-        
+        // Native only — never open Supabase browser OAuth on Android Google login
         try {
-          // Try native Google Sign-In
           const nativeResult = await googleSignIn.signIn();
-          
-          if (!nativeResult) {
-            console.error('[OAUTH] ⚠️ Native sign-in returned null, falling back to browser OAuth');
-            return await get().fallbackToBrowserOAuth(provider, redirectUrl);
+          if (!nativeResult?.idToken) {
+            throw new Error('Native Google Sign-In unavailable');
           }
-          
-          console.error('[OAUTH] ✅ Native sign-in successful, exchanging idToken with Supabase...');
-          console.error('[OAUTH] - Email:', nativeResult.email);
-          console.error('[OAUTH] - Has idToken?', !!nativeResult.idToken);
-          
-          if (!nativeResult.idToken) {
-            throw new Error('No idToken received from native sign-in');
-          }
-          
-          // Exchange idToken with Supabase using REST API
-          // Supabase doesn't have direct signInWithIdToken in JS client, so we use REST API
-          
-          console.error('[OAUTH] 🔄 Exchanging idToken with Supabase REST API...');
-          const tokenResponse = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=id_token`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': supabaseAnonKey,
-            },
-            body: JSON.stringify({
-              provider: 'google',
-              id_token: nativeResult.idToken,
-            }),
+
+          const { data, error } = await supabase.auth.signInWithIdToken({
+            provider: 'google',
+            token: nativeResult.idToken,
           });
-          
-          const tokenData = await tokenResponse.json();
-          
-          if (!tokenResponse.ok || tokenData.error) {
-            console.error('[OAUTH] ❌ Supabase token exchange error:', tokenData);
-            throw new Error(tokenData.error_description || tokenData.error || 'Failed to exchange token with Supabase');
-          }
-          
-          if (tokenData.access_token && tokenData.refresh_token) {
-            console.error('[OAUTH] ✅ Token exchange successful, setting Supabase session...');
-            // Set the session with the tokens
-            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-              access_token: tokenData.access_token,
-              refresh_token: tokenData.refresh_token,
-            });
-            
-            if (sessionError) {
-              console.error('[OAUTH] ❌ Error setting session:', sessionError);
-              throw sessionError;
-            }
-            
-            if (sessionData?.user) {
-              console.error('[OAUTH] ✅ Supabase authentication successful');
-              markPersistentLogin();
-              const { setUserAndProfile } = get();
-              await setUserAndProfile(sessionData.user, null);
-              set({ isLoading: false });
-              return { success: true };
-            } else {
-              throw new Error('Authentication succeeded but no user data received');
-            }
-          } else {
-            throw new Error('Token exchange succeeded but no tokens received');
-          }
+          if (error) throw error;
+          if (!data.user) throw new Error('Authentication succeeded but no user data received');
+
+          markPersistentLogin();
+          await get().setUserAndProfile(data.user, null);
+          set({ isLoading: false });
+          return { success: true };
         } catch (nativeError: any) {
-          console.error('[OAUTH] ❌ Native sign-in error:', nativeError);
-          console.error('[OAUTH] - Error message:', nativeError?.message);
-          
-          // If native sign-in fails or is cancelled, fall back to browser OAuth
-          if (nativeError?.message?.includes('cancelled') || nativeError?.message?.includes('12500')) {
-            console.error('[OAUTH] ⚠️ User cancelled native sign-in');
-            set({ error: 'Sign in was cancelled.', isLoading: false });
-            return { success: false, message: 'Sign in was cancelled.' };
-          }
-          
-          console.error('[OAUTH] 🔄 Falling back to browser OAuth...');
-          return await get().fallbackToBrowserOAuth(provider, redirectUrl);
+          const msg = nativeError?.message || '';
+          const cancelled = msg.includes('cancelled') || msg.includes('12500');
+          const userMessage = cancelled
+            ? 'Sign in was cancelled.'
+            : 'Google Sign-In failed. Please try again.';
+          console.error('[OAUTH] ❌ Native Google sign-in error:', nativeError);
+          set({ error: userMessage, isLoading: false });
+          return { success: false, message: userMessage };
         }
       } else if (isAndroid && provider === 'apple') {
         // For Apple on Android, use browser OAuth (Apple Sign-In is iOS only)
@@ -608,13 +552,9 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
           console.error('[OAUTH] ✅ Browser opened successfully');
           return { success: true };
         } catch (browserError: any) {
+          // Do not window.open into the Capacitor WebView (navigates to Supabase URL)
           console.error('[OAUTH] ⚠️ Browser.open() failed:', browserError);
-          const fallbackWindow = window.open(data.url, '_blank', 'noopener,noreferrer');
-          if (fallbackWindow) {
-            return { success: true };
-          } else {
-            throw new Error('Unable to open browser. Please ensure you have a browser installed.');
-          }
+          throw new Error('Unable to open browser. Please ensure you have a browser installed.');
         }
       } else {
         throw new Error('OAuth URL not received');

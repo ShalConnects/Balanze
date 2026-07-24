@@ -85,6 +85,7 @@ export const LW: React.FC<LWProps> = () => {
     deliveryTriggered: false,
   });
   const [loading, setLoading] = useState(false);
+  const [settingsReady, setSettingsReady] = useState(false);
   const [testPdfLoading, setTestPdfLoading] = useState(false);
   const [showRecipientModal, setShowRecipientModal] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -441,12 +442,17 @@ These memories are my gift to you.`
 
   // Load settings from database
   useEffect(() => {
+    if (!user) {
+      setSettingsReady(false);
+      return;
+    }
+    setSettingsReady(false);
     loadLWSettings();
   }, [user]);
 
-  // Load lend/borrow records
+  // Defer secondary data until settings are ready (faster System Control paint)
   useEffect(() => {
-    if (!user) return;
+    if (!user || !settingsReady) return;
 
     const fetchLendBorrowRecords = async () => {
       try {
@@ -465,10 +471,10 @@ These memories are my gift to you.`
     };
 
     fetchLendBorrowRecords();
-  }, [user]);
+  }, [user, settingsReady]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !settingsReady) return;
     (async () => {
       try {
         const rows = await fetchBusinessInvestmentContracts(user.id, { activeOnly: true });
@@ -477,7 +483,7 @@ These memories are my gift to you.`
         setBusinessContracts([]);
       }
     })();
-  }, [user]);
+  }, [user, settingsReady]);
 
   // Cleanup auto-save timeout on unmount
   useEffect(() => {
@@ -530,44 +536,20 @@ These memories are my gift to you.`
     try {
       const { data, error } = await supabase
         .from('last_wish_settings')
-        .select('*')
+        .select(
+          'is_enabled, check_in_frequency, last_check_in, recipients, include_data, message, is_active, delivery_triggered'
+        )
         .eq('user_id', user.id)
         .single();
 
       if (error && error.code !== 'PGRST116') {
-
+        setSettingsReady(true);
         return;
       }
 
       if (data) {
-        // Check for successful deliveries in last_wish_deliveries table
-        const { data: deliveries, error: deliveryError } = await supabase
-          .from('last_wish_deliveries')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('delivery_status', 'sent')
-          .order('sent_at', { ascending: false });
-        
-        // If delivery_triggered flag is explicitly true, mark as delivered
-        // Otherwise, only check deliveries table if delivery_triggered is null/undefined (fallback for old records)
-        const isDelivered = data.delivery_triggered === true || 
-          (data.delivery_triggered === null && deliveries && deliveries.length > 0);
-        
-        // Store delivery data if available and marked as delivered
-        if (isDelivered && !deliveryError && deliveries && deliveries.length > 0) {
-          setDeliveryData({
-            deliveredAt: deliveries[0].sent_at,
-            recipients: deliveries.map(d => ({
-              email: d.recipient_email,
-              status: d.delivery_status
-            })),
-            deliveryCount: deliveries.length
-          });
-        } else {
-          // Clear delivery data if not delivered
-          setDeliveryData(null);
-        }
-        
+        // Paint System Control immediately from settings row (don't wait on deliveries)
+        const flaggedDelivered = data.delivery_triggered === true;
         setSettings({
           isEnabled: data.is_enabled || false,
           checkInFrequency: data.check_in_frequency || 30,
@@ -576,12 +558,11 @@ These memories are my gift to you.`
           includeData: normalizeIncludeData(data.include_data as Partial<LWSettings['includeData']>),
           message: data.message || '',
           isActive: data.is_active || false,
-          deliveryTriggered: Boolean(isDelivered),
+          deliveryTriggered: flaggedDelivered,
         });
-        
-        // Initialize simple text editor with the message content
+        setSettingsReady(true);
+
         if (data.message) {
-          // Convert HTML to plain text for simple editor
           const textContent = data.message
             .replace(/<br\s*\/?>/gi, '\n')
             .replace(/<p[^>]*>/gi, '')
@@ -603,9 +584,44 @@ These memories are my gift to you.`
             .trim();
           setSimpleText(textContent);
         }
+
+        // Background: resolve delivery history without blocking Active toggle
+        void (async () => {
+          const { data: deliveries, error: deliveryError } = await supabase
+            .from('last_wish_deliveries')
+            .select('sent_at, recipient_email, delivery_status')
+            .eq('user_id', user.id)
+            .eq('delivery_status', 'sent')
+            .order('sent_at', { ascending: false });
+
+          const isDelivered =
+            data.delivery_triggered === true ||
+            (data.delivery_triggered === null && !!deliveries?.length);
+
+          if (isDelivered && !deliveryError && deliveries && deliveries.length > 0) {
+            setDeliveryData({
+              deliveredAt: deliveries[0].sent_at,
+              recipients: deliveries.map((d) => ({
+                email: d.recipient_email,
+                status: d.delivery_status,
+              })),
+              deliveryCount: deliveries.length,
+            });
+          } else {
+            setDeliveryData(null);
+          }
+
+          setSettings((prev) =>
+            prev.deliveryTriggered === Boolean(isDelivered)
+              ? prev
+              : { ...prev, deliveryTriggered: Boolean(isDelivered) }
+          );
+        })();
+      } else {
+        setSettingsReady(true);
       }
     } catch (error) {
-
+      setSettingsReady(true);
     }
   };
 
@@ -1425,11 +1441,12 @@ These memories are my gift to you.`
             <div className="h-full flex flex-col justify-center">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">System Control</h3>
-                <label className="relative inline-flex items-center cursor-pointer">
+                <label className={`relative inline-flex items-center ${settingsReady ? 'cursor-pointer' : 'cursor-wait opacity-60'}`}>
                   <input
                     type="checkbox"
                     checked={settings.isEnabled}
                     onChange={(e) => toggleLWEnabled(e.target.checked)}
+                    disabled={!settingsReady}
                     className="sr-only peer"
                   />
                   <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
@@ -1438,9 +1455,21 @@ These memories are my gift to you.`
               
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
-                  <div className={`w-3 h-3 rounded-full ${settings.isEnabled ? 'bg-blue-500' : 'bg-gray-400'}`} />
+                  <div
+                    className={`w-3 h-3 rounded-full ${
+                      !settingsReady
+                        ? 'bg-gray-300 animate-pulse'
+                        : settings.isEnabled
+                          ? 'bg-blue-500'
+                          : 'bg-gray-400'
+                    }`}
+                  />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {settings.isEnabled ? 'System Active' : 'System Inactive'}
+                    {!settingsReady
+                      ? 'Loading status…'
+                      : settings.isEnabled
+                        ? 'System Active'
+                        : 'System Inactive'}
                   </span>
                 </div>
                 

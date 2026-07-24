@@ -30,31 +30,16 @@ public class GoogleSignInPlugin extends Plugin {
         Log.e("GoogleSignIn", "GoogleSignInPlugin.load() CALLED");
         Log.e("GoogleSignIn", "========================================");
         
-        // Get the server client ID from capacitor config
-        // This should be your Google OAuth Web Client ID (same as configured in Supabase)
-        String serverClientId = getConfig().getString("serverClientId", "");
-        
-        Log.e("GoogleSignIn", "Server Client ID from config: " + (serverClientId.isEmpty() ? "EMPTY" : serverClientId.substring(0, Math.min(20, serverClientId.length())) + "..."));
-        
-        if (serverClientId.isEmpty()) {
-            Log.e("GoogleSignIn", "❌ Google Sign-In: serverClientId not configured in capacitor.config.ts");
-            Log.e("GoogleSignIn", "Please add GoogleSignIn: { serverClientId: 'your-google-client-id' } to capacitor.config.ts");
-            // Don't initialize if not configured - will fail gracefully
-            return;
-        }
-        
-        Log.e("GoogleSignIn", "✅ Configuring Google Sign-In with serverClientId");
-        
-        // Configure Google Sign-In
-        // Note: For native Android Sign-In, use the same Web Client ID that's configured in Supabase
+        String serverClientId = GoogleAuthConfig.resolveServerClientId(
+            getConfig().getString("serverClientId", "")
+        );
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(serverClientId)
             .requestEmail()
             .requestProfile()
             .build();
-        
         googleSignInClient = GoogleSignIn.getClient(getActivity(), gso);
-        Log.e("GoogleSignIn", "✅ GoogleSignInClient initialized successfully");
+        Log.e("GoogleSignIn", "✅ GoogleSignInClient initialized");
     }
 
     @PluginMethod

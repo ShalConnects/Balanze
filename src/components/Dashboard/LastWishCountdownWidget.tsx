@@ -3,22 +3,21 @@ import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
 import { formatAppDate } from '../../utils/timezoneUtils';
 import {
-  LAST_WISH_CHECKIN_DAY_MS,
   lastWishNextCheckInMs,
   lastWishRemainingMs,
-  lastWishIsFinalDayWindow,
-  lastWishDisplayHms,
+  lastWishCountdownSnapshot,
+  lastWishStatusChip,
 } from '../../lib/lastWishCheckInCountdown';
+import { DASHBOARD_WIDGET_DRAG_CLEAR_RIGHT } from '../../constants/dashboardWidget';
 import { 
   AlertTriangle, 
   Clock, 
   CheckCircle, 
   Settings, 
-  Eye, 
   Calendar,
-  Users,
+  ChevronDown,
+  ChevronUp,
   FileText,
-  ArrowRight,
   RefreshCw
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -35,7 +34,9 @@ interface CountdownData {
     minutes: number;
     seconds: number;
   };
+  isFinalDay?: boolean;
   isFinalHour?: boolean;
+  remainingMs?: number;
 }
 
 interface DeliveryData {
@@ -66,7 +67,7 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
   const [countdown, setCountdown] = useState<CountdownData | null>(null);
   const [enabled, setEnabled] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [deliveryData, setDeliveryData] = useState<DeliveryData | null>(null);
   const [isDelivered, setIsDelivered] = useState(false);
   const [immediateCheckTriggered, setImmediateCheckTriggered] = useState(false);
@@ -148,46 +149,20 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
         
         if (data.last_check_in) {
           const nextMs = lastWishNextCheckInMs(data.last_check_in, data.check_in_frequency);
-          const totalTimeLeft = lastWishRemainingMs(nextMs, Date.now());
-          const ceilDays = Math.ceil(totalTimeLeft / LAST_WISH_CHECKIN_DAY_MS);
-          const isOverdue = totalTimeLeft < 0;
-          const isFinalHour = lastWishIsFinalDayWindow(totalTimeLeft);
-          const timeLeft = lastWishDisplayHms(totalTimeLeft) ?? undefined;
+          const remainingMs = lastWishRemainingMs(nextMs, Date.now());
+          const snapshot = lastWishCountdownSnapshot(
+            remainingMs,
+            data.check_in_frequency,
+            formatAppDate(new Date(nextMs))
+          );
+          setCountdown(snapshot);
 
-          let urgencyLevel: 'safe' | 'warning' | 'critical' | 'overdue' = 'safe';
-          if (isOverdue) {
-            urgencyLevel = 'overdue';
-          } else if (isFinalHour) {
-            urgencyLevel = 'critical';
-          } else if (ceilDays <= 3) {
-            urgencyLevel = 'critical';
-          } else if (ceilDays <= 7) {
-            urgencyLevel = 'warning';
-          }
-
-          const totalDuration = data.check_in_frequency * LAST_WISH_CHECKIN_DAY_MS;
-          const progressPercentage = isFinalHour
-            ? 99
-            : Math.max(0, Math.min(100, ((totalDuration - Math.max(0, totalTimeLeft)) / totalDuration) * 100));
-
-          setCountdown({
-            daysLeft: Math.max(0, ceilDays),
-            nextCheckIn: formatAppDate(new Date(nextMs)),
-            isOverdue,
-            urgencyLevel,
-            progressPercentage,
-            isFinalHour,
-            timeLeft,
-          });
-          
           // Trigger immediate check if overdue and not already triggered
-          if (isOverdue && !immediateCheckTriggered) {
-            // Use setTimeout to avoid calling during render
+          if (snapshot.isOverdue && !immediateCheckTriggered) {
             setTimeout(() => {
               triggerImmediateCheck();
             }, 0);
-          } else if (!isOverdue) {
-            // Reset flag if not overdue
+          } else if (!snapshot.isOverdue) {
             setImmediateCheckTriggered(false);
           }
         } else {
@@ -224,46 +199,18 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
           
           if (!error && data && data.last_check_in) {
             const nextMs = lastWishNextCheckInMs(data.last_check_in, data.check_in_frequency);
-            const totalTimeLeft = lastWishRemainingMs(nextMs, Date.now());
-            const isOverdue = totalTimeLeft < 0;
-            const isFinalHour = lastWishIsFinalDayWindow(totalTimeLeft);
-            const timeLeft = lastWishDisplayHms(totalTimeLeft) ?? undefined;
+            const remainingMs = lastWishRemainingMs(nextMs, Date.now());
+            const snapshot = lastWishCountdownSnapshot(
+              remainingMs,
+              data.check_in_frequency,
+              formatAppDate(new Date(nextMs))
+            );
 
-            let urgencyLevel: 'safe' | 'warning' | 'critical' | 'overdue' = 'safe';
-            if (isOverdue) {
-              urgencyLevel = 'overdue';
-            } else if (isFinalHour) {
-              urgencyLevel = 'critical';
-            } else {
-              const dLeft = Math.ceil(totalTimeLeft / LAST_WISH_CHECKIN_DAY_MS);
-              if (dLeft <= 3) urgencyLevel = 'critical';
-              else if (dLeft <= 7) urgencyLevel = 'warning';
-            }
+            setCountdown((prev) => (prev ? { ...prev, ...snapshot } : null));
 
-            const totalDuration = data.check_in_frequency * LAST_WISH_CHECKIN_DAY_MS;
-            const elapsed = totalDuration - Math.max(0, totalTimeLeft);
-            const progressPercentage =
-              totalTimeLeft >= 0 && totalTimeLeft <= LAST_WISH_CHECKIN_DAY_MS
-                ? 99
-                : Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
-
-            const daysLeft = Math.max(0, Math.ceil(totalTimeLeft / LAST_WISH_CHECKIN_DAY_MS));
-
-            setCountdown(prev => prev ? {
-              ...prev,
-              daysLeft,
-              isOverdue,
-              urgencyLevel,
-              progressPercentage,
-              isFinalHour,
-              timeLeft,
-            } : null);
-
-            // Trigger immediate check if overdue and not already triggered
-            if (isOverdue && !immediateCheckTriggered) {
+            if (snapshot.isOverdue && !immediateCheckTriggered) {
               triggerImmediateCheck();
             }
-
           }
         };
         
@@ -407,16 +354,9 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
 
   const colors = getUrgencyColors(countdown.urgencyLevel);
   const isAtRisk = countdown.urgencyLevel === 'critical' || countdown.urgencyLevel === 'overdue';
-  const statusChip =
-    countdown.isFinalHour && !countdown.isOverdue && countdown.timeLeft
-      ? { label: 'FINAL HOUR', className: 'bg-red-500 text-white animate-pulse' }
-      : countdown.urgencyLevel === 'overdue'
-        ? { label: 'OVERDUE', className: 'bg-red-500 text-white animate-pulse' }
-        : countdown.urgencyLevel === 'critical'
-          ? { label: 'URGENT', className: 'bg-orange-500 text-white animate-pulse' }
-          : countdown.urgencyLevel === 'warning'
-            ? { label: 'SOON', className: 'bg-yellow-400/90 text-yellow-950' }
-            : { label: 'SAFE', className: 'bg-green-500/15 text-green-700 dark:text-green-300' };
+  const statusChip = lastWishStatusChip(countdown.remainingMs ?? 0, countdown.urgencyLevel);
+  const urgentCta =
+    countdown.isOverdue || countdown.isFinalDay || countdown.isFinalHour || countdown.urgencyLevel === 'critical';
 
   const countdownLabel = countdown.timeLeft
     ? `${String(countdown.timeLeft.hours).padStart(2, '0')}:${String(countdown.timeLeft.minutes).padStart(2, '0')}:${String(countdown.timeLeft.seconds).padStart(2, '0')}`
@@ -447,26 +387,30 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
         countdown.urgencyLevel === 'overdue' ? 'animate-pulse-urgent' : ''
       }`}
     >
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <div className="relative flex-shrink-0">
-            {getUrgencyIcon(countdown.urgencyLevel)}
-            {isAtRisk && (
-              <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-            )}
-          </div>
-          <h3 className={`font-bold text-[1rem] ${colors.text} truncate`}>Last Wish</h3>
-          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold leading-none flex-shrink-0 ${statusChip.className}`}>
-            {statusChip.label}
-          </span>
+      <div className={`flex items-center gap-1.5 min-w-0 mb-3 ${DASHBOARD_WIDGET_DRAG_CLEAR_RIGHT}`}>
+        <div className="relative flex-shrink-0">
+          {getUrgencyIcon(countdown.urgencyLevel)}
+          {isAtRisk && (
+            <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+          )}
         </div>
+        <h3 className={`font-bold text-[1rem] ${colors.text} truncate`}>Last Wish</h3>
+        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold leading-none flex-shrink-0 ${statusChip.className}`}>
+          {statusChip.label}
+        </span>
         <button
-          onClick={() => setShowDetails(!showDetails)}
-          className="p-1 rounded-md bg-white/60 dark:bg-gray-800/60 hover:bg-white/80 dark:hover:bg-gray-800/80 flex-shrink-0"
-          title={showDetails ? 'Hide details' : 'Show details'}
-          aria-label={showDetails ? 'Hide details' : 'Show details'}
+          type="button"
+          onClick={() => setDetailsExpanded((v) => !v)}
+          className="ml-0.5 flex-shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-md border border-black/15 dark:border-white/20 bg-white/70 dark:bg-gray-800/70 text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800 shadow-sm"
+          title={detailsExpanded ? 'Show less' : 'Show more'}
+          aria-expanded={detailsExpanded}
+          aria-label={detailsExpanded ? 'Show less' : 'Show more'}
         >
-          <Eye className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" />
+          {detailsExpanded ? (
+            <ChevronUp className="w-4 h-4" />
+          ) : (
+            <ChevronDown className="w-4 h-4" />
+          )}
         </button>
       </div>
 
@@ -495,25 +439,29 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
               }}
             />
           </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={`text-lg font-bold tabular-nums leading-none ${colors.text}`}>
-              {countdownLabel}
-            </span>
-            <span className={`text-[9px] font-medium mt-0.5 ${colors.text} opacity-70`}>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className={`text-sm font-bold tabular-nums leading-none ${colors.text}`}>
               {Math.round(countdown.progressPercentage)}%
             </span>
           </div>
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-semibold ${colors.text} leading-snug`}>{countdownHint}</p>
-          <p className="mt-1 flex items-center gap-1 text-[11px] text-gray-600 dark:text-gray-400">
-            <Calendar className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">Next: {countdown.nextCheckIn}</span>
+          <p className={`text-xl font-bold tabular-nums leading-none ${colors.text}`}>
+            {countdownLabel}
           </p>
-          <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
-            Stay active to protect shared data
-          </p>
+          <p className={`mt-1 text-sm font-semibold ${colors.text} leading-snug`}>{countdownHint}</p>
+          {detailsExpanded && (
+            <>
+              <p className="mt-1 flex items-center gap-1 text-[11px] text-gray-600 dark:text-gray-400">
+                <Calendar className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate">Next: {countdown.nextCheckIn}</span>
+              </p>
+              <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                Stay active to protect shared data
+              </p>
+            </>
+          )}
         </div>
       </div>
 
@@ -522,7 +470,7 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
           onClick={handleCheckIn}
           disabled={checkingIn}
           className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[0.8rem] font-semibold shadow-sm transition-all ${
-            countdown.isOverdue
+            urgentCta
               ? 'bg-red-600 hover:bg-red-700 text-white'
               : 'bg-green-600 hover:bg-green-700 text-white'
           } disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -543,30 +491,6 @@ export const LastWishCountdownWidget: React.FC<LastWishCountdownWidgetProps> = (
           <Settings className="w-3.5 h-3.5" />
         </button>
       </div>
-
-      {showDetails && (
-        <div className="border-t border-black/10 dark:border-white/10 pt-2 mt-3">
-          <div className="flex items-center justify-between text-[11px] gap-2">
-            <span className="flex items-center gap-1 text-gray-500">
-              <Users className="w-3 h-3" />
-              Recipients
-            </span>
-            <button
-              onClick={() => navigate('/last-wish')}
-              className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
-            >
-              Manage
-            </button>
-          </div>
-          <button
-            onClick={() => navigate('/last-wish')}
-            className="w-full mt-2 flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-[0.8rem] font-medium"
-          >
-            <ArrowRight className="w-3.5 h-3.5" />
-            View Full Settings
-          </button>
-        </div>
-      )}
     </div>
   );
 }; 

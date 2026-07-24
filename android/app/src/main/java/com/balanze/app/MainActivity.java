@@ -35,76 +35,24 @@ public class MainActivity extends BridgeActivity {
         
         private void initializeGoogleSignIn() {
             if (googleSignInClient != null) {
-                Log.e("GoogleSignInJS", "✅ Already initialized");
-                return; // Already initialized
+                return;
             }
-            
             try {
-                // Get server client ID from capacitor config
-                // Try different paths to find the config
-                String serverClientId = "";
-                
-                // Try plugins.GoogleSignIn.serverClientId first
-                try {
-                    String pluginsJson = bridge.getConfig().getString("plugins", "");
-                    if (!pluginsJson.isEmpty()) {
-                        org.json.JSONObject plugins = new org.json.JSONObject(pluginsJson);
-                        org.json.JSONObject googleSignInConfig = plugins.optJSONObject("GoogleSignIn");
-                        if (googleSignInConfig != null) {
-                            serverClientId = googleSignInConfig.optString("serverClientId", "");
-                        }
-                    }
-                    Log.e("GoogleSignInJS", "📋 Got serverClientId from plugins.GoogleSignIn.serverClientId: " + (serverClientId.isEmpty() ? "EMPTY" : serverClientId.substring(0, Math.min(20, serverClientId.length())) + "..."));
-                } catch (Exception e1) {
-                    Log.e("GoogleSignInJS", "⚠️ Failed to get from plugins.GoogleSignIn: " + e1.getMessage());
-                    // Fallback: Use hardcoded value from capacitor.config.ts
-                    // The config value is: "684747632135-l7g9s4u1ka3tbjll9eu0avga2jmcs7m1.apps.googleusercontent.com"
-                    serverClientId = "684747632135-l7g9s4u1ka3tbjll9eu0avga2jmcs7m1.apps.googleusercontent.com";
-                    Log.e("GoogleSignInJS", "📋 Using hardcoded serverClientId: " + serverClientId.substring(0, Math.min(20, serverClientId.length())) + "...");
-                }
-                
-                if (serverClientId.isEmpty()) {
-                    Log.e("GoogleSignInJS", "❌ serverClientId is EMPTY - cannot initialize");
-                    return;
-                }
-                
-                Log.e("GoogleSignInJS", "✅ Initializing GoogleSignInClient with serverClientId");
-                Log.e("GoogleSignInJS", "📋 Full serverClientId: " + serverClientId);
-                
-                // Check Google Play Services availability
-                try {
-                    int playServicesStatus = com.google.android.gms.common.GoogleApiAvailability.getInstance()
-                        .isGooglePlayServicesAvailable(MainActivity.this);
-                    if (playServicesStatus == com.google.android.gms.common.ConnectionResult.SUCCESS) {
-                        Log.e("GoogleSignInJS", "✅ Google Play Services is available");
-                    } else {
-                        Log.e("GoogleSignInJS", "❌ Google Play Services not available. Status: " + playServicesStatus);
-                        Log.e("GoogleSignInJS", "   ConnectionResult codes: SUCCESS=0, SERVICE_MISSING=1, SERVICE_VERSION_UPDATE_REQUIRED=2");
-                    }
-                } catch (Exception e) {
-                    Log.e("GoogleSignInJS", "⚠️ Error checking Google Play Services: " + e.getMessage());
-                }
-                
-                com.google.android.gms.auth.api.signin.GoogleSignInOptions gso = 
+                String serverClientId = GoogleAuthConfig.resolveServerClientId(
+                    bridge.getConfig().getPluginConfiguration("GoogleSignIn").getString("serverClientId", "")
+                );
+                com.google.android.gms.auth.api.signin.GoogleSignInOptions gso =
                     new com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
                         com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN)
                         .requestIdToken(serverClientId)
                         .requestEmail()
                         .requestProfile()
                         .build();
-                
                 googleSignInClient = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(
                     MainActivity.this, gso);
-                Log.e("GoogleSignInJS", "✅ GoogleSignInClient initialized successfully");
-                String packageName = MainActivity.this.getPackageName();
-                Log.e("GoogleSignInJS", "📋 Actual package name from app: " + packageName);
-                Log.e("GoogleSignInJS", "📋 Expected package name: com.balanze.app");
-                Log.e("GoogleSignInJS", "📋 Package name matches: " + "com.balanze.app".equals(packageName));
-                Log.e("GoogleSignInJS", "📋 Make sure this serverClientId matches your Web Client ID in Google Cloud Console");
-                Log.e("GoogleSignInJS", "📋 IMPORTANT: Android OAuth client must exist with package name and SHA-1 configured");
+                Log.e("GoogleSignInJS", "✅ GoogleSignInClient initialized");
             } catch (Exception e) {
                 Log.e("GoogleSignInJS", "❌ Error initializing GoogleSignInClient:", e);
-                e.printStackTrace();
             }
         }
         

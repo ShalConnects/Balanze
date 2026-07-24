@@ -4,8 +4,10 @@ export const DASHBOARD_WIDGET_SHELL =
   'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200/50 dark:border-blue-800/50 shadow-sm relative group';
 
 /** Fixed header band (h-9); chrome centers at half-height so expand/drag stay aligned when collapsed. */
+export const DASHBOARD_WIDGET_DRAG_CLEAR_RIGHT = 'pr-9';
+
 export const DASHBOARD_WIDGET_HEADER =
-  'flex items-center justify-between gap-2 h-9 pl-9 pr-9 sm:px-4';
+  `flex items-center justify-between gap-2 h-9 pl-9 ${DASHBOARD_WIDGET_DRAG_CLEAR_RIGHT} sm:px-4`;
 
 export const DASHBOARD_WIDGET_HEADER_BORDER =
   'border-b border-blue-200/50 dark:border-blue-800/50';

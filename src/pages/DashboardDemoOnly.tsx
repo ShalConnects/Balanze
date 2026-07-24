@@ -1060,7 +1060,9 @@ const MockLastWishCountdownWidget: React.FC = () => {
       minutes: 30,
       seconds: 45
     },
-    isFinalHour: false
+    isFinalDay: true,
+    isFinalHour: false,
+    remainingMs: 12 * 60 * 60 * 1000 + 30 * 60 * 1000 + 45 * 1000,
   };
 
   const colors = {
