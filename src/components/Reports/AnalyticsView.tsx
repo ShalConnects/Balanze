@@ -1463,12 +1463,12 @@ ${accounts.map(a =>
         });
 
         const income = dayTransactions
-          .filter(t => t.type === 'income')
+          .filter(t => t.type === 'income' && !t.is_recurring)
           .reduce((sum, t) => sum + t.amount, 0);
 
         const expenses = dayTransactions
           .filter(t => {
-            const isExpense = t.type === 'expense';
+            const isExpense = t.type === 'expense' && !t.is_recurring;
             const isTransferTag = t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
             const isTransferCategory = (t.category || '').toLowerCase() === 'transfer';
             return isExpense && !isTransferTag && !isTransferCategory;
@@ -1502,12 +1502,12 @@ ${accounts.map(a =>
       });
 
       const income = monthTransactions
-        .filter(t => t.type === 'income')
+        .filter(t => t.type === 'income' && !t.is_recurring)
         .reduce((sum, t) => sum + t.amount, 0);
 
       const expenses = monthTransactions
         .filter(t => {
-          const isExpense = t.type === 'expense';
+          const isExpense = t.type === 'expense' && !t.is_recurring;
           const isTransferTag = t.tags?.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'));
           const isTransferCategory = (t.category || '').toLowerCase() === 'transfer';
           return isExpense && !isTransferTag && !isTransferCategory;

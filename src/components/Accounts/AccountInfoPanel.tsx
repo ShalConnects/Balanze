@@ -28,7 +28,7 @@ export const AccountInfoPanel: React.FC<AccountInfoPanelProps> = ({
       <div><b>Currency:</b> {account.currency}</div>
       <div><b>Description:</b> {account.description || 'N/A'}</div>
       <div><b>Transactions:</b> {count}</div>
-      <div><b>Donation Preference:</b> None</div>
+      <div><b>Donation Preference:</b> {account.donation_preference != null && Number(account.donation_preference) > 0 ? `${account.donation_preference}%` : 'None'}</div>
 
       <div className={compact ? 'mt-3 sm:mt-4 p-2 bg-blue-50 rounded-lg border border-blue-200' : 'mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200'}>
         <div className={`font-semibold text-blue-900 mb-1 ${compact ? 'text-xs' : 'text-sm'}`}>Current Balance</div>

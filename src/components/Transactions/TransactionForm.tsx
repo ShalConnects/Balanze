@@ -1070,56 +1070,56 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             if (result) {
               await logTransactionEvent('create', { ...transactionData, id: result.id });
               await attachExpenseNoteAfterCreate(result.id);
-              // Create donation records for income transactions
-              if (data.type === 'income' && user) {
-                const modeValue = donationType === 'percent' ? donationValue : donation_amount;
-                await upsertDonationSavingRecords({
-                  userId: user.id,
-                  transactionId: result.id, // Use DB UUID for FK
-                  customTransactionId: result.transaction_id, // Pass custom transaction_id for display
-                  donation: donation_amount,
-                  donationMode: donationType,
-                  modeValue
-                });
-              } else {
 
-              }
-
-              // If this is a new recurring transaction, create the first instance immediately
+              // If this is a new recurring transaction, create the first real instance immediately
               if (data.is_recurring && result.id) {
                 try {
-                  const firstInstanceTransactionId = generateTransactionId();
-                  const firstInstanceDate = data.date; // Use parent's transaction date
-                  
-                  // Create first instance with amount: 0
+                  const firstInstanceDate = toBusinessDateString(data.date);
                   const firstInstance = await addTransaction({
                     account_id: transactionData.account_id,
-                    amount: 0, // Start with 0, user can edit
+                    amount: finalAmount,
                     type: transactionData.type,
                     category: transactionData.category,
                     description: transactionData.description,
                     date: firstInstanceDate,
                     tags: transactionData.tags || [],
-                    saving_amount: 0, // Start with 0
-                    donation_amount: 0, // Start with 0
-                    is_recurring: false, // Instance is not recurring
+                    saving_amount: transactionData.saving_amount ?? 0,
+                    donation_amount: 0,
+                    is_recurring: false,
                     parent_recurring_id: result.id,
-                    transaction_id: firstInstanceTransactionId,
+                    transaction_id: generateTransactionId(),
                     user_id: user?.id || '',
                     note: transactionNote.trim(),
                   });
 
                   if (firstInstance) {
-                    // Update parent transaction: set occurrence_count to 1 and update next_occurrence_date
-                    const nextOccurrenceDate = calculateNextOccurrence(firstInstanceDate, data.recurring_frequency);
                     await updateTransaction(result.id, {
                       occurrence_count: 1,
-                      next_occurrence_date: nextOccurrenceDate
+                      next_occurrence_date: calculateNextOccurrence(firstInstanceDate, data.recurring_frequency),
                     });
+                    if (data.type === 'income' && user && donation_amount) {
+                      await upsertDonationSavingRecords({
+                        userId: user.id,
+                        transactionId: firstInstance.id,
+                        customTransactionId: firstInstance.transaction_id,
+                        donation: donation_amount,
+                        donationMode: donationType,
+                        modeValue: donationType === 'percent' ? donationValue : donation_amount,
+                      });
+                    }
                   }
                 } catch (error) {
                   // Don't fail the parent transaction creation if first instance fails
                 }
+              } else if (data.type === 'income' && user) {
+                await upsertDonationSavingRecords({
+                  userId: user.id,
+                  transactionId: result.id,
+                  customTransactionId: result.transaction_id,
+                  donation: donation_amount,
+                  donationMode: donationType,
+                  modeValue: donationType === 'percent' ? donationValue : donation_amount,
+                });
               }
             }
             

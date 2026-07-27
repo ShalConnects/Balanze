@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Account, Transaction } from '../../types';
-import { groupTransactionsByDate } from '../../utils/transactionUtils';
+import { groupTransactionsByDate, getAccountLedger } from '../../utils/transactionUtils';
 import { formatCurrency } from '../../utils/currency';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { formatAppDate } from '../../utils/timezoneUtils';
@@ -27,20 +27,11 @@ export const AccountDetailsContent: React.FC<AccountDetailsContentProps> = ({
   inlineSidebarFooter,
 }) => {
   const { accountTransactions, groupedTransactions, balanceMap } = useMemo(() => {
-    const accountTxs = transactions
-      .filter(t => t.account_id === account.id)
-      .sort((a, b) => {
-        const aT = a.updated_at ? Math.max(new Date(a.created_at).getTime(), new Date(a.updated_at).getTime()) : new Date(a.created_at).getTime();
-        const bT = b.updated_at ? Math.max(new Date(b.created_at).getTime(), new Date(b.updated_at).getTime()) : new Date(b.created_at).getTime();
-        return bT - aT;
-      });
-    const sorted = [...accountTxs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const map = new Map<string, number>();
-    let balance = Number(account.initial_balance);
-    sorted.forEach(tx => {
-      balance += tx.type === 'income' ? tx.amount : -tx.amount;
-      map.set(tx.id, balance);
-    });
+    const { transactions: accountTxs, balanceMap: map } = getAccountLedger(
+      account.id,
+      transactions,
+      account.initial_balance
+    );
     return {
       accountTransactions: accountTxs,
       groupedTransactions: groupTransactionsByDate(accountTxs),

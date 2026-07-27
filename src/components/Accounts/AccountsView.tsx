@@ -29,7 +29,7 @@ import { searchService, SEARCH_CONFIGS } from '../../utils/searchService';
 import { formatTransactionDescription } from '../../utils/transactionDescriptionFormatter';
 import { normalizeSearchText } from '../../utils/searchText';
 import { escapeHtml } from '../../lib/sanitize';
-import { countsTowardIncomeExpenseSummaries, groupTransactionsByDate } from '../../utils/transactionUtils';
+import { countsTowardIncomeExpenseSummaries, groupTransactionsByDate, getAccountLedger, parseLocalDate } from '../../utils/transactionUtils';
 import { getTodayLocalDateString, toBusinessDateString } from '../../utils/taskDateUtils';
 import { formatAppDate } from '../../utils/timezoneUtils';
 import { TABLE_SUMMARY_CARDS_GRID } from '../common/listPage/listPageLayout';
@@ -229,25 +229,23 @@ export const AccountsView: React.FC = () => {
       return;
     }
     
-    // Filter transactions
-    let accountTransactions = transactions.filter(t => t.account_id === selectedAccount.id);
-    
+    // Filter transactions (ledger excludes recurring templates; balances match calculated_balance rules)
+    const { transactions: ledgerTxs } = getAccountLedger(
+      selectedAccount.id,
+      transactions,
+      selectedAccount.initial_balance
+    );
+    let accountTransactions = ledgerTxs;
+
     if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      const start = parseLocalDate(startDate);
+      const end = parseLocalDate(endDate);
       accountTransactions = accountTransactions.filter(t => {
-        const txDate = new Date(t.date);
+        const txDate = parseLocalDate(t.date);
         return txDate >= start && txDate <= end;
       });
     }
-    
-    // Sort transactions
-    accountTransactions = accountTransactions.sort((a, b) => {
-      const aLatestTime = a.updated_at ? Math.max(new Date(a.created_at).getTime(), new Date(a.updated_at).getTime()) : new Date(a.created_at).getTime();
-      const bLatestTime = b.updated_at ? Math.max(new Date(b.created_at).getTime(), new Date(b.updated_at).getTime()) : new Date(b.created_at).getTime();
-      return bLatestTime - aLatestTime;
-    });
-    
+
     // Calculate summary
     const income = accountTransactions.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0);
     const expenses = accountTransactions.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0);
@@ -377,7 +375,7 @@ export const AccountsView: React.FC = () => {
                 <tbody>
                   ${groupTransactions.map(t => `
                     <tr>
-                      <td>${escapeHtml(format(new Date(t.date), 'MMM dd, yyyy'))}</td>
+                      <td>${escapeHtml(formatAppDate(t.date))}</td>
                       <td>${escapeHtml(formatTransactionDescription(t.description))}</td>
                       <td>${escapeHtml(t.category || 'N/A')}</td>
                       <td>${escapeHtml(t.type)}</td>
@@ -495,25 +493,13 @@ export const AccountsView: React.FC = () => {
   // Export transactions to CSV
   const exportToCSV = () => {
     if (!selectedAccount) return;
-    
-    const accountTransactions = transactions
-      .filter(t => t.account_id === selectedAccount.id)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    
-    // Calculate running balances
-    const sortedForBalance = [...accountTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const balanceMap = new Map();
-    let runningBalance = Number(selectedAccount.initial_balance);
-    
-    sortedForBalance.forEach((tx) => {
-      if (tx.type === 'income') {
-        runningBalance += tx.amount;
-      } else {
-        runningBalance -= tx.amount;
-      }
-      balanceMap.set(tx.id, runningBalance);
-    });
-    
+
+    const { transactions: accountTransactions, balanceMap } = getAccountLedger(
+      selectedAccount.id,
+      transactions,
+      selectedAccount.initial_balance
+    );
+
     // Create CSV content
     const headers = ['Date', 'Description', 'Category', 'Type', 'Amount', 'Balance'];
     const csvContent = [

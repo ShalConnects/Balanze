@@ -1,0 +1,53 @@
+-- Exclude recurring parent templates from account balance calculations.
+-- Child instances (is_recurring = false) still count.
+
+CREATE OR REPLACE VIEW account_balances AS
+SELECT
+    a.id as account_id,
+    a.user_id,
+    a.name,
+    a.type,
+    a.currency,
+    a.is_active,
+    a.created_at,
+    a.updated_at,
+    COALESCE(a.donation_preference, 0) as donation_preference,
+    COALESCE(a.initial_balance, 0) as initial_balance,
+    COALESCE(a.has_dps, false) as has_dps,
+    a.dps_type,
+    a.dps_amount_type,
+    a.dps_fixed_amount,
+    a.dps_savings_account_id,
+    COALESCE(a.description, '') as description,
+    COALESCE(a.position, 0) as position,
+    (COALESCE(a.initial_balance, 0) + COALESCE(
+        SUM(
+            CASE
+                WHEN t.is_recurring IS TRUE THEN 0
+                WHEN t.type = 'income' THEN t.amount
+                WHEN t.type = 'expense' THEN -t.amount
+                ELSE 0
+            END
+        ),
+        0
+    )) as calculated_balance
+FROM accounts a
+LEFT JOIN transactions t ON a.id = t.account_id
+GROUP BY
+    a.id,
+    a.user_id,
+    a.name,
+    a.type,
+    a.currency,
+    a.is_active,
+    a.created_at,
+    a.updated_at,
+    a.donation_preference,
+    a.initial_balance,
+    a.has_dps,
+    a.dps_type,
+    a.dps_amount_type,
+    a.dps_fixed_amount,
+    a.dps_savings_account_id,
+    a.description,
+    a.position;

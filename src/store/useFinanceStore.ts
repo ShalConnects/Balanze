@@ -17,20 +17,14 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
 import { showToast } from '../lib/toast';
 import { createAuditLog } from '../lib/auditLogging';
-
-// Unified timestamp helper for audit fields (UTC ISO)
-function getLocalISOString() {
-  return new Date().toISOString();
-}
-
-function toYyyyMmDd(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
 import { generateTransactionId } from '../utils/transactionId';
-import { calculateNextOccurrence } from '../../lib/recurringUtils.js';
+import {
+  toYyyyMmDd,
+  calculateNextOccurrence,
+  calculateNextOccurrenceAfter,
+  buildRecurringInstance,
+  cloneParentDonation,
+} from '../../lib/recurringUtils.js';
 import { useAchievementStore } from './achievementStore';
 import { userActivityService } from '../lib/userActivityService';
 import { countsTowardIncomeExpenseSummaries } from '../utils/transactionUtils';
@@ -41,6 +35,11 @@ import {
   transactionUpdatesOrder,
   type TransactionHistoryEntry,
 } from '../utils/transactionHistoryUtils';
+
+// Unified timestamp helper for audit fields (UTC ISO)
+function getLocalISOString() {
+  return new Date().toISOString();
+}
 
 interface FinanceStore {
   accounts: Account[];
@@ -1199,173 +1198,75 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const { user } = useAuthStore.getState();
-      if (!user) {
-        throw new Error('Not authenticated');
-      }
+      if (!user) throw new Error('Not authenticated');
 
-      // Get the recurring transaction
-      const { data: recurringTransaction, error: fetchError } = await supabase
+      const { data: parent, error: fetchError } = await supabase
         .from('transactions')
         .select('*')
         .eq('id', transactionId)
         .eq('is_recurring', true)
         .single();
 
-      if (fetchError || !recurringTransaction) {
-        throw new Error('Recurring transaction not found');
+      if (fetchError || !parent) throw new Error('Recurring transaction not found');
+      if (parent.is_paused) throw new Error('Cannot force occurrence for paused recurring transaction');
+
+      const scheduledDate = parent.next_occurrence_date || parent.date;
+      if (!scheduledDate) throw new Error('Missing next occurrence date');
+      if (!parent.recurring_frequency || !['daily', 'weekly', 'monthly', 'yearly'].includes(parent.recurring_frequency)) {
+        throw new Error(`Invalid recurring frequency: ${parent.recurring_frequency}`);
       }
 
-      // Validate transaction is active and not paused
-      if (recurringTransaction.is_paused) {
-        throw new Error('Cannot force occurrence for paused recurring transaction');
-      }
-
-      // Validate next_occurrence_date exists
-      const storedOccurrenceDate = recurringTransaction.next_occurrence_date || recurringTransaction.date;
-      if (!storedOccurrenceDate) {
-        throw new Error('Missing next occurrence date');
-      }
-
-      // Validate recurring_frequency
-      if (!recurringTransaction.recurring_frequency || 
-          !['daily', 'weekly', 'monthly', 'yearly'].includes(recurringTransaction.recurring_frequency)) {
-        throw new Error(`Invalid recurring frequency: ${recurringTransaction.recurring_frequency}`);
-      }
-
-      // When forcing, always use today's date for the new transaction instance
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const occurrenceDate = toYyyyMmDd(today); // Use today's local date for forced instance
-      const occurrenceDateObj = new Date(today);
+      const occurrenceDate = toYyyyMmDd(today);
 
-      // Check if end date has passed
-      if (recurringTransaction.recurring_end_date) {
-        const endDate = new Date(recurringTransaction.recurring_end_date);
-        if (endDate < today) {
-          throw new Error('Recurring transaction has expired');
-        }
-        if (occurrenceDateObj > endDate) {
-          throw new Error('Occurrence date is after end date');
-        }
+      if (parent.recurring_end_date) {
+        const endDate = new Date(parent.recurring_end_date);
+        if (endDate < today) throw new Error('Recurring transaction has expired');
       }
 
-      // Validate account exists
       const { data: account, error: accountError } = await supabase
         .from('accounts')
         .select('id')
-        .eq('id', recurringTransaction.account_id)
-        .eq('user_id', recurringTransaction.user_id)
+        .eq('id', parent.account_id)
+        .eq('user_id', parent.user_id)
         .single();
+      if (accountError || !account) throw new Error('Account not found or inaccessible');
 
-      if (accountError || !account) {
-        throw new Error('Account not found or inaccessible');
-      }
-
-      // Check for duplicate processing (check for today's date since we're forcing it now)
       const { data: existingInstance } = await supabase
         .from('transactions')
         .select('id')
-        .eq('parent_recurring_id', recurringTransaction.id)
+        .eq('parent_recurring_id', parent.id)
         .eq('date', occurrenceDate)
         .limit(1)
         .maybeSingle();
+      if (existingInstance) throw new Error('Instance already exists for this occurrence date');
 
-      if (existingInstance) {
-        throw new Error('Instance already exists for this occurrence date');
-      }
-
-      const nextOccurrenceDate = calculateNextOccurrence(
-        occurrenceDate,
-        recurringTransaction.recurring_frequency
-      );
-
-      const newTransaction = {
-        user_id: recurringTransaction.user_id,
-        account_id: recurringTransaction.account_id,
-        type: recurringTransaction.type,
-        amount: recurringTransaction.amount ?? 0,
-        description: recurringTransaction.description,
-        category: recurringTransaction.category,
-        date: occurrenceDate,
-        tags: recurringTransaction.tags || [],
-        saving_amount: recurringTransaction.saving_amount ?? 0,
-        donation_amount: 0,
-        is_recurring: false,
-        parent_recurring_id: recurringTransaction.id,
-        transaction_id: generateTransactionId(),
-        ...(recurringTransaction.to_account_id && { to_account_id: recurringTransaction.to_account_id }),
-        created_at: getLocalISOString(),
-        updated_at: getLocalISOString(),
-      };
-
-      // Insert the new transaction
+      const now = getLocalISOString();
       const { data: createdTransaction, error: insertError } = await supabase
         .from('transactions')
-        .insert(newTransaction)
+        .insert(buildRecurringInstance(parent, occurrenceDate, generateTransactionId(), { created_at: now, updated_at: now }))
         .select('id, transaction_id')
         .single();
+      if (insertError) throw new Error(`Failed to create instance: ${insertError.message}`);
 
-      if (insertError) {
-        throw new Error(`Failed to create instance: ${insertError.message}`);
-      }
+      const donation = await cloneParentDonation(supabase, parent, createdTransaction);
+      if (!donation.ok) console.error('Failed to create donation record:', donation.error);
 
-      // Create donation records for income transactions with donations
-      if (recurringTransaction.type === 'income' && recurringTransaction.donation_amount && recurringTransaction.donation_amount > 0 && createdTransaction) {
-        try {
-          const { data: parentDonationRecords, error: donationFetchError } = await supabase
-            .from('donation_saving_records')
-            .select('*')
-            .eq('transaction_id', recurringTransaction.id)
-            .eq('type', 'donation')
-            .limit(1)
-            .maybeSingle();
-
-          if (!donationFetchError && parentDonationRecords) {
-            const { error: donationInsertError } = await supabase
-              .from('donation_saving_records')
-              .insert({
-                user_id: recurringTransaction.user_id,
-                transaction_id: createdTransaction.id,
-                custom_transaction_id: createdTransaction.transaction_id,
-                type: 'donation',
-                amount: Math.abs(recurringTransaction.donation_amount),
-                mode: parentDonationRecords.mode || 'fixed',
-                mode_value: parentDonationRecords.mode_value || recurringTransaction.donation_amount,
-                status: 'pending',
-              });
-
-            if (donationInsertError) {
-              console.error(`Failed to create donation record: ${donationInsertError.message}`);
-            }
-          }
-        } catch (donationError) {
-          console.error(`Error creating donation record: ${donationError}`);
-        }
-      }
-
-      // Update occurrence count and next occurrence date
-      const occurrenceCount = (recurringTransaction.occurrence_count || 0) + 1;
+      // Advance from scheduled date past today so backlog is cleared without desyncing the series
+      const nextOccurrenceDate = calculateNextOccurrenceAfter(scheduledDate, parent.recurring_frequency, occurrenceDate);
       const { error: updateError } = await supabase
         .from('transactions')
         .update({
-          occurrence_count: occurrenceCount,
+          occurrence_count: (parent.occurrence_count || 0) + 1,
           next_occurrence_date: nextOccurrenceDate,
-          updated_at: getLocalISOString(),
+          updated_at: now,
         })
-        .eq('id', recurringTransaction.id);
+        .eq('id', parent.id);
 
       if (updateError) {
-        // Clean up orphaned child transaction if update fails
-        if (createdTransaction) {
-          await supabase
-            .from('donation_saving_records')
-            .delete()
-            .eq('transaction_id', createdTransaction.id);
-          await supabase
-            .from('transactions')
-            .delete()
-            .eq('id', createdTransaction.id);
-        }
+        await supabase.from('donation_saving_records').delete().eq('transaction_id', createdTransaction.id);
+        await supabase.from('transactions').delete().eq('id', createdTransaction.id);
         throw new Error(`Failed to update recurring transaction: ${updateError.message}`);
       }
 

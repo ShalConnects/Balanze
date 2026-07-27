@@ -1,7 +1,8 @@
 import { format, differenceInDays } from 'date-fns';
 import { Transaction, Account } from '../types';
 import { formatAppDate, formatAppTime } from './timezoneUtils';
-export { calculateNextOccurrence, getUpcomingOccurrences } from '../../lib/recurringUtils.js';
+import { parseLocalDate } from '../../lib/recurringUtils.js';
+export { calculateNextOccurrence, getUpcomingOccurrences, parseLocalDate } from '../../lib/recurringUtils.js';
 
 const isToday = (d: Date) => format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 const isYesterday = (d: Date) => differenceInDays(new Date(), d) === 1;
@@ -22,15 +23,44 @@ export const getDateGroupLabel = (date: Date): string => {
   return format(date, 'MMM dd, yyyy');
 };
 
+/** Matches account_balances: recurring templates do not affect balance. */
+export const affectsAccountBalance = (t: Transaction): boolean => !t.is_recurring;
+
+export function compareTransactionsChronological(a: Transaction, b: Transaction): number {
+  const byDate = parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime();
+  if (byDate) return byDate;
+  const byCreated = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  if (byCreated) return byCreated;
+  return String(a.id).localeCompare(String(b.id));
+}
+
+/** Newest-first ledger + running balances aligned with calculated_balance rules. */
+export function getAccountLedger(
+  accountId: string,
+  transactions: Transaction[],
+  initialBalance: number
+): { transactions: Transaction[]; balanceMap: Map<string, number> } {
+  const chronological = transactions
+    .filter(t => t.account_id === accountId && affectsAccountBalance(t))
+    .sort(compareTransactionsChronological);
+  const balanceMap = new Map<string, number>();
+  let balance = Number(initialBalance) || 0;
+  for (const tx of chronological) {
+    balance += tx.type === 'income' ? tx.amount : -tx.amount;
+    balanceMap.set(tx.id, balance);
+  }
+  return { transactions: chronological.slice().reverse(), balanceMap };
+}
+
 export const groupTransactionsByDate = (transactions: Transaction[]): [string, Transaction[]][] => {
   const groups: Record<string, Transaction[]> = {};
   transactions.forEach(t => {
-    const label = getDateGroupLabel(new Date(t.date));
+    const label = getDateGroupLabel(parseLocalDate(t.date));
     if (!groups[label]) groups[label] = [];
     groups[label].push(t);
   });
   return Object.entries(groups).sort((a, b) =>
-    new Date(b[1][0].date).getTime() - new Date(a[1][0].date).getTime()
+    parseLocalDate(b[1][0].date).getTime() - parseLocalDate(a[1][0].date).getTime()
   );
 };
 
@@ -77,13 +107,13 @@ export const isLendBorrowTransaction = (transaction: Transaction): boolean => {
 export const isBusinessInvestmentFundingExpense = (t: Transaction): boolean =>
     t.type === 'expense' && Boolean(t.business_investment_contract_id);
 
-/** Income/expense rows that count toward summary cards and net (excludes lend/borrow and BI principal / capital deployment). */
+/** Income/expense rows that count toward summary cards and net (excludes lend/borrow, BI funding, and recurring templates). */
 export const countsTowardIncomeExpenseSummaries = (t: Transaction): boolean =>
-    !isLendBorrowTransaction(t) && !isBusinessInvestmentFundingExpense(t);
+    !isLendBorrowTransaction(t) && !isBusinessInvestmentFundingExpense(t) && !t.is_recurring;
 
 /** Tooltip for summary UIs that use countsTowardIncomeExpenseSummaries. */
 export const INCOME_EXPENSE_NET_TOOLTIP =
-    'Income minus expenses, excluding lend/borrow flows and business investment funding.';
+    'Income minus expenses, excluding lend/borrow flows, business investment funding, and recurring templates.';
 
 export const filterTransactions = (
     transactions: Transaction[],
@@ -359,7 +389,7 @@ export const getAccountAllTimeSummary = (
     lastDate: string | null;
     count: number;
 } => {
-    const accountTxs = transactions.filter(t => t.account_id === accountId);
+    const accountTxs = transactions.filter(t => t.account_id === accountId && affectsAccountBalance(t));
     const income = accountTxs.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t));
     const expenses = accountTxs.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t));
     const totalIncome = income.reduce((s, t) => s + t.amount, 0);
@@ -369,7 +399,7 @@ export const getAccountAllTimeSummary = (
         if (t.category === 'Savings') totalSaved += t.amount;
         else if (t.category === 'Donation') totalDonated += t.amount;
     });
-    const sorted = [...accountTxs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sorted = [...accountTxs].sort(compareTransactionsChronological);
     return {
         totalIncome,
         totalExpenses,
