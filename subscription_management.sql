@@ -38,7 +38,25 @@ INSERT INTO subscription_plans (name, description, price, billing_cycle, feature
 ON CONFLICT (name) DO NOTHING;
 
 -- Create function to upgrade user subscription
+-- DISABLED for direct client calls — payment webhooks / service-role routes apply upgrades.
 CREATE OR REPLACE FUNCTION upgrade_user_subscription(
+    user_uuid UUID,
+    plan_name TEXT,
+    payment_method TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RAISE EXCEPTION 'upgrade_user_subscription is disabled for direct client calls; use verified payment webhooks';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+REVOKE ALL ON FUNCTION upgrade_user_subscription(UUID, TEXT, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION upgrade_user_subscription(UUID, TEXT, TEXT) FROM anon;
+REVOKE ALL ON FUNCTION upgrade_user_subscription(UUID, TEXT, TEXT) FROM authenticated;
+
+-- Legacy body retained below for reference only (no longer installed)
+/*
+CREATE OR REPLACE FUNCTION upgrade_user_subscription_legacy_disabled(
     user_uuid UUID,
     plan_name TEXT,
     payment_method TEXT DEFAULT NULL
@@ -99,6 +117,7 @@ EXCEPTION
         RETURN FALSE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+*/
 
 -- Create function to check subscription status
 CREATE OR REPLACE FUNCTION check_subscription_status(user_uuid UUID)

@@ -144,7 +144,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Step 3: Grant permissions
 GRANT EXECUTE ON FUNCTION delete_user_completely(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION delete_user_completely(UUID) TO anon;
+REVOKE ALL ON FUNCTION delete_user_completely(UUID) FROM anon;
 
 -- Step 4: Create simple backup trigger (only if it doesn't exist)
 CREATE OR REPLACE FUNCTION simple_delete_auth_user()
@@ -171,7 +171,7 @@ BEGIN
 END $$;
 
 GRANT EXECUTE ON FUNCTION simple_delete_auth_user() TO authenticated;
-GRANT EXECUTE ON FUNCTION simple_delete_auth_user() TO anon;
+REVOKE ALL ON FUNCTION simple_delete_auth_user() FROM anon;
 
 -- Step 5: Verify the function was created
 SELECT 

@@ -1,16 +1,15 @@
 import { supabase } from '../lib/supabaseServer.js';
 import { checkBondsWithPbris, chunkArray } from '../lib/pbrisClient.js';
 import { isPrizeBondDrawDay, PRIZE_BOND_BATCH_SIZE, parsePbrisDrawDate } from '../lib/prizeBondShared.js';
+import { isCronAuthorized } from '../lib/cronAuth.js';
 
 const BATCH_SIZE = PRIZE_BOND_BATCH_SIZE;
 
 async function resolveUserId(req) {
-  const cronSecret = process.env.CRON_SECRET;
   const rawAuth = req.headers.authorization;
   const authHeader = Array.isArray(rawAuth) ? rawAuth[0] || '' : rawAuth || '';
-  const isCron = req.headers['x-vercel-cron'];
 
-  if (isCron || (cronSecret && authHeader === `Bearer ${cronSecret}`)) {
+  if (isCronAuthorized(req)) {
     return { mode: 'cron', userId: null };
   }
 
@@ -18,11 +17,7 @@ async function resolveUserId(req) {
   if (!token) return null;
 
   const baseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
-  const anonKey =
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_SERVICE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   if (!baseUrl || !anonKey) return null;
 
   // Auth REST — more reliable than supabase-js getUser(jwt) in the Vite API shim.

@@ -1,6 +1,8 @@
 // PayPal Integration for Bangladesh
 // PayPal supports Bangladesh and is widely trusted
 
+import { supabase } from './supabase';
+
 // PayPal types
 declare global {
   interface Window {
@@ -15,7 +17,7 @@ export const PAYPAL_CONFIG = {
   environment: import.meta.env.VITE_PAYPAL_ENVIRONMENT || 'sandbox', // 'sandbox' or 'live'
 };
 
-// Plan pricing configuration
+// Plan pricing configuration (display / client hints only — server enforces amounts)
 export const PLAN_PRICING: Record<string, {
   amount: number;
   currency: string;
@@ -36,6 +38,15 @@ export const PLAN_PRICING: Record<string, {
   },
 };
 
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`;
+  }
+  return headers;
+}
+
 // Initialize PayPal
 export const initializePayPal = () => {
   return new Promise((resolve, reject) => {
@@ -52,7 +63,7 @@ export const initializePayPal = () => {
   });
 };
 
-// Create PayPal order
+// Create PayPal order (amount is determined server-side from planId)
 export const createPayPalOrder = async (planId: string) => {
   try {
     const plan = PLAN_PRICING[planId];
@@ -62,15 +73,8 @@ export const createPayPalOrder = async (planId: string) => {
 
     const response = await fetch('/api/create-paypal-order', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        planId,
-        amount: plan.amount,
-        currency: plan.currency,
-        description: plan.description,
-      }),
+      headers: await authHeaders(),
+      body: JSON.stringify({ planId }),
     });
 
     if (!response.ok) {
@@ -90,9 +94,7 @@ export const handlePayPalApproval = async (orderId: string, planId: string) => {
   try {
     const response = await fetch('/api/capture-paypal-order', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: await authHeaders(),
       body: JSON.stringify({
         orderId,
         planId,
@@ -109,5 +111,4 @@ export const handlePayPalApproval = async (orderId: string, planId: string) => {
 
     throw error;
   }
-}; 
-
+};

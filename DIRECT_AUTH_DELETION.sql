@@ -105,7 +105,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Grant permissions
 GRANT EXECUTE ON FUNCTION delete_user_completely_direct(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION delete_user_completely_direct(UUID) TO anon;
+REVOKE ALL ON FUNCTION delete_user_completely_direct(UUID) FROM anon;
 
 -- Test the function
 SELECT 'Function created successfully' as status; 

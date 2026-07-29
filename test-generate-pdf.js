@@ -27,7 +27,7 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 
 // Try to get service key from env, fallback to anon key
 // Service key bypasses RLS and can read all data
-const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_SERVICE_KEY;
+const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseKeyToUse = serviceKey || supabaseAnonKey;
 
 // Set environment variables before importing the email handler
