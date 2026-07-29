@@ -1,4 +1,5 @@
 import { loadStripe } from '@stripe/stripe-js';
+import { supabase } from './supabase';
 
 // Initialize Stripe
 export const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
@@ -29,10 +30,12 @@ export const PLAN_PRICING = {
 // Create checkout session
 export const createCheckoutSession = async (planId: string, customerEmail: string) => {
   try {
+    const { data: { session } } = await supabase.auth.getSession();
     const response = await fetch('/api/create-checkout-session', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
       },
       body: JSON.stringify({
         planId,

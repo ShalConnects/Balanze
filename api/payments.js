@@ -5,7 +5,7 @@
 import crypto from 'crypto';
 import Stripe from 'stripe';
 import { supabase } from '../lib/supabaseServer.js';
-import { requireAuthUserMatchingId } from '../lib/apiAuth.js';
+import { requireAuthUser, requireAuthUserMatchingId } from '../lib/apiAuth.js';
 import { applyCors } from '../lib/cors.js';
 
 export const config = { api: { bodyParser: false } };
@@ -40,6 +40,52 @@ function json(res, status, data) {
   res.status(status).json(data);
 }
 
+const PAYPAL_PLAN_PRICING = {
+  premium_monthly: {
+    amount: '7.99',
+    currency: 'USD',
+    description: 'Balanze Premium - Monthly Plan',
+    billingCycle: 'monthly',
+  },
+  premium_lifetime: {
+    amount: '199.99',
+    currency: 'USD',
+    description: 'Balanze Premium - Lifetime Access',
+    billingCycle: 'lifetime',
+  },
+};
+
+const ALLOWED_APP_ORIGINS = new Set([
+  'https://balanze.cash',
+  'https://www.balanze.cash',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+]);
+
+function getAppOrigin(req) {
+  const appUrl = (process.env.APP_URL || process.env.VITE_APP_URL || 'https://balanze.cash').replace(/\/$/, '');
+  const origin = (req.headers.origin || '').replace(/\/$/, '');
+  if (origin && (ALLOWED_APP_ORIGINS.has(origin) || origin === appUrl)) return origin;
+  return appUrl;
+}
+
+function isSafeRedirectUrl(url, allowedOrigin) {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const parsed = new URL(url);
+    const base = new URL(allowedOrigin);
+    return parsed.origin === base.origin && (parsed.protocol === 'https:' || parsed.protocol === 'http:');
+  } catch {
+    return false;
+  }
+}
+
+function paddleApiKey() {
+  return process.env.PADDLE_API_KEY || process.env.PADDLE_SECRET_KEY || process.env.PADDLE_LIVE_API_KEY || null;
+}
+
 // --- PayPal (DRY: shared auth) ---
 // Use server env vars (PAYPAL_*) - VITE_* not available in Vercel serverless
 async function paypalAuth() {
@@ -61,8 +107,43 @@ async function paypalAuth() {
   return { token: authData.access_token, baseUrl };
 }
 
-async function handleCapturePayPal(res, body) {
+async function applyPayPalPremium(userId, planId, transactionId, amount, currency) {
+  const plan = PAYPAL_PLAN_PRICING[planId];
+  if (!plan || !supabase) return;
+  const subscription = {
+    plan: 'premium',
+    status: 'active',
+    billing_cycle: plan.billingCycle,
+    payment_method: 'paypal',
+    paypal_transaction_id: transactionId || null,
+    expires_at: plan.billingCycle === 'monthly'
+      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      : null,
+    updated_at: new Date().toISOString(),
+  };
+  await updateSubscriptionByUser(userId, subscription);
+  await insertSubscriptionHistory(
+    userId,
+    {
+      ...subscription,
+      trial_started_at: new Date().toISOString(),
+      trial_ends_at: subscription.expires_at,
+    },
+    transactionId ? `paypal:${transactionId}` : 'paypal',
+    Number.parseFloat(amount) || Number.parseFloat(plan.amount),
+    currency || plan.currency
+  );
+}
+
+async function handleCapturePayPal(req, res, body) {
   const { orderId, planId } = body;
+  const plan = PAYPAL_PLAN_PRICING[planId];
+  if (!plan) return json(res, 400, { error: 'Invalid plan ID' });
+  if (!orderId) return json(res, 400, { error: 'Missing orderId' });
+
+  const auth = await requireAuthUser(req);
+  if (!auth.user) return json(res, auth.status || 401, { error: auth.error || 'Unauthorized' });
+
   const { token, baseUrl } = await paypalAuth();
   const cap = await fetch(`${baseUrl}/v2/checkout/orders/${orderId}/capture`, {
     method: 'POST',
@@ -71,20 +152,50 @@ async function handleCapturePayPal(res, body) {
   const data = await cap.json();
   if (data.error) throw new Error(data.error.message || 'Failed to capture');
   if (data.status !== 'COMPLETED') throw new Error('Payment was not completed');
-  const u = data.purchase_units[0].payments.captures[0];
-  json(res, 200, { success: true, transactionId: u.id, amount: u.amount.value, currency: u.amount.currency_code, planId });
+  const u = data.purchase_units?.[0]?.payments?.captures?.[0];
+  if (!u) throw new Error('Capture details missing');
+
+  const paidAmount = String(u.amount?.value || '');
+  const paidCurrency = String(u.amount?.currency_code || '');
+  if (paidAmount !== plan.amount || paidCurrency !== plan.currency) {
+    return json(res, 400, { error: 'Captured amount does not match plan pricing' });
+  }
+
+  const customId = data.purchase_units?.[0]?.custom_id;
+  if (customId && customId !== planId) {
+    return json(res, 400, { error: 'Order plan mismatch' });
+  }
+
+  await applyPayPalPremium(auth.user.id, planId, u.id, paidAmount, paidCurrency);
+  json(res, 200, {
+    success: true,
+    transactionId: u.id,
+    amount: paidAmount,
+    currency: paidCurrency,
+    planId,
+  });
 }
 
 async function handleCreatePayPalOrder(req, res, body) {
-  const { planId, amount, currency, description } = body;
+  const { planId } = body;
+  const plan = PAYPAL_PLAN_PRICING[planId];
+  if (!plan) return json(res, 400, { error: 'Invalid plan ID' });
+
+  const auth = await requireAuthUser(req);
+  if (!auth.user) return json(res, auth.status || 401, { error: auth.error || 'Unauthorized' });
+
   const { token, baseUrl } = await paypalAuth();
-  const origin = req.headers.origin || '';
+  const origin = getAppOrigin(req);
   const orderRes = await fetch(`${baseUrl}/v2/checkout/orders`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       intent: 'CAPTURE',
-      purchase_units: [{ amount: { currency_code: currency, value: amount.toString() }, description, custom_id: planId }],
+      purchase_units: [{
+        amount: { currency_code: plan.currency, value: plan.amount },
+        description: plan.description,
+        custom_id: planId,
+      }],
       application_context: {
         return_url: `${origin}/settings?tab=plans&success=true`,
         cancel_url: `${origin}/settings?tab=plans&canceled=true`,
@@ -102,10 +213,22 @@ const STRIPE_PRICING = {
   premium_lifetime: { price: 19999, currency: 'usd', interval: 'one-time' },
 };
 
-async function handleCreateCheckoutSession(res, body) {
+async function handleCreateCheckoutSession(req, res, body) {
   const { planId, customerEmail, successUrl, cancelUrl } = body;
   const plan = STRIPE_PRICING[planId];
   if (!plan) return json(res, 400, { error: 'Invalid plan ID' });
+
+  const auth = await requireAuthUser(req);
+  if (!auth.user) return json(res, auth.status || 401, { error: auth.error || 'Unauthorized' });
+
+  const origin = getAppOrigin(req);
+  const safeSuccess = isSafeRedirectUrl(successUrl, origin)
+    ? successUrl
+    : `${origin}/settings?tab=plans&success=true`;
+  const safeCancel = isSafeRedirectUrl(cancelUrl, origin)
+    ? cancelUrl
+    : `${origin}/settings?tab=plans&canceled=true`;
+
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeSecretKey) return json(res, 503, { error: 'Stripe is not configured' });
   const stripe = new Stripe(stripeSecretKey);
@@ -124,12 +247,12 @@ async function handleCreateCheckoutSession(res, body) {
       quantity: 1,
     }],
     mode: plan.interval === 'one-time' ? 'payment' : 'subscription',
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    customer_email: customerEmail,
+    success_url: safeSuccess,
+    cancel_url: safeCancel,
+    customer_email: auth.user.email || customerEmail,
     allow_promotion_codes: true,
     billing_address_collection: 'required',
-    metadata: { planId, customerEmail },
+    metadata: { planId, userId: auth.user.id, customerEmail: auth.user.email || customerEmail || '' },
   });
   json(res, 200, { sessionId: session.id });
 }
@@ -349,7 +472,7 @@ async function handleGetPaddleSubscriptionDetails(req, res, body) {
   if (!auth.user) return json(res, auth.status || 401, { error: auth.error || 'Unauthorized' });
   const userId = auth.user.id;
 
-  const apiKey = process.env.PADDLE_API_KEY || process.env.PADDLE_SECRET_KEY || process.env.PADDLE_LIVE_API_KEY || process.env.VITE_PADDLE_API_KEY;
+  const apiKey = paddleApiKey();
   if (!apiKey) return json(res, 503, { error: 'Paddle API key not configured' });
 
   const apiRes = await fetch(`https://api.paddle.com/subscriptions/${encodeURIComponent(subscriptionId)}`, {
@@ -399,11 +522,7 @@ async function handleScheduleDowngrade(req, res, body) {
   const paddleSubscriptionId = current?.paddle_subscription_id;
   if (!paddleSubscriptionId) return json(res, 400, { error: 'No Paddle subscription ID on profile' });
 
-  const apiKey =
-    process.env.PADDLE_API_KEY ||
-    process.env.PADDLE_SECRET_KEY ||
-    process.env.PADDLE_LIVE_API_KEY ||
-    process.env.VITE_PADDLE_API_KEY;
+  const apiKey = paddleApiKey();
   if (!apiKey) return json(res, 503, { error: 'Paddle API key not configured' });
 
   const cancelRes = await fetch(`https://api.paddle.com/subscriptions/${encodeURIComponent(paddleSubscriptionId)}/cancel`, {
@@ -474,9 +593,9 @@ export default async function handler(req, res) {
   };
 
   switch (path) {
-    case PATH.capturePayPal: return run(() => handleCapturePayPal(res, body));
+    case PATH.capturePayPal: return run(() => handleCapturePayPal(req, res, body));
     case PATH.createPayPal: return run(() => handleCreatePayPalOrder(req, res, body));
-    case PATH.stripeCheckout: return run(() => handleCreateCheckoutSession(res, body));
+    case PATH.stripeCheckout: return run(() => handleCreateCheckoutSession(req, res, body));
     case PATH.paddle: return run(() => handlePaddleWebhook(req, res, rawBody));
     case PATH.paddleSubscriptionDetails: return run(() => handleGetPaddleSubscriptionDetails(req, res, body));
     case PATH.scheduleDowngrade: return run(() => handleScheduleDowngrade(req, res, body));

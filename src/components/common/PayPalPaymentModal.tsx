@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { X, Lock, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { initializePayPal, createPayPalOrder, handlePayPalApproval } from '../../lib/paypal';
 import { useAuthStore } from '../../store/authStore';
-import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
 interface PayPalPaymentModalProps {
@@ -68,22 +67,10 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
               const result = await handlePayPalApproval(data.orderID, planId);
               
               if (result.success) {
-                // Update user subscription in database
-                const { error: dbError } = await supabase
-                  .rpc('upgrade_user_subscription', {
-                    user_uuid: user.id,
-                    plan_name: 'premium',
-                    payment_method: 'paypal'
-                  });
-
-                if (dbError) {
-                  throw dbError;
-                }
-
-                toast.success('Payment successful! Your subscription has been upgraded.');
+                toast.success('Payment successful! Your Premium access will activate shortly.');
                 onClose();
                 
-                // Refresh the page to show new features
+                // Refresh the page to show new features (server capture applies the upgrade)
                 window.location.reload();
               } else {
                 throw new Error('Payment verification failed');

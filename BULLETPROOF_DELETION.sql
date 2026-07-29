@@ -120,4 +120,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Grant permissions
 GRANT EXECUTE ON FUNCTION delete_user_completely(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION delete_user_completely(UUID) TO anon; 
+REVOKE ALL ON FUNCTION delete_user_completely(UUID) FROM anon; 

@@ -62,32 +62,10 @@ export const SubscriptionManager: React.FC = () => {
     }
   };
 
-  const upgradeSubscription = async (planName: string) => {
+  const upgradeSubscription = async (_planName: string) => {
     if (!user) return;
-
-    try {
-      setUpgrading(true);
-      
-      const { data, error } = await supabase
-        .rpc('upgrade_user_subscription', {
-          user_uuid: user.id,
-          plan_name: planName,
-          payment_method: 'stripe' // You can integrate with Stripe later
-        });
-
-      if (error) throw error;
-
-      if (data) {
-        // Reload subscription data
-        await loadSubscriptionData();
-        alert('Subscription upgraded successfully!');
-      }
-    } catch (error) {
-
-      alert('Failed to upgrade subscription. Please try again.');
-    } finally {
-      setUpgrading(false);
-    }
+    // Direct RPC upgrades are disabled. Use the payment checkout flow instead.
+    alert('Please use the secure checkout to upgrade your plan.');
   };
 
   const getFeatureIcon = (feature: string) => {

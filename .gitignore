@@ -107,6 +107,9 @@ temp/
 # Backup files
 *.bak
 *.backup
+backup_json_export.sql
+*_json_export.sql
+*_data_export.sql
 
 # Test files
 test-results/

@@ -143,7 +143,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Step 3: Grant permissions
 GRANT EXECUTE ON FUNCTION delete_user_completely(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION delete_user_completely(UUID) TO anon;
+REVOKE ALL ON FUNCTION delete_user_completely(UUID) FROM anon;
 
 -- Step 4: Test the function (optional)
 -- SELECT delete_user_completely('your-test-user-id-here');
@@ -163,4 +163,4 @@ CREATE TRIGGER simple_trigger_delete_auth_user
     EXECUTE FUNCTION simple_delete_auth_user();
 
 GRANT EXECUTE ON FUNCTION simple_delete_auth_user() TO authenticated;
-GRANT EXECUTE ON FUNCTION simple_delete_auth_user() TO anon; 
+REVOKE ALL ON FUNCTION simple_delete_auth_user() FROM anon; 

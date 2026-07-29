@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, CreditCard, Shield, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { initializePaddle, Paddle } from '@paddle/paddle-js';
 
@@ -99,27 +98,12 @@ export const PaddlePaymentModal: React.FC<PaddlePaymentModalProps> = ({
     }
   };
 
-  const handlePaymentSuccess = async (data: any) => {
+  const handlePaymentSuccess = async (_data: any) => {
     try {
       setLoading(true);
-      
-      // Update user subscription in database
-      const { error: dbError } = await supabase
-        .rpc('upgrade_user_subscription', {
-          user_uuid: user?.id,
-          plan_name: 'premium',
-          payment_method: 'paddle',
-          paddle_transaction_id: data.event_data?.transaction_id
-        });
-
-      if (dbError) {
-        throw dbError;
-      }
-
-      toast.success('Payment successful! Your subscription has been upgraded.');
+      // Premium is applied by the verified Paddle webhook — do not call client upgrade RPCs.
+      toast.success('Payment successful! Your subscription will update shortly.');
       onClose();
-      
-      // Refresh the page to show new features
       window.location.reload();
     } catch (err) {
 

@@ -14,6 +14,10 @@ RETURNS BOOLEAN AS $$
 DECLARE
     deletion_success BOOLEAN := TRUE;
 BEGIN
+    IF auth.uid() IS NULL OR auth.uid() <> delete_user_completely.user_id THEN
+        RAISE EXCEPTION 'Not authorized to delete this user';
+    END IF;
+
     -- Delete all user data in the correct order
     
     -- 1. Delete notifications
@@ -140,9 +144,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Step 3: Grant permissions
+-- Step 3: Grant permissions (never grant to anon)
+REVOKE ALL ON FUNCTION delete_user_completely(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION delete_user_completely(UUID) FROM anon;
 GRANT EXECUTE ON FUNCTION delete_user_completely(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION delete_user_completely(UUID) TO anon;
 
 -- Step 4: Create simple backup trigger (only if it doesn't exist)
 CREATE OR REPLACE FUNCTION simple_delete_auth_user()
@@ -168,8 +173,8 @@ BEGIN
     END IF;
 END $$;
 
-GRANT EXECUTE ON FUNCTION simple_delete_auth_user() TO authenticated;
-GRANT EXECUTE ON FUNCTION simple_delete_auth_user() TO anon;
+REVOKE ALL ON FUNCTION simple_delete_auth_user() FROM PUBLIC;
+REVOKE ALL ON FUNCTION simple_delete_auth_user() FROM anon;
 
 -- Step 5: Verify the function was created
 SELECT 

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseServer.js';
+import { isCronAuthorized } from '../lib/cronAuth.js';
 import {
   todayYyyyMmDd,
   parseLocalDate,
@@ -192,10 +193,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = req.headers.authorization;
-  const isCron = req.headers['x-vercel-cron'];
-  if (!cronSecret || ((authHeader !== `Bearer ${cronSecret}`) && !isCron)) {
+  if (!isCronAuthorized(req)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   if (!supabase) {
