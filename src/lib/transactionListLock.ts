@@ -8,6 +8,11 @@ export function isTransactionListActionsLocked(t: Transaction): boolean {
   return isLendBorrowTransaction(t) || t.origin === TRANSACTION_ORIGIN_BUSINESS_INVESTMENT;
 }
 
+/** Eye toggle for page summary cards — not on locked or recurring-template rows. */
+export function canToggleTransactionPageSummaryExclude(t: Transaction): boolean {
+  return !isTransactionListActionsLocked(t) && !t.is_recurring;
+}
+
 /** Tooltip when Edit/Delete are disabled on the transactions list (tablet layout). */
 export function getTransactionListManagedElsewhereHint(t: Transaction): string | null {
   if (isLendBorrowTransaction(t)) {

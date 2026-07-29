@@ -76,10 +76,7 @@ export const AccountTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) 
         {/* Table Body - matches real row structure */}
         <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
           {Array.from({ length: rows }).map((_, rowIndex) => (
-            <tr key={rowIndex} className={`${rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'} relative overflow-hidden`}>
-              {/* Shimmer effect for each row */}
-              <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
-              
+            <tr key={rowIndex} className={`${rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}`}>
               {/* Account Name - matches real account name structure */}
               <td className="px-6 py-4 relative z-10">
                 <div className="flex items-center">
@@ -289,10 +286,7 @@ export const TransactionTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5
         {/* Table Body - matches real row structure */}
         <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
           {Array.from({ length: rows }).map((_, rowIndex) => (
-            <tr key={rowIndex} className={`${rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'} relative overflow-hidden`}>
-              {/* Shimmer effect for each row */}
-              <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
-              
+            <tr key={rowIndex} className={`${rowIndex % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/50'}`}>
               {/* Date - matches real date structure */}
               <td className="px-6 py-4 relative z-10">
                 <div className="flex items-center">

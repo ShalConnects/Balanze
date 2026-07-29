@@ -1,18 +1,24 @@
 import type { InvestmentContract } from '../types/businessInvestment';
+import {
+  getEffectivePrincipal as getEffectivePrincipalShared,
+  sumCapitalContributions as sumCapitalContributionsShared,
+} from '../../lib/businessInvestmentStats.js';
 
 export function sumCapitalContributions(contract: InvestmentContract) {
-  return contract.entries.filter((e) => e.type === 'capital_contribution').reduce((s, e) => s + e.amount, 0);
+  return sumCapitalContributionsShared(contract);
 }
 
 /** Initial principal from contract row plus capital_contribution entries. */
 export function getEffectivePrincipal(contract: InvestmentContract) {
-  return contract.principal + sumCapitalContributions(contract);
+  return getEffectivePrincipalShared(contract);
 }
 
 export function getContractStats(contract: InvestmentContract) {
   const totalProfit = contract.entries.filter((e) => e.type === 'profit').reduce((s, e) => s + e.amount, 0);
   const totalLoss = contract.entries.filter((e) => e.type === 'loss').reduce((s, e) => s + e.amount, 0);
-  const principalReturned = contract.entries.filter((e) => e.type === 'principal_return').reduce((s, e) => s + e.amount, 0);
+  const principalReturned = contract.entries
+    .filter((e) => e.type === 'principal_return')
+    .reduce((s, e) => s + e.amount, 0);
   const effectivePrincipal = getEffectivePrincipal(contract);
   const netResult = totalProfit - totalLoss + (principalReturned - effectivePrincipal);
   return {
@@ -21,7 +27,7 @@ export function getContractStats(contract: InvestmentContract) {
     principalReturned,
     netResult,
     effectivePrincipal,
-    capitalContributed: effectivePrincipal - contract.principal
+    capitalContributed: effectivePrincipal - contract.principal,
   };
 }
 

@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
 import { normalizeIncludeData } from '../lib/lastWishIncludeData.js';
 import { fetchActiveBusinessContractsWithEntries } from '../lib/lastWishBusinessInvestmentsServer.js';
+import { getEffectivePrincipal } from '../lib/businessInvestmentStats.js';
 import { sumAmountsByCurrency } from '../lib/lastWishSummaryRollups.js';
 import { filterOrphanDpsSavingsAccounts } from '../lib/lastWishAccountFilter.js';
 import { renderBusinessInvestmentContractsHtml, BIZ_ENTRY_LABELS } from '../lib/lastWishBusinessContractsRender.js';
@@ -16,6 +17,7 @@ import {
   rollupLendBorrowByCurrency,
 } from '../lib/lastWishDataFilters.js';
 import { isLastWishTriggerAuthorized } from '../lib/lastWishTriggerAuth.js';
+import { LAST_WISH_TEST_USER_ID } from '../lib/lastWishCheckInFrequencies.js';
 import { applyCors } from '../lib/cors.js';
 
 let transporter = null;
@@ -230,186 +232,110 @@ async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 1000, context
   throw lastError;
 }
 
-export async function gatherUserData(userId) {
+/**
+ * Load only the Last Wish delivery domains (accounts / lend-borrow / business investments).
+ * @param {string} userId
+ * @param {object} [includeRaw] - raw or normalized include_data; normalized inside
+ */
+export async function gatherUserData(userId, includeRaw) {
+  const include = normalizeIncludeData(includeRaw);
   const data = {};
   const metadata = { userId, operation: 'gatherUserData' };
 
   try {
-  // Gather accounts (using account_balances view to get accurate calculated_balance)
-    try {
-      const { data: accounts, error: accountsError } = await supabase
-    .from('account_balances')
-    .select('*')
-    .eq('user_id', userId);
-      
-      if (accountsError) {
-        await logError('gatherUserData', accountsError, { ...metadata, table: 'account_balances' });
-      }
-      // Map account_id to id for compatibility with existing code
-      data.accounts = (accounts || []).map(acc => ({
-        ...acc,
-        id: acc.account_id
-      }));
-    } catch (error) {
-      await logError('gatherUserData', error, { ...metadata, table: 'account_balances' });
-      data.accounts = [];
-    }
+    if (include.accounts) {
+      try {
+        const { data: accounts, error: accountsError } = await supabase
+          .from('account_balances')
+          .select('*')
+          .eq('user_id', userId);
 
-  // Gather transactions
-    try {
-      const { data: transactions, error: transactionsError } = await supabase
-    .from('transactions')
-    .select('*')
-    .eq('user_id', userId);
-      
-      if (transactionsError) {
-        await logError('gatherUserData', transactionsError, { ...metadata, table: 'transactions' });
-      }
-  data.transactions = transactions || [];
-    } catch (error) {
-      await logError('gatherUserData', error, { ...metadata, table: 'transactions' });
-      data.transactions = [];
-    }
-
-  // Gather purchases
-    try {
-      const { data: purchases, error: purchasesError } = await supabase
-    .from('purchases')
-    .select('*')
-    .eq('user_id', userId);
-      
-      if (purchasesError) {
-        await logError('gatherUserData', purchasesError, { ...metadata, table: 'purchases' });
-      }
-  data.purchases = purchases || [];
-    } catch (error) {
-      await logError('gatherUserData', error, { ...metadata, table: 'purchases' });
-      data.purchases = [];
-    }
-
-  // Gather lend/borrow records
-    try {
-      const { data: lendBorrow, error: lendBorrowError } = await supabase
-    .from('lend_borrow')
-    .select('*')
-    .eq('user_id', userId);
-      
-      if (lendBorrowError) {
-        await logError('gatherUserData', lendBorrowError, { ...metadata, table: 'lend_borrow' });
-      }
-  // Active + overdue only (settled excluded from Last Wish delivery)
-      data.lendBorrow = filterActiveLendBorrow(lendBorrow);
-
-      if (data.lendBorrow.length > 0) {
-        const lendBorrowIds = data.lendBorrow.map(lb => lb.id);
-        try {
-          const { data: returns, error: returnsError } = await supabase
-            .from('lend_borrow_returns')
-            .select('lend_borrow_id, amount')
-            .in('lend_borrow_id', lendBorrowIds);
-          
-          if (returnsError) {
-            await logError('gatherUserData', returnsError, { ...metadata, table: 'lend_borrow_returns' });
-          }
-          
-          const returnsByLendBorrowId = {};
-          (returns || []).forEach(ret => {
-            returnsByLendBorrowId[ret.lend_borrow_id] =
-              (returnsByLendBorrowId[ret.lend_borrow_id] || 0) + (parseFloat(ret.amount) || 0);
-          });
-          
-          data.lendBorrow = data.lendBorrow.map(lb => ({
-            ...lb,
-            total_returned_amount: (parseFloat(lb.partial_return_amount) || 0) + (returnsByLendBorrowId[lb.id] || 0)
-          }));
-        } catch (error) {
-          await logError('gatherUserData', error, { ...metadata, table: 'lend_borrow_returns' });
-          data.lendBorrow = data.lendBorrow.map(lb => ({
-            ...lb,
-            total_returned_amount: parseFloat(lb.partial_return_amount) || 0
-          }));
+        if (accountsError) {
+          await logError('gatherUserData', accountsError, { ...metadata, table: 'account_balances' });
         }
+        data.accounts = filterOrphanDpsSavingsAccounts(
+          (accounts || []).map((acc) => ({ ...acc, id: acc.account_id }))
+        );
+      } catch (error) {
+        await logError('gatherUserData', error, { ...metadata, table: 'account_balances' });
+        data.accounts = [];
       }
-    } catch (error) {
-      await logError('gatherUserData', error, { ...metadata, table: 'lend_borrow' });
-      data.lendBorrow = [];
     }
 
-  // Gather donation/savings records
-    try {
-      const { data: donationSavings, error: donationSavingsError } = await supabase
-    .from('donation_saving_records')
-    .select('*')
-    .eq('user_id', userId);
-      
-      if (donationSavingsError) {
-        await logError('gatherUserData', donationSavingsError, { ...metadata, table: 'donation_saving_records' });
+    if (include.lendBorrow) {
+      try {
+        const { data: lendBorrow, error: lendBorrowError } = await supabase
+          .from('lend_borrow')
+          .select('*')
+          .eq('user_id', userId);
+
+        if (lendBorrowError) {
+          await logError('gatherUserData', lendBorrowError, { ...metadata, table: 'lend_borrow' });
+        }
+        data.lendBorrow = filterActiveLendBorrow(lendBorrow);
+
+        if (data.lendBorrow.length > 0) {
+          const lendBorrowIds = data.lendBorrow.map((lb) => lb.id);
+          try {
+            const { data: returns, error: returnsError } = await supabase
+              .from('lend_borrow_returns')
+              .select('lend_borrow_id, amount')
+              .in('lend_borrow_id', lendBorrowIds);
+
+            if (returnsError) {
+              await logError('gatherUserData', returnsError, { ...metadata, table: 'lend_borrow_returns' });
+            }
+
+            const returnsByLendBorrowId = {};
+            (returns || []).forEach((ret) => {
+              returnsByLendBorrowId[ret.lend_borrow_id] =
+                (returnsByLendBorrowId[ret.lend_borrow_id] || 0) + (parseFloat(ret.amount) || 0);
+            });
+
+            data.lendBorrow = data.lendBorrow.map((lb) => ({
+              ...lb,
+              total_returned_amount:
+                (parseFloat(lb.partial_return_amount) || 0) + (returnsByLendBorrowId[lb.id] || 0),
+            }));
+          } catch (error) {
+            await logError('gatherUserData', error, { ...metadata, table: 'lend_borrow_returns' });
+            data.lendBorrow = data.lendBorrow.map((lb) => ({
+              ...lb,
+              total_returned_amount: parseFloat(lb.partial_return_amount) || 0,
+            }));
+          }
+        }
+      } catch (error) {
+        await logError('gatherUserData', error, { ...metadata, table: 'lend_borrow' });
+        data.lendBorrow = [];
       }
-  data.donationSavings = donationSavings || [];
-    } catch (error) {
-      await logError('gatherUserData', error, { ...metadata, table: 'donation_saving_records' });
-      data.donationSavings = [];
     }
 
-    // Gather investment assets
-    try {
-      const { data: investmentAssets, error: investmentError } = await supabase
-        .from('investment_assets')
-        .select('*')
-        .eq('user_id', userId);
-      
-      if (investmentError) {
-        await logError('gatherUserData', investmentError, { ...metadata, table: 'investment_assets' });
+    if (include.businessInvestments) {
+      try {
+        data.businessInvestmentContracts = await fetchActiveBusinessContractsWithEntries(supabase, userId);
+      } catch (error) {
+        await logError('gatherUserData', error, { ...metadata, table: 'business_investment_contracts' });
+        data.businessInvestmentContracts = [];
       }
-      data.investmentAssets = investmentAssets || [];
-    } catch (error) {
-      await logError('gatherUserData', error, { ...metadata, table: 'investment_assets' });
-      data.investmentAssets = [];
     }
 
-    try {
-      data.businessInvestmentContracts = await fetchActiveBusinessContractsWithEntries(supabase, userId);
-    } catch (error) {
-      await logError('gatherUserData', error, { ...metadata, table: 'business_investment_contracts' });
-      data.businessInvestmentContracts = [];
-    }
-
-  if (data.accounts?.length) {
-    data.accounts = filterOrphanDpsSavingsAccounts(data.accounts);
-  }
-
-  return data;
+    return data;
   } catch (error) {
     await logError('gatherUserData', error, { ...metadata, fatal: true });
     throw error;
   }
 }
 
+/** Pass-through of the three delivery domains (gather already scoped by include). */
 export function filterDataBySettings(userData, includeSettings) {
+  const include = normalizeIncludeData(includeSettings);
   const filtered = {};
-  
-  if (includeSettings.accounts) {
-    filtered.accounts = userData.accounts;
+  if (include.accounts) filtered.accounts = userData.accounts || [];
+  if (include.lendBorrow) filtered.lendBorrow = userData.lendBorrow || [];
+  if (include.businessInvestments) {
+    filtered.businessInvestmentContracts = userData.businessInvestmentContracts || [];
   }
-  if (includeSettings.transactions) {
-    filtered.transactions = userData.transactions;
-  }
-  if (includeSettings.purchases) {
-    filtered.purchases = userData.purchases;
-  }
-  if (includeSettings.lendBorrow) {
-    filtered.lendBorrow = userData.lendBorrow;
-  }
-  if (includeSettings.savings) {
-    filtered.donationSavings = userData.donationSavings;
-  }
-  if (includeSettings.investments) {
-    filtered.investmentAssets = userData.investmentAssets;
-  }
-  if (includeSettings.businessInvestments) {
-    filtered.businessInvestmentContracts = userData.businessInvestmentContracts;
-  }
-
   return filtered;
 }
 
@@ -434,7 +360,7 @@ function calculateFinancialMetrics(data) {
     totals: businessPrincipalByCurrency,
     counts: businessContractCountsByCurrency,
     count: activeBusinessContractCount
-  } = sumAmountsByCurrency(activeBizContracts, (c) => parseFloat(c.principal) || 0);
+  } = sumAmountsByCurrency(activeBizContracts, getEffectivePrincipal);
   
   const totalAssets = accounts.reduce((sum, account) => {
     return sum + (parseFloat(account.calculated_balance) || 0);
@@ -1526,7 +1452,7 @@ function generateCSVExport(data, settings) {
     data.businessInvestmentContracts.forEach((c) => {
       csvRows.push([
         escapeCSV(c.title || 'N/A'),
-        escapeCSV(c.principal ?? 0),
+        escapeCSV(getEffectivePrincipal(c)),
         escapeCSV(c.currency || 'USD'),
         escapeCSV(c.funding_account_name || 'N/A'),
         escapeCSV(c.start_date ? new Date(c.start_date).toISOString().split('T')[0] : 'N/A'),
@@ -2879,8 +2805,7 @@ function createPDFBufferLegacy(user, recipient, data, settings) {
 }
 
 async function sendDataToRecipient(user, recipient, userData, settings, isTestMode = false) {
-  const TARGET_USER_ID = 'd1fe3ccc-3c57-4621-866a-6d0643137d53';
-  const isTargetUser = user.id === TARGET_USER_ID;
+  const isTargetUser = user.id === LAST_WISH_TEST_USER_ID;
   
   const metadata = {
     userId: user.id,
@@ -3038,8 +2963,7 @@ async function sendDataToRecipient(user, recipient, userData, settings, isTestMo
 export async function sendLastWishEmail(userId, testMode = false) {
   const startTime = Date.now();
   const metadata = { userId, testMode };
-  const TARGET_USER_ID = 'd1fe3ccc-3c57-4621-866a-6d0643137d53';
-  const isTargetUser = userId === TARGET_USER_ID;
+  const isTargetUser = userId === LAST_WISH_TEST_USER_ID;
   let deliveryLocked = false;
 
   if (isTargetUser) {
@@ -3173,7 +3097,7 @@ export async function sendLastWishEmail(userId, testMode = false) {
     
     let userData;
     try {
-      userData = await gatherUserData(userId);
+      userData = await gatherUserData(userId, settings.include_data);
       
       if (isTargetUser) {
       }

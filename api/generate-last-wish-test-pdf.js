@@ -94,8 +94,9 @@ export default async function handler(req, res) {
       // keep JWT user
     }
 
-    const userData = await gatherUserData(user.id);
-    const filtered = filterDataBySettings(userData, normalizeIncludeData(lw.include_data));
+    const include = normalizeIncludeData(lw.include_data);
+    const userData = await gatherUserData(user.id, include);
+    const filtered = filterDataBySettings(userData, include);
 
     const pdfBuffer = await createPDFBuffer(pdfUser, recipient, filtered, lw);
 

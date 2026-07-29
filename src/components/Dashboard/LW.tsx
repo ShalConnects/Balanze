@@ -25,6 +25,7 @@ import { supabase } from '../../lib/supabase';
 import { sanitizeHtml } from '../../lib/sanitize';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { DEFAULT_INCLUDE_DATA, normalizeIncludeData } from '../../../lib/lastWishIncludeData.js';
+import { lastWishCheckInFrequencyOptions } from '../../../lib/lastWishCheckInFrequencies.js';
 import {
   filterActiveLendBorrow,
   lendBorrowRemaining,
@@ -34,6 +35,7 @@ import {
 import { fetchBusinessInvestmentContracts } from '../../lib/businessInvestmentService';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 import { ENTRY_TYPE_LABELS, type InvestmentContract } from '../../types/businessInvestment';
+import { getEffectivePrincipal } from '../../utils/businessInvestmentStats';
 import { formatAppDate, formatAppDateTime } from '../../utils/timezoneUtils';
 
 interface LWProps {
@@ -72,6 +74,7 @@ export const LW: React.FC<LWProps> = () => {
   
   // Check if user has Premium plan for Last Wish
   const isPremium = profile?.subscription?.plan === 'premium';
+  const checkInFrequencyOptions = lastWishCheckInFrequencyOptions(user?.id);
   const [lendBorrowRecords, setLendBorrowRecords] = useState<any[]>([]);
   const [businessContracts, setBusinessContracts] = useState<InvestmentContract[]>([]);
   const [settings, setSettings] = useState<LWSettings>({
@@ -1569,14 +1572,8 @@ These memories are my gift to you.`
         {/* Check-in Frequency */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 shadow-sm">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">Check-in Frequency</h3>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-            {[
-              { value: 7, label: '7', unit: 'days' },
-              { value: 14, label: '14', unit: 'days' },
-              { value: 30, label: '30', unit: 'days' },
-              { value: 60, label: '60', unit: 'days' },
-              { value: 90, label: '90', unit: 'days' }
-            ].map((option) => (
+          <div className={`grid grid-cols-3 gap-2 ${checkInFrequencyOptions.length > 5 ? 'sm:grid-cols-6' : 'sm:grid-cols-5'}`}>
+            {checkInFrequencyOptions.map((option) => (
               <label key={option.value} className={`relative cursor-pointer p-2 sm:p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
                 Math.abs(settings.checkInFrequency - option.value) < 0.0001
                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
@@ -2631,7 +2628,7 @@ const MessagePreviewModal: React.FC<MessagePreviewModalProps> = ({
                           <div className="flex flex-wrap justify-between gap-2 mb-2">
                             <span className="text-[#e5e7eb] font-medium">{c.title}</span>
                             <span className="text-[#e5e7eb] tabular-nums">
-                              {formatCurrencyWithSymbol(c.principal, c.currency || 'USD')} principal
+                              {formatCurrencyWithSymbol(getEffectivePrincipal(c), c.currency || 'USD')} principal
                             </span>
                           </div>
                           <div className="text-[#6b7280] space-y-1">

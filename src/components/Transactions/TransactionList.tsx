@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, EyeOff, FileText, History } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Copy, Files, Edit2, Trash2, Plus, Search, Filter, Download, ChevronUp, ChevronDown, TrendingUp, Info, Link, Tag, Repeat, Pause, Play, Settings, Eye, EyeOff, FileText, History } from 'lucide-react';
 import { Transaction } from '../../types/index';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { format } from 'date-fns';
@@ -42,7 +42,8 @@ import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { countsTowardIncomeExpenseSummaries, isLendBorrowTransaction } from '../../utils/transactionUtils';
 import { computeDateAwareTotals, sumAmountEditsInPeriod, transactionHasAuditTrail } from '../../utils/transactionHistoryUtils';
 import { formatDateUTC, formatTimeUTC } from '../../utils/timezoneUtils';
-import { getTransactionListManagedElsewhereHint, isTransactionListActionsLocked } from '../../lib/transactionListLock';
+import { canToggleTransactionPageSummaryExclude, getTransactionListManagedElsewhereHint, isTransactionListActionsLocked } from '../../lib/transactionListLock';
+import { readPageSummaryExcludeIds, togglePageSummaryExcludeId } from '../../lib/transactionPageSummaryExclude';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 import {
   CASHFLOW_EXPENSE_CHIP_CLASS,
@@ -97,6 +98,51 @@ function TransactionActionExpandGlyph({
   );
 }
 
+const pageSummaryExcludeIconSizes = { md: 'w-4 h-4', sm: 'w-3.5 h-3.5' } as const;
+
+/** Eye toggle: EyeOff = excluded from page summary cards only (local). */
+function PageSummaryExcludeToggle({
+  transaction,
+  excluded,
+  onToggle,
+  size = 'md',
+  className = '',
+}: {
+  transaction: Transaction;
+  excluded: boolean;
+  onToggle: (t: Transaction) => void;
+  size?: keyof typeof pageSummaryExcludeIconSizes;
+  className?: string;
+}) {
+  if (!canToggleTransactionPageSummaryExclude(transaction)) return null;
+  const Icon = excluded ? EyeOff : Eye;
+  return (
+    <Tooltip
+      content={excluded ? 'Include in page summaries' : 'Exclude from page summaries'}
+      placement="top"
+    >
+      <button
+        type="button"
+        aria-pressed={excluded}
+        aria-label={excluded ? 'Include in page summaries' : 'Exclude from page summaries'}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle(transaction);
+        }}
+        className={
+          excluded
+            ? `text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors ${className}`
+            : `text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ${className}`
+        }
+      >
+        <Icon className={pageSummaryExcludeIconSizes[size]} />
+      </button>
+    </Tooltip>
+  );
+}
+
+const PAGE_SUMMARY_EXCLUDED_ROW_CLASS = 'opacity-60 bg-gray-50/70 dark:bg-gray-800/50';
+
 const TransactionListComponent: React.FC<{ 
   selectedRecord?: any;
   selectedId?: string | null;
@@ -126,6 +172,13 @@ const TransactionListComponent: React.FC<{
   const allAccountsForLookup = allAccounts; // Use all accounts for lookups to show inactive account info
   const activeTransactions = getActiveTransactions();
   const { profile, user } = useAuthStore();
+  const pageSummaryUserId = user?.id ?? profile?.id ?? '';
+  const [pageSummaryExcludeIds, setPageSummaryExcludeIds] = useState<Set<string>>(
+    () => (pageSummaryUserId ? readPageSummaryExcludeIds(pageSummaryUserId) : new Set())
+  );
+  useEffect(() => {
+    setPageSummaryExcludeIds(pageSummaryUserId ? readPageSummaryExcludeIds(pageSummaryUserId) : new Set());
+  }, [pageSummaryUserId]);
   const prefetchExpenseNote = (transactionId: string) => {
     const uid = user?.id ?? profile?.id;
     if (uid) prefetchExpenseNoteRawText(uid, transactionId);
@@ -912,6 +965,11 @@ const TransactionListComponent: React.FC<{
     setIsFormOpen(true);
   };
 
+  const handleTogglePageSummaryExclude = (transaction: Transaction) => {
+    if (!pageSummaryUserId || !canToggleTransactionPageSummaryExclude(transaction)) return;
+    setPageSummaryExcludeIds(prev => togglePageSummaryExcludeId(pageSummaryUserId, transaction.id, prev));
+  };
+
   const handleNoteSave = async (note: string) => {
     isSavingNoteRef.current = true;
     try {
@@ -1142,19 +1200,23 @@ const TransactionListComponent: React.FC<{
     !!filters.dateRange.start &&
     !!filters.dateRange.end;
   const historyMap = transactionHistoryCache;
+  const pageSummaryTransactions = useMemo(
+    () => filteredTransactions.filter(t => !pageSummaryExcludeIds.has(t.id)),
+    [filteredTransactions, pageSummaryExcludeIds]
+  );
   const { income: totalIncome, expense: totalExpense } = usePeriodAttribution
     ? computeDateAwareTotals(
-        filteredTransactions,
+        pageSummaryTransactions,
         historyMap ?? new Map(),
         filters.dateRange.start,
         filters.dateRange.end
       )
     : {
-        income: filteredTransactions.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0),
-        expense: filteredTransactions.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0),
+        income: pageSummaryTransactions.filter(t => t.type === 'income' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0),
+        expense: pageSummaryTransactions.filter(t => t.type === 'expense' && countsTowardIncomeExpenseSummaries(t)).reduce((sum, t) => sum + t.amount, 0),
       };
   const summaryComparisonPeriod = getComparisonPeriod(dateFilterType);
-  const transactionCount = filteredTransactions.length;
+  const transactionCount = pageSummaryTransactions.length;
   
   // Console log for verification - always log when transactions are present
   if (transactions.length > 0) {
@@ -1788,7 +1850,7 @@ const TransactionListComponent: React.FC<{
                 </p>
                 <TransactionPeriodChangeCaption
                   kind="income"
-                  transactions={transactions}
+                  transactions={pageSummaryTransactions}
                   rangeStart={filters.dateRange.start}
                   rangeEnd={filters.dateRange.end}
                   comparisonStart={summaryComparisonPeriod.start}
@@ -1809,7 +1871,7 @@ const TransactionListComponent: React.FC<{
                 </p>
                 <TransactionPeriodChangeCaption
                   kind="expense"
-                  transactions={transactions}
+                  transactions={pageSummaryTransactions}
                   rangeStart={filters.dateRange.start}
                   rangeEnd={filters.dateRange.end}
                   comparisonStart={summaryComparisonPeriod.start}
@@ -1979,6 +2041,8 @@ const TransactionListComponent: React.FC<{
                         id={`transaction-${transaction.transaction_id || transaction.id}`}
                         ref={isSelected ? (selectedRecordRef as React.Ref<HTMLTableRowElement>) : undefined}
                         className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                          pageSummaryExcludeIds.has(transaction.id) ? PAGE_SUMMARY_EXCLUDED_ROW_CLASS : ''
+                        } ${
                           isSelected 
                             ? isFromSearchSelection 
                               ? 'ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20' 
@@ -2147,6 +2211,11 @@ const TransactionListComponent: React.FC<{
                                </Tooltip>
                              ) : (
                                <>
+                                 <PageSummaryExcludeToggle
+                                   transaction={transaction}
+                                   excluded={pageSummaryExcludeIds.has(transaction.id)}
+                                   onToggle={handleTogglePageSummaryExclude}
+                                 />
                                  {(transaction.is_recurring || transaction.parent_recurring_id) && (
                                    <Tooltip content={expandedRecurringIds.has(transaction.id) ? 'Collapse recurring details' : 'Expand recurring details'} placement="top">
                                      <button
@@ -2476,7 +2545,9 @@ const TransactionListComponent: React.FC<{
                     key={transaction.id} 
                     id={`transaction-${transaction.transaction_id || transaction.id}`}
                     ref={isSelected ? (selectedRecordRef as React.Ref<HTMLDivElement>) : undefined}
-                    className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                    className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow${
+                      pageSummaryExcludeIds.has(transaction.id) ? ` ${PAGE_SUMMARY_EXCLUDED_ROW_CLASS}` : ''
+                    }`}
                   >
                     {/* Card Header - Date, Type Badge, and Indicators */}
                     <div className="flex items-center justify-between p-3 pb-2">
@@ -2673,6 +2744,13 @@ const TransactionListComponent: React.FC<{
                            </Tooltip>
                          ) : (
                            <>
+                               <PageSummaryExcludeToggle
+                                 transaction={transaction}
+                                 excluded={pageSummaryExcludeIds.has(transaction.id)}
+                                 onToggle={handleTogglePageSummaryExclude}
+                                 size="sm"
+                                 className="p-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                               />
                                {(transaction.is_recurring || transaction.parent_recurring_id) && (
                                  <Tooltip content={expandedRecurringIds.has(transaction.id) ? 'Collapse recurring details' : 'Expand recurring details'} placement="top">
                                    <button
@@ -2968,6 +3046,8 @@ const TransactionListComponent: React.FC<{
                     id={`transaction-${transaction.transaction_id || transaction.id}`}
                     ref={isSelected ? (selectedRecordRef as React.Ref<HTMLDivElement>) : undefined}
                     className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow ${
+                      pageSummaryExcludeIds.has(transaction.id) ? PAGE_SUMMARY_EXCLUDED_ROW_CLASS : ''
+                    } ${
                       isSelected 
                         ? isFromSearchSelection 
                           ? 'ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20' 
@@ -3042,6 +3122,11 @@ const TransactionListComponent: React.FC<{
                       <div className="col-span-1">
                           <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</div>
                           <div className="flex gap-2 items-center">
+                            <PageSummaryExcludeToggle
+                              transaction={transaction}
+                              excluded={pageSummaryExcludeIds.has(transaction.id)}
+                              onToggle={handleTogglePageSummaryExclude}
+                            />
                             {transaction.is_recurring && (
                               <button
                                 onClick={() => handleTogglePause(transaction)}
