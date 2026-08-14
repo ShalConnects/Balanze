@@ -158,6 +158,7 @@ export async function buildInvestmentAgreementDocument(
           ['Total profit', fmt(stats.totalProfit)],
           ['Total loss', fmt(stats.totalLoss)],
           ['Principal returned', fmt(stats.principalReturned)],
+          ['Outstanding capital', fmt(stats.outstanding)],
           ['Net result', fmt(stats.netResult)]
         ],
         ...pdfTable(BALANZE_BRAND.purple)

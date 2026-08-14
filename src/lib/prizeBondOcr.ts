@@ -50,24 +50,31 @@ function renderRegion(
   return canvas;
 }
 
+async function prepareScanImage(file: File): Promise<File> {
+  const { default: compress } = await import('browser-image-compression');
+  return compress(file, { maxWidthOrHeight: 1600, maxSizeMB: 1.5, useWebWorker: false });
+}
+
 async function buildScanSources(file: File): Promise<ScanSource[]> {
   const img = await loadImage(file);
   const w = img.naturalWidth;
   const h = img.naturalHeight;
-  const scale = Math.max(5, 2600 / Math.max(w, h));
+  const fit = Math.min(1, 1600 / Math.max(w, h));
+  const serial = fit * 2;
   const toBlob = (c: HTMLCanvasElement) => new Promise<Blob>((res, rej) => {
     c.toBlob((b) => (b ? res(b) : rej(new Error('BLOB_FAIL'))), 'image/png');
   });
 
   return [
-    { label: 'full', blob: await toBlob(renderRegion(img, 0, 0, w, h, scale, 'color')), psm: '6', weight: 2 },
-    { label: 'series-mid', blob: await toBlob(renderRegion(img, 0, h * 0.36, w * 0.58, h * 0.14, scale, 'red')), psm: '7', weight: 4 },
-    { label: 'series-bottom', blob: await toBlob(renderRegion(img, w * 0.42, h * 0.78, w * 0.56, h * 0.2, scale, 'mono')), psm: '7', weight: 5 },
+    { label: 'full', blob: await toBlob(renderRegion(img, 0, 0, w, h, fit, 'color')), psm: '6', weight: 2 },
+    { label: 'series-mid', blob: await toBlob(renderRegion(img, 0, h * 0.36, w * 0.58, h * 0.14, serial, 'red')), psm: '7', weight: 4 },
+    { label: 'series-bottom', blob: await toBlob(renderRegion(img, w * 0.42, h * 0.78, w * 0.56, h * 0.2, serial, 'mono')), psm: '7', weight: 5 },
   ];
 }
 
 export async function scanBondImage(file: File, hints?: ScanLearnHints): Promise<BondOcrResult> {
-  logBondScan('start', { name: file.name, size: file.size, type: file.type });
+  const prepared = await prepareScanImage(file);
+  logBondScan('start', { name: prepared.name, size: prepared.size, type: prepared.type });
   const { createWorker, PSM } = await import('tesseract.js');
   const worker = await createWorker('ben+eng');
   const merged = new Map<string, number>();
@@ -79,7 +86,7 @@ export async function scanBondImage(file: File, hints?: ScanLearnHints): Promise
       tessedit_char_whitelist: '0123456789০১২৩৪৫৬৭৮৯খগচছজঝটঠডঢতথদধনপফবভমযরলশষসহড়ঢ়য়ৎািীুূৃেৈোৌংঃঁ ',
     });
 
-    for (const { label, blob, psm, weight } of await buildScanSources(file)) {
+    for (const { label, blob, psm, weight } of await buildScanSources(prepared)) {
       await worker.setParameters({ tessedit_pageseg_mode: psm === '7' ? PSM.SINGLE_LINE : PSM.SINGLE_BLOCK });
       const { data } = await worker.recognize(blob);
       const raw = data.text || '';

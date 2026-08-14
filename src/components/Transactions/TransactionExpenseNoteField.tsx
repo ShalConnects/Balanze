@@ -5,12 +5,13 @@ import { TransactionNoteModal } from './TransactionNoteModal';
 /** Form trigger that opens the shared expense-note modal (same path as the note icon). */
 export const TransactionExpenseNoteField: React.FC<{
   transactionId?: string;
+  persist?: boolean;
   noteSummary: string;
   draftRawText?: string;
   disabled?: boolean;
   className?: string;
   onCommitted: (summary: string, rawText: string) => void | Promise<void>;
-}> = ({ transactionId, noteSummary, draftRawText, disabled, className = '', onCommitted }) => {
+}> = ({ transactionId, persist, noteSummary, draftRawText, disabled, className = '', onCommitted }) => {
   const [open, setOpen] = useState(false);
   const hasNote = noteSummary.trim().length > 0;
 
@@ -31,6 +32,7 @@ export const TransactionExpenseNoteField: React.FC<{
         isOpen={open}
         onClose={() => setOpen(false)}
         transactionId={transactionId}
+        persist={persist}
         currentNote={noteSummary}
         draftRawText={draftRawText}
         onSave={async (summary, rawText = '') => {

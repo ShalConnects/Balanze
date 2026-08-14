@@ -1,4 +1,4 @@
-import type { InvestmentContract } from '../types/businessInvestment';
+import type { EntryType, InvestmentContract } from '../types/businessInvestment';
 import {
   getEffectivePrincipal as getEffectivePrincipalShared,
   sumCapitalContributions as sumCapitalContributionsShared,
@@ -13,22 +13,30 @@ export function getEffectivePrincipal(contract: InvestmentContract) {
   return getEffectivePrincipalShared(contract);
 }
 
+function sumByType(contract: InvestmentContract, type: EntryType) {
+  return contract.entries.filter((e) => e.type === type).reduce((s, e) => s + e.amount, 0);
+}
+
 export function getContractStats(contract: InvestmentContract) {
-  const totalProfit = contract.entries.filter((e) => e.type === 'profit').reduce((s, e) => s + e.amount, 0);
-  const totalLoss = contract.entries.filter((e) => e.type === 'loss').reduce((s, e) => s + e.amount, 0);
-  const principalReturned = contract.entries
-    .filter((e) => e.type === 'principal_return')
-    .reduce((s, e) => s + e.amount, 0);
+  const totalProfit = sumByType(contract, 'profit');
+  const totalLoss = sumByType(contract, 'loss');
+  const principalReturned = sumByType(contract, 'principal_return');
   const effectivePrincipal = getEffectivePrincipal(contract);
-  const netResult = totalProfit - totalLoss + (principalReturned - effectivePrincipal);
+  const outstanding = Math.max(0, effectivePrincipal - principalReturned - totalLoss);
   return {
     totalProfit,
     totalLoss,
     principalReturned,
-    netResult,
+    outstanding,
+    netResult: totalProfit - totalLoss - outstanding,
     effectivePrincipal,
     capitalContributed: effectivePrincipal - contract.principal,
   };
+}
+
+/** Loss and principal return both draw from the same remaining capital. */
+export function entryExceedsOutstanding(type: EntryType, amount: number, outstanding: number): boolean {
+  return (type === 'loss' || type === 'principal_return') && Math.round(amount * 100) > Math.round(outstanding * 100);
 }
 
 /** Active contracts only; when `currency` is empty, all active contracts are included. */

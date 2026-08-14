@@ -1,5 +1,5 @@
 import React from 'react';
-import { Ban, Download, Eye, Loader2, Pencil, PlayCircle, Trash2 } from 'lucide-react';
+import { Ban, Download, Eye, Loader2, Pencil, PlayCircle, Trash2, TrendingUp } from 'lucide-react';
 import type { InvestmentContract } from '../../types/businessInvestment';
 
 const rowActionIconButtonClass =
@@ -10,6 +10,7 @@ export interface BusinessInvestmentContractRowActionsProps {
   pdfBusy?: boolean;
   onView: (contract: InvestmentContract) => void;
   onDownload: (contract: InvestmentContract) => void;
+  onUpdate: (contract: InvestmentContract) => void;
   onToggleStatus: (contractId: string) => void;
   onEdit: (contract: InvestmentContract) => void;
   onDelete: (contractId: string) => void;
@@ -20,11 +21,23 @@ export const BusinessInvestmentContractRowActions: React.FC<BusinessInvestmentCo
   pdfBusy = false,
   onView,
   onDownload,
+  onUpdate,
   onToggleStatus,
   onEdit,
   onDelete
 }) => (
   <div className="flex items-center gap-0.5">
+    {contract.status === 'active' ? (
+      <button
+        type="button"
+        onClick={() => onUpdate(contract)}
+        className={rowActionIconButtonClass}
+        title="Record update"
+        aria-label="Record update"
+      >
+        <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+      </button>
+    ) : null}
     <button
       type="button"
       onClick={() => onView(contract)}

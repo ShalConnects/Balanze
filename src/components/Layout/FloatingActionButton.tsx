@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, CreditCard, TrendingUp, ArrowLeftRight, ShoppingBag, Handshake, Sprout, BookOpen, Sparkles, Home, CheckSquare, Ticket } from 'lucide-react';
+import { Plus, CreditCard, TrendingUp, ArrowLeftRight, ShoppingBag, Handshake, Sprout, BookOpen, Home, CheckSquare, Ticket, StickyNote, Bookmark, Heart } from 'lucide-react';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 import { CLIENTS_FEATURE_ICON } from '../../lib/clientFeatureIcon';
 import { useFinanceStore } from '../../store/useFinanceStore';
@@ -24,6 +24,9 @@ import { useMobileSidebar } from '../../context/MobileSidebarContext';
 import { BusinessInvestmentContractModal } from '../Dashboard/BusinessInvestmentContractModal';
 import { PrizeBondAddModalHost } from '../PrizeBonds/PrizeBondAddModalHost';
 import { investmentsBondsPath } from '../../lib/investmentsNav';
+import { PERSONAL_GROWTH_COMPOSE, personalGrowthPath } from '../../lib/personalGrowthNav';
+import { BOOK_LIBRARY_CHANGED_EVENT, insertBookLibraryItem } from '../../lib/bookLibraryService';
+import { BookLibraryFormModal } from '../BookLibrary/BookLibraryFormModal';
 
 interface ActionButtonProps {
   icon: React.ElementType;
@@ -85,6 +88,7 @@ export const FloatingActionButton: React.FC = () => {
   const [showClientForm, setShowClientForm] = useState(false);
   const [showHabitForm, setShowHabitForm] = useState(false);
   const [showCourseForm, setShowCourseForm] = useState(false);
+  const [showBookForm, setShowBookForm] = useState(false);
   const [showInvestmentContractModal, setShowInvestmentContractModal] = useState(false);
   const [showPrizeBondModal, setShowPrizeBondModal] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -220,9 +224,20 @@ export const FloatingActionButton: React.FC = () => {
     setShowCourseForm(false);
   }, []);
 
-  const handleViewPersonalGrowth = React.useCallback(() => {
-    navigate('/personal-growth');
-    setIsOpen(false);
+  const handleAddBook = React.useCallback(async (input: Parameters<typeof insertBookLibraryItem>[0]) => {
+    try {
+      await insertBookLibraryItem(input);
+      window.dispatchEvent(new Event(BOOK_LIBRARY_CHANGED_EVENT));
+      toast.success('Book added');
+      setShowBookForm(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save book');
+      throw err;
+    }
+  }, []);
+
+  const goPersonalGrowth = React.useCallback((tab: string, extra?: Record<string, string>) => {
+    navigate(personalGrowthPath(tab, extra));
   }, [navigate]);
 
   const handleGoHome = React.useCallback(() => {
@@ -246,8 +261,10 @@ export const FloatingActionButton: React.FC = () => {
 
     const personalGrowth: ActionButtonProps[] = [
       { label: 'Add Habit', icon: Sprout, color: 'bg-emerald-600', onClick: () => handleAction(handleAddHabit), delay: '140ms' },
+      { label: 'Add Note', icon: StickyNote, color: 'bg-violet-600', onClick: () => handleAction(() => goPersonalGrowth('notes', { [PERSONAL_GROWTH_COMPOSE]: '1' })), delay: '135ms' },
       { label: 'Add Course', icon: BookOpen, color: 'bg-cyan-600', onClick: () => handleAction(handleAddCourse), delay: '130ms' },
-      { label: 'View Personal Growth', icon: Sparkles, color: 'bg-gradient-to-r from-purple-600 to-pink-600', onClick: () => handleAction(handleViewPersonalGrowth), delay: '160ms', variant: 'nav' as const },
+      { label: 'Add Book', icon: Bookmark, color: 'bg-pink-600', onClick: () => handleAction(() => setShowBookForm(true)), delay: '125ms' },
+      { label: 'Favorite Quotes', icon: Heart, color: 'bg-rose-600', onClick: () => handleAction(() => goPersonalGrowth('favorite-quotes')), delay: '120ms' },
     ];
 
     const onDashboard = location.pathname === '/' || location.pathname === '/dashboard';
@@ -280,13 +297,13 @@ export const FloatingActionButton: React.FC = () => {
     handleAddHabit,
     handleAddCourse,
     handleAddClientTask,
+    goPersonalGrowth,
     setShowLendBorrowForm,
     setShowInvestmentContractModal,
     setShowPrizeBondModal,
     setShowAccountFormLocal,
     handleTransfer,
     setShowClientForm,
-    handleViewPersonalGrowth,
   ]);
 
 
@@ -458,6 +475,15 @@ export const FloatingActionButton: React.FC = () => {
           course={null}
           onClose={() => setShowCourseForm(false)} 
           onSuccess={handleCourseSuccess}
+        />
+      )}
+
+      {showBookForm && (
+        <BookLibraryFormModal
+          open
+          book={null}
+          onClose={() => setShowBookForm(false)}
+          onSubmit={handleAddBook}
         />
       )}
 

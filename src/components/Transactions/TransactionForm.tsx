@@ -323,6 +323,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
 
   // Track the current transaction being edited to detect changes
   const currentTransactionId = useRef<string | undefined>(undefined);
+  const expenseNoteDirty = useRef(false);
   
   // Initialize form state when modal opens or transaction changes
   useEffect(() => {
@@ -342,6 +343,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
         setShowCategoryModal(false);
         setShowPurchaseDetails(false);
         setPurchaseAttachments([]);
+        expenseNoteDirty.current = false;
         setIsAccountManuallySelected(false);
         setIsAmountManuallyEdited(false);
         setShowAddAnother(false);
@@ -478,11 +480,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           setPurchaseNotes('');
           setTransactionNote(duplicateFrom.note || '');
           setExpenseNoteRaw('');
-          if (user?.id) {
-            void fetchExpenseNoteRawText(user.id, duplicateFrom.id).then((raw) => {
-              if (raw) setExpenseNoteRaw(raw);
-            });
-          }
         } else {
           // Initialize for new transaction
           setData({
@@ -504,6 +501,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           setPurchaseNotes('');
           setExpenseNoteRaw('');
           setTransactionNote('');
+        }
+
+        const noteSourceId = transactionToEdit?.id ?? duplicateFrom?.id;
+        if (noteSourceId && user?.id) {
+          void fetchExpenseNoteRawText(user.id, noteSourceId).then((raw) => {
+            if (raw && !expenseNoteDirty.current) setExpenseNoteRaw(raw);
+          });
         }
         
         // Update the current transaction ID
@@ -577,6 +581,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
       setPurchaseAttachments([]);
       setTransactionNote('');
       setExpenseNoteRaw('');
+      expenseNoteDirty.current = false;
       setRecurringEndDate(undefined);
       setShowAddAnother(false);
       setNewCategory({
@@ -590,19 +595,17 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     }
   }, [isOpen]);
 
-  const handleExpenseNoteCommitted = async (summary: string, rawText: string) => {
+  const handleExpenseNoteCommitted = (summary: string, rawText: string) => {
     setTransactionNote(summary);
     setExpenseNoteRaw(rawText);
+    expenseNoteDirty.current = true;
     if (errors.note) setErrors((prev) => ({ ...prev, note: '' }));
-    // Edit: modal already persisted the document; sync denormalized summary like the note-icon path.
-    if (transactionToEdit?.id) {
-      await updateTransaction(transactionToEdit.id, { note: summary });
-    }
   };
 
-  const attachExpenseNoteAfterCreate = async (txDbId: string | undefined) => {
-    if (!txDbId || !user?.id || !expenseNoteRaw.trim()) return;
+  const attachExpenseNote = async (txDbId: string | undefined) => {
+    if (!txDbId || !user?.id || !expenseNoteDirty.current) return;
     await saveExpenseNoteForTransaction(user.id, txDbId, expenseNoteRaw);
+    expenseNoteDirty.current = false;
   };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -788,6 +791,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
     setPurchasePriority('medium');
     setPurchaseNotes('');
     setTransactionNote('');
+    setExpenseNoteRaw('');
+    expenseNoteDirty.current = false;
     setPurchaseAttachments([]);
     setErrors({});
     setTouched({});
@@ -908,6 +913,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             await updateTransaction(transactionToEdit.id, withdrawalData);
             // Log the transaction update
             await logTransactionEvent('update', withdrawalData, transactionToEdit);
+            await attachExpenseNote(transactionToEdit.id);
           } else {
 
             const withdrawalTransactionId = generateTransactionId();
@@ -926,7 +932,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             // Log both transactions
             if (withdrawalResult) {
               await logTransactionEvent('create', { ...withdrawalData, id: withdrawalResult });
-              await attachExpenseNoteAfterCreate(withdrawalResult.id);
+              await attachExpenseNote(withdrawalResult.id);
             }
             if (depositResult) {
               await logTransactionEvent('create', { ...depositData, id: depositResult });
@@ -1036,6 +1042,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             
             // Log the transaction update
             await logTransactionEvent('update', transactionData, transactionToEdit);
+            await attachExpenseNote(transactionToEdit.id);
             
             // Create donation records for income transactions
             if (data.type === 'income' && user) {
@@ -1069,7 +1076,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
             // Log the new transaction
             if (result) {
               await logTransactionEvent('create', { ...transactionData, id: result.id });
-              await attachExpenseNoteAfterCreate(result.id);
+              await attachExpenseNote(result.id);
 
               // If this is a new recurring transaction, create the first real instance immediately
               if (data.is_recurring && result.id) {
@@ -1620,6 +1627,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accountId, onC
           <div className="w-full mt-2 sm:mt-1">
             <TransactionExpenseNoteField
               transactionId={transactionToEdit?.id}
+              persist={false}
               noteSummary={transactionNote}
               draftRawText={expenseNoteRaw}
               disabled={isAccountHidden}

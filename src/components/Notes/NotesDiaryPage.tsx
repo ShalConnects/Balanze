@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { BookOpen } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { useNotes } from '../../hooks/useNotes';
+import { PERSONAL_GROWTH_COMPOSE } from '../../lib/personalGrowthNav';
 import {
   NOTE_PRIMARY_BTN,
   NOTE_SHELL,
@@ -14,6 +16,7 @@ import { NotesListPanel, type NotesListScope } from './NotesListPanel';
 import { NotesWeekStrip } from './NotesWeekStrip';
 
 export const NotesDiaryPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { notes, loading, saving, addNote, patchNote, removeNote, togglePin, changeColor } = useNotes();
   const [selectedDate, setSelectedDate] = useState(todayDateKey);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -97,6 +100,14 @@ export const NotesDiaryPage: React.FC = () => {
     setDraft({ title: '', text: '' });
     setConfirmDelete(false);
   };
+
+  useEffect(() => {
+    if (searchParams.get(PERSONAL_GROWTH_COMPOSE) !== '1') return;
+    startNew();
+    const next = new URLSearchParams(searchParams);
+    next.delete(PERSONAL_GROWTH_COMPOSE);
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const createFromDraft = (next: { title: string; text: string }) => {
     if (creatingRef.current) return;

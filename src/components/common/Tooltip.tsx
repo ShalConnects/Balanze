@@ -1,5 +1,4 @@
 // Tooltip Component
-// Simple tooltip component for achievement badges
 
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';

@@ -1,12 +1,12 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Camera, Upload, Loader2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { FilePicker } from '@capawesome/capacitor-file-picker';
 import { scanBondImage } from '../../lib/prizeBondOcr';
 import { fetchScanLearnHints } from '../../lib/prizeBondService';
 import { normalizeBondNumber } from '../../lib/prizeBondUtils';
 import { logBondScan } from '../../lib/prizeBondScanLog';
+import { capturePhoto, isCancel, pickImage } from '../../lib/nativeFile';
 import type { BondOcrResult, PrizeBondScanFeedback } from '../../types/prizeBond';
 
 export const PRIZE_BOND_TOOLBAR_BTN = {
@@ -21,16 +21,8 @@ type Props = {
   suffix?: React.ReactNode;
 };
 
-async function fileFromPicker() {
-  const result = await FilePicker.pickFiles({ types: ['image/*'], limit: 1 });
-  const file = result.files[0];
-  if (!file?.blob) throw new Error('NO_FILE');
-  return new File([file.blob], file.name || 'bond.jpg', { type: file.mimeType || 'image/jpeg' });
-}
-
 export const PrizeBondScanner: React.FC<Props> = ({ userId, onConfirmed, disabled, suffix }) => {
   const { t } = useTranslation();
-  const inputRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
   const [pending, setPending] = useState<BondOcrResult | null>(null);
   const [value, setValue] = useState('');
@@ -69,27 +61,26 @@ export const PrizeBondScanner: React.FC<Props> = ({ userId, onConfirmed, disable
     setValue('');
   };
 
-  const handleUpload = async () => {
+  const run = async (getFile: () => Promise<File>) => {
     try {
-      const isNative = !!(window as Window & { Capacitor?: unknown }).Capacitor;
-      const file = isNative ? await fileFromPicker() : await pickWebFile(inputRef);
-      if (file) await processFile(file);
+      await processFile(await getFile());
     } catch (e) {
-      if ((e as Error).message !== 'NO_FILE') console.error('[PrizeBondScanner]', e);
+      if (!isCancel(e)) {
+        console.error('[PrizeBondScanner]', e);
+        toast.error(t('prizeBond.scanFailed'));
+      }
     }
   };
 
   return (
     <>
       <div className="flex flex-wrap gap-2">
-        <input ref={inputRef} type="file" accept="image/*" capture="environment" className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) void processFile(f); e.target.value = ''; }} />
-        <button type="button" disabled={disabled || scanning} onClick={() => void handleUpload()}
+        <button type="button" disabled={disabled || scanning} onClick={() => void run(capturePhoto)}
           className={PRIZE_BOND_TOOLBAR_BTN.primary}>
           {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
           {t('prizeBond.scan')}
         </button>
-        <button type="button" disabled={disabled || scanning} onClick={() => inputRef.current?.click()}
+        <button type="button" disabled={disabled || scanning} onClick={() => void run(pickImage)}
           className={PRIZE_BOND_TOOLBAR_BTN.secondary}>
           <Upload className="w-4 h-4" />{t('prizeBond.upload')}
         </button>
@@ -115,12 +106,3 @@ export const PrizeBondScanner: React.FC<Props> = ({ userId, onConfirmed, disable
     </>
   );
 };
-
-function pickWebFile(ref: React.RefObject<HTMLInputElement | null>): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = ref.current;
-    if (!input) return resolve(null);
-    input.onchange = () => resolve(input.files?.[0] ?? null);
-    input.click();
-  });
-}

@@ -2,8 +2,8 @@ import React, { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { HabitGarden } from '../Habits/HabitGarden';
 import { CoursesList } from '../Learning/CoursesList';
+import { BookLibraryView } from '../BookLibrary/BookLibraryView';
 import { FavoriteQuotes } from '../../pages/FavoriteQuotes';
-import Achievements from '../../pages/Achievements';
 import { NotesDiaryPage } from '../Notes/NotesDiaryPage';
 import { UnderlineTabBar } from '../common/UnderlineTabBar';
 
@@ -11,8 +11,8 @@ const PERSONAL_GROWTH_TABS = [
   { id: 'habits', label: 'Habits' },
   { id: 'notes', label: 'Notes' },
   { id: 'learning', label: 'Learning' },
+  { id: 'book-library', label: 'Book Library' },
   { id: 'favorite-quotes', label: 'Favorite Quotes' },
-  { id: 'achievements', label: 'Achievements' },
 ] as const;
 
 type PersonalGrowthTab = (typeof PERSONAL_GROWTH_TABS)[number]['id'];
@@ -37,8 +37,8 @@ export const PersonalGrowth: React.FC = () => {
       {activeTab === 'habits' && <HabitGarden />}
       {activeTab === 'notes' && <NotesDiaryPage />}
       {activeTab === 'learning' && <CoursesList />}
+      {activeTab === 'book-library' && <BookLibraryView />}
       {activeTab === 'favorite-quotes' && <FavoriteQuotes />}
-      {activeTab === 'achievements' && <Achievements />}
     </div>
   );
 };

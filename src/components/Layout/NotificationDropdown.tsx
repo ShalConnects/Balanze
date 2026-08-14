@@ -10,12 +10,7 @@ interface NotificationDropdownProps {
   onClose: () => void;
 }
 
-const getNotificationIcon = (type: AppNotification['type'], title?: string) => {
-  // Check for achievement notifications by title
-  if (type === 'success' && title?.includes('Achievement')) {
-    return <Trophy className="w-4 h-4 text-yellow-500" />;
-  }
-  
+const getNotificationIcon = (type: AppNotification['type']) => {
   // Map database notification types to icons
   switch (type) {
     case 'success':
@@ -136,13 +131,6 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
     // Mark as read if unread
     if (!notification.is_read) {
       markAsRead(notification.id);
-    }
-    
-    // Handle achievement notifications (success type with trophy title)
-    if (notification.type === 'success' && notification.title?.includes('Achievement')) {
-      navigate('/personal-growth?tab=achievements');
-      onClose();
-      return;
     }
     
     // Handle urgent notifications - navigate to lent/borrow page
@@ -312,7 +300,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
                         {(notification as any).icon ? (
                           <span className="text-lg">{(notification as any).icon}</span>
                         ) : (
-                          getNotificationIcon(notification.type, notification.title)
+                          getNotificationIcon(notification.type)
                         )}
                       </div>
                       

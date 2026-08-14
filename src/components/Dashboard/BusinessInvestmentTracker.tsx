@@ -7,9 +7,7 @@ import {
   TrendingUp,
   TrendingDown,
   Landmark,
-  X,
-  Filter,
-  Info
+  Filter
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '../../utils/currency';
@@ -55,8 +53,13 @@ import {
   updateBusinessInvestmentContractStatus
 } from '../../lib/businessInvestmentService';
 import { TRANSACTION_ORIGIN_BUSINESS_INVESTMENT } from '../../lib/transactionListLock';
-import { getContractStats, getEffectivePrincipal } from '../../utils/businessInvestmentStats';
-import { entryPostingDescription, entryPostingTransactionType } from '../../utils/businessInvestmentEntryPosting';
+import { entryExceedsOutstanding, getContractStats, getEffectivePrincipal } from '../../utils/businessInvestmentStats';
+import {
+  entryPostingDescription,
+  entryPostsCashByDefault,
+  entryPostingTransactionType,
+  shouldPostEntryTransaction
+} from '../../utils/businessInvestmentEntryPosting';
 import { businessInvestmentStatusConfirmCopy } from '../../utils/businessInvestmentStatusConfirm';
 import {
   downloadInvestmentAgreementPdf,
@@ -88,14 +91,8 @@ const investmentSummaryMetricCopy = {
   profit: { label: 'Profit', caption: 'Sum of profit entries' },
   loss: { label: 'Loss', caption: 'Sum of loss entries' },
   principalReturned: { label: 'Principal Returned', caption: 'Sum of principal return entries' },
-  net: { label: 'Net', caption: 'Profit minus loss' }
+  net: { label: 'Net', caption: 'After losses and unreturned capital' }
 } as const;
-
-const CONTRACT_UPDATE_SECTION_HINT =
-  'Record profit, loss, principal return, or capital contribution (reinvest). Optionally post a linked transaction: profit and principal returned as income; loss and capital contribution as expense — pick any cash account.';
-
-const CONTRACT_UPDATE_TOOLTIP_PANEL_CLASS =
-  'absolute right-0 top-full z-50 mt-2 w-[min(18rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] rounded-lg border border-gray-200 bg-white p-2.5 text-[10px] leading-snug text-gray-700 shadow-xl animate-fadein dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 sm:mt-2 sm:w-72 sm:max-w-[calc(100vw-1.5rem)] sm:p-3 sm:text-xs sm:leading-snug';
 
 /** Same disclosure chevron as AccountsView (row expand). */
 function ContractRowChevron({ expanded }: { expanded: boolean }) {
@@ -128,8 +125,6 @@ export const BusinessInvestmentTracker: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('title');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [showContractUpdateTooltip, setShowContractUpdateTooltip] = useState(false);
-  const [showContractUpdateInfoMobile, setShowContractUpdateInfoMobile] = useState(false);
   const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
   const [summaryCurrency, setSummaryCurrency] = useState('');
   const [tempMobileFilters, setTempMobileFilters] = useState({
@@ -193,11 +188,12 @@ export const BusinessInvestmentTracker: React.FC = () => {
   }, [contracts, entryForm.contract_id]);
 
   useEffect(() => {
+    if (!entryPostsCashByDefault(entryForm.type)) return;
     const withCurrent = prepareAccountsForTransactionDropdown(accounts, userDefaultCurrency, postingAccountId || null);
     if (postingAccountId && withCurrent.some((a) => a.id === postingAccountId)) return;
     const id = resolveDefaultAccountIdForTransactionDropdown(basePreparedAccounts, profile);
     if (id) setPostingAccountId(id);
-  }, [accounts, userDefaultCurrency, postingAccountId, basePreparedAccounts, profile]);
+  }, [accounts, userDefaultCurrency, postingAccountId, basePreparedAccounts, profile, entryForm.type]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
@@ -292,13 +288,6 @@ export const BusinessInvestmentTracker: React.FC = () => {
     const name = contracts.find((c) => c.id === p.id)?.title ?? '';
     return businessInvestmentStatusConfirmCopy(p.next, name);
   }, [pendingContractStatus, contracts]);
-  const contractOptions = useMemo(
-    () =>
-      contracts
-        .filter((contract) => contract.status === 'active')
-        .map((contract) => ({ value: contract.id, label: `${contract.title} (${contract.currency})` })),
-    [contracts]
-  );
   const statusFilterOptions = useMemo(
     () => [
       { value: 'all', label: 'All Status' },
@@ -320,7 +309,6 @@ export const BusinessInvestmentTracker: React.FC = () => {
     [accounts, userDefaultCurrency, postingAccountId]
   );
   const fundingAccountNameMap = useMemo(() => new Map(accounts.map((account) => [account.id, account.name])), [accounts]);
-  const hasActiveContracts = contractOptions.length > 0;
   const getFundingAccountName = useCallback(
     (contract: InvestmentContract) =>
       fundingAccountNameMap.get(contract.funding_account_id) || contract.funding_account_name || 'Unknown',
@@ -340,7 +328,6 @@ export const BusinessInvestmentTracker: React.FC = () => {
   };
   const hasVisibleFilters =
     searchTerm.trim().length > 0 || statusFilter !== DEFAULT_CONTRACT_STATUS_FILTER || currencyFilterActive;
-  const updateActionTitle = hasActiveContracts ? 'Update' : 'Add a contract first';
   const mobileFilterApplyActive =
     (showCurrencyFilter && tempMobileFilters.summaryCurrency !== filterCurrency) ||
     tempMobileFilters.status !== statusFilter;
@@ -385,6 +372,13 @@ export const BusinessInvestmentTracker: React.FC = () => {
   const openAddContractModal = () => {
     setEditingContractId(null);
     setShowContractModal(true);
+  };
+  const openUpdateModal = (contract: InvestmentContract) => {
+    if (contract.status !== 'active') return;
+    setEntryForm((prev) => ({ ...prev, contract_id: contract.id }));
+    setPostEntryAsTransaction(entryPostsCashByDefault(entryForm.type));
+    if (!entryPostsCashByDefault(entryForm.type)) setPostingAccountId('');
+    setShowUpdateModal(true);
   };
   const openEditContractModal = (contract: InvestmentContract) => {
     setEditingContractId(contract.id);
@@ -439,7 +433,17 @@ export const BusinessInvestmentTracker: React.FC = () => {
       return;
     }
     if (!selectedContract) return;
-    if (postEntryAsTransaction && !postingAccountId) {
+    const { outstanding } = getContractStats(selectedContract);
+    if (entryExceedsOutstanding(entryForm.type, amount, outstanding)) {
+      toast.error(
+        outstanding <= 0
+          ? `No outstanding capital left to ${entryForm.type === 'loss' ? 'write off' : 'return'}`
+          : `Amount cannot exceed outstanding capital (${formatAmount(outstanding, selectedContract.currency)})`
+      );
+      return;
+    }
+    const willPost = shouldPostEntryTransaction(entryForm.type, postEntryAsTransaction, postingAccountId);
+    if (entryPostsCashByDefault(entryForm.type) && postEntryAsTransaction && !postingAccountId) {
       toast.error('Select an account to post this transaction, or turn off “Post transaction”.');
       return;
     }
@@ -462,7 +466,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
       setEntryForm((prev) => ({ ...prev, amount: '', date: '', note: '' }));
       setShowUpdateModal(false);
 
-      if (postEntryAsTransaction && postingAccountId && user) {
+      if (willPost && user) {
         const postingAcc = accounts.find((a) => a.id === postingAccountId);
         try {
           if (postingAcc && postingAcc.currency !== selectedContract.currency) {
@@ -569,16 +573,10 @@ export const BusinessInvestmentTracker: React.FC = () => {
   };
   const isContractRowExpanded = (contractId: string) => expandedContractIds.has(contractId);
 
-  useEffect(() => {
-    if (!showUpdateModal) return;
-    setShowContractUpdateTooltip(false);
-    setShowContractUpdateInfoMobile(false);
-  }, [showUpdateModal]);
-
   const renderContractDetails = (contract: InvestmentContract) => {
     const stats = getContractStats(contract);
     const fundingAccountName = getFundingAccountName(contract);
-    const deployed = getEffectivePrincipal(contract);
+    const deployed = stats.effectivePrincipal;
     return (
       <div className="space-y-3 min-w-0">
         <div className={contractMetaRowClass}>
@@ -597,6 +595,9 @@ export const BusinessInvestmentTracker: React.FC = () => {
               reinvested)
             </span>
           ) : null}
+          <span className="font-normal text-gray-500 dark:text-gray-400">
+            {' · '}Outstanding: {formatAmount(stats.outstanding, contract.currency)}
+          </span>
         </p>
         <div className="grid grid-cols-2 min-[480px]:grid-cols-4 gap-2 text-xs">
           <div className="rounded-lg bg-gray-50 dark:bg-gray-700/40 p-2">
@@ -679,32 +680,6 @@ export const BusinessInvestmentTracker: React.FC = () => {
             </div>
 
             <div className="md:hidden">
-              <div className="inline-flex items-center rounded-md">
-                <button
-                  type="button"
-                  onClick={() => setShowUpdateModal(true)}
-                  disabled={!hasActiveContracts}
-                  className="px-2 py-1.5 rounded-l-md transition-colors flex items-center justify-center gap-1 text-[13px] h-8 bg-gradient-primary text-white hover:bg-gradient-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={updateActionTitle}
-                  aria-label={updateActionTitle}
-                >
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="hidden sm:inline">Update</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={!hasActiveContracts}
-                  className="h-8 px-1.5 rounded-r-md border-l border-white/20 bg-gradient-primary text-white transition-colors hover:bg-gradient-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="About Update"
-                  title="About Update"
-                  onClick={() => setShowContractUpdateInfoMobile(true)}
-                >
-                  <Info className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="md:hidden">
               <button
                 type="button"
                 onClick={() => openAddContractModal()}
@@ -742,36 +717,6 @@ export const BusinessInvestmentTracker: React.FC = () => {
             </div>
             <div className="flex-grow" />
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <div className="relative hidden md:inline-flex items-center rounded-md">
-                <button
-                  type="button"
-                  onClick={() => setShowUpdateModal(true)}
-                  disabled={!hasActiveContracts}
-                  className="px-2 sm:px-3 py-1.5 h-8 rounded-l-md transition-colors flex items-center space-x-1 sm:space-x-1.5 text-xs sm:text-[13px] bg-gradient-primary text-white hover:bg-gradient-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={updateActionTitle}
-                >
-                  <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span>Update</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={!hasActiveContracts}
-                  className="h-8 px-1.5 rounded-r-md border-l border-white/20 bg-gradient-primary text-white transition-colors hover:bg-gradient-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="About Update"
-                  onMouseEnter={() => setShowContractUpdateTooltip(true)}
-                  onMouseLeave={() => setShowContractUpdateTooltip(false)}
-                  onFocus={() => setShowContractUpdateTooltip(true)}
-                  onBlur={() => setShowContractUpdateTooltip(false)}
-                  onClick={() => setShowContractUpdateTooltip((v) => !v)}
-                >
-                  <Info className="h-3.5 w-3.5" />
-                </button>
-                {showContractUpdateTooltip ? (
-                  <div className={CONTRACT_UPDATE_TOOLTIP_PANEL_CLASS} role="tooltip">
-                    {CONTRACT_UPDATE_SECTION_HINT}
-                  </div>
-                ) : null}
-              </div>
               <button
                 type="button"
                 onClick={() => openAddContractModal()}
@@ -969,6 +914,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
                                 pdfBusy={agreementPdfBusyId === contract.id}
                                 onView={handleViewAgreement}
                                 onDownload={handleDownloadAgreement}
+                                onUpdate={openUpdateModal}
                                 onToggleStatus={queueContractStatusChange}
                                 onEdit={openEditContractModal}
                                 onDelete={setContractIdToDelete}
@@ -1053,6 +999,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
                           pdfBusy={agreementPdfBusyId === contract.id}
                           onView={handleViewAgreement}
                           onDownload={handleDownloadAgreement}
+                          onUpdate={openUpdateModal}
                           onToggleStatus={queueContractStatusChange}
                           onEdit={openEditContractModal}
                           onDelete={setContractIdToDelete}
@@ -1121,7 +1068,6 @@ export const BusinessInvestmentTracker: React.FC = () => {
         editingContract={editingContract ?? null}
         onAdded={(newContract) => {
           setContracts((prev) => [newContract, ...prev]);
-          setEntryForm((prev) => ({ ...prev, contract_id: prev.contract_id || newContract.id }));
         }}
         onUpdated={(payload) => {
           setContracts((prev) =>
@@ -1152,7 +1098,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
         onClose={() => setShowUpdateModal(false)}
         entryForm={entryForm}
         setEntryForm={setEntryForm}
-        contractOptions={contractOptions}
+        contractTitle={selectedContract?.title}
         entryTypeOptions={entryTypeOptions}
         postEntryAsTransaction={postEntryAsTransaction}
         setPostEntryAsTransaction={setPostEntryAsTransaction}
@@ -1161,37 +1107,6 @@ export const BusinessInvestmentTracker: React.FC = () => {
         postingAccountOptions={postingAccountOptions}
         onSubmit={handleAddEntry}
       />
-
-      {showContractUpdateInfoMobile ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setShowContractUpdateInfoMobile(false)} aria-hidden />
-          <div
-            className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col min-h-0"
-            role="dialog"
-            aria-labelledby="contract-update-info-title"
-          >
-            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-              <div
-                id="contract-update-info-title"
-                className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white"
-              >
-                Update
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowContractUpdateInfoMobile(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5 sm:w-6 sm:h-6" />
-              </button>
-            </div>
-            <div className="p-4 sm:p-5 overflow-y-auto flex-1 min-h-0 overscroll-contain">
-              <p className="text-sm sm:text-base leading-relaxed text-gray-700 dark:text-gray-300">{CONTRACT_UPDATE_SECTION_HINT}</p>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       <DeleteConfirmationModal
         isOpen={pendingContractStatus !== null}
@@ -1215,7 +1130,7 @@ export const BusinessInvestmentTracker: React.FC = () => {
           if (contractIdToDelete) void removeContract(contractIdToDelete);
         }}
         title="Delete contract?"
-        message="This will permanently remove the contract and all its updates. Linked transactions created from Investments (principal, capital contributions, or profit) will also be removed. This cannot be undone."
+        message="This will permanently remove the contract and all its updates. Linked transactions created from Investments (principal, capital contributions, profit, or loss) will also be removed. This cannot be undone."
         recordDetails={
           pendingDeleteTitle ? (
             <p className="text-sm font-medium text-gray-900 dark:text-white">{pendingDeleteTitle}</p>

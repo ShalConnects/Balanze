@@ -7,7 +7,7 @@ import { PurchaseAttachment } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
-import { FilePicker } from '@capawesome/capacitor-file-picker';
+import { isCancel, pickNativeFiles } from '../../lib/nativeFile';
 import { sanitizeHtml } from '../../lib/sanitize';
 
 interface PurchaseDetailsSectionProps {
@@ -137,82 +137,20 @@ export const PurchaseDetailsSection: React.FC<PurchaseDetailsSectionProps> = ({
     }
   };
 
-  // Handle native file picker for Android
   const handleNativeFileUpload = async () => {
     try {
-      const result = await FilePicker.pickFiles({
-        types: ['application/pdf', 'image/*', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain'],
-        readData: true
-      });
-
-      if (result.files && result.files.length > 0) {
-        const pickedFile = result.files[0];
-        
-        // Convert the picked file data to a File object
-        // The data is base64 encoded string, convert it to binary
-        let fileBlob: Blob;
-        if (typeof pickedFile.data === 'string') {
-          // Base64 string - convert to binary
-          const base64Data = pickedFile.data.split(',')[1] || pickedFile.data;
-          const binaryString = atob(base64Data);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          fileBlob = new Blob([bytes], { type: pickedFile.mimeType || 'application/octet-stream' });
-        } else if (pickedFile.data != null) {
-          // Already binary data
-          fileBlob = new Blob([pickedFile.data], { type: pickedFile.mimeType || 'application/octet-stream' });
-        } else {
-          throw new Error('No file data returned from picker');
-        }
-        
-        // Create File object - use a more compatible approach for Android WebView
-        let file: File;
-        try {
-          // Try to use File constructor if available
-          if (typeof globalThis.File !== 'undefined') {
-            const FileConstructor = globalThis.File;
-            file = new FileConstructor([fileBlob], pickedFile.name, { type: pickedFile.mimeType || 'application/octet-stream' });
-          } else {
-            throw new Error('File constructor not available');
-          }
-        } catch (e) {
-          // Fallback: create a File-like object from Blob
-          // This works because File extends Blob, so we can add File properties to a Blob
-          file = Object.assign(fileBlob, {
-            name: pickedFile.name,
-            lastModified: Date.now()
-          }) as File;
-        }
-        
-        await processFile(file, pickedFile.name);
-      }
-    } catch (error: any) {
-      // Log the full error for debugging - using multiple methods to ensure it's captured
-      const errorDetails = {
-        message: error?.message || 'No message',
-        code: error?.code || 'No code',
-        name: error?.name || 'No name',
-        stack: error?.stack || 'No stack',
-        toString: String(error),
-        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
-      };
-      
-      console.error('[FilePicker] ERROR DETAILS:', errorDetails);
-      console.error('[FilePicker] Error message:', errorDetails.message);
-      console.error('[FilePicker] Error code:', errorDetails.code);
-      console.error('[FilePicker] Full error:', errorDetails.fullError);
-      
-      // Also log to window for easier debugging
-      (window as any).lastFilePickerError = errorDetails;
-      
-      // User cancelled or error occurred
-      if (error?.message && !error.message.includes('User cancelled') && !error.message.includes('cancel')) {
-        const errorMsg = errorDetails.message || 'Unknown error occurred';
-        console.error('[FilePicker] File picker failed with error:', errorMsg);
-        toast.error(`Failed to select file: ${errorMsg}. Check console for details.`);
-      }
+      const [file] = await pickNativeFiles([
+        'application/pdf', 'image/*',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/plain',
+      ]);
+      await processFile(file, file.name);
+    } catch (error: unknown) {
+      if (isCancel(error)) return;
+      const message = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('[FilePicker]', error);
+      toast.error(`Failed to select file: ${message}`);
     }
   };
 

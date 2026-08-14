@@ -22,6 +22,7 @@ import { formatCurrency } from '../../utils/currency';
 import { fetchBusinessInvestmentContracts } from '../../lib/businessInvestmentService';
 import { fetchPrizeBonds } from '../../lib/prizeBondService';
 import { INVESTMENTS_BONDS_TAB } from '../../lib/investmentsNav';
+import { personalGrowthPath } from '../../lib/personalGrowthNav';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
 import { formatAppDate } from '../../utils/timezoneUtils';
 import {
@@ -191,10 +192,10 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         }
         break;
       case 'habit':
-        navigate(`/personal-growth?tab=habits&from=search`);
+        navigate(personalGrowthPath('habits', { from: 'search' }));
         break;
       case 'course':
-        navigate(`/personal-growth?tab=learning&from=search`);
+        navigate(personalGrowthPath('learning', { from: 'search' }));
         break;
       case 'investment_asset':
         navigate(`/investments?tab=assets&from=search`);

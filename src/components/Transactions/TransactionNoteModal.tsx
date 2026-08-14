@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../store/authStore';
@@ -6,7 +7,6 @@ import { MAX_TRANSACTION_NOTE_LENGTH } from '../../constants/transactionNote';
 import { EXPENSE_NOTE_RAW_MAX } from '../../constants/expenseNote';
 import { ExpenseNoteLoadingCaption, ExpenseNoteParseHint, ExpenseNoteParsedPreviewTable, ExpenseNoteSuggestTextarea } from './expenseNoteCompactUi';
 import {
-  deleteExpenseNoteDocument,
   fetchExpenseNoteRawText,
   saveExpenseNoteForTransaction,
 } from '../../lib/expenseNoteService';
@@ -15,8 +15,10 @@ import { buildExpenseNoteSummary, parseExpenseNoteText, sumExpenseNoteLines } fr
 interface TransactionNoteModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** When set, loads/saves structured docs. When omitted, draft-only (parent persists after create). */
+  /** When set, loads structured docs. Also saves on commit unless `persist` is false. */
   transactionId?: string;
+  /** False: load/draft only; parent persists with the rest of the form. Default true. */
+  persist?: boolean;
   currentNote: string | undefined;
   /** Seed raw text for draft mode (e.g. duplicate-from source). */
   draftRawText?: string;
@@ -28,6 +30,7 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
   isOpen,
   onClose,
   transactionId,
+  persist = true,
   currentNote,
   draftRawText,
   onSave,
@@ -36,36 +39,65 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
   const [rawText, setRawText] = useState('');
   const [loading, setLoading] = useState(false);
   const [hydrating, setHydrating] = useState(false);
+  const [fallthroughGuard, setFallthroughGuard] = useState(false);
+  const guardTimer = useRef<ReturnType<typeof window.setTimeout>>();
 
   const parsedLines = useMemo(() => parseExpenseNoteText(rawText), [rawText]);
   const lineTotal = useMemo(() => sumExpenseNoteLines(parsedLines), [parsedLines]);
 
-  const load = useCallback(async () => {
-    const fallback = draftRawText ?? currentNote ?? '';
-    if (!transactionId || !user?.id) {
-      setRawText(fallback);
-      return;
-    }
-    setHydrating(true);
-    try {
-      const raw = await fetchExpenseNoteRawText(user.id, transactionId);
-      setRawText(raw ?? fallback);
-    } catch {
-      setRawText(fallback);
-    } finally {
-      setHydrating(false);
-    }
-  }, [user?.id, transactionId, currentNote, draftRawText]);
+  useEffect(() => () => window.clearTimeout(guardTimer.current), []);
 
+  // Seed immediately (no empty flash). Draft mode trusts parent text and does not refetch.
   useEffect(() => {
     if (!isOpen) return;
-    setRawText('');
-    void load();
-  }, [isOpen, load]);
+    let cancelled = false;
+    const fallback = draftRawText || currentNote || '';
+    setRawText(fallback);
+    if (!persist || !transactionId || !user?.id) return;
+
+    setHydrating(true);
+    void fetchExpenseNoteRawText(user.id, transactionId)
+      .then((raw) => {
+        if (!cancelled) setRawText(raw ?? fallback);
+      })
+      .catch(() => {
+        if (!cancelled) setRawText(fallback);
+      })
+      .finally(() => {
+        if (!cancelled) setHydrating(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally omit currentNote: re-hydrate only when open target changes, not when list note updates
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate per open/target
+  }, [isOpen, persist, transactionId, user?.id, draftRawText]);
+
+  const dismiss = () => {
+    if (!persist) {
+      setFallthroughGuard(true);
+      window.clearTimeout(guardTimer.current);
+      guardTimer.current = window.setTimeout(() => setFallthroughGuard(false), 350);
+    }
+    onClose();
+  };
 
   const commit = async (summary: string, raw: string) => {
     await onSave(summary, raw);
-    onClose();
+    dismiss();
+  };
+
+  /** Summary + list update first; structured doc syncs in background unless parent will persist. */
+  const finish = async (summary: string, raw: string, okMsg: string) => {
+    if (persist && transactionId && user?.id) {
+      void saveExpenseNoteForTransaction(user.id, transactionId, raw).catch((e) => {
+        console.error(e);
+        toast.error('Failed to sync expense note');
+      });
+    }
+    await commit(summary, raw);
+    toast.success(persist ? okMsg : raw ? 'Note added' : 'Note removed');
   };
 
   const handleSave = async () => {
@@ -76,17 +108,8 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
     const trimmed = rawText.trim();
     setLoading(true);
     try {
-      if (!trimmed) {
-        if (transactionId) await deleteExpenseNoteDocument(transactionId);
-        await commit('', '');
-        toast.success('Note deleted');
-        return;
-      }
-      const summary = transactionId && user?.id
-        ? await saveExpenseNoteForTransaction(user.id, transactionId, trimmed)
-        : buildExpenseNoteSummary(parsedLines) || trimmed;
-      await commit(summary || buildExpenseNoteSummary(parsedLines), trimmed);
-      toast.success('Note saved');
+      const summary = trimmed ? buildExpenseNoteSummary(parsedLines) || trimmed : '';
+      await finish(summary, trimmed, trimmed ? 'Note saved' : 'Note deleted');
     } catch (e) {
       console.error(e);
       toast.error('Failed to save note');
@@ -98,9 +121,7 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
   const handleDelete = async () => {
     setLoading(true);
     try {
-      if (transactionId) await deleteExpenseNoteDocument(transactionId);
-      await commit('', '');
-      toast.success('Note deleted');
+      await finish('', '', 'Note deleted');
     } catch {
       toast.error('Failed to delete note');
     } finally {
@@ -108,27 +129,38 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen && !fallthroughGuard) return null;
+  if (!isOpen) {
+    return createPortal(<div className="fixed inset-0 z-[102]" aria-hidden />, document.body);
+  }
 
   const charCount = rawText.length;
   const isOverLimit = charCount > EXPENSE_NOTE_RAW_MAX;
   const hasContent = rawText.trim().length > 0 || (currentNote && currentNote.trim().length > 0);
 
-  return (
+  return createPortal(
     <>
-      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[100]" onClick={onClose} />
+      <div
+        className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[100]"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          dismiss();
+        }}
+      />
       <div className="fixed inset-0 flex items-center justify-center z-[101] pointer-events-none p-3 sm:p-4">
         <div
           role="dialog"
           aria-modal="true"
           className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 w-full max-w-lg shadow-2xl pointer-events-auto max-h-[90vh] overflow-y-auto"
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
               {hasContent ? 'Expense note' : 'Add expense note'}
             </h3>
-            <button type="button" onClick={onClose} disabled={loading} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg" aria-label="Close">
+            <button type="button" onClick={dismiss} disabled={loading} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg" aria-label="Close">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -168,7 +200,7 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
               )}
             </div>
             <div className="flex gap-2">
-              <button type="button" onClick={onClose} disabled={loading} className="px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 rounded-lg">
+              <button type="button" onClick={dismiss} disabled={loading} className="px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 rounded-lg">
                 Cancel
               </button>
               <button
@@ -183,6 +215,7 @@ export const TransactionNoteModal: React.FC<TransactionNoteModalProps> = ({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };

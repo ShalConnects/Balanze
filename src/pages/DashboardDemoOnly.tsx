@@ -16,6 +16,12 @@ import { MobileAccordionWidget } from '../components/Dashboard/MobileAccordionWi
 import { toast } from 'sonner';
 import { MainLayout } from '../components/Layout/MainLayout';
 import { formatAppDateTime, formatAppMonthShort } from '../utils/timezoneUtils';
+import { DemoOverviewCard } from '../demo/DemoOverviewCard';
+import { DemoShowcaseBar } from '../demo/DemoShowcaseBar';
+import {
+  DEMO_STATIC_WIDGETS,
+  purchasesOverviewStats,
+} from '../demo/demoOverviewWidgets';
 
 // Mock data generators
 const generateMockAccounts = () => [
@@ -1382,17 +1388,10 @@ const MockLendBorrowSummaryCard: React.FC<{ t: any; formatCurrency: any }> = ({ 
 
   return (
     <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative">
-      {/* Premium Badge */}
-      <div className="absolute top-2 right-2">
-        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
-          <span>⭐</span>
-          <span>PREMIUM</span>
-        </div>
-      </div>
-      
-      <div className="flex items-center justify-between mb-4 pr-20">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2 flex-1">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Lent & Borrow</h2>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Premium</span>
         </div>
         <div className="flex items-center gap-3">
           {/* Currency Filter */}
@@ -1603,9 +1602,11 @@ const MockDonationSavingsOverviewCard: React.FC<{ t: any; formatCurrency: any }>
 
 interface DashboardProps {
   onViewChange: (view: string) => void;
+  /** Landing embed: skip marketing footer, ready instantly. */
+  embedded?: boolean;
 }
 
-export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) => {
+export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange, embedded = false }) => {
   const { 
     getDashboardStats, 
     getActiveAccounts, 
@@ -1625,11 +1626,9 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
     fetchPurchases
   } = useMockFinanceStore();
   
-  // Use local loading state for dashboard instead of global store loading
-  // Initialize with true to prevent flash of empty state
-  const [dashboardLoading, setDashboardLoading] = useState(true);
-  // Track if initial data fetch has completed
-  const [initialDataFetched, setInitialDataFetched] = useState(false);
+  // Mock data is sync — ready immediately (critical for landing embed speed)
+  const [dashboardLoading] = useState(false);
+  const [initialDataFetched] = useState(true);
   
   // Memoize store functions to prevent infinite loops
   const fetchTransactions = useCallback(() => {
@@ -1775,55 +1774,6 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Initial data fetch when dashboard loads
-  useEffect(() => {
-    const refreshData = async () => {
-      try {
-        if (!user) {
-          // Keep showing skeleton while waiting for user authentication
-          return;
-        }
-
-        setDashboardLoading(true);
-        // setLoadingMessage('Loading dashboard data...');
-
-        await Promise.all([
-          fetchTransactions(),
-          fetchAccounts(),
-          fetchCategories(),
-          fetchPurchaseCategories(),
-          fetchDonationSavingRecords(),
-          fetchPurchases()
-        ]);
-
-        setDashboardLoading(false);
-        setInitialDataFetched(true);
-        // setLoadingMessage('');
-
-      } catch (error) {
-        console.error('Error refreshing dashboard data:', error);
-        setDashboardLoading(false);
-        setInitialDataFetched(true);
-        // setLoadingMessage('');
-      }
-    };
-    
-    if (user && !initialDataFetched) {
-      refreshData();
-    }
-  }, [user, initialDataFetched, setLoadingMessage]);
-
-  // Force loading state to false after a timeout to prevent infinite loading
-  useEffect(() => {
-    if (dashboardLoading && user) {
-      const timeoutId = setTimeout(() => {
-        setDashboardLoading(false);
-      }, 10000);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [dashboardLoading, user]);
-
   // Calculate total income and expenses
   const totalIncome = transactions
     .filter(t => t.type === 'income' && !(t.tags && t.tags.some((tag: string) => tag.includes('transfer') || tag.includes('dps_transfer'))))
@@ -1905,26 +1855,15 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
     }
   };
 
-  // Show loading skeleton while data is being fetched or until initial fetch completes
-  // Show skeleton if: user is not authenticated, data is loading, or initial fetch hasn't completed
   if (!user || dashboardLoading || !initialDataFetched) {
-    return (
-      <>
-        <DashboardSkeleton />
-      </>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
     <>
-
-      {/* Main Dashboard Content */}
+      {embedded && <DemoShowcaseBar />}
       <div data-tour="dashboard" className="flex flex-col lg:flex-row gap-6">
-        {/* Main Content - Full width on mobile, flex-1 on desktop */}
         <div className="flex-1 space-y-6">
-
-
-          {/* Multi-Currency Quick Access */}
           {stats.byCurrency.length > 1 && showMultiCurrencyAnalytics && (
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-700 relative">
               <button
@@ -1944,7 +1883,8 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
                   </p>
                 </div>
                 <button
-                  onClick={() => navigate('/analytics')}
+                  type="button"
+                  onClick={() => !embedded && navigate('/analytics')}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
                 >
                   <span>View Analytics</span>
@@ -1954,7 +1894,7 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
             </div>
           )}
 
-          {/* Currency Sections & Donations & Savings - Responsive grid */}
+          {/* Currencies + Donations/Savings — latest main grid */}
           <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6">
             {stats.byCurrency.map(({ currency }) => (
               <div key={currency} className="w-full">
@@ -1967,89 +1907,57 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
                 />
               </div>
             ))}
-            {/* Donations & Savings Overview Card - Place after currency cards */}
             <div className="w-full">
-              <MockDonationSavingsOverviewCard
-                t={t}
-                formatCurrency={formatCurrency}
-              />
+              <MockDonationSavingsOverviewCard t={t} formatCurrency={formatCurrency} />
             </div>
-            
           </div>
 
-          {/* Purchase Overview & Lend & Borrow Summary Row - Responsive grid */}
+          {/* Overview widgets — same areas as pricing / widget settings */}
           <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 gap-4 lg:gap-6">
-            {/* Purchase Overview */}
             {purchases.length > 0 && showPurchasesWidget && (
-              <div className="w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700 relative">
-                {/* Hide button */}
-                <button
-                  onClick={() => handlePurchasesWidgetToggle(false)}
-                  className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                  aria-label="Hide Purchases widget"
-                  title="Hide Purchases widget"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-                
-                <div className="flex items-center justify-between mb-4 pr-8">
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">Purchases</h2>
-                  <div className="text-sm font-medium flex items-center space-x-1 text-gray-400 cursor-not-allowed">
-                    <span>View All</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </div>
-                </div>
-                {/* Purchase Stats Cards - Responsive grid */}
-                <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 lg:gap-4 mb-6">
-                  <StatCard
-                    title="Planned"
-                    value={totalPlannedPurchases.toString()}
-                    color="yellow"
-                  />
-                  <StatCard
-                    title="Purchased"
-                    value={totalPurchasedItems.toString()}
-                    color="red"
-                  />
-                </div>
-              </div>
-            )}
-            {/* Lend & Borrow Summary Card */}
-            <div className="w-full">
-              <MockLendBorrowSummaryCard
-                t={t}
-                formatCurrency={formatCurrency}
+              <DemoOverviewCard
+                title="Purchases"
+                stats={purchasesOverviewStats(
+                  totalPlannedPurchases,
+                  totalPurchasedItems,
+                  totalCancelledItems,
+                  totalPlannedValue,
+                  formatCurrency
+                )}
               />
+            )}
+            <div className="w-full">
+              <MockLendBorrowSummaryCard t={t} formatCurrency={formatCurrency} />
             </div>
+            {DEMO_STATIC_WIDGETS.map((w) => (
+              <div key={w.id} className="w-full">
+                <DemoOverviewCard title={w.title} stats={w.stats} />
+              </div>
+            ))}
           </div>
 
-          {/* Motivational Quote - Hidden on mobile, shown on desktop */}
           <div className="hidden lg:block">
             <MotivationalQuote />
           </div>
 
-          {/* Recent Transactions - Hidden on mobile, shown on desktop */}
-          <div className="hidden lg:block w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/50 dark:border-blue-800/50 hover:border-blue-300 dark:hover:border-blue-700">
+          <div className="hidden lg:block w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 lg:p-6 shadow-sm border border-blue-200/50 dark:border-blue-800/50">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('dashboard.recentTransactions')}</h2>
-              <div className="text-sm font-medium flex items-center space-x-1 text-gray-400 cursor-not-allowed">
-                <span>View All</span>
-                <ArrowRight className="w-4 h-4" />
-              </div>
+              <span className="text-sm font-medium text-gray-400 flex items-center gap-1">
+                View All <ArrowRight className="w-4 h-4" />
+              </span>
             </div>
             <MockRecentTransactions />
           </div>
         </div>
 
-        {/* Right Sidebar - Hidden on mobile, shown on desktop */}
         <div className="hidden lg:block w-72 space-y-6">
           <MockLastWishCountdownWidget />
           <NotesAndTodosWidget />
         </div>
 
-        {/* Mobile Bottom Section - Accordion Layout */}
         <div className="lg:hidden dashboard-mobile-container">
-          <MobileAccordionWidget 
+          <MobileAccordionWidget
             isDemo={true}
             MockLastWishCountdownWidget={MockLastWishCountdownWidget}
             MockRecentTransactions={MockRecentTransactions}
@@ -2057,98 +1965,80 @@ export const DashboardDemoOnly: React.FC<DashboardProps> = ({ onViewChange }) =>
         </div>
       </div>
 
-      {/* Demo Footer */}
-      <div className="mt-12 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-600">
-        <div className="text-center">
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Ready to Create Your Own Dashboard?
-          </h3>
-          <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-2xl mx-auto">
-            This demo shows you exactly what Balanze can do. Sign up now to start tracking your real finances with unlimited accounts, transactions, and advanced analytics.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button
-              onClick={() => window.location.href = '/register'}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center space-x-2 w-full sm:w-auto"
-            >
-              <span>Start Free Trial</span>
-              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-            <button
-              onClick={() => window.close()}
-              className="bg-transparent border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 w-full sm:w-auto"
-            >
-              <span className="hidden sm:inline">Back to Landing Page</span>
-              <span className="sm:hidden">Back to Landing</span>
-            </button>
-          </div>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm text-gray-500 dark:text-gray-400">
-            <div className="flex items-center space-x-2">
-              <Check className="w-4 h-4 text-green-500" />
-              <span>14-day free trial</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Check className="w-4 h-4 text-green-500" />
-              <span className="hidden sm:inline">No credit card required</span>
-              <span className="sm:hidden">No credit card</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Check className="w-4 h-4 text-green-500" />
-              <span>Cancel anytime</span>
+      {!embedded && (
+        <>
+          <div className="mt-12 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-600">
+            <div className="text-center">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                Ready to Create Your Own Dashboard?
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-2xl mx-auto">
+                This demo shows you exactly what Balanze can do. Sign up now to start tracking your real finances with unlimited accounts, transactions, and advanced analytics.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <button
+                  onClick={() => window.location.href = '/register'}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center space-x-2 w-full sm:w-auto"
+                >
+                  <span>Start Free Trial</span>
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+                <button
+                  onClick={() => window.close()}
+                  className="bg-transparent border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 w-full sm:w-auto"
+                >
+                  <span className="hidden sm:inline">Back to Landing Page</span>
+                  <span className="sm:hidden">Back to Landing</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Demo Feature Highlights */}
-      <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg p-4 border border-green-200 dark:border-green-700">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-white" />
+          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg p-4 border border-green-200 dark:border-green-700">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-green-900 dark:text-green-100">Real-time Analytics</h4>
+                  <p className="text-green-700 dark:text-green-300 text-sm">Live spending insights</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <h4 className="font-semibold text-green-900 dark:text-green-100">Real-time Analytics</h4>
-              <p className="text-green-700 dark:text-green-300 text-sm">Live spending insights</p>
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-700">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                  <Globe className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-blue-900 dark:text-blue-100">Multi-Currency</h4>
+                  <p className="text-blue-700 dark:text-blue-300 text-sm">USD, BDT & more</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-700">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                  <Heart className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-purple-900 dark:text-purple-100">Last Wish</h4>
+                  <p className="text-purple-700 dark:text-purple-300 text-sm">Digital legacy planning</p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        
-        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-700">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-              <Globe className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h4 className="font-semibold text-blue-900 dark:text-blue-100">Multi-Currency</h4>
-              <p className="text-blue-700 dark:text-blue-300 text-sm">USD, BDT & more</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-700">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
-              <Heart className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h4 className="font-semibold text-purple-900 dark:text-purple-100">Last Wish</h4>
-              <p className="text-purple-700 dark:text-purple-300 text-sm">Digital legacy planning</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Modals - Consolidated at the end to prevent multiple instances */}
-      {/* TransactionForm is opened from MainLayout FloatingActionButton */}
+        </>
+      )}
 
       {showTransferModal && (
         <TransferModal isOpen={showTransferModal} onClose={() => setShowTransferModal(false)} />
       )}
 
       {showPurchaseForm && (
-        <PurchaseForm 
-          isOpen={showPurchaseForm} 
+        <PurchaseForm
+          isOpen={showPurchaseForm}
           onClose={() => setShowPurchaseForm(false)}
         />
       )}

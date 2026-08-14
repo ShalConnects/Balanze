@@ -125,6 +125,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const investmentsTab = currentView === 'investments'
     ? new URLSearchParams(location.search).get('tab')
     : null;
+  const personalGrowthTab = currentView === 'personal-growth'
+    ? new URLSearchParams(location.search).get('tab')
+    : null;
 
   const getTitle = () => {
     switch (currentView) {
@@ -142,7 +145,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'habits': return 'Habit Garden';
       case 'orders': return 'Orders';
       case 'invoices': return 'Invoices';
-      case 'achievements': return 'Achievements';
       case 'last-wish': return 'Last Wish';
       case 'settings': return 'Settings';
       case 'about': return 'About';
@@ -151,7 +153,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'favorite-quotes': return 'Favorite Quotes';
       case 'history': return 'Activity History';
       case 'learning': return 'Learning Courses';
-      case 'personal-growth': return 'Personal Growth';
+      case 'personal-growth': return personalGrowthTab === 'book-library' ? 'Book Library' : 'Personal Growth';
       case 'notes': return 'Notes Diary';
       default: return 'Dashboard';
     }
@@ -233,12 +235,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                                 ? 'Track all your financial activities and changes'
                                 : currentView === 'favorite-quotes'
                                   ? 'Manage your favorite motivational quotes and inspiration'
-                                  : currentView === 'achievements'
-                                    ? 'Unlock badges and track your financial journey progress'
-                                    : currentView === 'learning'
+                                  : currentView === 'learning'
                                       ? 'Track your learning progress by organizing courses into modules'
                                       : currentView === 'personal-growth'
-                                        ? 'Grow personally through habits, notes, learning, quotes, and achievements'
+                                        ? (personalGrowthTab === 'book-library'
+                                          ? 'Track books you want, own, and have read'
+                                          : 'Grow personally through habits, notes, learning, books, and quotes')
                                         : currentView === 'notes'
                                           ? 'Write and browse your day-to-day notes'
                                         : currentView === 'analytics'

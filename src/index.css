@@ -38,8 +38,6 @@
 @layer base {
   :root {
     --transition-duration: 0.3s;
-    --safe-area-inset-top: env(safe-area-inset-top, 0px);
-    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   /* Set default font family */
@@ -957,11 +955,12 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   
-  /* Landing page mobile fixes */
+  /* Landing page mobile fixes.
+     Use overflow-x: clip (not hidden) so position:sticky still works. */
   .landing-page-mobile {
     min-height: 100vh;
     min-height: -webkit-fill-available;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
   
   /* Safe area support for landing page */
@@ -971,6 +970,19 @@
   
   .landing-page-safe-bottom {
     padding-bottom: max(env(safe-area-inset-bottom, 0px), 64px);
+  }
+
+  @keyframes landing-fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .landing-fade-in {
+    animation: landing-fade-in 0.65s ease-out both;
+  }
+
+  .landing-fade-in-delay {
+    animation-delay: 0.12s;
   }
   
   /* Bottom floating elements safe positioning */

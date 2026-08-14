@@ -575,14 +575,13 @@ async function persistDocument(
   const currency = transactionId
     ? await resolveNoteCurrency(userId, transactionId)
     : opts.currency?.trim() || (await resolveNoteCurrency(userId));
-  const resolved: ({ id: string; isNew: boolean } | null)[] = [];
-  for (const line of payload.lines) {
-    if (line.parseStatus === 'failed' || !line.name.trim()) {
-      resolved.push(null);
-      continue;
-    }
-    resolved.push(await resolveItemId(userId, line, currency));
-  }
+  const resolved = await Promise.all(
+    payload.lines.map((line) =>
+      line.parseStatus === 'failed' || !line.name.trim()
+        ? Promise.resolve(null)
+        : resolveItemId(userId, line, currency)
+    )
+  );
 
   let documentId: string | undefined = opts.documentId;
   if (!documentId && transactionId) {
@@ -619,45 +618,45 @@ async function persistDocument(
   }
 
   const docId = documentId!;
-  for (let i = 0; i < payload.lines.length; i++) {
-    const line = payload.lines[i];
-    const itemId = resolved[i]?.id ?? null;
-    const row = lineInsertRow(docId, i, line, itemId, observedAt, currency);
-    const lineId = existingLineIds[i];
+  await Promise.all(
+    payload.lines.map(async (line, i) => {
+      const itemId = resolved[i]?.id ?? null;
+      const row = lineInsertRow(docId, i, line, itemId, observedAt, currency);
+      const lineId = existingLineIds[i];
 
-    if (lineId) {
-      const { error } = await supabase.from('expense_note_lines').update(row).eq('id', lineId);
-      if (error) throw error;
-      if (itemId) {
+      if (lineId) {
+        const { error } = await supabase.from('expense_note_lines').update(row).eq('id', lineId);
+        if (error) throw error;
+        if (!itemId) return;
         await touchItemLastUsed(userId, itemId, line, observedAt, currency);
         const price = lineDisplayAmount(line);
-        if (price != null) {
-          const { data: obs } = await supabase
-            .from('expense_note_price_observations')
-            .select('price, currency')
-            .eq('entry_line_id', lineId)
-            .maybeSingle();
-          if (!obs || Number(obs.price) !== price || obs.currency !== currency) {
-            if (obs) await supabase.from('expense_note_price_observations').delete().eq('entry_line_id', lineId);
-            await recordPriceObservation(userId, itemId, lineId, line, observedAt, currency);
-          }
+        if (price == null) return;
+        const { data: obs } = await supabase
+          .from('expense_note_price_observations')
+          .select('price, currency')
+          .eq('entry_line_id', lineId)
+          .maybeSingle();
+        if (!obs || Number(obs.price) !== price || obs.currency !== currency) {
+          if (obs) await supabase.from('expense_note_price_observations').delete().eq('entry_line_id', lineId);
+          await recordPriceObservation(userId, itemId, lineId, line, observedAt, currency);
         }
+        return;
       }
-    } else {
+
       const { data: inserted, error } = await supabase.from('expense_note_lines').insert(row).select('id').single();
       if (error) throw error;
-      if (itemId && inserted?.id) {
-        // New catalog rows already start at 1×; only bump when reusing an existing item
-        if (!resolved[i]?.isNew) {
-          await touchItemOnNewLine(userId, itemId, line, observedAt, currency);
-        }
-        await recordPriceObservation(userId, itemId, inserted.id, line, observedAt, currency);
+      if (!itemId || !inserted?.id) return;
+      // New catalog rows already start at 1×; only bump when reusing an existing item
+      if (!resolved[i]?.isNew) {
+        await touchItemOnNewLine(userId, itemId, line, observedAt, currency);
       }
-    }
-  }
+      await recordPriceObservation(userId, itemId, inserted.id, line, observedAt, currency);
+    })
+  );
 
-  for (let i = payload.lines.length; i < existingLineIds.length; i++) {
-    await supabase.from('expense_note_lines').delete().eq('id', existingLineIds[i]);
+  const staleLineIds = existingLineIds.slice(payload.lines.length);
+  if (staleLineIds.length) {
+    await Promise.all(staleLineIds.map((id) => supabase.from('expense_note_lines').delete().eq('id', id)));
   }
 
   if (transactionId) setRawTextCache(transactionId, payload.rawText);
@@ -681,6 +680,7 @@ export async function saveQuickAddNote(
 }
 
 export async function deleteExpenseNoteDocument(transactionId: string): Promise<void> {
+  setRawTextCache(transactionId, null);
   const { data } = await supabase
     .from('expense_note_documents')
     .select('id')
@@ -688,7 +688,6 @@ export async function deleteExpenseNoteDocument(transactionId: string): Promise<
     .maybeSingle();
   if (!data?.id) return;
   await supabase.from('expense_note_documents').delete().eq('id', data.id);
-  setRawTextCache(transactionId, null);
 }
 
 /** Persist raw item text for a transaction (or clear it). Returns the denormalized summary for `transactions.note`. */
@@ -702,6 +701,8 @@ export async function saveExpenseNoteForTransaction(
     await deleteExpenseNoteDocument(transactionId);
     return '';
   }
+  // Prime cache synchronously so reopen stays instant when callers fire-and-forget
+  setRawTextCache(transactionId, trimmed);
   return saveExpenseNoteDocument(userId, transactionId, {
     rawText: trimmed,
     lines: parseExpenseNoteText(trimmed),

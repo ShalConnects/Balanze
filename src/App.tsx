@@ -16,7 +16,6 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminRoute } from './components/AdminRoute';
 import { WelcomeModal } from './components/common/WelcomeModal';
 import PostAccountCreationTour from './components/PostAccountCreationTour';
-import { AchievementIntegration } from './components/Achievements/AchievementIntegration';
 import ContextualTourTrigger from './components/ContextualTourTrigger';
 import { Analytics } from '@vercel/analytics/react';
 import { useNotificationStore } from './store/notificationStore';
@@ -631,7 +630,7 @@ function AppContent() {
   }
 
   return (
-    <AchievementIntegration>
+    <>
       
       {/* App Install Banner - Bottom Banner (Option B) */}
       {/* Only shows on Android mobile browsers, not in app or desktop */}
@@ -758,7 +757,7 @@ function AppContent() {
       <ContextualTourTrigger       />
       
       {/* AI Chat Bot is now integrated into FloatingActionButton */}
-    </AchievementIntegration>
+    </>
   );
 }
 

@@ -12,7 +12,7 @@ export const UnderlineTabBar: React.FC<{
   onChange: (id: string) => void;
   className?: string;
 }> = ({ tabs, value, onChange, className = '' }) => (
-  <div className={`flex border-b border-gray-200 dark:border-gray-700 ${className}`} role="tablist">
+  <div className={`flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 ${className}`} role="tablist">
     {tabs.map((t) => {
       const active = value === t.id;
       return (
@@ -22,7 +22,7 @@ export const UnderlineTabBar: React.FC<{
           role="tab"
           aria-selected={active}
           onClick={() => onChange(t.id)}
-          className={`${UNDERLINE_TAB_BTN} ${active ? UNDERLINE_TAB_ACTIVE : UNDERLINE_TAB_IDLE}`}
+          className={`shrink-0 whitespace-nowrap ${UNDERLINE_TAB_BTN} ${active ? UNDERLINE_TAB_ACTIVE : UNDERLINE_TAB_IDLE}`}
         >
           {t.label}
         </button>

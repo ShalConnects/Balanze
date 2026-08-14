@@ -567,30 +567,22 @@ const TransactionListComponent: React.FC<{
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [showLendBorrowInfo, setShowLendBorrowInfo] = useState(false);
   const [noteModalTransaction, setNoteModalTransaction] = useState<Transaction | null>(null);
-  const isSavingNoteRef = useRef(false);
-  const lastClosedModalTimeRef = useRef<number>(0);
-  
-  // Initialize ref from sessionStorage to persist across remounts
-  useEffect(() => {
-    const stored = sessionStorage.getItem('transactionNoteModalLastClosed');
-    if (stored) {
-      const storedTime = parseInt(stored, 10);
-      // Only use if it's recent (within last 5 seconds)
-      if (Date.now() - storedTime < 5000) {
-        lastClosedModalTimeRef.current = storedTime;
-      }
-    }
-  }, []);
+
+  const openNoteModal = (transaction: Transaction, e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    if (noteModalTransaction?.id === transaction.id) return;
+    prefetchExpenseNote(transaction.id);
+    setNoteModalTransaction(transaction);
+  };
 
   useEffect(() => {
     const pendingId = sessionStorage.getItem(EXPENSE_NOTE_OPEN_TX_KEY);
     if (!pendingId || !transactions.length) return;
     sessionStorage.removeItem(EXPENSE_NOTE_OPEN_TX_KEY);
     const tx = transactions.find((t) => t.id === pendingId);
-    if (tx) {
-      prefetchExpenseNote(tx.id);
-      setNoteModalTransaction(tx);
-    }
+    if (tx) openNoteModal(tx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deep-link once when transactions arrive
   }, [transactions]);
   
   const [expandedRecurringIds, setExpandedRecurringIds] = useState<Set<string>>(new Set());
@@ -971,22 +963,8 @@ const TransactionListComponent: React.FC<{
   };
 
   const handleNoteSave = async (note: string) => {
-    isSavingNoteRef.current = true;
-    try {
-      if (noteModalTransaction) {
-        await updateTransaction(noteModalTransaction.id, { note });
-        // Don't update noteModalTransaction state here - let the modal close
-        // The store's optimistic update will handle the UI update automatically
-      }
-    } catch (error) {
-      console.error('💾 [TransactionList] Error saving note:', error);
-      throw error; // Re-throw so modal can handle it
-    } finally {
-      // Longer delay to prevent modal from reopening during re-render
-      setTimeout(() => {
-        isSavingNoteRef.current = false;
-      }, 2000);
-    }
+    if (!noteModalTransaction) return;
+    await updateTransaction(noteModalTransaction.id, { note });
   };
 
   // Handle pause/resume for recurring transactions
@@ -2249,60 +2227,7 @@ const TransactionListComponent: React.FC<{
                                      type="button"
                                      tabIndex={-1}
                                      onPointerEnter={() => prefetchExpenseNote(transaction.id)}
-                                     onMouseDown={(e) => {
-                                       // Prevent opening modal if we just closed it (within 1000ms)
-                                       const timeSinceLastClose = Date.now() - lastClosedModalTimeRef.current;
-                                       if (timeSinceLastClose < 1000) {
-                                         e.preventDefault();
-                                         e.stopPropagation();
-                                         return;
-                                       }
-                                       
-                                       if (isSavingNoteRef.current) {
-                                         e.preventDefault();
-                                         e.stopPropagation();
-                                         return;
-                                       }
-                                       
-                                       // Prevent if modal is already open for this transaction
-                                       if (noteModalTransaction?.id === transaction.id) {
-                                         e.preventDefault();
-                                         e.stopPropagation();
-                                         return;
-                                       }
-                                     }}
-                                     onClick={(e) => {
-                                       const currentTime = Date.now();
-                                       // Check both ref and sessionStorage (in case component remounted)
-                                       const storedTime = sessionStorage.getItem('transactionNoteModalLastClosed');
-                                       const storedLastClosed = storedTime ? parseInt(storedTime, 10) : 0;
-                                       const lastClosed = lastClosedModalTimeRef.current || storedLastClosed;
-                                       const timeSinceClose = currentTime - lastClosed;
-                                       
-                                       // Prevent opening modal if we just closed it (within 3000ms)
-                                       if (timeSinceClose < 3000) {
-                                         e.preventDefault();
-                                         e.stopPropagation();
-                                         return;
-                                       }
-                                       
-                                       if (isSavingNoteRef.current) {
-                                         e.preventDefault();
-                                         e.stopPropagation();
-                                         return;
-                                       }
-                                       
-                                       // Prevent if modal is already open for this transaction
-                                       if (noteModalTransaction?.id === transaction.id) {
-                                         e.preventDefault();
-                                         e.stopPropagation();
-                                         return;
-                                       }
-                                       
-                                       e.preventDefault();
-                                       e.stopPropagation();
-                                       setNoteModalTransaction(transaction);
-                                     }}
+                                     onClick={(e) => openNoteModal(transaction, e)}
                                      className={transaction.note && transaction.note.trim().length > 0 
                                        ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors" 
                                        : "text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"}
@@ -2783,40 +2708,7 @@ const TransactionListComponent: React.FC<{
                                  <button
                                    type="button"
                                    onPointerEnter={() => prefetchExpenseNote(transaction.id)}
-                                   onClick={(e) => {
-                                     // Prevent opening modal if we just closed it (within 500ms)
-                                     const timeSinceLastClose = Date.now() - lastClosedModalTimeRef.current;
-                                     const currentTime = Date.now();
-                                     // Check both ref and sessionStorage (in case component remounted)
-                                     const storedTime = sessionStorage.getItem('transactionNoteModalLastClosed');
-                                     const storedLastClosed = storedTime ? parseInt(storedTime, 10) : 0;
-                                     const lastClosed = lastClosedModalTimeRef.current || storedLastClosed;
-                                     const timeSinceClose = currentTime - lastClosed;
-                                     
-                                     // Prevent opening modal if we just closed it (within 3000ms)
-                                     if (timeSinceClose < 3000) {
-                                       e.preventDefault();
-                                       e.stopPropagation();
-                                       return;
-                                     }
-                                     
-                                     if (isSavingNoteRef.current) {
-                                       e.preventDefault();
-                                       e.stopPropagation();
-                                       return;
-                                     }
-                                     
-                                     // Prevent if modal is already open for this transaction
-                                     if (noteModalTransaction?.id === transaction.id) {
-                                       e.preventDefault();
-                                       e.stopPropagation();
-                                       return;
-                                     }
-                                     
-                                     e.preventDefault();
-                                     e.stopPropagation();
-                                     setNoteModalTransaction(transaction);
-                                   }}
+                                   onClick={(e) => openNoteModal(transaction, e)}
                                    className={transaction.note && transaction.note.trim().length > 0 
                                      ? "p-1.5 text-blue-600 dark:text-blue-400 rounded-md transition-colors hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20" 
                                      : "p-1.5 text-gray-500 dark:text-gray-400 rounded-md transition-colors hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"}
@@ -3508,13 +3400,7 @@ const TransactionListComponent: React.FC<{
       {noteModalTransaction && (
         <TransactionNoteModal
           isOpen={!!noteModalTransaction}
-          onClose={() => {
-            const closeTime = Date.now();
-            lastClosedModalTimeRef.current = closeTime;
-            // Store in sessionStorage to persist across remounts
-            sessionStorage.setItem('transactionNoteModalLastClosed', closeTime.toString());
-            setNoteModalTransaction(null);
-          }}
+          onClose={() => setNoteModalTransaction(null)}
           transactionId={noteModalTransaction.id}
           currentNote={noteModalTransaction.note ?? undefined}
           onSave={handleNoteSave}

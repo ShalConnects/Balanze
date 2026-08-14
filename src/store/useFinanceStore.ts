@@ -25,8 +25,6 @@ import {
   buildRecurringInstance,
   cloneParentDonation,
 } from '../../lib/recurringUtils.js';
-import { useAchievementStore } from './achievementStore';
-import { userActivityService } from '../lib/userActivityService';
 import { countsTowardIncomeExpenseSummaries } from '../utils/transactionUtils';
 import {
   TRANSACTION_HISTORY_BULK_CHUNK,
@@ -119,7 +117,8 @@ interface FinanceStore {
   deleteCategory: (id: string) => Promise<void>;
   
   // Purchase Management
-  fetchPurchases: () => Promise<void>;
+  /** When `silent`, skips global `loading` so background refreshes don’t remount pages. */
+  fetchPurchases: (silent?: boolean) => Promise<void>;
   addPurchase: (purchase: Omit<Purchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updatePurchase: (id: string, purchase: Partial<Purchase>) => Promise<void>;
   deletePurchase: (id: string) => Promise<void>;
@@ -487,13 +486,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
 
       // Only fetch accounts on success
       await get().fetchAccounts();
-      
-      // Track account creation activity
-      await userActivityService.trackAccountCreated(user.id, { accountType: account.type });
-      
-      // Trigger achievement check for account creation
-      const { checkAndAwardAchievements } = useAchievementStore.getState();
-      checkAndAwardAchievements('create_account', { accountType: account.type });
       
       set({ loading: false });
     } catch (err: any) {
@@ -909,13 +901,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       get().fetchPurchases()
     ]);
     
-    // Track transaction creation activity
-    await userActivityService.trackTransactionCreated(user.id, { transactionType: transactionData.type });
-    
-    // Trigger achievement check for transaction creation
-    const { checkAndAwardAchievements } = useAchievementStore.getState();
-    checkAndAwardAchievements('create_transaction', { transactionType: transactionData.type });
-    
     set({ loading: false });
     
       return { id: data.id as string, transaction_id: data.transaction_id as string };
@@ -951,28 +936,41 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       return;
     }
 
-    
-    // Check if only note field is being updated
     const isNoteOnlyUpdate = Object.keys(transaction).length === 1 && 'note' in transaction;
-    
-    // For note-only updates, skip optimistic update to prevent unnecessary re-renders/remounts
-    // The UI will update once the server responds, which is fast enough for note changes
-    if (!isNoteOnlyUpdate) {
-      // OPTIMISTIC UPDATE: Update UI immediately with new data (for non-note updates)
-      const optimisticTransaction = { ...originalTransaction, ...transaction };
-      const optimisticTransactions = currentState.transactions.map(t => 
-        t.id === id ? optimisticTransaction : t
-      );
-      
-      
-      // Update UI instantly - no loading state for better UX
-      set({ transactions: optimisticTransactions, error: null });
-      
-    } else {
-    }
+
+    // Optimistic UI for all updates (including note-only)
+    set({
+      transactions: currentState.transactions.map((t) =>
+        t.id === id ? { ...originalTransaction, ...transaction } : t
+      ),
+      error: null,
+    });
     
     try {
-      // Perform actual database updates in the background
+      // Note-only: slim write, no purchase/account side effects (avoids global loading remount)
+      if (isNoteOnlyUpdate) {
+        const { data, error } = await supabase
+          .from('transactions')
+          .update({ note: transaction.note ?? null })
+          .eq('id', id)
+          .select('id, note')
+          .single();
+        if (error) {
+          set({
+            transactions: currentState.transactions,
+            error: error.message || 'Update failed',
+          });
+          return;
+        }
+        set((s) => ({
+          transactions: s.transactions.map((t) =>
+            t.id === id ? { ...t, note: data.note } : t
+          ),
+          error: null,
+        }));
+        return;
+      }
+
       const [currentTransactionResult, updateResult] = await Promise.all([
         supabase
           .from('transactions')
@@ -988,7 +986,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       ]);
       
       if (currentTransactionResult.error || updateResult.error) {
-        // ROLLBACK: Revert to original state if database update fails
         set({ 
           transactions: currentState.transactions,
           error: currentTransactionResult.error?.message || updateResult.error?.message || 'Update failed'
@@ -998,32 +995,10 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       
       const currentTransaction = currentTransactionResult.data;
       const updatedTransaction = updateResult.data;
-      
-      // Check if only note field was updated
-      const isNoteOnlyUpdate = Object.keys(transaction).length === 1 && 'note' in transaction;
-      
-      // Get current state (may or may not have optimistic update depending on update type)
       const stateAfterOptimistic = get();
       const existingTransaction = stateAfterOptimistic.transactions.find(t => t.id === id);
-      
-      // For note-only updates, we skipped optimistic update, so always update with server response
-      // For other updates, check if transaction actually changed
-      let transactionChanged = true;
-      if (isNoteOnlyUpdate) {
-        // For note-only updates, always update (we skipped optimistic update)
-        // Compare note to see if it actually changed
-        const currentNote = existingTransaction?.note || '';
-        const serverNote = updatedTransaction.note || '';
-        transactionChanged = currentNote !== serverNote;
-        
-        if (!transactionChanged) {
-        } else {
-        }
-      } else {
-        // For other updates, do full comparison
-        transactionChanged = !existingTransaction || 
-          JSON.stringify(existingTransaction) !== JSON.stringify(updatedTransaction);
-      }
+      const transactionChanged = !existingTransaction ||
+        JSON.stringify(existingTransaction) !== JSON.stringify(updatedTransaction);
       
       if (transactionChanged) {
         const tid = updatedTransaction?.transaction_id;
@@ -1032,17 +1007,16 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           m.delete(tid);
           set({ transactionHistoryCache: m });
         }
-        const serverUpdatedTransactions = stateAfterOptimistic.transactions.map(t => 
-          t.id === id ? updatedTransaction : t
-        );
-        set({ transactions: serverUpdatedTransactions, error: null });
-      } else {
+        set({
+          transactions: stateAfterOptimistic.transactions.map((t) =>
+            t.id === id ? updatedTransaction : t
+          ),
+          error: null,
+        });
       }
       
-      // Background operations that don't affect immediate UI
       const backgroundOperations: Promise<any>[] = [];
       
-      // Update purchase record if needed
       if ((transaction.type === 'expense' || transaction.amount !== undefined)) {
         const purchaseUpdateData: any = {
           item_name: transaction.description || 'Purchase',
@@ -1055,7 +1029,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           purchaseUpdateData.notes = purchaseDetails.notes;
         }
         
-        // Use the public FF transaction_id to find linked purchases
         const publicTxnId = currentTransaction?.transaction_id;
         if (publicTxnId) {
           backgroundOperations.push(
@@ -1073,25 +1046,20 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
         }
       }
       
-      // Only refetch accounts if the transaction amount or account changed (affects balances)
       if (transaction.amount !== undefined || transaction.account_id !== undefined) {
         backgroundOperations.push(get().fetchAccounts());
       }
       
-      // Only refetch purchases if this was an expense transaction
       if (transaction.type === 'expense' || originalTransaction.type === 'expense') {
-        backgroundOperations.push(get().fetchPurchases());
+        backgroundOperations.push(get().fetchPurchases(true));
       }
       
-      // Run background operations without blocking UI
       Promise.all(backgroundOperations).catch(error => {
         console.error('Background update operations failed:', error);
-        // Don't show error to user since main update succeeded
       });
       
     } catch (error) {
       console.error('Error updating transaction:', error);
-      // ROLLBACK: Revert only this transaction to avoid clobbering concurrent edits
       set((s) => ({
         transactions: originalTransaction
           ? s.transactions.map((t) => (t.id === id ? originalTransaction : t))
@@ -1442,13 +1410,6 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       
       // Show success toast
       showToast.success(`Category "${categoryData.name}" created successfully`);
-      
-      // Track category creation activity
-      await userActivityService.trackCategoryCreated(user.id, { categoryType: categoryData.type });
-      
-      // Trigger achievement check for category creation
-      const { checkAndAwardAchievements } = useAchievementStore.getState();
-      checkAndAwardAchievements('create_category', { categoryType: categoryData.type });
       
       // If this is an expense category, also create a purchase category to unify them
       if (categoryData.type === 'expense') {
@@ -2048,12 +2009,12 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     }
   },
 
-  fetchPurchases: async () => {
-    set({ loading: true, error: null });
+  fetchPurchases: async (silent = false) => {
+    if (!silent) set({ loading: true, error: null });
     
     const { user } = useAuthStore.getState();
     if (!user) {
-      return set({ loading: false, error: 'Not authenticated' });
+      return set(silent ? { error: 'Not authenticated' } : { loading: false, error: 'Not authenticated' });
     }
 
     try {
@@ -2068,13 +2029,15 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
       if (error) {
         console.error('Error fetching purchases:', error);
         const errorMessage = error.message ? error.message : 'An unknown error occurred.';
-        return set({ loading: false, error: errorMessage });
+        return set(silent ? { error: errorMessage } : { loading: false, error: errorMessage });
       }
 
-      set({ purchases: data || [], loading: false });
+      set(silent ? { purchases: data || [] } : { purchases: data || [], loading: false });
     } catch (error: any) {
       console.error('Error fetching purchases:', error);
-      set({ loading: false, error: error.message || 'An unknown error occurred.' });
+      set(silent
+        ? { error: error.message || 'An unknown error occurred.' }
+        : { loading: false, error: error.message || 'An unknown error occurred.' });
     }
   },
 
