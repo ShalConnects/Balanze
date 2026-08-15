@@ -18,6 +18,7 @@ import { useAuthStore } from './authStore';
 import { showToast } from '../lib/toast';
 import { createAuditLog } from '../lib/auditLogging';
 import { generateTransactionId } from '../utils/transactionId';
+import { persistTempPurchaseAttachments } from '../utils/purchaseAttachments';
 import {
   toYyyyMmDd,
   calculateNextOccurrence,
@@ -55,6 +56,7 @@ interface FinanceStore {
   showAccountForm: boolean;
   showTransferModal: boolean;
   showPurchaseForm: boolean;
+  purchaseFormRecord: Purchase | null;
   donationSavingRecords: DonationSavingRecord[];
   
   // Investment Management
@@ -119,7 +121,7 @@ interface FinanceStore {
   // Purchase Management
   /** When `silent`, skips global `loading` so background refreshes don’t remount pages. */
   fetchPurchases: (silent?: boolean) => Promise<void>;
-  addPurchase: (purchase: Omit<Purchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  addPurchase: (purchase: Omit<Purchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>, attachments?: PurchaseAttachment[]) => Promise<string | undefined>;
   updatePurchase: (id: string, purchase: Partial<Purchase>) => Promise<void>;
   deletePurchase: (id: string) => Promise<void>;
   bulkUpdatePurchases: (ids: string[], updates: Partial<Purchase>) => Promise<void>;
@@ -148,7 +150,7 @@ interface FinanceStore {
   setShowTransactionForm: (show: boolean) => void;
   setShowAccountForm: (show: boolean) => void;
   setShowTransferModal: (show: boolean) => void;
-  setShowPurchaseForm: (show: boolean) => void;
+  setShowPurchaseForm: (show: boolean, record?: Purchase | null) => void;
   
   // Investment Management Methods
   setShowInvestmentAssetForm: (show: boolean) => void;
@@ -271,6 +273,7 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   showAccountForm: false,
   showTransferModal: false,
   showPurchaseForm: false,
+  purchaseFormRecord: null,
   donationSavingRecords: [],
   
   // Investment Management State
@@ -1585,7 +1588,10 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
   setShowTransactionForm: (show: boolean) => set({ showTransactionForm: show }),
   setShowAccountForm: (show: boolean) => set({ showAccountForm: show }),
   setShowTransferModal: (show: boolean) => set({ showTransferModal: show }),
-  setShowPurchaseForm: (show: boolean) => set({ showPurchaseForm: show }),
+  setShowPurchaseForm: (show, record) => set({
+    showPurchaseForm: show,
+    purchaseFormRecord: show ? record ?? null : null,
+  }),
 
   transfer: async ({ from_account_id, to_account_id, from_amount, exchange_rate, note, transaction_id }: {
     from_account_id: string,
@@ -2041,20 +2047,22 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
     }
   },
 
-  addPurchase: async (purchase: Omit<Purchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+  addPurchase: async (purchase, attachments) => {
     set({ loading: true, error: null });
     
     const { user } = useAuthStore.getState();
-    if (!user) return set({ loading: false, error: 'Not authenticated' });
+    if (!user) {
+      set({ loading: false, error: 'Not authenticated' });
+      return undefined;
+    }
 
     try {
-      const { error } = await supabase.from('purchases').insert({
+      const { data, error } = await supabase.from('purchases').insert({
         ...purchase,
         user_id: user.id,
-      });
+      }).select('id').single();
 
       if (error) {
-        // Re-throw plan-related errors so they can be handled by the UI
         if (error.message && (
           error.message.includes('ACCOUNT_LIMIT_EXCEEDED') ||
           error.message.includes('CURRENCY_LIMIT_EXCEEDED') ||
@@ -2063,35 +2071,40 @@ export const useFinanceStore = create<FinanceStore>((set, get) => ({
           error.message.includes('PURCHASE_LIMIT_EXCEEDED') ||
           error.message.includes('FEATURE_NOT_AVAILABLE')
         )) {
-          set({ loading: false }); // Reset loading state before re-throwing
-          throw error; // Re-throw plan-related errors
+          set({ loading: false });
+          throw error;
         }
         
         const errorMessage = error.message ? error.message : 'An unknown error occurred.';
         set({ loading: false, error: errorMessage });
-        return;
+        return undefined;
       }
 
-      // Add a small delay to ensure the loading animation is visible
+      if (data?.id) {
+        await persistTempPurchaseAttachments(data.id, attachments || [], user.id);
+      }
+
       await new Promise(resolve => setTimeout(resolve, 500));
 
       await get().fetchPurchases();
       set({ loading: false });
-    } catch (err: any) {
-      // Re-throw plan-related errors so they can be handled by the UI
-      if (err.message && (
-        err.message.includes('ACCOUNT_LIMIT_EXCEEDED') ||
-        err.message.includes('CURRENCY_LIMIT_EXCEEDED') ||
-        err.message.includes('TRANSACTION_LIMIT_EXCEEDED') ||
-        err.message.includes('MONTHLY_TRANSACTION_LIMIT_EXCEEDED') ||
-        err.message.includes('PURCHASE_LIMIT_EXCEEDED') ||
-        err.message.includes('FEATURE_NOT_AVAILABLE')
+      return data?.id;
+    } catch (err) {
+      const message = err && typeof err === 'object' && 'message' in err ? String(err.message) : '';
+      if (message && (
+        message.includes('ACCOUNT_LIMIT_EXCEEDED') ||
+        message.includes('CURRENCY_LIMIT_EXCEEDED') ||
+        message.includes('TRANSACTION_LIMIT_EXCEEDED') ||
+        message.includes('MONTHLY_TRANSACTION_LIMIT_EXCEEDED') ||
+        message.includes('PURCHASE_LIMIT_EXCEEDED') ||
+        message.includes('FEATURE_NOT_AVAILABLE')
       )) {
-        set({ loading: false }); // Reset loading state before re-throwing
-        throw err; // Re-throw plan-related errors
+        set({ loading: false });
+        throw err;
       }
       
-      set({ error: err.message || 'Failed to add purchase', loading: false });
+      set({ error: message || 'Failed to add purchase', loading: false });
+      return undefined;
     }
   },
 

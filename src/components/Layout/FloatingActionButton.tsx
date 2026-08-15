@@ -99,6 +99,7 @@ export const FloatingActionButton: React.FC = () => {
     showTransactionForm, 
     setShowPurchaseForm, 
     showPurchaseForm,
+    purchaseFormRecord,
     addLendBorrowRecord
   } = useFinanceStore();
   
@@ -446,7 +447,7 @@ export const FloatingActionButton: React.FC = () => {
       {showInBetweenTransferModal && <TransferModal isOpen={showInBetweenTransferModal} onClose={() => setShowInBetweenTransferModal(false)} mode="inbetween" />}
       <TransactionForm isOpen={showTransactionForm} onClose={() => setShowTransactionForm(false)} />
       <BulkTransactionForm isOpen={showBulkTransactionForm} onClose={() => setShowBulkTransactionForm(false)} />
-      <PurchaseForm isOpen={showPurchaseForm} onClose={() => setShowPurchaseForm(false)} />
+      <PurchaseForm isOpen={showPurchaseForm} record={purchaseFormRecord ?? undefined} onClose={() => setShowPurchaseForm(false)} />
 
       {showLendBorrowForm && (
         <LendBorrowForm 

@@ -18,6 +18,7 @@ import { useLoadingContext } from '../../context/LoadingContext';
 import { CategoryModal } from '../common/CategoryModal';
 import { getDefaultAccountId } from '../../utils/defaultAccount';
 import { generateTransactionId } from '../../utils/transactionId';
+import { persistTempPurchaseAttachments } from '../../utils/purchaseAttachments';
 import { useMobileDetection } from '../../hooks/useMobileDetection';
 import { AmountAdjustmentModal } from '../common/AmountAdjustmentModal';
 import { parseLocalDate, getTodayLocalDateString } from '../../utils/taskDateUtils';
@@ -75,8 +76,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
   const [purchasePriority, setPurchasePriority] = useState<'low' | 'medium' | 'high'>(record?.priority || 'medium');
   const [purchaseAttachments, setPurchaseAttachments] = useState<PurchaseAttachment[]>([]);
   const [showPurchaseDetails, setShowPurchaseDetails] = useState(true);
-  const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(record || null);
-  const [excludeFromCalculation, setExcludeFromCalculation] = useState(false);
+  const [excludeFromCalculation, setExcludeFromCalculation] = useState(!!record?.exclude_from_calculation);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -97,20 +97,30 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     [itemSuggestionItems]
   );
 
-  // Reset account ID when record changes
   useEffect(() => {
-    if (record) {
-      // Reset to initial value based on whether there's a linked transaction
-      if (record.transaction_id && isUUID(record.transaction_id)) {
-        // For linked purchases, account will be loaded from transaction in useEffect
-        setSelectedAccountId('');
-      } else {
-        setSelectedAccountId(record.account_id || getDefaultAccountId());
-      }
-      setIsAccountManuallySelected(false);
-      setIsPriceManuallyEdited(false);
+    if (!isOpen) return;
+    setFormData({
+      item_name: record?.item_name || '',
+      category: record?.category || '',
+      price: record?.price ? String(record.price) : '',
+      currency: record?.currency || profile?.local_currency || profile?.selected_currencies?.[0] || '',
+      purchase_date: record?.purchase_date || getTodayLocalDateString(),
+      status: record?.status || '',
+      priority: record?.priority || 'medium',
+      notes: record?.notes || ''
+    });
+    setPurchasePriority(record?.priority || 'medium');
+    setExcludeFromCalculation(!!record?.exclude_from_calculation);
+    setSelectedAccountId(record?.transaction_id && isUUID(record.transaction_id) ? '' : (record?.account_id || getDefaultAccountId()));
+    setIsAccountManuallySelected(false);
+    setIsPriceManuallyEdited(false);
+    setFieldErrors({});
+    setTouched({});
+    setPurchaseAttachments([]);
+    if (record?.id) {
+      useFinanceStore.getState().fetchPurchaseAttachments(record.id).then(setPurchaseAttachments);
     }
-  }, [record?.id]);
+  }, [isOpen, record?.id]);
 
   // Load linked transaction data when editing a purchase
   useEffect(() => {
@@ -197,10 +207,10 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
 
   // Autofocus on first field when modal opens (only for new purchases, not when editing)
   useEffect(() => {
-    if (isOpen && !record && !editingPurchase) {
+    if (isOpen && !record) {
       setTimeout(() => itemNameRef.current?.focus(), 100);
     }
-  }, [isOpen, record, editingPurchase]);
+  }, [isOpen, record]);
 
   // Load purchase categories when form opens
   useEffect(() => {
@@ -382,12 +392,12 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
     isSubmittingRef.current = true;
     
     // Set loading message
-    setLoadingMessage(editingPurchase ? 'Updating purchase...' : 'Saving purchase...');
+    setLoadingMessage(record ? 'Updating purchase...' : 'Saving purchase...');
 
     let createdTransactionId: string | null = null;
     
     try {
-        if (editingPurchase) {
+        if (record) {
           // Handle updating existing purchase
           const updateData: Partial<Purchase> = {
             item_name: formData.item_name,
@@ -407,45 +417,12 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
             updateData.account_id = selectedAccountId;
           }
 
-          await updatePurchase(editingPurchase.id, updateData);
+          await updatePurchase(record.id, updateData);
 
-          // Handle attachments for editing
-          if (purchaseAttachments.length > 0) {
-            for (const att of purchaseAttachments) {
-              if (!att.id.startsWith('temp_')) continue;
-              
-              if (att.file && (att.file_path.startsWith('blob:') || att.id.startsWith('temp_'))) {
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                  .from('attachments')
-                  .upload(`purchases/${editingPurchase.id}/${att.file_name}`, att.file, { upsert: true });
-                
-                if (uploadError) {
-                  continue;
-                }
-                
-                if (!uploadError && uploadData && uploadData.path) {
-                  const { publicUrl } = supabase.storage.from('attachments').getPublicUrl(uploadData.path).data;
-                  const attachmentData = {
-                    purchase_id: editingPurchase.id,
-                    user_id: user?.id || '',
-                    file_name: att.file_name,
-                    file_path: publicUrl,
-                    file_size: att.file_size,
-                    file_type: att.file_type,
-                    mime_type: att.mime_type,
-                    created_at: new Date().toISOString(),
-                  };
-                  const { error: insertError } = await supabase.from('purchase_attachments').insert(attachmentData);
-                  if (insertError) {
-                    // Handle error silently
-                  }
-                }
-              }
-            }
-          }
+          await persistTempPurchaseAttachments(record.id, purchaseAttachments, user?.id || '');
 
           // If changing from planned to purchased, create a transaction
-          if (editingPurchase.status === 'planned' && formData.status === 'purchased' && !excludeFromCalculation) {
+          if (record.status === 'planned' && formData.status === 'purchased' && !excludeFromCalculation) {
             if (!selectedAccountId) {
               throw new Error('Account is required when changing purchase status to purchased');
             }
@@ -474,17 +451,16 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
               user_id: user?.id || '',
             };
             
-            const transactionId = await addTransaction(transactionData, undefined);
+            const created = await addTransaction(transactionData, undefined);
 
-            if (transactionId) {
+            if (created?.id) {
               await supabase
                 .from('purchases')
-                .update({ transaction_id: transactionId })
-                .eq('id', editingPurchase.id);
+                .update({ transaction_id: created.id })
+                .eq('id', record.id);
             }
           }
 
-          setEditingPurchase(null);
           await fetchPurchases();
           await fetchAccounts();
 
@@ -507,7 +483,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
               currency: formData.currency
             };
             
-            await addPurchase(purchaseData);
+            await addPurchase(purchaseData, purchaseAttachments);
             toast.success('Planned purchase added successfully!');
           } else {
             if (excludeFromCalculation) {
@@ -520,11 +496,10 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                 priority: formData.priority,
                 notes: formData.notes || '',
                 currency: formData.currency,
-                user_id: user?.id || '',
                 exclude_from_calculation: true
               };
               // Use addPurchase function to ensure proper error handling
-              await addPurchase(purchaseData);
+              await addPurchase(purchaseData, purchaseAttachments);
 
               // Attachments will be handled by the addPurchase function
 
@@ -586,7 +561,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                   notes: formData.notes || '',
                   exclude_from_calculation: excludeFromCalculation,
                   transaction_id: transactionData.id
-                });
+                }, purchaseAttachments);
                 
                 toast.success('Purchase added successfully!');
               } catch (error) {
@@ -612,7 +587,6 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
         setPurchaseAttachments([]);
         setFieldErrors({});
         setTouched({});
-        setEditingPurchase(null);
         setExcludeFromCalculation(false);
         
         // Add a small delay to ensure the loader animation is visible
@@ -674,16 +648,14 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => {
           if (!isLoading) {
             onClose();
-            setEditingPurchase(null);
           }
         }} />
         <div className={`relative bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-[38rem] max-h-[90vh] overflow-y-auto z-50 shadow-xl transition-all ${isMobile ? 'pb-32' : ''}`} onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{editingPurchase ? 'Edit Purchase' : 'Add Purchase'}</h2>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{record ? 'Edit Purchase' : 'Add Purchase'}</h2>
             <button
               onClick={() => {
                 onClose();
-                setEditingPurchase(null);
               }}
               className={`p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               aria-label="Close form"
@@ -694,7 +666,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
           </div>
           
           {/* Payment Method Selection - Only for new purchases */}
-          {!editingPurchase && (
+          {!record && (
             <div className="mb-4">
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
                  <div className="grid grid-cols-2 gap-3">
@@ -813,7 +785,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
               {/* Status */}
               <div className="relative">
                 <CustomDropdown
-                  options={editingPurchase && editingPurchase.status === 'planned'
+                  options={record && record.status === 'planned'
                     ? [
                         { label: 'Purchased', value: 'purchased' },
                         { label: 'Planned', value: 'planned' },
@@ -836,7 +808,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                     setTouched(t => ({ ...t, status: true }));
                   }}
                   placeholder="Select status *"
-                  disabled={!!(editingPurchase && editingPurchase.status === 'purchased') || isLoading}
+                  disabled={!!(record && record.status === 'purchased') || isLoading}
                   fullWidth={true}
                   summaryMode={true}
                 />
@@ -998,25 +970,25 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                     }}
                     onClick={(e) => {
                       // Open modal when clicking on price field (only when editing)
-                      if (editingPurchase && editingPurchase.price) {
+                      if (record && record.price) {
                         e.preventDefault();
                         setShowAmountModal(true);
                       }
                     }}
                     onBlur={handleBlur}
-                    className={`w-full px-4 pr-[32px] text-[14px] h-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors bg-gray-100 font-medium ${fieldErrors.price && touched.price ? 'border-red-500 ring-red-200' : 'border-gray-300'} ${editingPurchase && editingPurchase.price ? 'cursor-pointer' : ''}`}
+                    className={`w-full px-4 pr-[32px] text-[14px] h-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors bg-gray-100 font-medium ${fieldErrors.price && touched.price ? 'border-red-500 ring-red-200' : 'border-gray-300'} ${record && record.price ? 'cursor-pointer' : ''}`}
                     placeholder="0.00 *"
                     required
                     autoComplete="off"
                     disabled={isLoading}
-                    readOnly={editingPurchase && editingPurchase.price ? true : false}
+                    readOnly={record && record.price ? true : false}
                   />
-                  {formData.price && !editingPurchase && (
+                  {formData.price && !record && (
                     <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onClick={() => handleFormChange('price', '')} tabIndex={-1} aria-label="Clear price">
                       <X className="w-4 h-4" />
                     </button>
                   )}
-                  {editingPurchase && editingPurchase.price && (
+                  {record && record.price && (
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-600 dark:text-blue-400">
                       Click to edit
                     </div>
@@ -1066,7 +1038,10 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                 isExpanded={showPurchaseDetails}
                 onToggle={() => setShowPurchaseDetails(!showPurchaseDetails)}
                 priority={purchasePriority}
-                onPriorityChange={setPurchasePriority}
+                onPriorityChange={(p) => {
+                  setPurchasePriority(p);
+                  setFormData(f => ({ ...f, priority: p }));
+                }}
                 notes={formData.notes}
                 onNotesChange={val => setFormData(f => ({ ...f, notes: val }))}
                 attachments={purchaseAttachments}
@@ -1080,7 +1055,6 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                 type="button"
                 onClick={() => {
                   onClose();
-                  setEditingPurchase(null);
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100 transition-colors"
                 disabled={isLoading}
@@ -1092,7 +1066,7 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
                 className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[80px] shadow-md hover:shadow-lg"
                 disabled={isLoading || !isFormValid()}
               >
-                {editingPurchase ? 'Update Purchase' : 'Add Purchase'}
+                {record ? 'Update Purchase' : 'Add Purchase'}
               </button>
             </div>
           </form>
@@ -1127,11 +1101,11 @@ export const PurchaseForm: React.FC<PurchaseFormProps> = ({ record, onClose, isO
       />
       
       {/* Amount Adjustment Modal */}
-      {editingPurchase && editingPurchase.price && (
+      {record && record.price && (
         <AmountAdjustmentModal
           isOpen={showAmountModal}
           onClose={() => setShowAmountModal(false)}
-          currentAmount={editingPurchase.price}
+          currentAmount={record.price}
           onConfirm={(newAmount) => {
             handleFormChange('price', newAmount.toString());
             setIsPriceManuallyEdited(true);

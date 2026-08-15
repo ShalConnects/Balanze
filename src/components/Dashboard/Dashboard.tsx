@@ -23,7 +23,6 @@ import { useCourseStore } from '../../store/useCourseStore';
 // NotesWidget and TodosWidget loaded dynamically to reduce initial bundle size
 // import { NotesWidget } from './NotesWidget';
 // import { TodosWidget } from './TodosWidget';
-import { PurchaseForm } from '../Purchases/PurchaseForm';
 import { useLoadingContext } from '../../context/LoadingContext';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import { LastWishCountdownWidget } from './LastWishCountdownWidget';
@@ -45,7 +44,6 @@ import { useDashboardEntityFlags } from '../../hooks/useDashboardEntityFlags';
 import PullToRefreshDashboard from './PullToRefreshDashboard';
 import { countsTowardIncomeExpenseSummaries } from '../../utils/transactionUtils';
 import { UpgradeBanner } from '../common/UpgradeBanner';
-import { Purchase } from '../../types';
 import { getProfilePreferredCurrency, syncCurrencyFilter } from '../../utils/usePreferredCurrency';
 import { getDailyInspirationQuote, inferDailyInspirationCategory } from '../../utils/dailyInspiration';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -175,10 +173,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
     setShowTransactionForm, 
     setShowAccountForm, 
     setShowTransferModal,
-    showPurchaseForm,
-    setShowPurchaseForm,
-    accounts,
-    addPurchase
+    accounts
   } = useFinanceStore();
   
   // Subscribe to store data changes to make stats reactive
@@ -1056,24 +1051,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
 
     return last6Months;
   }, [transactions]);
-  
-  const [submittingPurchase, setSubmittingPurchase] = React.useState(false);
-  const handlePurchaseSubmit = async (data: Omit<Purchase, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-    setSubmittingPurchase(true);
-    try {
-      await addPurchase(data);
-      setShowPurchaseForm(false);
-      toast.success('Purchase added successfully');
-    } catch (error) {
-      console.error('Error adding purchase:', error);
-      toast.error('Failed to add purchase', {
-        description: error instanceof Error ? error.message : 'Please try again'
-      });
-      // Don't close form on error so user can retry
-    } finally {
-      setSubmittingPurchase(false);
-    }
-  };
 
   // Show loading skeleton while data is being fetched or until initial fetch completes
   // Show skeleton if: user is not authenticated, data is loading, or initial fetch hasn't completed
@@ -1473,13 +1450,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onViewChange: _onViewChang
 
       {showTransferModal && (
         <TransferModal isOpen={showTransferModal} onClose={() => setShowTransferModal(false)} />
-      )}
-
-      {showPurchaseForm && (
-        <PurchaseForm 
-          isOpen={showPurchaseForm} 
-          onClose={() => setShowPurchaseForm(false)}
-        />
       )}
     </>
   );
