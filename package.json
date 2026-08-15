@@ -4,12 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint . --max-warnings 10000",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "preview": "vite preview",
     "migrate": "supabase db push",
     "test:last-wish": "node test-last-wish.js",
@@ -23,13 +24,14 @@
     "android:aab": "npm run build && npx cap sync android && cd android && (if exist gradlew.bat (call gradlew.bat --stop && call gradlew.bat bundleRelease) else (./gradlew --stop && ./gradlew bundleRelease))"
   },
   "dependencies": {
-    "@capacitor/android": "^7.4.3",
-    "@capacitor/app": "^7.1.0",
-    "@capacitor/browser": "^7.0.2",
-    "@capacitor/cli": "^7.4.3",
-    "@capacitor/core": "^7.4.3",
-    "@capacitor/status-bar": "^7.0.3",
-    "@capawesome/capacitor-file-picker": "^6.2.0",
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/camera": "^8.2.2",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/status-bar": "^8.0.3",
+    "@capawesome/capacitor-file-picker": "^8.0.4",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
