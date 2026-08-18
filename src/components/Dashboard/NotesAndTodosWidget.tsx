@@ -7,6 +7,7 @@ import { Star, Plus, AlertTriangle, Timer, Play, Pause, RotateCcw, Settings, Gri
 import { CustomDropdown } from '../Purchases/CustomDropdown';
 import Modal from 'react-modal';
 import { withoutTaskPomodoroCount } from '../../utils/pomodoroUtils';
+import { updateTaskInHierarchy } from '../../utils/taskUtils';
 import { taskAccordionBody, taskAccordionShell, TASK_POMODORO_BADGE } from '../../constants/dashboardWidget';
 
 const NOTE_COLORS = [
@@ -404,7 +405,7 @@ export const NotesAndTodosWidget: React.FC<NotesAndTodosWidgetProps> = ({
   // Edit task with debounced auto-save
   const editTask: DebouncedEditor = (id: string, text: string) => {
     // Update local state immediately for responsive UI
-    setTasks(tasks.map(t => t.id === id ? { ...t, text } : t));
+    setTasks(prev => updateTaskInHierarchy(prev, id, { text }));
     
     // Debounced save to database
     clearTimeout(editTask.timeoutId);

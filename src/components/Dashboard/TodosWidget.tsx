@@ -21,6 +21,7 @@ import {
   TASK_POMODORO_BADGE,
 } from '../../constants/dashboardWidget';
 import { withoutTaskPomodoroCount } from '../../utils/pomodoroUtils';
+import { updateTaskInHierarchy } from '../../utils/taskUtils';
 
 interface TodosWidgetProps {
   isAccordionExpanded?: boolean;
@@ -157,7 +158,7 @@ export const TodosWidget: React.FC<TodosWidgetProps> = ({
     let timeoutId: NodeJS.Timeout | null = null;
     return (id: string, text: string) => {
       // Update local state immediately for responsive UI
-      setTasks(tasks.map(t => t.id === id ? { ...t, text } : t));
+      setTasks(prev => updateTaskInHierarchy(prev, id, { text }));
       
       // Debounced save to database
       if (timeoutId) clearTimeout(timeoutId);

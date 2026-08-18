@@ -92,3 +92,22 @@ export function flattenTasksWithSubtasks(tasks: Task[]): Task[] {
   });
   return result;
 }
+
+/** Apply a patch to a parent or nested subtask in a 2-level hierarchy. */
+export function updateTaskInHierarchy<T extends { id: string; subtasks?: T[] }>(
+  tasks: T[],
+  id: string,
+  patch: Partial<T>
+): T[] {
+  return tasks.map((task) => {
+    if (task.id === id) return { ...task, ...patch };
+    if (!task.subtasks?.length) return task;
+    let found = false;
+    const subtasks = task.subtasks.map((st) => {
+      if (st.id !== id) return st;
+      found = true;
+      return { ...st, ...patch };
+    });
+    return found ? { ...task, subtasks } : task;
+  });
+}
