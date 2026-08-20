@@ -136,6 +136,30 @@ export const sortAccounts = (
   });
 };
 
+export type CurrencyAccountGroup = {
+  currency: string;
+  accounts: Account[];
+  total: number;
+};
+
+/** Group accounts by currency (sorted). Totals stay in that currency only. */
+export const groupAccountsByCurrency = (accounts: Account[]): CurrencyAccountGroup[] => {
+  const grouped = new Map<string, Account[]>();
+  for (const account of accounts) {
+    const list = grouped.get(account.currency);
+    if (list) list.push(account);
+    else grouped.set(account.currency, [account]);
+  }
+  return [...grouped.keys()].sort().map(currency => {
+    const list = grouped.get(currency)!;
+    return {
+      currency,
+      accounts: list,
+      total: list.reduce((sum, acc) => sum + (acc.calculated_balance || 0), 0)
+    };
+  });
+};
+
 /**
  * Calculate account statistics
  */

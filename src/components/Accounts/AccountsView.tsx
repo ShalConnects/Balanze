@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Dialog } from '@headlessui/react';
-import { Plus, Edit2, Trash2, PlusCircle, Search, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown, X, Loader2, ArrowLeftRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, PlusCircle, Search, ChevronUp, ChevronDown, CreditCard, Filter, ArrowUpDown, X, Loader2, ArrowLeftRight, BarChart3 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { AccountForm } from './AccountForm';
@@ -20,9 +20,11 @@ import { useLoadingContext } from '../../context/LoadingContext';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { AccountCardSkeleton, AccountTableSkeleton, AccountSummaryCardsSkeleton, AccountFiltersSkeleton } from './AccountSkeleton';
 import { AccountExpandedInlineDetails } from './AccountExpandedInlineDetails';
+import { AccountSummaryModalContent } from './AccountSummaryView';
+import { groupAccountsByCurrency } from '../../utils/accountUtils';
 import { AccountDpsInfoModal, AccountDpsInfoTrigger } from './AccountDpsInfoModal';
 import { AccountActiveToggle } from './AccountActiveToggle';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useRecordSelection } from '../../hooks/useRecordSelection';
 import { useSelectionSearchSync } from '../../hooks/useSelectionSearchSync';
 import { searchService, SEARCH_CONFIGS } from '../../utils/searchService';
@@ -39,7 +41,6 @@ export const AccountsView: React.FC = () => {
   const { wrapAsync, setLoadingMessage } = useLoadingContext();
   const { user } = useAuthStore();
   const { isPremiumPlan } = usePlanFeatures();
-  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   // Debug: Track page reloads
@@ -163,6 +164,7 @@ export const AccountsView: React.FC = () => {
 
   // State for row expansion
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
 
   // Add new state for cardCurrency
   const [cardCurrency, setCardCurrency] = useState<string>('');
@@ -709,26 +711,8 @@ export const AccountsView: React.FC = () => {
 
   // Group accounts by currency when showing all currencies
   const groupedAccountsByCurrency = useMemo(() => {
-    // Only group when currency filter is empty (showing all currencies)
-    if (tableFilters.currency !== '') {
-      return null; // Return null to indicate no grouping needed
-    }
-
-    const grouped: Record<string, Account[]> = {};
-    filteredAccountsForTable.forEach(account => {
-      if (!grouped[account.currency]) {
-        grouped[account.currency] = [];
-      }
-      grouped[account.currency].push(account);
-    });
-
-    // Sort currencies alphabetically
-    const sortedCurrencies = Object.keys(grouped).sort();
-    
-    return sortedCurrencies.map(currency => ({
-      currency,
-      accounts: grouped[currency]
-    }));
+    if (tableFilters.currency !== '') return null;
+    return groupAccountsByCurrency(filteredAccountsForTable);
   }, [filteredAccountsForTable, tableFilters.currency]);
 
   // Track component renders
@@ -1540,6 +1524,15 @@ export const AccountsView: React.FC = () => {
                 >
                   <ArrowLeftRight className="w-4 h-4" />
                 </button>
+
+                <button
+                  onClick={() => setShowSummaryModal(true)}
+                  className="bg-gradient-primary text-white px-2 py-1.5 h-8 w-8 rounded-md hover:bg-gradient-primary-hover transition-colors flex items-center justify-center"
+                  title="Account Summary"
+                  aria-label="Account Summary"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                </button>
                 
                 <button
                   data-tour="add-account"
@@ -1556,7 +1549,7 @@ export const AccountsView: React.FC = () => {
             </div>
           </div>
 
-          {/* Summary Cards - Now dynamic and after filters */}
+          {/* Summary Cards */}
           <div className={TABLE_SUMMARY_CARDS_GRID}>
             {(() => {
               const filteredTransactions = transactions.filter(t => filteredAccounts.some(a => a.id === t.account_id));
@@ -1684,7 +1677,7 @@ export const AccountsView: React.FC = () => {
             })()}
           </div>
 
-                                        {/* Table Section */}
+          {/* Table */}
           <div className="overflow-x-auto lg:rounded-b-xl" style={{ borderBottomLeftRadius: '0.75rem', borderBottomRightRadius: '0.75rem' }}>
             {/* Desktop Table View */}
             <div className="hidden lg:block max-h-[500px] overflow-y-auto">
@@ -1763,9 +1756,7 @@ export const AccountsView: React.FC = () => {
                   </tr>
                 ) : groupedAccountsByCurrency ? (
                   // Grouped by currency view
-                  groupedAccountsByCurrency.map(({ currency, accounts: currencyAccounts }) => {
-                    // Calculate total balance for this currency
-                    const currencyTotal = currencyAccounts.reduce((sum, acc) => sum + acc.calculated_balance, 0);
+                  groupedAccountsByCurrency.map(({ currency, accounts: currencyAccounts, total: currencyTotal }) => {
                     
                     return (
                       <React.Fragment key={currency}>
@@ -2181,9 +2172,7 @@ export const AccountsView: React.FC = () => {
                   </div>
                 ) : groupedAccountsByCurrency ? (
                   // Grouped by currency view
-                  groupedAccountsByCurrency.map(({ currency, accounts: currencyAccounts }) => {
-                    // Calculate total balance for this currency
-                    const currencyTotal = currencyAccounts.reduce((sum, acc) => sum + acc.calculated_balance, 0);
+                  groupedAccountsByCurrency.map(({ currency, accounts: currencyAccounts, total: currencyTotal }) => {
                     
                     return (
                       <React.Fragment key={currency}>
@@ -2660,6 +2649,21 @@ export const AccountsView: React.FC = () => {
               </div>
             </div>
             
+            {/* Summary Action */}
+            <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMobileFilterMenu(false);
+                  setShowSummaryModal(true);
+                }}
+                className="w-full bg-gradient-primary text-white rounded-md px-3 py-2 text-sm font-medium hover:bg-gradient-primary-hover transition-colors flex items-center justify-center gap-2"
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span>Account Summary</span>
+              </button>
+            </div>
+
             {/* Currency Filter */}
             <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Currency</div>
@@ -2767,6 +2771,31 @@ export const AccountsView: React.FC = () => {
           </div>
         </div>
       )}
+
+      <Dialog open={showSummaryModal} onClose={() => setShowSummaryModal(false)} className="relative z-50">
+        <div className="fixed inset-0 bg-black/40" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="w-full max-w-6xl rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+              <Dialog.Title className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+                Account Summary
+              </Dialog.Title>
+              <button
+                type="button"
+                onClick={() => setShowSummaryModal(false)}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                aria-label="Close summary modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <AccountSummaryModalContent
+              accounts={filteredAccountsForTable}
+              transactions={transactions}
+            />
+          </Dialog.Panel>
+        </div>
+      </Dialog>
 
       {/* Statement Export Modal */}
       {showStatementModal && selectedAccount && (
