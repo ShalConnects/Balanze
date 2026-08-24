@@ -1,11 +1,37 @@
 import React from 'react';
 import { Mail, Heart, Facebook, Twitter, Instagram, Linkedin, Github } from 'lucide-react';
 
+const LINK_CLASS = 'text-gray-400 hover:text-white transition-colors';
+
+const FOOTER_COLUMNS = [
+  {
+    title: 'Company',
+    external: false,
+    links: [
+      { name: 'About', href: '/about' },
+      { name: 'Blog', href: '/blog' },
+      { name: 'Help Center', href: '/help-center' },
+      { name: 'Privacy Policy', href: '/privacypolicy' },
+      { name: 'Refund Policy', href: '/refundpolicy' },
+      { name: 'Terms of Service', href: '/termsofservice' },
+    ],
+  },
+  {
+    title: 'More from this maker',
+    external: true,
+    links: [
+      { name: 'BadgeMilestone', href: 'https://www.badgemilestone.app/' },
+      { name: 'Screen Time', href: 'https://play.google.com/store/apps/details?id=com.screentime.overlay' },
+      { name: 'Dynamic Variations', href: 'https://wordpress.org/plugins/dynamic-variation-images/' },
+    ],
+  },
+] as const;
+
 export const Footer: React.FC = () => {
   return (
     <footer className="bg-gray-900 text-white py-16">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="md:col-span-2">
             <div className="flex items-center space-x-2 mb-4">
               <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
@@ -65,17 +91,24 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          <div>
-            <h4 className="text-lg font-semibold mb-4">Company</h4>
-            <ul className="space-y-2">
-              <li><a href="/about" className="text-gray-400 hover:text-white transition-colors">About</a></li>
-              <li><a href="/blog" className="text-gray-400 hover:text-white transition-colors">Blog</a></li>
-              <li><a href="/help-center" className="text-gray-400 hover:text-white transition-colors">Help Center</a></li>
-              <li><a href="/privacypolicy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a></li>
-              <li><a href="/refundpolicy" className="text-gray-400 hover:text-white transition-colors">Refund Policy</a></li>
-              <li><a href="/termsofservice" className="text-gray-400 hover:text-white transition-colors">Terms of Service</a></li>
-            </ul>
-          </div>
+          {FOOTER_COLUMNS.map(({ title, links, external }) => (
+            <div key={title}>
+              <h4 className="text-lg font-semibold mb-4">{title}</h4>
+              <ul className="space-y-2">
+                {links.map(({ name, href }) => (
+                  <li key={href}>
+                    <a
+                      href={href}
+                      className={LINK_CLASS}
+                      {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                    >
+                      {name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
 
         <div className="border-t border-gray-800 mt-12 pt-8">
