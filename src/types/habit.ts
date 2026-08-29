@@ -33,6 +33,8 @@ export interface HabitStats {
   bestStreak: number;
   weeklyCompletion: number; // percentage (0-100)
   totalCompletions: number;
+  practiceDays: number;
+  consistency: number; // % of days done in the formation window
 }
 
 export type AchievementType = 

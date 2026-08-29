@@ -5,6 +5,13 @@ import { showToast } from '../lib/toast';
 import { format } from 'date-fns';
 import type { Habit, HabitInput, HabitCompletion, HabitStats, HabitAchievement, HabitGamification, AchievementType } from '../types/habit';
 import { toBusinessDateString } from '../utils/taskDateUtils';
+import {
+  automaticity,
+  bestStreak,
+  currentStreak,
+  isHabitDying,
+  plantStageFor,
+} from '../utils/habitPsychology';
 
 interface HabitStore {
   // State
@@ -34,9 +41,10 @@ interface HabitStore {
   // Stats
   getStreak: (habitId: string) => number;
   getBestStreak: (habitId: string) => number;
-  getBestStreakInLast14Days: (habitId: string) => number;
   getWeeklyCompletion: (habitId: string, weekStart: Date) => number;
   getHabitStats: (habitId: string, weekStart: Date) => HabitStats;
+  getAutomaticity: (habitId: string) => ReturnType<typeof automaticity>;
+  getPlantStage: (habitId: string) => ReturnType<typeof plantStageFor>;
   isDying: (habitId: string) => boolean;
 
   // Gamification
@@ -605,185 +613,40 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
     );
   },
 
-  // Calculate current streak for a habit
-  getStreak: (habitId: string) => {
-    const { completions } = get();
-    const habitCompletions = completions
-      .filter(c => c.habit_id === habitId)
-      .map(c => normalizeDate(c.completion_date))
-      .sort((a, b) => b.getTime() - a.getTime()); // Most recent first
+  getStreak: (habitId: string) =>
+    currentStreak(
+      get().completions.filter(c => c.habit_id === habitId).map(c => c.completion_date),
+      format(new Date(), 'yyyy-MM-dd')
+    ),
 
-    if (habitCompletions.length === 0) return 0;
+  getBestStreak: (habitId: string) =>
+    bestStreak(get().completions.filter(c => c.habit_id === habitId).map(c => c.completion_date)),
 
-    const today = normalizeDate(new Date());
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    // Check if today or yesterday is completed
-    const todayCompleted = habitCompletions.some(
-      d => d.getTime() === today.getTime()
+  getAutomaticity: (habitId: string) => {
+    const { completions, habits } = get();
+    const today = format(new Date(), 'yyyy-MM-dd');
+    return automaticity(
+      completions.filter(c => c.habit_id === habitId).map(c => c.completion_date),
+      habits.find(h => h.id === habitId)?.created_at || today,
+      today
     );
-    const yesterdayCompleted = habitCompletions.some(
-      d => d.getTime() === yesterday.getTime()
-    );
-
-    // If today is completed, start counting from today
-    // If not but yesterday is, start from yesterday (streak continues)
-    let checkDate = todayCompleted ? today : (yesterdayCompleted ? yesterday : null);
-    if (!checkDate) return 0;
-
-    // Count consecutive days backwards
-    let streak = 0;
-    for (const completionDate of habitCompletions) {
-      if (!checkDate) break;
-      const currentDate = checkDate;
-      if (completionDate.getTime() === currentDate.getTime()) {
-        streak++;
-        const nextDate: Date = new Date(currentDate);
-        nextDate.setDate(nextDate.getDate() - 1);
-        checkDate = nextDate;
-      } else if (completionDate.getTime() < currentDate.getTime()) {
-        // We've passed the expected date, streak is broken
-        break;
-      }
-    }
-
-    return streak;
   },
 
-  // Calculate best streak for a habit
-  getBestStreak: (habitId: string) => {
-    const { completions } = get();
-    const habitCompletions = completions
-      .filter(c => c.habit_id === habitId)
-      .map(c => normalizeDate(c.completion_date))
-      .sort((a, b) => a.getTime() - b.getTime()); // Oldest first
-
-    if (habitCompletions.length === 0) return 0;
-    if (habitCompletions.length === 1) return 1;
-
-    let bestStreak = 1;
-    let currentStreak = 1;
-
-    for (let i = 1; i < habitCompletions.length; i++) {
-      const prevDate = habitCompletions[i - 1];
-      const currDate = habitCompletions[i];
-
-      const daysDiff = Math.floor(
-        (currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-
-      if (daysDiff === 1) {
-        currentStreak++;
-        bestStreak = Math.max(bestStreak, currentStreak);
-      } else {
-        currentStreak = 1;
-      }
-    }
-
-    return bestStreak;
-  },
-
-  // Calculate best streak in the last 14 days (for showing previous stage when dying)
-  getBestStreakInLast14Days: (habitId: string) => {
-    const { completions } = get();
-    const today = normalizeDate(new Date());
-    const fourteenDaysAgo = new Date(today);
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
-    const habitCompletions = completions
-      .filter(c => {
-        if (c.habit_id !== habitId) return false;
-        const date = normalizeDate(c.completion_date);
-        return date.getTime() >= fourteenDaysAgo.getTime();
-      })
-      .map(c => normalizeDate(c.completion_date))
-      .sort((a, b) => a.getTime() - b.getTime()); // Oldest first
-
-    if (habitCompletions.length === 0) return 0;
-    if (habitCompletions.length === 1) return 1;
-
-    let bestStreak = 1;
-    let currentStreak = 1;
-
-    for (let i = 1; i < habitCompletions.length; i++) {
-      const prevDate = habitCompletions[i - 1];
-      const currDate = habitCompletions[i];
-
-      const daysDiff = Math.floor(
-        (currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-
-      if (daysDiff === 1) {
-        currentStreak++;
-        bestStreak = Math.max(bestStreak, currentStreak);
-      } else {
-        currentStreak = 1;
-      }
-    }
-
-    return bestStreak;
-  },
-
-  // Check if a habit is in a "dying" state (recent activity but broken streak)
-  isDying: (habitId: string) => {
-    const { completions } = get();
-    const habitCompletions = completions
-      .filter(c => c.habit_id === habitId)
-      .map(c => normalizeDate(c.completion_date))
-      .sort((a, b) => b.getTime() - a.getTime()); // Most recent first
-
-
-    // Never show as dying if there are no completions at all
-    if (habitCompletions.length === 0) {
-      return false;
-    }
-
-    const today = normalizeDate(new Date());
-    const fourteenDaysAgo = new Date(today);
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
-    // Check if there's recent activity (completions in last 14 days)
-    const hasRecentActivity = habitCompletions.some(
-      d => d.getTime() >= fourteenDaysAgo.getTime()
+  getPlantStage: (habitId: string) => {
+    const { completions, habits } = get();
+    const today = format(new Date(), 'yyyy-MM-dd');
+    return plantStageFor(
+      completions.filter(c => c.habit_id === habitId).map(c => c.completion_date),
+      habits.find(h => h.id === habitId)?.created_at || today,
+      today
     );
-
-
-    // Never show as dying if there's no recent activity (older than 14 days)
-    if (!hasRecentActivity) {
-      return false;
-    }
-
-    // Check current streak
-    const currentStreak = get().getStreak(habitId);
-    
-    // Calculate days since last completion
-    const mostRecentCompletion = habitCompletions[0];
-    const daysSinceLastCompletion = Math.floor(
-      (today.getTime() - mostRecentCompletion.getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-
-    // Safeguard: If completion is in the future (shouldn't happen, but handle gracefully)
-    if (daysSinceLastCompletion < 0) {
-      return false;
-    }
-
-    // Dying if:
-    // 1. Streak is 0 AND last completion was 1 or more days ago (broken streak), OR
-    // 2. Streak is low (1-2) AND last completion was 2 or more days ago
-    // But only if there's recent activity (already checked above)
-    let result = false;
-    if (currentStreak === 0) {
-      // If streak is 0 and last completion was yesterday or earlier, streak is broken
-      result = daysSinceLastCompletion >= 1;
-    } else {
-      // For low streaks (1-2), show as dying if missing 2+ days
-      result = currentStreak < 3 && daysSinceLastCompletion >= 2;
-    }
-
-    return result;
   },
+
+  isDying: (habitId: string) =>
+    isHabitDying(
+      get().completions.filter(c => c.habit_id === habitId).map(c => c.completion_date),
+      format(new Date(), 'yyyy-MM-dd')
+    ),
 
   // Calculate weekly completion percentage
   getWeeklyCompletion: (habitId: string, weekStart: Date) => {
@@ -807,11 +670,14 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
     const { completions } = get();
     const habitCompletions = completions.filter(c => c.habit_id === habitId);
 
+    const auto = get().getAutomaticity(habitId);
     return {
       currentStreak: get().getStreak(habitId),
       bestStreak: get().getBestStreak(habitId),
       weeklyCompletion: get().getWeeklyCompletion(habitId, weekStart),
       totalCompletions: habitCompletions.length,
+      practiceDays: auto.practiceDays,
+      consistency: auto.consistency,
     };
   },
 
@@ -969,24 +835,14 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
       achievementsToUnlock.push('first_completion');
     }
 
-    // Streak achievements
-    if (maxStreak >= 3 && !get().achievements.some(a => a.achievement_type === 'streak_3')) {
-      achievementsToUnlock.push('streak_3');
-    }
-    if (maxStreak >= 7 && !get().achievements.some(a => a.achievement_type === 'streak_7')) {
-      achievementsToUnlock.push('streak_7');
-    }
-    if (maxStreak >= 14 && !get().achievements.some(a => a.achievement_type === 'streak_14')) {
-      achievementsToUnlock.push('streak_14');
-    }
-    if (maxStreak >= 30 && !get().achievements.some(a => a.achievement_type === 'streak_30')) {
-      achievementsToUnlock.push('streak_30');
-    }
-    if (maxStreak >= 50 && !get().achievements.some(a => a.achievement_type === 'streak_50')) {
-      achievementsToUnlock.push('streak_50');
-    }
-    if (maxStreak >= 100 && !get().achievements.some(a => a.achievement_type === 'streak_100')) {
-      achievementsToUnlock.push('streak_100');
+    const streakUnlocks: Array<[number, AchievementType]> = [
+      [3, 'streak_3'], [7, 'streak_7'], [14, 'streak_14'],
+      [30, 'streak_30'], [50, 'streak_50'], [100, 'streak_100'],
+    ];
+    for (const [n, type] of streakUnlocks) {
+      if (maxStreak >= n && !get().achievements.some(a => a.achievement_type === type)) {
+        achievementsToUnlock.push(type);
+      }
     }
 
     // Completion count achievements

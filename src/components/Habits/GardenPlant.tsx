@@ -8,16 +8,6 @@ interface GardenPlantProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-// Plant growth stages based on streak
-const getPlantStage = (streak: number) => {
-  if (streak === 0) return 'seed';
-  if (streak < 3) return 'sprout';
-  if (streak < 7) return 'small';
-  if (streak < 14) return 'medium';
-  if (streak < 30) return 'large';
-  return 'mature';
-};
-
 const getColorClasses = (color: string) => {
   const colorMap = {
     yellow: 'text-yellow-500 dark:text-yellow-400',
@@ -31,17 +21,10 @@ const getColorClasses = (color: string) => {
 };
 
 export const GardenPlant: React.FC<GardenPlantProps> = ({ habit, size = 'md' }) => {
-  const { getStreak, isDying, getBestStreakInLast14Days } = useHabitStore();
-  
-  // Call functions directly - Zustand handles re-render optimization
+  const { getStreak, isDying, getPlantStage } = useHabitStore();
   const streak = getStreak(habit.id);
   const dying = isDying(habit.id);
-  const bestStreakInLast14Days = getBestStreakInLast14Days(habit.id);
-  
-  // When dying, use the best streak from last 14 days to show previous stage
-  // Otherwise use current streak
-  const displayStreak = dying ? bestStreakInLast14Days : streak;
-  const stage = getPlantStage(displayStreak);
+  const stage = getPlantStage(habit.id);
   const colorClasses = getColorClasses(habit.color);
   
 

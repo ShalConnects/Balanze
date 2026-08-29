@@ -11,7 +11,8 @@ import { HabitStatsDashboard } from './HabitStatsDashboard';
 import { AchievementModal } from './AchievementModal';
 import { CelebrationAnimation } from './CelebrationAnimation';
 import { GardenPlant } from './GardenPlant';
-import { startOfWeek, format, subDays } from 'date-fns';
+import { startOfWeek, format, subDays, addDays, min as minDate, max as maxDate } from 'date-fns';
+import { HABIT_FORMATION_DAYS } from '../../utils/habitPsychology';
 import { useAuthStore } from '../../store/authStore';
 
 export const HabitGarden: React.FC = () => {
@@ -41,29 +42,17 @@ export const HabitGarden: React.FC = () => {
   });
 
   useEffect(() => {
-    if (user) {
-      fetchHabits();
-      fetchGamification();
-      fetchAchievements();
-      // Note: Completions are fetched by HabitWeekView when weekStart changes
-    }
+    if (!user) return;
+    fetchHabits();
+    fetchGamification();
+    fetchAchievements();
+    const today = new Date();
+    fetchCompletions(
+      format(minDate([subDays(today, HABIT_FORMATION_DAYS - 1), weekStart]), 'yyyy-MM-dd'),
+      format(maxDate([today, addDays(weekStart, 6)]), 'yyyy-MM-dd')
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, weekStart]);
-
-  // Fetch wider date range for garden view and stats view to ensure accurate streak calculations
-  useEffect(() => {
-    if (user && (viewMode === 'garden' || viewMode === 'stats')) {
-      // Fetch last 60 days of completions for accurate streak calculation
-      // Streaks can span multiple weeks, and best streak needs full history
-      const today = new Date();
-      const sixtyDaysAgo = subDays(today, 60);
-      fetchCompletions(
-        format(sixtyDaysAgo, 'yyyy-MM-dd'),
-        format(today, 'yyyy-MM-dd')
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, viewMode]);
 
   // Show celebration when new achievements are unlocked
   useEffect(() => {
@@ -113,7 +102,7 @@ export const HabitGarden: React.FC = () => {
             No habits yet
           </h2>
           <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 mb-3 sm:mb-4 md:mb-6 px-2">
-            Create your first habit to start tracking your progress
+            Pick something so small you can do it even on a bad day. Habits typically feel automatic around 66 days — 21 is just an early checkpoint.
           </p>
           <button
             onClick={handleAddHabit}

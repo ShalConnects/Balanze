@@ -10,12 +10,12 @@ interface AchievementBadgeProps {
 
 const ACHIEVEMENT_CONFIG: Record<AchievementType, { icon: React.ComponentType<any>; name: string; description: string; color: string }> = {
   first_completion: { icon: Star, name: 'First Steps', description: 'Complete your first habit', color: 'yellow' },
-  streak_3: { icon: Flame, name: 'On Fire', description: '3-day streak', color: 'orange' },
-  streak_7: { icon: Flame, name: 'Week Warrior', description: '7-day streak', color: 'red' },
-  streak_14: { icon: Flame, name: 'Two Week Champion', description: '14-day streak', color: 'red' },
-  streak_30: { icon: Trophy, name: 'Month Master', description: '30-day streak', color: 'purple' },
-  streak_50: { icon: Trophy, name: 'Streak Legend', description: '50-day streak', color: 'purple' },
-  streak_100: { icon: Trophy, name: 'Century Streak', description: '100-day streak', color: 'gold' },
+  streak_3: { icon: Flame, name: 'On Fire', description: '3-day checkpoint', color: 'orange' },
+  streak_7: { icon: Flame, name: 'Week Warrior', description: 'Cue forming — 7-day checkpoint', color: 'red' },
+  streak_14: { icon: Flame, name: 'Early Groove', description: 'Two-week checkpoint — 21 days is a myth, keep going', color: 'red' },
+  streak_30: { icon: Trophy, name: 'Month Master', description: 'A month in — typical automaticity is ~66 days', color: 'purple' },
+  streak_50: { icon: Trophy, name: 'Streak Legend', description: '50-day checkpoint — still becoming automatic', color: 'purple' },
+  streak_100: { icon: Trophy, name: 'Century Streak', description: 'Part of who you are', color: 'gold' },
   perfect_week: { icon: Target, name: 'Perfect Week', description: 'Complete all habits for a week', color: 'green' },
   perfect_month: { icon: Target, name: 'Perfect Month', description: 'Complete all habits for a month', color: 'green' },
   completions_10: { icon: Award, name: 'Getting Started', description: '10 total completions', color: 'blue' },

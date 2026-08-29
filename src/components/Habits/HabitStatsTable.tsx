@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Flame, TrendingUp } from 'lucide-react';
 import { Habit } from '../../types/habit';
 import { useHabitStore } from '../../store/useHabitStore';
+import { AutomaticityMeter } from './AutomaticityMeter';
 
 interface HabitStatsTableProps {
   habits: Habit[];
@@ -30,7 +31,7 @@ export const HabitStatsTable: React.FC<HabitStatsTableProps> = ({ habits, weekSt
 
   return (
     <div className="w-full overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
-      <div className="min-w-[500px] sm:min-w-full">
+      <div className="min-w-[640px] sm:min-w-full">
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700">
@@ -45,6 +46,12 @@ export const HabitStatsTable: React.FC<HabitStatsTableProps> = ({ habits, weekSt
               </th>
               <th className="text-center px-2 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
                 This Week
+              </th>
+              <th className="text-center px-2 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                ~66 days
+              </th>
+              <th className="text-center px-2 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                Consistency
               </th>
             </tr>
           </thead>
@@ -105,6 +112,12 @@ export const HabitStatsTable: React.FC<HabitStatsTableProps> = ({ habits, weekSt
                       />
                     </div>
                   </div>
+                </td>
+                <td className="px-2 py-2">
+                  <AutomaticityMeter practiceDays={stats.practiceDays} className="max-w-[88px] mx-auto" />
+                </td>
+                <td className="px-2 py-2 text-center text-xs font-semibold text-gray-900 dark:text-white">
+                  {stats.consistency}%
                 </td>
               </tr>
             );

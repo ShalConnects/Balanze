@@ -2,6 +2,7 @@ import React from 'react';
 import { Flame, TrendingUp } from 'lucide-react';
 import { Habit } from '../../types/habit';
 import { useHabitStore } from '../../store/useHabitStore';
+import { AutomaticityMeter } from './AutomaticityMeter';
 
 interface HabitStatsProps {
   habit: Habit;
@@ -57,6 +58,12 @@ export const HabitStats: React.FC<HabitStatsProps> = ({ habit, weekStart }) => {
             className="bg-gradient-primary h-1.5 sm:h-2 rounded-full transition-all duration-300"
             style={{ width: `${stats.weeklyCompletion}%` }}
           />
+        </div>
+
+        <AutomaticityMeter practiceDays={stats.practiceDays} />
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400">Consistency</span>
+          <span className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">{stats.consistency}%</span>
         </div>
       </div>
     </div>

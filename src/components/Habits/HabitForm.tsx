@@ -4,6 +4,7 @@ import { useHabitStore } from '../../store/useHabitStore';
 import { Habit, HabitInput, HabitColor } from '../../types/habit';
 import { Loader } from '../common/Loader';
 import { AppModal } from '../common/AppModal';
+import { HABIT_CUE_PLACEHOLDER, HABIT_FORM_HINT } from '../../utils/habitPsychology';
 
 interface HabitFormProps {
   isOpen: boolean;
@@ -191,11 +192,12 @@ export const HabitForm: React.FC<HabitFormProps> = ({ isOpen, onClose, habit }) 
                   onChange={(e) => handleFieldChange('description', e.target.value)}
                   onBlur={() => handleBlur('description')}
                   className={`${getInputClasses('description')} min-h-[80px] resize-none`}
-                  placeholder="Description (optional)"
+                  placeholder={HABIT_CUE_PLACEHOLDER}
                   disabled={loading}
-                />
+                  />
+                  <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">{HABIT_FORM_HINT}</p>
+                </div>
               </div>
-            </div>
 
             {/* Form Actions */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-2 mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700">

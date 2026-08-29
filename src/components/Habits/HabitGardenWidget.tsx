@@ -4,7 +4,8 @@ import { useHabitStore } from '../../store/useHabitStore';
 import { useAuthStore } from '../../store/authStore';
 import { HabitForm } from './HabitForm';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
+import { HABIT_FORMATION_DAYS } from '../../utils/habitPsychology';
 import {
   DASHBOARD_WIDGET_ACCORDION_BTN,
   DASHBOARD_WIDGET_BADGE,
@@ -37,7 +38,7 @@ export const HabitGardenWidget: React.FC<HabitGardenWidgetProps> = ({
   useEffect(() => {
     if (!user) return;
     fetchHabits();
-    fetchCompletions(todayStr, todayStr);
+    fetchCompletions(format(subDays(new Date(), HABIT_FORMATION_DAYS - 1), 'yyyy-MM-dd'), todayStr);
   }, [user, fetchHabits, fetchCompletions, todayStr]);
 
   const handleViewAll = () => navigate('/personal-growth?tab=habits');

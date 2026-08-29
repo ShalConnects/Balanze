@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { Check, Edit2, Trash2, Plus } from 'lucide-react';
 import { Habit } from '../../types/habit';
 import { useHabitStore } from '../../store/useHabitStore';
-import { format, startOfWeek, addDays, isToday } from 'date-fns';
+import { format, startOfWeek, addDays, isToday, startOfDay } from 'date-fns';
+import { AutomaticityMeter } from './AutomaticityMeter';
 
 interface HabitWeekViewProps {
   habits: Habit[];
@@ -52,7 +53,7 @@ const getColorClasses = (color: string, isCompleted: boolean) => {
 };
 
 export const HabitWeekView: React.FC<HabitWeekViewProps> = ({ habits, weekStart, onWeekChange, onEditHabit, onDeleteHabit, onAddHabit }) => {
-  const { toggleCompletion, isCompleted, fetchCompletions, getStreak } = useHabitStore();
+  const { toggleCompletion, isCompleted, getStreak, getAutomaticity } = useHabitStore();
 
   // Calculate week dates - memoized to prevent recalculation on every render
   const weekDates = useMemo(() => {
@@ -67,15 +68,6 @@ export const HabitWeekView: React.FC<HabitWeekViewProps> = ({ habits, weekStart,
       return streakB - streakA; // Descending order (highest streak first)
     });
   }, [habits, getStreak]);
-
-  // Fetch completions for the week when component mounts or week changes
-  React.useEffect(() => {
-    const weekEnd = addDays(weekStart, 6);
-    fetchCompletions(
-      format(weekStart, 'yyyy-MM-dd'),
-      format(weekEnd, 'yyyy-MM-dd')
-    );
-  }, [weekStart, fetchCompletions]);
 
   const handleToggle = async (habitId: string, date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -210,11 +202,7 @@ export const HabitWeekView: React.FC<HabitWeekViewProps> = ({ habits, weekStart,
                         <div className={`text-xs font-medium truncate ${colorClasses.text}`}>
                           {habit.title}
                         </div>
-                        {habit.description && (
-                          <div className="hidden sm:block text-[10px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                            {habit.description}
-                          </div>
-                        )}
+                        <AutomaticityMeter practiceDays={getAutomaticity(habit.id).practiceDays} className="mt-0.5" />
                       </div>
                       {(onEditHabit || onDeleteHabit) && (
                         <div className="flex items-center gap-0.5 flex-shrink-0">
@@ -252,6 +240,7 @@ export const HabitWeekView: React.FC<HabitWeekViewProps> = ({ habits, weekStart,
                     const dateStr = format(date, 'yyyy-MM-dd');
                     const completed = isCompleted(habit.id, dateStr);
                     const isTodayDate = isToday(date);
+                    const isPastSkip = !completed && date < startOfDay(new Date());
                     const dayColorClasses = getColorClasses(habit.color, completed);
 
                     return (
@@ -264,6 +253,7 @@ export const HabitWeekView: React.FC<HabitWeekViewProps> = ({ habits, weekStart,
                           flex items-center justify-center
                           ${completed ? dayColorClasses.bg : 'bg-transparent'}
                           ${dayColorClasses.border}
+                          ${isPastSkip ? 'border-dashed opacity-70' : ''}
                           ${isTodayDate ? 'ring-2 ring-blue-400 dark:ring-blue-500' : ''}
                           hover:scale-105 active:scale-95
                           ${completed ? 'hover:opacity-80' : 'hover:bg-opacity-50'}
