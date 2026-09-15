@@ -20,6 +20,7 @@ const FOOTER_COLUMNS = [
     title: 'More from this maker',
     external: true,
     links: [
+      { name: 'BeBetterYou', href: 'https://www.bebetteryou.online/' },
       { name: 'BadgeMilestone', href: 'https://www.badgemilestone.app/' },
       { name: 'Screen Time', href: 'https://play.google.com/store/apps/details?id=com.screentime.overlay' },
       { name: 'Dynamic Variations', href: 'https://wordpress.org/plugins/dynamic-variation-images/' },
