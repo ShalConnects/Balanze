@@ -22,6 +22,7 @@ import { useClientStore } from '../../store/useClientStore';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { FREE_MAIL_CONTACT_LIMIT } from '../../types/mailCampaign';
 import type { MailCampaign, MailCampaignMember, MailCampaignStatus, MailMemberStatus } from '../../types/mailCampaign';
+import type { MailImportProgress, MailDeleteProgress } from '../../store/useMailCampaignStore';
 import { downloadCsv, parseEmailCsv } from '../../utils/mailCsv';
 import { includesNormalized, normalizeSearchText } from '../../utils/searchText';
 import { isCancel, pickCsvFile } from '../../lib/nativeFile';
@@ -249,6 +250,8 @@ export const MailCampaigns: React.FC = () => {
   const [deleteIds, setDeleteIds] = useState<string[] | null>(null);
   const [deleteCampId, setDeleteCampId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [importProgress, setImportProgress] = useState<MailImportProgress | null>(null);
+  const [deleteProgress, setDeleteProgress] = useState<MailDeleteProgress | null>(null);
   const [editingCamp, setEditingCamp] = useState<MailCampaign | null>(null);
   const [pageSize, setPageSize] = useState(loadPageSize);
   const [currentPage, setCurrentPage] = useState(1);
@@ -433,35 +436,46 @@ export const MailCampaigns: React.FC = () => {
   const onImport = (file: File | null) =>
     withBusy(async () => {
       if (!file) return;
-      const text = await file.text();
-      const { rows, skips, total_rows } = parseEmailCsv(text);
-      if (!rows.length && !skips.length) return toast.warning('CSV is empty');
-      const campaignId = targetCampaignId || undefined;
-      if (rows.length >= 5000) {
-        toast.message(`Importing ${rows.length.toLocaleString()} rows… this can take a few minutes`);
+      setImportProgress({
+        phase: 'preparing',
+        processed: 0,
+        total: 0,
+        imported: 0,
+        skipped: 0,
+      });
+      try {
+        const text = await file.text();
+        const { rows, skips, total_rows } = parseEmailCsv(text);
+        if (!rows.length && !skips.length) {
+          toast.warning('CSV is empty');
+          return;
+        }
+        const campaignId = targetCampaignId || undefined;
+        const { imported, skipped, limited, marked } = await importContacts(rows, {
+          campaignId,
+          onProgress: setImportProgress,
+        });
+        const skipTotal = skipped + skips.length;
+        if (campaignId && imported === 0 && marked > 0) {
+          toast.success(`Already in list · marked ${marked.toLocaleString()} for campaign`);
+        } else {
+          const parts = [
+            `Imported ${imported.toLocaleString()} of ${total_rows.toLocaleString()}`,
+            skipTotal ? `Skipped ${skipTotal.toLocaleString()}` : null,
+            marked ? `Marked ${marked.toLocaleString()} for campaign` : null,
+            limited
+              ? `Hit free plan limit (${FREE_MAIL_CONTACT_LIMIT.toLocaleString()}). Premium is unlimited.`
+              : null,
+            !campaignId && imported === 0 && skipTotal > 0
+              ? 'Pick a campaign next to Add to mark existing emails'
+              : null,
+          ].filter(Boolean);
+          toast.success(parts.join('. '));
+        }
+        if (campaignId) await refreshCampaignMembership(campaignId);
+      } finally {
+        setImportProgress(null);
       }
-      const { imported, skipped, limited, marked } = await importContacts(
-        rows,
-        campaignId ? { campaignId } : undefined
-      );
-      const skipTotal = skipped + skips.length;
-      if (campaignId && imported === 0 && marked > 0) {
-        toast.success(`Already in list · marked ${marked} for campaign`);
-      } else {
-        const parts = [
-          `Imported ${imported.toLocaleString()} of ${total_rows.toLocaleString()}`,
-          skipTotal ? `Skipped ${skipTotal.toLocaleString()}` : null,
-          marked ? `Marked ${marked.toLocaleString()} for campaign` : null,
-          limited
-            ? `Hit free plan limit (${FREE_MAIL_CONTACT_LIMIT.toLocaleString()}). Premium is unlimited.`
-            : null,
-          !campaignId && imported === 0 && skipTotal > 0
-            ? 'Pick a campaign next to Add to mark existing emails'
-            : null,
-        ].filter(Boolean);
-        toast.success(parts.join('. '));
-      }
-      if (campaignId) await refreshCampaignMembership(campaignId);
     });
 
   const onPickImport = async () => {
@@ -801,6 +815,79 @@ export const MailCampaigns: React.FC = () => {
               ) : null}
             </div>
           </div>
+
+          {importProgress ? (
+            <div className="px-3 lg:px-4 py-3 border-b border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-900/20">
+              <div className="flex items-center justify-between gap-3 mb-1.5">
+                <p className="text-xs sm:text-[13px] font-medium text-blue-800 dark:text-blue-200">
+                  {importProgress.phase === 'preparing'
+                    ? 'Preparing import…'
+                    : importProgress.phase === 'marking'
+                      ? 'Marking for campaign…'
+                      : importProgress.phase === 'done'
+                        ? 'Finishing…'
+                        : 'Importing emails…'}
+                </p>
+                <p className="text-[11px] sm:text-xs tabular-nums text-blue-700 dark:text-blue-300 shrink-0">
+                  {importProgress.total > 0
+                    ? `${Math.min(100, Math.round((importProgress.processed / importProgress.total) * 100))}%`
+                    : '…'}
+                </p>
+              </div>
+              <div className="h-2 rounded-full bg-blue-100 dark:bg-blue-950/60 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-primary transition-[width] duration-300 ease-out"
+                  style={{
+                    width:
+                      importProgress.total > 0
+                        ? `${Math.min(100, (importProgress.processed / importProgress.total) * 100)}%`
+                        : '8%',
+                  }}
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] text-blue-700/80 dark:text-blue-300/80 tabular-nums">
+                {importProgress.processed.toLocaleString()}
+                {importProgress.total > 0
+                  ? ` / ${importProgress.total.toLocaleString()} rows`
+                  : ' rows'}
+                {' · '}
+                {importProgress.imported.toLocaleString()} added
+                {importProgress.skipped
+                  ? ` · ${importProgress.skipped.toLocaleString()} skipped`
+                  : ''}
+              </p>
+            </div>
+          ) : null}
+
+          {deleteProgress ? (
+            <div className="px-3 lg:px-4 py-3 border-b border-red-200 dark:border-red-800 bg-red-50/70 dark:bg-red-900/20">
+              <div className="flex items-center justify-between gap-3 mb-1.5">
+                <p className="text-xs sm:text-[13px] font-medium text-red-800 dark:text-red-200">
+                  Deleting emails…
+                </p>
+                <p className="text-[11px] sm:text-xs tabular-nums text-red-700 dark:text-red-300 shrink-0">
+                  {deleteProgress.total > 0
+                    ? `${Math.min(100, Math.round((deleteProgress.deleted / deleteProgress.total) * 100))}%`
+                    : '…'}
+                </p>
+              </div>
+              <div className="h-2 rounded-full bg-red-100 dark:bg-red-950/60 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-red-500 transition-[width] duration-300 ease-out"
+                  style={{
+                    width:
+                      deleteProgress.total > 0
+                        ? `${Math.min(100, (deleteProgress.deleted / deleteProgress.total) * 100)}%`
+                        : '8%',
+                  }}
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] text-red-700/80 dark:text-red-300/80 tabular-nums">
+                {deleteProgress.deleted.toLocaleString()} / {deleteProgress.total.toLocaleString()}{' '}
+                deleted
+              </p>
+            </div>
+          ) : null}
 
           {/* Summary — same gradient stats as Clients */}
           <div className={LP.clientSummaryGrid}>
@@ -1458,16 +1545,31 @@ export const MailCampaigns: React.FC = () => {
 
       <DeleteConfirmationModal
         isOpen={!!deleteIds}
-        onClose={() => setDeleteIds(null)}
+        onClose={() => {
+          if (deleteProgress) return;
+          setDeleteIds(null);
+        }}
         onConfirm={async () => {
-          if (deleteIds) {
-            await deleteContacts(deleteIds);
-            setSelected((prev) => {
-              const next = new Set(prev);
-              deleteIds.forEach((id) => next.delete(id));
-              return next;
-            });
-            toast.success('Deleted');
+          if (!deleteIds?.length) return;
+          const ids = deleteIds;
+          setDeleteIds(null);
+          setBusy(true);
+          setDeleteProgress({ deleted: 0, total: ids.length });
+          try {
+            const ok = await deleteContacts(ids, { onProgress: setDeleteProgress });
+            if (ok) {
+              setSelected((prev) => {
+                const next = new Set(prev);
+                ids.forEach((id) => next.delete(id));
+                return next;
+              });
+              toast.success(
+                ids.length === 1 ? 'Email deleted' : `Deleted ${ids.length.toLocaleString()} emails`
+              );
+            }
+          } finally {
+            setDeleteProgress(null);
+            setBusy(false);
           }
         }}
         title="Delete emails?"

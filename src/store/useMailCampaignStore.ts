@@ -108,6 +108,37 @@ async function insertChunks<T extends Record<string, unknown>>(
   return out;
 }
 
+async function refreshCampaignMemberCounts(
+  set: (partial: Partial<{ campaigns: MailCampaign[] }>) => void,
+  get: () => { campaigns: MailCampaign[] }
+) {
+  const { data, error } = await supabase.from('mail_campaign_members').select('campaign_id');
+  if (error) return;
+  const counts = new Map<string, number>();
+  (data || []).forEach((r: { campaign_id: string }) => {
+    counts.set(r.campaign_id, (counts.get(r.campaign_id) || 0) + 1);
+  });
+  set({
+    campaigns: get().campaigns.map((c) => ({
+      ...c,
+      member_count: counts.get(c.id) || 0,
+    })),
+  });
+}
+
+export type MailImportProgress = {
+  phase: 'preparing' | 'importing' | 'marking' | 'done';
+  processed: number;
+  total: number;
+  imported: number;
+  skipped: number;
+};
+
+export type MailDeleteProgress = {
+  deleted: number;
+  total: number;
+};
+
 interface MailCampaignStore {
   contacts: MailContact[];
   campaigns: MailCampaign[];
@@ -120,12 +151,18 @@ interface MailCampaignStore {
   ) => Promise<MailContact | null>;
   importContacts: (
     rows: MailContactInput[],
-    opts?: { campaignId?: string }
+    opts?: {
+      campaignId?: string;
+      onProgress?: (p: MailImportProgress) => void;
+    }
   ) => Promise<{ imported: number; skipped: number; limited: boolean; marked: number }>;
   addFromClients: (
     clients: { id: string; email?: string | null; name: string }[]
   ) => Promise<{ imported: number; linked: number }>;
-  deleteContacts: (ids: string[]) => Promise<void>;
+  deleteContacts: (
+    ids: string[],
+    opts?: { onProgress?: (p: MailDeleteProgress) => void }
+  ) => Promise<boolean>;
   createCampaign: (name: string, notes?: string) => Promise<MailCampaign | null>;
   updateCampaign: (
     id: string,
@@ -257,6 +294,10 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
     const { user } = useAuthStore.getState();
     if (!user) return { imported: 0, skipped: 0, limited: false, marked: 0 };
     const campaignId = opts?.campaignId || '';
+    const onProgress = opts?.onProgress;
+    const total = rows.length;
+    onProgress?.({ phase: 'preparing', processed: 0, total, imported: 0, skipped: 0 });
+
     const limit = await resolveMailContactLimit();
     const unlimited = limit === -1;
     let slotsLeft = remainingSlots(get().contacts.length, limit);
@@ -269,38 +310,51 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
       name: string | null;
       client_id: string | null;
     }[] = [];
+    const insertedAll: MailContact[] = [];
     const markIds = new Set<string>();
     let skipped = 0;
     let limited = false;
     let imported = 0;
+    let processed = 0;
+
+    const report = (phase: MailImportProgress['phase'] = 'importing') => {
+      onProgress?.({ phase, processed, total, imported, skipped });
+    };
 
     const flush = async () => {
       if (!pending.length) return;
       const slice = pending.splice(0, pending.length);
       const inserted = (await insertChunks('mail_contacts', slice)) as unknown as MailContact[];
       imported += inserted.length;
-      set({ contacts: [...inserted, ...get().contacts] });
+      insertedAll.push(...inserted);
       if (campaignId) {
         for (const row of inserted) markIds.add(row.id);
       }
+      report('importing');
+      // Let the progress UI paint between chunks
+      await new Promise((r) => setTimeout(r, 0));
     };
 
     try {
       for (const row of rows) {
+        processed++;
         const email = normalizeEmail(row.email);
         if (!isValidEmail(email)) {
           skipped++;
+          if (processed % 2000 === 0) report();
           continue;
         }
         const existing = byEmail.get(email);
         if (existing) {
           skipped++;
           if (campaignId && existing.id) markIds.add(existing.id);
+          if (processed % 2000 === 0) report();
           continue;
         }
         if (!unlimited && slotsLeft <= 0) {
           skipped++;
           limited = true;
+          if (processed % 2000 === 0) report();
           continue;
         }
         byEmail.set(email, {
@@ -323,6 +377,10 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
       await flush();
     } catch (e) {
       showToast.error(errMsg(e));
+      if (insertedAll.length) {
+        set({ contacts: [...insertedAll, ...get().contacts] });
+      }
+      report('done');
       return {
         imported,
         skipped: skipped + pending.length,
@@ -331,11 +389,23 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
       };
     }
 
+    if (insertedAll.length) {
+      set({ contacts: [...insertedAll, ...get().contacts] });
+    }
+
     let marked = 0;
     if (campaignId && markIds.size) {
+      report('marking');
       marked = await get().markMembers(campaignId, [...markIds]);
     }
 
+    onProgress?.({
+      phase: 'done',
+      processed: total,
+      total,
+      imported,
+      skipped,
+    });
     return { imported, skipped, limited, marked };
   },
 
@@ -392,16 +462,35 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
     return { imported, linked };
   },
 
-  deleteContacts: async (ids) => {
-    if (!ids.length) return;
-    const { error } = await supabase.from('mail_contacts').delete().in('id', ids);
-    if (error) {
-      showToast.error(error.message);
-      return;
+  deleteContacts: async (ids, opts) => {
+    if (!ids.length) return false;
+    const { user } = useAuthStore.getState();
+    if (!user) return false;
+    const onProgress = opts?.onProgress;
+    try {
+      let deleted = 0;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const slice = ids.slice(i, i + CHUNK);
+        const { error } = await supabase
+          .from('mail_contacts')
+          .delete()
+          .eq('user_id', user.id)
+          .in('id', slice);
+        if (error) throw error;
+        deleted += slice.length;
+        onProgress?.({ deleted, total: ids.length });
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      const idSet = new Set(ids);
+      set({ contacts: get().contacts.filter((c) => !idSet.has(c.id)) });
+      // Cascade removes campaign members in DB — refresh counts without reloading all emails
+      await refreshCampaignMemberCounts(set, get);
+      return true;
+    } catch (e) {
+      showToast.error(errMsg(e));
+      await get().fetchAll();
+      return false;
     }
-    const idSet = new Set(ids);
-    set({ contacts: get().contacts.filter((c) => !idSet.has(c.id)) });
-    await get().fetchAll();
   },
 
   createCampaign: async (name, notes) => {
@@ -484,7 +573,7 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
           .upsert(slice, { onConflict: 'campaign_id,contact_id' });
         if (error) throw error;
       }
-      await get().fetchAll();
+      await refreshCampaignMemberCounts(set, get);
       return contactIds.length;
     } catch (e) {
       showToast.error(errMsg(e));
@@ -497,18 +586,25 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
 
   unmarkMembers: async (campaignId, contactIds) => {
     if (!contactIds.length) return 0;
-    const { data, error } = await supabase
-      .from('mail_campaign_members')
-      .delete()
-      .eq('campaign_id', campaignId)
-      .in('contact_id', contactIds)
-      .select();
-    if (error) {
-      showToast.error(error.message);
+    try {
+      let removed = 0;
+      for (let i = 0; i < contactIds.length; i += CHUNK) {
+        const slice = contactIds.slice(i, i + CHUNK);
+        const { data, error } = await supabase
+          .from('mail_campaign_members')
+          .delete()
+          .eq('campaign_id', campaignId)
+          .in('contact_id', slice)
+          .select('contact_id');
+        if (error) throw error;
+        removed += data?.length ?? 0;
+      }
+      await refreshCampaignMemberCounts(set, get);
+      return removed;
+    } catch (e) {
+      showToast.error(errMsg(e));
       return 0;
     }
-    await get().fetchAll();
-    return data?.length ?? 0;
   },
 
   fetchMembers: async (campaignId) => {
