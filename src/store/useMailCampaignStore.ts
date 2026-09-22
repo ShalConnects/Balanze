@@ -14,6 +14,8 @@ import type {
 import { isValidEmail, normalizeEmail } from '../utils/mailCsv';
 
 const CHUNK = 400;
+/** Supabase/PostgREST default max rows per request. */
+const FETCH_PAGE = 1000;
 
 function normalizePlan(plan: unknown): 'free' | 'premium' | null {
   if (plan == null || plan === '') return null;
@@ -94,36 +96,173 @@ function errMsg(e: unknown): string {
   return 'Something went wrong';
 }
 
-async function insertChunks<T extends Record<string, unknown>>(
-  table: string,
-  rows: T[]
-): Promise<T[]> {
-  const out: T[] = [];
-  for (let i = 0; i < rows.length; i += CHUNK) {
-    const slice = rows.slice(i, i + CHUNK);
-    const { data, error } = await supabase.from(table).insert(slice).select();
+async function fetchAllUserContacts(userId: string): Promise<MailContact[]> {
+  const out: MailContact[] = [];
+  for (let from = 0; ; from += FETCH_PAGE) {
+    const { data, error } = await supabase
+      .from('mail_contacts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .range(from, from + FETCH_PAGE - 1);
     if (error) throw error;
-    out.push(...((data || []) as T[]));
+    const rows = (data || []) as MailContact[];
+    out.push(...rows);
+    if (rows.length < FETCH_PAGE) break;
   }
   return out;
+}
+
+/** Lightweight email → id map for import dedupe (paginated). */
+async function fetchContactEmailIdMap(userId: string): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  for (let from = 0; ; from += FETCH_PAGE) {
+    const { data, error } = await supabase
+      .from('mail_contacts')
+      .select('id, email')
+      .eq('user_id', userId)
+      .order('id', { ascending: true })
+      .range(from, from + FETCH_PAGE - 1);
+    if (error) throw error;
+    const rows = data || [];
+    for (const r of rows as { id: string; email: string }[]) {
+      map.set(normalizeEmail(r.email), r.id);
+    }
+    if (rows.length < FETCH_PAGE) break;
+  }
+  return map;
+}
+
+async function fetchContactsByEmails(
+  userId: string,
+  emails: string[]
+): Promise<MailContact[]> {
+  if (!emails.length) return [];
+  const out: MailContact[] = [];
+  for (let i = 0; i < emails.length; i += CHUNK) {
+    const slice = emails.slice(i, i + CHUNK);
+    const { data, error } = await supabase
+      .from('mail_contacts')
+      .select('*')
+      .eq('user_id', userId)
+      .in('email', slice);
+    if (error) throw error;
+    out.push(...((data || []) as MailContact[]));
+  }
+  return out;
+}
+
+/**
+ * Insert a chunk; on unique conflict, resolve existing rows and insert only missing.
+ * Returns newly inserted rows (existing are not included).
+ */
+async function insertMailContactsResolvingDuplicates(
+  userId: string,
+  rows: {
+    user_id: string;
+    email: string;
+    name: string | null;
+    client_id: string | null;
+  }[]
+): Promise<{ inserted: MailContact[]; alreadyHad: MailContact[] }> {
+  if (!rows.length) return { inserted: [], alreadyHad: [] };
+  const { data, error } = await supabase.from('mail_contacts').insert(rows).select();
+  if (!error) return { inserted: (data || []) as MailContact[], alreadyHad: [] };
+
+  // Unique violation — batch collided with DB rows not in local map
+  if (error.code !== '23505') throw error;
+
+  const emails = rows.map((r) => r.email);
+  const alreadyHad = await fetchContactsByEmails(userId, emails);
+  const have = new Set(alreadyHad.map((c) => normalizeEmail(c.email)));
+  const missing = rows.filter((r) => !have.has(normalizeEmail(r.email)));
+  if (!missing.length) return { inserted: [], alreadyHad };
+
+  const { data: data2, error: error2 } = await supabase
+    .from('mail_contacts')
+    .insert(missing)
+    .select();
+  if (error2) {
+    if (error2.code === '23505') {
+      // Still racing — treat remaining as existing
+      const again = await fetchContactsByEmails(
+        userId,
+        missing.map((r) => r.email)
+      );
+      return { inserted: [], alreadyHad: [...alreadyHad, ...again] };
+    }
+    throw error2;
+  }
+  return { inserted: (data2 || []) as MailContact[], alreadyHad };
+}
+
+async function fetchMemberCountsByCampaign(): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  for (let from = 0; ; from += FETCH_PAGE) {
+    const { data, error } = await supabase
+      .from('mail_campaign_members')
+      .select('campaign_id')
+      .range(from, from + FETCH_PAGE - 1);
+    if (error) throw error;
+    const rows = data || [];
+    for (const r of rows as { campaign_id: string }[]) {
+      counts.set(r.campaign_id, (counts.get(r.campaign_id) || 0) + 1);
+    }
+    if (rows.length < FETCH_PAGE) break;
+  }
+  return counts;
+}
+
+async function countUserContacts(userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('mail_contacts')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+async function countClientSourcedContacts(userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('mail_contacts')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .not('client_id', 'is', null);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+async function fetchMemberContactIds(campaignId: string): Promise<Set<string>> {
+  const ids = new Set<string>();
+  for (let from = 0; ; from += FETCH_PAGE) {
+    const { data, error } = await supabase
+      .from('mail_campaign_members')
+      .select('contact_id')
+      .eq('campaign_id', campaignId)
+      .range(from, from + FETCH_PAGE - 1);
+    if (error) throw error;
+    const rows = data || [];
+    for (const r of rows as { contact_id: string }[]) ids.add(r.contact_id);
+    if (rows.length < FETCH_PAGE) break;
+  }
+  return ids;
 }
 
 async function refreshCampaignMemberCounts(
   set: (partial: Partial<{ campaigns: MailCampaign[] }>) => void,
   get: () => { campaigns: MailCampaign[] }
 ) {
-  const { data, error } = await supabase.from('mail_campaign_members').select('campaign_id');
-  if (error) return;
-  const counts = new Map<string, number>();
-  (data || []).forEach((r: { campaign_id: string }) => {
-    counts.set(r.campaign_id, (counts.get(r.campaign_id) || 0) + 1);
-  });
-  set({
-    campaigns: get().campaigns.map((c) => ({
-      ...c,
-      member_count: counts.get(c.id) || 0,
-    })),
-  });
+  try {
+    const counts = await fetchMemberCountsByCampaign();
+    set({
+      campaigns: get().campaigns.map((c) => ({
+        ...c,
+        member_count: counts.get(c.id) || 0,
+      })),
+    });
+  } catch {
+    /* non-fatal */
+  }
 }
 
 export type MailImportProgress = {
@@ -141,6 +280,10 @@ export type MailDeleteProgress = {
 
 interface MailCampaignStore {
   contacts: MailContact[];
+  /** Exact DB total — use for cards/badge (not page size). */
+  contactCount: number;
+  /** Exact DB count of contacts linked to a client. */
+  clientSourcedCount: number;
   campaigns: MailCampaign[];
   loading: boolean;
   error: string | null;
@@ -184,43 +327,39 @@ interface MailCampaignStore {
 
 export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
   contacts: [],
+  contactCount: 0,
+  clientSourcedCount: 0,
   campaigns: [],
   loading: false,
   error: null,
 
   contactLimit: () => mailContactLimitSync(),
   canAddContacts: (count = 1) =>
-    remainingSlots(get().contacts.length, mailContactLimitSync()) >= count,
+    remainingSlots(get().contactCount || get().contacts.length, mailContactLimitSync()) >=
+    count,
 
   fetchAll: async () => {
     const { user } = useAuthStore.getState();
     if (!user) return;
     set({ loading: true, error: null });
     try {
-      const [cRes, campRes, memRes] = await Promise.all([
-        supabase
-          .from('mail_contacts')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
+      const [contacts, campRes, counts, contactCount, clientSourcedCount] = await Promise.all([
+        fetchAllUserContacts(user.id),
         supabase
           .from('mail_campaigns')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
-        supabase.from('mail_campaign_members').select('campaign_id'),
+        fetchMemberCountsByCampaign(),
+        countUserContacts(user.id),
+        countClientSourcedContacts(user.id),
       ]);
-      if (cRes.error) throw cRes.error;
       if (campRes.error) throw campRes.error;
-      if (memRes.error) throw memRes.error;
-
-      const counts = new Map<string, number>();
-      (memRes.data || []).forEach((r: { campaign_id: string }) => {
-        counts.set(r.campaign_id, (counts.get(r.campaign_id) || 0) + 1);
-      });
 
       set({
-        contacts: (cRes.data || []) as MailContact[],
+        contacts,
+        contactCount,
+        clientSourcedCount,
         campaigns: ((campRes.data || []) as MailCampaign[]).map((c) => ({
           ...c,
           member_count: counts.get(c.id) || 0,
@@ -253,7 +392,7 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
     }
 
     const limit = await resolveMailContactLimit();
-    if (remainingSlots(get().contacts.length, limit) < 1) {
+    if (remainingSlots(get().contactCount || get().contacts.length, limit) < 1) {
       showToast.error(
         `Email list limit reached (${FREE_MAIL_CONTACT_LIMIT}). Upgrade to Premium for unlimited.`
       );
@@ -285,7 +424,13 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
       return null;
     }
     const row = data as MailContact;
-    set({ contacts: [row, ...get().contacts] });
+    set({
+      contacts: [row, ...get().contacts],
+      contactCount: get().contactCount + 1,
+      clientSourcedCount: row.client_id
+        ? get().clientSourcedCount + 1
+        : get().clientSourcedCount,
+    });
     if (campaignId) await get().markMembers(campaignId, [row.id]);
     return row;
   },
@@ -300,10 +445,17 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
 
     const limit = await resolveMailContactLimit();
     const unlimited = limit === -1;
-    let slotsLeft = remainingSlots(get().contacts.length, limit);
-    const byEmail = new Map(
-      get().contacts.map((c) => [normalizeEmail(c.email), c] as const)
-    );
+
+    // Paginated DB map — never trust the in-memory list (capped at ~1000 by API default)
+    let emailIdMap: Map<string, string>;
+    try {
+      emailIdMap = await fetchContactEmailIdMap(user.id);
+    } catch (e) {
+      showToast.error(errMsg(e));
+      return { imported: 0, skipped: 0, limited: false, marked: 0 };
+    }
+
+    let slotsLeft = remainingSlots(emailIdMap.size, limit);
     const pending: {
       user_id: string;
       email: string;
@@ -324,14 +476,22 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
     const flush = async () => {
       if (!pending.length) return;
       const slice = pending.splice(0, pending.length);
-      const inserted = (await insertChunks('mail_contacts', slice)) as unknown as MailContact[];
+      const { inserted, alreadyHad } = await insertMailContactsResolvingDuplicates(
+        user.id,
+        slice
+      );
       imported += inserted.length;
+      skipped += alreadyHad.length;
       insertedAll.push(...inserted);
-      if (campaignId) {
-        for (const row of inserted) markIds.add(row.id);
+      for (const row of inserted) {
+        emailIdMap.set(normalizeEmail(row.email), row.id);
+        if (campaignId) markIds.add(row.id);
+      }
+      for (const row of alreadyHad) {
+        emailIdMap.set(normalizeEmail(row.email), row.id);
+        if (campaignId) markIds.add(row.id);
       }
       report('importing');
-      // Let the progress UI paint between chunks
       await new Promise((r) => setTimeout(r, 0));
     };
 
@@ -344,10 +504,10 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
           if (processed % 2000 === 0) report();
           continue;
         }
-        const existing = byEmail.get(email);
-        if (existing) {
+        if (emailIdMap.has(email)) {
+          const existingId = emailIdMap.get(email);
           skipped++;
-          if (campaignId && existing.id) markIds.add(existing.id);
+          if (campaignId && existingId) markIds.add(existingId);
           if (processed % 2000 === 0) report();
           continue;
         }
@@ -357,14 +517,8 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
           if (processed % 2000 === 0) report();
           continue;
         }
-        byEmail.set(email, {
-          id: '',
-          user_id: user.id,
-          email,
-          name: row.name?.trim() || null,
-          client_id: row.client_id || null,
-          created_at: '',
-        });
+        // Reserve so the same CSV email isn't queued twice before flush
+        emailIdMap.set(email, '');
         pending.push({
           user_id: user.id,
           email,
@@ -390,13 +544,33 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
     }
 
     if (insertedAll.length) {
-      set({ contacts: [...insertedAll, ...get().contacts] });
+      const idSet = new Set(insertedAll.map((c) => c.id));
+      const merged = [
+        ...insertedAll,
+        ...get().contacts.filter((c) => !idSet.has(c.id)),
+      ];
+      set({
+        contacts: merged,
+        contactCount: emailIdMap.size,
+      });
+    } else {
+      set({ contactCount: emailIdMap.size });
+    }
+
+    // Keep client-sourced exact count in sync for cards
+    try {
+      const clientSourcedCount = await countClientSourcedContacts(user.id);
+      set({ clientSourcedCount });
+    } catch {
+      /* non-fatal */
     }
 
     let marked = 0;
     if (campaignId && markIds.size) {
       report('marking');
-      marked = await get().markMembers(campaignId, [...markIds]);
+      // Drop placeholder empty ids
+      const ids = [...markIds].filter(Boolean);
+      marked = await get().markMembers(campaignId, ids);
     }
 
     onProgress?.({
@@ -482,7 +656,14 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
         await new Promise((r) => setTimeout(r, 0));
       }
       const idSet = new Set(ids);
-      set({ contacts: get().contacts.filter((c) => !idSet.has(c.id)) });
+      const removedClientSourced = get().contacts.filter(
+        (c) => idSet.has(c.id) && c.client_id
+      ).length;
+      set({
+        contacts: get().contacts.filter((c) => !idSet.has(c.id)),
+        contactCount: Math.max(0, get().contactCount - ids.length),
+        clientSourcedCount: Math.max(0, get().clientSourcedCount - removedClientSourced),
+      });
       // Cascade removes campaign members in DB — refresh counts without reloading all emails
       await refreshCampaignMemberCounts(set, get);
       return true;
@@ -551,12 +732,11 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
   },
 
   memberContactIds: async (campaignId) => {
-    const { data, error } = await supabase
-      .from('mail_campaign_members')
-      .select('contact_id')
-      .eq('campaign_id', campaignId);
-    if (error) return new Set<string>();
-    return new Set((data || []).map((r: { contact_id: string }) => r.contact_id));
+    try {
+      return await fetchMemberContactIds(campaignId);
+    } catch {
+      return new Set<string>();
+    }
   },
 
   setMemberStatus: async (campaignId, contactIds, status) => {
@@ -608,30 +788,39 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
   },
 
   fetchMembers: async (campaignId) => {
-    const { data, error } = await supabase
-      .from('mail_campaign_members')
-      .select('campaign_id, contact_id, status, marked_at, sent_at, mail_contacts(email, name)')
-      .eq('campaign_id', campaignId)
-      .order('marked_at', { ascending: true });
-    if (error) {
-      showToast.error(error.message);
-      return [];
+    const out: MailCampaignMember[] = [];
+    try {
+      for (let from = 0; ; from += FETCH_PAGE) {
+        const { data, error } = await supabase
+          .from('mail_campaign_members')
+          .select('campaign_id, contact_id, status, marked_at, sent_at, mail_contacts(email, name)')
+          .eq('campaign_id', campaignId)
+          .order('marked_at', { ascending: true })
+          .range(from, from + FETCH_PAGE - 1);
+        if (error) throw error;
+        const rows = data || [];
+        for (const r of rows as Record<string, unknown>[]) {
+          const raw = r.mail_contacts;
+          const contact = (Array.isArray(raw) ? raw[0] : raw) as {
+            email?: string;
+            name?: string | null;
+          } | null;
+          out.push({
+            campaign_id: r.campaign_id as string,
+            contact_id: r.contact_id as string,
+            status: r.status as MailCampaignMember['status'],
+            marked_at: r.marked_at as string,
+            sent_at: (r.sent_at as string | null) ?? null,
+            email: contact?.email,
+            name: contact?.name ?? null,
+          });
+        }
+        if (rows.length < FETCH_PAGE) break;
+      }
+      return out;
+    } catch (e) {
+      showToast.error(errMsg(e));
+      return out;
     }
-    return (data || []).map((r: Record<string, unknown>) => {
-      const raw = r.mail_contacts;
-      const contact = (Array.isArray(raw) ? raw[0] : raw) as {
-        email?: string;
-        name?: string | null;
-      } | null;
-      return {
-        campaign_id: r.campaign_id as string,
-        contact_id: r.contact_id as string,
-        status: r.status as MailCampaignMember['status'],
-        marked_at: r.marked_at as string,
-        sent_at: (r.sent_at as string | null) ?? null,
-        email: contact?.email,
-        name: contact?.name ?? null,
-      };
-    });
   },
 }));

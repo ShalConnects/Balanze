@@ -16,8 +16,8 @@ interface ClientsOverviewCardProps {
 }
 
 function mailCampaignLabel(emails: number, campaigns: number): string {
-  if (emails > 0 && campaigns > 0) return `${emails} emails · ${campaigns} campaigns`;
-  if (emails > 0) return `${emails} emails`;
+  if (emails > 0 && campaigns > 0) return `${emails.toLocaleString()} emails · ${campaigns} campaigns`;
+  if (emails > 0) return `${emails.toLocaleString()} emails`;
   if (campaigns > 0) return `${campaigns} campaigns`;
   return 'email lists';
 }
@@ -40,6 +40,7 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
   } = useClientStore();
   const {
     contacts: mailContacts,
+    contactCount: mailContactCount,
     campaigns: mailCampaigns,
     error: mailError,
     fetchAll: fetchMailCampaigns,
@@ -171,6 +172,8 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
     [invoices, filterCurrency]
   );
 
+  const mailEmailTotal = mailContactCount || mailContacts.length;
+
   const clientsBadge = useMemo(() => {
     const overdue = countBadge(overdueInvoiceCount, 'overdue');
     const mail = !mailError ? (
@@ -181,7 +184,7 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
       >
         <DashboardCardBadge
           tone="soft"
-          text={mailCampaignLabel(mailContacts.length, mailCampaigns.length)}
+          text={mailCampaignLabel(mailEmailTotal, mailCampaigns.length)}
         />
       </Link>
     ) : null;
@@ -195,7 +198,7 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
       );
     }
     return overdue ? <DashboardCardBadge {...overdue} /> : mail;
-  }, [overdueInvoiceCount, mailError, mailContacts.length, mailCampaigns.length]);
+  }, [overdueInvoiceCount, mailError, mailEmailTotal, mailCampaigns.length]);
 
   // Get recent clients for tooltip
   const recentClients = useMemo(() => {
@@ -250,7 +253,7 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
                     List
                   </div>
                   <div className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
-                    {mailContacts.length} emails
+                    {mailEmailTotal.toLocaleString()} emails
                   </div>
                 </div>
                 <div className="min-w-0">
@@ -333,7 +336,7 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
       getOrdersByClient,
       getInvoicesByClient,
       mailError,
-      mailContacts.length,
+      mailEmailTotal,
       mailCampaigns.length,
       recentCampaigns,
     ]

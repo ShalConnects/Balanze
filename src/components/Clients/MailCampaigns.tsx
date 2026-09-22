@@ -203,6 +203,8 @@ export const MailCampaigns: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const {
     contacts,
+    contactCount,
+    clientSourcedCount,
     campaigns,
     loading,
     error,
@@ -294,8 +296,9 @@ export const MailCampaigns: React.FC = () => {
   }, [selected.size, showMobileFilterMenu]);
 
   const limit = contactLimit();
+  const totalEmails = contactCount || contacts.length;
   const totalMarked = campaigns.reduce((n, c) => n + (c.member_count || 0), 0);
-  const clientSourced = contacts.filter((c) => c.client_id).length;
+  const clientSourced = clientSourcedCount || contacts.filter((c) => c.client_id).length;
 
   const filtered = useMemo(() => {
     const q = normalizeSearchText(search);
@@ -720,7 +723,7 @@ export const MailCampaigns: React.FC = () => {
                 >
                   <Mail className={ICON} />
                   <span>Emails</span>
-                  <span className="text-[11px] opacity-70">{contacts.length}</span>
+                  <span className="text-[11px] opacity-70">{totalEmails}</span>
                 </button>
                 <button
                   type="button"
@@ -893,7 +896,7 @@ export const MailCampaigns: React.FC = () => {
           <div className={LP.clientSummaryGrid}>
             <StatCard
               label="Emails"
-              value={contacts.length}
+              value={totalEmails}
               hint={
                 filtered.length !== contacts.length
                   ? `${filtered.length} matching filter`
@@ -920,13 +923,13 @@ export const MailCampaigns: React.FC = () => {
             <StatCard
               label="From clients"
               value={clientSourced}
-              hint={`${contacts.length - clientSourced} list-only`}
+              hint={`${Math.max(0, totalEmails - clientSourced)} list-only`}
               icon={<Users className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />}
             />
             {!isPremiumPlan && (
               <StatCard
                 label="List limit"
-                value={`${contacts.length}/${limit === -1 ? '∞' : limit}`}
+                value={`${totalEmails}/${limit === -1 ? '∞' : limit}`}
                 hint={`Free plan · ${FREE_MAIL_CONTACT_LIMIT.toLocaleString()} max`}
                 icon={
                   <svg
