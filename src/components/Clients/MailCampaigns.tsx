@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Download,
   Edit2,
-  Eye,
   Filter,
   Mail,
   Megaphone,
@@ -248,7 +247,9 @@ export const MailCampaigns: React.FC = () => {
   const [bulkCampaignId, setBulkCampaignId] = useState('');
   const [targetCampaignId, setTargetCampaignId] = useState('');
   const [members, setMembers] = useState<MailCampaignMember[]>([]);
-  const [membersCamp, setMembersCamp] = useState<{ id: string; name: string } | null>(null);
+  const [expandedCampaignId, setExpandedCampaignId] = useState<string | null>(null);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersSearch, setMembersSearch] = useState('');
   const [deleteIds, setDeleteIds] = useState<string[] | null>(null);
   const [deleteCampId, setDeleteCampId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -407,7 +408,7 @@ export const MailCampaigns: React.FC = () => {
     if (campaignFilter === campaignId) {
       setInCampaignIds(await memberContactIds(campaignId));
     }
-    if (membersCamp?.id === campaignId) {
+    if (expandedCampaignId === campaignId) {
       setMembers(await fetchMembers(campaignId));
     }
   };
@@ -519,7 +520,7 @@ export const MailCampaigns: React.FC = () => {
       if (campaignFilter === bulkCampaignId) {
         setInCampaignIds(await memberContactIds(bulkCampaignId));
       }
-      if (membersCamp?.id === bulkCampaignId) {
+      if (expandedCampaignId === bulkCampaignId) {
         setMembers(await fetchMembers(bulkCampaignId));
       }
     });
@@ -538,7 +539,7 @@ export const MailCampaigns: React.FC = () => {
       if (campaignFilter === bulkCampaignId) {
         setInCampaignIds(await memberContactIds(bulkCampaignId));
       }
-      if (membersCamp?.id === bulkCampaignId) {
+      if (expandedCampaignId === bulkCampaignId) {
         setMembers(await fetchMembers(bulkCampaignId));
       }
     });
@@ -552,18 +553,38 @@ export const MailCampaigns: React.FC = () => {
       if (campaignFilter === bulkCampaignId) {
         setInCampaignIds(await memberContactIds(bulkCampaignId));
       }
-      if (membersCamp?.id === bulkCampaignId) {
+      if (expandedCampaignId === bulkCampaignId) {
         setMembers(await fetchMembers(bulkCampaignId));
       }
     });
 
-  const openMembers = useCallback(
-    async (id: string, campName: string) => {
-      setMembersCamp({ id, name: campName });
-      setMembers(await fetchMembers(id));
+  const toggleCampaignExpand = useCallback(
+    async (id: string) => {
+      if (expandedCampaignId === id) {
+        setExpandedCampaignId(null);
+        setMembersSearch('');
+        setMembers([]);
+        return;
+      }
+      setExpandedCampaignId(id);
+      setMembersSearch('');
+      setMembersLoading(true);
+      try {
+        setMembers(await fetchMembers(id));
+      } finally {
+        setMembersLoading(false);
+      }
     },
-    [fetchMembers]
+    [expandedCampaignId, fetchMembers]
   );
+
+  const filteredMembers = useMemo(() => {
+    const q = normalizeSearchText(membersSearch);
+    if (!q) return members;
+    return members.filter(
+      (m) => includesNormalized(m.email, q) || includesNormalized(m.name, q)
+    );
+  }, [members, membersSearch]);
 
   const onCreateCampaign = () =>
     withBusy(async () => {
@@ -596,19 +617,54 @@ export const MailCampaigns: React.FC = () => {
       );
     });
 
-  const campaignRowActions = (c: MailCampaign, mobile = false) =>
-    mobile ? (
-      <div className="flex items-center space-x-2">
+  const campaignRowActions = (c: MailCampaign, mobile = false) => {
+    const expanded = expandedCampaignId === c.id;
+    const expandBtn = mobile ? (
+      <button
+        type="button"
+        onClick={() => toggleCampaignExpand(c.id)}
+        className={MOBILE_ACTION}
+        disabled={busy && membersLoading}
+        title={expanded ? 'Hide members' : 'View members'}
+        aria-label={expanded ? `Hide members for ${c.name}` : `View members for ${c.name}`}
+        aria-expanded={expanded}
+      >
+        <svg
+          className={`w-4 h-4 transition-transform ${expanded ? 'rotate-90' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m9 18 6-6-6-6" />
+        </svg>
+      </button>
+    ) : (
+      <Tooltip content={expanded ? 'Hide members' : 'View members'} placement="top">
         <button
           type="button"
-          onClick={() => openMembers(c.id, c.name)}
-          className={MOBILE_ACTION}
-          disabled={busy}
-          title="View campaign members"
-          aria-label={`View ${c.name}`}
+          onClick={() => toggleCampaignExpand(c.id)}
+          className={ACTION}
+          disabled={busy && membersLoading}
+          aria-label={expanded ? `Hide members for ${c.name}` : `View members for ${c.name}`}
+          aria-expanded={expanded}
         >
-          <Eye className="w-4 h-4" />
+          <svg
+            className={`w-4 h-4 transition-transform ${expanded ? 'rotate-90' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m9 18 6-6-6-6" />
+          </svg>
         </button>
+      </Tooltip>
+    );
+
+    return mobile ? (
+      <div className="flex items-center space-x-2">
+        {expandBtn}
         <button
           type="button"
           onClick={() => exportCampaignCsv(c)}
@@ -642,17 +698,7 @@ export const MailCampaigns: React.FC = () => {
       </div>
     ) : (
       <div className="flex items-center justify-center gap-2">
-        <Tooltip content="View members" placement="top">
-          <button
-            type="button"
-            onClick={() => openMembers(c.id, c.name)}
-            className={ACTION}
-            disabled={busy}
-            aria-label={`View ${c.name}`}
-          >
-            <Eye className={ICON} />
-          </button>
-        </Tooltip>
+        {expandBtn}
         <Tooltip content="Export CSV" placement="top">
           <button
             type="button"
@@ -688,6 +734,125 @@ export const MailCampaigns: React.FC = () => {
         </Tooltip>
       </div>
     );
+  };
+
+  const renderCampaignMembersPanel = (campaignId: string, nestedInTable = false) => {
+    if (expandedCampaignId !== campaignId) return null;
+
+    return (
+      <div
+        className={
+          nestedInTable
+            ? 'space-y-3 py-1'
+            : 'mt-4 sm:mt-5 pt-4 sm:pt-5 px-0 sm:px-2 border-t border-gray-200 dark:border-gray-700 space-y-3'
+        }
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <ListPageFilterSearchField
+            value={membersSearch}
+            onChange={setMembersSearch}
+            placeholder="Search members…"
+          />
+          {members.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              <StatusBadge
+                label={`${members.length} total`}
+                className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600"
+              />
+              {MEMBER_STATUS_OPTIONS.filter((o) => memberStatusCounts[o.value]).map((o) => (
+                <StatusBadge
+                  key={o.value}
+                  label={`${o.label} ${memberStatusCounts[o.value]}`}
+                  className={memberStatusBadgeClass(o.value)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {membersLoading ? (
+          <p className="text-sm text-gray-500 text-center py-8">Loading members…</p>
+        ) : (
+          <div className="max-h-72 overflow-y-auto rounded-md border border-gray-200 dark:border-gray-700">
+            <table className={LP.table}>
+              <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
+                <tr>
+                  <th className={TH}>Email</th>
+                  <th className={TH}>Status</th>
+                  <th className={`${TH} text-center w-20`}>Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                {!members.length ? (
+                  <tr>
+                    <td colSpan={3} className="py-10 text-center text-sm text-gray-500">
+                      No emails in this campaign yet. Select emails → Mark or Unsubscribe.
+                    </td>
+                  </tr>
+                ) : !filteredMembers.length ? (
+                  <tr>
+                    <td colSpan={3} className="py-10 text-center text-sm text-gray-500">
+                      No members match your search.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredMembers.map((m) => (
+                    <tr key={m.contact_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className={`${TD} font-mono text-xs sm:text-sm break-all text-gray-900 dark:text-white`}>
+                        <div>{m.email}</div>
+                        {m.name ? (
+                          <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 font-sans">
+                            {m.name}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className={TD}>
+                        <ListPageFilterSelect
+                          value={m.status}
+                          onChange={(v) =>
+                            withBusy(async () => {
+                              await setMemberStatus(
+                                campaignId,
+                                [m.contact_id],
+                                v as MailMemberStatus
+                              );
+                              setMembers(await fetchMembers(campaignId));
+                            })
+                          }
+                          options={MEMBER_STATUS_OPTIONS}
+                          highlight={m.status !== 'marked'}
+                          menuScrollable
+                          ariaLabel={`Status for ${m.email}`}
+                        />
+                      </td>
+                      <td className={`${TD} text-center`}>
+                        <Tooltip content="Remove from campaign" placement="top">
+                          <button
+                            type="button"
+                            className={ACTION_DEL}
+                            disabled={busy}
+                            aria-label="Remove from campaign"
+                            onClick={() =>
+                              withBusy(async () => {
+                                await unmarkMembers(campaignId, [m.contact_id]);
+                                setMembers(await fetchMembers(campaignId));
+                              })
+                            }
+                          >
+                            <Trash2 className={ICON} />
+                          </button>
+                        </Tooltip>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="w-full">
@@ -1287,6 +1452,7 @@ export const MailCampaigns: React.FC = () => {
                         <div className="flex items-center justify-end pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-gray-200 dark:border-gray-700">
                           {campaignRowActions(c, true)}
                         </div>
+                        {renderCampaignMembersPanel(c.id)}
                       </div>
                     ))
                   )}
@@ -1314,24 +1480,33 @@ export const MailCampaigns: React.FC = () => {
                         </tr>
                       ) : (
                         campaigns.map((c) => (
-                          <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                            <td className={`${TD} text-xs sm:text-sm font-medium text-gray-900 dark:text-white`}>
-                              {c.name}
-                            </td>
-                            <td className={`${TD} text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate max-w-[14rem]`}>
-                              {c.notes || '—'}
-                            </td>
-                            <td className={TD}>
-                              <StatusBadge
-                                label={campaignStatusLabel(c.status)}
-                                className={campaignStatusBadgeClass(c.status)}
-                              />
-                            </td>
-                            <td className={`${TD} text-xs sm:text-sm text-gray-900 dark:text-white`}>
-                              {c.member_count || 0}
-                            </td>
-                            <td className={TD}>{campaignRowActions(c)}</td>
-                          </tr>
+                          <React.Fragment key={c.id}>
+                            <tr className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                              <td className={`${TD} text-xs sm:text-sm font-medium text-gray-900 dark:text-white`}>
+                                {c.name}
+                              </td>
+                              <td className={`${TD} text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate max-w-[14rem]`}>
+                                {c.notes || '—'}
+                              </td>
+                              <td className={TD}>
+                                <StatusBadge
+                                  label={campaignStatusLabel(c.status)}
+                                  className={campaignStatusBadgeClass(c.status)}
+                                />
+                              </td>
+                              <td className={`${TD} text-xs sm:text-sm text-gray-900 dark:text-white`}>
+                                {c.member_count || 0}
+                              </td>
+                              <td className={TD}>{campaignRowActions(c)}</td>
+                            </tr>
+                            {expandedCampaignId === c.id && (
+                              <tr className="bg-gray-50 dark:bg-gray-800">
+                                <td colSpan={5} className="px-3 sm:px-4 py-3 align-top">
+                                  {renderCampaignMembersPanel(c.id, true)}
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         ))
                       )}
                     </tbody>
@@ -1342,129 +1517,6 @@ export const MailCampaigns: React.FC = () => {
           )}
         </div>
       </div>
-
-      <AppModal
-        isOpen={!!membersCamp}
-        onClose={() => setMembersCamp(null)}
-        title={membersCamp ? `Campaign · ${membersCamp.name}` : 'Campaign members'}
-        size="2xl"
-      >
-        {members.length > 0 && (
-          <div className="px-4 pt-3 pb-1 flex flex-wrap gap-1.5 border-b border-gray-200 dark:border-gray-700">
-            <StatusBadge
-              label={`${members.length} total`}
-              className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600"
-            />
-            {MEMBER_STATUS_OPTIONS.filter((o) => memberStatusCounts[o.value]).map((o) => (
-              <StatusBadge
-                key={o.value}
-                label={`${o.label} ${memberStatusCounts[o.value]}`}
-                className={memberStatusBadgeClass(o.value)}
-              />
-            ))}
-          </div>
-        )}
-        <div className="max-h-[55vh] overflow-y-auto">
-          <table className={LP.table}>
-            <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
-              <tr>
-                <th className={TH}>Email</th>
-                <th className={TH}>Status</th>
-                <th className={`${TH} text-center w-20`}>Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {!members.length ? (
-                <tr>
-                  <td colSpan={3} className="py-16 text-center text-sm text-gray-500">
-                    No emails in this campaign yet. Select emails → Mark or Unsubscribe.
-                  </td>
-                </tr>
-              ) : (
-                members.map((m) => (
-                  <tr key={m.contact_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className={`${TD} font-mono text-xs sm:text-sm break-all text-gray-900 dark:text-white`}>
-                      <div>{m.email}</div>
-                      {m.name ? (
-                        <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 font-sans">
-                          {m.name}
-                        </div>
-                      ) : null}
-                    </td>
-                    <td className={TD}>
-                      <ListPageFilterSelect
-                        value={m.status}
-                        onChange={(v) =>
-                          withBusy(async () => {
-                            if (!membersCamp) return;
-                            await setMemberStatus(
-                              membersCamp.id,
-                              [m.contact_id],
-                              v as MailMemberStatus
-                            );
-                            setMembers(await fetchMembers(membersCamp.id));
-                          })
-                        }
-                        options={MEMBER_STATUS_OPTIONS}
-                        highlight={m.status !== 'marked'}
-                        menuScrollable
-                        ariaLabel={`Status for ${m.email}`}
-                      />
-                    </td>
-                    <td className={`${TD} text-center`}>
-                      <Tooltip content="Remove from campaign" placement="top">
-                        <button
-                          type="button"
-                          className={ACTION_DEL}
-                          disabled={busy}
-                          aria-label="Remove from campaign"
-                          onClick={() =>
-                            withBusy(async () => {
-                              if (!membersCamp) return;
-                              await unmarkMembers(membersCamp.id, [m.contact_id]);
-                              setMembers(await fetchMembers(membersCamp.id));
-                            })
-                          }
-                        >
-                          <Trash2 className={ICON} />
-                        </button>
-                      </Tooltip>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex gap-2 justify-end">
-          <button
-            type="button"
-            onClick={() => {
-              if (!membersCamp) return;
-              if (!members.length) return toast.warning('No emails in this campaign');
-              downloadCsv(
-                `${membersCamp.name.replace(/[^\w.-]+/g, '_').slice(0, 40) || 'campaign'}.csv`,
-                ['email', 'name', 'status'],
-                members.map((m) => ({
-                  email: m.email || '',
-                  name: m.name || '',
-                  status: m.status,
-                }))
-              );
-            }}
-            className={chip()}
-          >
-            <Download className={ICON} /> Export CSV
-          </button>
-          <button
-            type="button"
-            onClick={() => setMembersCamp(null)}
-            className="px-3 py-1.5 h-8 rounded-md bg-gradient-primary text-white hover:bg-gradient-primary-hover text-[13px]"
-          >
-            Close
-          </button>
-        </div>
-      </AppModal>
 
       <AppModal
         isOpen={!!editingCamp}
@@ -1585,7 +1637,11 @@ export const MailCampaigns: React.FC = () => {
         onConfirm={async () => {
           if (deleteCampId) {
             await deleteCampaign(deleteCampId);
-            if (membersCamp?.id === deleteCampId) setMembersCamp(null);
+            if (expandedCampaignId === deleteCampId) {
+              setExpandedCampaignId(null);
+              setMembers([]);
+              setMembersSearch('');
+            }
             if (bulkCampaignId === deleteCampId) setBulkCampaignId('');
             if (targetCampaignId === deleteCampId) setTargetCampaignId('');
             if (campaignFilter === deleteCampId) setCampaignFilter('');
