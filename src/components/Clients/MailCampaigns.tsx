@@ -436,13 +436,10 @@ export const MailCampaigns: React.FC = () => {
       const text = await file.text();
       const { rows, skips, total_rows } = parseEmailCsv(text);
       if (!rows.length && !skips.length) return toast.warning('CSV is empty');
-      if (!targetCampaignId && !canAddContacts(1) && rows.length) {
-        toast.error(
-          `Email list limit reached (${FREE_MAIL_CONTACT_LIMIT}). Upgrade to Premium for unlimited.`
-        );
-        return;
-      }
       const campaignId = targetCampaignId || undefined;
+      if (rows.length >= 5000) {
+        toast.message(`Importing ${rows.length.toLocaleString()} rows… this can take a few minutes`);
+      }
       const { imported, skipped, limited, marked } = await importContacts(
         rows,
         campaignId ? { campaignId } : undefined
@@ -452,10 +449,12 @@ export const MailCampaigns: React.FC = () => {
         toast.success(`Already in list · marked ${marked} for campaign`);
       } else {
         const parts = [
-          `Imported ${imported} of ${total_rows}`,
-          skipTotal ? `Skipped ${skipTotal}` : null,
-          marked ? `Marked ${marked} for campaign` : null,
-          limited ? `Hit free limit of ${FREE_MAIL_CONTACT_LIMIT}` : null,
+          `Imported ${imported.toLocaleString()} of ${total_rows.toLocaleString()}`,
+          skipTotal ? `Skipped ${skipTotal.toLocaleString()}` : null,
+          marked ? `Marked ${marked.toLocaleString()} for campaign` : null,
+          limited
+            ? `Hit free plan limit (${FREE_MAIL_CONTACT_LIMIT.toLocaleString()}). Premium is unlimited.`
+            : null,
           !campaignId && imported === 0 && skipTotal > 0
             ? 'Pick a campaign next to Add to mark existing emails'
             : null,

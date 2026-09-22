@@ -15,14 +15,76 @@ import { isValidEmail, normalizeEmail } from '../utils/mailCsv';
 
 const CHUNK = 400;
 
-function mailContactLimit(): number {
-  return useAuthStore.getState().profile?.subscription?.plan === 'premium'
-    ? -1
-    : FREE_MAIL_CONTACT_LIMIT;
+function normalizePlan(plan: unknown): 'free' | 'premium' | null {
+  if (plan == null || plan === '') return null;
+  const p = String(plan).toLowerCase().trim();
+  if (p === 'free') return 'free';
+  // Treat any non-free plan as unlimited (premium / pro / paid / etc.)
+  if (p) return 'premium';
+  return null;
 }
 
-function remainingSlots(current: number): number {
-  const limit = mailContactLimit();
+function planFromSubscription(sub: unknown): 'free' | 'premium' | null {
+  if (!sub) return null;
+  if (typeof sub === 'string') {
+    try {
+      return planFromSubscription(JSON.parse(sub));
+    } catch {
+      return normalizePlan(sub);
+    }
+  }
+  if (typeof sub === 'object' && sub !== null && 'plan' in sub) {
+    return normalizePlan((sub as { plan?: unknown }).plan);
+  }
+  return null;
+}
+
+/** Sync hint from auth store (may be stale). */
+function mailContactLimitSync(): number {
+  const plan = planFromSubscription(useAuthStore.getState().profile?.subscription);
+  return plan === 'premium' ? -1 : FREE_MAIL_CONTACT_LIMIT;
+}
+
+/** Prefer live profile.subscription from DB so Premium is never capped at 1000. */
+async function resolveMailContactLimit(): Promise<number> {
+  const { profile, user } = useAuthStore.getState();
+  const local = planFromSubscription(profile?.subscription);
+  if (local === 'premium') return -1;
+
+  if (user?.id) {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('subscription')
+        .eq('id', user.id)
+        .maybeSingle();
+      const remote = planFromSubscription(data?.subscription);
+      if (remote === 'premium') {
+        // Keep UI/store in sync for later checks
+        if (profile && remote !== local) {
+          useAuthStore.setState({
+            profile: {
+              ...profile,
+              subscription: {
+                ...(typeof profile.subscription === 'object' && profile.subscription
+                  ? profile.subscription
+                  : { status: 'active' as const, validUntil: null }),
+                plan: 'premium',
+              },
+            },
+          });
+        }
+        return -1;
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+
+  return FREE_MAIL_CONTACT_LIMIT;
+}
+
+function remainingSlots(current: number, limit: number): number {
   return limit === -1 ? Infinity : Math.max(0, limit - current);
 }
 
@@ -89,8 +151,9 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
   loading: false,
   error: null,
 
-  contactLimit: () => mailContactLimit(),
-  canAddContacts: (count = 1) => remainingSlots(get().contacts.length) >= count,
+  contactLimit: () => mailContactLimitSync(),
+  canAddContacts: (count = 1) =>
+    remainingSlots(get().contacts.length, mailContactLimitSync()) >= count,
 
   fetchAll: async () => {
     const { user } = useAuthStore.getState();
@@ -152,7 +215,8 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
       return null;
     }
 
-    if (!get().canAddContacts(1)) {
+    const limit = await resolveMailContactLimit();
+    if (remainingSlots(get().contacts.length, limit) < 1) {
       showToast.error(
         `Email list limit reached (${FREE_MAIL_CONTACT_LIMIT}). Upgrade to Premium for unlimited.`
       );
@@ -172,7 +236,7 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
       if (error.code === '23505') {
         // Race: another row appeared — reload path via local find after refetch
         await get().fetchAll();
-        const again = get().contacts.find((c) => c.email === email);
+        const again = get().contacts.find((c) => normalizeEmail(c.email) === email);
         if (again && campaignId) {
           await get().markMembers(campaignId, [again.id]);
           return again;
@@ -193,11 +257,13 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
     const { user } = useAuthStore.getState();
     if (!user) return { imported: 0, skipped: 0, limited: false, marked: 0 };
     const campaignId = opts?.campaignId || '';
-    const slots = remainingSlots(get().contacts.length);
+    const limit = await resolveMailContactLimit();
+    const unlimited = limit === -1;
+    let slotsLeft = remainingSlots(get().contacts.length, limit);
     const byEmail = new Map(
       get().contacts.map((c) => [normalizeEmail(c.email), c] as const)
     );
-    const batch: {
+    const pending: {
       user_id: string;
       email: string;
       name: string | null;
@@ -206,53 +272,63 @@ export const useMailCampaignStore = create<MailCampaignStore>((set, get) => ({
     const markIds = new Set<string>();
     let skipped = 0;
     let limited = false;
-
-    for (const row of rows) {
-      const email = normalizeEmail(row.email);
-      if (!isValidEmail(email)) {
-        skipped++;
-        continue;
-      }
-      const existing = byEmail.get(email);
-      if (existing) {
-        skipped++;
-        if (campaignId && existing.id) markIds.add(existing.id);
-        continue;
-      }
-      if (batch.length >= slots) {
-        skipped++;
-        limited = true;
-        continue;
-      }
-      byEmail.set(email, {
-        id: '',
-        user_id: user.id,
-        email,
-        name: row.name?.trim() || null,
-        client_id: row.client_id || null,
-        created_at: '',
-      });
-      batch.push({
-        user_id: user.id,
-        email,
-        name: row.name?.trim() || null,
-        client_id: row.client_id || null,
-      });
-    }
-
     let imported = 0;
-    if (batch.length) {
-      try {
-        const inserted = (await insertChunks('mail_contacts', batch)) as unknown as MailContact[];
-        imported = inserted.length;
-        set({ contacts: [...inserted, ...get().contacts] });
-        if (campaignId) {
-          for (const row of inserted) markIds.add(row.id);
-        }
-      } catch (e) {
-        showToast.error(errMsg(e));
-        return { imported: 0, skipped: skipped + batch.length, limited, marked: 0 };
+
+    const flush = async () => {
+      if (!pending.length) return;
+      const slice = pending.splice(0, pending.length);
+      const inserted = (await insertChunks('mail_contacts', slice)) as unknown as MailContact[];
+      imported += inserted.length;
+      set({ contacts: [...inserted, ...get().contacts] });
+      if (campaignId) {
+        for (const row of inserted) markIds.add(row.id);
       }
+    };
+
+    try {
+      for (const row of rows) {
+        const email = normalizeEmail(row.email);
+        if (!isValidEmail(email)) {
+          skipped++;
+          continue;
+        }
+        const existing = byEmail.get(email);
+        if (existing) {
+          skipped++;
+          if (campaignId && existing.id) markIds.add(existing.id);
+          continue;
+        }
+        if (!unlimited && slotsLeft <= 0) {
+          skipped++;
+          limited = true;
+          continue;
+        }
+        byEmail.set(email, {
+          id: '',
+          user_id: user.id,
+          email,
+          name: row.name?.trim() || null,
+          client_id: row.client_id || null,
+          created_at: '',
+        });
+        pending.push({
+          user_id: user.id,
+          email,
+          name: row.name?.trim() || null,
+          client_id: row.client_id || null,
+        });
+        if (!unlimited) slotsLeft -= 1;
+        if (pending.length >= CHUNK) await flush();
+      }
+      await flush();
+    } catch (e) {
+      showToast.error(errMsg(e));
+      return {
+        imported,
+        skipped: skipped + pending.length,
+        limited,
+        marked: 0,
+      };
     }
 
     let marked = 0;
