@@ -59,7 +59,7 @@ export const PRODUCT_AREAS: ProductArea[] = [
   {
     id: 'clients',
     title: 'Clients',
-    summary: 'Light CRM: clients, tasks, orders, and invoices.',
+    summary: 'Light CRM: clients, tasks, orders, invoices, and email campaign lists.',
     tier: 'free',
     inLiveDemo: true,
     demoStats: [

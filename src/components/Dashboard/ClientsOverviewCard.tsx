@@ -1,16 +1,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useClientStore } from '../../store/useClientStore';
+import { useMailCampaignStore } from '../../store/useMailCampaignStore';
 import { StatCard } from './StatCard';
 import { formatCurrency } from '../../utils/currency';
 import { usePersistedToggle } from '../../hooks/usePersistedToggle';
 import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
 import { DashboardCardShell } from './DashboardCardShell';
-import { countBadge } from './DashboardCardBadge';
+import { countBadge, DashboardCardBadge } from './DashboardCardBadge';
 
 interface ClientsOverviewCardProps {
   filterCurrency?: string;
   timeFilter?: '1m' | '3m' | '6m' | '1y' | 'all';
+}
+
+function mailCampaignLabel(emails: number, campaigns: number): string {
+  if (emails > 0 && campaigns > 0) return `${emails} emails · ${campaigns} campaigns`;
+  if (emails > 0) return `${emails} emails`;
+  if (campaigns > 0) return `${campaigns} campaigns`;
+  return 'email lists';
 }
 
 export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({ 
@@ -29,6 +38,12 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
     getOrdersByClient,
     getInvoicesByClient
   } = useClientStore();
+  const {
+    contacts: mailContacts,
+    campaigns: mailCampaigns,
+    error: mailError,
+    fetchAll: fetchMailCampaigns,
+  } = useMailCampaignStore();
   
   const [loading, setLoading] = useState(true);
 
@@ -47,7 +62,8 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
         await Promise.all([
           fetchClients(),
           fetchOrders(),
-          fetchInvoices()
+          fetchInvoices(),
+          fetchMailCampaigns(),
         ]);
       } catch (error) {
         console.error('Error loading clients data:', error);
@@ -59,7 +75,7 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
     if (user) {
       loadData();
     }
-  }, [user, fetchClients, fetchOrders, fetchInvoices]);
+  }, [user, fetchClients, fetchOrders, fetchInvoices, fetchMailCampaigns]);
 
   // Set loading to false when we have data
   useEffect(() => {
@@ -155,12 +171,45 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
     [invoices, filterCurrency]
   );
 
+  const clientsBadge = useMemo(() => {
+    const overdue = countBadge(overdueInvoiceCount, 'overdue');
+    const mail = !mailError ? (
+      <Link
+        to="/clients/campaigns"
+        className="hover:opacity-80 touch-manipulation"
+        title="Email campaigns"
+      >
+        <DashboardCardBadge
+          tone="soft"
+          text={mailCampaignLabel(mailContacts.length, mailCampaigns.length)}
+        />
+      </Link>
+    ) : null;
+    if (!overdue && !mail) return undefined;
+    if (overdue && mail) {
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          <DashboardCardBadge {...overdue} />
+          {mail}
+        </span>
+      );
+    }
+    return overdue ? <DashboardCardBadge {...overdue} /> : mail;
+  }, [overdueInvoiceCount, mailError, mailContacts.length, mailCampaigns.length]);
+
   // Get recent clients for tooltip
   const recentClients = useMemo(() => {
     return clients
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 3);
   }, [clients]);
+
+  const recentCampaigns = useMemo(() => {
+    if (mailError) return [];
+    return [...mailCampaigns]
+      .sort((a, b) => (b.member_count || 0) - (a.member_count || 0))
+      .slice(0, 3);
+  }, [mailCampaigns, mailError]);
 
   const clientsInfoBody = useMemo(
     () => (
@@ -189,6 +238,60 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
             {formatCurrency(clientStats.totalValue, 'USD')}
           </div>
         </div>
+        {!mailError && (
+          <>
+            <div className="mt-2 border-t border-gray-200 pt-2 dark:border-gray-700">
+              <div className="mb-1 text-[11px] font-semibold text-gray-900 dark:text-gray-100 sm:text-xs">
+                Email campaigns
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <div className="min-w-0">
+                  <div className="mb-0.5 truncate text-[10px] text-gray-500 dark:text-gray-400 sm:text-[11px]">
+                    List
+                  </div>
+                  <div className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
+                    {mailContacts.length} emails
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <div className="mb-0.5 truncate text-[10px] text-gray-500 dark:text-gray-400 sm:text-[11px]">
+                    Campaigns
+                  </div>
+                  <div className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-[11px] font-medium text-transparent sm:text-xs">
+                    {mailCampaigns.length} campaigns
+                  </div>
+                </div>
+              </div>
+            </div>
+            {recentCampaigns.length > 0 && (
+              <div>
+                <div className="mb-1">
+                  <div className="text-[10px] font-semibold text-gray-900 dark:text-gray-100 sm:text-[11px]">
+                    Top campaigns
+                  </div>
+                </div>
+                <ul className="max-h-28 space-y-0.5 overflow-y-auto sm:max-h-36">
+                  {recentCampaigns.map((c) => (
+                    <li
+                      key={c.id}
+                      className="flex items-center justify-between rounded py-0.5 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    >
+                      <span
+                        className="min-w-0 flex-1 truncate text-[10px] text-gray-700 dark:text-gray-300 sm:text-[11px]"
+                        title={c.name}
+                      >
+                        {c.name}
+                      </span>
+                      <span className="ml-2 flex-shrink-0 tabular-nums text-[10px] font-medium text-gray-900 dark:text-gray-100 sm:text-[11px]">
+                        {c.member_count || 0} in campaign
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
         {recentClients.length > 0 && (
           <>
             <div className="mt-2 border-t border-gray-200 dark:border-gray-700" />
@@ -224,7 +327,16 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
         )}
       </div>
     ),
-    [clientStats, recentClients, getOrdersByClient, getInvoicesByClient]
+    [
+      clientStats,
+      recentClients,
+      getOrdersByClient,
+      getInvoicesByClient,
+      mailError,
+      mailContacts.length,
+      mailCampaigns.length,
+      recentCampaigns,
+    ]
   );
 
   // Don't render if no clients
@@ -246,7 +358,7 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
       info={clientsInfoBody}
       infoAriaLabel="Show clients info"
       loading={loading}
-      badge={countBadge(overdueInvoiceCount, 'overdue')}
+      badge={clientsBadge}
     >
       <div className="dashboard-stat-grid gap-3 sm:gap-4 flex-1">
         <div className="w-full">
@@ -267,4 +379,3 @@ export const ClientsOverviewCard: React.FC<ClientsOverviewCardProps> = ({
     </DashboardCardShell>
   );
 };
-

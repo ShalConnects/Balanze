@@ -1,6 +1,7 @@
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 import { useState, useEffect } from 'react';
+import { FREE_MAIL_CONTACT_LIMIT } from '../types/mailCampaign';
 
 interface PlanFeatures {
   max_accounts: number;
@@ -9,6 +10,7 @@ interface PlanFeatures {
   max_currencies: number;
   max_purchases: number;
   max_clients: number;
+  max_mail_contacts: number;
   analytics: boolean;
   priority_support: boolean;
   export_data: boolean;
@@ -76,7 +78,12 @@ export const usePlanFeatures = () => {
         .rpc('get_user_plan_features', { user_uuid: user?.id });
 
       if (error) throw error;
-      setFeatures(data);
+      setFeatures({
+        ...data,
+        max_mail_contacts:
+          data?.max_mail_contacts ??
+          (profile?.subscription?.plan === 'premium' ? -1 : FREE_MAIL_CONTACT_LIMIT),
+      });
     } catch (error) {
 
       // Set default free features
@@ -86,6 +93,7 @@ export const usePlanFeatures = () => {
         max_currencies: 1,
         max_purchases: 50,
         max_clients: 5,
+        max_mail_contacts: FREE_MAIL_CONTACT_LIMIT,
         analytics: false,
         priority_support: false,
         export_data: false,
@@ -190,6 +198,7 @@ export const usePlanFeatures = () => {
       unlimited_transactions: 'You\'ve reached your monthly transaction limit. Upgrade to Premium for unlimited transactions.',
       unlimited_purchases: 'You\'ve reached your purchase limit. Upgrade to Premium for unlimited purchases.',
       unlimited_clients: 'You\'ve reached your client limit. Upgrade to Premium for unlimited clients.',
+      unlimited_mail_contacts: `You've reached your email list limit (${FREE_MAIL_CONTACT_LIMIT}). Upgrade to Premium for unlimited contacts.`,
     };
     return messages[feature] || 'This feature requires a Premium plan.';
   };

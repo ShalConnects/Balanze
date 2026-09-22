@@ -141,7 +141,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       case 'purchase-categories': return 'Purchase Categories';
       case 'lent-borrow': return 'Lent & Borrow';
       case 'investments': return isInvestmentsBondsTab(investmentsTab) ? 'Bonds' : 'Investments';
-      case 'clients': return 'Clients';
+      case 'clients':
+        return location.pathname.includes('/campaigns') ? 'Email Campaigns' : 'Clients';
       case 'habits': return 'Habit Garden';
       case 'orders': return 'Orders';
       case 'invoices': return 'Invoices';
@@ -228,7 +229,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                               ? 'Track your Bangladesh 100 BDT prize bonds and check draw results'
                               : 'Track business investment contracts and profit updates')
                           : currentView === 'clients'
-                            ? 'Manage your clients and track their information'
+                            ? (location.pathname.includes('/campaigns')
+                              ? 'Email lists and campaign labels — nothing is sent'
+                              : 'Manage your clients and track their information')
                             : currentView === 'habits'
                               ? 'Gamify your daily habits and build consistency'
                               : currentView === 'history'

@@ -48,6 +48,34 @@ export async function pickNativeFiles(types: string[], limit = 1): Promise<File[
   return files.map((f) => toFile(f.blob ?? f.data, f.name || 'file', f.mimeType || 'application/octet-stream'));
 }
 
+function pickWebFile(accept: string): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.hidden = true;
+    input.onchange = () => {
+      const file = input.files?.[0];
+      input.remove();
+      file ? resolve(file) : reject(new Error('NO_FILE'));
+    };
+    document.body.appendChild(input);
+    input.click();
+  });
+}
+
+/** CSV for mail campaigns / list import — native FilePicker on Android/iOS. */
+export async function pickCsvFile(): Promise<File> {
+  if (!isNative()) return pickWebFile('.csv,text/csv');
+  const [file] = await pickNativeFiles([
+    'text/csv',
+    'text/comma-separated-values',
+    'text/plain',
+    'application/csv',
+  ]);
+  return file;
+}
+
 export async function capturePhoto(): Promise<File> {
   if (!isNative()) return pickWebImage(true);
   const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');

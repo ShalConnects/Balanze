@@ -56,6 +56,7 @@ const PurchaseAnalytics = lazy(() => import('./components/Purchases/PurchaseAnal
 const LendBorrowAnalytics = lazy(() => import('./components/LendBorrow/LendBorrowAnalytics').then(m => ({ default: m.LendBorrowAnalytics })));
 const AnalyticsView = lazy(() => import('./components/Reports/AnalyticsView').then(m => ({ default: m.AnalyticsView })));
 const ClientList = lazy(() => import('./components/Clients/ClientList').then(m => ({ default: m.ClientList })));
+const MailCampaigns = lazy(() => import('./components/Clients/MailCampaigns').then(m => ({ default: m.MailCampaigns })));
 const Settings = lazy(() => import('./components/Dashboard/Settings').then(m => ({ default: m.Settings })));
 const LastWishPage = lazy(() => import('./pages/LastWishPage').then(m => ({ default: m.LastWishPage })));
 const PaymentHistoryPage = lazy(() => import('./pages/PaymentHistoryPage').then(m => ({ default: m.PaymentHistoryPage })));
@@ -689,6 +690,7 @@ function AppContent() {
           <Route path="/analytics" element={<ProtectedRoute><AnalyticsView /></ProtectedRoute>} />
           <Route path="/currency-analytics" element={<ProtectedRoute layout="bare"><Navigate to="/analytics" replace /></ProtectedRoute>} />
           <Route path="/clients" element={<ProtectedRoute><ClientList /></ProtectedRoute>} />
+          <Route path="/clients/campaigns" element={<ProtectedRoute><MailCampaigns /></ProtectedRoute>} />
           <Route path="/personal-growth" element={<ProtectedRoute><PersonalGrowth /></ProtectedRoute>} />
           <Route path="/notes" element={<ProtectedRoute><NotesDiaryPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

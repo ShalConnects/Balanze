@@ -859,7 +859,16 @@ export const ClientList: React.FC = () => {
                 </div>
 
                 {/* Mobile Add Client Button */}
-                <div className="md:hidden">
+                <div className="md:hidden flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/clients/campaigns')}
+                    className="px-2 py-1.5 rounded-md transition-colors flex items-center justify-center text-[13px] h-8 w-8 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100"
+                    title="Email campaigns"
+                    aria-label="Email campaigns"
+                  >
+                    <Mail className={toolbarIconClassName} />
+                  </button>
                   <button
                     onClick={() => {
                       if (!canCreateClient()) {
@@ -1048,6 +1057,15 @@ export const ClientList: React.FC = () => {
                 <div className="flex-grow" />
                 {/* Action Buttons in filter row */}
                 <div className="hidden md:flex items-center gap-1.5 sm:gap-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/clients/campaigns')}
+                    className="px-2 sm:px-3 py-1.5 h-8 rounded-md transition-colors flex items-center space-x-1 sm:space-x-1.5 text-xs sm:text-[13px] bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    title="Email campaigns"
+                  >
+                    <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Campaigns</span>
+                  </button>
                   <button
                     onClick={() => {
                       if (!canCreateClient()) {

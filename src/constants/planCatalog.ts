@@ -12,6 +12,7 @@ export const FREE_PLAN_FEATURES: PlanFeatureLine[] = [
   { text: '25 transactions per month', included: true },
   { text: '50 purchases (lifetime)', included: true },
   { text: '5 clients limit', included: true },
+  { text: '1,000 email list contacts', included: true },
   { text: 'Personal Growth (Habits & Learning)', included: true },
   { text: 'Basic reports', included: true },
   { text: 'Email support (24–48h response)', included: true },
@@ -30,6 +31,7 @@ export const PREMIUM_PLAN_FEATURES: PlanFeatureLine[] = [
   { text: 'Unlimited transactions', included: true },
   { text: 'Unlimited purchases', included: true },
   { text: 'Unlimited clients', included: true },
+  { text: 'Unlimited email list contacts', included: true },
   { text: 'Personal Growth (Habits & Learning)', included: true },
   { text: 'Advanced analytics', included: true },
   { text: 'Priority email support (4–8h response)', included: true },
@@ -48,6 +50,7 @@ export const PRICING_LIMIT_ROWS = [
   { label: 'Transactions', free: '25 / month', premium: 'Unlimited' },
   { label: 'Purchases', free: '50 total', premium: 'Unlimited' },
   { label: 'Clients', free: '5', premium: 'Unlimited' },
+  { label: 'Email list', free: '1,000', premium: 'Unlimited' },
 ] as const;
 
 export const LANDING_PLAN_META = {
