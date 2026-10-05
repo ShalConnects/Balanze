@@ -1,5 +1,11 @@
 import { supabase } from './supabase';
-import type { BookLibraryInput, BookLibraryItem, BookReadingStatus } from '../types/bookLibrary';
+import {
+  BOOK_AUTHOR_MAX,
+  BOOK_NOTE_MAX,
+  BOOK_TITLE_MAX,
+  type BookLibraryInput,
+  type BookLibraryItem
+} from '../types/bookLibrary';
 
 export const BOOK_LIBRARY_CHANGED_EVENT = 'book-library-changed';
 
@@ -12,6 +18,17 @@ type DbBook = {
   note: string | null;
   created_at: string;
 };
+
+function emitChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(BOOK_LIBRARY_CHANGED_EVENT));
+  }
+}
+
+function mapUniqueViolation(error: { code?: string; message?: string } | null): never {
+  if (error?.code === '23505') throw new Error('Already in your library');
+  throw error ?? new Error('Book library request failed');
+}
 
 function mapBook(row: DbBook): BookLibraryItem {
   return {
@@ -27,14 +44,14 @@ function mapBook(row: DbBook): BookLibraryItem {
 }
 
 function toRow(input: BookLibraryInput) {
-  const title = input.title.trim();
+  const title = input.title.trim().slice(0, BOOK_TITLE_MAX);
   if (!title) throw new Error('Title is required');
   return {
     title,
-    author: input.author?.trim() || null,
+    author: input.author?.trim().slice(0, BOOK_AUTHOR_MAX) || null,
     owned: input.owned,
     reading_status: input.reading_status,
-    note: input.note?.trim() || null
+    note: input.note?.trim().slice(0, BOOK_NOTE_MAX) || null
   };
 }
 
@@ -54,19 +71,19 @@ export async function insertBookLibraryItem(input: BookLibraryInput): Promise<Bo
   const uid = userData.user?.id;
   if (!uid) throw new Error('Not signed in');
   const { data, error } = await supabase.from('book_library').insert({ user_id: uid, ...toRow(input) }).select().single();
-  if (error) throw error;
+  if (error) mapUniqueViolation(error);
+  emitChanged();
   return mapBook(data as DbBook);
 }
 
 export async function updateBookLibraryItem(id: string, input: BookLibraryInput): Promise<void> {
-  const { error } = await supabase
-    .from('book_library')
-    .update({ ...toRow(input), updated_at: new Date().toISOString() })
-    .eq('id', id);
-  if (error) throw error;
+  const { error } = await supabase.from('book_library').update(toRow(input)).eq('id', id);
+  if (error) mapUniqueViolation(error);
+  emitChanged();
 }
 
 export async function deleteBookLibraryItem(id: string): Promise<void> {
   const { error } = await supabase.from('book_library').delete().eq('id', id);
   if (error) throw error;
+  emitChanged();
 }

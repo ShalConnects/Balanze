@@ -1,22 +1,32 @@
-import type { BookLibraryFilter, BookLibraryItem } from '../types/bookLibrary';
+import type {
+  BookLibraryItem,
+  BookOwnershipFilter,
+  BookStatusFilter
+} from '../types/bookLibrary';
 
 export function getBookLibraryStats(books: BookLibraryItem[]) {
   let owned = 0;
+  let unread = 0;
   let reading = 0;
   let read = 0;
   for (const book of books) {
     if (book.owned) owned += 1;
-    if (book.reading_status === 'reading') reading += 1;
-    if (book.reading_status === 'read') read += 1;
+    if (book.reading_status === 'unread') unread += 1;
+    else if (book.reading_status === 'reading') reading += 1;
+    else if (book.reading_status === 'read') read += 1;
   }
-  return { total: books.length, owned, want: books.length - owned, reading, read };
+  return { total: books.length, owned, want: books.length - owned, unread, reading, read };
 }
 
-export function bookMatchesFilter(book: BookLibraryItem, filter: BookLibraryFilter): boolean {
-  if (filter === 'all') return true;
-  if (filter === 'want') return !book.owned;
-  if (filter === 'have') return book.owned;
-  return book.reading_status === filter;
+export function bookMatchesFilters(
+  book: BookLibraryItem,
+  ownership: BookOwnershipFilter,
+  status: BookStatusFilter
+): boolean {
+  if (ownership === 'want' && book.owned) return false;
+  if (ownership === 'have' && !book.owned) return false;
+  if (status !== 'all' && book.reading_status !== status) return false;
+  return true;
 }
 
 export function sortBooksByTitle(books: BookLibraryItem[]) {

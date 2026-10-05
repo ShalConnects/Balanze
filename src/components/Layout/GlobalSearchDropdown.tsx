@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, DollarSign, Users, CheckSquare, FileText, Sprout, BookOpen, CreditCard, ShoppingBag, Handshake, Ticket } from 'lucide-react';
+import { Search, DollarSign, Users, CheckSquare, FileText, Sprout, BookOpen, Bookmark, CreditCard, ShoppingBag, Handshake, Ticket } from 'lucide-react';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { useClientStore } from '../../store/useClientStore';
 import { useHabitStore } from '../../store/useHabitStore';
@@ -21,6 +21,8 @@ import { SearchSkeleton } from '../common/SearchSkeleton';
 import { formatCurrency } from '../../utils/currency';
 import { fetchBusinessInvestmentContracts } from '../../lib/businessInvestmentService';
 import { fetchPrizeBonds } from '../../lib/prizeBondService';
+import { fetchBookLibrary, BOOK_LIBRARY_CHANGED_EVENT } from '../../lib/bookLibraryService';
+import type { BookLibraryItem } from '../../types/bookLibrary';
 import { INVESTMENTS_BONDS_TAB } from '../../lib/investmentsNav';
 import { personalGrowthPath } from '../../lib/personalGrowthNav';
 import { INVESTMENTS_FEATURE_ICON } from '../../lib/investmentFeatureIcon';
@@ -103,6 +105,8 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   const [dpsTransfers, setDpsTransfers] = useState<any[]>([]);
   const [businessInvestmentContracts, setBusinessInvestmentContracts] = useState<any[]>([]);
   const [prizeBonds, setPrizeBonds] = useState<PrizeBond[]>([]);
+  const [books, setBooks] = useState<BookLibraryItem[]>([]);
+  const booksHydrated = useRef(false);
   const [highlightedIdx, setHighlightedIdx] = useState(0);
   const [recentSearches, setRecentSearches] = useState<string[]>(getRecentSearches());
   const [isSearching, setIsSearching] = useState(false);
@@ -127,6 +131,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   const [showAllInvoices, setShowAllInvoices] = useState(false);
   const [showAllHabits, setShowAllHabits] = useState(false);
   const [showAllCourses, setShowAllCourses] = useState(false);
+  const [showAllBooks, setShowAllBooks] = useState(false);
   const [showAllInvestments, setShowAllInvestments] = useState(false);
 
   // Handle result click navigation
@@ -196,6 +201,9 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         break;
       case 'course':
         navigate(personalGrowthPath('learning', { from: 'search' }));
+        break;
+      case 'book':
+        navigate(personalGrowthPath('book-library', { from: 'search' }));
         break;
       case 'investment_asset':
         navigate(`/investments?tab=assets&from=search`);
@@ -278,6 +286,28 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     if (!user?.id) return;
     void fetchPrizeBonds(user.id).then(setPrizeBonds).catch(() => setPrizeBonds([]));
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setBooks([]);
+      booksHydrated.current = false;
+      return;
+    }
+    const load = () => {
+      void fetchBookLibrary(user.id)
+        .then((data) => {
+          booksHydrated.current = true;
+          setBooks(data);
+        })
+        .catch(() => setBooks([]));
+    };
+    if (isFocused && !booksHydrated.current) load();
+    const onChange = () => {
+      if (booksHydrated.current) load();
+    };
+    window.addEventListener(BOOK_LIBRARY_CHANGED_EVENT, onChange);
+    return () => window.removeEventListener(BOOK_LIBRARY_CHANGED_EVENT, onChange);
+  }, [user?.id, isFocused]);
 
   // Generate search suggestions based on available data
   const generateSearchSuggestions = useCallback((query: string) => {
@@ -366,6 +396,11 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       }
     });
 
+    (books || []).forEach(book => {
+      if (book.title?.toLowerCase().includes(queryLower)) suggestions.push(book.title);
+      if (book.author?.toLowerCase().includes(queryLower)) suggestions.push(book.author);
+    });
+
     (investmentAssets || []).forEach(a => {
       if (a.name?.toLowerCase().includes(queryLower)) suggestions.push(a.name);
       if (a.symbol?.toLowerCase().includes(queryLower)) suggestions.push(a.symbol);
@@ -385,7 +420,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
 
     // Remove duplicates and limit to 3 suggestions
     return [...new Set(suggestions)].slice(0, 3);
-  }, [transactions, accounts, purchases, lendBorrowRecords, clients, tasks, invoices, habits, investmentAssets, investmentGoals, investmentCategories, businessInvestmentContracts, prizeBonds]);
+  }, [transactions, accounts, purchases, lendBorrowRecords, clients, tasks, invoices, habits, books, investmentAssets, investmentGoals, investmentCategories, businessInvestmentContracts, prizeBonds]);
 
   // Debounce search input for performance
   useEffect(() => {
@@ -510,6 +545,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     fuseInvoices,
     fuseHabits,
     fuseCourses,
+    fuseBooks,
     fuseInvAssets,
     fuseInvTransactions,
     fuseInvGoals,
@@ -580,6 +616,11 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         { name: 'name', weight: 0.5 },
         { name: 'description', weight: 0.3 },
       ]),
+      fuseBooks: createGlobalFuseIndex(books, [
+        { name: 'title', weight: 0.55 },
+        { name: 'author', weight: 0.35 },
+        { name: 'note', weight: 0.1 },
+      ]),
       fuseInvAssets: createGlobalFuseIndex(investmentAssets, GLOBAL_SEARCH_INV_ASSET_KEYS),
       fuseInvTransactions: createGlobalFuseIndex(
         investmentTransactionsForSearch,
@@ -605,6 +646,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     invoices,
     habits,
     courses,
+    books,
     investmentAssets,
     investmentTransactionsForSearch,
     investmentGoals,
@@ -628,6 +670,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         fuzzyInvoices: [],
         fuzzyHabits: [],
         fuzzyCourses: [],
+        fuzzyBooks: [],
         fuzzyInvestments: [],
       };
     }
@@ -643,6 +686,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       invoices,
       habits,
       courses,
+      books,
       investmentAssets,
       investmentTransactions,
       investmentGoals,
@@ -674,6 +718,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
         fuzzyInvoices: [],
         fuzzyHabits: [],
         fuzzyCourses: [],
+        fuzzyBooks: [],
         fuzzyInvestments: [],
       };
     }
@@ -708,6 +753,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       fuzzyInvoices: inScope('invoices') ? fuseInvoices.search(fuseQuery) : [],
       fuzzyHabits: inScope('habits') ? fuseHabits.search(fuseQuery) : [],
       fuzzyCourses: inScope('courses') ? fuseCourses.search(fuseQuery) : [],
+      fuzzyBooks: inScope('books') ? fuseBooks.search(fuseQuery) : [],
       fuzzyInvestments: invMerged,
     };
 
@@ -733,6 +779,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     invoices,
     habits,
     courses,
+    books,
     investmentAssets,
     investmentTransactions,
     investmentGoals,
@@ -752,6 +799,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     fuseInvoices,
     fuseHabits,
     fuseCourses,
+    fuseBooks,
     fuseInvAssets,
     fuseInvTransactions,
     fuseInvGoals,
@@ -773,6 +821,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     fuzzyInvoices,
     fuzzyHabits,
     fuzzyCourses,
+    fuzzyBooks = [],
     fuzzyInvestments = [],
   } = searchResults;
 
@@ -800,6 +849,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
   const rankedInvoices = search ? sortByLatest(fuzzyInvoices) : [];
   const rankedHabits = search ? sortByLatest(fuzzyHabits) : [];
   const rankedCourses = search ? sortByLatest(fuzzyCourses) : [];
+  const rankedBooks = search ? sortByLatest(fuzzyBooks) : [];
   const rankedInvestments = search ? fuzzyInvestments : [];
 
   const searchOffsets = useMemo(() => {
@@ -816,6 +866,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
       invdoc: rankedInvoices.length,
       hab: rankedHabits.length,
       cou: rankedCourses.length,
+      bok: rankedBooks.length,
     });
   }, [
     rankedAccounts.length,
@@ -830,6 +881,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     rankedInvoices.length,
     rankedHabits.length,
     rankedCourses.length,
+    rankedBooks.length,
   ]);
 
   const totalResults =
@@ -844,7 +896,8 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     rankedTasks.length +
     rankedInvoices.length +
     rankedHabits.length +
-    rankedCourses.length;
+    rankedCourses.length +
+    rankedBooks.length;
 
   // Highlight helper
   function highlight(text: string, matches: any[]): React.ReactNode {
@@ -917,6 +970,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
           const invdocLen = rankedInvoices.length;
           const habLen = rankedHabits.length;
           const couLen = rankedCourses.length;
+          const bokLen = rankedBooks.length;
 
           if (txLen > 0 && highlightedIdx >= searchOffsets.txStart && highlightedIdx < searchOffsets.accStart) {
             item = rankedTransactions[highlightedIdx - searchOffsets.txStart]?.item;
@@ -952,9 +1006,12 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
           } else if (habLen > 0 && highlightedIdx >= searchOffsets.habStart && highlightedIdx < searchOffsets.couStart) {
             item = rankedHabits[highlightedIdx - searchOffsets.habStart]?.item;
             itemType = 'habit';
-          } else if (couLen > 0 && highlightedIdx >= searchOffsets.couStart && highlightedIdx < searchOffsets.couStart + couLen) {
+          } else if (couLen > 0 && highlightedIdx >= searchOffsets.couStart && highlightedIdx < searchOffsets.bokStart) {
             item = rankedCourses[highlightedIdx - searchOffsets.couStart]?.item;
             itemType = 'course';
+          } else if (bokLen > 0 && highlightedIdx >= searchOffsets.bokStart && highlightedIdx < searchOffsets.bokStart + bokLen) {
+            item = rankedBooks[highlightedIdx - searchOffsets.bokStart]?.item;
+            itemType = 'book';
           }
         } else {
           item = recentSearches[highlightedIdx];
@@ -972,7 +1029,7 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isFocused, search, highlightedIdx, rankedTransactions, rankedPurchases, rankedTransfers, rankedAccounts, rankedInvestments, rankedLendBorrow, rankedDonations, rankedClients, rankedTasks, rankedInvoices, rankedHabits, rankedCourses, recentSearches, searchOffsets, setGlobalSearchTerm]);
+  }, [isFocused, search, highlightedIdx, rankedTransactions, rankedPurchases, rankedTransfers, rankedAccounts, rankedInvestments, rankedLendBorrow, rankedDonations, rankedClients, rankedTasks, rankedInvoices, rankedHabits, rankedCourses, rankedBooks, recentSearches, searchOffsets, setGlobalSearchTerm]);
 
   // Show recent searches if input is focused and empty
   
@@ -1788,8 +1845,55 @@ export const GlobalSearchDropdown: React.FC<GlobalSearchDropdownProps> = ({
           </div>
         )}
 
+        {rankedBooks.length > 0 && (
+          <div className="mb-6" style={{ order: globalSearchSectionCssOrder('books') }}>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-pink-500 rounded-full"></span>
+              Books ({rankedBooks.length})
+            </h3>
+            <div className="space-y-2">
+              {(showAllBooks ? rankedBooks : rankedBooks.slice(0, 3)).map((res, index) => {
+                const bookOffset = searchOffsets.bokStart;
+                return (
+                  <button
+                    key={`book-${res.item.id || index}`}
+                    onClick={() => handleResultClick('book', res.item)}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                      highlightedIdx === bookOffset + index ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-pink-100 dark:bg-pink-900/20 rounded-lg flex items-center justify-center">
+                        <Bookmark className="w-4 h-4 text-pink-600 dark:text-pink-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {highlight(res.item.title || '', (res.matches?.filter((m: any) => m.key === 'title') ?? []) as any[])}
+                        </div>
+                        {res.item.author ? (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {highlight(res.item.author, (res.matches?.filter((m: any) => m.key === 'author') ?? []) as any[])}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+              {rankedBooks.length > 3 && (
+                <button
+                  className="w-full text-center text-xs text-blue-600 dark:text-blue-400 mt-2"
+                  onClick={() => setShowAllBooks(v => !v)}
+                >
+                  {showAllBooks ? 'Show less' : `Show more (${rankedBooks.length - 3})`}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* No Results */}
-        {search && rankedTransactions.length === 0 && rankedPurchases.length === 0 && rankedTransfers.length === 0 && rankedAccounts.length === 0 && rankedInvestments.length === 0 && rankedLendBorrow.length === 0 && rankedDonations.length === 0 && rankedClients.length === 0 && rankedTasks.length === 0 && rankedInvoices.length === 0 && rankedHabits.length === 0 && rankedCourses.length === 0 && (
+        {search && rankedTransactions.length === 0 && rankedPurchases.length === 0 && rankedTransfers.length === 0 && rankedAccounts.length === 0 && rankedInvestments.length === 0 && rankedLendBorrow.length === 0 && rankedDonations.length === 0 && rankedClients.length === 0 && rankedTasks.length === 0 && rankedInvoices.length === 0 && rankedHabits.length === 0 && rankedCourses.length === 0 && rankedBooks.length === 0 && (
           <div className="text-center py-8">
             <div className="text-gray-400 dark:text-gray-500 mb-2">
               <Search className="w-8 h-8 mx-auto" />

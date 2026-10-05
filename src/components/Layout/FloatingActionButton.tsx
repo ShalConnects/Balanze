@@ -25,7 +25,7 @@ import { BusinessInvestmentContractModal } from '../Dashboard/BusinessInvestment
 import { PrizeBondAddModalHost } from '../PrizeBonds/PrizeBondAddModalHost';
 import { investmentsBondsPath } from '../../lib/investmentsNav';
 import { PERSONAL_GROWTH_COMPOSE, personalGrowthPath } from '../../lib/personalGrowthNav';
-import { BOOK_LIBRARY_CHANGED_EVENT, insertBookLibraryItem } from '../../lib/bookLibraryService';
+import { insertBookLibraryItem } from '../../lib/bookLibraryService';
 import { BookLibraryFormModal } from '../BookLibrary/BookLibraryFormModal';
 
 interface ActionButtonProps {
@@ -228,7 +228,6 @@ export const FloatingActionButton: React.FC = () => {
   const handleAddBook = React.useCallback(async (input: Parameters<typeof insertBookLibraryItem>[0]) => {
     try {
       await insertBookLibraryItem(input);
-      window.dispatchEvent(new Event(BOOK_LIBRARY_CHANGED_EVENT));
       toast.success('Book added');
       setShowBookForm(false);
     } catch (err) {

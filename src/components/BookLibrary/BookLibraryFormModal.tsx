@@ -1,8 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { CustomDropdown } from '../Purchases/CustomDropdown';
-import type { BookLibraryInput, BookLibraryItem, BookReadingStatus } from '../../types/bookLibrary';
-import { BOOK_READING_STATUS_LABELS } from '../../types/bookLibrary';
+import {
+  BOOK_AUTHOR_MAX,
+  BOOK_NOTE_MAX,
+  BOOK_READING_STATUS_LABELS,
+  BOOK_TITLE_MAX,
+  type BookLibraryInput,
+  type BookLibraryItem,
+  type BookReadingStatus
+} from '../../types/bookLibrary';
 import { invModalInputClass } from '../Dashboard/businessInvestmentModalFormTokens';
 
 const emptyForm = (): BookLibraryInput => ({
@@ -37,6 +44,15 @@ export const BookLibraryFormModal: React.FC<BookLibraryFormModalProps> = ({ open
         : emptyForm()
     );
   }, [open, book]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !saving) onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, saving, onClose]);
 
   if (!open) return null;
 
@@ -83,7 +99,7 @@ export const BookLibraryFormModal: React.FC<BookLibraryFormModalProps> = ({ open
             placeholder="Title *"
             className={invModalInputClass}
             required
-            maxLength={200}
+            maxLength={BOOK_TITLE_MAX}
             disabled={saving}
           />
           <input
@@ -91,7 +107,7 @@ export const BookLibraryFormModal: React.FC<BookLibraryFormModalProps> = ({ open
             onChange={(e) => setForm((p) => ({ ...p, author: e.target.value }))}
             placeholder="Author"
             className={invModalInputClass}
-            maxLength={120}
+            maxLength={BOOK_AUTHOR_MAX}
             disabled={saving}
           />
           <CustomDropdown
@@ -118,7 +134,7 @@ export const BookLibraryFormModal: React.FC<BookLibraryFormModalProps> = ({ open
             placeholder="Optional note"
             rows={3}
             className={`${invModalInputClass} min-h-[80px] h-auto resize-none`}
-            maxLength={1000}
+            maxLength={BOOK_NOTE_MAX}
             disabled={saving}
           />
           <div className="flex gap-3 justify-end pt-2">

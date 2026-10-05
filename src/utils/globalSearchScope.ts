@@ -12,6 +12,7 @@ export type GlobalSearchScope =
   | 'invoices'
   | 'habits'
   | 'courses'
+  | 'books'
   | 'bonds';
 
 const SCOPE_PREFIXES: Record<string, GlobalSearchScope> = {
@@ -32,6 +33,8 @@ const SCOPE_PREFIXES: Record<string, GlobalSearchScope> = {
   invoice: 'invoices',
   habit: 'habits',
   course: 'courses',
+  book: 'books',
+  books: 'books',
   bond: 'bonds',
   bonds: 'bonds',
 };
@@ -52,6 +55,7 @@ export const GLOBAL_SEARCH_RESULT_SECTION_ORDER = [
   'invoices',
   'habits',
   'courses',
+  'books',
 ] as const;
 
 export type GlobalSearchResultSection = (typeof GLOBAL_SEARCH_RESULT_SECTION_ORDER)[number];
@@ -74,6 +78,7 @@ export const GLOBAL_SEARCH_NAV_KEYS = [
   'invdoc',
   'hab',
   'cou',
+  'bok',
 ] as const;
 
 export type GlobalSearchNavKey = (typeof GLOBAL_SEARCH_NAV_KEYS)[number];

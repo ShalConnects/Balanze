@@ -1,14 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bookmark, BookOpen, CheckCircle2, Edit2, Filter, Plus, Trash2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Bookmark, BookOpen, CheckCircle2, Circle, Edit2, Filter, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../store/authStore';
 import {
-  BOOK_LIBRARY_FILTER_LABELS,
+  BOOK_OWNERSHIP_FILTER_LABELS,
   BOOK_READING_STATUS_LABELS,
-  type BookLibraryFilter,
+  BOOK_STATUS_FILTER_LABELS,
+  bookFilterOptions,
   type BookLibraryInput,
   type BookLibraryItem,
-  type BookReadingStatus
+  type BookOwnershipFilter,
+  type BookReadingStatus,
+  type BookStatusFilter
 } from '../../types/bookLibrary';
 import {
   BOOK_LIBRARY_CHANGED_EVENT,
@@ -17,7 +20,7 @@ import {
   insertBookLibraryItem,
   updateBookLibraryItem
 } from '../../lib/bookLibraryService';
-import { bookMatchesFilter, getBookLibraryStats, sortBooksByTitle } from '../../utils/bookLibraryStats';
+import { bookMatchesFilters, getBookLibraryStats, sortBooksByTitle } from '../../utils/bookLibraryStats';
 import { includesNormalized, normalizeSearchText } from '../../utils/searchText';
 import {
   CASHFLOW_INCOME_CHIP_CLASS,
@@ -49,22 +52,24 @@ const readingChip: Record<BookReadingStatus, string> = {
 const statusPill = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
 const summaryCardClass = 'bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 py-1.5 px-2';
 
-const filterOptions = (Object.keys(BOOK_LIBRARY_FILTER_LABELS) as BookLibraryFilter[]).map((value) => ({
-  value,
-  label: BOOK_LIBRARY_FILTER_LABELS[value]
-}));
+const ownershipOptions = bookFilterOptions(BOOK_OWNERSHIP_FILTER_LABELS);
+const statusOptions = bookFilterOptions(BOOK_STATUS_FILTER_LABELS);
+
+type BookStats = ReturnType<typeof getBookLibraryStats>;
 
 const summaryCards: {
   label: string;
-  key: 'total' | 'owned' | 'reading' | 'read';
-  next: BookLibraryFilter;
+  key: keyof BookStats;
+  ownership: BookOwnershipFilter;
+  status: BookStatusFilter;
   Icon: typeof BookOpen;
-  caption: (s: ReturnType<typeof getBookLibraryStats>) => string;
+  caption: (s: BookStats) => string;
 }[] = [
-  { label: 'Titles', key: 'total', next: 'all', Icon: BookOpen, caption: () => 'In your library' },
-  { label: 'Have', key: 'owned', next: 'have', Icon: Bookmark, caption: (s) => `${s.want} want` },
-  { label: 'Reading', key: 'reading', next: 'reading', Icon: BookOpen, caption: () => 'Currently reading' },
-  { label: 'Read', key: 'read', next: 'read', Icon: CheckCircle2, caption: () => 'Finished' }
+  { label: 'Titles', key: 'total', ownership: 'all', status: 'all', Icon: BookOpen, caption: () => 'In your library' },
+  { label: 'Have', key: 'owned', ownership: 'have', status: 'all', Icon: Bookmark, caption: (s) => `${s.want} want` },
+  { label: 'Unread', key: 'unread', ownership: 'all', status: 'unread', Icon: Circle, caption: () => 'Not started' },
+  { label: 'Reading', key: 'reading', ownership: 'all', status: 'reading', Icon: BookOpen, caption: () => 'In progress' },
+  { label: 'Read', key: 'read', ownership: 'all', status: 'read', Icon: CheckCircle2, caption: () => 'Finished' }
 ];
 
 export const BookLibraryView: React.FC = () => {
@@ -74,12 +79,15 @@ export const BookLibraryView: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [filter, setFilter] = useState<BookLibraryFilter>('all');
+  const [ownership, setOwnership] = useState<BookOwnershipFilter>('all');
+  const [status, setStatus] = useState<BookStatusFilter>('all');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<BookLibraryItem | null>(null);
   const [toDelete, setToDelete] = useState<BookLibraryItem | null>(null);
   const [showMobileFilterMenu, setShowMobileFilterMenu] = useState(false);
-  const [tempFilter, setTempFilter] = useState<BookLibraryFilter>('all');
+  const [tempOwnership, setTempOwnership] = useState<BookOwnershipFilter>('all');
+  const [tempStatus, setTempStatus] = useState<BookStatusFilter>('all');
+  const skipNextRefresh = useRef(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchTerm), 300);
@@ -113,7 +121,13 @@ export const BookLibraryView: React.FC = () => {
   useEffect(() => {
     if (!user?.id) return;
     const refresh = () => {
-      fetchBookLibrary(user.id).then(setBooks).catch(() => {});
+      if (skipNextRefresh.current) {
+        skipNextRefresh.current = false;
+        return;
+      }
+      fetchBookLibrary(user.id)
+        .then(setBooks)
+        .catch((err) => toast.error(err instanceof Error ? err.message : 'Failed to refresh books'));
     };
     window.addEventListener(BOOK_LIBRARY_CHANGED_EVENT, refresh);
     return () => window.removeEventListener(BOOK_LIBRARY_CHANGED_EVENT, refresh);
@@ -123,19 +137,25 @@ export const BookLibraryView: React.FC = () => {
     const q = normalizeSearchText(debouncedSearch);
     return books.filter(
       (book) =>
-        bookMatchesFilter(book, filter) &&
+        bookMatchesFilters(book, ownership, status) &&
         (includesNormalized(book.title, q) || includesNormalized(book.author, q) || includesNormalized(book.note, q))
     );
-  }, [books, filter, debouncedSearch]);
+  }, [books, ownership, status, debouncedSearch]);
 
   const stats = useMemo(() => getBookLibraryStats(books), [books]);
   const searchPending = searchTerm !== debouncedSearch;
-  const hasFilters = searchTerm.trim().length > 0 || filter !== 'all';
+  const hasFilters = searchTerm.trim().length > 0 || ownership !== 'all' || status !== 'all';
 
   const clearFilters = () => {
     setSearchTerm('');
     setDebouncedSearch('');
-    setFilter('all');
+    setOwnership('all');
+    setStatus('all');
+  };
+
+  const applySummary = (nextOwnership: BookOwnershipFilter, nextStatus: BookStatusFilter) => {
+    setOwnership(nextOwnership);
+    setStatus(nextStatus);
   };
 
   const openAdd = () => {
@@ -149,6 +169,7 @@ export const BookLibraryView: React.FC = () => {
 
   const handleSave = useCallback(
     async (input: BookLibraryInput) => {
+      skipNextRefresh.current = true;
       try {
         if (editing) {
           await updateBookLibraryItem(editing.id, input);
@@ -162,6 +183,7 @@ export const BookLibraryView: React.FC = () => {
         setFormOpen(false);
         setEditing(null);
       } catch (err) {
+        skipNextRefresh.current = false;
         console.error(err);
         toast.error(err instanceof Error ? err.message : 'Failed to save book');
         throw err;
@@ -172,11 +194,13 @@ export const BookLibraryView: React.FC = () => {
 
   const handleDelete = async () => {
     if (!toDelete) return;
+    skipNextRefresh.current = true;
     try {
       await deleteBookLibraryItem(toDelete.id);
       setBooks((prev) => prev.filter((b) => b.id !== toDelete.id));
       toast.success('Book removed');
     } catch (err) {
+      skipNextRefresh.current = false;
       console.error(err);
       toast.error(err instanceof Error ? err.message : 'Failed to remove book');
       throw err;
@@ -257,7 +281,8 @@ export const BookLibraryView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setTempFilter(filter);
+                    setTempOwnership(ownership);
+                    setTempStatus(status);
                     setShowMobileFilterMenu(true);
                   }}
                   className={listPageMobileFilterIconButtonClass(hasFilters)}
@@ -282,11 +307,18 @@ export const BookLibraryView: React.FC = () => {
               <div className="md:hidden">{hasFilters ? <ListPageClearFiltersButton onClick={clearFilters} /> : null}</div>
               <div className="hidden md:flex items-center gap-x-2">
                 <ListPageFilterSelect
-                  value={filter}
-                  onChange={(v) => setFilter(v as BookLibraryFilter)}
-                  options={filterOptions}
-                  highlight={filter !== 'all'}
-                  ariaLabel="Status"
+                  value={ownership}
+                  onChange={(v) => setOwnership(v as BookOwnershipFilter)}
+                  options={ownershipOptions}
+                  highlight={ownership !== 'all'}
+                  ariaLabel="Ownership"
+                />
+                <ListPageFilterSelect
+                  value={status}
+                  onChange={(v) => setStatus(v as BookStatusFilter)}
+                  options={statusOptions}
+                  highlight={status !== 'all'}
+                  ariaLabel="Reading status"
                 />
                 {hasFilters ? <ListPageClearFiltersButton onClick={clearFilters} /> : null}
               </div>
@@ -303,30 +335,33 @@ export const BookLibraryView: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3">
-            {summaryCards.map(({ label, key, next, Icon, caption }) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => setFilter(next)}
-                className={`${summaryCardClass} w-full text-left ${filter === next ? 'border-blue-200 dark:border-blue-700' : ''}`}
-                style={filter === next ? LP_SEARCH_ACTIVE_STYLE : undefined}
-                aria-pressed={filter === next}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-left min-w-0">
-                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400">{label}</p>
-                    <p className={THEME_BRAND_GRADIENT_TEXT_CLASS} style={{ fontSize: '1.2rem' }}>
-                      {stats[key]}
-                    </p>
-                    <p className={THEME_MUTED_CAPTION_CLASS} style={{ fontSize: '11px' }}>
-                      {caption(stats)}
-                    </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 p-3">
+            {summaryCards.map(({ label, key, ownership: nextO, status: nextS, Icon, caption }) => {
+              const active = ownership === nextO && status === nextS;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => applySummary(nextO, nextS)}
+                  className={`${summaryCardClass} w-full text-left ${active ? 'border-blue-200 dark:border-blue-700' : ''}`}
+                  style={active ? LP_SEARCH_ACTIVE_STYLE : undefined}
+                  aria-pressed={active}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-left min-w-0">
+                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400">{label}</p>
+                      <p className={THEME_BRAND_GRADIENT_TEXT_CLASS} style={{ fontSize: '1.2rem' }}>
+                        {stats[key]}
+                      </p>
+                      <p className={THEME_MUTED_CAPTION_CLASS} style={{ fontSize: '11px' }}>
+                        {caption(stats)}
+                      </p>
+                    </div>
+                    <Icon className={`${THEME_ACCENT_TEXT_CLASS} flex-shrink-0`} style={{ width: '1.2rem', height: '1.2rem' }} />
                   </div>
-                  <Icon className={`${THEME_ACCENT_TEXT_CLASS} flex-shrink-0`} style={{ width: '1.2rem', height: '1.2rem' }} />
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
 
           {visibleBooks.length === 0 ? (
@@ -400,21 +435,33 @@ export const BookLibraryView: React.FC = () => {
         open={showMobileFilterMenu}
         onBackdropClick={() => setShowMobileFilterMenu(false)}
         onApply={() => {
-          setFilter(tempFilter);
+          setOwnership(tempOwnership);
+          setStatus(tempStatus);
           setShowMobileFilterMenu(false);
         }}
         onClearAll={() => {
           clearFilters();
           setShowMobileFilterMenu(false);
         }}
-        applyActive={tempFilter !== filter}
+        applyActive={tempOwnership !== ownership || tempStatus !== status}
       >
-        <ListPageMobileFilterSection label="Status" borderBottom={false}>
-          {filterOptions.map((opt) => (
+        <ListPageMobileFilterSection label="Ownership">
+          {ownershipOptions.map((opt) => (
             <ListPageMobileFilterChip
               key={opt.value}
-              selected={tempFilter === opt.value}
-              onClick={() => setTempFilter(opt.value as BookLibraryFilter)}
+              selected={tempOwnership === opt.value}
+              onClick={() => setTempOwnership(opt.value)}
+            >
+              {opt.label}
+            </ListPageMobileFilterChip>
+          ))}
+        </ListPageMobileFilterSection>
+        <ListPageMobileFilterSection label="Reading status" borderBottom={false}>
+          {statusOptions.map((opt) => (
+            <ListPageMobileFilterChip
+              key={opt.value}
+              selected={tempStatus === opt.value}
+              onClick={() => setTempStatus(opt.value)}
             >
               {opt.label}
             </ListPageMobileFilterChip>
